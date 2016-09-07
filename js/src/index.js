@@ -8,6 +8,7 @@ import { createHashHistory } from 'history';
 import { Provider } from 'react-redux';
 import { applyMiddleware, combineReducers, createStore } from 'redux';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
+import { routerReducer } from 'react-router-redux';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import { muiTheme } from './ui';
@@ -15,15 +16,21 @@ import { Accounts, Account, Addresses, Address, Application, Contract, Contracts
 
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';
-import { statusReducer } from './views/Application/Status';
+import { nodeStatusReducer } from './views/Application/Status';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import signerMiddlewares from './views/Signer/middlewares';
-import { signer as signerReducer, toastr as toastrReducer, requests as requestsReducer } from './views/Signer/reducers';
+import { signer as signerReducer, toastr as signerToastrReducer, requests as signerRequestsReducer } from './views/Signer/reducers';
 import Web3 from 'web3';
 import { Web3Provider, web3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
+
+// TODO: same with Status...
+import { status as statusReducer, settings as statusSettingsReducer, mining as statusMiningReducer, rpc as statusRpcReducer, toastr as statusToastrReducer, logger as statusLoggerReducer, debug as statusDebugReducer } from './views/Status/reducers';
+import Status from './views/Status/containers/Container';
+
+import './environment';
 
 import styles from './reset.css';
 import './index.html';
@@ -44,11 +51,19 @@ function tokenSetter (token, cb) {
 
 const reducers = combineReducers({
   errors: errorReducer,
-  status: statusReducer,
+  nodeStatus: nodeStatusReducer,
   tooltip: tooltipReducer,
+  routing: routerReducer,
   signer: signerReducer,
-  toastr: toastrReducer,
-  requests: requestsReducer
+  signerRequests: signerRequestsReducer,
+  signerToastr: signerToastrReducer,
+  status: statusReducer,
+  statusSettings: statusSettingsReducer,
+  statusMining: statusMiningReducer,
+  statusRpc: statusRpcReducer,
+  statusToastr: statusToastrReducer,
+  statusLogger: statusLoggerReducer,
+  statusDebug: statusDebugReducer
 });
 const store = applyMiddleware(...signerMiddlewares(ws, tokenSetter))(
   window.devToolsExtension
@@ -76,6 +91,7 @@ ReactDOM.render(
             <Route path='contracts' component={ Contracts } />
             <Route path='contract/:address' component={ Contract } />
             <Route path='signer' component={ Signer } />
+            <Route path='status' component={ Status } />
           </Route>
         </Router>
       </Web3Provider>

@@ -104,9 +104,12 @@
     "blockies": "0.0.2",
     "classnames": "^2.2.3",
     "es6-promise": "^3.2.1",
+    "format-json": "^1.0.3",
+    "format-number": "^2.0.1",
     "isomorphic-fetch": "^2.2.1",
     "js-sha3": "^0.5.2",
-    "lodash": "4.11.1",
+    "lodash": "^4.11.1",
+    "marked": "^0.3.6",
     "material-ui": "^0.15.4",
     "moment": "^2.14.1",
     "react": "^15.2.1",
@@ -119,6 +122,7 @@
     "react-tooltip": "^2.0.3",
     "redux": "^3.5.2",
     "redux-actions": "^0.10.1",
+    "rlp": "^2.0.0",
     "utf8": "^2.1.1",
     "web3": "^0.17.0-alpha"
   }

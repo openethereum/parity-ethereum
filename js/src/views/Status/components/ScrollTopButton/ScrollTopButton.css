@@ -1,0 +1,26 @@
+
+.scrollButton {
+  position: fixed !important;
+  bottom: 35px !important;
+  right: 0;
+  left: 0;
+  margin-right: auto;
+  margin-left: auto;
+  animation: fadein .5s;
+  background: #eee !important;
+  border-radius: 50%;
+  border: 1px solid #6691C2 !important;
+  z-index: 10;
+  padding: 5px !important;
+  width: 34px !important;
+  height: 34px !important;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.hidden {
+  display: none !important;
+}

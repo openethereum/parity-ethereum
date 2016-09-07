@@ -1,0 +1,4 @@
+.container li {
+  display: list-item;
+  line-height: 1.6;
+}

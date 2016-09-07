@@ -1,0 +1,19 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  padding-bottom: 50px;
+}
+:global .dapp-header nav ul {
+  white-space: nowrap;
+}
+/* shame:on */
+/* Material-ui is changing input properties with inline styles. */
+/* We want to keep it consistent */
+input {
+  color: #6691C2 !important;
+  font-size: 16px !important;
+  font-family: sans-serif !important;
+  font-weight: 200 !important;
+}
+/* shame:off */

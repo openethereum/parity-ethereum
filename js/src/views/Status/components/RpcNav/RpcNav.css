@@ -1,0 +1,12 @@
+.nav {
+  font-size: 20px;
+  float: right;
+}
+
+.activeNav {
+  color: #b7a6a6 !important;
+}
+
+.nav a:not(:first-child) {
+  margin-left: 30px;
+}

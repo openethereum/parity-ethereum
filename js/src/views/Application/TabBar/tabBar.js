@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
+import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
@@ -67,6 +68,13 @@ export default class TabBar extends Component {
             value='app'
             icon={ <NavigationApps /> }
             label={ this.renderLabel('apps') }
+            onActive={ this.onActivate } />
+          <Tab
+            className={ hash === 'status' ? styles.tabactive : '' }
+            data-route='/status'
+            value='status'
+            icon={ <ActionTrackChanges /> }
+            label={ this.renderLabel('status') }
             onActive={ this.onActivate } />
           <Tab
             className={ hash === 'signer' ? styles.tabactive : '' }

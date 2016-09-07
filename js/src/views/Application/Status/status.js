@@ -45,7 +45,7 @@ class Status extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.status;
+  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
 
   return {
     blockNumber,

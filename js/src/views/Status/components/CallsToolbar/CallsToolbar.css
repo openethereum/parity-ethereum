@@ -1,0 +1,51 @@
+
+.callActionsWrap {
+  position: absolute;
+  animation: fadein .5s;
+  right: 0;
+  height: 28px;
+}
+
+.callActionsButton {
+  padding: 0 !important;
+  height: 24px !important;
+}
+
+.callActionsWrap:hover .callActionsButton {
+  display: none !important;
+}
+
+.callActions {
+  display: none;
+  height: 100%;
+  margin-top: 1px;
+  margin-right: 10px;
+}
+
+.callActionsWrap:hover .callActions {
+  display: block;
+}
+
+.callAction {
+  float: right;
+  transition: opacity ease-in-out .2s;
+  transition-delay: .2s;
+  opacity: 0;
+  padding: 3px !important;
+  height: 22px !important;
+  width: 22px !important;
+}
+
+.callActions:hover .callAction {
+  opacity: 1;
+}
+
+.callActionIcon {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+@keyframes fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

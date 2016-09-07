@@ -9,7 +9,7 @@ import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
-import Status, { updateStatus } from './Status';
+import Status, { updateNodeStatus } from './Status';
 import TabBar from './TabBar';
 
 import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
@@ -52,7 +52,7 @@ class Application extends Component {
     children: PropTypes.node,
     netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    onUpdateStatus: PropTypes.func,
+    onUpdateNodeStatus: PropTypes.func,
     pending: PropTypes.array
   }
 
@@ -264,7 +264,7 @@ class Application extends Component {
   }
 
   pollStatus () {
-    const { onUpdateStatus } = this.props;
+    const { onUpdateNodeStatus } = this.props;
     const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
 
     Promise
@@ -278,7 +278,7 @@ class Application extends Component {
       .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        onUpdateStatus({
+        onUpdateNodeStatus({
           blockNumber,
           clientVersion,
           netChain,
@@ -309,8 +309,8 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest } = state.status;
-  const { pending } = state.requests;
+  const { netChain, isTest } = state.nodeStatus;
+  const { pending } = state.signerRequests;
 
   return {
     netChain,
@@ -321,7 +321,7 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    onUpdateStatus: updateStatus
+    onUpdateNodeStatus: updateNodeStatus
   }, dispatch);
 }
 

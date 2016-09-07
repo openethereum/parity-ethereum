@@ -1,0 +1,12 @@
+.editor {
+  width: 100%;
+  height: 200px;
+}
+
+.error {
+  border: 1px solid red !important;
+}
+
+.errorMsg {
+  color: red;
+}

@@ -1,0 +1,45 @@
+.toastrContainer {
+  position: absolute;
+  top: 81px;
+  right: 10px;
+  width: 200px;
+}
+
+.toast {
+  padding: 10px;
+  position: relative;
+  font-size: 16px;
+  margin-bottom: 10px;
+  animation: fadein .5s;
+}
+
+.error {
+  background: red !important;
+  color: #fff !important;
+}
+
+.succes {
+  background: green !important;
+  color: #fff !important;
+}
+
+.remove {
+  float: right;
+  cursor: pointer;
+}
+
+.error .remove,
+.success .remove {
+  color: #fff !important;
+}
+
+.msg {
+  color: #000;
+  font-size: 18px;
+  text-shadow: 0px 0px 2px rgb(103, 103, 103);
+}
+
+@keyframes fadein {
+  from {opacity: 0;}
+  to {opacity: 1;}
+}

@@ -15,7 +15,7 @@ import styles from './signer.css';
 
 export class Signer extends Component {
   static propTypes = {
-    toastr: PropTypes.shape({
+    signerToastr: PropTypes.shape({
       toasts: PropTypes.array.isRequired
     }).isRequired,
     actions: PropTypes.shape({
@@ -29,7 +29,8 @@ export class Signer extends Component {
   };
 
   render () {
-    const { toastr, actions } = this.props;
+    console.log(this.props);
+    const { signerToastr, actions } = this.props;
 
     return (
       <div className={ styles.signer }>
@@ -39,7 +40,7 @@ export class Signer extends Component {
           { this.renderPage() }
         </div>
         <ToastrContainer
-          toasts={ toastr.toasts }
+          toasts={ signerToastr.toasts }
           actions={ actions }
         />
       </div>

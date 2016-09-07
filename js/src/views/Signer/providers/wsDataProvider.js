@@ -23,7 +23,7 @@ export default class WsDataProvider {
 
   fetchPendingRequests () {
     // TODO [legacy;todr] Remove
-    if (this.store.getState().requests.compatibilityMode) {
+    if (this.store.getState().signerRequests.compatibilityMode) {
       return this.fetchPendingTransactionsFallback();
     }
 
@@ -40,7 +40,7 @@ export default class WsDataProvider {
         return;
       }
 
-      const txsStored = this.store.getState().requests.pending;
+      const txsStored = this.store.getState().signerRequests.pending;
       if (isEqual(txsWs, txsStored)) {
         return;
       }
@@ -71,7 +71,7 @@ export default class WsDataProvider {
         return transaction;
       });
 
-      const txsStored = this.store.getState().requests.pending;
+      const txsStored = this.store.getState().signerRequests.pending;
       if (isEqual(txsWs, txsStored)) {
         return;
       }

@@ -107,7 +107,7 @@ class ParityBar extends Component {
 }
 
 function mapStateToProps (state) {
-  const { pending } = state.requests;
+  const { pending } = state.signerRequests;
 
   return {
     pending

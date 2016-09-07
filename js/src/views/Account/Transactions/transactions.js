@@ -178,7 +178,7 @@ class Transactions extends Component {
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.status;
+  const { isTest } = state.nodeStatus;
 
   return {
     isTest

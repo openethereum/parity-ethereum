@@ -1,0 +1,24 @@
+.call {
+  position: relative;
+  border-bottom: 2px solid #CCC6C6;
+  margin-bottom: 18.4px;
+  background: #f5f4f2;
+}
+
+.call:first-child {
+  border-color: #6691C2;
+}
+
+.call pre {
+  margin: 0;
+}
+
+.call pre:nth-child(3) {
+  padding-top: 0;
+  color: #bbb;
+}
+
+.callNo {
+  float: right;
+  color: #ccc;
+}

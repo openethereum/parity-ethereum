@@ -1,4 +1,3 @@
-
 import { handleActions } from 'redux-actions';
 
 const initialState = {
@@ -7,7 +6,6 @@ const initialState = {
 };
 
 export default handleActions({
-
   'add toast' (state, action) {
     return {
       ...state,

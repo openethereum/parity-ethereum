@@ -1,9 +1,9 @@
-import statusReducer from './reducers';
-import { updateStatus } from './actions';
+import nodeStatusReducer from './reducers';
+import { updateNodeStatus } from './actions';
 
 export default from './status';
 
 export {
-  statusReducer,
-  updateStatus
+  nodeStatusReducer,
+  updateNodeStatus
 };
