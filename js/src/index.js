@@ -31,6 +31,7 @@ import { status as statusReducer, settings as statusSettingsReducer, mining as s
 import Status from './views/Status/containers/Container';
 
 import './environment';
+import 'dapp-styles/dist/dapp-styles.css';
 
 import styles from './reset.css';
 import './index.html';

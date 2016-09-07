@@ -10,6 +10,8 @@ import { updateLogging } from '../../actions/logger';
 import ToastrContainer from '../../components/ToastrContainer';
 import StatusPage from '../StatusPage';
 
+import styles from './status.css';
+
 class Container extends Component {
   static propTypes = {
     status: PropTypes.object.isRequired,
@@ -24,7 +26,7 @@ class Container extends Component {
     const { name, disconnected, noOfErrors, version } = this.props.status;
 
     return (
-      <div>
+      <div className={ styles.container }>
         <Header
           nodeName={ name }
           disconnected={ disconnected }
