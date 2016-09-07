@@ -17,7 +17,7 @@
 use std::str::FromStr;
 use std::fs;
 use std::time::Duration;
-use util::{contents, H256, Address, U256, version_data};
+use util::{H256, Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
@@ -61,7 +61,10 @@ impl SpecType {
 			SpecType::Testnet => Ok(ethereum::new_morden()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
-			SpecType::Custom(ref file) => Ok(Spec::load(&try!(contents(file).map_err(|_| "Could not load specification file."))))
+			SpecType::Custom(ref filename) => {
+				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
+				Spec::load(file)
+			}
 		}
 	}
 }

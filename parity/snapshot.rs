@@ -82,8 +82,9 @@ impl SnapshotCommand {
 		// select pruning algorithm
 		let algorithm = self.pruning.to_algorithm(&self.dirs, genesis_hash, spec.fork_name.as_ref());
 
-		// prepare client_path
+		// prepare client and snapshot paths.
 		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+		let snapshot_path = self.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 		// execute upgrades
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
@@ -94,8 +95,9 @@ impl SnapshotCommand {
 		let service = try!(ClientService::start(
 			client_config,
 			&spec,
-			Path::new(&client_path),
-			Path::new(&self.dirs.ipc_path()),
+			&client_path,
+			&snapshot_path,
+			&self.dirs.ipc_path(),
 			Arc::new(Miner::with_spec(&spec))
 		).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -129,10 +131,9 @@ impl SnapshotCommand {
 
 		let informant_handle = snapshot.clone();
 		::std::thread::spawn(move || {
- 			while let RestorationStatus::Ongoing = informant_handle.status() {
- 				let (state_chunks, block_chunks) = informant_handle.chunks_done();
+ 			while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
  				info!("Processed {}/{} state chunks and {}/{} block chunks.",
- 					state_chunks, num_state, block_chunks, num_blocks);
+ 					state_chunks_done, num_state, block_chunks_done, num_blocks);
 
  				::std::thread::sleep(Duration::from_secs(5));
  			}
@@ -161,7 +162,7 @@ impl SnapshotCommand {
 		}
 
 		match snapshot.status() {
-			RestorationStatus::Ongoing => Err("Snapshot file is incomplete and missing chunks.".into()),
+			RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
 			RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
 			RestorationStatus::Inactive => {
 				info!("Restoration complete.");

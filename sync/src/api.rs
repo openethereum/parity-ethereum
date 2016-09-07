@@ -20,6 +20,7 @@ use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
+use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
@@ -76,14 +77,14 @@ pub struct EthSync {
 
 impl EthSync {
 	/// Creates and register protocol with the network service
-	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
+	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
 		let inf_sync = InfinitySync::new(&config, chain.clone());
 		let chain_sync = ChainSync::new(config, &*chain);
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
-			eth_handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain.clone() }),
-			inf_handler: Arc::new(InfProtocolHandler { sync: RwLock::new(inf_sync), chain: chain }),
+			eth_handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain.clone(), snapshot_service: snapshot_service.clone() }),
+			inf_handler: Arc::new(InfProtocolHandler { sync: RwLock::new(inf_sync), chain: chain, snapshot_service: snapshot_service }),
 		});
 
 		Ok(sync)
@@ -102,6 +103,8 @@ impl SyncProvider for EthSync {
 struct SyncProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
+	/// Shared snapshot service.
+	snapshot_service: Arc<SnapshotService>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>,
 }
@@ -112,27 +115,29 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain), *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain), *peer);
+		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain), *peer);
+		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
-		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain));
-		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain));
-		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain));
+		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
+		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
+		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
 	}
 }
 
 struct InfProtocolHandler {
 	/// Shared blockchain client.
 	chain: Arc<BlockChainClient>,
+	/// Shared snapshot service.
+	snapshot_service: Arc<SnapshotService>,
 	/// Sync strategy
 	sync: RwLock<InfinitySync>,
 }
@@ -142,15 +147,15 @@ impl NetworkProtocolHandler for InfProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		InfinitySync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain), *peer, packet_id, data);
+		InfinitySync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain), *peer);
+		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain), *peer);
+		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
 	}
 
 	fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) {
@@ -167,7 +172,7 @@ impl ChainNotify for EthSync {
 		_duration: u64)
 	{
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain);
+			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service);
 			self.eth_handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
@@ -180,7 +185,7 @@ impl ChainNotify for EthSync {
 
 	fn start(&self) {
 		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-		self.network.register_protocol(self.eth_handler.clone(), ETH_PROTOCOL, &[62u8, 63u8])
+		self.network.register_protocol(self.eth_handler.clone(), ETH_PROTOCOL, &[62u8, 63u8, 64u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		self.network.register_protocol(self.inf_handler.clone(), INF_PROTOCOL, &[1u8])
 			.unwrap_or_else(|e| warn!("Error registering infinity protocol: {:?}", e));
@@ -192,7 +197,7 @@ impl ChainNotify for EthSync {
 
 	fn broadcast(&self, message: Vec<u8>) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain);
+			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service);
 			self.inf_handler.sync.write().propagate_packet(&mut sync_io, message.clone());
 		});
 	}
@@ -245,7 +250,7 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain);
+			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service);
 			self.eth_handler.sync.write().abort(&mut sync_io);
 		});
 		self.stop();

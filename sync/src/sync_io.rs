@@ -16,6 +16,8 @@
 
 use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
+use ethcore::snapshot::SnapshotService;
+use api::ETH_PROTOCOL;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -31,10 +33,14 @@ pub trait SyncIo {
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
+	/// Get the snapshot service.
+	fn snapshot_service(&self) -> &SnapshotService;
 	/// Returns peer client identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
+	/// Maximum mutuallt supported ETH protocol version
+	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
 	fn is_chain_queue_empty(&self) -> bool {
 		self.chain().queue_info().is_empty()
@@ -46,15 +52,17 @@ pub trait SyncIo {
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	network: &'s NetworkContext<'h>,
-	chain: &'s BlockChainClient
+	chain: &'s BlockChainClient,
+	snapshot_service: &'s SnapshotService,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient, snapshot_service: &'s SnapshotService) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
+			snapshot_service: snapshot_service,
 		}
 	}
 }
@@ -80,12 +88,20 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.chain
 	}
 
+	fn snapshot_service(&self) -> &SnapshotService {
+		self.snapshot_service
+	}
+
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		self.network.peer_info(peer_id)
 	}
 
 	fn is_expired(&self) -> bool {
 		self.network.is_expired()
+	}
+
+	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
+		self.network.protocol_version(peer_id, ETH_PROTOCOL).unwrap_or(0)
 	}
 }
 

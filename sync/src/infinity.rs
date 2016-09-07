@@ -18,6 +18,7 @@
 
 use util::*;
 use network::*;
+use rlp::{UntrustedRlp, DecoderError, RlpStream, View, Stream};
 use ethcore::client::{BlockChainClient};
 use sync_io::SyncIo;
 use super::SyncConfig;
