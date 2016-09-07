@@ -1,15 +1,14 @@
 import React, { Component, PropTypes } from 'react';
-
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Modal, Form, Input, InputAddress } from '../../../ui';
-import { ERRORS, validateAddress, validateName } from '../../../util/validation';
+import { Modal, Form, Input, InputAddress } from '../../ui';
+import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
-import styles from '../addressBook.css';
+import styles from './addAddress.css';
 
-export default class AddEntry extends Component {
+export default class AddAddress extends Component {
   static contextTypes = {
     contacts: PropTypes.array.isRequired
   };
