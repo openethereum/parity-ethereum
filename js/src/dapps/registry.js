@@ -4,6 +4,8 @@ import { Provider } from 'react-redux';
 
 import store from './registry/store';
 import Container from './registry/Container';
+
+import './style.css';
 import './registry.html';
 
 ReactDOM.render(

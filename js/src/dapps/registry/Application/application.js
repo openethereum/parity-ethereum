@@ -4,7 +4,7 @@ import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 const muiTheme = getMuiTheme(lightBaseTheme);
 
-import Loading from '../Loading';
+import CircularProgress from 'material-ui/CircularProgress';
 import Status from '../Status';
 
 export default class Application extends Component {
@@ -19,7 +19,7 @@ export default class Application extends Component {
     const { contract, fee, owner } = this.props;
 
     if (!contract || !fee || !owner) {
-      return (<Loading />);
+      return (<CircularProgress size={ 1 } />);
     }
     return (
       <Status address={ contract.address } fee={ fee } owner={ owner } />
