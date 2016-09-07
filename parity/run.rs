@@ -29,7 +29,7 @@ use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::SyncConfig;
+use ethsync::{SyncConfig, SyncProvider};
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
@@ -51,7 +51,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 1000;
+const SNAPSHOT_HISTORY: u64 = 500;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -263,8 +263,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
 		false => {
+			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
+				move || sync.status().is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,
