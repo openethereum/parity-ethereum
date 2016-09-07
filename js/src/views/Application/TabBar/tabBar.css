@@ -4,6 +4,11 @@
   position: relative;
 }
 
+.tabactive {
+  background: rgb(80, 80, 80) !important;
+  border-radius: 4px 4px 0 0;
+}
+
 .tabs {
   width: 100%;
   position: relative;

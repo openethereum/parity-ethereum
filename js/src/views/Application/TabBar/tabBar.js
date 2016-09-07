@@ -41,6 +41,7 @@ export default class TabBar extends Component {
           className={ styles.tabs }
           value={ hash }>
           <Tab
+            className={ hash === 'account' ? styles.tabactive : '' }
             data-route='/accounts'
             value='account'
             icon={ <ActionAccountBalanceWallet /> }
@@ -51,18 +52,21 @@ export default class TabBar extends Component {
               text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           </Tab>
           <Tab
+            className={ hash === 'address' ? styles.tabactive : '' }
             data-route='/addresses'
             value='address'
             icon={ <CommunicationContacts /> }
             label='address book'
             onActive={ this.onActivate } />
           <Tab
+            className={ hash === 'app' ? styles.tabactive : '' }
             data-route='/apps'
             value='app'
             icon={ <NavigationApps /> }
             label='apps'
             onActive={ this.onActivate } />
           <Tab
+            className={ hash === 'signer' ? styles.tabactive : '' }
             data-route='/signer'
             value='signer'
             icon={ <ActionFingerprint /> }

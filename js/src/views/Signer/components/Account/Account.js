@@ -98,8 +98,6 @@ export default class Account extends Component {
   _retrieveName () {
     const { accounts, contacts, contracts, tokens } = this.context;
     const { address } = this.props;
-
-    console.log(tokens);
     const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
 
     return account ? account.name : null;
