@@ -111,6 +111,7 @@ linux-armv7:
     paths:
     - target/armv7-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
