@@ -61,7 +61,6 @@ pub struct SnapshotCommand {
 	pub wal: bool,
 	pub kind: Kind,
 	pub block_at: BlockID,
-	pub local: bool,
 }
 
 // helper for reading chunks from arbitrary reader and feeding them into the
@@ -162,8 +161,7 @@ impl SnapshotCommand {
 
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
-		let local = self.local;
-		let file = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
+		let file = self.file_path.clone();
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
@@ -171,16 +169,7 @@ impl SnapshotCommand {
 
 		let snapshot = service.snapshot_service();
 
-		if local {
-			info!("Attempting to restore from local snapshot.");
-
-			// attempting restoration with recovery will lead to deadlock
-			// as we currently hold a read lock on the service's reader.
-			match *snapshot.reader() {
-				Some(ref reader) => try!(restore_using(snapshot.clone(), reader, false)),
-				None => return Err("No local snapshot found.".into()),
-			}
-		} else {
+		if let Some(file) = file {
 			info!("Attempting to restore from snapshot at '{}'", file);
 
 			let reader = PackedReader::new(Path::new(&file))
@@ -189,6 +178,15 @@ impl SnapshotCommand {
 
 			let reader = try!(reader);
 			try!(restore_using(snapshot, &reader, true));
+		} else {
+			info!("Attempting to restore from local snapshot.");
+
+			// attempting restoration with recovery will lead to deadlock
+			// as we currently hold a read lock on the service's reader.
+			match *snapshot.reader() {
+				Some(ref reader) => try!(restore_using(snapshot.clone(), reader, false)),
+				None => return Err("No local snapshot found.".into()),
+			}
 		}
 
 		Ok(())

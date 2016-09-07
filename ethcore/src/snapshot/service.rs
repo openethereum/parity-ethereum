@@ -375,6 +375,9 @@ impl Service {
 
 		let mut res = self.restoration.lock();
 
+		self.state_chunks.store(0, Ordering::SeqCst);
+		self.block_chunks.store(0, Ordering::SeqCst);
+
 		// tear down existing restoration.
 		*res = None;
 
@@ -418,9 +421,6 @@ impl Service {
 	// lead to deadlock.
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
-
-		self.state_chunks.store(0, Ordering::SeqCst);
-		self.block_chunks.store(0, Ordering::SeqCst);
 
 		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
 
