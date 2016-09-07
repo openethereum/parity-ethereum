@@ -1,6 +1,6 @@
 stages:
-  - build
   - test
+  - build
   - deploy
 variables:
   GIT_DEPTH: "3"
@@ -97,11 +97,12 @@ linux-armv7:
     - stable
   script:
     - export
-    #- rm -rf .cargo
-    #- mkdir -p .cargo
-    #- echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
-    #- echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    #- cat .cargo/config
+    - export CXX="arm-linux-gnueabihf-g++"
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
+    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
+    - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
   tags:
