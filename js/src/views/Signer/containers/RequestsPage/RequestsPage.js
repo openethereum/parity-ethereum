@@ -48,7 +48,7 @@ class RequestsPage extends Component {
       return;
     }
 
-    const items = pending.sort(this._sortRequests).map(data => this.renderPending(data));
+    const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
       <Container>
@@ -67,7 +67,7 @@ class RequestsPage extends Component {
       return;
     }
 
-    const items = finished.sort(this._sortRequests).map(data => this.renderFinished(data));
+    const items = finished.sort(this._sortRequests).map(this.renderFinished);
 
     return (
       <Container>
@@ -79,7 +79,7 @@ class RequestsPage extends Component {
     );
   }
 
-  renderPending (data) {
+  renderPending = (data) => {
     const { actions } = this.props;
     const { payload, id, isSending } = data;
 
@@ -96,7 +96,7 @@ class RequestsPage extends Component {
     );
   }
 
-  renderFinished (data) {
+  renderFinished = (data) => {
     const { payload, id, result, msg, status, error } = data;
 
     return (

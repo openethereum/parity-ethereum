@@ -1,22 +1,35 @@
-.bar {
+.bar, .expanded {
   position: fixed;
   bottom: 0;
   right: 0;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
-  vertical-align: middle;
   z-index: 10000;
+}
+
+.bar {
+  vertical-align: middle;
   display: flex;
   flex-wrap: wrap;
   width: 100%;
 }
 
+.expanded {
+  right: 16px;
+  width: 840px;
+  height: 250px;
+  border-radius: 4px 4px 0 0;
+  background: rgb(48, 48, 48);
+  padding: 1em;
+  overflow-y: scroll;
+}
+
 .corner {
-  background: rgba(0, 0, 0, 0.75);
+  background: rgb(48, 48, 48);
   position: absolute;
   bottom: 0;
   right: 16px;
-  border-radius: 4px 4px 0 0;
+  border-radius: 4px 0 0 0;
   padding: 0.5em 1em;
 }
 
@@ -63,4 +76,15 @@
   position: absolute;
   top: -2px;
   right: -10px;
+}
+
+.actions {
+  text-align: right;
+  padding-bottom: 1em;
+}
+
+.actions div {
+  margin-left: 1em;
+  display: inline-block;
+  cursor: pointer;
 }

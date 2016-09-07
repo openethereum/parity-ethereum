@@ -1,7 +1,11 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { FlatButton } from 'material-ui';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
+import ContentClear from 'material-ui/svg-icons/content/clear';
+
+import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block.png';
 import styles from './parityBar.css';
@@ -11,7 +15,19 @@ class ParityBar extends Component {
     pending: PropTypes.array
   }
 
+  state = {
+    opened: false
+  }
+
   render () {
+    const { opened } = this.state;
+
+    return opened
+      ? this.renderExpanded()
+      : this.renderBar();
+  }
+
+  renderBar () {
     return (
       <div className={ styles.bar }>
         <div className={ styles.corner }>
@@ -23,11 +39,26 @@ class ParityBar extends Component {
           </a>
           <a
             className={ styles.link }
-            href='/#/signer'>
+            onTouchTap={ this.toggleDisplay }>
             <ActionFingerprint />
             { this.renderSignerLabel() }
           </a>
         </div>
+      </div>
+    );
+  }
+
+  renderExpanded () {
+    return (
+      <div className={ styles.expanded }>
+        <div className={ styles.actions }>
+          <FlatButton
+            icon={ <ContentClear /> }
+            label='Close'
+            primary
+            onTouchTap={ this.toggleDisplay } />
+        </div>
+        <Signer />
       </div>
     );
   }
@@ -56,6 +87,14 @@ class ParityBar extends Component {
     }
 
     return this.renderLabel('Signer', bubble);
+  }
+
+  toggleDisplay = () => {
+    const { opened } = this.state;
+
+    this.setState({
+      opened: !opened
+    });
   }
 }
 
