@@ -161,13 +161,10 @@ impl Client {
 		path: &Path,
 		miner: Arc<Miner>,
 		message_channel: IoChannel<ClientIoMessage>,
+		db_config: &DatabaseConfig,
 	) -> Result<Arc<Client>, ClientError> {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
-		let mut db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-		db_config.cache_size = config.db_cache_size;
-		db_config.compaction = config.db_compaction.compaction_profile();
-		db_config.wal = config.db_wal;
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));

@@ -187,7 +187,10 @@ mod tests {
 	use spec::Spec;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_authority() -> Spec { Spec::load(include_bytes!("../../res/test_authority.json")) }
+	fn new_test_authority() -> Spec {
+		let bytes: &[u8] = include_bytes!("../../res/test_authority.json");
+		Spec::load(bytes).expect("invalid chain spec")
+	}
 
 	#[test]
 	fn has_valid_metadata() {

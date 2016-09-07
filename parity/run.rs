@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::path::Path;
 use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
@@ -29,7 +28,7 @@ use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::SyncConfig;
+use ethsync::{SyncConfig, SyncProvider};
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
@@ -51,7 +50,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 1000;
+const SNAPSHOT_HISTORY: u64 = 500;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -110,8 +109,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -171,14 +171,15 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
+	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -263,8 +264,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
 		false => {
+			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
+				move || sync.status().is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

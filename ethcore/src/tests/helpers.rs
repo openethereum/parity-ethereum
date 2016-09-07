@@ -133,9 +133,17 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
-
 	let test_spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	let client = Client::new(
+		ClientConfig::default(),
+		&test_spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&test_spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
 	let test_engine = &*test_spec.engine;
 
 	let mut db_result = get_temp_journal_db();
@@ -233,7 +241,17 @@ pub fn push_blocks_to_client(client: &Arc<Client>, timestamp_salt: u64, starting
 pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<Client>> {
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	let client = Client::new(
+		ClientConfig::default(),
+		&test_spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&test_spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
+
 	for block in &blocks {
 		if let Err(_) = client.import_block(block.clone()) {
 			panic!("panic importing block which is well-formed");
