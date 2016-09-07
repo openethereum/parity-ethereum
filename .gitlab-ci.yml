@@ -9,6 +9,25 @@ variables:
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
+linux-stable:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - export
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "${CI_BUILD_NAME}_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
@@ -29,12 +48,6 @@ linux-beta:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
-  stage: deploy
-  tags:
-    - rust
-    - rust-beta
-  script:
-    - ./deploy.sh
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly
@@ -84,11 +97,11 @@ linux-armv7:
     - stable
   script:
     - export
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
+    #- rm -rf .cargo
+    #- mkdir -p .cargo
+    #- echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
+    #- echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
+    #- cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
   tags:
@@ -108,11 +121,11 @@ linux-arm:
     - stable
   script:
     - export
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
-    - cat .cargo/config
+    #- rm -rf .cargo
+    #- mkdir -p .cargo
+    #- echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
+    #- echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
+    #- cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
   tags:
@@ -133,11 +146,11 @@ linux-armv6:
     - stable
   script:
     - export
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
-    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
-    - cat .cargo/config
+    #- rm -rf .cargo
+    #- mkdir -p .cargo
+    #- echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
+    #- echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
+    #- cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
   tags:
@@ -158,11 +171,11 @@ linux-aarch64:
     - stable
   script:
     - export
-    - rm -rf .cargo
-    - mkdir -p .cargo
-    - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
-    - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
-    - cat .cargo/config
+    #- rm -rf .cargo
+    #- mkdir -p .cargo
+    #- echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
+    #- echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
+    #- cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
   tags:
@@ -208,30 +221,19 @@ windows:
     - target/release/parity.exe
     - target/release/parity.pdb
     name: "${CI_BUILD_NAME}_parity"
-linux-stable:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - export
-    - cargo build --release --verbose
-    - strip target/release/parity
-  tags:
-    - rust
-    - rust-stable
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "${CI_BUILD_NAME}_parity"
 test-linux:
   stage: test
+  image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
   script:
     - ./test.sh --verbose
+  tags:
+    - rust
+    - rust-stable
   dependencies:
     - linux-stable
+deploy-binaries:
+  stage: deploy
+  script:
+    - ./deploy.sh
