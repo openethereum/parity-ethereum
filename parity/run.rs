@@ -28,6 +28,7 @@ use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNoti
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
+use ethcore::snapshot;
 use ethsync::SyncConfig;
 use informant::Informant;
 
@@ -45,6 +46,12 @@ use modules;
 use rpc_apis;
 use rpc;
 use url;
+
+// how often to take periodic snapshots.
+const SNAPSHOT_PERIOD: u64 = 10000;
+
+// how many blocks to wait before starting a periodic snapshot.
+const SNAPSHOT_HISTORY: u64 = 1000;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -77,6 +84,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub no_periodic_snapshot: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -179,13 +187,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// take handle to client
 	let client = service.client();
+	let snapshot_service = service.snapshot_service();
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -224,6 +233,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
+		sync: sync_provider.clone(),
 	};
 
 	// start dapps server
@@ -248,6 +258,22 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		accounts: account_provider.clone(),
 	});
 	service.register_io_handler(io_handler).expect("Error registering IO handler");
+
+	// the watcher must be kept alive.
+	let _watcher = match cmd.no_periodic_snapshot {
+		true => None,
+		false => {
+			let watcher = Arc::new(snapshot::Watcher::new(
+				service.client(),
+				service.io().channel(),
+				SNAPSHOT_PERIOD,
+				SNAPSHOT_HISTORY,
+			));
+
+			service.add_notify(watcher.clone());
+			Some(watcher)
+		},
+	};
 
 	// start ui
 	if cmd.ui {

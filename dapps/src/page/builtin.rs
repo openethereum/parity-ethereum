@@ -79,7 +79,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			app: BuiltinDapp::new(self.app.clone()),
 			prefix: self.prefix.clone(),
 			path: path,
-			file: None,
+			file: Default::default(),
 			safe_to_embed: self.safe_to_embed,
 		})
 	}

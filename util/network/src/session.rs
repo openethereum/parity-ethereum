@@ -243,6 +243,11 @@ impl Session {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
+	/// Checks if peer supports given capability
+	pub fn capability_version(&self, protocol: &str) -> Option<u8> {
+		self.info.capabilities.iter().filter_map(|c| if c.protocol == protocol { Some(c.version) } else { None }).max()
+	}
+
 	/// Register the session socket with the event loop
 	pub fn register_socket<Host:Handler<Timeout = Token>>(&self, reg: Token, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
 		if self.expired() {

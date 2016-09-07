@@ -226,6 +226,7 @@ impl Configuration {
 				ui: self.args.cmd_ui,
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
+				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -802,6 +803,7 @@ mod tests {
 			ui: false,
 			name: "".into(),
 			custom_bootnodes: false,
+			no_periodic_snapshot: false,
 		}));
 	}
 
