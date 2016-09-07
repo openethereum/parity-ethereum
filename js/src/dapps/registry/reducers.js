@@ -1,5 +1,3 @@
-import { handleActions } from 'redux-actions';
-
 import {
   setContract,
   fetchFee, setFee,
@@ -37,18 +35,21 @@ const onFetchOwner = (state, action) => (dispatch) =>
     () => console.error('could not fetch owner')
   );
 
-export default handleActions({
+export default (state = initialState, action) => {
+  if (action.type === 'fetch contract')
+    return onFetchContract(state, action);
+  if (action.type === 'set contract')
+    return { ...state, contract: action.contract };
 
-  'fetch contract': onFetchContract,
-  'set contract': (state, action) =>
-    ({ ...state, contract: action.payload }),
+  if (action.type === 'fetch fee')
+    return onFetchFee(state, action);
+  if (action.type === 'set fee')
+    return { ...state, fee: action.fee };
 
-  'fetch fee': onFetchFee,
-  'set fee': (state, action) =>
-    ({ ...state, fee: action.payload }),
+  if (action.type === 'fetch owner')
+    return onFetchOwner(state, action);
+  if (action.type === 'set owner')
+    return { ...state, owner: action.owner };
 
-  'fetch owner': onFetchOwner,
-  'set owner': (state, action) =>
-    ({ ...state, owner: action.payload })
-
-}, initialState);
+  return state;
+};
