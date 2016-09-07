@@ -10,6 +10,7 @@ export default class IdentityIcon extends Component {
 
   static propTypes = {
     address: PropTypes.string,
+    className: PropTypes.string,
     center: PropTypes.bool,
     padded: PropTypes.bool,
     inline: PropTypes.bool
@@ -56,16 +57,15 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const { address, center, inline, padded } = this.props;
+    const { className, center, inline, padded } = this.props;
     const { iconsrc } = this.state;
     const size = inline ? '32px' : '56px';
-    const className = `${styles.icon} ${center ? styles.center : styles.left} ${padded ? styles.padded : null} ${inline ? styles.inline : null}`;
+    const classes = `${styles.icon} ${center ? styles.center : styles.left} ${padded ? styles.padded : ''} ${inline ? styles.inline : ''} ${className}`;
 
     return (
       <img
-        className={ className }
+        className={ classes }
         src={ iconsrc }
-        value={ address }
         width={ size }
         height={ size } />
     );

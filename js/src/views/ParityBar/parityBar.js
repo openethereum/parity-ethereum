@@ -3,9 +3,9 @@ import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
+import { SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
@@ -47,7 +47,7 @@ class ParityBar extends Component {
           </Link>
           <FlatButton
             className={ styles.button }
-            icon={ <ActionFingerprint /> }
+            icon={ <SignerIcon className={ styles.signerIcon } /> }
             label={ this.renderSignerLabel() }
             primary
             onTouchTap={ this.toggleDisplay } />

@@ -6,6 +6,7 @@ import Form, { FormWrap, Input, InputAddress, InputAddressSelect, InputInline, S
 import IdentityIcon from './IdentityIcon';
 import Modal from './Modal';
 import muiTheme from './Theme';
+import SignerIcon from './signerIcon';
 import Tooltips, { Tooltip } from './Tooltips';
 
 export {
@@ -24,6 +25,7 @@ export {
   IdentityIcon,
   Modal,
   muiTheme,
+  SignerIcon,
   Tooltip,
   Tooltips
 };

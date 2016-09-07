@@ -52,3 +52,9 @@
   vertical-align: top;
   letter-spacing: 0.2em;
 }
+
+.signerIcon {
+  width: 24px;
+  height: 24px;
+  margin-bottom: 5px;
+}

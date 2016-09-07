@@ -2,11 +2,10 @@ import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import { Tooltip } from '../../../ui';
+import { SignerIcon, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
@@ -73,7 +72,7 @@ export default class TabBar extends Component {
             className={ hash === 'signer' ? styles.tabactive : '' }
             data-route='/signer'
             value='signer'
-            icon={ <ActionFingerprint /> }
+            icon={ <SignerIcon className={ styles.signerIcon } /> }
             label={ this.renderSignerLabel() }
             onActive={ this.onActivate } />
         </Tabs>
