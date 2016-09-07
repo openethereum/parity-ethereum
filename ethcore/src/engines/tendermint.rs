@@ -31,7 +31,7 @@ use io::{IoContext, IoHandler, TimerToken, IoService};
 use time::get_time;
 
 /// `Tendermint` params.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TendermintParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
@@ -47,17 +47,11 @@ impl Default for TendermintParams {
 	fn default() -> Self {
 		let validators = vec!["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e".into(), "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()];
 		let val_n = validators.len();
-		let propose_timeout = 3000;
 		TendermintParams {
 			gas_limit_bound_divisor: 0x0400.into(),
 			validators: validators,
 			validator_n: val_n,
-			timeouts: DefaultTimeouts {
-				propose: propose_timeout,
-				prevote: 3000,
-				precommit: 3000,
-				commit: 3000
-			},
+			timeouts:  DefaultTimeouts::default()
 		}
 	}
 }
@@ -69,24 +63,18 @@ enum Step {
 	/// Precommit step storing the precommit vote and accumulating seal.
 	Precommit(ProposeCollect, Seal),
 	/// Commit step storing a complete valid seal.
-	Commit(Seal)
+	Commit(H256, Seal)
 }
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
 		let val: Vec<_> = p.validators.into_iter().map(Into::into).collect();
 		let val_n = val.len();
-		let propose_timeout = 3000;
 		TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			validators: val,
 			validator_n: val_n,
-			timeouts: DefaultTimeouts {
-				propose: propose_timeout,
-				prevote: 3000,
-				precommit: 3000,
-				commit: 3000
-			},
+			timeouts: DefaultTimeouts::default()
 		}
 	}
 }
@@ -101,7 +89,7 @@ pub struct Tendermint {
 	builtins: BTreeMap<Address, Builtin>,
 	timeout_service: IoService<StepMessage>,
 	/// Consensus round.
-	r: u64,
+	r: AtomicUsize,
 	/// Consensus step.
 	s: RwLock<Step>,
 	/// Current step timeout in ms.
@@ -124,7 +112,7 @@ impl Tendermint {
 				our_params: our_params,
 				builtins: builtins,
 				timeout_service: IoService::<StepMessage>::start().expect("Error creating engine timeout service"),
-				r: 0,
+				r: AtomicUsize::new(0),
 				s: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0)
 			});
@@ -184,23 +172,27 @@ impl Tendermint {
 
 	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if message is for correct step.
-		match *self.s.try_write().unwrap() {
+		let hash = match *self.s.try_write().unwrap() {
 			Step::Prevote(ref mut vote) => {
 				// Vote if message is about the right block.
 				if vote.hash == try!(message.as_val()) {
 					vote.vote(sender);
 					// Move to next step is prevote is won.
 					if vote.is_won() {
-						//self.our_params.timeouts.precommit
-						self.to_precommit(vote.hash);
+						// If won assign a hash used for precommit.
+						vote.hash.clone()
+					} else {
+						// Just propoagate the message if not won yet.
+						return Ok(message.as_raw().to_vec());
 					}
-					Ok(message.as_raw().to_vec())
 				} else {
 					try!(Err(EngineError::WrongVote))
 				}
 			},
 			_ => try!(Err(EngineError::WrongStep)),
-		}
+		};
+		self.to_precommit(hash);
+		Ok(message.as_raw().to_vec())
 	}
 
 	fn to_precommit(&self, proposal: H256) {
@@ -217,7 +209,7 @@ impl Tendermint {
 				if vote.hash == try!(message.as_val()) {
 					if vote.vote(sender) { seal.push(encode(&signature).to_vec()); }
 					// Commit if precommit is won.
-					if vote.is_won() { self.to_commit(seal.clone()); }
+					if vote.is_won() { self.to_commit(vote.hash.clone(), seal.clone()); }
 					Ok(message.as_raw().to_vec())
 				} else {
 					try!(Err(EngineError::WrongVote))
@@ -227,10 +219,11 @@ impl Tendermint {
 		}
 	}
 
-	fn to_commit(&self, seal: Seal) {
+	/// Move to commit step, when valid block is known and being distributed.
+	pub fn to_commit(&self, block_hash: H256, seal: Vec<Bytes>) {
 		trace!(target: "tendermint", "step: entering commit");
 		println!("step: entering commit");
-		self.to_step(Step::Commit(seal));
+		self.to_step(Step::Commit(block_hash, seal));
 	}
 
 	fn threshold(&self) -> usize {
@@ -278,16 +271,18 @@ impl Engine for Tendermint {
 	/// Attempt to seal the block internally using all available signatures.
 	///
 	/// None is returned if not enough signatures can be collected.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+	fn generate_seal(&self, block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		self.s.try_read().and_then(|s| match *s {
-			Step::Commit(ref seal) => Some(seal.clone()),
+			Step::Commit(hash, ref seal) if hash == block.header().bare_hash() => Some(seal.clone()),
 			_ => None,
 		})
 	}
 
 	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if correct round.
-		if self.r != try!(message.val_at(0)) { try!(Err(EngineError::WrongRound)) }
+		if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {
+			try!(Err(EngineError::WrongRound))
+		}
 		// Handle according to step.
 		match try!(message.val_at(1)) {
 			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
@@ -298,7 +293,7 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		if header.seal().len() < self.threshold() {
+		if header.seal().len() <= self.threshold() {
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.threshold(), found: header.seal().len() }
 			)))
@@ -318,10 +313,10 @@ impl Engine for Tendermint {
 							.iter()
 							.map(to_address)
 							.collect::<Result<HashSet<_>, Error>>());
-		if self.threshold() < seal_set.intersection(&validator_set).count() {
-			Ok(())
-		} else {
+		if seal_set.intersection(&validator_set).count() <= self.threshold() {
 			try!(Err(BlockError::InvalidSeal))
+		} else {
+			Ok(())
 		}
 	}
 
@@ -355,12 +350,23 @@ impl Engine for Tendermint {
 }
 
 /// Base timeout of each step in ms.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct DefaultTimeouts {
 	propose: Ms,
 	prevote: Ms,
 	precommit: Ms,
 	commit: Ms
+}
+
+impl Default for DefaultTimeouts {
+	fn default() -> Self {
+		DefaultTimeouts {
+			propose: 3000,
+			prevote: 3000,
+			precommit: 3000,
+			commit: 3000
+		}
+	}
 }
 
 type Ms = usize;
@@ -381,7 +387,20 @@ impl IoHandler<StepMessage> for TimerHandler {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				println!("Timeout: {:?}", get_time());
-				engine.to_propose();
+				// Can you release entering a clause?
+				let next_step = match *engine.s.try_read().unwrap() {
+					Step::Propose => Step::Propose,
+					Step::Prevote(_) => Step::Propose,
+					Step::Precommit(_, _) => Step::Propose,
+					Step::Commit(_, _) => {
+						engine.r.fetch_add(1, AtomicOrdering::Relaxed);
+						Step::Propose
+					},
+				};
+				match next_step {
+					Step::Propose => engine.to_propose(),
+					_ => (),
+				}
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Failed to restart consensus step timer.")
 			}
 		}
@@ -401,26 +420,51 @@ mod tests {
 	use common::*;
 	use std::thread::sleep;
 	use std::time::{Duration};
-	use rlp::{UntrustedRlp, RlpStream, Stream, View};
+	use rlp::{UntrustedRlp, RlpStream, Stream, View, encode};
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use engines::Engine;
+	use engines::{Engine, EngineError};
 	use super::{Tendermint, TendermintParams};
 
 	/// Create a new test chain spec with `Tendermint` consensus engine.
 	/// Account "0".sha3() and "1".sha3() are a validators.
 	fn new_test_tendermint() -> Spec { Spec::load(include_bytes!("../../res/tendermint.json")) }
 
-	fn propose_default(engine: &Arc<Engine>, proposer: Address) -> Result<Bytes, Error> {
+	fn propose_default(engine: &Arc<Engine>, round: u8, proposer: Address) -> Result<Bytes, Error> {
 		let mut s = RlpStream::new_list(3);
 		let header = Header::default();
-		s.append(&0u8).append(&0u8).append(&header.bare_hash());
+		s.append(&round).append(&0u8).append(&header.bare_hash());
 		let drain = s.out();
 		let propose_rlp = UntrustedRlp::new(&drain);
 
 		engine.handle_message(proposer, H520::default(), propose_rlp)
+	}
+
+	fn vote_default(engine: &Arc<Engine>, round: u8, voter: Address) -> Result<Bytes, Error> {
+		let mut s = RlpStream::new_list(3);
+		let header = Header::default();
+		s.append(&round).append(&1u8).append(&header.bare_hash());
+		let drain = s.out();
+		let vote_rlp = UntrustedRlp::new(&drain);
+
+		engine.handle_message(voter, H520::default(), vote_rlp)
+	}
+
+	fn good_seal(header: &Header) -> Vec<Bytes> {
+		let tap = AccountProvider::transient_provider();
+
+		let mut seal = Vec::new();
+
+		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
+		let sig0 = tap.sign_with_password(v0, "0".into(), header.bare_hash()).unwrap();
+		seal.push(encode(&(&*sig0 as &[u8])).to_vec());
+
+		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
+		let sig1 = tap.sign_with_password(v1, "1".into(), header.bare_hash()).unwrap();
+		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
+		seal
 	}
 
 	fn default_block() -> Vec<u8> {
@@ -451,7 +495,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_seal_verification_fail() {
+	fn verification_fails_on_short_seal() {
 		let engine = new_test_tendermint().engine;
 		let header: Header = Header::default();
 
@@ -465,21 +509,73 @@ mod tests {
 	}
 
 	#[test]
-	fn can_generate_seal() {
+	fn verification_fails_on_wrong_signatures() {
+		let engine = new_test_tendermint().engine;
+		let mut header = Header::default();
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("".sha3(), "").unwrap();
-		tap.unlock_account_permanently(addr, "".into()).unwrap();
 
+		let mut seal = Vec::new();
+
+		let v1 = tap.insert_account("0".sha3(), "0").unwrap();
+		let sig1 = tap.sign_with_password(v1, "0".into(), header.bare_hash()).unwrap();
+		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
+
+		header.set_seal(seal.clone());
+
+		// Not enough signatures.
+		assert!(engine.verify_block_basic(&header, None).is_err());
+
+		let v2 = tap.insert_account("101".sha3(), "101").unwrap();
+		let sig2 = tap.sign_with_password(v2, "101".into(), header.bare_hash()).unwrap();
+		seal.push(encode(&(&*sig2 as &[u8])).to_vec());
+
+		header.set_seal(seal);
+
+		// Enough signatures.
+		assert!(engine.verify_block_basic(&header, None).is_ok());
+
+		let verify_result = engine.verify_block_unordered(&header, None);
+
+		// But wrong signatures.
+		match verify_result {
+			Err(Error::Block(BlockError::InvalidSeal)) => (),
+			Err(_) => panic!("should be block seal-arity mismatch error (got {:?})", verify_result),
+			_ => panic!("Should be error, got Ok"),
+		}
+	}
+
+	#[test]
+	fn seal_with_enough_signatures_is_ok() {
+		let engine = new_test_tendermint().engine;
+		let mut header = Header::default();
+
+		let seal = good_seal(&header);
+		header.set_seal(seal);
+
+		// Enough signatures.
+		assert!(engine.verify_block_basic(&header, None).is_ok());
+
+		// And they are ok.
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
+	}
+
+	#[test]
+	fn can_generate_seal() {
 		let spec = new_test_tendermint();
-		let engine = &*spec.engine;
+		let ref engine = *spec.engine;
+		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new());
+
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
+
+		tender.to_commit(b.hash(), good_seal(&b.header()));
+
+		let seal = tender.generate_seal(b.block(), None).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
 	}
 
@@ -487,18 +583,19 @@ mod tests {
 	fn propose_step() {
 		let engine = new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
+		let r = 0;
 
 		let not_validator_addr = tap.insert_account("101".sha3(), "101").unwrap();
-		assert!(propose_default(&engine, not_validator_addr).is_err());
+		assert!(propose_default(&engine, r, not_validator_addr).is_err());
 
 		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(propose_default(&engine, not_proposer_addr).is_err());
+		assert!(propose_default(&engine, r, not_proposer_addr).is_err());
 
 		let proposer_addr = tap.insert_account("1".sha3(), "1").unwrap();
-		assert_eq!(default_block(), propose_default(&engine, proposer_addr).unwrap());
+		assert_eq!(default_block(), propose_default(&engine, r, proposer_addr).unwrap());
 
-		assert!(propose_default(&engine, proposer_addr).is_err());
-		assert!(propose_default(&engine, not_proposer_addr).is_err());
+		assert!(propose_default(&engine, r, proposer_addr).is_err());
+		assert!(propose_default(&engine, r, not_proposer_addr).is_err());
 	}
 
 	#[test]
@@ -506,27 +603,80 @@ mod tests {
 		let engine = new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
 
+		// Currently not a proposer.
 		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(propose_default(&engine, not_proposer_addr).is_err());
+		assert!(propose_default(&engine, 0, not_proposer_addr).is_err());
 
-		sleep(Duration::from_secs(3));
+		sleep(Duration::from_millis(TendermintParams::default().timeouts.propose as u64));
 
-		assert_eq!(default_block(), propose_default(&engine, not_proposer_addr).unwrap());
+		// Becomes proposer after timeout.
+		assert_eq!(default_block(), propose_default(&engine, 0, not_proposer_addr).unwrap());
 	}
 
 	#[test]
 	fn prevote_step() {
 		let engine = new_test_tendermint().engine;
-		propose_default(&engine, Address::default());
+		let tap = AccountProvider::transient_provider();
+		let r = 0;
+
+		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
+		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
+
+		// Propose.
+		assert!(propose_default(&engine, r, v1.clone()).is_ok());
+
+		// Prevote.
+		assert_eq!(default_block(), vote_default(&engine, r, v0.clone()).unwrap());
+
+		assert!(vote_default(&engine, r, v0).is_err());
+		assert!(vote_default(&engine, r, v1).is_err());
+	}
+
+	#[test]
+	fn precommit_step() {
+		let engine = new_test_tendermint().engine;
+		let tap = AccountProvider::transient_provider();
+		let r = 0;
+
+		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
+		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
+
+		// Propose.
+		assert!(propose_default(&engine, r, v1.clone()).is_ok());
+
+		// Prevote.
+		assert_eq!(default_block(), vote_default(&engine, r, v0.clone()).unwrap());
+
+		assert!(vote_default(&engine, r, v0).is_err());
+		assert!(vote_default(&engine, r, v1).is_err());
 	}
 
 	#[test]
 	fn timeout_switching() {
-		let engine = new_test_tendermint().engine;
-		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new());
-	
-		println!("Waiting for timeout");
-		sleep(Duration::from_secs(60));
+		let tender = {
+			let engine = new_test_tendermint().engine;
+			Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new())
+		};
 
+		println!("Waiting for timeout");
+		sleep(Duration::from_secs(10));
+	}
+
+	#[test]
+	fn increments_round() {
+		let spec = new_test_tendermint();
+		let ref engine = *spec.engine;
+		let def_params = TendermintParams::default();
+		let tender = Tendermint::new(engine.params().clone(), def_params.clone(), BTreeMap::new());
+		let header = Header::default();
+
+		tender.to_commit(header.bare_hash(), good_seal(&header));
+
+		sleep(Duration::from_millis(def_params.timeouts.commit as u64));
+
+		match propose_default(&(tender as Arc<Engine>), 0, Address::default()) {
+			Err(Error::Engine(EngineError::WrongRound)) => {},
+			_ => panic!("Should be EngineError::WrongRound"),
+		}
 	}
 }
