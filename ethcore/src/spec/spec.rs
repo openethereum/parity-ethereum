@@ -17,7 +17,7 @@
 //! Parameters for a block chain.
 
 use common::*;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
 use pod_state::*;
 use account_db::*;
 use super::genesis::Genesis;
@@ -138,6 +138,7 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins),
 		}
 	}
 

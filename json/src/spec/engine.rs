@@ -18,6 +18,7 @@
 
 use spec::Ethash;
 use spec::BasicAuthority;
+use spec::AuthorityRound;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -30,6 +31,8 @@ pub enum Engine {
 	Ethash(Ethash),
 	/// BasicAuthority engine.
 	BasicAuthority(BasicAuthority),
+	/// AuthorityRound engine.
+	AuthorityRound(AuthorityRound),
 }
 
 #[cfg(test)]

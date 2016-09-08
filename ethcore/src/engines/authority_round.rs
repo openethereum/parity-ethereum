@@ -240,7 +240,7 @@ impl Header {
 #[cfg(test)]
 mod tests {
 	use common::*;
-	use rlp::{UntrustedRlp, View, encode, decode};
+	use rlp::encode;
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;

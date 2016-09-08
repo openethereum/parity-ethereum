@@ -171,13 +171,6 @@ impl Engine for BasicAuthority {
 	}
 }
 
-impl Header {
-	/// Get the none field of the header.
-	pub fn signature(&self) -> H520 {
-		::rlp::decode(&self.seal()[0])
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use common::*;
