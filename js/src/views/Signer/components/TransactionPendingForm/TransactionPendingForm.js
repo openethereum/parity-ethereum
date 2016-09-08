@@ -2,8 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import BackIcon from 'material-ui/svg-icons/navigation/arrow-back';
 
-import TransactionPendingFormConfirm from '../TransactionPendingFormConfirm';
-import TransactionPendingFormReject from '../TransactionPendingFormReject';
+import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
+import TransactionPendingFormReject from './TransactionPendingFormReject';
 import styles from './TransactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {

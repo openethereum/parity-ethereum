@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { getAccountLink } from '../util/account';
+import { getAccountLink } from '../../util/account';
 import styles from './AccountLink.css';
 
 export default class AccountLink extends Component {

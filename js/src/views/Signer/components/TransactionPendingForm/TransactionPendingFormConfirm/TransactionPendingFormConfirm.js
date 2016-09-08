@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
 
-import { Input, SignerIcon } from '../../../../ui';
+import { Input, SignerIcon } from '../../../../../ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 

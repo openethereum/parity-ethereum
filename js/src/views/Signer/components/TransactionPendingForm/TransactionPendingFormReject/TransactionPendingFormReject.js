@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import RaisedButton from 'material-ui/RaisedButton';
 
-import { REJECT_COUNTER_TIME } from '../constants/constants';
+import { REJECT_COUNTER_TIME } from '../../constants/constants';
 import styles from './TransactionPendingFormReject.css';
 
 export default class TransactionPendingFormReject extends Component {

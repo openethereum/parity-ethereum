@@ -4,7 +4,7 @@ import styles from './Account.css';
 
 import { retrieveAccount } from '../../../../util';
 import { IdentityIcon } from '../../../../ui';
-import AccountLink from '../AccountLink';
+import AccountLink from './AccountLink';
 
 export default class Account extends Component {
   static contextTypes = {
