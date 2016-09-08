@@ -3,7 +3,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { extend } from 'lodash';
 
-import Header from '../../components/Header';
+import { Actionbar, Page } from '../../../../ui';
+
 import * as ToastActions from '../../actions/toastr';
 import { updateLogging } from '../../actions/logger';
 import ToastrContainer from '../../components/ToastrContainer';
@@ -25,18 +26,14 @@ class Container extends Component {
   }
 
   render () {
-    const { name, disconnected, noOfErrors } = this.props.status;
-
     return (
       <div className={ styles.container }>
-        <Header
-          nodeName={ name }
-          disconnected={ disconnected }
-          noOfErrors={ noOfErrors }
-          { ...this._test('header') }
-        />
-        { this.renderPage() }
-        <ToastrContainer { ...this.props } />
+        <Actionbar
+          title='status' />
+        <Page>
+          { this.renderPage() }
+          <ToastrContainer { ...this.props } />
+        </Page>
       </div>
     );
   }

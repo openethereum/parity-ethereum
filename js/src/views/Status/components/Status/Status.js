@@ -1,7 +1,8 @@
-
 import React, { Component, PropTypes } from 'react';
 import formatNumber from 'format-number';
 import bytes from 'bytes';
+
+import { Container } from '../../../../ui';
 
 import styles from './Status.css';
 import Value from '../Value';
@@ -29,6 +30,43 @@ export default class Status extends Component {
     actions: PropTypes.object.isRequired
   }
 
+  render () {
+    const { status } = this.props;
+    const bestBlock = formatNumber()(status.bestBlock);
+    const hashrate = bytes(status.hashrate) || 0;
+
+    return (
+      <Container>
+        <div className={ styles.container }>
+          <div className={ styles.row }>
+            <div className={ styles.col3 }>
+              <div className={ styles.col12 }>
+                <h1><span>Best</span> Block</h1>
+                <h1 { ...this._test('best-block') }>#{ bestBlock }</h1>
+              </div>
+              <div className={ styles.col12 }>
+                <h1><span>Hash</span> Rate</h1>
+                <h1 { ...this._test('hashrate') }>{ `${hashrate} H/s` }</h1>
+              </div>
+            </div>
+            <div className={ styles.col5 }>
+              <MiningSettings
+                { ...this._test('mining') }
+                statusMining={ this.props.statusMining }
+                accounts={ this.props.status.accounts }
+                actions={ this.props.actions }
+                version={ this.props.status.version }
+                />
+            </div>
+            <div className={ styles.col4 }>
+              { this.renderSettings() }
+            </div>
+          </div>
+        </div>
+      </Container>
+    );
+  }
+
   renderNodeName () {
     const { status } = this.props;
     return (
@@ -50,14 +88,14 @@ export default class Status extends Component {
           { ...this._test('chain') }
           />
         <div className={ styles.row }>
-          <div className='col col-6 mobile-full'>
+          <div className={ styles.col6 }>
             <h3>Peers</h3>
             <Value
               value={ `${status.activePeers}/${status.connectedPeers}/${statusSettings.maxPeers}` }
               { ...this._test('peers') }
               />
           </div>
-          <div className='col col-6 mobile-full'>
+          <div className={ styles.col6 }>
             <h3>Network port</h3>
             <Value
               value={ statusSettings.networkPort }
@@ -72,14 +110,14 @@ export default class Status extends Component {
           { ...this._test('rpc-enabled') }
           />
         <div className={ styles.row }>
-          <div className='col col-6 mobile-full'>
+          <div className={ styles.col6 }>
             <h3>RPC Interface</h3>
             <Value
               value={ statusSettings.rpcInterface }
               { ...this._test('rpc-interface') }
               />
           </div>
-          <div className='col col-6 mobile-full'>
+          <div className={ styles.col6 }>
             <h3>RPC Port</h3>
             <Value
               value={ statusSettings.rpcPort }
@@ -87,45 +125,6 @@ export default class Status extends Component {
               />
           </div>
         </div>
-      </div>
-    );
-  }
-
-  render () {
-    const { status } = this.props;
-    const bestBlock = formatNumber()(status.bestBlock);
-    const hashrate = bytes(status.hashrate) || 0;
-
-    return (
-      <div className='dapp-flex-content'>
-        <main className='dapp-content'>
-          <div className='dapp-container'>
-            <div className='row clear'>
-              <div className='col col-3 tablet-full mobile-full'>
-                <div className='col col-12 tablet-col-1-2 mobile-full'>
-                  <h1><span>Best</span> Block</h1>
-                  <h1 { ...this._test('best-block') }>#{ bestBlock }</h1>
-                </div>
-                <div className='col col-12 tablet-col-1-2 mobile-full'>
-                  <h1><span>Hash</span> Rate</h1>
-                  <h1 { ...this._test('hashrate') }>{ `${hashrate} H/s` }</h1>
-                </div>
-              </div>
-              <div className='col col-5 tablet-col-1-2 mobile-full'>
-                <MiningSettings
-                  { ...this._test('mining') }
-                  statusMining={ this.props.statusMining }
-                  accounts={ this.props.status.accounts }
-                  actions={ this.props.actions }
-                  version={ this.props.status.version }
-                  />
-              </div>
-              <div className='col col-4 tablet-col-1-2 mobile-full'>
-                { this.renderSettings() }
-              </div>
-            </div>
-          </div>
-        </main>
       </div>
     );
   }

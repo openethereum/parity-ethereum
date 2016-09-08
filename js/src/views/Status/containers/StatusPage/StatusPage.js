@@ -1,11 +1,13 @@
-
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { extend } from 'lodash';
+
 import Status from '../../components/Status';
 import * as ModifyMiningActions from '../../actions/modify-mining';
 import { updateLogging } from '../../actions/logger';
+
+import styles from './statusPage.css';
 
 class StatusPage extends Component {
   static propTypes = {
@@ -16,7 +18,11 @@ class StatusPage extends Component {
   }
 
   render () {
-    return <Status { ...this.props } />;
+    return (
+      <div className={ styles.body }>
+        <Status { ...this.props } />
+      </div>
+    );
   }
 }
 
