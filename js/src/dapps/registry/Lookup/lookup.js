@@ -14,33 +14,25 @@ export default class Lookup extends Component {
   state = { name: '', key: '' };
 
   render () {
-    const self = this;
-    const onNameChange = (e) => {
-      self.setState({ name: e.target.value });
-    };
-    const onKeyChange = (e) => {
-      self.setState({ key: e.target.value });
-    };
-    const onLookupClick = () => {
-      self.props.actions.lookup(self.state.name, self.state.key);
-    };
-
+    const { name, key } = this.state
+    const props = this.props.lookup
     return (
+
       <div className={ styles.lookup }>
         <TextField
           hintText='name'
-          value={ this.state.name || this.props.lookup.name || '' }
-          onChange={ onNameChange }
+          value={ name || props.name || '' }
+          onChange={ this.onNameChange }
         />
         <TextField
           hintText='key'
-          value={ this.state.key || this.props.lookup.key || '' }
-          onChange={ onKeyChange }
+          value={ key || props.key || '' }
+          onChange={ this.onKeyChange }
         />
         <FlatButton
           label='Lookup'
           primary
-          onClick={ onLookupClick }
+          onClick={ this.onLookupClick }
         />
         <div className={ styles.results }>
           { this.props.lookup.result || '' }
@@ -48,4 +40,14 @@ export default class Lookup extends Component {
       </div>
     );
   }
+
+  onNameChange = (e) => {
+    this.setState({ name: e.target.value });
+  };
+  onKeyChange = (e) => {
+    this.setState({ key: e.target.value });
+  };
+  onLookupClick = () => {
+    this.props.actions.lookup(this.state.name, this.state.key);
+  };
 }
