@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { Actionbar } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 
 import { removeToast } from './actions/toastr';
 import { ToastrContainer } from './components';
@@ -29,16 +29,15 @@ export class Signer extends Component {
   };
 
   render () {
-    console.log(this.props);
     const { signerToastr, actions } = this.props;
 
     return (
       <div className={ styles.signer }>
         <Actionbar
           title='Trusted Signer' />
-        <div className={ styles.mainContainer }>
+        <Page>
           { this.renderPage() }
-        </div>
+        </Page>
         <ToastrContainer
           toasts={ signerToastr.toasts }
           actions={ actions }

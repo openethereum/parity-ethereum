@@ -4,7 +4,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, Tooltip } from '../../ui';
+import { Actionbar, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -26,10 +26,12 @@ export default class Accounts extends Component {
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
-        <List accounts={ accounts } />
-        <Tooltip
-          className={ styles.accountTooltip }
-          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+        <Page>
+          <List accounts={ accounts } />
+          <Tooltip
+            className={ styles.accountTooltip }
+            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+        </Page>
       </div>
     );
   }

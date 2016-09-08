@@ -28,6 +28,7 @@ export default class ToastrMiddleware {
   toast (store, next, action) {
     const { toastNo } = store.getState().signerToastr;
     const { msg, type } = action.meta.toastr;
+
     next(addToast({ type, msg, toastNo }));
     this.setTimeoutFor(toastNo, next);
   }

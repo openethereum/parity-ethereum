@@ -4,7 +4,7 @@ import ActionAccountBalance from 'material-ui/svg-icons/action/account-balance';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { FundAccount, Transfer } from '../../modals';
-import { Actionbar } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 
 import Header from './Header';
 import Transactions from './Transactions';
@@ -43,10 +43,12 @@ export default class Account extends Component {
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
         { this.renderActionbar() }
-        <Header
-          account={ account } />
-        <Transactions
-          address={ address } />
+        <Page>
+          <Header
+            account={ account } />
+          <Transactions
+            address={ address } />
+        </Page>
       </div>
     );
   }

@@ -4,7 +4,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -25,9 +25,11 @@ export default class Addresses extends Component {
       <div className={ styles.addresses }>
         { this.renderActionbar() }
         { this.renderAddAddress() }
-        <List
-          contact
-          accounts={ contacts } />
+        <Page>
+          <List
+            contact
+            accounts={ contacts } />
+        </Page>
       </div>
     );
   }

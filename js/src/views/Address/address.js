@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
-import { Actionbar } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
@@ -28,10 +28,12 @@ export default class Address extends Component {
     return (
       <div className={ styles.address }>
         { this.renderActionbar() }
-        <Header
-          account={ contact } />
-        <Transactions
-          address={ address } />
+        <Page>
+          <Header
+            account={ contact } />
+          <Transactions
+            address={ address } />
+        </Page>
       </div>
     );
   }
