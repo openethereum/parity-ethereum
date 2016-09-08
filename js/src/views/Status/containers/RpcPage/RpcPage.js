@@ -1,5 +1,5 @@
-
 import React, { Component, PropTypes } from 'react';
+
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { extend } from 'lodash';
@@ -8,6 +8,11 @@ import { updateLogging } from '../../actions/logger';
 import { copyToClipboard } from '../../actions/clipboard';
 
 class RpcPage extends Component {
+  static propTypes = {
+    children: PropTypes.object.isRequired,
+    rpc: PropTypes.object.isRequired,
+    actions: PropTypes.object.isRequired
+  }
 
   render () {
     return (
@@ -18,13 +23,6 @@ class RpcPage extends Component {
       </div>
     );
   }
-
-  static propTypes = {
-    children: PropTypes.object.isRequired,
-    rpc: PropTypes.object.isRequired,
-    actions: PropTypes.object.isRequired
-  }
-
 }
 
 function mapStateToProps (state) {

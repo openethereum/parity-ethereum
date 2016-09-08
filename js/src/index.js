@@ -3,7 +3,6 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import es6Promise from 'es6-promise';
-
 import { createHashHistory } from 'history';
 import { Provider } from 'react-redux';
 import { applyMiddleware, combineReducers, createStore } from 'redux';
@@ -19,17 +18,16 @@ import { Accounts, Account, Addresses, Address, Application, Contract, Contracts
 import { errorReducer } from './ui/Errors';
 import { tooltipReducer } from './ui/Tooltips';
 import { nodeStatusReducer } from './views/Application/Status';
+import initMiddleware from './middleware';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
-import signerMiddlewares from './views/Signer/middlewares';
-import { signer as signerReducer, toastr as signerToastrReducer, requests as signerRequestsReducer } from './views/Signer/reducers';
+import { signer as signerReducer, requests as signerRequestsReducer } from './views/Signer/reducers';
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 
 // TODO: same with Status...
-import statusMiddlewares from './views/Status/middleware';
-import { status as statusReducer, settings as statusSettingsReducer, mining as statusMiningReducer, rpc as statusRpcReducer, toastr as statusToastrReducer, logger as statusLoggerReducer, debug as statusDebugReducer } from './views/Status/reducers';
+import { status as statusReducer, debug as statusDebugReducer, logger as statusLoggerReducer, mining as statusMiningReducer, rpc as statusRpcReducer, settings as statusSettingsReducer } from './views/Status/reducers';
 import { Web3Provider as StatusWeb3Provider } from './views/Status/provider/web3-provider';
 import StatusEthcoreWeb3 from './views/Status/provider/web3-ethcore-provider';
 import Status from './views/Status/containers/Container';
@@ -70,22 +68,18 @@ const reducers = combineReducers({
   routing: routerReducer,
   signer: signerReducer,
   signerRequests: signerRequestsReducer,
-  signerToastr: signerToastrReducer,
   status: statusReducer,
   statusSettings: statusSettingsReducer,
   statusMining: statusMiningReducer,
   statusRpc: statusRpcReducer,
-  statusToastr: statusToastrReducer,
   statusLogger: statusLoggerReducer,
   statusDebug: statusDebugReducer
 });
-const middlewares = []
-  .concat(signerMiddlewares(ws, tokenSetter))
-  .concat(statusMiddlewares(web3));
+const middleware = initMiddleware(ws, tokenSetter, web3);
 const storeCreation = window.devToolsExtension
   ? window.devToolsExtension()(createStore)
   : createStore;
-const store = applyMiddleware(...middlewares)(storeCreation)(reducers);
+const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new

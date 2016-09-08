@@ -5,12 +5,8 @@ import { extend } from 'lodash';
 
 import { Actionbar, Page } from '../../../../ui';
 
-import * as ToastActions from '../../actions/toastr';
 import { updateLogging } from '../../actions/logger';
-import ToastrContainer from '../../components/ToastrContainer';
 
-import DebugPage from '../DebugPage';
-import RpcPage from '../RpcPage';
 import StatusPage from '../StatusPage';
 
 import styles from './status.css';
@@ -31,32 +27,9 @@ class Container extends Component {
         <Actionbar
           title='status' />
         <Page>
-          { this.renderPage() }
-          <ToastrContainer { ...this.props } />
+          <StatusPage />
         </Page>
       </div>
-    );
-  }
-
-  renderPage () {
-    const { params } = this.props;
-
-    if (params && params.subpage) {
-      if (params.subpage === 'debug') {
-        return (
-          <DebugPage />
-        );
-      } else if (params.subpage === 'rpc') {
-        return (
-          <RpcPage>
-            <div>This is very much still a WIP, hence the original RPC calls are not available here yet (it should actually be removed here and moved to a dedicated developer section once available)</div>
-          </RpcPage>
-        );
-      }
-    }
-
-    return (
-      <StatusPage />
     );
   }
 }
@@ -67,7 +40,7 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return {
-    actions: bindActionCreators(extend({}, ToastActions, { updateLogging }), dispatch)
+    actions: bindActionCreators(extend({}, {}, { updateLogging }), dispatch)
   };
 }
 

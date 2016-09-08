@@ -1,4 +1,3 @@
-
 import web3Formatters from 'web3/lib/web3/formatters.js';
 import web3Utils from 'web3/lib/utils/utils.js';
 import * as RpcActions from '../actions/rpc';
