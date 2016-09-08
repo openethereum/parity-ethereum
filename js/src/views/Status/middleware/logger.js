@@ -1,11 +1,16 @@
+export default (store) => {
+  return (next) => {
+    return (action) => {
+      if (store.getState().statusLogger.logging) {
+        const msg = [`[${now()}] action:`, `${action.type};`, 'payload: ', action.payload];
+        const logMethod = action.type.indexOf('error') > -1 ? 'error' : 'log';
 
-export default store => next => action => {
-  if (store.getState().logger.logging) {
-    const msg = [`[${now()}] action:`, `${action.type};`, 'payload: ', action.payload];
-    const logMethod = action.type.indexOf('error') > -1 ? 'error' : 'log';
-    console[logMethod](...msg);
-  }
-  return next(action);
+        console[logMethod](...msg);
+      }
+
+      return next(action);
+    };
+  };
 };
 
 function now () {
@@ -15,4 +20,3 @@ function now () {
   const hour = date.getHours();
   return `${hour}::${minutes}::${seconds}`;
 }
-

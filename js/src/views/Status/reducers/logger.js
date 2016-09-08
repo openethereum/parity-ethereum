@@ -3,7 +3,7 @@ import { handleActions } from 'redux-actions';
 const isProd = process.env.NODE_ENV === 'production';
 
 const initialState = {
-  logging: !isProd
+  logging: false && !isProd
 };
 
 export default handleActions({
