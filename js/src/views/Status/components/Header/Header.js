@@ -44,21 +44,15 @@ export default class Header extends Component {
               </Link>
             </li>
             <li>
-              <Link to={ '/rpc' } activeClassName='active' { ...this._test('rpc-link') }>
+              <Link to={ '/status/rpc' } activeClassName='active' { ...this._test('rpc-link') }>
                 <i className='icon-call-out'></i>
                 <span>Rpc Methods</span>
               </Link>
             </li>
             <li>
-              <Link to={ '/debug' } activeClassName='active' { ...this._test('debug-link') }>
+              <Link to={ '/status/debug' } activeClassName='active' { ...this._test('debug-link') }>
                 <i className='icon-bar-chart'></i>
                 <span>Debug</span>
-              </Link>
-            </li>
-            <li style={ { display: 'none' } }>
-              <Link to={ '/accounts' } activeClassName='active' { ...this._test('accounts-link') }>
-                <i className='icon-users'></i>
-                <span>Accounts</span>
               </Link>
             </li>
           </ul>

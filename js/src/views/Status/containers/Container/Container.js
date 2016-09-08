@@ -4,10 +4,12 @@ import { bindActionCreators } from 'redux';
 import { extend } from 'lodash';
 
 import Header from '../../components/Header';
-import Footer from '../../components/Footer';
 import * as ToastActions from '../../actions/toastr';
 import { updateLogging } from '../../actions/logger';
 import ToastrContainer from '../../components/ToastrContainer';
+
+import DebugPage from '../DebugPage';
+import RpcPage from '../RpcPage';
 import StatusPage from '../StatusPage';
 
 import styles from './status.css';
@@ -18,12 +20,12 @@ class Container extends Component {
     statusLogger: PropTypes.object.isRequired,
     statusToastr: PropTypes.object.isRequired,
     routing: PropTypes.object.isRequired,
-    actions: PropTypes.object.isRequired
+    actions: PropTypes.object.isRequired,
+    params: PropTypes.object
   }
 
   render () {
-    const { actions, statusLogger } = this.props;
-    const { name, disconnected, noOfErrors, version } = this.props.status;
+    const { name, disconnected, noOfErrors } = this.props.status;
 
     return (
       <div className={ styles.container }>
@@ -34,18 +36,28 @@ class Container extends Component {
           { ...this._test('header') }
         />
         { this.renderPage() }
-        <Footer
-          version={ version }
-          logging={ statusLogger.logging }
-          updateLogging={ actions.updateLogging }
-          { ...this._test('footer') }
-        />
         <ToastrContainer { ...this.props } />
       </div>
     );
   }
 
   renderPage () {
+    const { params } = this.props;
+
+    if (params && params.subpage) {
+      if (params.subpage === 'debug') {
+        return (
+          <DebugPage />
+        );
+      } else if (params.subpage === 'rpc') {
+        return (
+          <RpcPage>
+            <div>This is very much still a WIP, hence the original RPC calls are not available here yet (it should actually be removed here and moved to a dedicated developer section once available)</div>
+          </RpcPage>
+        );
+      }
+    }
+
     return (
       <StatusPage />
     );

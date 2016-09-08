@@ -12,7 +12,7 @@ export default class Debug extends Component {
           <div className={ 'dapp-container' }>
             <h1><span>Debugging</span> logs</h1>
             { this.renderActions() }
-            <h2 className={ styles.subheader }>{ this.props.debug.levels || '-' }</h2>
+            <h2 className={ styles.subheader }>{ this.props.statusDebug.levels || '-' }</h2>
             <div className={ styles.logs }>
               { this.renderLogs() }
             </div>
@@ -23,7 +23,7 @@ export default class Debug extends Component {
   }
 
   renderLogs () {
-    return this.props.debug.logs.map((log, idx) => (
+    return this.props.statusDebug.logs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
       </pre>
@@ -31,7 +31,7 @@ export default class Debug extends Component {
   }
 
   renderActions () {
-    const toggleClass = this.props.debug.logging ? 'icon-control-pause' : 'icon-control-play';
+    const toggleClass = this.props.statusDebug.logging ? 'icon-control-pause' : 'icon-control-play';
     return (
       <div className={ styles.actions }>
         <a><i onClick={ this.toggle } className={ toggleClass }></i></a>
@@ -45,7 +45,7 @@ export default class Debug extends Component {
   }
 
   toggle = () => {
-    this.props.actions.updateDevLogging(!this.props.debug.logging);
+    this.props.actions.updateDevLogging(!this.props.statusDebug.logging);
   }
 
   static propTypes = {
@@ -53,7 +53,7 @@ export default class Debug extends Component {
       removeDevLogs: PropTypes.func.isRequired,
       updateDevLogging: PropTypes.func.isRequired
     }).isRequired,
-    debug: PropTypes.shape({
+    statusDebug: PropTypes.shape({
       levels: PropTypes.string.isRequired,
       logging: PropTypes.bool.isRequired,
       logs: PropTypes.arrayOf(PropTypes.string).isRequired

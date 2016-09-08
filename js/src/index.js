@@ -112,6 +112,7 @@ ReactDOM.render(
             <Route path='contract/:address' component={ Contract } />
             <Route path='signer' component={ Signer } />
             <Route path='status' component={ Status } />
+            <Route path='status/:subpage' component={ Status } />
           </Route>
         </Router>
       </SignerWeb3Provider>

@@ -1,4 +1,3 @@
-
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
@@ -9,16 +8,14 @@ import { updateLogging } from '../../actions/logger';
 import Debug from '../../components/Debug';
 
 class DebugPage extends Component {
+  static propTypes = {
+    actions: PropTypes.object.isRequired,
+    statusDebug: PropTypes.object.isRequired
+  }
 
   render () {
     return <Debug { ...this.props } />;
   }
-
-  static propTypes = {
-    actions: PropTypes.object.isRequired,
-    debug: PropTypes.object.isRequired
-  }
-
 }
 
 function mapStateToProps (state) {
