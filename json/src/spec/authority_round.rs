@@ -42,7 +42,7 @@ pub struct AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use spec::basic_authority::AuthorityRound;
+	use spec::authority_round::AuthorityRound;
 
 	#[test]
 	fn basic_authority_deserialization() {

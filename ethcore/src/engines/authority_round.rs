@@ -19,7 +19,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use common::*;
-use ethkey::{recover, public_to_address};
+use ethkey::verify_address;
 use rlp::{UntrustedRlp, View, encode, decode};
 use account_provider::AccountProvider;
 use block::*;
@@ -108,6 +108,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 
 	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
+			println!("timeout");
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::Relaxed);
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
@@ -163,12 +164,11 @@ impl Engine for AuthorityRound {
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if self.is_proposer(block.header().author()) {
+		let header = block.header();
+		if self.is_proposer(header.author()) {
 			if let Some(ap) = accounts {
-				let header = block.header();
-				let message = header.bare_hash();
-				// Account should be pernamently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), message) {
+				// Account should be permanently unlocked, otherwise sealing will fail.
+				if let Ok(signature) = ap.sign(*header.author(), header.bare_hash()) {
 					return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
 					trace!(target: "authorityround", "generate_seal: FAIL: accounts secret key unavailable");
@@ -181,7 +181,7 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Check the number of seal fields.
-	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
@@ -191,17 +191,16 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Check if the signature belongs to the correct proposer.
-	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
-		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
-		if self.is_proposer(&signer) {
+		if try!(verify_address(self.proposer(), &sig.into(), &header.bare_hash())) {
 			Ok(())
 		} else {
 			try!(Err(BlockError::InvalidSeal))
 		}
 	}
 
-	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
@@ -220,7 +219,7 @@ impl Engine for AuthorityRound {
 		Ok(())
 	}
 
-	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> result::Result<(), Error> {
+	fn verify_transaction_basic(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		try!(t.check_low_s());
 		Ok(())
 	}
@@ -245,6 +244,8 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use std::thread::sleep;
+	use std::time::Duration;
 
 	/// Create a new test chain spec with `AuthorityRound` consensus engine.
 	fn new_test_authority() -> Spec {
@@ -276,7 +277,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_do_seal_verification_fail() {
+	fn verification_fails_on_short_seal() {
 		let engine = new_test_authority().engine;
 		let header: Header = Header::default();
 
@@ -302,8 +303,8 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("".sha3(), "").unwrap();
-		tap.unlock_account_permanently(addr, "".into()).unwrap();
+		let addr = tap.insert_account("1".sha3(), "1").unwrap();
+		tap.unlock_account_permanently(addr, "1".into()).unwrap();
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
@@ -316,5 +317,31 @@ mod tests {
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
+	}
+
+	#[test]
+	fn proposer_switching() {
+		let engine = new_test_authority().engine;
+		let mut header: Header = Header::default();
+		let tap = AccountProvider::transient_provider();
+		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+
+		header.set_author(addr);
+
+		let signature = tap.sign_with_password(addr, "0".into(), header.bare_hash()).unwrap();
+		header.set_seal(vec![encode(&(&*signature as &[u8])).to_vec()]);
+
+		// Wrong step.
+		assert!(engine.verify_block_unordered(&header, None).is_err());
+
+		sleep(Duration::from_millis(1000));
+
+		// Right step.
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
+
+		sleep(Duration::from_millis(1000));
+
+		// Wrong step.
+		assert!(engine.verify_block_unordered(&header, None).is_err());
 	}
 }
