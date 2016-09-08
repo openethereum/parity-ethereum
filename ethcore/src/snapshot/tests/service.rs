@@ -21,13 +21,21 @@ use std::sync::Arc;
 use client::{BlockChainClient, Client};
 use ids::BlockID;
 use snapshot::service::{Service, ServiceParams};
-use snapshot::SnapshotService;
+use snapshot::{self, ManifestData, SnapshotService};
 use spec::Spec;
 use tests::helpers::generate_dummy_client_with_spec_and_data;
 
 use devtools::RandomTempPath;
 use io::IoChannel;
 use util::kvdb::DatabaseConfig;
+
+struct NoopDBRestore;
+
+impl snapshot::DatabaseRestore for NoopDBRestore {
+	fn restore_db(&self, _new_db: &str) -> Result<(), ::error::Error> {
+		Ok(())
+	}
+}
 
 #[test]
 fn restored_is_equivalent() {
@@ -94,3 +102,40 @@ fn restored_is_equivalent() {
 		assert_eq!(block1, block2);
 	}
 }
+
+#[test]
+fn guards_delete_folders() {
+	let spec = Spec::new_null();
+	let path = RandomTempPath::create_dir();
+	let mut path = path.as_path().clone();
+	let service_params = ServiceParams {
+		engine: spec.engine.clone(),
+		genesis_block: spec.genesis_block(),
+		db_config: DatabaseConfig::with_columns(::db::NUM_COLUMNS),
+		pruning: ::util::journaldb::Algorithm::Archive,
+		channel: IoChannel::disconnected(),
+		snapshot_root: path.clone(),
+		db_restore: Arc::new(NoopDBRestore),
+	};
+
+	let service = Service::new(service_params).unwrap();
+	path.push("restoration");
+
+	let manifest = ManifestData {
+		state_hashes: vec![],
+		block_hashes: vec![],
+		block_number: 0,
+		block_hash: Default::default(),
+		state_root: Default::default(),
+	};
+
+	service.init_restore(manifest).unwrap();
+
+	assert!(path.exists());
+
+	drop(service);
+
+	assert!(!path.exists());
+}
+
+#[test]

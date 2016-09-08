@@ -296,7 +296,7 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		try!(self.db_restore.restore_db(our_db.to_str().unwrap()));
+		try!(self.db_restore.restore_db(our_db.to_string_lossy()));
 		Ok(())
 	}
 
