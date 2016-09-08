@@ -1,5 +1,7 @@
 import Account from './Account';
 import Accounts from './Accounts';
+import Address from './Address';
+import Addresses from './Addresses';
 import Application from './Application';
 import Contract from './Contract';
 import Contracts from './Contracts';
@@ -11,6 +13,8 @@ import Signer from './Signer';
 export {
   Account,
   Accounts,
+  Address,
+  Addresses,
   Application,
   Contract,
   Contracts,

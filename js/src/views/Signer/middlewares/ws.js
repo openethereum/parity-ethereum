@@ -38,7 +38,7 @@ export default class LocalstorageMiddleware {
     next(action);
     const { id, password } = action.payload;
     // TODO [legacy;todr] Remove
-    const method = store.getState().requests.compatibilityMode ? 'personal_confirmTransaction' : 'personal_confirmRequest';
+    const method = store.getState().signerRequests.compatibilityMode ? 'personal_confirmTransaction' : 'personal_confirmRequest';
 
     this.send(method, [ id, {}, password ], (err, txHash) => {
       logger.log('[WS MIDDLEWARE] confirm request cb:', err, txHash);
@@ -56,7 +56,7 @@ export default class LocalstorageMiddleware {
     next(action);
     const id = action.payload;
     // TODO [legacy;todr] Remove
-    const method = store.getState().requests.compatibilityMode ? 'personal_rejectTransaction' : 'personal_rejectRequest';
+    const method = store.getState().signerRequests.compatibilityMode ? 'personal_rejectTransaction' : 'personal_rejectRequest';
 
     this.send(method, [ id ], (err, res) => {
       logger.log('[WS MIDDLEWARE] reject request cb:', err, res);

@@ -1,6 +1,6 @@
-export function updateStatus (status) {
+export function updateNodeStatus (status) {
   return {
-    type: 'updateStatus',
+    type: 'updateNodeStatus',
     status
   };
 }

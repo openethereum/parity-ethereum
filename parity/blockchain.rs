@@ -19,7 +19,6 @@ use std::{io, fs};
 use std::io::{BufReader, BufRead};
 use std::time::Duration;
 use std::thread::sleep;
-use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
@@ -125,8 +124,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -138,8 +138,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -237,8 +238,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -249,8 +251,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 

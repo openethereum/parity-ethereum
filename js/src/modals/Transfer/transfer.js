@@ -30,7 +30,8 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
 class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    balances: PropTypes.object
   }
 
   static propTypes = {
@@ -304,9 +305,12 @@ class Transfer extends Component {
   }
 
   _onUpdateTag (tag) {
+    const { balances } = this.context;
+    const { account } = this.props;
+
     this.setState({
       tag,
-      isEth: tag === this.props.account.balances[0].token.tag
+      isEth: tag === balances[account.address].tokens[0].token.tag
     }, this.recalculateGas);
   }
 
@@ -367,9 +371,10 @@ class Transfer extends Component {
   }
 
   _sendToken () {
+    const { balances } = this.context;
     const { account } = this.props;
     const { recipient, value, tag } = this.state;
-    const token = account.balances.find((balance) => balance.token.tag === tag).token;
+    const token = balances[account.address].tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
@@ -413,9 +418,10 @@ class Transfer extends Component {
   }
 
   _estimateGasToken () {
+    const { balances } = this.context;
     const { account } = this.props;
-    const { recipient, value } = this.state;
-    const token = account.balances.find((balance) => balance.token.tag === this.state.tag).token;
+    const { recipient, value, tag } = this.state;
+    const token = balances[account.address].tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .estimateGas({
@@ -477,7 +483,7 @@ class Transfer extends Component {
 
     const { gas, gasPrice, tag, valueAll, isEth } = this.state;
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
-    const balances = account.balances;
+    const balances = this.context.balances[account.address].tokens;
     const balance = balances.find((balance) => tag === balance.token.tag);
     const availableEth = new BigNumber(balances[0].value);
     const available = new BigNumber(balance.value);

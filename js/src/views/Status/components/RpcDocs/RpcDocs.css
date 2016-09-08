@@ -1,0 +1,19 @@
+.autocomplete {
+  margin-top: 0 !important;
+}
+
+.headline {
+  text-transform: none;
+}
+
+.returnsTitle {
+  display: 'inline';
+}
+
+.returnsDesc {
+  display: inline-block;
+}
+
+hr {
+  margin-bottom: 0;
+}

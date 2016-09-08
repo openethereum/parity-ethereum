@@ -1,11 +1,10 @@
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
-import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import Summary from './Summary';
-import { AddressBook, CreateAccount } from '../../modals';
-import { Actionbar, Tooltip } from '../../ui';
+import List from './List';
+import { CreateAccount } from '../../modals';
+import { Actionbar, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -21,14 +20,18 @@ export default class Accounts extends Component {
   }
 
   render () {
+    const { accounts } = this.context;
+
     return (
-      <div>
-        { this.renderAddressBook() }
+      <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
-        <div className={ styles.accounts }>
-          { this.renderAccounts() }
-        </div>
+        <Page>
+          <List accounts={ accounts } />
+          <Tooltip
+            className={ styles.accountTooltip }
+            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+        </Page>
       </div>
     );
   }
@@ -40,13 +43,7 @@ export default class Accounts extends Component {
         icon={ <ContentAdd /> }
         label='new account'
         primary
-        onTouchTap={ this.onNewAccountClick } />,
-      <FlatButton
-        key='addressBook'
-        icon={ <CommunicationContacts /> }
-        label='address book'
-        primary
-        onTouchTap={ this.onAddressBookClick } />
+        onTouchTap={ this.onNewAccountClick } />
     ];
 
     return (
@@ -60,37 +57,6 @@ export default class Accounts extends Component {
           text='actions relating to the current view are available on the toolbar for quick access, be it for performing actions or creating a new item' />
       </Actionbar>
     );
-  }
-
-  renderAccounts () {
-    const { accounts } = this.context;
-
-    if (!accounts) {
-      return null;
-    }
-
-    const { tokens } = this.state;
-    const firstTooltip = (
-      <Tooltip
-        className={ styles.accountTooltip }
-        text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-    );
-
-    return accounts
-      .filter((acc) => acc.uuid)
-      .map((account, idx) => {
-        return (
-          <div
-            className={ styles.account }
-            key={ account.address }>
-            <Summary
-              account={ account }
-              tokens={ tokens }>
-              { idx === 0 ? firstTooltip : null }
-            </Summary>
-          </div>
-        );
-      });
   }
 
   renderNewDialog () {
@@ -107,33 +73,10 @@ export default class Accounts extends Component {
     );
   }
 
-  renderAddressBook () {
-    const { addressBook } = this.state;
-
-    if (!addressBook) {
-      return null;
-    }
-
-    return (
-      <AddressBook
-        onClose={ this.onAddressBookClose } />
-    );
-  }
-
-  onAddressBookClick = () => {
-    this.setState({
-      addressBook: !this.state.addressBook
-    });
-  }
-
   onNewAccountClick = () => {
     this.setState({
       newDialog: !this.state.newDialog
     });
-  }
-
-  onAddressBookClose = () => {
-    this.onAddressBookClick();
   }
 
   onNewAccountClose = () => {

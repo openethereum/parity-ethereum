@@ -1,8 +1,6 @@
-
 import { addToast, removeToast } from '../actions/toastr';
 
 export default class ToastrMiddleware {
-
   constructor (time = 4000) {
     this._time = time;
     this._timeouts = {};
@@ -28,8 +26,9 @@ export default class ToastrMiddleware {
   }
 
   toast (store, next, action) {
-    const { toastNo } = store.getState().toastr;
+    const { toastNo } = store.getState().signerToastr;
     const { msg, type } = action.meta.toastr;
+
     next(addToast({ type, msg, toastNo }));
     this.setTimeoutFor(toastNo, next);
   }

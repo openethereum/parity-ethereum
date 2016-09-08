@@ -1,6 +1,13 @@
 .container {
-  width: 200px;
+  width: 220px;
+  padding: 20px 40px 0 40px;
+  /*border-left: 1px solid #aaa;*/
+  position: absolute;
+  top: 0;
+  right: 0;
+  box-sizing: content-box;
 }
+
 .rejectToggle {
   display: block;
   cursor: pointer;

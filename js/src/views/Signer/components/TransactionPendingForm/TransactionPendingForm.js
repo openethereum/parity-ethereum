@@ -2,8 +2,8 @@ import React, { Component, PropTypes } from 'react';
 
 import BackIcon from 'material-ui/svg-icons/navigation/arrow-back';
 
-import TransactionPendingFormConfirm from '../TransactionPendingFormConfirm';
-import TransactionPendingFormReject from '../TransactionPendingFormReject';
+import TransactionPendingFormConfirm from './TransactionPendingFormConfirm';
+import TransactionPendingFormReject from './TransactionPendingFormReject';
 import styles from './TransactionPendingForm.css';
 
 export default class TransactionPendingForm extends Component {
@@ -48,7 +48,7 @@ export default class TransactionPendingForm extends Component {
     let html;
 
     if (!isRejectOpen) {
-      html = <span>reject</span>;
+      html = <span>reject transaction</span>;
     } else {
       html = <span><BackIcon />I've changed my mind</span>;
     }

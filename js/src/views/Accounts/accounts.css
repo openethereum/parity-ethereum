@@ -1,45 +1,16 @@
 .accounts {
-  display: flex;
-  flex-wrap: wrap;
 }
 
-.account {
-  flex: 0 1 50%;
-  width: 50%;
-  position: relative;
-}
-
-.account:nth-child(odd)>div {
-  padding-right: 0.5em !important;
-}
-
-.account:nth-child(even)>div {
-  padding-left: 0.5em !important;
+.accountTooltip {
+  top: 12.5em;
+  left: 5em;
 }
 
 .toolbar {
   position: relative;
 }
 
-.accountTooltip {
-  top: 5.5em;
-  left: 5em;
-}
-
 .toolbarTooltip {
   right: 20px;
-  top: 4em;
-}
-
-.tooltitle {
-  text-transform: uppercase;
-}
-
-.toolbutton {
-  color: white !important;
-  background: rgb(0, 151, 167);
-}
-
-.toolbutton svg {
-  fill: white !important;
+  top: 3.75em;
 }

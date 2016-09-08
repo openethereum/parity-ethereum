@@ -37,7 +37,7 @@ const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
 
 /// Block queue configuration
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct BlockQueueConfig {
 	/// Maximum number of blocks to keep in unverified queue.
 	/// When the limit is reached, is_full returns true.

@@ -1,0 +1,23 @@
+.title {
+  position: relative;
+  top: -8px;
+  left: -8px;
+}
+.title h1, .title h3 {
+  margin: 0;
+}
+.title h3 {
+  text-transform: none;
+  font-weight: 300;
+}
+.error {
+  color: #C20E25 !important;
+}
+
+.warning {
+  color: #E88305 !important;
+}
+
+.hidden {
+  display: none !important;
+}

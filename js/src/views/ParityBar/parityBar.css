@@ -1,18 +1,31 @@
-.bar {
+.bar, .expanded {
   position: fixed;
   bottom: 0;
   right: 0;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
-  vertical-align: middle;
   z-index: 10000;
+}
+
+.bar {
+  vertical-align: middle;
   display: flex;
   flex-wrap: wrap;
   width: 100%;
 }
 
+.expanded {
+  right: 16px;
+  width: 860px;
+  height: 250px;
+  border-radius: 4px 4px 0 0;
+  background: rgb(48, 48, 48);
+  padding: 1em;
+  overflow-y: scroll;
+}
+
 .corner {
-  background: rgba(0, 0, 0, 0.75);
+  background: rgb(48, 48, 48);
   position: absolute;
   bottom: 0;
   right: 16px;
@@ -29,17 +42,9 @@
 }
 
 .link img, .link svg {
-  height: 28px !important;
-  width: 28px !important;
-  margin-right: 0.5em;
-}
-
-.link div {
-  display: inline-block;
-  text-transform: uppercase;
-  line-height: 32px;
-  vertical-align: top;
-  letter-spacing: 0.2em;
+  height: 24px !important;
+  width: 24px !important;
+  margin: 2px 0.5em 0 0;
 }
 
 .link+.link {
@@ -47,4 +52,46 @@
 }
 
 .button {
+  overflow: visible !important;
+}
+
+.label {
+  position: relative;
+  display: inline-block;
+  vertical-align: top;
+}
+
+.labelText {
+  text-transform: uppercase;
+  vertical-align: top;
+}
+
+.labelBubble {
+  border-radius: 50%;
+  padding: 5px;
+  background: red;
+  color: white;
+  font-size: 0.7em;
+  line-height: 0.7em;
+  position: absolute;
+  top: 0px;
+  right: -10px;
+}
+
+.actions {
+  text-align: right;
+  padding-bottom: 1em;
+}
+
+.actions div {
+  margin-left: 1em;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.parityIcon, .signerIcon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  margin-left: 12px;
 }

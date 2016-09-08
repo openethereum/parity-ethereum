@@ -1,0 +1,58 @@
+.input {
+  margin-top: 0;
+  width: 100%;
+  padding-left: 10px;
+  padding-right: 50px;
+}
+
+.icon, .iconSuccess, .firstIcon {
+  display: block;
+  cursor: pointer;
+  flex: 1;
+  margin: 3px 3px;
+  color: #bbb;
+}
+
+.success, .iconSuccess {
+  color: #8bc34a;
+}
+
+.icon i, .iconSuccess i, .firstIcon i {
+  vertical-align: middle;
+}
+
+.icons, .iconsVisible, .firstIcon {
+  z-index: 10;
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  opacity: 0;
+  transition: opacity ease-in-out .2s;
+  transition-delay: 0.2s;
+}
+
+.iconsVisible {
+  opacity: 1.0;
+}
+
+.container:hover .icons, .container:hover .firstIcon {
+  opacity: 1.0;
+}
+
+.firstIcon {
+  position: absolute;
+  left: -10px;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  margin: 3px 0;
+  display: block;
+}
+
+.autocomplete input {
+  margin-top: 0;
+  padding-left: 10px !important;
+  padding-right: 50px !important;
+}

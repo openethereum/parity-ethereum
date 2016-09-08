@@ -1,0 +1,15 @@
+.confirmForm {
+  margin-top: -30px;
+}
+
+.confirmButton {
+  display: block !important;
+  margin-bottom: 10px;
+}
+
+.signerIcon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  margin-left: 12px;
+}

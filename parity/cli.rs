@@ -243,6 +243,8 @@ Snapshot Options:
                            index, hash, or 'latest'. Note that taking snapshots at
                            non-recent blocks will only work with --pruning archive
                            [default: latest]
+  --no-periodic-snapshot   Disable automated snapshots which usually occur once
+                           every 10000 blocks.
 
 Virtual Machine Options:
   --jitvm                  Enable the JIT VM.
@@ -382,6 +384,7 @@ pub struct Args {
 	pub flag_from: String,
 	pub flag_to: String,
 	pub flag_at: String,
+	pub flag_no_periodic_snapshot: bool,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,

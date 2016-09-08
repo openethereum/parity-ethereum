@@ -1,3 +1,7 @@
-const Signer = null;
+import Embedded from './containers/Embedded';
 
-export default Signer;
+export default from './signer';
+
+export {
+  Embedded
+};

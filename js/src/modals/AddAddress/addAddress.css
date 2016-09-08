@@ -1,0 +1,10 @@
+.header {
+  margin: -24px -24px 1em -24px;
+  padding: 1em;
+  background: rgba(0, 0, 0, 0.175);
+}
+
+.header h3 {
+  margin: 0;
+  text-transform: uppercase;
+}

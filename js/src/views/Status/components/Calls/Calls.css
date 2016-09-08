@@ -1,0 +1,28 @@
+.historyInfo {
+  margin-top: 0;
+  text-transform: initial;
+}
+
+.header {
+  margin: 0;
+}
+
+.removeIcon {
+  float: right;
+  color: #bbb;
+  cursor: pointer;
+  transition: opacity ease-in-out 0.2s;
+  transition-delay: 0.2s;
+  opacity: 0;
+}
+
+div:hover > .removeIcon {
+  opacity: 1.0;
+}
+
+.history {
+  margin-top: calc(1em + 18.4px);
+  padding-top: 0;
+  overflow: auto;
+  max-height: 60vh;
+}

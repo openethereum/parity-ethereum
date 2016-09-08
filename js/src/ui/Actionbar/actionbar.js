@@ -13,9 +13,10 @@ export default class Actionbar extends Component {
 
   render () {
     const { children, className } = this.props;
+    const classes = `${styles.actionbar} ${className}`;
 
     return (
-      <Toolbar className={ className }>
+      <Toolbar className={ classes }>
         { this.renderTitle() }
         { this.renderButtons() }
         { children }

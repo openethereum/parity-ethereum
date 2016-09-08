@@ -1,22 +1,21 @@
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ActionAccountBalance from 'material-ui/svg-icons/action/account-balance';
-import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { FundAccount, Transfer } from '../../modals';
-import { Actionbar, Balances, Container, ContainerTitle, Form, FormWrap, InputInline, IdentityIcon } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 
+import Header from './Header';
 import Transactions from './Transactions';
 
 import styles from './account.css';
 
-const DEFAULT_NAME = 'Unnamed';
-
 export default class Account extends Component {
   static contextTypes = {
     api: React.PropTypes.object,
-    accounts: PropTypes.array
+    accounts: PropTypes.array,
+    balances: PropTypes.object
   }
 
   static propTypes = {
@@ -26,71 +25,30 @@ export default class Account extends Component {
   propName = null
 
   state = {
-    name: null,
     fundDialog: false,
     transferDialog: false
   }
 
-  componentWillMount () {
-    this.setName();
-  }
-
-  componentWillReceiveProps () {
-    this.setName();
-  }
-
   render () {
+    const { accounts } = this.context;
     const { address } = this.props.params;
-    const { name } = this.state;
-    const account = this.context.accounts.find((account) => account.address === address);
+    const account = accounts.find((_account) => _account.address === address);
 
     if (!account) {
       return null;
     }
 
-    const title = (
-      <span>
-        <span>{ name || DEFAULT_NAME }</span>
-        <ContentCreate
-          className={ styles.editicon }
-          color='rgb(0, 151, 167)' />
-      </span>
-    );
-
     return (
-      <div>
+      <div className={ styles.account }>
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
         { this.renderActionbar() }
-        <Container>
-          <IdentityIcon
+        <Page>
+          <Header
+            account={ account } />
+          <Transactions
             address={ address } />
-          <Form>
-            <div
-              className={ styles.floatleft }>
-              <InputInline
-                label='account name'
-                hint='a descriptive name for the account'
-                value={ name }
-                static={ <ContainerTitle title={ title } /> }
-                onChange={ this.onEditName } />
-              <div className={ styles.infoline }>
-                { address }
-              </div>
-              <div className={ styles.infoline }>
-                { account.txCount.toFormat() } outgoing transactions
-              </div>
-            </div>
-            <div
-              className={ styles.balances }>
-              <Balances
-                account={ account }
-                onChange={ this.onChangeBalances } />
-            </div>
-          </Form>
-        </Container>
-        <Transactions
-          address={ address } />
+        </Page>
       </div>
     );
   }
@@ -169,36 +127,5 @@ export default class Account extends Component {
 
   onTransferClose = () => {
     this.onTransferClick();
-  }
-
-  onChangeBalances = (balances) => {
-    this.setState({
-      balances: balances
-    });
-  }
-
-  onEditName = (event, name) => {
-    const { api } = this.context;
-    const { address } = this.props.params;
-
-    this.setState({ name }, () => {
-      api.personal
-        .setAccountName(address, name)
-        .catch((error) => {
-          console.error(error);
-        });
-    });
-  }
-
-  setName () {
-    const { address } = this.props.params;
-    const account = this.context.accounts.find((account) => account.address === address);
-
-    if (account && account.name !== this.propName) {
-      this.propName = account.name;
-      this.setState({
-        name: account.name
-      });
-    }
   }
 }

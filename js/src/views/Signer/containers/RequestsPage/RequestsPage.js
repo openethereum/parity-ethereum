@@ -12,7 +12,7 @@ import styles from './RequestsPage.css';
 
 class RequestsPage extends Component {
   static propTypes = {
-    requests: PropTypes.shape({
+    signerRequests: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -23,7 +23,7 @@ class RequestsPage extends Component {
   };
 
   render () {
-    const { pending, finished } = this.props.requests;
+    const { pending, finished } = this.props.signerRequests;
 
     if (!pending.length && !finished.length) {
       return this.renderNoRequestsMsg();
@@ -42,13 +42,13 @@ class RequestsPage extends Component {
   }
 
   renderPendingRequests () {
-    const { pending } = this.props.requests;
+    const { pending } = this.props.signerRequests;
 
     if (!pending.length) {
       return;
     }
 
-    const items = pending.sort(this._sortRequests).map(data => this.renderPending(data));
+    const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
       <Container>
@@ -61,13 +61,13 @@ class RequestsPage extends Component {
   }
 
   renderFinishedRequests () {
-    const { finished } = this.props.requests;
+    const { finished } = this.props.signerRequests;
 
     if (!finished.length) {
       return;
     }
 
-    const items = finished.sort(this._sortRequests).map(data => this.renderFinished(data));
+    const items = finished.sort(this._sortRequests).map(this.renderFinished);
 
     return (
       <Container>
@@ -79,7 +79,7 @@ class RequestsPage extends Component {
     );
   }
 
-  renderPending (data) {
+  renderPending = (data) => {
     const { actions } = this.props;
     const { payload, id, isSending } = data;
 
@@ -96,7 +96,7 @@ class RequestsPage extends Component {
     );
   }
 
-  renderFinished (data) {
+  renderFinished = (data) => {
     const { payload, id, result, msg, status, error } = data;
 
     return (

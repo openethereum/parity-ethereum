@@ -1,0 +1,17 @@
+
+.header {
+  margin: 0;
+}
+
+.input {
+  width: 100%;
+}
+
+h3 + label > input {
+  margin-top: 0;
+}
+
+.jsonToggle {
+  width: auto !important;
+  float: right;
+}

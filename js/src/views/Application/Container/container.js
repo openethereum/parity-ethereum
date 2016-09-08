@@ -3,9 +3,6 @@ import React, { Component, PropTypes } from 'react';
 import { FirstRun } from '../../../modals';
 import { Errors, Tooltips } from '../../../ui';
 
-import Status from '../Status';
-import TabBar from '../TabBar';
-
 import styles from '../application.css';
 
 export default class Container extends Component {
@@ -25,9 +22,7 @@ export default class Container extends Component {
           onClose={ onCloseFirstRun } />
         <Tooltips />
         <Errors />
-        <TabBar />
         { children }
-        <Status />
       </div>
     );
   }

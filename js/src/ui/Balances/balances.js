@@ -5,7 +5,8 @@ import styles from './balances.css';
 
 export default class Balances extends Component {
   static contextTypes = {
-    api: PropTypes.object
+    api: PropTypes.object,
+    balances: PropTypes.object
   }
 
   static propTypes = {
@@ -14,9 +15,15 @@ export default class Balances extends Component {
   }
 
   render () {
-    const { api } = this.context;
+    const { api, balances } = this.context;
+    const { account } = this.props;
+    const balance = balances[account.address];
 
-    let body = this.props.account.balances
+    if (!balance) {
+      return null;
+    }
+
+    let body = balance.tokens
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;

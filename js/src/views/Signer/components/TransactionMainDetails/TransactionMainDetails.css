@@ -1,9 +1,24 @@
 .transaction {
-  margin-right: 30px;
 }
 
 .transaction > * {
   display: inline-block;
+}
+
+.account {
+  text-align: center;
+}
+
+.from, .to {
+  width: 50%;
+}
+
+.from .account {
+  padding-right: 75px;
+}
+
+.to .account {
+  padding-left: 75px;
 }
 
 .from img, .to img {
@@ -12,6 +27,7 @@
   height: 50px;
   margin: 5px;
 }
+
 .from span, .to span {
   display: block;
 }
@@ -19,8 +35,7 @@
 .tx {
   position: relative;
   text-align: center;
-  margin-right: 10px;
-  margin-left: 10px;
+  margin: 0 -75px;
   width: 150px;
   top: -20px;
   white-space: nowrap;

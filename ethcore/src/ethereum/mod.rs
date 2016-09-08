@@ -29,29 +29,33 @@ pub use self::denominations::*;
 
 use super::spec::*;
 
+fn load(b: &[u8]) -> Spec {
+	Spec::load(b).expect("chain spec is invalid")
+}
+
 /// Create a new Olympic chain spec.
-pub fn new_olympic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/olympic.json")) }
+pub fn new_olympic() -> Spec { load(include_bytes!("../../res/ethereum/olympic.json")) }
 
 /// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier.json")) }
+pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier.json")) }
 
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
-pub fn new_classic() -> Spec { Spec::load(include_bytes!("../../res/ethereum/classic.json")) }
+pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
 /// Create a new Frontier chain spec as though it never changes to Homestead.
-pub fn new_frontier_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_test.json")) }
+pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
 /// Create a new Homestead chain spec as though it never changed from Frontier.
-pub fn new_homestead_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/homestead_test.json")) }
+pub fn new_homestead_test() -> Spec { load(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
 /// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
-pub fn new_daohardfork_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/daohardfork_test.json")) }
+pub fn new_daohardfork_test() -> Spec { load(include_bytes!("../../res/ethereum/daohardfork_test.json")) }
 
 /// Create a new Frontier main net chain spec without genesis accounts.
-pub fn new_mainnet_like() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
+pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
 /// Create a new Morden chain spec.
-pub fn new_morden() -> Spec { Spec::load(include_bytes!("../../res/ethereum/morden.json")) }
+pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.json")) }
 
 #[cfg(test)]
 mod tests {

@@ -99,9 +99,11 @@ mod modules;
 mod account;
 mod blockchain;
 mod presale;
-mod run;
-mod sync;
 mod snapshot;
+mod run;
+#[cfg(feature="ipc")]
+mod sync;
+#[cfg(feature="ipc")]
 mod boot;
 
 #[cfg(feature="stratum")]
@@ -158,10 +160,24 @@ mod stratum_optional {
 	}
 }
 
-fn main() {
+#[cfg(not(feature="ipc"))]
+fn sync_main() -> bool {
+	false
+}
+
+#[cfg(feature="ipc")]
+fn sync_main() -> bool {
 	// just redirect to the sync::main()
 	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
+		true
+	} else {
+		false
+	}
+}
+
+fn main() {
+	if sync_main() {
 		return;
 	}
 

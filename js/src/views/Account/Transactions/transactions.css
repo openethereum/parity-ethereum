@@ -1,0 +1,41 @@
+.right {
+  text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+.left {
+  text-align: left;
+}
+
+.transactions {
+  width: 100%;
+}
+
+.transactions tr {
+  line-height: 32px;
+  vertical-align: top;
+  /*font-family: 'Roboto Mono', monospace;*/
+}
+
+.transactions th {
+  color: #aaa;
+}
+
+.transactions tr td {
+  vertical-align: top;
+}
+
+.transactions .link {
+  vertical-align: top;
+}
+
+.value {
+  text-align: right;
+}
+
+.infonone {
+  opacity: 0.25;
+}

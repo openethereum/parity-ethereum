@@ -1,4 +1,4 @@
-function updateStatus (state, action) {
+function updateNodeStatus (state, action) {
   const { blockNumber, clientVersion, netPeers, netChain, isTest } = action.status;
 
   return Object.assign({}, state, {
@@ -12,8 +12,8 @@ function updateStatus (state, action) {
 
 export default function statusReducer (state = {}, action) {
   switch (action.type) {
-    case 'updateStatus':
-      return updateStatus(state, action);
+    case 'updateNodeStatus':
+      return updateNodeStatus(state, action);
 
     default:
       return state;

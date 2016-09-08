@@ -25,7 +25,7 @@ pub use self::canon_verifier::CanonVerifier;
 pub use self::noop_verifier::NoopVerifier;
 
 /// Verifier type.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum VerifierType {
 	/// Verifies block normally.
 	Canon,

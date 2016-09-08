@@ -4,13 +4,14 @@ import styles from './Account.css';
 
 import { retrieveAccount } from '../../../../util';
 import { IdentityIcon } from '../../../../ui';
-import AccountLink from '../AccountLink';
+import AccountLink from './AccountLink';
 
 export default class Account extends Component {
   static contextTypes = {
     accounts: PropTypes.array,
     contacts: PropTypes.array,
-    contracts: PropTypes.array
+    contracts: PropTypes.array,
+    tokens: PropTypes.array
   }
 
   static propTypes = {
@@ -97,7 +98,6 @@ export default class Account extends Component {
   _retrieveName () {
     const { accounts, contacts, contracts, tokens } = this.context;
     const { address } = this.props;
-
     const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
 
     return account ? account.name : null;

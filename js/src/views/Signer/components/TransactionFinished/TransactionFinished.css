@@ -2,19 +2,27 @@
   padding: 25px 0 15px;
 }
 
+.mainContainer {
+  position: relative;
+}
+
 .mainContainer > * {
-  display: inline-block;
   vertical-align: middle;
   min-height: 120px;
 }
 
 .statusContainer {
-  width: 180px;
+  width: 220px;
+  padding: 20px 40px 0 40px;
+  /*border-left: 1px solid #aaa;*/
+  position: absolute;
+  top: 0;
+  right: 0;
+  box-sizing: content-box;
 }
 
 .transactionDetails {
-  border-right: 1px solid #eee;
-  margin-right: 2rem;
+  margin-right: 321px;
 }
 
 .isConfirmed {
