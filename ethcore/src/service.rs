@@ -21,7 +21,8 @@ use io::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
-use miner::Miner;
+use miner;
+use miner::{Miner, StratumOptions};
 use snapshot::ManifestData;
 use snapshot::service::Service as SnapshotService;
 use std::sync::atomic::AtomicBool;
@@ -129,6 +130,30 @@ impl ClientService {
 	/// Set the actor to be notified on certain chain events
 	pub fn add_notify(&self, notify: Arc<ChainNotify>) {
 		self.client.add_notify(notify);
+	}
+
+	#[cfg(feature="stratum")]
+	pub fn stratum_probably(cfg: &Option<StratumOptions>, miner: &Arc<Miner>, client: &Arc<Client>) -> Option<Box<miner::NotifyWork>> {
+		use miner::Stratum;
+		use miner::NotifyWork;
+
+		cfg.as_ref().and_then(|opts| {
+			Stratum::new(&opts.io_path, miner, client).or_else(|e|
+			{
+				warn!(target: "stratum", "Cannot start stratum server");
+				Err(e)
+			})
+			.ok().map(|stratum|
+			{
+				stratum.run_async();
+				Box::new(stratum) as Box<NotifyWork>
+			})
+		})
+	}
+
+	#[cfg(not(feature="stratum"))]
+	pub fn stratum_probably(cfg: &Option<StratumOptions>, _miner: &Arc<Miner>, _client: &Arc<Client>) -> Option<Box<NotifyWork>> {
+		None
 	}
 }
 

@@ -86,8 +86,8 @@ impl Stratum {
 		});
 
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
-		delegate.add_method("miner.subscribe", Stratum::subscribe);
-		delegate.add_method("miner.authorize", Stratum::authorize);
+		delegate.add_method("mining.subscribe", Stratum::subscribe);
+		delegate.add_method("mining.authorize", Stratum::authorize);
 		stratum.handler.add_delegate(delegate);
 
 		try!(stratum.rpc_server.run_async());
@@ -302,7 +302,7 @@ mod tests {
 	fn records_subscriber() {
 		let addr = SocketAddr::from_str("0.0.0.0:19985").unwrap();
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request.as_bytes());
 		assert_eq!(1, stratum.subscribers.read().len());
 	}
@@ -336,11 +336,11 @@ mod tests {
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("0.0.0.0:19975").unwrap();
 		Stratum::start(&addr, DummyManager::new(), None).unwrap();
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 2}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 
-		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":1}"#, response);
+		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":2}"#, response);
 	}
 
 	#[test]
@@ -352,7 +352,7 @@ mod tests {
 			None
 		).unwrap();
 
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 
@@ -375,7 +375,7 @@ mod tests {
 		let _stop = dummy_async_waiter(
 			&addr,
 			vec![
-				r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
+				r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
 			],
 			result.clone(),
 		);

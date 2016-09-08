@@ -25,6 +25,7 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::miner::StratumOptions;
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -77,6 +78,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub stratum: Option<StratumOptions>,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -135,7 +137,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
-	modules::stratum(&mut hypervisor, &cmd.miner_options.stratum);
+	modules::stratum(&mut hypervisor, &cmd.stratum);
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
@@ -183,6 +185,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
+
+	// start stratum
+	ClientService::stratum_probably(&cmd.stratum, &miner, &client).map(|stratum_notifier| {
+		miner.push_notifier(stratum_notifier)
+	});
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(

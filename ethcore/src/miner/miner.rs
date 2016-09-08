@@ -47,19 +47,6 @@ pub enum PendingSet {
 	SealingOrElseQueue,
 }
 
-/// Configures stratum server options.
-#[derive(Debug, PartialEq)]
-pub struct StratumOptions {
-	/// Working directory
-	pub io_path: String,
-	/// Network address
-	pub listen_addr: String,
-	/// Port
-	pub port: u16,
-	/// Secret for peers
-	pub secret: Option<H256>,
-}
-
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
 pub struct MinerOptions {
@@ -83,8 +70,19 @@ pub struct MinerOptions {
 	pub work_queue_size: usize,
 	/// Can we submit two different solutions for the same block and expect both to result in an import?
 	pub enable_resubmission: bool,
-	/// If stratum server will run
-	pub stratum: Option<StratumOptions>,
+}
+
+/// Configures stratum server options.
+#[derive(Debug, PartialEq, Clone)]
+pub struct StratumOptions {
+	/// Working directory
+	pub io_path: String,
+	/// Network address
+	pub listen_addr: String,
+	/// Port
+	pub port: u16,
+	/// Secret for peers
+	pub secret: Option<H256>,
 }
 
 impl Default for MinerOptions {
@@ -100,7 +98,6 @@ impl Default for MinerOptions {
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
-			stratum: None,
 		}
 	}
 }
@@ -219,30 +216,7 @@ impl Miner {
 		}
 	}
 
-	#[cfg(feature="stratum")]
-	fn stratum_probably(miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
-		use super::work_dispatcher;
-
-		miner.options.stratum.as_ref().and_then(|opts| {
-			work_dispatcher::Stratum::new(&opts.io_path).or_else(|e|
-			{
-				warn!(target: "stratum", "Cannot start stratum server");
-				Err(e)
-			})
-			.ok().map(|stratum|
-			{
-				stratum.run_async();
-				Box::new(stratum) as Box<NotifyWork>
-			})
-		})
-	}
-
-	#[cfg(not(feature="stratum"))]
-	fn stratum_probably(_miner: &Arc<Miner>) -> Option<Box<NotifyWork>> {
-		None
-	}
-
-	fn push_notifier(&self, notifier: Box<NotifyWork>) {
+	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
 		self.notifiers.write().push(notifier)
 	}
 
@@ -268,9 +242,6 @@ impl Miner {
 			let http_poster = Box::new(WorkPoster::new(&miner.options.new_work_notify));
 			miner.push_notifier(http_poster as Box<NotifyWork>);
 		};
-		Miner::stratum_probably(&miner).map(|stratum_notifier| {
-			miner.push_notifier(stratum_notifier)
-		});
 
 		miner
 	}

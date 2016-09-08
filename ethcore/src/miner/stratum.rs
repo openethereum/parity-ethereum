@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
-use std::sync::Arc;
+use std::sync::{Arc, Weak};
 use std::sync::atomic::Ordering;
 use std::thread;
 use nanoipc;
@@ -23,25 +23,49 @@ use util::{H256, U256, FixedHash};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use util::{Mutex, RwLock};
+use miner::{Miner, MinerService};
+use client::Client;
+use block::IsBlock;
 
 pub struct StratumJobDispatcher {
 	last_work: RwLock<Option<(H256, U256, u64)>>,
 	seed_compute: Mutex<SeedHashCompute>,
+	client: Weak<Client>,
+	miner: Weak<Miner>,
 }
 
 impl JobDispatcher for StratumJobDispatcher {
 	fn initial(&self) -> Option<String> {
-		self.last_work.read().map(|(pow_hash, difficulty, number)| {
-			self.payload(pow_hash, difficulty, number)
-		})
+		let mut work = self.last_work.write().take();
+		match work {
+			Some((pow_hash, difficulty, number)) => {
+				work = Some((pow_hash, difficulty, number));
+				Some(self.payload(pow_hash, difficulty, number))
+			},
+			None => {
+				let client = self.client.upgrade().unwrap();
+				let miner = self.miner.upgrade().unwrap();
+
+				miner.map_sealing_work(&*client, |b| {
+					let pow_hash = b.hash();
+					let number = b.block().header().number();
+					let difficulty = b.block().header().difficulty();
+
+					work = Some((pow_hash, *difficulty, number));
+					self.payload(pow_hash, *difficulty, number)
+				})
+			}
+		}
 	}
 }
 
 impl StratumJobDispatcher {
-	fn new() -> StratumJobDispatcher {
+	fn new(miner: &Arc<Miner>, client: &Arc<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			last_work: RwLock::new(None),
+			client: Arc::downgrade(client),
+			miner: Arc::downgrade(miner),
 		}
 	}
 
@@ -51,7 +75,7 @@ impl StratumJobDispatcher {
 		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		format!(
-			r#"{{ "result": ["0x{}","0x{}","0x{}","0x{:x}"] }}"#,
+			r#"["0x{}","0x{}","0x{}","0x{:x}"]"#,
 			pow_hash.hex(), seed_hash.hex(), target.hex(), number
 		)
 	}
@@ -89,9 +113,9 @@ impl super::work_notify::NotifyWork for Stratum {
 }
 
 impl Stratum {
-	pub fn new(base_dir: &str) -> Result<Stratum, Error> {
+	pub fn new(base_dir: &str, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Stratum, Error> {
 		Ok(Stratum {
-			dispatcher: Arc::new(StratumJobDispatcher::new()),
+			dispatcher: Arc::new(StratumJobDispatcher::new(miner, client)),
 			base_dir: base_dir.to_owned(),
 			stop: ::devtools::StopGuard::new(),
 		})

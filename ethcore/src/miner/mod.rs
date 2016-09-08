@@ -46,12 +46,14 @@ mod external;
 mod transaction_queue;
 mod work_notify;
 mod price_info;
-#[cfg(feature="stratum")] mod work_dispatcher;
+#[cfg(feature="stratum")] mod stratum;
 
 pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionOrigin};
 pub use self::miner::{Miner, MinerOptions, StratumOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
+pub use self::work_notify::NotifyWork;
+#[cfg(feature="stratum")] pub use self::stratum::Stratum;
 
 use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
