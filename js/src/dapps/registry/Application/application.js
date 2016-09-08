@@ -22,7 +22,7 @@ export default class Application extends Component {
 
     return (
       <div>
-        <h1 className={ styles.title }>Registry</h1>
+        <h1 className={ styles.title }>RΞgistry</h1>
         { contract && fee && owner
           ? (
             <div>

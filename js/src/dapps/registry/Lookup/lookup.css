@@ -1,7 +1,11 @@
 .lookup {
-  padding: 1em;
+  margin: 1em;
 }
 
-.results {
-  margin: .5em 0;
+.box {
+  margin: 0 1em;
+}
+
+.spacing {
+  margin-left: 1em;
 }
