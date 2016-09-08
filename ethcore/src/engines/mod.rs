@@ -19,10 +19,12 @@
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
+mod authority_round;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
+pub use self::authority_round::AuthorityRound;
 
 use common::*;
 use account_provider::AccountProvider;
