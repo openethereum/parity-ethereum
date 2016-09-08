@@ -126,6 +126,7 @@
     "react-tooltip": "^2.0.3",
     "redux": "^3.5.2",
     "redux-actions": "^0.10.1",
+    "redux-thunk": "^2.1.0",
     "rlp": "^2.0.0",
     "store": "^1.3.20",
     "utf8": "^2.1.1",

@@ -5,9 +5,6 @@ import styles from './status.css';
 const { api } = window.parity;
 
 export default class Status extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  }
 
   static propTypes = {
     address: PropTypes.string,
