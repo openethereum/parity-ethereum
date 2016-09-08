@@ -1,0 +1,14 @@
+.icon {
+  margin: 1em -100% 0 0;
+}
+
+.details {
+  float: left;
+  margin-bottom: 0.5em;
+  width: 100%;
+  padding-left: 72px;
+}
+
+.details input {
+  width: 100%;
+}

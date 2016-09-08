@@ -112,6 +112,7 @@ class Application extends Component {
   }
 
   retrieveAccounts = () => {
+    let { showFirstRun } = this.state;
     const nextTimeout = () => setTimeout(this.retrieveAccounts, 1000);
 
     Promise
@@ -148,10 +149,14 @@ class Application extends Component {
           }
         });
 
+        if (!accounts.length) {
+          showFirstRun = true;
+        }
+
         this.setState({
           accounts,
           contacts,
-          showFirstRun: accounts.length === 0
+          showFirstRun
         }, nextTimeout);
       })
       .catch((error) => {
