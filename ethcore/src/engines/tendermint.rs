@@ -361,10 +361,10 @@ struct DefaultTimeouts {
 impl Default for DefaultTimeouts {
 	fn default() -> Self {
 		DefaultTimeouts {
-			propose: 3000,
-			prevote: 3000,
-			precommit: 3000,
-			commit: 3000
+			propose: 1000,
+			prevote: 1000,
+			precommit: 1000,
+			commit: 1000
 		}
 	}
 }
