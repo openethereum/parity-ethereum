@@ -129,13 +129,15 @@ fn guards_delete_folders() {
 		state_root: Default::default(),
 	};
 
-	service.init_restore(manifest).unwrap();
+	service.init_restore(manifest.clone()).unwrap();
+	assert!(path.exists());
 
+	service.abort_restore();
+	assert!(!path.exists());
+
+	service.init_restore(manifest.clone()).unwrap();
 	assert!(path.exists());
 
 	drop(service);
-
 	assert!(!path.exists());
 }
-
-#[test]

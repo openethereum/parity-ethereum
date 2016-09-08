@@ -296,7 +296,7 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		try!(self.db_restore.restore_db(our_db.to_string_lossy()));
+		try!(self.db_restore.restore_db(&*our_db.to_string_lossy()));
 		Ok(())
 	}
 
@@ -517,12 +517,6 @@ impl SnapshotService for Service {
 	fn abort_restore(&self) {
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
-		if let Err(e) = fs::remove_dir_all(&self.restoration_dir()) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => warn!("encountered error {} while deleting snapshot restoration dir.", e),
-			}
-		}
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
