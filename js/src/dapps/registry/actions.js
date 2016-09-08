@@ -1,5 +1,8 @@
 import registryAbi from './abi/registry.json';
 const { api } = window.parity;
+import * as lookup from './Lookup/actions.js';
+
+export { lookup };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
