@@ -64,13 +64,13 @@ export default class AddAddress extends Component {
       <Form>
         <InputAddress
           label='network address'
-          hint='the network address for the address'
+          hint='the network address for the entry'
           error={ addressError }
           value={ address }
           onChange={ this.onEditAddress } />
         <Input
           label='address name'
-          hint='a descriptive name for the address'
+          hint='a descriptive name for the entry'
           error={ nameError }
           value={ name }
           onChange={ this.onEditName } />
@@ -78,7 +78,7 @@ export default class AddAddress extends Component {
           multiLine
           rows={ 1 }
           label='(optional) address description'
-          hint='a expanded description for the address'
+          hint='an expanded description for the entry'
           value={ description }
           onChange={ this.onEditDescription } />
       </Form>
