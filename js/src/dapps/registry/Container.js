@@ -10,19 +10,21 @@ class Container extends Component {
     actions: PropTypes.object,
     contract: PropTypes.object,
     owner: PropTypes.string,
-    fee: PropTypes.object
+    fee: PropTypes.object,
+    lookup: PropTypes.object
   };
   componentDidMount () {
     this.props.actions.fetchContract();
   }
 
   render () {
-    const { actions, contract, owner, fee } = this.props
+    const { actions, contract, owner, fee, lookup } = this.props;
     return (<Application
       actions={ actions }
       contract={ contract }
       owner={ owner }
       fee={ fee }
+      lookup={ lookup }
     />);
   }
 }
@@ -31,5 +33,9 @@ export default connect(
   // redux -> react connection
   (state) => state,
   // react -> redux connection
-  (dispatch) => ({ actions: bindActionCreators(actions, dispatch) })
+  (dispatch) => {
+    const bound = bindActionCreators(actions, dispatch);
+    bound.lookup = bindActionCreators(actions.lookup, dispatch);
+    return { actions: bound };
+  }
 )(Container);
