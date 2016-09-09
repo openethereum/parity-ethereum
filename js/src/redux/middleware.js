@@ -1,13 +1,13 @@
 import ErrorsMiddleware from '../ui/Errors/middleware';
 
-import signerMiddlewares from '../views/Signer/middlewares';
-import statusMiddlewares from '../views/Status/middleware';
+import signerMiddleware from '../views/Signer/middleware';
+import statusMiddleware from '../views/Status/middleware';
 
 export default function (signerWs, signerTokenSetter, statusWeb3) {
   const errors = new ErrorsMiddleware();
 
-  const signer = signerMiddlewares(signerWs, signerTokenSetter);
-  const status = statusMiddlewares(statusWeb3);
+  const signer = signerMiddleware(signerWs, signerTokenSetter);
+  const status = statusMiddleware(statusWeb3);
 
   const middleware = [
     errors.toMiddleware()
