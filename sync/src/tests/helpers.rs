@@ -19,6 +19,7 @@ use network::*;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
+use ethcore::spec::Spec;
 use ethcore::snapshot::SnapshotService;
 use sync_io::SyncIo;
 use chain::ChainSync;
@@ -121,6 +122,24 @@ impl TestNet {
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
+				chain: chain,
+				queue: VecDeque::new(),
+			});
+		}
+		net
+	}
+
+	pub fn new_with_spec_file<R>(n: usize, reader: R) -> TestNet where R: Read + Clone {
+		let mut net = TestNet {
+			peers: Vec::new(),
+			started: false,
+		};
+		for _ in 0..n {
+			let chain = TestBlockChainClient::new_with_spec(Spec::load(reader.clone()).expect("Invalid spec file."));
+			let sync = ChainSync::new(SyncConfig::default(), &chain);
+			net.peers.push(TestPeer {
+				sync: RwLock::new(sync),
+				snapshot_service: Arc::new(TestSnapshotService::new()),
 				chain: chain,
 				queue: VecDeque::new(),
 			});
