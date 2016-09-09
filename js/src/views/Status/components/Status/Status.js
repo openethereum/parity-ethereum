@@ -30,9 +30,10 @@ export default class Status extends Component {
   }
 
   render () {
-    const { status } = this.props;
+    const { status, statusSettings } = this.props;
     const bestBlock = formatNumber()(status.bestBlock);
     const hashrate = bytes(status.hashrate) || 0;
+    const peers = `${status.activePeers}/${status.connectedPeers}/${statusSettings.maxPeers}`;
 
     return (
       <Container>
@@ -41,11 +42,15 @@ export default class Status extends Component {
             <div className={ styles.col3 }>
               <div className={ styles.col12 }>
                 <ContainerTitle title='best block' />
-                <h2 { ...this._test('best-block') }>#{ bestBlock }</h2>
+                <h2 { ...this._test('best-block') } className={ styles.blockinfo }>#{ bestBlock }</h2>
+              </div>
+              <div className={ styles.col12 }>
+                <ContainerTitle title='peers' />
+                <h2 { ...this._test('peers') } className={ styles.blockinfo }>{ peers }</h2>
               </div>
               <div className={ styles.col12 }>
                 <ContainerTitle title='hash rate' />
-                <h2 { ...this._test('hashrate') }>{ `${hashrate} H/s` }</h2>
+                <h2 { ...this._test('hashrate') } className={ styles.blockinfo }>{ `${hashrate} H/s` }</h2>
               </div>
             </div>
             <div className={ styles.col5 }>
