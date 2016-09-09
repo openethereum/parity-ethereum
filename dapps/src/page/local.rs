@@ -17,20 +17,31 @@
 use mime_guess;
 use std::io::{Seek, Read, SeekFrom};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use page::handler;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 
+#[derive(Debug, Clone)]
 pub struct LocalPageEndpoint {
 	path: PathBuf,
-	info: EndpointInfo,
+	mime: Option<String>,
+	info: Option<EndpointInfo>,
 }
 
 impl LocalPageEndpoint {
 	pub fn new(path: PathBuf, info: EndpointInfo) -> Self {
 		LocalPageEndpoint {
 			path: path,
-			info: info,
+			mime: None,
+			info: Some(info),
+		}
+	}
+
+	pub fn single_file(path: PathBuf, mime: String) -> Self {
+		LocalPageEndpoint {
+			path: path,
+			mime: Some(mime),
+			info: None,
 		}
 	}
 
@@ -41,30 +52,45 @@ impl LocalPageEndpoint {
 
 impl Endpoint for LocalPageEndpoint {
 	fn info(&self) -> Option<&EndpointInfo> {
-		Some(&self.info)
+		self.info.as_ref()
 	}
 
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		Box::new(handler::PageHandler {
-			app: LocalDapp::new(self.path.clone()),
-			prefix: None,
-			path: path,
-			file: Default::default(),
-			safe_to_embed: false,
-		})
+		if let Some(ref mime) = self.mime {
+			Box::new(handler::PageHandler {
+				app: LocalSingleFile { path: self.path.clone(), mime: mime.clone() },
+				prefix: None,
+				path: path,
+				file: Default::default(),
+				safe_to_embed: false,
+			})
+		} else {
+			Box::new(handler::PageHandler {
+				app: LocalDapp { path: self.path.clone() },
+				prefix: None,
+				path: path,
+				file: Default::default(),
+				safe_to_embed: false,
+			})
+		}
+	}
+}
+
+struct LocalSingleFile {
+	path: PathBuf,
+	mime: String,
+}
+
+impl handler::Dapp for LocalSingleFile {
+	type DappFile = LocalFile;
+
+	fn file(&self, _path: &str) -> Option<Self::DappFile> {
+		LocalFile::from_path(&self.path, Some(&self.mime))
 	}
 }
 
 struct LocalDapp {
 	path: PathBuf,
-}
-
-impl LocalDapp {
-	fn new(path: PathBuf) -> Self {
-		LocalDapp {
-			path: path
-		}
-	}
 }
 
 impl handler::Dapp for LocalDapp {
@@ -75,18 +101,7 @@ impl handler::Dapp for LocalDapp {
 		for part in file_path.split('/') {
 			path.push(part);
 		}
-		// Check if file exists
-		fs::File::open(path.clone()).ok().map(|file| {
-			let content_type = mime_guess::guess_mime_type(path);
-			let len = file.metadata().ok().map_or(0, |meta| meta.len());
-			LocalFile {
-				content_type: content_type.to_string(),
-				buffer: [0; 4096],
-				file: file,
-				pos: 0,
-				len: len,
-			}
-		})
+		LocalFile::from_path(&path, None)
 	}
 }
 
@@ -96,6 +111,24 @@ struct LocalFile {
 	file: fs::File,
 	len: u64,
 	pos: u64,
+}
+
+impl LocalFile {
+	fn from_path<P: AsRef<Path>>(path: P, mime: Option<&str>) -> Option<Self> {
+		// Check if file exists
+		fs::File::open(&path).ok().map(|file| {
+			let content_type = mime.map(|mime| mime.to_owned())
+				.unwrap_or_else(|| mime_guess::guess_mime_type(path).to_string());
+			let len = file.metadata().ok().map_or(0, |meta| meta.len());
+			LocalFile {
+				content_type: content_type,
+				buffer: [0; 4096],
+				file: file,
+				pos: 0,
+				len: len,
+			}
+		})
+	}
 }
 
 impl handler::DappFile for LocalFile {

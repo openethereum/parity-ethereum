@@ -28,7 +28,16 @@ use rlp::{Rlp, View};
 fn imports_from_empty() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	let client = Client::new(
+		ClientConfig::default(),
+		&spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
 	client.import_verified_blocks();
 	client.flush_queue();
 }
@@ -37,7 +46,16 @@ fn imports_from_empty() {
 fn should_return_registrar() {
 	let dir = RandomTempPath::new();
 	let spec = ethereum::new_morden();
-	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	let client = Client::new(
+		ClientConfig::default(),
+		&spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
 	assert_eq!(client.additional_params().get("registrar"), Some(&"8e4e9b13d4b45cb0befc93c3061b1408f67316b2".to_owned()));
 }
 
@@ -55,7 +73,16 @@ fn returns_state_root_basic() {
 fn imports_good_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	let client = Client::new(
+		ClientConfig::default(),
+		&spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
 	let good_block = get_good_dummy_block();
 	if let Err(_) = client.import_block(good_block) {
 		panic!("error importing block being good by definition");
@@ -71,8 +98,16 @@ fn imports_good_block() {
 fn query_none_block() {
 	let dir = RandomTempPath::new();
 	let spec = get_test_spec();
-	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
+	let client = Client::new(
+		ClientConfig::default(),
+		&spec,
+		dir.as_path(),
+		Arc::new(Miner::with_spec(&spec)),
+		IoChannel::disconnected(),
+		&db_config
+	).unwrap();
     let non_existant = client.block_header(BlockID::Number(188));
 	assert!(non_existant.is_none());
 }

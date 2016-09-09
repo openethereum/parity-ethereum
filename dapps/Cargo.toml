@@ -39,7 +39,7 @@ clippy = { version = "0.0.85", optional = true}
 serde_codegen = { version = "0.8", optional = true }
 
 [features]
-default = ["serde_codegen", "extra-dapps", "https-fetch/ca-github-only"]
+default = ["serde_codegen", "extra-dapps"]
 extra-dapps = ["parity-dapps-wallet"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]

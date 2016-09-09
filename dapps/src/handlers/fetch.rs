@@ -30,23 +30,22 @@ use hyper::status::StatusCode;
 use handlers::{ContentHandler, Redirection};
 use handlers::client::{Client, FetchResult};
 use apps::redirection_address;
-use apps::urlhint::GithubApp;
-use apps::manifest::Manifest;
+use page::LocalPageEndpoint;
 
 const FETCH_TIMEOUT: u64 = 30;
 
 enum FetchState {
-	NotStarted(GithubApp),
-	InProgress(mpsc::Receiver<FetchResult>),
+	NotStarted(String),
 	Error(ContentHandler),
-	Done(Manifest, Redirection),
+	InProgress(mpsc::Receiver<FetchResult>),
+	Done(String, LocalPageEndpoint, Redirection),
 }
 
 pub trait ContentValidator {
 	type Error: fmt::Debug + fmt::Display;
 
-	fn validate_and_install(&self, app: PathBuf) -> Result<Manifest, Self::Error>;
-	fn done(&self, Option<&Manifest>);
+	fn validate_and_install(&self, app: PathBuf) -> Result<(String, LocalPageEndpoint), Self::Error>;
+	fn done(&self, Option<LocalPageEndpoint>);
 }
 
 pub struct FetchControl {
@@ -80,7 +79,7 @@ impl FetchControl {
 	fn set_status(&self, status: &FetchState) {
 		match *status {
 			FetchState::Error(ref handler) => self.notify(|| FetchState::Error(handler.clone())),
-			FetchState::Done(ref manifest, ref handler) => self.notify(|| FetchState::Done(manifest.clone(), handler.clone())),
+			FetchState::Done(ref id, ref endpoint, ref handler) => self.notify(|| FetchState::Done(id.clone(), endpoint.clone(), handler.clone())),
 			FetchState::NotStarted(_) | FetchState::InProgress(_) => {},
 		}
 	}
@@ -117,7 +116,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.state {
-			Some(FetchState::Done(_, ref mut handler)) => handler.on_response(res),
+			Some(FetchState::Done(_, _, ref mut handler)) => handler.on_response(res),
 			Some(FetchState::Error(ref mut handler)) => handler.on_response(res),
 			_ => Next::end(),
 		}
@@ -125,7 +124,7 @@ impl server::Handler<HttpStream> for WaitingHandler {
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.state {
-			Some(FetchState::Done(_, ref mut handler)) => handler.on_response_writable(encoder),
+			Some(FetchState::Done(_, _, ref mut handler)) => handler.on_response_writable(encoder),
 			Some(FetchState::Error(ref mut handler)) => handler.on_response_writable(encoder),
 			_ => Next::end(),
 		}
@@ -134,27 +133,27 @@ impl server::Handler<HttpStream> for WaitingHandler {
 
 pub struct ContentFetcherHandler<H: ContentValidator> {
 	fetch_control: Arc<FetchControl>,
-	status: FetchState,
 	control: Option<Control>,
+	status: FetchState,
 	client: Option<Client>,
 	using_dapps_domains: bool,
-	dapp: H,
+	installer: H,
 }
 
 impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
 	fn drop(&mut self) {
-		let manifest = match self.status {
-			FetchState::Done(ref manifest, _) => Some(manifest),
+		let result = match self.status {
+			FetchState::Done(_, ref result, _) => Some(result.clone()),
 			_ => None,
 		};
-		self.dapp.done(manifest);
+		self.installer.done(result);
 	}
 }
 
 impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 	pub fn new(
-		app: GithubApp,
+		url: String,
 		control: Control,
 		using_dapps_domains: bool,
 		handler: H) -> (Self, Arc<FetchControl>) {
@@ -165,9 +164,9 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			fetch_control: fetch_control.clone(),
 			control: Some(control),
 			client: Some(client),
-			status: FetchState::NotStarted(app),
+			status: FetchState::NotStarted(url),
 			using_dapps_domains: using_dapps_domains,
-			dapp: handler,
+			installer: handler,
 		};
 
 		(handler, fetch_control)
@@ -179,26 +178,25 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			.close();
 	}
 
-	fn fetch_app(client: &mut Client, app: &GithubApp, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
-		let res = client.request(app.url(), abort, Box::new(move || {
+	fn fetch_content(client: &mut Client, url: &str, abort: Arc<AtomicBool>, control: Control) -> Result<mpsc::Receiver<FetchResult>, String> {
+		client.request(url, abort, Box::new(move || {
 			trace!(target: "dapps", "Fetching finished.");
 			// Ignoring control errors
 			let _ = control.ready(Next::read());
-		})).map_err(|e| format!("{:?}", e));
-		res
+		})).map_err(|e| format!("{:?}", e))
 	}
 }
 
 impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
-		let status = if let FetchState::NotStarted(ref app) = self.status {
+		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
 				Method::Get => {
-					trace!(target: "dapps", "Fetching dapp: {:?}", app);
+					trace!(target: "dapps", "Fetching content from: {:?}", url);
 					let control = self.control.take().expect("on_request is called only once, thus control is always Some");
 					let client = self.client.as_mut().expect("on_request is called before client is closed.");
-					let fetch = Self::fetch_app(client, app, self.fetch_control.abort.clone(), control);
+					let fetch = Self::fetch_content(client, url, self.fetch_control.abort.clone(), control);
 					match fetch {
 						Ok(receiver) => FetchState::InProgress(receiver),
 						Err(e) => FetchState::Error(ContentHandler::error(
@@ -235,7 +233,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				let timeout = ContentHandler::error(
 					StatusCode::GatewayTimeout,
 					"Download Timeout",
-					&format!("Could not fetch dapp bundle within {} seconds.", FETCH_TIMEOUT),
+					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
 					None
 				);
 				Self::close_client(&mut self.client);
@@ -247,22 +245,22 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 				match rec {
 					// Unpack and validate
 					Ok(Ok(path)) => {
-						trace!(target: "dapps", "Fetching dapp finished. Starting validation.");
+						trace!(target: "dapps", "Fetching content finished. Starting validation ({:?})", path);
 						Self::close_client(&mut self.client);
 						// Unpack and verify
-						let state = match self.dapp.validate_and_install(path.clone()) {
+						let state = match self.installer.validate_and_install(path.clone()) {
 							Err(e) => {
-								trace!(target: "dapps", "Error while validating dapp: {:?}", e);
+								trace!(target: "dapps", "Error while validating content: {:?}", e);
 								FetchState::Error(ContentHandler::error(
 									StatusCode::BadGateway,
 									"Invalid Dapp",
-									"Downloaded bundle does not contain a valid dapp.",
+									"Downloaded bundle does not contain a valid content.",
 									Some(&format!("{:?}", e))
 								))
 							},
-							Ok(manifest) => {
-								let address = redirection_address(self.using_dapps_domains, &manifest.id);
-								FetchState::Done(manifest, Redirection::new(&address))
+							Ok((id, result)) => {
+								let address = redirection_address(self.using_dapps_domains, &id);
+								FetchState::Done(id, result, Redirection::new(&address))
 							},
 						};
 						// Remove temporary zip file
@@ -270,11 +268,11 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 						(Some(state), Next::write())
 					},
 					Ok(Err(e)) => {
-						warn!(target: "dapps", "Unable to fetch new dapp: {:?}", e);
+						warn!(target: "dapps", "Unable to fetch content: {:?}", e);
 						let error = ContentHandler::error(
 							StatusCode::BadGateway,
 							"Download Error",
-							"There was an error when fetching the dapp.",
+							"There was an error when fetching the content.",
 							Some(&format!("{:?}", e)),
 						);
 						(Some(FetchState::Error(error)), Next::write())
@@ -297,7 +295,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		match self.status {
-			FetchState::Done(_, ref mut handler) => handler.on_response(res),
+			FetchState::Done(_, _, ref mut handler) => handler.on_response(res),
 			FetchState::Error(ref mut handler) => handler.on_response(res),
 			_ => Next::end(),
 		}
@@ -305,7 +303,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.status {
-			FetchState::Done(_, ref mut handler) => handler.on_response_writable(encoder),
+			FetchState::Done(_, _, ref mut handler) => handler.on_response_writable(encoder),
 			FetchState::Error(ref mut handler) => handler.on_response_writable(encoder),
 			_ => Next::end(),
 		}

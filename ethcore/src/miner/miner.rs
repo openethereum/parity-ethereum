@@ -227,6 +227,11 @@ impl Miner {
 		self.options.force_sealing || !self.options.new_work_notify.is_empty()
 	}
 
+	/// Clear all pending block states
+	pub fn clear(&self) {
+		self.sealing_work.lock().queue.reset();
+	}
+
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
 	pub fn pending_state(&self) -> Option<State> {
 		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.block().fields().state.clone())

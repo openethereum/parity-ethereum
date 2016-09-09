@@ -18,6 +18,7 @@ use std::sync::Arc;
 use ethcore::client::BlockChainClient;
 use hypervisor::Hypervisor;
 use ethsync::{SyncConfig, NetworkConfiguration, NetworkError};
+use ethcore::snapshot::SnapshotService;
 #[cfg(not(feature="ipc"))]
 use self::no_ipc_deps::*;
 #[cfg(feature="ipc")]
@@ -25,10 +26,12 @@ use self::ipc_deps::*;
 use ethcore_logger::Config as LogConfig;
 use std::path::Path;
 
+#[cfg(feature="ipc")]
 pub mod service_urls {
 	use std::path::PathBuf;
 
 	pub const CLIENT: &'static str = "parity-chain.ipc";
+	pub const SNAPSHOT: &'static str = "parity-snapshot.ipc";
 	pub const SYNC: &'static str = "parity-sync.ipc";
 	pub const SYNC_NOTIFY: &'static str = "parity-sync-notify.ipc";
 	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
@@ -68,7 +71,7 @@ mod ipc_deps {
 	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
 	pub use ethcore::client::ChainNotifyClient;
 	pub use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
-	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
+	pub use nanoipc::{GuardedSocket, NanoSocket, generic_client, fast_client};
 	pub use ipc::IpcSocket;
 	pub use ipc::binary::serialize;
 }
@@ -119,6 +122,7 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		_client: Arc<BlockChainClient>,
+		_snapshot_service: Arc<SnapshotService>,
 		log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
@@ -130,11 +134,11 @@ pub fn sync
 	hypervisor.start();
 	hypervisor.wait_for_startup();
 
-	let sync_client = init_client::<SyncClient<_>>(
+	let sync_client = generic_client::<SyncClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC)).unwrap();
-	let notify_client = init_client::<ChainNotifyClient<_>>(
+	let notify_client = generic_client::<ChainNotifyClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC_NOTIFY)).unwrap();
-	let manage_client = init_client::<NetworkManagerClient<_>>(
+	let manage_client = generic_client::<NetworkManagerClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
 
 	*hypervisor_ref = Some(hypervisor);
@@ -148,10 +152,11 @@ pub fn sync
 		sync_cfg: SyncConfig,
 		net_cfg: NetworkConfiguration,
 		client: Arc<BlockChainClient>,
+		snapshot_service: Arc<SnapshotService>,
 		_log_settings: &LogConfig,
 	)
 	-> Result<SyncModules, NetworkError>
 {
-	let eth_sync = try!(EthSync::new(sync_cfg, client, net_cfg));
+	let eth_sync = try!(EthSync::new(sync_cfg, client, snapshot_service, net_cfg));
 	Ok((eth_sync.clone() as Arc<SyncProvider>, eth_sync.clone() as Arc<ManageNetwork>, eth_sync.clone() as Arc<ChainNotify>))
 }
