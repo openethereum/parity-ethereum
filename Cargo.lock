@@ -390,6 +390,7 @@ name = "ethcore-ipc-nano"
 version = "1.4.0"
 dependencies = [
  "ethcore-ipc 1.4.0",
+ "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)",
 ]
