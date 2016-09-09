@@ -5,29 +5,21 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import es6Promise from 'es6-promise';
 import { createHashHistory } from 'history';
 import { Provider } from 'react-redux';
-import { applyMiddleware, combineReducers, createStore } from 'redux';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
-import { routerReducer } from 'react-router-redux';
 import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import Web3 from 'web3';
 
+import { initStore } from './redux';
 import { muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
 
-import { errorReducer } from './ui/Errors';
-import { tooltipReducer } from './ui/Tooltips';
-import { nodeStatusReducer } from './views/Application/Status';
-import initMiddleware from './middleware';
-
 // TODO: This is VERY messy, just dumped here to get the Signer going
-import { signer as signerReducer, requests as signerRequestsReducer } from './views/Signer/reducers';
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 
 // TODO: same with Status...
-import { status as statusReducer, debug as statusDebugReducer, logger as statusLoggerReducer, mining as statusMiningReducer, rpc as statusRpcReducer, settings as statusSettingsReducer } from './views/Status/reducers';
 import { Web3Provider as StatusWeb3Provider } from './views/Status/provider/web3-provider';
 import StatusEthcoreWeb3 from './views/Status/provider/web3-ethcore-provider';
 import Status from './views/Status/containers/Container';
@@ -44,11 +36,13 @@ import './index.html';
 es6Promise.polyfill();
 injectTapEventPlugin();
 
+// signer
+function tokenSetter (token, cb) {
+  window.localStorage.setItem('sysuiToken', token);
+}
+
 const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
-const routerHistory = useRouterHistory(createHashHistory)({});
-
-// signer
 const ws = new Ws(parityUrl);
 const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
@@ -57,29 +51,7 @@ statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
 const web3 = new Web3(new Web3.providers.HttpProvider(process.env.RPC_ADDRESS || '/rpc/'));
 const ethcoreWeb3 = new StatusEthcoreWeb3(web3);
 
-function tokenSetter (token, cb) {
-  window.localStorage.setItem('sysuiToken', token);
-}
-
-const reducers = combineReducers({
-  errors: errorReducer,
-  nodeStatus: nodeStatusReducer,
-  tooltip: tooltipReducer,
-  routing: routerReducer,
-  signer: signerReducer,
-  signerRequests: signerRequestsReducer,
-  status: statusReducer,
-  statusSettings: statusSettingsReducer,
-  statusMining: statusMiningReducer,
-  statusRpc: statusRpcReducer,
-  statusLogger: statusLoggerReducer,
-  statusDebug: statusDebugReducer
-});
-const middleware = initMiddleware(ws, tokenSetter, web3);
-const storeCreation = window.devToolsExtension
-  ? window.devToolsExtension()(createStore)
-  : createStore;
-const store = applyMiddleware(...middleware)(storeCreation)(reducers);
+const store = initStore(ws, tokenSetter, web3);
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new
@@ -88,6 +60,8 @@ ws.init(initToken);
 
 // status
 new StatusWeb3Provider(web3, ethcoreWeb3, store).start();
+
+const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
   <Provider store={ store }>

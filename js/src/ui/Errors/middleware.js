@@ -1,21 +1,6 @@
 import { newError } from './actions';
 
-export default class ErrorsMiddleware {
-  toMiddleware () {
-    return (store) => (next) => (action) => {
-      const { meta } = action;
-
-      if (!meta || !meta.error) {
-        next(action);
-        return;
-      }
-
-      next(newError(meta.error));
-    };
-  }
-}
-
-export function withError (formatter, type = 'default') {
+function withError (formatter, type = 'default') {
   return (message) => {
     return {
       error: {
@@ -25,3 +10,21 @@ export function withError (formatter, type = 'default') {
     };
   };
 }
+
+export default class ErrorsMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      const { meta } = action;
+
+      if (meta && meta.error) {
+        next(newError(meta.error));
+      }
+
+      next(action);
+    };
+  }
+}
+
+export {
+  withError
+};

@@ -1,7 +1,7 @@
-import ErrorsMiddleware, { withError } from './ui/Errors/middleware';
+import ErrorsMiddleware from '../ui/Errors/middleware';
 
-import signerMiddlewares from './views/Signer/middlewares';
-import statusMiddlewares from './views/Status/middleware';
+import signerMiddlewares from '../views/Signer/middlewares';
+import statusMiddlewares from '../views/Status/middleware';
 
 export default function (signerWs, signerTokenSetter, statusWeb3) {
   const errors = new ErrorsMiddleware();
@@ -15,7 +15,3 @@ export default function (signerWs, signerTokenSetter, statusWeb3) {
 
   return middleware.concat(signer).concat(status);
 }
-
-export {
-  withError
-};

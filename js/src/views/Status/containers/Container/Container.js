@@ -15,7 +15,6 @@ class Container extends Component {
   static propTypes = {
     status: PropTypes.object.isRequired,
     statusLogger: PropTypes.object.isRequired,
-    statusToastr: PropTypes.object.isRequired,
     routing: PropTypes.object.isRequired,
     actions: PropTypes.object.isRequired,
     params: PropTypes.object

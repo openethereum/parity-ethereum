@@ -1,4 +1,4 @@
-import { withError } from '../../../middleware';
+import { withError } from '../../../redux/util';
 import { identity } from '../components/util/util';
 
 import { createAction } from 'redux-actions';
