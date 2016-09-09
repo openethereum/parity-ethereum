@@ -5,7 +5,7 @@ import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { SignerIcon } from '../../ui';
+import { Badge, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
@@ -88,9 +88,10 @@ class ParityBar extends Component {
 
     if (pending && pending.length) {
       bubble = (
-        <div className={ styles.labelBubble }>
-          { pending.length }
-        </div>
+        <Badge
+          color='red'
+          className={ styles.labelBubble }
+          value={ pending.length } />
       );
     }
 

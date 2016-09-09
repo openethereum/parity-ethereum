@@ -1,4 +1,5 @@
 import Actionbar from './Actionbar';
+import Badge from './badge';
 import Balances from './Balances';
 import Container, { Title as ContainerTitle } from './Container';
 import Errors from './Errors';
@@ -12,6 +13,7 @@ import Tooltips, { Tooltip } from './Tooltips';
 
 export {
   Actionbar,
+  Badge,
   Balances,
   Container,
   ContainerTitle,

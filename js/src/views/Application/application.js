@@ -72,7 +72,7 @@ class Application extends Component {
   }
 
   render () {
-    const { children, pending } = this.props;
+    const { children, pending, netChain, isTest } = this.props;
     const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
@@ -92,7 +92,10 @@ class Application extends Component {
       <Container
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
-        <TabBar pending={ pending } />
+        <TabBar
+          netChain={ netChain }
+          isTest={ isTest }
+          pending={ pending } />
         { children }
         <Status />
       </Container>
