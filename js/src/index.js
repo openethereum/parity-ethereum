@@ -26,10 +26,6 @@ import Status from './views/Status/containers/Container';
 
 import './environment';
 
-// TODO [jacogr] get rid of this ASAP
-import 'dapp-styles/dist/dapp-styles.css';
-import './ignore-dapp-styles.css';
-
 import styles from './reset.css';
 import './index.html';
 

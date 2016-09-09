@@ -2,10 +2,9 @@ import React, { Component, PropTypes } from 'react';
 import formatNumber from 'format-number';
 import bytes from 'bytes';
 
-import { Container } from '../../../../ui';
+import { Container, ContainerTitle, Input } from '../../../../ui';
 
 import styles from './Status.css';
-import Value from '../Value';
 import MiningSettings from '../MiningSettings';
 
 export default class Status extends Component {
@@ -41,12 +40,12 @@ export default class Status extends Component {
           <div className={ styles.row }>
             <div className={ styles.col3 }>
               <div className={ styles.col12 }>
-                <h1><span>Best</span> Block</h1>
-                <h1 { ...this._test('best-block') }>#{ bestBlock }</h1>
+                <ContainerTitle title='best block' />
+                <h2 { ...this._test('best-block') }>#{ bestBlock }</h2>
               </div>
               <div className={ styles.col12 }>
-                <h1><span>Hash</span> Rate</h1>
-                <h1 { ...this._test('hashrate') }>{ `${hashrate} H/s` }</h1>
+                <ContainerTitle title='hash rate' />
+                <h2 { ...this._test('hashrate') }>{ `${hashrate} H/s` }</h2>
               </div>
             </div>
             <div className={ styles.col5 }>
@@ -81,48 +80,48 @@ export default class Status extends Component {
 
     return (
       <div { ...this._test('settings') }>
-        <h1><span>Network</span> settings</h1>
-        <h3>Chain</h3>
-        <Value
+        <ContainerTitle title='network settings' />
+        <Input
+          disabled
+          label='chain'
           value={ statusSettings.chain }
-          { ...this._test('chain') }
-          />
+          { ...this._test('chain') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
-            <h3>Peers</h3>
-            <Value
+            <Input
+              disabled
+              label='peers'
               value={ `${status.activePeers}/${status.connectedPeers}/${statusSettings.maxPeers}` }
-              { ...this._test('peers') }
-              />
+              { ...this._test('peers') } />
           </div>
           <div className={ styles.col6 }>
-            <h3>Network port</h3>
-            <Value
+            <Input
+              disabled
+              label='network port'
               value={ statusSettings.networkPort }
-              { ...this._test('network-port') }
-              />
+              { ...this._test('network-port') } />
           </div>
         </div>
 
-        <h3>RPC Enabled</h3>
-        <Value
+        <Input
+          disabled
+          label='rpc enabled'
           value={ statusSettings.rpcEnabled ? 'yes' : 'no' }
-          { ...this._test('rpc-enabled') }
-          />
+          { ...this._test('rpc-enabled') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
-            <h3>RPC Interface</h3>
-            <Value
+            <Input
+              disabled
+              label='rpc interface'
               value={ statusSettings.rpcInterface }
-              { ...this._test('rpc-interface') }
-              />
+              { ...this._test('rpc-interface') } />
           </div>
           <div className={ styles.col6 }>
-            <h3>RPC Port</h3>
-            <Value
+            <Input
+              disabled
+              label='rpc port'
               value={ statusSettings.rpcPort }
-              { ...this._test('rpc-port') }
-              />
+              { ...this._test('rpc-port') } />
           </div>
         </div>
       </div>
