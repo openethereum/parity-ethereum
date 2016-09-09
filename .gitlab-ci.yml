@@ -9,6 +9,25 @@ variables:
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
+linux-stable:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - export
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "${CI_BUILD_NAME}_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
@@ -29,12 +48,6 @@ linux-beta:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
-  stage: deploy
-  tags:
-    - rust
-    - rust-beta
-  script:
-    - ./deploy.sh
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly
@@ -76,7 +89,7 @@ linux-centos:
     name: "${CI_BUILD_NAME}_parity"
 linux-armv7:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-armv7:latest
   only:
     - master
     - beta
@@ -98,6 +111,7 @@ linux-armv7:
     paths:
     - target/armv7-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
@@ -125,7 +139,7 @@ linux-arm:
   allow_failure: true
 linux-armv6:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-armv6:latest
   only:
     - master
     - beta
@@ -150,7 +164,7 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-aarch64:latest
   only:
     - master
     - beta
@@ -208,30 +222,22 @@ windows:
     - target/release/parity.exe
     - target/release/parity.pdb
     name: "${CI_BUILD_NAME}_parity"
-linux-stable:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - export
-    - cargo build --release --verbose
-    - strip target/release/parity
-  tags:
-    - rust
-    - rust-stable
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "${CI_BUILD_NAME}_parity"
 test-linux:
   stage: test
   before_script:
     - git submodule update --init --recursive
   script:
     - ./test.sh --verbose
+  tags:
+    - rust-test
   dependencies:
     - linux-stable
+deploy-binaries:
+  stage: deploy
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - ll
