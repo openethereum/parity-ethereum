@@ -92,7 +92,6 @@ export default class Header extends Component {
   }
 
   onSubmitName = (name) => {
-    console.log('onSubmitName', name);
     const { api } = this.context;
     const { account } = this.props;
 

@@ -86,13 +86,14 @@ export default class Input extends Component {
 
     if (event.which === 13) {
       this.onSubmit(value);
+    } else if (event.which === 27) {
+      // TODO ESC, revert to original
     }
 
     this.props.onKeyDown && this.props.onKeyDown(event);
   }
 
   onSubmit = (value) => {
-    console.log('onSubmit', value, this.props.onSubmit);
     this.setValue(value);
 
     this.props.onSubmit && this.props.onSubmit(value);
