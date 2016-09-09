@@ -235,5 +235,10 @@ test-linux:
     - linux-stable
 deploy-binaries:
   stage: deploy
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - ./deploy.sh
