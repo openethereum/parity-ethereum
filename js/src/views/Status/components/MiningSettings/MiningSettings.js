@@ -40,26 +40,26 @@ export default class MiningSettings extends Component {
           hint='the mining author'
           value={ statusMining.author }
           dataSource={ this.props.accounts }
-          onChange={ onAuthorChange }
+          onSubmit={ onAuthorChange }
           { ...this._test('author') } />
         <Input
           label='extradata'
           hint='extra data for mined blocks'
           value={ decodeExtraData(statusMining.extraData) }
-          onChange={ onExtraDataChange }
+          onSubmit={ onExtraDataChange }
           defaultValue={ decodeExtraData(statusMining.defaultExtraData) }
           { ...this._test('extra-data') } />
         <Input
           label='minimal gas price'
           hint='the minimum gas price for mining'
           value={ toNiceNumber(statusMining.minGasPrice) }
-          onChange={ onMinGasPriceChange }
+          onSubmit={ onMinGasPriceChange }
           { ...this._test('min-gas-price') } />
         <Input
           label='gas floor target'
           hint='the gas floor target for mining'
           value={ toNiceNumber(statusMining.gasFloorTarget) }
-          onChange={ onGasFloorTargetChange }
+          onSubmit={ onGasFloorTargetChange }
           { ...this._test('gas-floor-target') } />
       </div>
     );

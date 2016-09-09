@@ -11,6 +11,8 @@ export default class InputInline extends Component {
     label: PropTypes.string,
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
+    onSubmit: PropTypes.func,
+    onKeyDown: PropTypes.func,
     type: PropTypes.string,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
@@ -47,7 +49,8 @@ export default class InputInline extends Component {
         value={ value }
         onBlur={ this.onBlur }
         onChange={ this.props.onChange }
-        onKeyDown={ this.onKeyDown } />
+        onKeyDown={ this.onKeyDown }
+        onSubmit={ this.props.onSubmit } />
     );
   }
 
@@ -69,5 +72,7 @@ export default class InputInline extends Component {
     if (event.keyCode === 13) {
       this.onToggle();
     }
+
+    this.props.onKeyDown && this.props.onKeyDown(event);
   }
 }
