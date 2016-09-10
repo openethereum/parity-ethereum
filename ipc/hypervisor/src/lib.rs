@@ -240,7 +240,7 @@ mod tests {
 		::std::thread::spawn(move || {
 			while !hypervisor_ready.load(Ordering::Relaxed) { }
 
-			let client = nanoipc::init_client::<HypervisorServiceClient<_>>(url).unwrap();
+			let client = nanoipc::fast_client::<HypervisorServiceClient<_>>(url).unwrap();
 			client.handshake().unwrap();
 			client.module_ready(test_module_id);
 		});

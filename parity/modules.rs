@@ -71,7 +71,7 @@ mod ipc_deps {
 	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
 	pub use ethcore::client::ChainNotifyClient;
 	pub use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
-	pub use nanoipc::{GuardedSocket, NanoSocket, init_client};
+	pub use nanoipc::{GuardedSocket, NanoSocket, generic_client, fast_client};
 	pub use ipc::IpcSocket;
 	pub use ipc::binary::serialize;
 }
@@ -134,11 +134,11 @@ pub fn sync
 	hypervisor.start();
 	hypervisor.wait_for_startup();
 
-	let sync_client = init_client::<SyncClient<_>>(
+	let sync_client = generic_client::<SyncClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC)).unwrap();
-	let notify_client = init_client::<ChainNotifyClient<_>>(
+	let notify_client = generic_client::<ChainNotifyClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::SYNC_NOTIFY)).unwrap();
-	let manage_client = init_client::<NetworkManagerClient<_>>(
+	let manage_client = generic_client::<NetworkManagerClient<_>>(
 		&service_urls::with_base(&hypervisor.io_path, service_urls::NETWORK_MANAGER)).unwrap();
 
 	*hypervisor_ref = Some(hypervisor);
