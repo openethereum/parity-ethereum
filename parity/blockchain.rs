@@ -221,7 +221,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	let format = cmd.format.unwrap_or_else(Default::default);
+	let format = cmd.format.unwrap_or_default();
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
