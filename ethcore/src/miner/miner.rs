@@ -24,7 +24,7 @@ use views::{BlockView, HeaderView};
 use state::State;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use executive::contract_address;
-use block::{ClosedBlock, IsBlock, Block};
+use block::{ClosedBlock, SealedBlock, IsBlock, Block};
 use error::*;
 use transaction::{Action, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
@@ -242,12 +242,7 @@ impl Miner {
 		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.base().clone())
 	}
 
-	/// Prepares new block for sealing including top transactions from queue.
-	#[cfg_attr(feature="dev", allow(match_same_arms))]
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
-		trace!(target: "miner", "prepare_sealing: entering");
-
+	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
 		{
 			trace!(target: "miner", "recalibrating...");
 			let txq = self.transaction_queue.clone();
@@ -334,31 +329,44 @@ impl Miner {
 				queue.remove_invalid(&hash, &fetch_account);
 			}
 		}
+		(block, original_work_hash)
+	}
+
+	/// Attempts to perform internal sealing to return Ok(sealed),
+	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
+	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> { 
+		trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
+		// block with transactions - see if we can seal immediately.
+		let s = self.engine.generate_seal(block.block(), match self.accounts {
+			Some(ref x) => Some(&**x),
+			None => None,
+		});
+		if let Some(seal) = s {
+			trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
+			block.lock().try_seal(&*self.engine, seal).or_else(|_| {
+				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+				Err(None)
+			})
+		} else {
+			trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
+			Err(Some(block))
+		}
+	}
+
+	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient) -> bool {
+		let (block, _) = self.prepare_block(chain);
 
 		if !block.transactions().is_empty() {
-			trace!(target: "miner", "prepare_sealing: block has transaction - attempting internal seal.");
-			// block with transactions - see if we can seal immediately.
-			let s = self.engine.generate_seal(block.block(), match self.accounts {
-				Some(ref x) => Some(&**x),
-				None => None,
-			});
-			if let Some(seal) = s {
-				trace!(target: "miner", "prepare_sealing: managed internal seal. importing...");
-				if let Ok(sealed) = block.lock().try_seal(&*self.engine, seal) {
-					if let Ok(_) = chain.import_block(sealed.rlp_bytes()) {
-						trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving.");
-					} else {
-						warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?");
-					}
-				} else {
-					warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+			if let Ok(sealed) = self.seal_block_internally(block) {
+				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+					return true;
 				}
-				return;
-			} else {
-				trace!(target: "miner", "prepare_sealing: unable to generate seal internally");
 			}
 		}
+		false
+	}
 
+	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
 			let mut sealing_work = self.sealing_work.lock();
 			let last_work_hash = sealing_work.queue.peek_last_ref().map(|pb| pb.block().fields().header.hash());
@@ -386,6 +394,30 @@ impl Miner {
 		}
 	}
 
+	/// Prepares new block for sealing including top transactions from queue.
+	#[cfg_attr(feature="dev", allow(match_same_arms))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	fn prepare_block_and_work(&self, chain: &MiningBlockChainClient) {
+		trace!(target: "miner", "prepare_sealing: entering");
+
+		let (block, original_work_hash) = self.prepare_block(chain);
+
+		let block = if !block.transactions().is_empty() {
+			let block_opt = self.seal_block_internally(block).map(|sealed|
+				match chain.import_block(sealed.rlp_bytes()) {
+					Ok(_) => trace!(target: "miner", "prepare_sealing: sealed internally and imported. leaving."),
+					_ => warn!("prepare_sealing: ERROR: could not import internally sealed block. WTF?"),
+				}
+			).err().unwrap_or(None);
+			if block_opt.is_none() { return; }
+			block_opt.unwrap()
+		} else {
+			block
+		};
+
+		self.prepare_work(block, original_work_hash);
+	}
+
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock();
@@ -411,7 +443,7 @@ impl Miner {
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			self.prepare_sealing(chain);
+			self.prepare_block_and_work(chain);
 		}
 		let mut sealing_block_last_request = self.sealing_block_last_request.lock();
 		let best_number = chain.chain_info().best_block_number;
@@ -804,7 +836,7 @@ impl MinerService for Miner {
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			self.prepare_sealing(chain);
+			self.prepare_block_and_work(chain);
 		}
 	}
 
