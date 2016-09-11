@@ -19,7 +19,6 @@ use std::{io, fs};
 use std::io::{BufReader, BufRead};
 use std::time::Duration;
 use std::thread::sleep;
-use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
@@ -32,6 +31,7 @@ use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
 use informant::Informant;
+use io_handler::ImportIoHandler;
 use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -125,8 +125,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -138,8 +139,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -169,6 +171,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
 
+	try!(service.register_io_handler(Arc::new(ImportIoHandler {
+		info: Arc::new(informant),
+	})).map_err(|_| "Unable to register informant handler".to_owned()));
+
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
@@ -180,7 +186,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 			},
 			Ok(_) => {},
 		}
-		informant.tick();
 		Ok(())
 	};
 
@@ -237,8 +242,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
+	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
 
 	// execute upgrades
 	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
@@ -249,8 +255,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -263,10 +270,10 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	};
 
 	let from = try!(client.block_number(cmd.from_block).ok_or("From block could not be found"));
-	let to = try!(client.block_number(cmd.to_block).ok_or("From block could not be found"));
+	let to = try!(client.block_number(cmd.to_block).ok_or("To block could not be found"));
 
 	for i in from..(to + 1) {
-		let b = client.block(BlockID::Number(i)).unwrap();
+		let b = try!(client.block(BlockID::Number(i)).ok_or("Error exporting incomplete chain"));
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }

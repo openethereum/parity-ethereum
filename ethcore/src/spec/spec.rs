@@ -244,18 +244,21 @@ impl Spec {
 	}
 
 	/// Loads spec from json file.
-	pub fn load(reader: &[u8]) -> Self {
-		From::from(ethjson::spec::Spec::load(reader).expect("invalid json file"))
+	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
+		match ethjson::spec::Spec::load(reader) {
+			Ok(spec) => Ok(spec.into()),
+			_ => Err("Spec json is invalid".into()),
+		}
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Spec {
-		Spec::load(include_bytes!("../../res/null_morden.json"))
+	pub fn new_test() -> Self {
+		Spec::load(include_bytes!("../../res/null_morden.json") as &[u8]).expect("null_morden.json is invalid")
 	}
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
-	pub fn new_null() -> Spec {
-		Spec::load(include_bytes!("../../res/null.json"))
+	pub fn new_null() -> Self {
+		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
 	}
 }
 
@@ -266,6 +269,12 @@ mod tests {
 	use util::sha3::*;
 	use views::*;
 	use super::*;
+
+	// https://github.com/ethcore/parity/issues/1840
+	#[test]
+	fn test_load_empty() {
+		assert!(Spec::load(&vec![] as &[u8]).is_err());
+	}
 
 	#[test]
 	fn test_chain() {

@@ -19,9 +19,9 @@
 use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, SnapshotService};
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
@@ -32,11 +32,10 @@ use engines::Engine;
 use error::Error;
 use ids::BlockID;
 use service::ClientIoMessage;
-use spec::Spec;
 
 use io::IoChannel;
 
-use util::{Bytes, H256, Mutex, RwLock, UtilError};
+use util::{Bytes, H256, Mutex, RwLock, RwLockReadGuard, UtilError};
 use util::journaldb::Algorithm;
 use util::kvdb::{Database, DatabaseConfig};
 use util::snappy;
@@ -71,7 +70,7 @@ struct Restoration {
 	block_chunks_left: HashSet<H256>,
 	state: StateRebuilder,
 	blocks: BlockRebuilder,
-	writer: LooseWriter,
+	writer: Option<LooseWriter>,
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
@@ -81,7 +80,8 @@ struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
 	db_path: PathBuf, // database path
-	writer: LooseWriter, // writer for recovered snapshot.
+	db_config: &'a DatabaseConfig, // configuration for the database.
+	writer: Option<LooseWriter>, // writer for recovered snapshot.
 	genesis: &'a [u8], // genesis block of the chain.
 	guard: Guard, // guard for the restoration directory.
 }
@@ -94,8 +94,7 @@ impl Restoration {
 		let state_chunks = manifest.state_hashes.iter().cloned().collect();
 		let block_chunks = manifest.block_hashes.iter().cloned().collect();
 
-		let cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
-		let raw_db = Arc::new(try!(Database::open(&cfg, &*params.db_path.to_string_lossy())
+		let raw_db = Arc::new(try!(Database::open(params.db_config, &*params.db_path.to_string_lossy())
 			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
@@ -121,7 +120,10 @@ impl Restoration {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
 			try!(self.state.feed(&self.snappy_buffer[..len]));
-			try!(self.writer.write_state_chunk(hash, chunk));
+
+			if let Some(ref mut writer) = self.writer.as_mut() {
+				try!(writer.write_state_chunk(hash, chunk));
+			}
 		}
 
 		Ok(())
@@ -133,7 +135,9 @@ impl Restoration {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
 			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
-			try!(self.writer.write_block_chunk(hash, chunk));
+			if let Some(ref mut writer) = self.writer.as_mut() {
+				try!(writer.write_block_chunk(hash, chunk));
+			}
 		}
 
 		Ok(())
@@ -158,7 +162,9 @@ impl Restoration {
 		// connect out-of-order chunks.
 		self.blocks.glue_chunks();
 
-		try!(self.writer.finish(self.manifest));
+		if let Some(writer) = self.writer {
+			try!(writer.finish(self.manifest));
+		}
 
 		self.guard.disarm();
 		Ok(())
@@ -173,15 +179,31 @@ impl Restoration {
 /// Type alias for client io channel.
 pub type Channel = IoChannel<ClientIoMessage>;
 
-/// Service implementation.
-///
-/// This will replace the client's state DB as soon as the last state chunk
-/// is fed, and will replace the client's blocks DB when the last block chunk
-/// is fed.
+/// Snapshot service parameters.
+pub struct ServiceParams {
+	/// The consensus engine this is built on.
+	pub engine: Arc<Engine>,
+	/// The chain's genesis block.
+	pub genesis_block: Bytes,
+	/// Database configuration options.
+	pub db_config: DatabaseConfig,
+	/// State pruning algorithm.
+	pub pruning: Algorithm,
+	/// Async IO channel for sending messages.
+	pub channel: Channel,
+	/// The directory to put snapshots in.
+	/// Usually "<chain hash>/snapshot"
+	pub snapshot_root: PathBuf,
+	/// A handle for database restoration.
+	pub db_restore: Arc<DatabaseRestore>,
+}
+
+/// `SnapshotService` implementation.
+/// This controls taking snapshots and restoring from them.
 pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
-	client_db: PathBuf, // "<chain hash>/<pruning>/db"
-	db_path: PathBuf,  // "<chain hash>/"
+	snapshot_root: PathBuf,
+	db_config: DatabaseConfig,
 	io_channel: Channel,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
@@ -192,40 +214,31 @@ pub struct Service {
 	block_chunks: AtomicUsize,
 	db_restore: Arc<DatabaseRestore>,
 	progress: super::Progress,
+	taking_snapshot: AtomicBool,
 }
 
 impl Service {
-	/// Create a new snapshot service.
-	pub fn new(spec: &Spec, pruning: Algorithm, client_db: PathBuf, io_channel: Channel, db_restore: Arc<DatabaseRestore>) -> Result<Self, Error> {
-		let db_path = try!(client_db.parent().and_then(Path::parent)
-			.ok_or_else(|| UtilError::SimpleString("Failed to find database root.".into()))).to_owned();
-
-		let reader = {
-			let mut snapshot_path = db_path.clone();
-			snapshot_path.push("snapshot");
-			snapshot_path.push("current");
-
-			LooseReader::new(snapshot_path).ok()
-		};
-
-		let service = Service {
+	/// Create a new snapshot service from the given parameters.
+	pub fn new(params: ServiceParams) -> Result<Self, Error> {
+		let mut service = Service {
 			restoration: Mutex::new(None),
-			client_db: client_db,
-			db_path: db_path,
-			io_channel: io_channel,
-			pruning: pruning,
+			snapshot_root: params.snapshot_root,
+			db_config: params.db_config,
+			io_channel: params.channel,
+			pruning: params.pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
-			reader: RwLock::new(reader),
-			engine: spec.engine.clone(),
-			genesis_block: spec.genesis_block(),
+			reader: RwLock::new(None),
+			engine: params.engine,
+			genesis_block: params.genesis_block,
 			state_chunks: AtomicUsize::new(0),
 			block_chunks: AtomicUsize::new(0),
-			db_restore: db_restore,
+			db_restore: params.db_restore,
 			progress: Default::default(),
+			taking_snapshot: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
-		if let Err(e) = fs::create_dir_all(service.root_dir()) {
+		if let Err(e) = fs::create_dir_all(&service.snapshot_root) {
 			if e.kind() != ErrorKind::AlreadyExists {
 				return Err(e.into())
 			}
@@ -245,33 +258,29 @@ impl Service {
 			}
 		}
 
-		Ok(service)
-	}
+		let reader = LooseReader::new(service.snapshot_dir()).ok();
+		*service.reader.get_mut() = reader;
 
-	// get the root path.
-	fn root_dir(&self) -> PathBuf {
-		let mut dir = self.db_path.clone();
-		dir.push("snapshot");
-		dir
+		Ok(service)
 	}
 
 	// get the current snapshot dir.
 	fn snapshot_dir(&self) -> PathBuf {
-		let mut dir = self.root_dir();
+		let mut dir = self.snapshot_root.clone();
 		dir.push("current");
 		dir
 	}
 
 	// get the temporary snapshot dir.
 	fn temp_snapshot_dir(&self) -> PathBuf {
-		let mut dir = self.root_dir();
+		let mut dir = self.snapshot_root.clone();
 		dir.push("in_progress");
 		dir
 	}
 
 	// get the restoration directory.
 	fn restoration_dir(&self) -> PathBuf {
-		let mut dir = self.root_dir();
+		let mut dir = self.snapshot_root.clone();
 		dir.push("restoration");
 		dir
 	}
@@ -294,15 +303,19 @@ impl Service {
 	fn replace_client_db(&self) -> Result<(), Error> {
 		let our_db = self.restoration_db();
 
-		trace!(target: "snapshot", "replacing {:?} with {:?}", self.client_db, our_db);
-		try!(self.db_restore.restore_db(our_db.to_str().unwrap()));
+		try!(self.db_restore.restore_db(&*our_db.to_string_lossy()));
 		Ok(())
+	}
+
+	/// Get a reference to the snapshot reader.
+	pub fn reader(&self) -> RwLockReadGuard<Option<LooseReader>> {
+		self.reader.read()
 	}
 
 	/// Tick the snapshot service. This will log any active snapshot
 	/// being taken.
 	pub fn tick(&self) {
-		if self.progress.done() { return }
+		if self.progress.done() || !self.taking_snapshot.load(Ordering::SeqCst) { return }
 
 		let p = &self.progress;
 		info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
@@ -313,6 +326,11 @@ impl Service {
 	/// will lead to a race condition where the first one to finish will
 	/// have their produced snapshot overwritten.
 	pub fn take_snapshot(&self, client: &Client, num: u64) -> Result<(), Error> {
+		if self.taking_snapshot.compare_and_swap(false, true, Ordering::SeqCst) {
+			info!("Skipping snapshot at #{} as another one is currently in-progress.", num);
+			return Ok(());
+		}
+
 		info!("Taking snapshot at #{}", num);
 		self.progress.reset();
 
@@ -324,7 +342,10 @@ impl Service {
 		let writer = try!(LooseWriter::new(temp_dir.clone()));
 
 		let guard = Guard::new(temp_dir.clone());
-		try!(client.take_snapshot(writer, BlockID::Number(num), &self.progress));
+		let res = client.take_snapshot(writer, BlockID::Number(num), &self.progress);
+
+		self.taking_snapshot.store(false, Ordering::SeqCst);
+		try!(res);
 
 		info!("Finished taking snapshot at #{}", num);
 
@@ -342,10 +363,14 @@ impl Service {
 	}
 
 	/// Initialize the restoration synchronously.
-	pub fn init_restore(&self, manifest: ManifestData) -> Result<(), Error> {
+	/// The recover flag indicates whether to recover the restored snapshot.
+	pub fn init_restore(&self, manifest: ManifestData, recover: bool) -> Result<(), Error> {
 		let rest_dir = self.restoration_dir();
 
 		let mut res = self.restoration.lock();
+
+		self.state_chunks.store(0, Ordering::SeqCst);
+		self.block_chunks.store(0, Ordering::SeqCst);
 
 		// tear down existing restoration.
 		*res = None;
@@ -361,12 +386,16 @@ impl Service {
 		try!(fs::create_dir_all(&rest_dir));
 
 		// make new restoration.
-		let writer = try!(LooseWriter::new(self.temp_recovery_dir()));
+		let writer = match recover {
+			true => Some(try!(LooseWriter::new(self.temp_recovery_dir()))),
+			false => None
+		};
 
 		let params = RestorationParams {
 			manifest: manifest,
 			pruning: self.pruning,
 			db_path: self.restoration_db(),
+			db_config: &self.db_config,
 			writer: writer,
 			genesis: &self.genesis_block,
 			guard: Guard::new(rest_dir),
@@ -375,8 +404,8 @@ impl Service {
 		*res = Some(try!(Restoration::new(params)));
 
 		*self.status.lock() = RestorationStatus::Ongoing {
-			state_chunks_done: self.state_chunks.load(Ordering::Relaxed) as u32,
-			block_chunks_done: self.block_chunks.load(Ordering::Relaxed) as u32,
+			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
+			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
 		Ok(())
 	}
@@ -387,35 +416,35 @@ impl Service {
 	fn finalize_restoration(&self, rest: &mut Option<Restoration>) -> Result<(), Error> {
 		trace!(target: "snapshot", "finalizing restoration");
 
-		self.state_chunks.store(0, Ordering::SeqCst);
-		self.block_chunks.store(0, Ordering::SeqCst);
+		let recover = rest.as_ref().map_or(false, |rest| rest.writer.is_some());
 
 		// destroy the restoration before replacing databases and snapshot.
 		try!(rest.take().map(Restoration::finalize).unwrap_or(Ok(())));
 		try!(self.replace_client_db());
 
-		let mut reader = self.reader.write();
-		*reader = None; // destroy the old reader if it existed.
+		if recover {
+			let mut reader = self.reader.write();
+			*reader = None; // destroy the old reader if it existed.
 
-		let snapshot_dir = self.snapshot_dir();
+			let snapshot_dir = self.snapshot_dir();
 
-		trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
-		if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
-			match e.kind() {
-				ErrorKind::NotFound => {}
-				_ => return Err(e.into()),
+			trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+			if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
+				match e.kind() {
+					ErrorKind::NotFound => {}
+					_ => return Err(e.into()),
+				}
 			}
+
+			try!(fs::create_dir(&snapshot_dir));
+
+			trace!(target: "snapshot", "copying restored snapshot files over");
+			try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
+
+			*reader = Some(try!(LooseReader::new(snapshot_dir)));
 		}
 
-		try!(fs::create_dir(&snapshot_dir));
-
-		trace!(target: "snapshot", "copying restored snapshot files over");
-		try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));
-
 		let _ = fs::remove_dir_all(self.restoration_dir());
-
-		*reader = Some(try!(LooseReader::new(snapshot_dir)));
-
 		*self.status.lock() = RestorationStatus::Inactive;
 
 		Ok(())
@@ -496,7 +525,13 @@ impl SnapshotService for Service {
 	}
 
 	fn status(&self) -> RestorationStatus {
-		*self.status.lock()
+		let mut cur_status = self.status.lock();
+		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done } = *cur_status {
+			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
+			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
+		}
+
+		cur_status.clone()
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {
@@ -507,12 +542,6 @@ impl SnapshotService for Service {
 	fn abort_restore(&self) {
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
-		if let Err(e) = fs::remove_dir_all(&self.restoration_dir()) {
-			match e.kind() {
-				ErrorKind::NotFound => {},
-				_ => warn!("encountered error {} while deleting snapshot restoration dir.", e),
-			}
-		}
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
@@ -554,19 +583,25 @@ mod tests {
 	#[test]
 	fn sends_async_messages() {
 		let service = IoService::<ClientIoMessage>::start().unwrap();
+		let spec = get_test_spec();
 
 		let dir = RandomTempPath::new();
 		let mut dir = dir.as_path().to_owned();
-		dir.push("pruning");
-		dir.push("db");
+		let mut client_db = dir.clone();
+		dir.push("snapshot");
+		client_db.push("client");
 
-		let service = Service::new(
-			&get_test_spec(),
-			Algorithm::Archive,
-			dir,
-			service.channel(),
-			Arc::new(NoopDBRestore),
-		).unwrap();
+		let snapshot_params = ServiceParams {
+			engine: spec.engine.clone(),
+			genesis_block: spec.genesis_block(),
+			db_config: Default::default(),
+			pruning: Algorithm::Archive,
+			channel: service.channel(),
+			snapshot_root: dir,
+			db_restore: Arc::new(NoopDBRestore),
+		};
+
+		let service = Service::new(snapshot_params).unwrap();
 
 		assert!(service.manifest().is_none());
 		assert!(service.chunk(Default::default()).is_none());

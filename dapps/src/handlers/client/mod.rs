@@ -63,7 +63,7 @@ impl Client {
 		self.https_client.close();
 	}
 
-	pub fn request(&mut self, url: String, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
+	pub fn request(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
 		let is_https = url.starts_with("https://");
 		let url = try!(url.parse().map_err(|_| FetchError::InvalidUrl));
 		trace!(target: "dapps", "Fetching from: {:?}", url);

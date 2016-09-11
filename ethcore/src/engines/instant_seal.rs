@@ -72,7 +72,10 @@ mod tests {
 	use block::*;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_instant() -> Spec { Spec::load(include_bytes!("../../res/instant_seal.json")) }
+	fn new_test_instant() -> Spec {
+		let bytes: &[u8] = include_bytes!("../../res/instant_seal.json");
+		Spec::load(bytes).expect("invalid chain spec")
+	}
 
 	#[test]
 	fn instant_can_seal() {

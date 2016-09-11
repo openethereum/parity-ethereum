@@ -460,7 +460,7 @@ mod client_tests {
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
 			run_worker(scope, stop.clone(), url);
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			let client = nanoipc::generic_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
 			client.close().unwrap();
@@ -477,7 +477,7 @@ mod client_tests {
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
 			run_worker(scope, stop.clone(), url);
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			let client = nanoipc::generic_client::<DatabaseClient<_>>(url).unwrap();
 
 			client.open_default(path.as_str().to_owned()).unwrap();
 			client.put("xxx".as_bytes(), "1".as_bytes()).unwrap();
@@ -498,7 +498,7 @@ mod client_tests {
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
 			run_worker(scope, stop.clone(), url);
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			let client = nanoipc::generic_client::<DatabaseClient<_>>(url).unwrap();
 
 			client.open_default(path.as_str().to_owned()).unwrap();
 			assert!(client.get("xxx".as_bytes()).unwrap().is_none());
@@ -516,7 +516,7 @@ mod client_tests {
 		crossbeam::scope(move |scope| {
 			let stop = Arc::new(AtomicBool::new(false));
 			run_worker(scope, stop.clone(), url);
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			let client = nanoipc::generic_client::<DatabaseClient<_>>(url).unwrap();
 			client.open_default(path.as_str().to_owned()).unwrap();
 
 			let transaction = DBTransaction::new();
@@ -541,7 +541,7 @@ mod client_tests {
 			let stop = StopGuard::new();
 			run_worker(&scope, stop.share(), url);
 
-			let client = nanoipc::init_client::<DatabaseClient<_>>(url).unwrap();
+			let client = nanoipc::generic_client::<DatabaseClient<_>>(url).unwrap();
 
 			client.open_default(path.as_str().to_owned()).unwrap();
 			let mut batch = Vec::new();
