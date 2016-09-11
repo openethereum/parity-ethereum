@@ -14,6 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+macro_rules! otry {
+	($e: expr) => (
+		match $e {
+			Some(ref v) => v,
+			None => {
+				return None;
+			}
+		}
+	)
+}
 macro_rules! usage {
 	(
 		{
@@ -27,16 +37,63 @@ macro_rules! usage {
 			)*
 		}
 	) => {
+		use toml;
+		use std::{fs, io, process};
+		use std::io::Read;
 		use util::version;
 		use docopt::{Docopt, Error as DocoptError};
+		use helpers::replace_home;
+		use rustc_serialize;
+
+		#[derive(Debug)]
+		pub enum ArgsError {
+			Docopt(DocoptError),
+			Parsing(Vec<toml::ParserError>),
+			Decode(toml::DecodeError),
+			Config(String, io::Error),
+		}
+
+		impl ArgsError {
+			pub fn exit(self) -> ! {
+				match self {
+					ArgsError::Docopt(e) => e.exit(),
+					ArgsError::Parsing(errors) => {
+						println!("There is an error in config file.");
+						for e in &errors {
+							println!("{}", e);
+						}
+						process::exit(2)
+					},
+					ArgsError::Decode(e) => {
+						println!("You might have supplied invalid parameters in config file.");
+						println!("{}", e);
+						process::exit(2)
+					},
+					ArgsError::Config(path, e) => {
+						println!("There was an error reading your config file at: {}", path);
+						println!("{}", e);
+						process::exit(2)
+					}
+				}
+			}
+		}
+
+		impl From<DocoptError> for ArgsError {
+			fn from(e: DocoptError) -> Self { ArgsError::Docopt(e) }
+		}
+
+		impl From<toml::DecodeError> for ArgsError {
+			fn from(e: toml::DecodeError) -> Self { ArgsError::Decode(e) }
+		}
 
 		#[derive(Debug, PartialEq)]
 		pub struct Args {
 			$(
-				pub $field: $typ,
-			)*
-			$(
 				pub $field_a: $typ_a,
+			)*
+
+			$(
+				pub $field: $typ,
 			)*
 		}
 
@@ -44,16 +101,17 @@ macro_rules! usage {
 			fn default() -> Self {
 				Args {
 					$(
-						$field: $default.into(),
-					)*
-					$(
 						$field_a: Default::default(),
+					)*
+
+					$(
+						$field: $default.into(),
 					)*
 				}
 			}
 		}
 
-		#[derive(Default, Debug, PartialEq, RustcDecodable)]
+		#[derive(Default, Debug, PartialEq, Clone, RustcDecodable)]
 		struct RawArgs {
 			$(
 				$field_a: $typ_a,
@@ -65,12 +123,55 @@ macro_rules! usage {
 
 		impl Args {
 
-			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, DocoptError> {
-				Ok(try!(RawArgs::parse(command)).into_args(Default::default()))
+			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+				let raw_args = try!(RawArgs::parse(command));
+				let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
+				let config_file = replace_home(&config_file);
+				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
+					// Load config file
+					(Ok(mut file), _) => {
+						println!("Loading config file from {}", &config_file);
+						let mut config = String::new();
+						try!(file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e)));
+						try!(Self::parse_config(&config))
+					},
+					// Don't display error in case default config cannot be loaded.
+					(Err(_), false) => Config::default(),
+					// Config set from CLI (fail with error)
+					(Err(e), true) => {
+						return Err(ArgsError::Config(config_file, e));
+					},
+				};
+
+				Ok(raw_args.into_args(config))
 			}
 
-			fn parse_with_config<S: AsRef<str>>(command: &[S], config: Config) -> Result<Self, DocoptError> {
+			#[cfg(test)]
+			pub fn parse_without_config<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+				Self::parse_with_config(command, Config::default())
+			}
+
+			#[cfg(test)]
+			fn parse_with_config<S: AsRef<str>>(command: &[S], config: Config) -> Result<Self, ArgsError> {
 				Ok(try!(RawArgs::parse(command)).into_args(config))
+			}
+
+			fn parse_config(config: &str) -> Result<Config, ArgsError> {
+				let mut value_parser = toml::Parser::new(&config);
+				match value_parser.parse() {
+					Some(value) => {
+						let result = rustc_serialize::Decodable::decode(&mut toml::Decoder::new(toml::Value::Table(value)));
+						match result {
+							Ok(config) => Ok(config),
+							Err(e) => {
+								return Err(e.into());
+							}
+						}
+					},
+					None => {
+						return Err(ArgsError::Parsing(value_parser.errors));
+					},
+				}
 			}
 
 			pub fn print_version() -> String {

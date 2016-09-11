@@ -71,151 +71,151 @@ usage! {
 	}
 	{
 		// -- Operating Options
-		flag_mode: String = "active", or |c: &Config| c.parity.mode.clone(),
-		flag_mode_timeout: u64 = 300u64, or |c: &Config| c.parity.mode_timeout.clone(),
-		flag_mode_alarm: u64 = 3600u64, or |c: &Config| c.parity.mode_alarm.clone(),
-		flag_chain: String = "homestead", or |c: &Config| c.parity.chain.clone(),
-		flag_db_path: String = "$HOME/.parity", or |c: &Config| c.parity.db_path.clone(),
-		flag_keys_path: String = "$HOME/.parity/keys", or |c: &Config| c.parity.keys_path.clone(),
-		flag_identity: String = "", or |c: &Config| c.parity.identity.clone(),
+		flag_mode: String = "active", or |c: &Config| otry!(c.parity).mode.clone(),
+		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
+		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
+		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
+		flag_db_path: String = "$HOME/.parity", or |c: &Config| otry!(c.parity).db_path.clone(),
+		flag_keys_path: String = "$HOME/.parity/keys", or |c: &Config| otry!(c.parity).keys_path.clone(),
+		flag_identity: String = "", or |c: &Config| otry!(c.parity).identity.clone(),
 
 		// -- Account Options
 		flag_unlock: Option<String> = None,
-			or |c: &Config| c.account.unlock.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.account).unlock.clone().map(|vec| Some(vec.join(","))),
 		flag_password: Vec<String> = Vec::new(),
-			or |c: &Config| c.account.password.clone(),
+			or |c: &Config| otry!(c.account).password.clone(),
 		flag_keys_iterations: u32 = 10240u32,
-			or |c: &Config| c.account.keys_iterations.clone(),
+			or |c: &Config| otry!(c.account).keys_iterations.clone(),
 
 		flag_force_signer: bool = false,
-			or |c: &Config| c.signer.force.clone(),
+			or |c: &Config| otry!(c.signer).force.clone(),
 		flag_no_signer: bool = false,
-			or |c: &Config| c.signer.disable.clone(),
+			or |c: &Config| otry!(c.signer).disable.clone(),
 		flag_signer_port: u16 = 8180u16,
-			or |c: &Config| c.signer.port.clone(),
+			or |c: &Config| otry!(c.signer).port.clone(),
 		flag_signer_interface: String = "local",
-			or |c: &Config| c.signer.interface.clone(),
+			or |c: &Config| otry!(c.signer).interface.clone(),
 		flag_signer_path: String = "$HOME/.parity/signer",
-			or |c: &Config| c.signer.path.clone(),
+			or |c: &Config| otry!(c.signer).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
 		flag_signer_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
 		flag_no_network: bool = false,
-			or |c: &Config| c.network.disable.clone(),
+			or |c: &Config| otry!(c.network).disable.clone(),
 		flag_port: u16 = 30303u16,
-			or |c: &Config| c.network.port.clone(),
+			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
-			or |c: &Config| c.network.min_peers.clone(),
+			or |c: &Config| otry!(c.network).min_peers.clone(),
 		flag_max_peers: u16 = 50u16,
-			or |c: &Config| c.network.max_peers.clone(),
+			or |c: &Config| otry!(c.network).max_peers.clone(),
 		flag_nat: String = "any",
-			or |c: &Config| c.network.nat.clone(),
+			or |c: &Config| otry!(c.network).nat.clone(),
 		flag_network_id: Option<String> = None,
-			or |c: &Config| c.network.id.clone().map(Some),
+			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
-			or |c: &Config| c.network.bootnodes.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.network).bootnodes.clone().map(|vec| Some(vec.join(","))),
 		flag_no_discovery: bool = false,
-			or |c: &Config| c.network.discovery.clone(),
+			or |c: &Config| otry!(c.network).discovery.map(|d| !d).clone(),
 		flag_node_key: Option<String> = None,
-			or |c: &Config| c.network.node_key.clone().map(Some),
+			or |c: &Config| otry!(c.network).node_key.clone().map(Some),
 		flag_reserved_peers: Option<String> = None,
-			or |c: &Config| c.network.reserved_peers.clone().map(Some),
+			or |c: &Config| otry!(c.network).reserved_peers.clone().map(Some),
 		flag_reserved_only: bool = false,
-			or |c: &Config| c.network.reserved_only.clone(),
+			or |c: &Config| otry!(c.network).reserved_only.clone(),
 
 		// -- API and Console Options
 		// RPC
 		flag_no_jsonrpc: bool = false,
-			or |c: &Config| c.rpc.disable.clone(),
+			or |c: &Config| otry!(c.rpc).disable.clone(),
 		flag_jsonrpc_port: u16 = 8545u16,
-			or |c: &Config| c.rpc.port.clone(),
+			or |c: &Config| otry!(c.rpc).port.clone(),
 		flag_jsonrpc_interface: String  = "local",
-			or |c: &Config| c.rpc.interface.clone(),
+			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
-			or |c: &Config| c.rpc.cors.clone().map(Some),
+			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
 		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
-			or |c: &Config| c.rpc.apis.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.rpc).apis.clone().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
-			or |c: &Config| c.rpc.hosts.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.rpc).hosts.clone().map(|vec| vec.join(",")),
 
 		// IPC
 		flag_no_ipc: bool = false,
-			or |c: &Config| c.ipc.disable.clone(),
+			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
-			or |c: &Config| c.ipc.path.clone(),
+			or |c: &Config| otry!(c.ipc).path.clone(),
 		flag_ipc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
-			or |c: &Config| c.ipc.apis.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
 		flag_no_dapps: bool = false,
-			or |c: &Config| c.dapps.disable.clone(),
+			or |c: &Config| otry!(c.dapps).disable.clone(),
 		flag_dapps_port: u16 = 8080u16,
-			or |c: &Config| c.dapps.port.clone(),
+			or |c: &Config| otry!(c.dapps).port.clone(),
 		flag_dapps_interface: String = "local",
-			or |c: &Config| c.dapps.interface.clone(),
+			or |c: &Config| otry!(c.dapps).interface.clone(),
 		flag_dapps_hosts: String = "none",
-			or |c: &Config| c.dapps.hosts.clone().map(|vec| vec.join(",")),
+			or |c: &Config| otry!(c.dapps).hosts.clone().map(|vec| vec.join(",")),
 		flag_dapps_path: String = "$HOME/.parity/dapps",
-			or |c: &Config| c.dapps.path.clone(),
+			or |c: &Config| otry!(c.dapps).path.clone(),
 		flag_dapps_user: Option<String> = None,
-			or |c: &Config| c.dapps.user.clone().map(Some),
+			or |c: &Config| otry!(c.dapps).user.clone().map(Some),
 		flag_dapps_pass: Option<String> = None,
-			or |c: &Config| c.dapps.pass.clone().map(Some),
+			or |c: &Config| otry!(c.dapps).pass.clone().map(Some),
 
 		// -- Sealing/Mining Options
 		flag_author: Option<String> = None,
-			or |c: &Config| c.mining.author.clone().map(Some),
+			or |c: &Config| otry!(c.mining).author.clone().map(Some),
 		flag_force_sealing: bool = false,
-			or |c: &Config| c.mining.force_sealing.clone(),
+			or |c: &Config| otry!(c.mining).force_sealing.clone(),
 		flag_reseal_on_txs: String = "own",
-			or |c: &Config| c.mining.reseal_on_txs.clone(),
+			or |c: &Config| otry!(c.mining).reseal_on_txs.clone(),
 		flag_reseal_min_period: u64 = 2000u64,
-			or |c: &Config| c.mining.reseal_min_period.clone(),
+			or |c: &Config| otry!(c.mining).reseal_min_period.clone(),
 		flag_work_queue_size: usize = 20usize,
-			or |c: &Config| c.mining.work_queue_size.clone(),
+			or |c: &Config| otry!(c.mining).work_queue_size.clone(),
 		flag_tx_gas_limit: Option<String> = None,
-			or |c: &Config| c.mining.tx_gas_limit.clone().map(Some),
+			or |c: &Config| otry!(c.mining).tx_gas_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
-			or |c: &Config| c.mining.relay_set.clone(),
+			or |c: &Config| otry!(c.mining).relay_set.clone(),
 		flag_usd_per_tx: String = "0",
-			or |c: &Config| c.mining.usd_per_tx.clone(),
+			or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 		flag_usd_per_eth: String = "auto",
-			or |c: &Config| c.mining.usd_per_eth.clone(),
+			or |c: &Config| otry!(c.mining).usd_per_eth.clone(),
 		flag_price_update_period: String = "hourly",
-			or |c: &Config| c.mining.price_update_period.clone(),
+			or |c: &Config| otry!(c.mining).price_update_period.clone(),
 		flag_gas_floor_target: String = "4700000",
-			or |c: &Config| c.mining.gas_floor_target.clone(),
+			or |c: &Config| otry!(c.mining).gas_floor_target.clone(),
 		flag_gas_cap: String = "6283184",
-			or |c: &Config| c.mining.gas_cap.clone(),
+			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
-			or |c: &Config| c.mining.extra_data.clone().map(Some),
+			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
 		flag_tx_queue_size: usize = 1024usize,
-			or |c: &Config| c.mining.tx_queue_size.clone(),
+			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_remove_solved: bool = false,
-			or |c: &Config| c.mining.remove_solved.clone(),
+			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
-			or |c: &Config| c.mining.notify_work.clone().map(|vec| Some(vec.join(","))),
+			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
-			or |c: &Config| c.footprint.tracing.clone(),
+			or |c: &Config| otry!(c.footprint).tracing.clone(),
 		flag_pruning: String = "auto",
-			or |c: &Config| c.footprint.pruning.clone(),
+			or |c: &Config| otry!(c.footprint).pruning.clone(),
 		flag_cache_size_db: u32 = 64u32,
-			or |c: &Config| c.footprint.cache_size_db.clone(),
+			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
-			or |c: &Config| c.footprint.cache_size_blocks.clone(),
+			or |c: &Config| otry!(c.footprint).cache_size_blocks.clone(),
 		flag_cache_size_queue: u32 = 50u32,
-			or |c: &Config| c.footprint.cache_size_queue.clone(),
+			or |c: &Config| otry!(c.footprint).cache_size_queue.clone(),
 		flag_cache_size: Option<u32> = None,
-			or |c: &Config| c.footprint.cache_size.clone().map(Some),
+			or |c: &Config| otry!(c.footprint).cache_size.clone().map(Some),
 		flag_fast_and_loose: bool = false,
-			or |c: &Config| c.footprint.fast_and_loose.clone(),
+			or |c: &Config| otry!(c.footprint).fast_and_loose.clone(),
 		flag_db_compaction: String = "ssd",
-			or |c: &Config| c.footprint.db_compaction.clone(),
+			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: bool = false,
-			or |c: &Config| c.footprint.fat_db.clone(),
+			or |c: &Config| otry!(c.footprint).fat_db.clone(),
 
 		// -- Import/Export Options
 		flag_from: String = "1", or |_| None,
@@ -225,38 +225,38 @@ usage! {
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
 		flag_no_periodic_snapshot: bool = false,
-			or |c: &Config| c.snapshots.disable_periodic.clone(),
+			or |c: &Config| otry!(c.snapshots).disable_periodic.clone(),
 
 		// -- Virtual Machine Options
 		flag_jitvm: bool = false,
-			or |c: &Config| c.vm.jit.clone(),
+			or |c: &Config| otry!(c.vm).jit.clone(),
 
 		// -- Miscellaneous Options
 		flag_config: String = "$HOME/.parity/config.toml", or |_| None,
 		flag_logging: Option<String> = None,
-			or |c: &Config| c.misc.logging.clone().map(Some),
+			or |c: &Config| otry!(c.misc).logging.clone().map(Some),
 		flag_log_file: Option<String> = None,
-			or |c: &Config| c.misc.log_file.clone().map(Some),
+			or |c: &Config| otry!(c.misc).log_file.clone().map(Some),
 		flag_no_color: bool = false,
-			or |c: &Config| c.misc.no_color.clone(),
+			or |c: &Config| otry!(c.misc).color.map(|c| !c).clone(),
 	}
 }
 
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Config {
-	parity: Operating,
-	account: Account,
-	signer: Signer,
-	network: Network,
-	rpc: Rpc,
-	ipc: Ipc,
-	dapps: Dapps,
-	mining: Mining,
-	footprint: Footprint,
-	snapshots: Snapshots,
-	vm: VM,
-	misc: Misc,
+	parity: Option<Operating>,
+	account: Option<Account>,
+	signer: Option<Signer>,
+	network: Option<Network>,
+	rpc: Option<Rpc>,
+	ipc: Option<Ipc>,
+	dapps: Option<Dapps>,
+	mining: Option<Mining>,
+	footprint: Option<Footprint>,
+	snapshots: Option<Snapshots>,
+	vm: Option<VM>,
+	misc: Option<Misc>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -376,15 +376,14 @@ struct VM {
 struct Misc {
 	logging: Option<String>,
 	log_file: Option<String>,
-	no_color: Option<bool>,
+	color: Option<bool>,
 }
-
-
 
 #[cfg(test)]
 mod tests {
 	use super::{
-		Args, Config, Operating, Account, Signer, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
+		Args, ArgsError,
+		Config, Operating, Account, Signer, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
 	};
 	use toml;
 
@@ -394,7 +393,7 @@ mod tests {
 		let mut config = Config::default();
 		let mut operating = Operating::default();
 		operating.chain = Some("morden".into());
-		config.parity = operating;
+		config.parity = Some(operating);
 
 		// when
 		let args = Args::parse_with_config(&["parity"], config).unwrap();
@@ -409,7 +408,7 @@ mod tests {
 		let mut config = Config::default();
 		let mut operating = Operating::default();
 		operating.chain = Some("morden".into());
-		config.parity = operating;
+		config.parity = Some(operating);
 
 		// when
 		let args = Args::parse_with_config(&["parity", "--chain", "xyz"], config).unwrap();
@@ -451,20 +450,20 @@ mod tests {
 			flag_mode: "active".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
-			flag_chain: "homestead".into(),
+			flag_chain: "xyz".into(),
 			flag_db_path: "$HOME/.parity".into(),
 			flag_keys_path: "$HOME/.parity/keys".into(),
 			flag_identity: "".into(),
 
 			// -- Account Options
-			flag_unlock: None,
-			flag_password: vec![],
+			flag_unlock: Some("0xdeadbeefcafe0000000000000000000000000000".into()),
+			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
 
 			flag_force_signer: false,
 			flag_no_signer: false,
 			flag_signer_port: 8180u16,
-			flag_signer_interface: "local".into(),
+			flag_signer_interface: "127.0.0.1".into(),
 			flag_signer_path: "$HOME/.parity/signer".into(),
 			flag_signer_no_validation: false,
 
@@ -474,11 +473,11 @@ mod tests {
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
 			flag_nat: "any".into(),
-			flag_network_id: None,
-			flag_bootnodes: None,
+			flag_network_id: Some("0x1".into()),
+			flag_bootnodes: Some("".into()),
 			flag_no_discovery: false,
 			flag_node_key: None,
-			flag_reserved_peers: None,
+			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
 
 			// -- API and Console Options
@@ -486,14 +485,14 @@ mod tests {
 			flag_no_jsonrpc: false,
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
-			flag_jsonrpc_cors: None,
-			flag_jsonrpc_apis: "web3,eth,net,ethcore,personal,traces,rpc".into(),
+			flag_jsonrpc_cors: Some("null".into()),
+			flag_jsonrpc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
 			flag_jsonrpc_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,ethcore,personal,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
 
 			// DAPPS
 			flag_no_dapps: false,
@@ -501,26 +500,26 @@ mod tests {
 			flag_dapps_interface: "local".into(),
 			flag_dapps_hosts: "none".into(),
 			flag_dapps_path: "$HOME/.parity/dapps".into(),
-			flag_dapps_user: None,
-			flag_dapps_pass: None,
+			flag_dapps_user: Some("test_user".into()),
+			flag_dapps_pass: Some("test_pass".into()),
 
 			// -- Sealing/Mining Options
-			flag_author: None,
-			flag_force_sealing: false,
-			flag_reseal_on_txs: "own".into(),
-			flag_reseal_min_period: 2000u64,
+			flag_author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
+			flag_force_sealing: true,
+			flag_reseal_on_txs: "all".into(),
+			flag_reseal_min_period: 4000u64,
 			flag_work_queue_size: 20usize,
-			flag_tx_gas_limit: None,
+			flag_tx_gas_limit: Some("6283184".into()),
 			flag_relay_set: "cheap".into(),
 			flag_usd_per_tx: "0".into(),
 			flag_usd_per_eth: "auto".into(),
 			flag_price_update_period: "hourly".into(),
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
-			flag_extra_data: None,
+			flag_extra_data: Some("Parity".into()),
 			flag_tx_queue_size: 1024usize,
 			flag_remove_solved: false,
-			flag_notify_work: None,
+			flag_notify_work: Some("http://localhost:3001".into()),
 
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
@@ -528,7 +527,7 @@ mod tests {
 			flag_cache_size_db: 64u32,
 			flag_cache_size_blocks: 8u32,
 			flag_cache_size_queue: 50u32,
-			flag_cache_size: None,
+			flag_cache_size: Some(128),
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
 			flag_fat_db: false,
@@ -575,10 +574,23 @@ mod tests {
 			// -- Miscellaneous Options
 			flag_version: false,
 			flag_config: "$HOME/.parity/config.toml".into(),
-			flag_logging: None,
-			flag_log_file: None,
+			flag_logging: Some("own_tx=trace".into()),
+			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
 		});
+	}
+
+	#[test]
+	fn should_parse_config_and_return_errors() {
+		let config1 = Args::parse_config(include_str!("./config.invalid1.toml"));
+		let config2 = Args::parse_config(include_str!("./config.invalid2.toml"));
+
+		match (config1, config2) {
+			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_))) => {},
+			(a, b) => {
+				assert!(false, "Got invalid error types: {:?}, {:?}", a, b);
+			}
+		}
 	}
 
 	#[test]
@@ -586,7 +598,7 @@ mod tests {
 		let config: Config = toml::decode_str(include_str!("./config.toml")).unwrap();
 
 		assert_eq!(config, Config {
-			parity: Operating {
+			parity: Some(Operating {
 				mode: Some("dark".into()),
 				mode_timeout: Some(15u64),
 				mode_alarm: Some(10u64),
@@ -594,20 +606,20 @@ mod tests {
 				db_path: None,
 				keys_path: None,
 				identity: None,
-			},
-			account: Account {
+			}),
+			account: Some(Account {
 				unlock: Some(vec!["0x1".into(), "0x2".into(), "0x3".into()]),
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
-			},
-			signer: Signer {
+			}),
+			signer: Some(Signer {
 				force: None,
 				disable: Some(true),
 				port: None,
 				interface: None,
 				path: None,
-			},
-			network: Network {
+			}),
+			network: Some(Network {
 				disable: Some(false),
 				port: None,
 				min_peers: Some(10),
@@ -619,21 +631,21 @@ mod tests {
 				node_key: None,
 				reserved_peers: Some("./path/to/reserved_peers".into()),
 				reserved_only: Some(true),
-			},
-			rpc: Rpc {
+			}),
+			rpc: Some(Rpc {
 				disable: Some(true),
 				port: Some(8180),
 				interface: None,
 				cors: None,
 				apis: None,
 				hosts: None,
-			},
-			ipc: Ipc {
+			}),
+			ipc: Some(Ipc {
 				disable: None,
 				path: None,
 				apis: Some(vec!["rpc".into(), "eth".into()]),
-			},
-			dapps: Dapps {
+			}),
+			dapps: Some(Dapps {
 				disable: None,
 				port: Some(8080),
 				path: None,
@@ -641,8 +653,8 @@ mod tests {
 				hosts: None,
 				user: Some("username".into()),
 				pass: Some("password".into())
-			},
-			mining: Mining {
+			}),
+			mining: Some(Mining {
 				author: Some("0xdeadbeefcafe0000000000000000000000000001".into()),
 				force_sealing: Some(true),
 				reseal_on_txs: Some("all".into()),
@@ -659,8 +671,8 @@ mod tests {
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,
-			},
-			footprint: Footprint {
+			}),
+			footprint: Some(Footprint {
 				tracing: Some("on".into()),
 				pruning: Some("fast".into()),
 				fast_and_loose: None,
@@ -670,18 +682,18 @@ mod tests {
 				cache_size_queue: Some(100),
 				db_compaction: Some("ssd".into()),
 				fat_db: Some(true),
-			},
-			snapshots: Snapshots {
+			}),
+			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
-			},
-			vm: VM {
+			}),
+			vm: Some(VM {
 				jit: Some(false),
-			},
-			misc: Misc {
+			}),
+			misc: Some(Misc {
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
-				no_color: Some(false),
-			}
+				color: Some(true),
+			})
 		});
 	}
 }

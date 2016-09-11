@@ -19,8 +19,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::cmp::max;
-use cli::Args;
-use docopt::Error as DocoptError;
+use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
@@ -60,7 +59,7 @@ pub struct Configuration {
 }
 
 impl Configuration {
-	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, DocoptError> {
+	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 		let args = try!(Args::parse(command));
 
 		let config = Configuration {
@@ -613,7 +612,6 @@ impl Configuration {
 	}
 
 	fn signer_enabled(&self) -> bool {
-		println!("Force: {:?} {:?}", self.args.flag_force_signer, self.args.flag_unlock);
 		if self.args.flag_force_signer {
 			return true;
 		}
@@ -647,7 +645,7 @@ mod tests {
 
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
-			args: Args::parse(args).unwrap(),
+			args: Args::parse_without_config(args).unwrap(),
 		}
 	}
 
