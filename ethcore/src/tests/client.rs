@@ -16,6 +16,7 @@
 
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockID};
+use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
 use common::*;
@@ -29,6 +30,14 @@ fn imports_from_empty() {
 	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
 	client.import_verified_blocks();
 	client.flush_queue();
+}
+
+#[test]
+fn should_return_registrar() {
+	let dir = RandomTempPath::new();
+	let spec = ethereum::new_morden();
+	let client = Client::new(ClientConfig::default(), &spec, dir.as_path(), Arc::new(Miner::with_spec(&spec)), IoChannel::disconnected()).unwrap();
+	assert_eq!(client.additional_params().get("registrar"), Some(&"8e4e9b13d4b45cb0befc93c3061b1408f67316b2".to_owned()));
 }
 
 #[test]

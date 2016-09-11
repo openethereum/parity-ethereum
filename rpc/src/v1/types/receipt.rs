@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use v1::types::{Log, H160, H256, U256};
-use ethcore::receipt::{Receipt as EthReceipt, LocalizedReceipt};
+use ethcore::receipt::{Receipt as EthReceipt, RichReceipt, LocalizedReceipt};
 
 /// Receipt
 #[derive(Debug, Serialize)]
@@ -37,7 +37,7 @@ pub struct Receipt {
 	pub cumulative_gas_used: U256,
 	/// Gas used
 	#[serde(rename="gasUsed")]
-	pub gas_used: U256,
+	pub gas_used: Option<U256>,
 	/// Contract address
 	#[serde(rename="contractAddress")]
 	pub contract_address: Option<H160>,
@@ -53,7 +53,22 @@ impl From<LocalizedReceipt> for Receipt {
 			block_hash: Some(r.block_hash.into()),
 			block_number: Some(r.block_number.into()),
 			cumulative_gas_used: r.cumulative_gas_used.into(),
-			gas_used: r.gas_used.into(),
+			gas_used: Some(r.gas_used.into()),
+			contract_address: r.contract_address.map(Into::into),
+			logs: r.logs.into_iter().map(Into::into).collect(),
+		}
+	}
+}
+
+impl From<RichReceipt> for Receipt {
+	fn from(r: RichReceipt) -> Self {
+		Receipt {
+			transaction_hash: Some(r.transaction_hash.into()),
+			transaction_index: Some(r.transaction_index.into()),
+			block_hash: None,
+			block_number: None,
+			cumulative_gas_used: r.cumulative_gas_used.into(),
+			gas_used: Some(r.gas_used.into()),
 			contract_address: r.contract_address.map(Into::into),
 			logs: r.logs.into_iter().map(Into::into).collect(),
 		}
@@ -68,7 +83,7 @@ impl From<EthReceipt> for Receipt {
 			block_hash: None,
 			block_number: None,
 			cumulative_gas_used: r.gas_used.into(),
-			gas_used: r.gas_used.into(),
+			gas_used: None,
 			contract_address: None,
 			logs: r.logs.into_iter().map(Into::into).collect(),
 		}
@@ -91,7 +106,7 @@ mod tests {
 			block_hash: Some(H256::from_str("ed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5").unwrap()),
 			block_number: Some(U256::from(0x4510c)),
 			cumulative_gas_used: U256::from(0x20),
-			gas_used: U256::from(0x10),
+			gas_used: Some(U256::from(0x10)),
 			contract_address: None,
 			logs: vec![Log {
 				address: H160::from_str("33990122638b9132ca29c723bdf037f1a891a70c").unwrap(),

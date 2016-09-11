@@ -92,6 +92,7 @@ impl Engine for Ethash {
 	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
+	fn additional_params(&self) -> HashMap<String, String> { hash_map!["registrar".to_owned() => self.ethash_params.registrar.hex()] }
 
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> {
 		&self.builtins
