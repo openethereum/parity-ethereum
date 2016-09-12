@@ -235,8 +235,6 @@ export default class Contract {
       subscriptions.forEach(sendChanges);
     };
 
-    // NOTE: This would have been great, however 'pending' latest blockNumber makes us not wait, so tigher polling
-    // this._api.events.subscribe('eth.blockNumber', onTriggerSend);
     setInterval(onTriggerSend, 1000);
 
     return event;

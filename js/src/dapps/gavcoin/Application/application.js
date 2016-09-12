@@ -127,8 +127,13 @@ export default class Application extends Component {
     });
   }
 
-  onNewBlockNumber = (blockNumber) => {
+  onNewBlockNumber = (_error, blockNumber) => {
     const { instance, accounts } = this.state;
+
+    if (_error) {
+      console.error('onNewBlockNumber', _error);
+      return;
+    }
 
     Promise
       .all([
@@ -209,7 +214,7 @@ export default class Application extends Component {
           })
         });
 
-        api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
+        api.subscribe('eth.blockNumber', this.onNewBlockNumber);
       })
       .catch((error) => {
         console.error('attachInterface', error);
