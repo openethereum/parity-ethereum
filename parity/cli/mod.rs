@@ -68,6 +68,7 @@ usage! {
 
 		// -- Miscellaneous Options
 		flag_version: bool,
+		flag_no_config: bool,
 	}
 	{
 		// -- Operating Options

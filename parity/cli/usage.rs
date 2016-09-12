@@ -125,6 +125,12 @@ macro_rules! usage {
 
 			pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
 				let raw_args = try!(RawArgs::parse(command));
+
+				// Skip loading config file if no_config flag is specified
+				if raw_args.flag_no_config {
+					return Ok(raw_args.into_args(Config::default()));
+				}
+
 				let config_file = raw_args.flag_config.clone().unwrap_or_else(|| raw_args.clone().into_args(Config::default()).flag_config);
 				let config_file = replace_home(&config_file);
 				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
