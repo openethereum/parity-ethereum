@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use page::handler;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 
+#[derive(Debug, Clone)]
 pub struct LocalPageEndpoint {
 	path: PathBuf,
 	mime: Option<String>,
