@@ -5,6 +5,26 @@ import * as events from './events/actions.js';
 
 export { lookup, events };
 
+export const setAccounts = (accounts) => ({ type: 'set accounts', accounts });
+
+export const fetchAccounts = () => (dispatch) =>
+  Promise.all([
+    api.personal.listAccounts(),
+    api.personal.accountsInfo()
+  ])
+  .then((accounts, infos) => {
+    accounts = accounts
+      .filter((id) => infos[id])
+      .map((id) => infos[id])
+    dispatch(setAccounts(accounts))
+  })
+  .catch((err) => {
+    console.error('could not fetch accounts');
+    if (err) console.error(err.stack);
+  });
+
+export const setAccount = (id) => ({ type: 'set account', id });
+
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) =>
