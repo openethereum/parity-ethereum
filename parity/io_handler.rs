@@ -46,3 +46,19 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 		}
 	}
 }
+
+pub struct ImportIoHandler {
+	pub info: Arc<Informant>,
+}
+
+impl IoHandler<ClientIoMessage> for ImportIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		if let INFO_TIMER = timer {
+			self.info.tick()
+		}
+	}
+}

@@ -21,8 +21,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use ethcore_logger::{setup_log, Config as LogConfig};
-use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService};
+use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
+use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType};
 use ethcore::miner::Miner;
@@ -60,6 +61,60 @@ pub struct SnapshotCommand {
 	pub wal: bool,
 	pub kind: Kind,
 	pub block_at: BlockID,
+}
+
+// helper for reading chunks from arbitrary reader and feeding them into the
+// service.
+fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
+	let manifest = reader.manifest();
+
+	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
+
+	try!(snapshot.init_restore(manifest.clone(), recover).map_err(|e| {
+		format!("Failed to begin restoration: {}", e)
+	}));
+
+	let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
+
+	let informant_handle = snapshot.clone();
+	::std::thread::spawn(move || {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
+ 			info!("Processed {}/{} state chunks and {}/{} block chunks.",
+ 				state_chunks_done, num_state, block_chunks_done, num_blocks);
+ 			::std::thread::sleep(Duration::from_secs(5));
+ 		}
+ 	});
+
+ 	info!("Restoring state");
+ 	for &state_hash in &manifest.state_hashes {
+ 		if snapshot.status() == RestorationStatus::Failed {
+ 			return Err("Restoration failed".into());
+ 		}
+
+ 		let chunk = try!(reader.chunk(state_hash)
+			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e)));
+ 		snapshot.feed_state_chunk(state_hash, &chunk);
+ 	}
+
+	info!("Restoring blocks");
+	for &block_hash in &manifest.block_hashes {
+		if snapshot.status() == RestorationStatus::Failed {
+			return Err("Restoration failed".into());
+		}
+
+ 		let chunk = try!(reader.chunk(block_hash)
+			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e)));
+		snapshot.feed_block_chunk(block_hash, &chunk);
+	}
+
+	match snapshot.status() {
+		RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
+		RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
+		RestorationStatus::Inactive => {
+			info!("Restoration complete.");
+			Ok(())
+		}
+	}
 }
 
 impl SnapshotCommand {
@@ -106,69 +161,35 @@ impl SnapshotCommand {
 
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
-		let file = try!(self.file_path.clone().ok_or("No file path provided.".to_owned()));
+		let file = self.file_path.clone();
 		let (service, _panic_handler) = try!(self.start_service());
 
 		warn!("Snapshot restoration is experimental and the format may be subject to change.");
 		warn!("On encountering an unexpected error, please ensure that you have a recent snapshot.");
 
 		let snapshot = service.snapshot_service();
-		let reader = PackedReader::new(Path::new(&file))
-			.map_err(|e| format!("Couldn't open snapshot file: {}", e))
-			.and_then(|x| x.ok_or("Snapshot file has invalid format.".into()));
 
-		let reader = try!(reader);
-		let manifest = reader.manifest();
+		if let Some(file) = file {
+			info!("Attempting to restore from snapshot at '{}'", file);
 
-		// drop the client so we don't restore while it has open DB handles.
-		drop(service);
+			let reader = PackedReader::new(Path::new(&file))
+				.map_err(|e| format!("Couldn't open snapshot file: {}", e))
+				.and_then(|x| x.ok_or("Snapshot file has invalid format.".into()));
 
-		try!(snapshot.init_restore(manifest.clone()).map_err(|e| {
-			format!("Failed to begin restoration: {}", e)
-		}));
+			let reader = try!(reader);
+			try!(restore_using(snapshot, &reader, true));
+		} else {
+			info!("Attempting to restore from local snapshot.");
 
-		let (num_state, num_blocks) = (manifest.state_hashes.len(), manifest.block_hashes.len());
-
-		let informant_handle = snapshot.clone();
-		::std::thread::spawn(move || {
- 			while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
- 				info!("Processed {}/{} state chunks and {}/{} block chunks.",
- 					state_chunks_done, num_state, block_chunks_done, num_blocks);
-
- 				::std::thread::sleep(Duration::from_secs(5));
- 			}
- 		});
-
- 		info!("Restoring state");
- 		for &state_hash in &manifest.state_hashes {
- 			if snapshot.status() == RestorationStatus::Failed {
- 				return Err("Restoration failed".into());
- 			}
-
- 			let chunk = try!(reader.chunk(state_hash)
-				.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e)));
- 			snapshot.feed_state_chunk(state_hash, &chunk);
- 		}
-
-		info!("Restoring blocks");
-		for &block_hash in &manifest.block_hashes {
-			if snapshot.status() == RestorationStatus::Failed {
-				return Err("Restoration failed".into());
-			}
-
- 			let chunk = try!(reader.chunk(block_hash)
-				.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e)));
-			snapshot.feed_block_chunk(block_hash, &chunk);
-		}
-
-		match snapshot.status() {
-			RestorationStatus::Ongoing { .. } => Err("Snapshot file is incomplete and missing chunks.".into()),
-			RestorationStatus::Failed => Err("Snapshot restoration failed.".into()),
-			RestorationStatus::Inactive => {
-				info!("Restoration complete.");
-				Ok(())
+			// attempting restoration with recovery will lead to deadlock
+			// as we currently hold a read lock on the service's reader.
+			match *snapshot.reader() {
+				Some(ref reader) => try!(restore_using(snapshot.clone(), reader, false)),
+				None => return Err("No local snapshot found.".into()),
 			}
 		}
+
+		Ok(())
 	}
 
 	/// Take a snapshot from the head of the chain.
