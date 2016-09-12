@@ -13,6 +13,7 @@ export default class Contract {
     this._api = api;
     this._abi = new Abi(abi);
 
+    this._subscriptions = [];
     this._constructors = this._abi.constructors.map((cons) => this._bindFunction(cons));
     this._functions = this._abi.functions.map((func) => this._bindFunction(func));
     this._events = this._abi.events.map((event) => this._bindEvent(event));
@@ -25,6 +26,8 @@ export default class Contract {
     this._functions.forEach((fn) => {
       this._instance[fn.name] = fn;
     });
+
+    this._sendSubscriptionChanges();
   }
 
   get address () {
@@ -237,5 +240,71 @@ export default class Contract {
     setInterval(onTriggerSend, 1000);
 
     return event;
+  }
+
+  subscribe (eventName, _options = {}, callback) {
+    const subscriptionId = this._subscriptions.length;
+    const event = this.events.find((evt) => evt.name === eventName);
+    const options = Object.assign({}, _options, {
+      address: this._address,
+      topics: [event ? event.signature : null]
+    });
+
+    this._api.eth
+      .newFilter(options)
+      .then((filterId) => {
+        return this._api.eth
+          .getFilterLogs(filterId)
+          .then((logs) => {
+            callback(null, this.parseEventLogs(logs));
+
+            this._subscriptions.push({
+              options,
+              callback,
+              filterId
+            });
+          });
+      })
+      .catch((error) => {
+        console.log('subscribe', error);
+        callback(error);
+      });
+
+    return subscriptionId;
+  }
+
+  unsubscribe (subscriptionId) {
+    const subscription = this._subscriptions[subscriptionId];
+
+    this._api.eth.uninstallFilter(subscription.filterId);
+    this._subscriptions[subscriptionId] = null;
+  }
+
+  _sendSubscriptionChanges = () => {
+    const subscriptions = this._subscriptions.filter((subscription) => subscription);
+    const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
+
+    Promise
+      .all(
+        subscriptions.map((subscription) => {
+          return this._api.eth.getFilterChanges(subscription.filterId);
+        })
+      )
+      .then((logsArray) => {
+        logsArray.forEach((logs, idx) => {
+          try {
+            subscriptions[idx].callback(null, this.parseEventLogs(logs));
+          } catch (error) {
+            subscriptions[idx].callback(error);
+            console.error('_sendSubscriptionChanges', error);
+          }
+        });
+
+        timeout();
+      })
+      .catch((error) => {
+        console.error('_sendSubscriptionChanges', error);
+        timeout();
+      });
   }
 }

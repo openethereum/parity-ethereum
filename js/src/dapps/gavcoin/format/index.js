@@ -1,9 +1,13 @@
+import BigNumber from 'bignumber.js';
+
 const { api } = window.parity;
 
 const DIVISOR = 10 ** 6;
+const ZERO = new BigNumber(0);
 
 export function formatBlockNumber (blockNumber) {
-  return blockNumber.eq(0)
+  console.log(blockNumber);
+  return ZERO.eq(blockNumber || 0)
     ? 'Pending'
     : `#${blockNumber.toFormat()}`;
 }

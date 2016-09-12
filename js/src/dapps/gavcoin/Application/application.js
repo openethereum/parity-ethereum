@@ -22,6 +22,7 @@ const DIVISOR = 10 ** 6;
 export default class Application extends Component {
   static childContextTypes = {
     api: PropTypes.object,
+    contract: PropTypes.object,
     instance: PropTypes.object,
     muiTheme: PropTypes.object
   };
@@ -30,7 +31,7 @@ export default class Application extends Component {
     action: null,
     address: null,
     accounts: [],
-    blockNumber: null,
+    blockNumber: new BigNumber(-1),
     ethBalance: new BigNumber(0),
     gavBalance: new BigNumber(0),
     instance: null,
@@ -104,10 +105,11 @@ export default class Application extends Component {
   }
 
   getChildContext () {
-    const { instance } = this.state;
+    const { contract, instance } = this.state;
 
     return {
       api,
+      contract,
       instance,
       muiTheme
     };
@@ -126,6 +128,7 @@ export default class Application extends Component {
   }
 
   onNewBlockNumber = (blockNumber) => {
+    console.log('blockNumber', blockNumber);
     const { instance, accounts } = this.state;
 
     Promise
@@ -189,12 +192,13 @@ export default class Application extends Component {
       .then(([address, addresses, infos]) => {
         console.log(`gavcoin was found at ${address}`);
 
-        const { instance } = api.newContract(gavcoinAbi, address);
+        const contract = api.newContract(gavcoinAbi, address);
 
         this.setState({
           loading: false,
           address,
-          instance,
+          contract,
+          instance: contract.instance,
           accounts: addresses.map((address) => {
             const info = infos[address];
 

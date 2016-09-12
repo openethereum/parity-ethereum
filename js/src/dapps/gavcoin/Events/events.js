@@ -13,6 +13,7 @@ export default class Events extends Component {
   }
 
   static contextTypes = {
+    contract: PropTypes.object.isRequired,
     instance: PropTypes.object.isRequired
   }
 
@@ -73,7 +74,7 @@ export default class Events extends Component {
   }
 
   setupFilters () {
-    const { instance } = this.context;
+    const { contract } = this.context;
     let key = 0;
 
     const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
@@ -92,42 +93,45 @@ export default class Events extends Component {
       };
     };
 
-    ['Approval', 'Buyin', 'Refund', 'Transfer', 'NewTranch'].forEach((eventName) => {
-      const options = {
-        fromBlock: 0,
-        toBlock: 'pending'
-      };
+    const options = {
+      fromBlock: 0,
+      toBlock: 'pending'
+    };
 
-      instance[eventName].subscribe(options, (logs) => {
-        if (!logs.length) {
-          return;
-        }
+    contract.subscribe(null, options, (error, logs) => {
+      if (error) {
+        console.error('setupFilters', error);
+        return;
+      }
 
-        console.log(logs);
+      if (!logs.length) {
+        return;
+      }
 
-        const minedEvents = logs
-          .filter((log) => log.type === 'mined')
-          .map((log) => logToEvent(eventName, log))
-          .reverse()
-          .concat(this.state.minedEvents)
-          .sort(sortEvents);
-        const pendingEvents = logs
-          .filter((log) => log.type === 'pending')
-          .map((log) => logToEvent(eventName, log))
-          .reverse()
-          .concat(this.state.pendingEvents.filter((event) => {
-            return !logs.find((log) => {
-              return (log.type === 'mined') && (log.transactionHash === event.transactionHash);
-            });
-          }))
-          .sort(sortEvents);
-        const allEvents = pendingEvents.concat(minedEvents);
+      console.log(logs);
 
-        this.setState({
-          allEvents,
-          minedEvents,
-          pendingEvents
-        });
+      const minedEvents = logs
+        .filter((log) => log.type === 'mined')
+        .map((log) => logToEvent(log.event, log))
+        .reverse()
+        .concat(this.state.minedEvents)
+        .sort(sortEvents);
+      const pendingEvents = logs
+        .filter((log) => log.type === 'pending')
+        .map((log) => logToEvent(log.event, log))
+        .reverse()
+        .concat(this.state.pendingEvents.filter((event) => {
+          return !logs.find((log) => {
+            return (log.type === 'mined') && (log.transactionHash === event.transactionHash);
+          });
+        }))
+        .sort(sortEvents);
+      const allEvents = pendingEvents.concat(minedEvents);
+
+      this.setState({
+        allEvents,
+        minedEvents,
+        pendingEvents
       });
     });
   }

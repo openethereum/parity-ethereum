@@ -1,10 +1,12 @@
+import BigNumber from 'bignumber.js';
+
 const EVENTS = ['eth.blockNumber'];
 
 export default class Events {
   constructor (api) {
     this._api = api;
 
-    this._lastBlock = 0;
+    this._lastBlock = new BigNumber(0);
     this.subscriptions = {};
     this.values = {};
 
@@ -56,10 +58,10 @@ export default class Events {
   _pollBlockNumber = () => {
     const nextTimeout = () => setTimeout(this._pollBlockNumber, 1000);
 
-    if (!this.subscriptions['eth.blockNumber'].length) {
-      nextTimeout();
-      return;
-    }
+    // if (!this.subscriptions['eth.blockNumber'].length) {
+    //   nextTimeout();
+    //   return;
+    // }
 
     this._api.eth
       .blockNumber()
