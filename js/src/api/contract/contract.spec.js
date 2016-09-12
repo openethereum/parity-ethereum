@@ -151,8 +151,11 @@ describe('api/contract/Contract', () => {
         transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
         transactionIndex: '0x0'
       });
+      const log = decoded.logs[0];
 
-      expect(decoded.logs[0].params).to.deep.equal({
+      expect(log.event).to.equal('Message');
+      expect(log.address).to.equal('0xfa64203C044691aA57251aF95f4b48d85eC00Dd5');
+      expect(log.params).to.deep.equal({
         at: new BigNumber('1457965151'),
         message: 'post(message)',
         messageId: new BigNumber('281474976731085'),
@@ -279,7 +282,7 @@ describe('api/contract/Contract', () => {
       func = contract.functions.find((fn) => fn.name === 'test');
     });
 
-    describe.only('_addOptionsTo', () => {
+    describe('_addOptionsTo', () => {
       it('works on no object specified', () => {
         expect(contract._addOptionsTo()).to.deep.equal({ to: ADDR });
       });

@@ -95,6 +95,7 @@ export default class Contract {
 
       log.params = {};
       log.address = decoded.address;
+      log.event = event.name;
 
       decoded.params.forEach((param) => {
         log.params[param.name] = param.token.value;
