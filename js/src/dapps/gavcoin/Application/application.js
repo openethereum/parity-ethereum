@@ -128,7 +128,6 @@ export default class Application extends Component {
   }
 
   onNewBlockNumber = (blockNumber) => {
-    console.log('blockNumber', blockNumber);
     const { instance, accounts } = this.state;
 
     Promise
