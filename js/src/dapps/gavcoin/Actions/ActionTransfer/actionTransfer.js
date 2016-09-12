@@ -111,7 +111,7 @@ export default class ActionTransfer extends Component {
           floatingLabelFixed
           floatingLabelText='number of coins'
           fullWidth
-          hintText='the number of coins to exchange for an ΞTH refund'
+          hintText='the number of coins to transfer'
           errorText={ amountError }
           name={ NAME_ID }
           id={ NAME_ID }
