@@ -458,8 +458,6 @@ impl Database {
 		let mut backup_db = PathBuf::from(&self.path);
 		backup_db.pop();
 		backup_db.push("backup_db");
-		println!("Path at {:?}", self.path);
-		println!("Backup at {:?}", backup_db);
 
 		let existed = match fs::rename(&self.path, &backup_db) {
 			Ok(_) => true,

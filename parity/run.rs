@@ -257,8 +257,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
 		accounts: account_provider.clone(),
+		shutdown: Default::default(),
 	});
-	service.register_io_handler(io_handler).expect("Error registering IO handler");
+	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
 
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
@@ -288,6 +289,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
+
+	// to make sure timer does not spawn requests while shutdown is in progress
+	io_handler.shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	// just Arc is dropping here, to allow other reference release in its default time
+	drop(io_handler);
 
 	// hypervisor should be shutdown first while everything still works and can be
 	// terminated gracefully

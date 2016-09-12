@@ -225,17 +225,20 @@ windows:
     name: "${CI_BUILD_NAME}_parity"
 test-linux:
   stage: test
-  image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
   script:
     - ./test.sh --verbose
   tags:
-    - rust
-    - rust-stable
+    - rust-test
   dependencies:
     - linux-stable
 deploy-binaries:
   stage: deploy
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - ./deploy.sh

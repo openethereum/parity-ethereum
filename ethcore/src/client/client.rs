@@ -673,6 +673,8 @@ impl Client {
 impl snapshot::DatabaseRestore for Client {
 	/// Restart the client with a new backend
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
+		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
+
 		let _import_lock = self.import_lock.lock();
 		let mut state_db = self.state_db.write();
 		let mut chain = self.chain.write();
