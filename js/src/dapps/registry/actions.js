@@ -12,9 +12,9 @@ export const fetchAccounts = () => (dispatch) =>
     api.personal.listAccounts(),
     api.personal.accountsInfo()
   ])
-  .then(([ accounts, infos ]) => {
-    accounts = accounts.reduce((accounts, id) => {
-      if (infos[id]) accounts[id] = { ...infos[id], id }
+  .then(([ addresses, infos ]) => {
+    const accounts = addresses.reduce((accounts, address) => {
+      if (infos[address]) accounts[address] = { ...infos[address], address }
       return accounts
     }, {})
     dispatch(setAccounts(accounts))
@@ -24,7 +24,7 @@ export const fetchAccounts = () => (dispatch) =>
     if (err) console.error(err.stack);
   });
 
-export const setAccount = (id) => ({ type: 'set account', id });
+export const setAccount = (address) => ({ type: 'set account', address });
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 

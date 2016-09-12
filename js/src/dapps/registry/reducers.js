@@ -18,8 +18,8 @@ export default (state = initialState, action) => {
     return { ...state, accounts: action.accounts };
 
   if (action.type === 'set account') {
-    if (state.accounts && state.accounts[action.id])
-      return { ...state, account: state.accounts[action.id] };
+    if (state.accounts && state.accounts[action.address])
+      return { ...state, account: state.accounts[action.address] };
     return state
   }
 
