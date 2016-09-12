@@ -165,6 +165,7 @@ struct SealingWork {
 }
 
 /// Keeps track of transactions using priority queue and holds currently mined block.
+/// Handles preparing work for "work sealing" or seals "internally" if Engine does not require work.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
 	transaction_queue: Arc<Mutex<TransactionQueue>>,
@@ -333,7 +334,7 @@ impl Miner {
 		(block, original_work_hash)
 	}
 
-	/// Attempts to perform internal sealing to return Ok(sealed),
+	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
 	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
 	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> { 
 		trace!(target: "miner", "seal_block_internally: block has transaction - attempting internal seal.");
@@ -353,7 +354,7 @@ impl Miner {
 		}
 	}
 
-	/// Uses engine to seal the block and then imports it to chain.
+	/// Uses Engine to seal the block internally and then imports it to chain.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
@@ -400,7 +401,7 @@ impl Miner {
 		queue.set_gas_limit(gas_limit);
 	}
 
-	/// Returns true if we had to prepare new pending block
+	/// Returns true if we had to prepare new pending block.
 	fn prepare_work_sealing(&self, chain: &MiningBlockChainClient) -> bool {
 		trace!(target: "miner", "prepare_work_sealing: entering");
 		let prepare_new = {
@@ -670,11 +671,11 @@ impl MinerService for Miner {
 		// --------------------------------------------------------------------------
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
-			// We need to create pending block and enable sealing
-			let prepared = self.prepare_work_sealing(chain);
-			// If new block has not been prepared (means we already had one)
-			// we need to update sealing
-			if !prepared {
+			// We need to create pending block and enable sealing.
+			if self.engine.seals_internally() || !self.prepare_work_sealing(chain) {
+				// If new block has not been prepared (means we already had one)
+				// or Engine might be able to seal internally,
+				// we need to update sealing.
 				self.update_sealing(chain);
 			}
 		}
@@ -776,6 +777,8 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().last_nonce(address)
 	}
 
+	/// Update sealing if required.
+	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
 		let requires_reseal = {
