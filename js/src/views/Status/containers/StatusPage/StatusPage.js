@@ -3,7 +3,10 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { extend } from 'lodash';
 
+import Debug from '../../components/Debug';
 import Status from '../../components/Status';
+
+import * as debugActions from '../../actions/debug';
 import * as ModifyMiningActions from '../../actions/modify-mining';
 import { updateLogging } from '../../actions/logger';
 
@@ -14,6 +17,7 @@ class StatusPage extends Component {
     status: PropTypes.object.isRequired,
     statusSettings: PropTypes.object.isRequired,
     statusMining: PropTypes.object.isRequired,
+    statusDebug: PropTypes.object.isRequired,
     actions: PropTypes.object.isRequired
   }
 
@@ -21,6 +25,7 @@ class StatusPage extends Component {
     return (
       <div className={ styles.body }>
         <Status { ...this.props } />
+        <Debug { ...this.props } />
       </div>
     );
   }
@@ -32,7 +37,7 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return {
-    actions: bindActionCreators(extend({}, ModifyMiningActions, { updateLogging }), dispatch)
+    actions: bindActionCreators(extend({}, ModifyMiningActions, debugActions, { updateLogging }), dispatch)
   };
 }
 
