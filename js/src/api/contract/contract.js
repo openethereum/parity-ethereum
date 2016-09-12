@@ -244,7 +244,17 @@ export default class Contract {
 
   subscribe (eventName, _options = {}, callback) {
     const subscriptionId = this._subscriptions.length;
-    const event = this.events.find((evt) => evt.name === eventName);
+    let event = null;
+
+    if (eventName) {
+      event = this.events.find((evt) => evt.name === eventName);
+
+      if (!event) {
+        const events = this._events.map((evt) => evt.name).join(', ');
+        throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} or null to include all events`);
+      }
+    }
+
     const options = Object.assign({}, _options, {
       address: this._address,
       topics: [event ? event.signature : null]
