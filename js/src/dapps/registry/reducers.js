@@ -40,5 +40,9 @@ export default (state = initialState, action) => {
     return { ...state, events: eventsReducer(state.events, action) };
   }
 
+  if (action.type.slice(0, 8) === 'register') {
+    return { ...state, register: registerReducer(state.register, action) };
+  }
+
   return state;
 };

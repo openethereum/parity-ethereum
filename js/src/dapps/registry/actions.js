@@ -2,8 +2,9 @@ import registryAbi from './abi/registry.json';
 const { api } = window.parity;
 import * as lookup from './Lookup/actions.js';
 import * as events from './events/actions.js';
+import * as register from './register/actions.js';
 
-export { lookup, events };
+export { lookup, events, register };
 
 export const setAccounts = (accounts) => ({ type: 'set accounts', accounts });
 
