@@ -91,7 +91,7 @@ export default class ActionTransfer extends Component {
           onSelect={ this.onChangeFromAccount } />
         <div className={ styles.overlay }>
           <AccountSelectorText
-            gavBalance
+            gavBalance anyAccount
             selector={ !inputAccount }
             accounts={ accounts }
             account={ toAccount }
