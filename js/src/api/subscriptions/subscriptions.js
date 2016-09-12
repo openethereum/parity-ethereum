@@ -2,7 +2,12 @@ import Eth from './eth';
 import Logging from './logging';
 import Personal from './personal';
 
-const EVENTS = ['logging', 'eth_blockNumber'];
+const EVENTS = [
+  'logging',
+  'eth_blockNumber',
+  'personal_accountsInfo',
+  'personal_listAccounts'
+];
 const ALIASSES = {};
 
 export default class Subscriptions {
@@ -39,7 +44,7 @@ export default class Subscriptions {
     const subscriptionName = this._validateType(_subscriptionName);
     const subscriptionId = this.subscriptions[subscriptionName].length;
     const { error, data } = this.values[subscriptionName];
-    const [prefix] = subscriptionName.split('.');
+    const [prefix] = subscriptionName.split('_');
     const engine = this[`_${prefix}`];
 
     this.subscriptions[subscriptionName].push(callback);
@@ -77,6 +82,10 @@ export default class Subscriptions {
   }
 
   _updateSubscriptions = (subscriptionName, error, data) => {
+    if (!this.subscriptions[subscriptionName]) {
+      throw new Error(`Cannot find entry point for subscriptions of type ${subscriptionName}`);
+    }
+
     this.values[subscriptionName] = { error, data };
     this.subscriptions[subscriptionName].forEach((callback) => {
       this._sendData(callback, error, data);

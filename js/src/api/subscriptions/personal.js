@@ -33,13 +33,13 @@ export default class Personal {
 
         if (different) {
           this._lastAccounts = accounts;
-          this._updateSubscriptions('personal.listAccounts', null, accounts);
+          this._updateSubscriptions('personal_listAccounts', null, accounts);
         }
       });
   }
 
   _accountsInfo = () => {
-    this.api.personal
+    this._api.personal
       .accountsInfo()
       .then((info) => {
         const infoKeys = Object.keys(info);
@@ -56,7 +56,7 @@ export default class Personal {
 
         if (different) {
           this._lastInfo = info;
-          this._updateSubscriptions('personal.accountsInfo', null, info);
+          this._updateSubscriptions('personal_accountsInfo', null, info);
         }
       });
   }
@@ -72,11 +72,14 @@ export default class Personal {
         case 'personal_newAccount':
         case 'personal_newAccountFromPhrase':
         case 'personal_newAccountFromWallet':
-          return this._listAccounts();
+          this._listAccounts();
+          this._accountsInfo();
+          return;
 
         case 'personal_setAccountName':
         case 'personal_setAccountMeta':
-          return this._accountsInfo();
+          this._accountsInfo();
+          return;
       }
     });
   }

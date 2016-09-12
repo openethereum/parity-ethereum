@@ -1,5 +1,6 @@
 import Actionbar from './Actionbar';
-import Badge from './badge';
+import ApiProvider from './ApiProvider';
+import Badge from './Badge';
 import Balances from './Balances';
 import Container, { Title as ContainerTitle } from './Container';
 import Errors from './Errors';
@@ -13,6 +14,7 @@ import Tooltips, { Tooltip } from './Tooltips';
 
 export {
   Actionbar,
+  ApiProvider,
   Badge,
   Balances,
   Container,

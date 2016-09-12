@@ -1,6 +1,7 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
+import { personalReducer } from './providers';
 import { errorReducer } from '../ui/Errors';
 import { tooltipReducer } from '../ui/Tooltips';
 import { nodeStatusReducer } from '../views/Application/Status';
@@ -21,6 +22,8 @@ export default function () {
     statusMining: statusMiningReducer,
     statusRpc: statusRpcReducer,
     statusLogger: statusLoggerReducer,
-    statusDebug: statusDebugReducer
+    statusDebug: statusDebugReducer,
+
+    personal: personalReducer
   });
 }

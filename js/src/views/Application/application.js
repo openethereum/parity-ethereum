@@ -3,7 +3,6 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Api from '../../api';
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 
 import Container from './Container';
@@ -17,7 +16,6 @@ import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
 import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 // TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
@@ -41,11 +39,14 @@ let lastBlockNumber = new BigNumber(-1);
 
 class Application extends Component {
   static childContextTypes = {
-    api: PropTypes.object,
     accounts: PropTypes.array,
     balances: PropTypes.object,
     contacts: PropTypes.array,
     tokens: PropTypes.array
+  }
+
+  static contextTypes = {
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -66,7 +67,6 @@ class Application extends Component {
   }
 
   componentWillMount () {
-    this.retrieveAccounts();
     this.retrieveTokens();
     this.pollStatus();
   }
@@ -106,7 +106,6 @@ class Application extends Component {
     const { accounts, balances, contacts, tokens } = this.state;
 
     return {
-      api,
       accounts,
       balances,
       contacts,
@@ -114,64 +113,8 @@ class Application extends Component {
     };
   }
 
-  retrieveAccounts = () => {
-    let { showFirstRun } = this.state;
-    const nextTimeout = () => setTimeout(this.retrieveAccounts, 1000);
-
-    Promise
-      .all([
-        api.personal.listAccounts(),
-        api.personal.accountsInfo()
-      ])
-      .then(([addresses, infos]) => {
-        const contacts = [];
-        const accounts = [];
-
-        Object.keys(infos).forEach((address) => {
-          const { name, meta, uuid } = infos[address];
-
-          if (uuid) {
-            const account = this.state.accounts.find((_account) => _account.uuid === uuid) || {
-              address,
-              uuid
-            };
-
-            accounts.push(Object.assign(account, {
-              meta,
-              name
-            }));
-          } else {
-            const contact = this.state.contacts.find((_contact) => _contact.address === address) || {
-              address
-            };
-
-            contacts.push(Object.assign(contact, {
-              meta,
-              name
-            }));
-          }
-        });
-
-        if (!accounts.length) {
-          showFirstRun = true;
-        }
-
-        this.setState({
-          accounts,
-          contacts,
-          showFirstRun
-        }, this.retrieveBalances);
-
-        nextTimeout();
-      })
-      .catch((error) => {
-        console.error('retrieveAccounts', error);
-
-        nextTimeout();
-      });
-  }
-
   retrieveBalances = () => {
+    const { api } = this.context;
     const { accounts, contacts, tokens } = this.state;
     const balances = {};
     const addresses = accounts.concat(contacts).map((account) => account.address);
@@ -230,6 +173,7 @@ class Application extends Component {
   }
 
   retrieveTokens = () => {
+    const { api } = this.context;
     api.ethcore
       .registryAddress()
       .then((registryAddress) => {
@@ -274,6 +218,7 @@ class Application extends Component {
   }
 
   pollStatus () {
+    const { api } = this.context;
     const { onUpdateNodeStatus } = this.props;
     const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
 
@@ -320,9 +265,11 @@ class Application extends Component {
 
 function mapStateToProps (state) {
   const { netChain, isTest } = state.nodeStatus;
+  const { hasAccounts } = state.personal;
   const { pending } = state.signerRequests;
 
   return {
+    hasAccounts,
     netChain,
     isTest,
     pending

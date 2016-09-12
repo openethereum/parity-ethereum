@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
@@ -8,10 +10,13 @@ import { Actionbar, Page } from '../../ui';
 
 import styles from './addresses.css';
 
-export default class Addresses extends Component {
+class Addresses extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    contacts: PropTypes.array
+    api: PropTypes.object
+  }
+
+  static propTypes = {
+    contacts: PropTypes.object
   }
 
   state = {
@@ -19,7 +24,7 @@ export default class Addresses extends Component {
   }
 
   render () {
-    const { contacts } = this.context;
+    const { contacts } = this.props;
 
     return (
       <div className={ styles.addresses }>
@@ -88,3 +93,21 @@ export default class Addresses extends Component {
     }
   }
 }
+
+function mapStateToProps (state) {
+  const { contacts, hasContacts } = state.personal;
+
+  return {
+    contacts,
+    hasContacts
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Addresses);
