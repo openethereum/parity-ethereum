@@ -17,7 +17,8 @@ class Accounts extends Component {
 
   static propTypes = {
     accounts: PropTypes.object,
-    hasAccounts: PropTypes.bool
+    hasAccounts: PropTypes.bool,
+    balances: PropTypes.object
   }
 
   state = {
@@ -26,7 +27,7 @@ class Accounts extends Component {
   }
 
   render () {
-    const { accounts, hasAccounts } = this.props;
+    const { accounts, hasAccounts, balances } = this.props;
 
     return (
       <div className={ styles.accounts }>
@@ -35,6 +36,7 @@ class Accounts extends Component {
         <Page>
           <List
             accounts={ accounts }
+            balances={ balances }
             empty={ !hasAccounts } />
           <Tooltip
             className={ styles.accountTooltip }
@@ -97,10 +99,12 @@ class Accounts extends Component {
 
 function mapStateToProps (state) {
   const { accounts, hasAccounts } = state.personal;
+  const { balances } = state.balances;
 
   return {
     accounts,
-    hasAccounts
+    hasAccounts,
+    balances
   };
 }
 

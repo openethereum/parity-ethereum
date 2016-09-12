@@ -1,7 +1,7 @@
 import Actionbar from './Actionbar';
 import ApiProvider from './ApiProvider';
 import Badge from './Badge';
-import Balances from './Balances';
+import Balance from './Balances';
 import Container, { Title as ContainerTitle } from './Container';
 import Errors from './Errors';
 import Form, { FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
@@ -16,7 +16,7 @@ export {
   Actionbar,
   ApiProvider,
   Badge,
-  Balances,
+  Balance,
   Container,
   ContainerTitle,
   Errors,

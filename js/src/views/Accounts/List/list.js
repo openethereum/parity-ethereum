@@ -8,6 +8,7 @@ import styles from './list.css';
 export default class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
+    balances: PropTypes.object,
     contact: PropTypes.bool,
     empty: PropTypes.bool
   };
@@ -21,7 +22,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, contact, empty } = this.props;
+    const { accounts, balances, contact, empty } = this.props;
 
     if (empty) {
       return (
@@ -35,6 +36,7 @@ export default class List extends Component {
 
     return Object.keys(accounts).map((address, idx) => {
       const account = accounts[address];
+      const balance = balances[address];
 
       return (
         <div
@@ -42,7 +44,8 @@ export default class List extends Component {
           key={ address }>
           <Summary
             contact={ contact }
-            account={ account } />
+            account={ account }
+            balance={ balance } />
         </div>
       );
     });

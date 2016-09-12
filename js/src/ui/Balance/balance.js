@@ -1,29 +1,22 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-import styles from './balances.css';
+import styles from './balance.css';
 
-class Balances extends Component {
+export default class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
 
   static propTypes = {
-    account: PropTypes.object,
-    balances: PropTypes.object
+    balance: PropTypes.object.isRequired
   }
 
   render () {
     const { api } = this.context;
-    const { account, balances } = this.props;
+    const { balance } = this.props;
 
-    if (!balances[account.address]) {
-      return null;
-    }
-
-    let body = balances[account.address].tokens
+    let body = balance.tokens
       .filter((balance) => new BigNumber(balance.value).gt(0))
       .map((balance) => {
         const token = balance.token;
@@ -58,20 +51,3 @@ class Balances extends Component {
     );
   }
 }
-
-function mapStateToProps (state) {
-  const { balances } = state.balances;
-
-  return {
-    balances
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Balances);

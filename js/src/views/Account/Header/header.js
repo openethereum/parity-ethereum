@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { Balances, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../../ui';
 
 import styles from './header.css';
 
@@ -58,7 +58,7 @@ export default class Header extends Component {
             { this.renderTxCount(balance) }
           </div>
           <div className={ styles.balances }>
-            <Balances
+            <Balance
               account={ account } />
           </div>
         </Form>
