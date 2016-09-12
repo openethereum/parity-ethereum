@@ -6,8 +6,9 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
-import Status from '../Status';
 import Lookup from '../Lookup';
+import Events from '../events';
+import Status from '../Status';
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -27,7 +28,8 @@ export default class Application extends Component {
           ? (
             <div>
               <Lookup lookup={ this.props.lookup } actions={ actions.lookup } />
-              <Status address={ contract.address } fee={ fee } owner={ owner } />
+              <Events events={ this.props.events } actions={ actions.events } />
+              <Status address={ contract.address } owner={ owner } />
             </div>
           ) : <CircularProgress size={ 1 } />
         }
