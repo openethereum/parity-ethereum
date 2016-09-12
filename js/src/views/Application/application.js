@@ -160,7 +160,9 @@ class Application extends Component {
           accounts,
           contacts,
           showFirstRun
-        }, nextTimeout);
+        }, this.retrieveBalances);
+
+        nextTimeout();
       })
       .catch((error) => {
         console.error('retrieveAccounts', error);
