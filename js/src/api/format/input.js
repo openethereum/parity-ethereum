@@ -2,11 +2,7 @@ import BigNumber from 'bignumber.js';
 
 import { isInstanceOf, isString } from '../util/types';
 
-const ZERO_64 = '0000000000000000000000000000000000000000000000000000000000000000';
-
-function padBytes (_bytes) {
-
-}
+// const ZERO_64 = '0000000000000000000000000000000000000000000000000000000000000000';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -27,10 +23,12 @@ export function inBlockNumber (blockNumber) {
 }
 
 export function inData (data) {
-  const hex = inHex(data).substr(2);
-  const missing = hex.length % 64;
+  return inHex(data);
 
-  return `0x${hex}${ZERO_64.slice(-1 * missing)}`;
+  // const hex = inHex(data).substr(2);
+  // const missing = hex.length % 64;
+  //
+  // return `0x${hex}${ZERO_64.slice(-1 * missing)}`;
 }
 
 export function inTopics (_topics) {

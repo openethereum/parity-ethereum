@@ -5,7 +5,7 @@ import { isInstanceOf } from '../util/types';
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
-      throw new Error('Api instance needs to be provided to Contract');
+      throw new Error('API instance needs to be provided to Contract');
     } else if (!abi) {
       throw new Error('ABI needs to be provided to Contract instance');
     }
@@ -137,7 +137,6 @@ export default class Contract {
     if (options.data && options.data.substr(0, 2) === '0x') {
       options.data = options.data.substr(2);
     }
-
     options.data = `0x${options.data || ''}${func.encodeCall(tokens)}`;
 
     return options;
