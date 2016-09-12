@@ -23,6 +23,7 @@ use header::*;
 use super::extras::*;
 use transaction::*;
 use views::*;
+use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
 use blooms::{Bloom, BloomGroup};
 use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
@@ -127,6 +128,10 @@ pub trait BlockProvider {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
+
+	/// Returns logs matching given filter.
+	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+		where F: Fn(&LogEntry) -> bool, Self: Sized;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -314,6 +319,43 @@ impl BlockProvider for BlockChain {
 			.into_iter()
 			.map(|b| b as BlockNumber)
 			.collect()
+	}
+
+	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+		where F: Fn(&LogEntry) -> bool, Self: Sized {
+		// sort in reverse order
+		blocks.sort_by(|a, b| b.cmp(a));
+
+		let mut logs = blocks.into_iter()
+			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
+			.flat_map(|(number, hash, receipts, hashes)| {
+				let mut log_index = 0;
+				receipts.into_iter()
+					.enumerate()
+					.flat_map(|(index, receipt)| {
+						log_index += receipt.logs.len();
+						receipt.logs.into_iter()
+							.enumerate()
+							.filter(|tuple| matches(&tuple.1))
+							.map(|(i, log)| LocalizedLogEntry {
+								entry: log,
+								block_hash: hash.clone(),
+								block_number: number,
+								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::default),
+								transaction_index: index,
+								log_index: log_index + i
+							})
+							.collect::<Vec<LocalizedLogEntry>>()
+					})
+					.collect::<Vec<LocalizedLogEntry>>()
+			})
+			.take(limit.unwrap_or(::std::usize::MAX))
+			.collect::<Vec<LocalizedLogEntry>>();
+		// Reverse logs order
+		logs.reverse();
+		logs
 	}
 }
 
@@ -1160,6 +1202,7 @@ mod tests {
 	use blockchain::extras::TransactionAddress;
 	use views::BlockView;
 	use transaction::{Transaction, Action};
+	use log_entry::LogEntry;
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
@@ -1235,7 +1278,7 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
@@ -1612,11 +1655,46 @@ mod tests {
 	}
 
 	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		let res = bc.insert_block(&mut batch, bytes, receipts);
 		db.write(batch).unwrap();
 		bc.commit();
 		res
+	}
+
+	#[test]
+	fn test_logs() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		// just insert dummy transaction so that #transactions=#receipts
+		let t1 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+		let b1 = canon_chain.with_transaction(t1).generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		insert_block(&db, &bc, &b1, vec![Receipt {
+			state_root: H256::default(),
+			gas_used: 10_000.into(),
+			log_bloom: Default::default(),
+			logs: vec![
+				LogEntry { address: Default::default(), topics: vec![], data: vec![], },
+				LogEntry { address: Default::default(), topics: vec![], data: vec![], },
+			],
+		}]);
+
+		let logs1 = bc.logs(vec![1], |_| true, None);
+		let logs2 = bc.logs(vec![1], |_| true, Some(1));
+		assert_eq!(logs1.len(), 2);
+		assert_eq!(logs2.len(), 1);
 	}
 
 	#[test]

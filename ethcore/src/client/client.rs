@@ -958,9 +958,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn logs(&self, filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry> {
-		// TODO: lock blockchain only once
-
-		let mut blocks = filter.bloom_possibilities().iter()
+		let blocks = filter.bloom_possibilities().iter()
 			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
 			.flat_map(|m| m)
 			// remove duplicate elements
@@ -968,42 +966,7 @@ impl BlockChainClient for Client {
 			.into_iter()
 			.collect::<Vec<u64>>();
 
-		blocks.sort();
-
-		let chain = self.chain.read();
-		let mut left = limit.unwrap_or(::std::usize::MAX);
-		blocks.into_iter()
-			.filter_map(|number| chain.block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| chain.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
-			.flat_map(|(number, hash, receipts, hashes)| {
-				if left == 0 {
-					return vec![];
-				}
-
-				let mut log_index = 0;
-				receipts.into_iter()
-					.enumerate()
-					.flat_map(|(index, receipt)| {
-						left = if left > receipt.logs.len() { left - receipt.logs.len() } else { 0 };
-						log_index += receipt.logs.len();
-						receipt.logs.into_iter()
-							.enumerate()
-							.filter(|tuple| filter.matches(&tuple.1))
-							.map(|(i, log)| LocalizedLogEntry {
-								entry: log,
-								block_hash: hash.clone(),
-								block_number: number,
-								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::default),
-								transaction_index: index,
-								log_index: log_index + i
-							})
-							.take(left)
-							.collect::<Vec<LocalizedLogEntry>>()
-					})
-					.collect::<Vec<LocalizedLogEntry>>()
-			})
-			.collect()
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {
