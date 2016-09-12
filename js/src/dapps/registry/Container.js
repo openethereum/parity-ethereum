@@ -21,7 +21,7 @@ class Container extends Component {
   }
 
   render () {
-    const { actions, accounts, account, contract, owner, fee, lookup, events } = this.props;
+    const { actions, accounts, account, contract, owner, fee, lookup, events, register } = this.props;
     return (<Application
       actions={ actions }
       accounts={ accounts }
@@ -31,6 +31,7 @@ class Container extends Component {
       fee={ fee }
       lookup={ lookup }
       events={ events }
+      register={ register }
     />);
   }
 }
@@ -43,6 +44,7 @@ export default connect(
     const bound = bindActionCreators(actions, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
+    bound.register = bindActionCreators(actions.register, dispatch);
     return { actions: bound };
   }
 )(Container);

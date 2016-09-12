@@ -8,6 +8,7 @@ import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
 import Accounts from '../accounts';
 import Lookup from '../Lookup';
+import Register from '../register';
 import Events from '../events';
 import Status from '../Status';
 
@@ -32,6 +33,7 @@ export default class Application extends Component {
           ? (
             <div>
               <Lookup lookup={ this.props.lookup } actions={ actions.lookup } />
+              <Register register={ this.props.register } fee={ fee } actions={ actions.register } />
               <Events events={ this.props.events } actions={ actions.events } />
               <Status address={ contract.address } owner={ owner } />
             </div>
