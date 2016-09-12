@@ -4,7 +4,15 @@
 
 .reserved {
   display: flex;
+  margin: .5em 0;
   justify-content: space-between;
+  align-items: center;
+}
+
+.owner code {
+  display: inline-block;
+  vertical-align: top;
+  line-height: 32px;
 }
 
 .reserved abbr {

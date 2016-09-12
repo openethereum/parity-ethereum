@@ -2,12 +2,16 @@ import React, { Component, PropTypes } from 'react';
 import {Card, CardHeader, CardText} from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 
+const { IdentityIcon } = window.parity.react;
 import styles from './events.css';
 import bytesToHex from '../../../api/util/bytes-array-to-hex';
 
 const renderReserved = (e) => (
   <p key={ e.key } className={ styles.reserved }>
-    <code>{ e.parameters.owner }</code>
+    <div className={ styles.owner }>
+      <IdentityIcon inline center address={ e.parameters.owner } />
+      <code>{ e.parameters.owner }</code>
+    </div>
     { ' ' }
     <abbr title={ e.transaction }>registered</abbr>
     { ' ' }
