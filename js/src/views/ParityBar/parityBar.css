@@ -72,9 +72,21 @@
   right: -10px;
 }
 
-.actions {
-  text-align: right;
+.header {
+  height: 36px;
   padding-bottom: 1em;
+}
+
+.header:after {
+  clear: both;
+}
+
+.title {
+  float: left;
+}
+
+.actions {
+  float: right;
 }
 
 .actions div {

@@ -43,9 +43,6 @@ class Embedded extends Component {
 
     return (
       <div className={ styles.pending }>
-        <div className={ styles.info }>
-          There are currently { items.length } pending requests awaiting confirmation. Please accept/reject them below.
-        </div>
         { items }
       </div>
     );
