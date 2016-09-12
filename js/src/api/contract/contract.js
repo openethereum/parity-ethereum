@@ -142,21 +142,16 @@ export default class Contract {
     return options;
   }
 
+  _addOptionsTo (options = {}) {
+    return Object.assign({
+      to: this._address
+    }, options);
+  }
+
   _bindFunction (func) {
-    const addAddress = (_options = {}) => {
-      const options = {};
-
-      Object.keys(_options).forEach((key) => {
-        options[key] = _options[key];
-      });
-      options.to = options.to || this._address;
-
-      return options;
-    };
-
     func.call = (options, values) => {
       return this._api.eth
-        .call(this._encodeOptions(func, addAddress(options), values))
+        .call(this._encodeOptions(func, this._addOptionsTo(options), values))
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
         .then((returns) => returns.length === 1 ? returns[0] : returns);
@@ -165,12 +160,12 @@ export default class Contract {
     if (!func.constant) {
       func.postTransaction = (options, values) => {
         return this._api.eth
-          .postTransaction(this._encodeOptions(func, addAddress(options), values));
+          .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
 
       func.estimateGas = (options, values) => {
         return this._api.eth
-          .estimateGas(this._encodeOptions(func, addAddress(options), values));
+          .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
     }
 

@@ -279,6 +279,20 @@ describe('api/contract/Contract', () => {
       func = contract.functions.find((fn) => fn.name === 'test');
     });
 
+    describe.only('_addOptionsTo', () => {
+      it('works on no object specified', () => {
+        expect(contract._addOptionsTo()).to.deep.equal({ to: ADDR });
+      });
+
+      it('uses the contract address when none specified', () => {
+        expect(contract._addOptionsTo({ from: 'me' })).to.deep.equal({ to: ADDR, from: 'me' });
+      });
+
+      it('overrides the contract address when specified', () => {
+        expect(contract._addOptionsTo({ to: 'you', from: 'me' })).to.deep.equal({ to: 'you', from: 'me' });
+      });
+    });
+
     describe('attachments', () => {
       it('attaches .call, .postTransaction & .estimateGas to constructors', () => {
         expect(isFunction(cons.call)).to.be.true;
