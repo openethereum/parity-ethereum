@@ -6,6 +6,7 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
+import Accounts from '../accounts';
 import Lookup from '../Lookup';
 import Events from '../events';
 import Status from '../Status';
@@ -19,11 +20,14 @@ export default class Application extends Component {
   }
 
   render () {
-    const { contract, fee, owner, actions } = this.props;
+    const { accounts, account, contract, fee, owner, actions } = this.props;
 
     return (
       <div>
-        <h1 className={ styles.title }>RΞgistry</h1>
+        <div className={ styles.header }>
+          <h1>RΞgistry</h1>
+          <Accounts accounts={ accounts } account={ account } actions={ actions } />
+        </div>
         { contract && fee && owner
           ? (
             <div>

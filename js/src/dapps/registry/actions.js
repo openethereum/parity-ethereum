@@ -12,10 +12,11 @@ export const fetchAccounts = () => (dispatch) =>
     api.personal.listAccounts(),
     api.personal.accountsInfo()
   ])
-  .then((accounts, infos) => {
-    accounts = accounts
-      .filter((id) => infos[id])
-      .map((id) => infos[id])
+  .then(([ accounts, infos ]) => {
+    accounts = accounts.reduce((accounts, id) => {
+      if (infos[id]) accounts[id] = { ...infos[id], id }
+      return accounts
+    }, {})
     dispatch(setAccounts(accounts))
   })
   .catch((err) => {

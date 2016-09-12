@@ -8,6 +8,8 @@ import * as actions from './actions';
 class Container extends Component {
   static propTypes = {
     actions: PropTypes.object,
+    accounts: PropTypes.object,
+    account: PropTypes.object,
     contract: PropTypes.object,
     owner: PropTypes.string,
     fee: PropTypes.object,
@@ -19,9 +21,11 @@ class Container extends Component {
   }
 
   render () {
-    const { actions, contract, owner, fee, lookup, events } = this.props;
+    const { actions, accounts, account, contract, owner, fee, lookup, events } = this.props;
     return (<Application
       actions={ actions }
+      accounts={ accounts }
+      account={ account }
       contract={ contract }
       owner={ owner }
       fee={ fee }
