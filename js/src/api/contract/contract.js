@@ -124,6 +124,7 @@ export default class Contract {
             }
           })
           .catch((error) => {
+            console.error('pollTransactionReceipt', error);
             reject(error);
           });
       };
@@ -176,11 +177,12 @@ export default class Contract {
   _bindEvent (event) {
     const subscriptions = [];
 
-    event.subscribe = (options, callback) => {
+    event.subscribe = (_options, callback) => {
       const subscriptionId = subscriptions.length;
-
-      options.address = this._address;
-      options.topics = [event.signature];
+      const options = Object.assign({}, _options, {
+        address: this._address,
+        topics: [event.signature]
+      });
 
       this._api.eth
         .newFilter(options)
@@ -190,13 +192,11 @@ export default class Contract {
             .then((logs) => {
               callback(this.parseEventLogs(logs));
 
-              const subscription = {
+              subscriptions.push({
                 options,
                 callback,
                 filterId
-              };
-
-              subscriptions.push(subscription);
+              });
             });
         });
 
@@ -204,10 +204,19 @@ export default class Contract {
     };
 
     event.unsubscribe = (subscriptionId) => {
-      subscriptions.filter((callback, idx) => idx !== subscriptionId);
+      const subscription = subscriptions[subscriptionId];
+
+      this._api.eth
+        .uninstallFilter(subscription.filterId);
+
+      subscriptions[subscriptionId] = null;
     };
 
     const sendChanges = (subscription) => {
+      if (!subscription) {
+        return;
+      }
+
       this._api.eth
         .getFilterChanges(subscription.filterId)
         .then((logs) => {
@@ -223,6 +232,7 @@ export default class Contract {
       subscriptions.forEach(sendChanges);
     };
 
+    // NOTE: This would have been great, however 'pending' latest blockNumber makes us not wait, so tigher polling
     // this._api.events.subscribe('eth.blockNumber', onTriggerSend);
     setInterval(onTriggerSend, 1000);
 
