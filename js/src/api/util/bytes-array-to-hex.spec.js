@@ -6,6 +6,6 @@ describe('api/util/bytes-array-to-hex', () => {
   });
 
   it('correctly converts a non-empty array', () => {
-    expect(bytesToHex([0, 15, 16])).to.equal('0x0f10');
+    expect(bytesToHex([0, 15, 16])).to.equal('0x000f10');
   });
 });
