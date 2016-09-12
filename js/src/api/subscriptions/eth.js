@@ -10,9 +10,9 @@ export const ethBlockNumber = (api, updateAll) => {
   api.eth
     .blockNumber()
     .then((blockNumber) => {
-      if (blockNumber.gt(lastBlock)) {
+      if (!blockNumber.eq(lastBlock)) {
         lastBlock = blockNumber;
-        updateAll(null, blockNumber);
+        updateAll('eth.blockNumber', null, blockNumber);
       }
 
       nextTimeout();

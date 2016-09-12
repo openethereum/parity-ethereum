@@ -14,11 +14,11 @@ export default class Subscriptions {
       this.subscriptions[subscriptionName] = [];
       this.values[subscriptionName] = {
         error: null,
-        data: 0
+        data: null
       };
     });
 
-    ethBlockNumber(api, (error, data) => this._updateSubscriptions('eth.blockNumber', error, data));
+    ethBlockNumber(api, this._updateSubscriptions);
   }
 
   _validateType (_subscriptionName) {
