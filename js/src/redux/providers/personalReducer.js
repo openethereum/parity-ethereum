@@ -14,8 +14,6 @@ function personalAccountsInfo (state, action) {
     }
   });
 
-  console.log(accounts, contacts);
-
   return Object.assign({}, state, {
     accounts,
     hasAccounts: Object.keys(accounts).length !== 0,

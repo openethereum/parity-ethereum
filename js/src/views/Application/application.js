@@ -1,9 +1,6 @@
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 
 import Container from './Container';
 import DappContainer from './DappContainer';
@@ -11,40 +8,9 @@ import FrameError from './FrameError';
 import Status, { updateNodeStatus } from './Status';
 import TabBar from './TabBar';
 
-import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
-import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
-import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
-import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
-
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
-// TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
-const images = {
-  ethereum: {
-    small: imagesEthereum32,
-    normal: imagesEthereum56
-  },
-  gavcoin: {
-    small: imagesGavcoin32,
-    normal: imagesGavcoin56
-  }
-};
-const ETH_TOKEN = {
-  images: images.ethereum,
-  name: 'Ethereum',
-  tag: 'ΞTH'
-};
-
-let lastBlockNumber = new BigNumber(-1);
-
 class Application extends Component {
-  static childContextTypes = {
-    accounts: PropTypes.array,
-    balances: PropTypes.object,
-    contacts: PropTypes.array,
-    tokens: PropTypes.array
-  }
-
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -58,16 +24,10 @@ class Application extends Component {
   }
 
   state = {
-    showFirstRun: false,
-    accounts: [],
-    balances: {},
-    contacts: [],
-    contracts: [],
-    tokens: []
+    showFirstRun: false
   }
 
   componentWillMount () {
-    this.retrieveTokens();
     this.pollStatus();
   }
 
@@ -102,121 +62,6 @@ class Application extends Component {
     );
   }
 
-  getChildContext () {
-    const { accounts, balances, contacts, tokens } = this.state;
-
-    return {
-      accounts,
-      balances,
-      contacts,
-      tokens
-    };
-  }
-
-  retrieveBalances = () => {
-    const { api } = this.context;
-    const { accounts, contacts, tokens } = this.state;
-    const balances = {};
-    const addresses = accounts.concat(contacts).map((account) => account.address);
-
-    return Promise
-      .all(
-        addresses.map((address) => {
-          return Promise.all([
-            api.eth.getBalance(address),
-            api.eth.getTransactionCount(address)
-          ]);
-        })
-      )
-      .then((balancesTxCounts) => {
-        return Promise.all(
-          balancesTxCounts.map(([balance, txCount], idx) => {
-            const address = addresses[idx];
-            const { isTest } = this.props;
-
-            balances[address] = {
-              txCount: txCount.sub(isTest ? 0x100000 : 0),
-              tokens: [{
-                token: ETH_TOKEN,
-                value: balance.toString()
-              }]
-            };
-
-            return Promise.all(
-              tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [address]);
-              })
-            );
-          })
-        );
-      })
-      .then((tokenBalances) => {
-        addresses.forEach((address, idx) => {
-          const balanceOf = tokenBalances[idx];
-          const balance = balances[address];
-
-          tokens.forEach((token, tidx) => {
-            balance.tokens.push({
-              token,
-              value: balanceOf[tidx].toString()
-            });
-          });
-        });
-
-        this.setState({
-          balances
-        });
-      })
-      .catch((error) => {
-        console.error('retrieveBalances', error);
-      });
-  }
-
-  retrieveTokens = () => {
-    const { api } = this.context;
-    api.ethcore
-      .registryAddress()
-      .then((registryAddress) => {
-        const registry = api.newContract(registryAbi, registryAddress);
-
-        return registry.instance.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
-      })
-      .then((tokenregAddress) => {
-        const tokenreg = api.newContract(tokenRegAbi, tokenregAddress);
-
-        return tokenreg.instance.tokenCount
-          .call()
-          .then((numTokens) => {
-            const promises = [];
-
-            while (promises.length < numTokens.toNumber()) {
-              promises.push(tokenreg.instance.token.call({}, [promises.length]));
-            }
-
-            return Promise.all(promises);
-          });
-      })
-      .then((tokens) => {
-        this.setState({
-          tokens: tokens.map((token) => {
-            const [address, tag, format, name] = token;
-
-            return {
-              address,
-              name,
-              tag,
-              format: format.toString(),
-              images: images[name.toLowerCase()],
-              contract: api.newContract(eip20Abi, address)
-            };
-          })
-        }, this.retrieveBalances);
-      })
-      .catch((error) => {
-        console.error('retrieveTokens', error);
-      });
-  }
-
   pollStatus () {
     const { api } = this.context;
     const { onUpdateNodeStatus } = this.props;
@@ -241,11 +86,6 @@ class Application extends Component {
           isTest,
           syncing
         });
-
-        if (blockNumber.gt(lastBlockNumber)) {
-          lastBlockNumber = blockNumber;
-          this.retrieveBalances();
-        }
 
         nextTimeout();
       })

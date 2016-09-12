@@ -16,7 +16,8 @@ class Accounts extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object
+    accounts: PropTypes.object,
+    hasAccounts: PropTypes.bool
   }
 
   state = {
@@ -25,14 +26,16 @@ class Accounts extends Component {
   }
 
   render () {
-    const { accounts } = this.props;
+    const { accounts, hasAccounts } = this.props;
 
     return (
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
         <Page>
-          <List accounts={ accounts } />
+          <List
+            accounts={ accounts }
+            empty={ !hasAccounts } />
           <Tooltip
             className={ styles.accountTooltip }
             text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />

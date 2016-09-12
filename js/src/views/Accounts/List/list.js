@@ -8,7 +8,8 @@ import styles from './list.css';
 export default class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
-    contact: PropTypes.bool
+    contact: PropTypes.bool,
+    empty: PropTypes.bool
   };
 
   render () {
@@ -20,10 +21,9 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, contact } = this.props;
-    const keys = Object.keys(accounts || {});
+    const { accounts, contact, empty } = this.props;
 
-    if (!keys.length) {
+    if (empty) {
       return (
         <Container className={ styles.empty }>
           <div>
@@ -33,7 +33,7 @@ export default class List extends Component {
       );
     }
 
-    return keys.map((address, idx) => {
+    return Object.keys(accounts).map((address, idx) => {
       const account = accounts[address];
 
       return (

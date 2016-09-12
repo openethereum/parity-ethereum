@@ -16,7 +16,8 @@ class Addresses extends Component {
   }
 
   static propTypes = {
-    contacts: PropTypes.object
+    contacts: PropTypes.object,
+    hasContacts: PropTypes.bool
   }
 
   state = {
@@ -24,7 +25,7 @@ class Addresses extends Component {
   }
 
   render () {
-    const { contacts } = this.props;
+    const { contacts, hasContacts } = this.props;
 
     return (
       <div className={ styles.addresses }>
@@ -33,7 +34,8 @@ class Addresses extends Component {
         <Page>
           <List
             contact
-            accounts={ contacts } />
+            accounts={ contacts }
+            empty={ !hasContacts } />
         </Page>
       </div>
     );
