@@ -1,21 +1,37 @@
 import BigNumber from 'bignumber.js';
 
-let lastBlock = new BigNumber(-1);
+export default class PollEth {
+  constructor (api, updateSubscriptions) {
+    this._api = api;
+    this._updateSubscriptions = updateSubscriptions;
+    this._started = false;
 
-export const ethBlockNumber = (api, updateAll) => {
-  const nextTimeout = () => setTimeout(() => {
-    ethBlockNumber(api, updateAll);
-  }, 1000);
+    this._lastBlock = new BigNumber(-1);
+  }
 
-  api.eth
-    .blockNumber()
-    .then((blockNumber) => {
-      if (!blockNumber.eq(lastBlock)) {
-        lastBlock = blockNumber;
-        updateAll('eth.blockNumber', null, blockNumber);
-      }
+  get isStarted () {
+    return this._started;
+  }
 
-      nextTimeout();
-    })
-    .catch(nextTimeout);
-};
+  start () {
+    this._started = true;
+
+    this._blockNumber();
+  }
+
+  _blockNumber = () => {
+    const nextTimeout = () => setTimeout(this._blockNumber, 1000);
+
+    this._api.eth
+      .blockNumber()
+      .then((blockNumber) => {
+        if (!blockNumber.eq(this._lastBlock)) {
+          this._lastBlock = blockNumber;
+          this._updateSubscriptions('eth.blockNumber', null, blockNumber);
+        }
+
+        nextTimeout();
+      })
+      .catch(nextTimeout);
+  }
+}

@@ -1,4 +1,4 @@
-import { ethBlockNumber } from './eth';
+import PollEth from './eth';
 
 const EVENTS = ['eth.blockNumber'];
 const ALIASSES = {};
@@ -18,7 +18,7 @@ export default class Subscriptions {
       };
     });
 
-    ethBlockNumber(api, this._updateSubscriptions);
+    this._eth = new PollEth(api, this._updateSubscriptions);
   }
 
   _validateType (_subscriptionName) {
@@ -33,12 +33,18 @@ export default class Subscriptions {
 
   subscribe (_subscriptionName, callback) {
     const subscriptionName = this._validateType(_subscriptionName);
-
     const subscriptionId = this.subscriptions[subscriptionName].length;
     const { error, data } = this.values[subscriptionName];
+    const [prefix] = subscriptionName.split('.');
+    const engine = this[`_${prefix}`];
 
     this.subscriptions[subscriptionName].push(callback);
-    this._sendData(callback, error, data);
+
+    if (!engine.isStarted) {
+      engine.start();
+    } else {
+      this._sendData(callback, error, data);
+    }
 
     return subscriptionId;
   }
@@ -66,7 +72,7 @@ export default class Subscriptions {
     }
   }
 
-  _updateSubscriptions (subscriptionName, error, data) {
+  _updateSubscriptions = (subscriptionName, error, data) => {
     this.values[subscriptionName] = { error, data };
     this.subscriptions[subscriptionName].forEach((callback) => {
       this._sendData(callback, error, data);
