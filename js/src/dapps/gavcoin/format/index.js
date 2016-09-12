@@ -6,7 +6,6 @@ const DIVISOR = 10 ** 6;
 const ZERO = new BigNumber(0);
 
 export function formatBlockNumber (blockNumber) {
-  console.log(blockNumber);
   return ZERO.eq(blockNumber || 0)
     ? 'Pending'
     : `#${blockNumber.toFormat()}`;
