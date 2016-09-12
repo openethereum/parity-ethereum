@@ -60,8 +60,6 @@ pub struct MinerOptions {
 	pub reseal_on_own_tx: bool,
 	/// Minimum period between transaction-inspired reseals.
 	pub reseal_min_period: Duration,
-	/// Seal blocks internally.
-	pub internal_sealing: bool,
 	/// Maximum amount of gas to bother considering for block insertion.
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
@@ -81,7 +79,6 @@ impl Default for MinerOptions {
 			force_sealing: false,
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
-			internal_sealing: false,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			pending_set: PendingSet::AlwaysQueue,
@@ -245,6 +242,7 @@ impl Miner {
 		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.base().clone())
 	}
 
+	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
 		{
 			trace!(target: "miner", "prepare_block: recalibrating...");
@@ -355,19 +353,19 @@ impl Miner {
 		}
 	}
 
-	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient) -> bool {
-		let (block, _) = self.prepare_block(chain);
-
+	/// Uses engine to seal the block and then imports it to chain.
+	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_block(sealed.rlp_bytes()).is_ok() {
-					return true;
+					return true
 				}
 			}
 		}
 		false
 	}
 
+	/// Prepares work which has to be done to seal.
 	fn prepare_work(&self, block: ClosedBlock, original_work_hash: Option<H256>) {
 		let (work, is_new) = {
 			let mut sealing_work = self.sealing_work.lock();
@@ -396,15 +394,6 @@ impl Miner {
 		}
 	}
 
-	/// Prepares new block for sealing including top transactions from queue.
-	fn prepare_block_and_work(&self, chain: &MiningBlockChainClient) {
-		trace!(target: "miner", "prepare_block_and_work: entering");
-
-		let (block, original_work_hash) = self.prepare_block(chain);
-
-		self.prepare_work(block, original_work_hash);
-	}
-
 	fn update_gas_limit(&self, chain: &MiningBlockChainClient) {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock();
@@ -430,7 +419,8 @@ impl Miner {
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			self.prepare_block_and_work(chain);
+			let (block, original_work_hash) = self.prepare_block(chain);
+			self.prepare_work(block, original_work_hash);
 		}
 		let mut sealing_block_last_request = self.sealing_block_last_request.lock();
 		let best_number = chain.chain_info().best_block_number;
@@ -823,10 +813,14 @@ impl MinerService for Miner {
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
 			// --------------------------------------------------------------------------
-			if self.options.internal_sealing {
-				self.seal_and_import_block_internally(chain);
+			trace!(target: "miner", "update_sealing: preparing a block");
+			let (block, original_work_hash) = self.prepare_block(chain);
+			if self.engine.seals_internally() {
+				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
+				self.seal_and_import_block_internally(chain, block);
 			} else {
-				self.prepare_block_and_work(chain);
+				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
+				self.prepare_work(block, original_work_hash);
 			}
 		}
 	}
@@ -985,7 +979,6 @@ mod tests {
 				force_sealing: false,
 				reseal_on_external_tx: false,
 				reseal_on_own_tx: true,
-				internal_sealing: false,
 				reseal_min_period: Duration::from_secs(5),
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,

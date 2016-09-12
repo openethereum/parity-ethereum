@@ -163,9 +163,6 @@ Sealing/Mining Options:
   --reseal-min-period MS   Specify the minimum time between reseals from
                            incoming transactions. MS is time measured in
                            milliseconds [default: 2000].
-  --internal-sealing       Use an internal sealing mechanism,
-                           suitable for PoA or PoS.
-
   --work-queue-size ITEMS  Specify the number of historical work packages
                            which are kept cached lest a solution is found for
                            them later. High values take more memory but result
@@ -369,7 +366,6 @@ pub struct Args {
 	pub flag_force_sealing: bool,
 	pub flag_reseal_on_txs: String,
 	pub flag_reseal_min_period: u64,
-	pub flag_internal_sealing: bool,
 	pub flag_work_queue_size: usize,
 	pub flag_remove_solved: bool,
 	pub flag_tx_gas_limit: Option<String>,

@@ -326,7 +326,6 @@ impl Configuration {
 		let options = MinerOptions {
 			new_work_notify: self.work_notify(),
 			force_sealing: self.args.flag_force_sealing,
-			internal_sealing: self.args.flag_internal_sealing,
 			reseal_on_external_tx: reseal.external,
 			reseal_on_own_tx: reseal.own,
 			tx_gas_limit: match self.args.flag_tx_gas_limit {
