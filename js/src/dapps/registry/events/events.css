@@ -1,0 +1,12 @@
+.events {
+  margin: 1em;
+}
+
+.reserved {
+  display: flex;
+  justify-content: space-between;
+}
+
+.reserved abbr {
+  cursor: help;
+}
