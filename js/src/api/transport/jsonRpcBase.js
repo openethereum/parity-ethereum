@@ -1,3 +1,5 @@
+import { Logging } from '../subscriptions/index';
+
 export default class JsonRpcBase {
   constructor () {
     this._id = 1;
@@ -5,12 +7,16 @@ export default class JsonRpcBase {
   }
 
   encode (method, params) {
-    return JSON.stringify({
+    const json = JSON.stringify({
       jsonrpc: '2.0',
       method: method,
       params: params,
       id: this._id++
     });
+
+    Logging.send(method, params, json);
+
+    return json;
   }
 
   get id () {

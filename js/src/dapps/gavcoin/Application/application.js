@@ -214,7 +214,7 @@ export default class Application extends Component {
           })
         });
 
-        api.subscribe('eth.blockNumber', this.onNewBlockNumber);
+        api.subscribe('eth_blockNumber', this.onNewBlockNumber);
       })
       .catch((error) => {
         console.error('attachInterface', error);

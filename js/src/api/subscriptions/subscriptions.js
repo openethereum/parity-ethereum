@@ -1,6 +1,8 @@
-import PollEth from './eth';
+import Eth from './eth';
+import Logging from './logging';
+import Personal from './personal';
 
-const EVENTS = ['eth.blockNumber'];
+const EVENTS = ['logging', 'eth_blockNumber'];
 const ALIASSES = {};
 
 export default class Subscriptions {
@@ -18,7 +20,9 @@ export default class Subscriptions {
       };
     });
 
-    this._eth = new PollEth(api, this._updateSubscriptions);
+    this._logging = new Logging(this._updateSubscriptions);
+    this._eth = new Eth(this._updateSubscriptions, api);
+    this._personal = new Personal(this._updateSubscriptions, api, this);
   }
 
   _validateType (_subscriptionName) {

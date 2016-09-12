@@ -1,7 +1,7 @@
 import BigNumber from 'bignumber.js';
 
-export default class PollEth {
-  constructor (api, updateSubscriptions) {
+export default class Eth {
+  constructor (updateSubscriptions, api) {
     this._api = api;
     this._updateSubscriptions = updateSubscriptions;
     this._started = false;
@@ -27,7 +27,7 @@ export default class PollEth {
       .then((blockNumber) => {
         if (!blockNumber.eq(this._lastBlock)) {
           this._lastBlock = blockNumber;
-          this._updateSubscriptions('eth.blockNumber', null, blockNumber);
+          this._updateSubscriptions('eth_blockNumber', null, blockNumber);
         }
 
         nextTimeout();

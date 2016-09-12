@@ -101,7 +101,7 @@ export default class Application extends Component {
               owner
             });
 
-            api.subscribe('eth.blockNumber', this.onNewBlockNumber);
+            api.subscribe('eth_blockNumber', this.onNewBlockNumber);
           });
       })
       .catch((error) => {
