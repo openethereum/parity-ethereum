@@ -7,6 +7,8 @@ import EventTransfer from './EventTransfer';
 
 import styles from './events.css';
 
+const { api } = window.parity;
+
 export default class Events extends Component {
   static childContextTypes = {
     accounts: PropTypes.array
@@ -75,21 +77,21 @@ export default class Events extends Component {
 
   setupFilters () {
     const { contract } = this.context;
-    let key = 0;
 
     const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
-    const logToEvent = (eventName, log) => {
+    const logToEvent = (log) => {
+      const key = api.format.sha3(JSON.stringify(log));
       const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
 
       return {
-        type: eventName,
+        type: log.event,
         state: type,
         blockNumber,
         logIndex,
         transactionHash,
         transactionIndex,
         params,
-        key: ++key
+        key
       };
     };
 
@@ -98,31 +100,32 @@ export default class Events extends Component {
       toBlock: 'pending'
     };
 
-    contract.subscribe(null, options, (error, logs) => {
+    contract.subscribe(null, options, (error, _logs) => {
       if (error) {
         console.error('setupFilters', error);
         return;
       }
 
-      if (!logs.length) {
+      if (!_logs.length) {
         return;
       }
 
-      console.log(logs);
+      const logs = _logs.map(logToEvent);
 
       const minedEvents = logs
-        .filter((log) => log.type === 'mined')
-        .map((log) => logToEvent(log.event, log))
+        .filter((log) => log.state === 'mined')
         .reverse()
         .concat(this.state.minedEvents)
         .sort(sortEvents);
       const pendingEvents = logs
-        .filter((log) => log.type === 'pending')
-        .map((log) => logToEvent(log.event, log))
+        .filter((log) => log.state === 'pending')
         .reverse()
         .concat(this.state.pendingEvents.filter((event) => {
           return !logs.find((log) => {
-            return (log.type === 'mined') && (log.transactionHash === event.transactionHash);
+            const isMined = (log.state === 'mined') && (log.transactionHash === event.transactionHash);
+            const isPending = (log.state === 'pending') && (log.key === event.key);
+
+            return isMined || isPending;
           });
         }))
         .sort(sortEvents);
