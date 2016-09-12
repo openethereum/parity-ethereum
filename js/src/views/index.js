@@ -9,6 +9,7 @@ import Dapp from './Dapp';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
 import Signer from './Signer';
+import Status from './Status';
 
 export {
   Account,
@@ -21,5 +22,6 @@ export {
   Dapp,
   Dapps,
   ParityBar,
-  Signer
+  Signer,
+  Status
 };

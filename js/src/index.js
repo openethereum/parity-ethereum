@@ -12,7 +12,7 @@ import Web3 from 'web3';
 
 import { initStore } from './redux';
 import { muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer, Status } from './views';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
@@ -22,7 +22,6 @@ import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 // TODO: same with Status...
 import { Web3Provider as StatusWeb3Provider } from './views/Status/provider/web3-provider';
 import StatusEthcoreWeb3 from './views/Status/provider/web3-ethcore-provider';
-import Status from './views/Status/containers/Container';
 
 import './environment';
 

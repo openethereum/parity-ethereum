@@ -3,15 +3,14 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { extend } from 'lodash';
 
-import { Actionbar, Page } from '../../../../ui';
+import { Actionbar, Page } from '../../ui';
 
-import { updateLogging } from '../../actions/logger';
-
-import StatusPage from '../StatusPage';
+import { updateLogging } from './actions/logger';
+import StatusPage from './containers/StatusPage';
 
 import styles from './status.css';
 
-class Container extends Component {
+class Status extends Component {
   static propTypes = {
     status: PropTypes.object.isRequired,
     statusLogger: PropTypes.object.isRequired,
@@ -46,4 +45,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(Container);
+)(Status);
