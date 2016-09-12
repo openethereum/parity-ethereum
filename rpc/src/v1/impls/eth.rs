@@ -502,7 +502,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.and_then(|(filter,)| {
 				let include_pending = filter.to_block == Some(BlockNumber::Pending);
 				let filter: EthcoreFilter = filter.into();
-				let mut logs = take_weak!(self.client).logs(filter.clone())
+				let mut logs = take_weak!(self.client).logs(filter.clone(), None)
 					.into_iter()
 					.map(From::from)
 					.collect::<Vec<Log>>();

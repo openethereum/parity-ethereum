@@ -957,7 +957,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry> {
 		// TODO: lock blockchain only once
 
 		let mut blocks = filter.bloom_possibilities().iter()
@@ -971,15 +971,21 @@ impl BlockChainClient for Client {
 		blocks.sort();
 
 		let chain = self.chain.read();
+		let mut left = limit.unwrap_or(::std::usize::MAX);
 		blocks.into_iter()
 			.filter_map(|number| chain.block_hash(number).map(|hash| (number, hash)))
 			.filter_map(|(number, hash)| chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 			.filter_map(|(number, hash, receipts)| chain.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
 			.flat_map(|(number, hash, receipts, hashes)| {
+				if left == 0 {
+					return vec![];
+				}
+
 				let mut log_index = 0;
 				receipts.into_iter()
 					.enumerate()
 					.flat_map(|(index, receipt)| {
+						left = if left > receipt.logs.len() { left - receipt.logs.len() } else { 0 };
 						log_index += receipt.logs.len();
 						receipt.logs.into_iter()
 							.enumerate()
@@ -992,6 +998,7 @@ impl BlockChainClient for Client {
 								transaction_index: index,
 								log_index: log_index + i
 							})
+							.take(left)
 							.collect::<Vec<LocalizedLogEntry>>()
 					})
 					.collect::<Vec<LocalizedLogEntry>>()

@@ -390,7 +390,7 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, _filter: Filter, _limit: Option<usize>) -> Vec<LocalizedLogEntry> {
 		unimplemented!();
 	}
 
