@@ -578,6 +578,7 @@ mod tests {
 			flag_logging: Some("own_tx=trace".into()),
 			flag_log_file: Some("/var/log/parity.log".into()),
 			flag_no_color: false,
+			flag_no_config: false,
 		});
 	}
 
