@@ -28,10 +28,23 @@ export default class Debug extends Component {
         <h2 className={ styles.subheader }>
           { devLogsLevels || '-' }
         </h2>
-        <div className={ styles.logs }>
-          { this.renderLogs() }
-        </div>
+        { this.renderToggle() }
+        { this.renderLogs() }
       </Container>
+    );
+  }
+
+  renderToggle () {
+    const { devLogsEnabled } = this.props.nodeStatus;
+
+    if (devLogsEnabled) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.stopped }>
+        Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.
+      </div>
     );
   }
 
@@ -43,11 +56,17 @@ export default class Debug extends Component {
       return null;
     }
 
-    return devLogs.map((log, idx) => (
+    const logs = devLogs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
       </pre>
     ));
+
+    return (
+      <div className={ styles.logs }>
+        { logs }
+      </div>
+    );
   }
 
   renderActions () {
