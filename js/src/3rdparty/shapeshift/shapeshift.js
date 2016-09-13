@@ -14,21 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = function(rpc) {
+export default function (rpc) {
   return {
-    getCoins: function() {
+    getCoins: function () {
       return rpc.get('getcoins');
     },
 
-    getMarketInfo: function(pair) {
+    getMarketInfo: function (pair) {
       return rpc.get(`marketinfo/${pair}`);
     },
 
-    getStatus: function(depositAddress) {
+    getStatus: function (depositAddress) {
       return rpc.get(`txStat/${depositAddress}`);
     },
 
-    shift: function(toAddress, returnAddress, pair) {
+    shift: function (toAddress, returnAddress, pair) {
       return rpc.post('shift', {
         withdrawal: toAddress,
         pair: pair,
@@ -36,4 +36,4 @@ module.exports = function(rpc) {
       });
     }
   };
-};
+}

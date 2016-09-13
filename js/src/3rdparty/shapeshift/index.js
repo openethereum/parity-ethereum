@@ -14,8 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-module.exports = function(apikey) {
-  const rpc = require('./lib/rpc')(apikey);
+import initRpc from './rpc';
+import initShapeshift from './shapeshift';
 
-  return require('./lib/shapeshift')(rpc);
-};
+export default function (apikey) {
+  return initShapeshift(initRpc(apikey));
+}

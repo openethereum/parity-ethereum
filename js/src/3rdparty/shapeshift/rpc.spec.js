@@ -14,8 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const helpers = require('../helpers.spec.js');
-const { APIKEY, mockget, mockpost, rpc } = helpers;
+import { APIKEY, mockget, mockpost, rpc } from './helpers.spec.js';
 
 describe('lib/rpc', () => {
   describe('GET', () => {

@@ -14,20 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-'use strict';
+import chai from 'chai';
+import nock from 'nock';
+
+global.expect = chai.expect; // eslint-disable-line no-undef
+
+import 'isomorphic-fetch';
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
+
+import libShapeshift from './';
+import libRpc from './lib/rpc';
 
 const APIKEY = '0x123454321';
 
-const chai = require('chai');
-const nock = require('nock');
+const shapeshift = libShapeshift(APIKEY);
+const rpc = libRpc(APIKEY);
 
-require('es6-promise').polyfill();
-require('isomorphic-fetch');
-
-const shapeshift = require('./index.js')(APIKEY);
-const rpc = require('./lib/rpc')(APIKEY);
-
-const mockget = function(requests) {
+function mockget (requests) {
   let scope = nock(rpc.ENDPOINT);
 
   requests.forEach((request) => {
@@ -39,9 +43,9 @@ const mockget = function(requests) {
   });
 
   return scope;
-};
+}
 
-const mockpost = function(requests) {
+function mockpost (requests) {
   let scope = nock(rpc.ENDPOINT);
 
   requests.forEach((request) => {
@@ -56,14 +60,12 @@ const mockpost = function(requests) {
   });
 
   return scope;
-};
+}
 
-global.expect = chai.expect; // eslint-disable-line no-undef
-
-module.exports = {
-  APIKEY: APIKEY,
-  mockget: mockget,
-  mockpost: mockpost,
-  shapeshift: shapeshift,
-  rpc: rpc
+export {
+  APIKEY,
+  mockget,
+  mockpost,
+  shapeshift,
+  rpc
 };

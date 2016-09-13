@@ -16,8 +16,8 @@
 
 const ENDPOINT = 'https://cors.shapeshift.io';
 
-module.exports = function(apikey) {
-  const call = function(method, options) {
+export default function (apikey) {
+  function call (method, options) {
     return fetch(`${ENDPOINT}/${method}`, options)
       .then((response) => {
         if (response.status !== 200) {
@@ -33,12 +33,12 @@ module.exports = function(apikey) {
 
         return result;
       });
-  };
+  }
 
   return {
     ENDPOINT: ENDPOINT,
 
-    get: function(method) {
+    get: function (method) {
       return call(method, {
         method: 'GET',
         headers: {
@@ -47,7 +47,7 @@ module.exports = function(apikey) {
       });
     },
 
-    post: function(method, data) {
+    post: function (method, data) {
       const params = {
         apiKey: apikey
       };
@@ -69,4 +69,4 @@ module.exports = function(apikey) {
       });
     }
   };
-};
+}
