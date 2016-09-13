@@ -12,7 +12,14 @@
 
 :root,
 :root body,
-:root #container {
+:root :global(#container) {
   height: 100%;
   width: 100%;
+  display: flex;
+  flex: 1;
+}
+
+
+:root :global(#container) > div {
+  flex: 1;
 }

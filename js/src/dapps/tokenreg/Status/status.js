@@ -18,7 +18,12 @@ export default class Status extends Component {
       <div className={ styles.status }>
         <div className={ styles.address }>Token Registry at { address }</div>
         <div className={ styles.owner }>Owned by { owner }</div>
-        <div className={ styles.fee }>Registration fee { api.format.fromWei(fee).toFixed(3) }ΞTH</div>
+        { fee
+          ? (<div className={ styles.fee }>
+            Registration fee { api.format.fromWei(fee).toFixed(3) }ΞTH
+          </div> )
+          : null
+        }
       </div>
     );
   }

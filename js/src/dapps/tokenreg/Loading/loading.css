@@ -1,5 +1,6 @@
 .loading {
-  width: 100%;
-  text-align: center;
-  padding: 1em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

@@ -159,6 +159,7 @@ module.exports = {
       },
       '/api/ping': {
         target: 'http://127.0.0.1:8080/index.html',
+        ignorePath: true,
         changeOrigin: true
       }
     }
