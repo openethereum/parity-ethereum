@@ -1,7 +1,7 @@
 import Constructor from './constructor';
 import Event from './event/event';
 import Func from './function';
-import Token from '../token/index';
+import Token from '../token';
 
 export default class Interface {
   constructor (abi) {

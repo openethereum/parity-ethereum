@@ -1,2 +1,2 @@
-export Http from './http/index';
-export Ws from './ws/index';
+export Http from './http';
+export Ws from './ws';

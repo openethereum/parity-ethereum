@@ -1,9 +1,9 @@
-import { Http, Ws } from './transport/index';
-import Contract from './contract/index';
+import { Http, Ws } from './transport';
+import Contract from './contract';
 
-import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc/index';
-import Subscriptions from './subscriptions/index';
-import format from './format/index';
+import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc';
+import Subscriptions from './subscriptions';
+import format from './format';
 import { isFunction } from './util/types';
 
 export default class Api {

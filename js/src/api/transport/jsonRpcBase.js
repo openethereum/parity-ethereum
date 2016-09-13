@@ -1,4 +1,4 @@
-import { Logging } from '../subscriptions/index';
+import { Logging } from '../subscriptions';
 
 export default class JsonRpcBase {
   constructor () {
