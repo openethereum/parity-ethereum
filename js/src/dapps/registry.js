@@ -6,7 +6,6 @@ import store from './registry/store';
 import Container from './registry/Container';
 
 import './style.css';
-import './registry.html';
 
 ReactDOM.render(
   (

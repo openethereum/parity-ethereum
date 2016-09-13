@@ -23,7 +23,6 @@ import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 import './environment';
 
 import styles from './reset.css';
-import './index.html';
 
 es6Promise.polyfill();
 injectTapEventPlugin();

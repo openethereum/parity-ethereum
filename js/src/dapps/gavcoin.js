@@ -7,7 +7,6 @@ injectTapEventPlugin();
 import Application from './gavcoin/Application';
 
 import './style.css';
-import './gavcoin.html';
 
 ReactDOM.render(
   <Application />,
