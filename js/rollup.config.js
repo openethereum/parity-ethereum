@@ -24,11 +24,14 @@ import replace from 'rollup-plugin-replace';
 import uglify from 'rollup-plugin-uglify';
 import url from 'rollup-plugin-url';
 
-const { NODE_ENV, src } = process.env;
+const { NODE_ENV, dapp, src } = process.env;
+
+const target = dapp ? `dapps/${dapp}/${dapp}` : src;
 const isProd = process.env.NODE_ENV === 'production';
+
 const config = {
-  dest: `dist/${src}.js`,
-  entry: `src/${src}.js`,
+  dest: `dist/${target}.js`,
+  entry: `src/${target}.js`,
   format: 'cjs',
   sourceMap: true,
   plugins: [
