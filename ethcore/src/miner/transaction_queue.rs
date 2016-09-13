@@ -81,6 +81,7 @@
 //!      - It removes all transactions (either from `current` or `future`) with nonce < client nonce
 //!      - It moves matching `future` transactions to `current`
 
+use std::ops::Deref;
 use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
@@ -219,6 +220,47 @@ impl VerifiedTransaction {
 	}
 }
 
+#[derive(Debug, Default)]
+struct GasPriceQueue {
+	backing: BTreeMap<U256, HashSet<H256>>,
+}
+
+impl GasPriceQueue {
+	/// Insert an item into a BTreeMap/HashSet "multimap".
+	pub fn insert(&mut self, gas_price: U256, hash: H256) -> bool {
+		self.backing.entry(gas_price).or_insert_with(Default::default).insert(hash)
+	}
+
+	/// Remove an item from a BTreeMap/HashSet "multimap".
+	/// Returns true if the item was removed successfully.
+	pub fn remove(&mut self, gas_price: &U256, hash: &H256) -> bool {
+		if let Some(mut hashes) = self.backing.get_mut(gas_price) {
+			let only_one_left = hashes.len() == 1;
+			if !only_one_left {
+				// Operation may be ok: only if hash is in gas-price's Set.
+				return hashes.remove(hash);
+			}
+			if hashes.iter().next().unwrap() != hash {
+				// Operation failed: hash not the single item in gas-price's Set.
+				return false;
+			}
+		} else {
+			// Operation failed: gas-price not found in Map.
+			return false;
+		}
+		// Operation maybe ok: only if hash not found in gas-price Set.
+		self.backing.remove(gas_price).is_some()
+	}
+}
+
+impl Deref for GasPriceQueue {
+	type Target=BTreeMap<U256, HashSet<H256>>;
+
+	fn deref(&self) -> &Self::Target {
+		&self.backing
+	}
+}
+
 /// Holds transactions accessible by (address, nonce) and by priority
 ///
 /// `TransactionSet` keeps number of entries below limit, but it doesn't
@@ -227,7 +269,7 @@ impl VerifiedTransaction {
 struct TransactionSet {
 	by_priority: BTreeSet<TransactionOrder>,
 	by_address: Table<Address, U256, TransactionOrder>,
-	by_gas_price: BTreeMap<U256, HashSet<H256>>,
+	by_gas_price: GasPriceQueue,
 	limit: usize,
 }
 
@@ -245,12 +287,12 @@ impl TransactionSet {
 		// If transaction was replaced remove it from priority queue
 		if let Some(ref old_order) = by_address_replaced {
 			assert!(self.by_priority.remove(old_order), "hash is in `by_address`; all transactions in `by_address` must be in `by_priority`; qed");
-			assert!(Self::remove_item(&mut self.by_gas_price, &old_order.gas_price, &old_order.hash),
+			assert!(self.by_gas_price.remove(&old_order.gas_price, &old_order.hash),
 				"hash is in `by_address`; all transactions' gas_prices in `by_address` must be in `by_gas_limit`; qed");
 		}
-		Self::insert_item(&mut self.by_gas_price, order_gas_price, order_hash);
-		debug_assert_eq!(self.by_priority.len(), self.by_address.len());
-		debug_assert_eq!(self.by_gas_price.iter().map(|(_, v)| v.len()).fold(0, |a, b| a + b), self.by_address.len());
+		self.by_gas_price.insert(order_gas_price, order_hash);
+		assert_eq!(self.by_priority.len(), self.by_address.len());
+		assert_eq!(self.by_gas_price.values().map(|v| v.len()).sum::<usize>(), self.by_address.len());
 		by_address_replaced
 	}
 
@@ -263,6 +305,7 @@ impl TransactionSet {
 		if len <= self.limit {
 			return None;
 		}
+
 		let to_drop : Vec<(Address, U256)> = {
 			self.by_priority
 				.iter()
@@ -290,13 +333,16 @@ impl TransactionSet {
 	/// Drop transaction from this set (remove from `by_priority` and `by_address`)
 	fn drop(&mut self, sender: &Address, nonce: &U256) -> Option<TransactionOrder> {
 		if let Some(tx_order) = self.by_address.remove(sender, nonce) {
-			assert!(Self::remove_item(&mut self.by_gas_price, &tx_order.gas_price, &tx_order.hash),
+			assert!(self.by_gas_price.remove(&tx_order.gas_price, &tx_order.hash),
 				"hash is in `by_address`; all transactions' gas_prices in `by_address` must be in `by_gas_limit`; qed");
-			self.by_priority.remove(&tx_order);
+			assert!(self.by_priority.remove(&tx_order),
+				"hash is in `by_address`; all transactions' gas_prices in `by_address` must be in `by_priority`; qed");
 			assert_eq!(self.by_priority.len(), self.by_address.len());
+			assert_eq!(self.by_gas_price.values().map(|v| v.len()).sum::<usize>(), self.by_address.len());
 			return Some(tx_order);
 		}
 		assert_eq!(self.by_priority.len(), self.by_address.len());
+		assert_eq!(self.by_gas_price.values().map(|v| v.len()).sum::<usize>(), self.by_address.len());
 		None
 	}
 
@@ -304,7 +350,7 @@ impl TransactionSet {
 	fn clear(&mut self) {
 		self.by_priority.clear();
 		self.by_address.clear();
-		self.by_gas_price.clear();
+		self.by_gas_price.backing.clear();
 	}
 
 	/// Sets new limit for number of transactions in this `TransactionSet`.
@@ -320,32 +366,6 @@ impl TransactionSet {
 			Some(k) if self.by_priority.len() >= self.limit => *k + 1.into(),
 			_ => U256::default(),
 		}
-	}
-
-	/// Insert an item into a BTreeMap/HashSet "multimap".
-	fn insert_item(into: &mut BTreeMap<U256, HashSet<H256>>, gas_price: U256, hash: H256) -> bool {
-		into.entry(gas_price).or_insert_with(Default::default).insert(hash)
-	}
-
-	/// Remove an item from a BTreeMap/HashSet "multimap".
-	/// Returns true if the item was removed successfully.
-	fn remove_item(from: &mut BTreeMap<U256, HashSet<H256>>, gas_price: &U256, hash: &H256) -> bool {
-		if let Some(mut hashes) = from.get_mut(gas_price) {
-			let only_one_left = hashes.len() == 1;
-			if !only_one_left {
-				// Operation may be ok: only if hash is in gas-price's Set.
-				return hashes.remove(hash);
-			}
-			if hashes.iter().next().unwrap() != hash {
-				// Operation failed: hash not the single item in gas-price's Set.
-				return false;
-			}
-		} else {
-			// Operation failed: gas-price not found in Map.
-			return false;
-		}
-		// Operation maybe ok: only if hash not found in gas-price Set.
-		from.remove(gas_price).is_some()
 	}
 }
 
@@ -706,8 +726,9 @@ impl TransactionQueue {
 			}
 			let mut by_nonce = by_nonce.unwrap();
 			while let Some(order) = by_nonce.remove(&current_nonce) {
-				// remove also from priority and hash
+				// remove also from priority and gas_price
 				self.future.by_priority.remove(&order);
+				self.future.by_gas_price.remove(&order.gas_price, &order.hash);
 				// Put to current
 				let order = order.update_height(current_nonce, first_nonce);
 				self.current.insert(address, current_nonce, order);
@@ -1395,6 +1416,9 @@ mod test {
 		let stats = txq.status();
 		assert_eq!(stats.pending, 3);
 		assert_eq!(stats.future, 0);
+		assert_eq!(txq.future.by_priority.len(), 0);
+		assert_eq!(txq.future.by_address.len(), 0);
+		assert_eq!(txq.future.by_gas_price.len(), 0);
 	}
 
 	#[test]
