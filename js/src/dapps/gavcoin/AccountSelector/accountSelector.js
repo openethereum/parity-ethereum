@@ -11,6 +11,7 @@ export default class AccountSelect extends Component {
   static propTypes = {
     accounts: PropTypes.array,
     account: PropTypes.object,
+    anyAccount: PropTypes.bool,
     gavBalance: PropTypes.bool,
     onSelect: PropTypes.func,
     errorText: PropTypes.string,
@@ -23,7 +24,7 @@ export default class AccountSelect extends Component {
   }
 
   render () {
-    const { account, accounts, errorText, floatingLabelText, gavBalance, hintText } = this.props;
+    const { account, accounts, anyAccount, errorText, floatingLabelText, gavBalance, hintText } = this.props;
 
     return (
       <SelectField
@@ -37,7 +38,7 @@ export default class AccountSelect extends Component {
         id={ NAME_ID }
         value={ account }
         onChange={ this.onSelect }>
-        { renderAccounts(accounts, { gavBalance }) }
+        { renderAccounts(accounts, { anyAccount, gavBalance }) }
       </SelectField>
     );
   }
@@ -55,7 +56,7 @@ function isPositive (numberStr) {
 export function renderAccounts (accounts, options = {}) {
   return accounts
     .filter((account) => {
-      if (options.all) {
+      if (options.anyAccount) {
         return true;
       }
 

@@ -9,7 +9,7 @@ import styles from './embedded.js';
 
 class Embedded extends Component {
   static propTypes = {
-    requests: PropTypes.shape({
+    signerRequests: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -28,8 +28,8 @@ class Embedded extends Component {
   }
 
   renderPendingRequests () {
-    const { requests } = this.props;
-    const { pending } = requests;
+    const { signerRequests } = this.props;
+    const { pending } = signerRequests;
 
     if (!pending.length) {
       return (
@@ -43,9 +43,6 @@ class Embedded extends Component {
 
     return (
       <div className={ styles.pending }>
-        <div className={ styles.info }>
-          There are currently { items.length } pending requests awaiting confirmation. Please accept/reject them below.
-        </div>
         { items }
       </div>
     );
@@ -70,11 +67,11 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
-  const { actions, requests } = state;
+  const { actions, signerRequests } = state;
 
   return {
     actions,
-    requests
+    signerRequests
   };
 }
 

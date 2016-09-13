@@ -19,6 +19,7 @@
 extern crate ethcore_ipc as ipc;
 extern crate nanomsg;
 #[macro_use] extern crate log;
+#[macro_use] extern crate lazy_static;
 
 pub use ipc::{WithSocket, IpcInterface, IpcConfig};
 pub use nanomsg::Socket as NanoSocket;
@@ -28,7 +29,8 @@ use nanomsg::{Socket, Protocol, Error, Endpoint, PollRequest, PollFd, PollInOut}
 use std::ops::Deref;
 
 const POLL_TIMEOUT: isize = 200;
-const CLIENT_CONNECTION_TIMEOUT: isize = 120000;
+const DEFAULT_CONNECTION_TIMEOUT: isize = 30000;
+const DEBUG_CONNECTION_TIMEOUT: isize = 5000;
 
 /// Generic worker to handle service (binded) sockets
 pub struct Worker<S: ?Sized> where S: IpcInterface {
@@ -68,7 +70,7 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 		SocketError::DuplexLink
 	}));
 
-	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
+	socket.set_receive_timeout(DEFAULT_CONNECTION_TIMEOUT).unwrap();
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
@@ -84,24 +86,56 @@ pub fn init_duplex_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, Sock
 /// Spawns client <`S`> over specified address
 /// creates socket and connects endpoint to it
 /// for request-reply connections to the service
-pub fn init_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+pub fn client<S>(socket_addr: &str, receive_timeout: Option<isize>) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
 	let mut socket = try!(Socket::new(Protocol::Req).map_err(|e| {
 		warn!(target: "ipc", "Failed to create ipc socket: {:?}", e);
 		SocketError::RequestLink
 	}));
 
-	socket.set_receive_timeout(CLIENT_CONNECTION_TIMEOUT).unwrap();
+	if let Some(timeout) = receive_timeout {
+		socket.set_receive_timeout(timeout).unwrap();
+	}
 
 	let endpoint = try!(socket.connect(socket_addr).map_err(|e| {
 		warn!(target: "ipc", "Failed to bind socket to address '{}': {:?}", socket_addr, e);
 		SocketError::RequestLink
 	}));
 
-	trace!(target: "ipc", "Created cleint for {}", socket_addr);
+	trace!(target: "ipc", "Created client for {}", socket_addr);
 	Ok(GuardedSocket {
 		client: Arc::new(S::init(socket)),
 		_endpoint: endpoint,
 	})
+}
+
+lazy_static! {
+	/// Set PARITY_IPC_DEBUG=1 for fail-fast connectivity problems diagnostic
+	pub static ref DEBUG_FLAG: bool = {
+		use std::env;
+
+		if let Ok(debug) = env::var("PARITY_IPC_DEBUG") {
+			debug == "1" || debug.to_uppercase() == "TRUE"
+		}
+		else { false }
+	};
+}
+
+/// Client with no default timeout on operations
+pub fn generic_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+	if *DEBUG_FLAG {
+		client(socket_addr, Some(DEBUG_CONNECTION_TIMEOUT))
+	} else {
+		client(socket_addr, None)
+	}
+}
+
+/// Client over interface that is supposed to give quick almost non-blocking responses
+pub fn fast_client<S>(socket_addr: &str) -> Result<GuardedSocket<S>, SocketError> where S: WithSocket<Socket> {
+	if *DEBUG_FLAG {
+		client(socket_addr, Some(DEBUG_CONNECTION_TIMEOUT))
+	} else {
+		client(socket_addr, Some(DEFAULT_CONNECTION_TIMEOUT))
+	}
 }
 
 /// Error occurred while establising socket or endpoint

@@ -23,6 +23,7 @@ use hyper::status::StatusCode;
 
 use util::version;
 
+#[derive(Clone)]
 pub struct ContentHandler {
 	code: StatusCode,
 	content: String,
@@ -57,18 +58,6 @@ impl ContentHandler {
 		Self::html(code, format!(
 			include_str!("../error_tpl.html"),
 			title=title,
-			meta="",
-			message=message,
-			details=details.unwrap_or_else(|| ""),
-			version=version(),
-		))
-	}
-
-	pub fn error_with_refresh(code: StatusCode, title: &str, message: &str, details: Option<&str>) -> Self {
-		Self::html(code, format!(
-			include_str!("../error_tpl.html"),
-			title=title,
-			meta="<meta http-equiv=\"refresh\" content=\"1\">",
 			message=message,
 			details=details.unwrap_or_else(|| ""),
 			version=version(),

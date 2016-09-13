@@ -35,11 +35,11 @@ describe('api/contract/Contract', () => {
 
   describe('constructor', () => {
     it('needs an EthAbi instance', () => {
-      expect(() => new Contract()).to.throw(/EthApi needs to be provided/);
+      expect(() => new Contract()).to.throw(/API instance needs to be provided to Contract/);
     });
 
     it('needs an ABI', () => {
-      expect(() => new Contract(eth)).to.throw(/Object ABI needs/);
+      expect(() => new Contract(eth)).to.throw(/ABI needs to be provided to Contract instance/);
     });
 
     describe('internal setup', () => {
@@ -47,7 +47,7 @@ describe('api/contract/Contract', () => {
 
       it('sets EthApi & parsed interface', () => {
         expect(contract.address).to.not.be.ok;
-        expect(contract.eth).to.deep.equal(eth);
+        expect(contract.api).to.deep.equal(eth);
         expect(isInstanceOf(contract.abi, Abi)).to.be.ok;
       });
 

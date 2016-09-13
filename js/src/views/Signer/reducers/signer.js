@@ -29,7 +29,6 @@ export default handleActions({
   'update isNodeRunning' (state, action) {
     const isRunning = action.payload;
     const goesOnline = isRunning && !state.isNodeRunning;
-    console.log('isNodeRunning', isRunning);
 
     return {
       ...state,

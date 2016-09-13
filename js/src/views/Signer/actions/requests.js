@@ -1,4 +1,4 @@
-import { withToastr } from '../components/util/toastr';
+import { withError } from '../../../redux/util';
 import { identity } from '../components/util/util';
 
 import { createAction } from 'redux-actions';
@@ -10,10 +10,10 @@ export const updatePendingRequests = createAction('update pendingRequests');
 export const startConfirmRequest = createAction('start confirmRequest');
 export const successConfirmRequest = createAction('success confirmRequest');
 export const errorConfirmRequest = createAction('error confirmRequest', identity,
-  withToastr(args => args.err, 'error')
+  withError(args => args.err, 'error')
 );
 export const startRejectRequest = createAction('start rejectRequest');
 export const successRejectRequest = createAction('success rejectRequest');
 export const errorRejectRequest = createAction('error rejectRequest', identity,
-  withToastr(args => args.err, 'error')
+  withError(args => args.err, 'error')
 );

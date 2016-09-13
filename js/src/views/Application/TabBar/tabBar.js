@@ -6,7 +6,7 @@ import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import { SignerIcon, Tooltip } from '../../../ui';
+import { Badge, SignerIcon, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
@@ -24,7 +24,9 @@ export default class TabBar extends Component {
   }
 
   static propTypes = {
-    pending: PropTypes.array
+    pending: PropTypes.array,
+    isTest: PropTypes.bool,
+    netChain: PropTypes.string
   }
 
   render () {
@@ -74,7 +76,7 @@ export default class TabBar extends Component {
             data-route='/status'
             value='status'
             icon={ <ActionTrackChanges /> }
-            label={ this.renderLabel('status') }
+            label={ this.renderStatusLabel() }
             onActive={ this.onActivate } />
           <Tab
             className={ hash === 'signer' ? styles.tabactive : '' }
@@ -103,13 +105,26 @@ export default class TabBar extends Component {
 
     if (pending && pending.length) {
       bubble = (
-        <div className={ styles.labelBubble }>
-          { pending.length }
-        </div>
+        <Badge
+          color='red'
+          className={ styles.labelBubble }
+          value={ pending.length } />
       );
     }
 
     return this.renderLabel('signer', bubble);
+  }
+
+  renderStatusLabel () {
+    const { isTest, netChain } = this.props;
+    const bubble = (
+      <Badge
+        color={ isTest ? 'red' : 'default' }
+        className={ styles.labelBubble }
+        value={ isTest ? 'TEST' : netChain } />
+      );
+
+    return this.renderLabel('status', bubble);
   }
 
   onActivate = (tab) => {

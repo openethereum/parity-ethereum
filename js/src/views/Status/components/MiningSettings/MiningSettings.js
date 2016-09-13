@@ -1,7 +1,8 @@
 import React, { Component, PropTypes } from 'react';
-
 import formatNumber from 'format-number';
-import Value from '../Value';
+
+import { ContainerTitle, Input } from '../../../../ui';
+
 import { numberFromString } from './numberFromString';
 import { decodeExtraData } from './decodeExtraData';
 
@@ -33,34 +34,33 @@ export default class MiningSettings extends Component {
 
     return (
       <div { ...this._testInherit() }>
-        <h1><span>Mining</span> settings</h1>
-        <h3>Author</h3>
-        <Value
+        <ContainerTitle title='mining settings' />
+        <Input
+          label='author'
+          hint='the mining author'
           value={ statusMining.author }
-          autocomplete
           dataSource={ this.props.accounts }
           onSubmit={ onAuthorChange }
-          { ...this._test('author') }
-          />
-        <h3>Extradata</h3>
-        <Value
+          { ...this._test('author') } />
+        <Input
+          label='extradata'
+          hint='extra data for mined blocks'
           value={ decodeExtraData(statusMining.extraData) }
           onSubmit={ onExtraDataChange }
           defaultValue={ decodeExtraData(statusMining.defaultExtraData) }
-          { ...this._test('extra-data') }
-          />
-        <h3>Minimal Gas Price</h3>
-        <Value
+          { ...this._test('extra-data') } />
+        <Input
+          label='minimal gas price'
+          hint='the minimum gas price for mining'
           value={ toNiceNumber(statusMining.minGasPrice) }
           onSubmit={ onMinGasPriceChange }
-          { ...this._test('min-gas-price') }
-          />
-        <h3>Gas floor target</h3>
-        <Value
+          { ...this._test('min-gas-price') } />
+        <Input
+          label='gas floor target'
+          hint='the gas floor target for mining'
           value={ toNiceNumber(statusMining.gasFloorTarget) }
           onSubmit={ onGasFloorTargetChange }
-          { ...this._test('gas-floor-target') }
-          />
+          { ...this._test('gas-floor-target') } />
       </div>
     );
   }

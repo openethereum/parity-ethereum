@@ -72,7 +72,7 @@ class Application extends Component {
   }
 
   render () {
-    const { children, pending } = this.props;
+    const { children, pending, netChain, isTest } = this.props;
     const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
 
@@ -92,7 +92,10 @@ class Application extends Component {
       <Container
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
-        <TabBar pending={ pending } />
+        <TabBar
+          netChain={ netChain }
+          isTest={ isTest }
+          pending={ pending } />
         { children }
         <Status />
       </Container>
@@ -112,6 +115,7 @@ class Application extends Component {
   }
 
   retrieveAccounts = () => {
+    let { showFirstRun } = this.state;
     const nextTimeout = () => setTimeout(this.retrieveAccounts, 1000);
 
     Promise
@@ -148,11 +152,17 @@ class Application extends Component {
           }
         });
 
+        if (!accounts.length) {
+          showFirstRun = true;
+        }
+
         this.setState({
           accounts,
           contacts,
-          showFirstRun: accounts.length === 0
-        }, nextTimeout);
+          showFirstRun
+        }, this.retrieveBalances);
+
+        nextTimeout();
       })
       .catch((error) => {
         console.error('retrieveAccounts', error);

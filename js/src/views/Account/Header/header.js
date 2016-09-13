@@ -51,7 +51,7 @@ export default class Header extends Component {
               hint='a descriptive name for the account'
               value={ name }
               static={ this.renderTitle(name) }
-              onChange={ this.onEditName } />
+              onSubmit={ this.onSubmitName } />
             <div className={ styles.infoline }>
               { address }
             </div>
@@ -91,7 +91,7 @@ export default class Header extends Component {
     );
   }
 
-  onEditName = (event, name) => {
+  onSubmitName = (name) => {
     const { api } = this.context;
     const { account } = this.props;
 

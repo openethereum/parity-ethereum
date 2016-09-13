@@ -56,6 +56,11 @@ export default class Events {
   _pollBlockNumber = () => {
     const nextTimeout = () => setTimeout(this._pollBlockNumber, 1000);
 
+    if (!this.subscriptions['eth.blockNumber'].length) {
+      nextTimeout();
+      return;
+    }
+
     this._api.eth
       .blockNumber()
       .then((blockNumber) => {

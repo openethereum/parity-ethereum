@@ -5,7 +5,7 @@ import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { SignerIcon } from '../../ui';
+import { Badge, ContainerTitle, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
@@ -59,12 +59,17 @@ class ParityBar extends Component {
   renderExpanded () {
     return (
       <div className={ styles.expanded }>
-        <div className={ styles.actions }>
-          <FlatButton
-            icon={ <ContentClear /> }
-            label='Close'
-            primary
-            onTouchTap={ this.toggleDisplay } />
+        <div className={ styles.header }>
+          <div className={ styles.title }>
+            <ContainerTitle title='Parity Signer: Pending' />
+          </div>
+          <div className={ styles.actions }>
+            <FlatButton
+              icon={ <ContentClear /> }
+              label='Close'
+              primary
+              onTouchTap={ this.toggleDisplay } />
+          </div>
         </div>
         <Signer />
       </div>
@@ -88,9 +93,10 @@ class ParityBar extends Component {
 
     if (pending && pending.length) {
       bubble = (
-        <div className={ styles.labelBubble }>
-          { pending.length }
-        </div>
+        <Badge
+          color='red'
+          className={ styles.labelBubble }
+          value={ pending.length } />
       );
     }
 

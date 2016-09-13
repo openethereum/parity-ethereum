@@ -78,11 +78,13 @@ export default class Addresses extends Component {
       showAdd: false
     });
 
-    Promise.all([
-      api.personal.setAccountName(address, name),
-      api.personal.setAccountMeta(address, { description })
-    ]).catch((error) => {
-      console.error('updateDetails', error);
-    });
+    if (address) {
+      Promise.all([
+        api.personal.setAccountName(address, name),
+        api.personal.setAccountMeta(address, { description })
+      ]).catch((error) => {
+        console.error('updateDetails', error);
+      });
+    }
   }
 }

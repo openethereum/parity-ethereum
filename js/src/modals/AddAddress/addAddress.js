@@ -50,7 +50,7 @@ export default class AddAddress extends Component {
         onTouchTap={ this.onClose } />,
       <FlatButton
         icon={ <ContentAdd /> }
-        label='Save Entry'
+        label='Save Address'
         disabled={ hasError }
         primary
         onTouchTap={ this.onAdd } />
@@ -63,22 +63,22 @@ export default class AddAddress extends Component {
     return (
       <Form>
         <InputAddress
-          label='contact address'
-          hint='the network address for the contact'
+          label='network address'
+          hint='the network address for the entry'
           error={ addressError }
           value={ address }
           onChange={ this.onEditAddress } />
         <Input
-          label='contact name'
-          hint='a descriptive name for the contact'
+          label='address name'
+          hint='a descriptive name for the entry'
           error={ nameError }
           value={ name }
           onChange={ this.onEditName } />
         <Input
           multiLine
-          rows={ 2 }
-          label='(optional) contact description'
-          hint='a expanded description for the contact'
+          rows={ 1 }
+          label='(optional) address description'
+          hint='an expanded description for the entry'
           value={ description }
           onChange={ this.onEditDescription } />
       </Form>

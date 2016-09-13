@@ -10,4 +10,4 @@ license = "GPL-3.0"
 ethcore-ipc = { path = "../rpc" }
 nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 log = "0.3"
-
+lazy_static = "0.2"

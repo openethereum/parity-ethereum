@@ -2,7 +2,7 @@ import React from 'react';
 import sinon from 'sinon';
 import { shallow } from 'enzyme';
 
-import '../../env-specific/tests';
+import '../../../../environment/tests';
 
 import CallsToolbar from './CallsToolbar';
 

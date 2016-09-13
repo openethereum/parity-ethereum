@@ -1,11 +1,8 @@
 import React, { Component, PropTypes } from 'react';
-import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
 import { Actionbar, Page } from '../../ui';
 
-import { removeToast } from './actions/toastr';
-import { ToastrContainer } from './components';
 import LoadingPage from './containers/LoadingPage';
 import OfflinePage from './containers/OfflinePage';
 import RequestsPage from './containers/RequestsPage';
@@ -15,12 +12,6 @@ import styles from './signer.css';
 
 export class Signer extends Component {
   static propTypes = {
-    signerToastr: PropTypes.shape({
-      toasts: PropTypes.array.isRequired
-    }).isRequired,
-    actions: PropTypes.shape({
-      removeToast: PropTypes.func.isRequired
-    }).isRequired,
     signer: PropTypes.shape({
       isLoading: PropTypes.bool.isRequired,
       isConnected: PropTypes.bool.isRequired,
@@ -29,8 +20,6 @@ export class Signer extends Component {
   };
 
   render () {
-    const { signerToastr, actions } = this.props;
-
     return (
       <div className={ styles.signer }>
         <Actionbar
@@ -38,10 +27,6 @@ export class Signer extends Component {
         <Page>
           { this.renderPage() }
         </Page>
-        <ToastrContainer
-          toasts={ signerToastr.toasts }
-          actions={ actions }
-        />
       </div>
     );
   }
@@ -74,9 +59,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return {
-    actions: bindActionCreators({ removeToast }, dispatch)
-  };
+  return {};
 }
 
 export default connect(

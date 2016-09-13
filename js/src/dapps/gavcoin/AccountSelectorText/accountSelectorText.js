@@ -15,6 +15,7 @@ export default class AccountSelectorText extends Component {
     account: PropTypes.object,
     errorText: PropTypes.string,
     gavBalance: PropTypes.bool,
+    anyAccount: PropTypes.bool,
     floatingLabelText: PropTypes.string,
     hintText: PropTypes.string,
     selector: PropTypes.bool,
@@ -30,10 +31,11 @@ export default class AccountSelectorText extends Component {
   }
 
   renderDropDown () {
-    const { account, accounts, errorText, gavBalance, hintText, floatingLabelText, onChange } = this.props;
+    const { account, accounts, anyAccount, errorText, gavBalance, hintText, floatingLabelText, onChange } = this.props;
 
     return (
       <AccountSelector
+        anyAccount={ anyAccount }
         gavBalance={ gavBalance }
         accounts={ accounts }
         account={ account }
@@ -46,8 +48,6 @@ export default class AccountSelectorText extends Component {
 
   renderTextField () {
     const { account, errorText, hintText, floatingLabelText } = this.props;
-
-    console.log(account.address);
 
     return (
       <div className={ styles.addrtext }>
@@ -85,7 +85,6 @@ export default class AccountSelectorText extends Component {
   }
 
   onChangeAddress = (event, address) => {
-    console.log('onChange', address);
     const lower = address.toLowerCase();
     const account = this.props.accounts.find((_account) => _account.address.toLowerCase() === lower);
 
