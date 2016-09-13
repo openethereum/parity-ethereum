@@ -245,11 +245,11 @@ export default class Contract {
     let event = null;
 
     if (eventName) {
-      event = this.events.find((evt) => evt.name === eventName);
+      event = this._events.find((evt) => evt.name === eventName);
 
       if (!event) {
         const events = this._events.map((evt) => evt.name).join(', ');
-        throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} or null to include all events`);
+        throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
       }
     }
 
