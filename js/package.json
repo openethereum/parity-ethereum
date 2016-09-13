@@ -1,8 +1,8 @@
 {
   "name": "parity.js",
   "version": "0.0.1",
-  "main": "dist/index.js",
-  "jsnext:main": "src/index.js",
+  "main": "dist/parity.js",
+  "jsnext:main": "src/parity.js",
   "author": "Ethcore Team <admin@ethcore.io>",
   "maintainers": [
     "Jaco Greeff"
