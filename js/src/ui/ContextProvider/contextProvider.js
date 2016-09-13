@@ -1,6 +1,6 @@
 import { Component, PropTypes } from 'react';
 
-export default class ApiProvider extends Component {
+export default class ContextProvider extends Component {
   static propTypes = {
     api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired,
