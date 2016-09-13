@@ -260,6 +260,11 @@ impl Spec {
 	pub fn new_null() -> Self {
 		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
 	}
+
+	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
+	pub fn new_test_instant() -> Self {
+		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
+	}
 }
 
 #[cfg(test)]

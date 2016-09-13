@@ -71,6 +71,8 @@ pub trait Engine : Sync + Send {
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
+	/// If true, generate_seal has to be implemented.
+	fn seals_internally(&self) -> bool { false }
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.
