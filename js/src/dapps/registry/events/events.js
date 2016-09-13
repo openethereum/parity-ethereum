@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 
-const { IdentityIcon } = window.parity.react;
+import { IdentityIcon } from '../parity.js';
 import styles from './events.css';
 import bytesToHex from '../../../api/util/bytes-array-to-hex';
 

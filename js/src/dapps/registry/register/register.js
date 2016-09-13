@@ -4,7 +4,7 @@ import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
-const { fromWei } = window.parity.api.format;
+import { fromWei } from '../parity.js';
 
 import styles from './register.css';
 

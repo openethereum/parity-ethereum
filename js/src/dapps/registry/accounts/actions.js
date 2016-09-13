@@ -1,4 +1,4 @@
-const { personal } = window.parity.api;
+import { personal } from '../parity.js';
 
 export const set = (accounts) => ({ type: 'accounts set', accounts });
 

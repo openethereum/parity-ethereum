@@ -1,5 +1,4 @@
-const sha3 = window.parity.api.format.sha3;
-const toWei = window.parity.api.format.toWei;
+import { sha3, toWei } from '../parity.js';
 
 export const start = (name) => ({ type: 'register start', name });
 
