@@ -16,7 +16,7 @@
 
 import { mockget, mockpost, shapeshift } from './helpers.spec.js';
 
-describe('lib/calls', () => {
+describe('shapeshift/calls', () => {
   describe('getCoins', () => {
     const REPLY = {
       BTC: {

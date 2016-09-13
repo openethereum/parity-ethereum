@@ -16,7 +16,7 @@
 
 import { APIKEY, mockget, mockpost, rpc } from './helpers.spec.js';
 
-describe('lib/rpc', () => {
+describe('shapeshift/rpc', () => {
   describe('GET', () => {
     const REPLY = { test: 'this is some result' };
 

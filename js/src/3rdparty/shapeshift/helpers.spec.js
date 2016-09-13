@@ -23,13 +23,13 @@ import 'isomorphic-fetch';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-import libShapeshift from './';
-import libRpc from './lib/rpc';
+import initShapeshift from './';
+import initRpc from './rpc';
 
 const APIKEY = '0x123454321';
 
-const shapeshift = libShapeshift(APIKEY);
-const rpc = libRpc(APIKEY);
+const shapeshift = initShapeshift(APIKEY);
+const rpc = initRpc(APIKEY);
 
 function mockget (requests) {
   let scope = nock(rpc.ENDPOINT);
