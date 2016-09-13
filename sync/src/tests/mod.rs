@@ -16,5 +16,7 @@
 
 pub mod helpers;
 pub mod snapshot;
+pub mod test_net;
 mod chain;
 mod rpc;
+mod consensus;
