@@ -17,13 +17,10 @@ export default {
     'src/dapps/tokenreg.js',
 
     // libraries
-    'src/abi/index.js',
-    'src/api/index.js',
-    'src/jsonrpc/index.js',
     'src/parity.js',
 
     // app(s)
-    'src/index.js'
+    'src/app.js'
   ],
   format: 'cjs',
   plugins: [
