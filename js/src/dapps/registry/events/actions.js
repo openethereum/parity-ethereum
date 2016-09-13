@@ -8,12 +8,14 @@ export const subscribe = (name, from = 0, to = 'latest') =>
   (dispatch, getState) => {
     const { contract } = getState();
     if (!contract || !contract.instance) return;
-    if (!contract.instance[name]) return;
-    const channel = contract.instance[name];
 
     dispatch(start(name, from, to));
-    channel.subscribe({ fromBlock: from, toBlock: to }, (events) => {
-      // TODO there's no error param! the `fail` action is never used
+    contract.subscribe(name, { fromBlock: from, toBlock: to }, (err, events) => {
+      if (err) {
+        console.error(`could not subscribe to event ${name}.`);
+        console.error(err);
+        return dispatch(fail(name));
+      }
       for (let e of events) {
         const data = {
           key: '' + e.transactionHash + e.logIndex,
