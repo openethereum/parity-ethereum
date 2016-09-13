@@ -2,10 +2,10 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import { Provider } from 'react-redux';
 
-import store from './registry/store';
-import Container from './registry/Container';
+import store from './store';
+import Container from './Container';
 
-import './style.css';
+import '../style.css';
 
 ReactDOM.render(
   (
