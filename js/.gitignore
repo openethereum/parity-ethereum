@@ -1,4 +1,8 @@
 coverage
 node_modules
 npm-debug.log
+dist/*.gif
 dist/*.js
+dist/*.jpg
+dist/*.png
+dist/*.svg
