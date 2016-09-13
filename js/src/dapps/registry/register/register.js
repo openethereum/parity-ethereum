@@ -11,16 +11,15 @@ import styles from './register.css';
 export default class Register extends Component {
 
   static propTypes = {
-    actions: PropTypes.object,
-    register: PropTypes.object,
-    fee: PropTypes.object
+    actions: PropTypes.object.isRequired,
+    names: PropTypes.array.isRequired,
+    fee: PropTypes.object.isRequired
   }
 
   state = { name: '' };
 
   render () {
     const { name } = this.state;
-    const props = this.props.register;
     const { fee } = this.props;
 
     return (
@@ -30,7 +29,7 @@ export default class Register extends Component {
           <TextField
             className={ styles.spacing }
             hintText='name'
-            value={ name || props.name || '' }
+            value={ name }
             onChange={ this.onNameChange }
           />
           <RaisedButton

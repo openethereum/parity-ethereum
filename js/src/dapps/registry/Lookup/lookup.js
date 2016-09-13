@@ -13,26 +13,27 @@ export default class Lookup extends Component {
     lookup: PropTypes.object
   }
 
-  state = { name: '', key: 'A' };
+  state = { name: '', entry: 'A' };
 
   render () {
-    const { name, key } = this.state;
-    const props = this.props.lookup;
-    return (
+    const name = this.state.name || this.props.name;
+    const entry = this.state.entry || this.props.entry;
+    const result = this.props.result || '';
 
+    return (
       <Card className={ styles.lookup }>
         <CardHeader title={ 'Query the Registry' } />
         <div className={ styles.box }>
           <TextField
             className={ styles.spacing }
             hintText='name'
-            value={ name || props.name || '' }
+            value={ name }
             onChange={ this.onNameChange }
           />
           <TextField
             className={ styles.spacing }
-            hintText='key'
-            value={ key || props.key }
+            hintText='entry'
+            value={ entry }
             onChange={ this.onKeyChange }
           />
           <RaisedButton
@@ -44,7 +45,7 @@ export default class Lookup extends Component {
           />
         </div>
         <CardText>
-          <code>{ this.props.lookup.result || '' }</code>
+          <code>{ result }</code>
         </CardText>
       </Card>
     );

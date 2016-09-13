@@ -44,12 +44,12 @@ export default class Application extends Component {
       <div>
         <div className={ styles.header }>
           <h1>RΞgistry</h1>
-          <Accounts all={ accounts.all } selected={ accounts.selected } actions={ actions.accounts } />
+          <Accounts { ...accounts } actions={ actions.accounts } />
         </div>
         { contract && fee && owner ? (
           <div>
-            <Lookup lookup={ lookup } actions={ actions.lookup } />
-            <Register register={ register } fee={ fee } actions={ actions.register } />
+            <Lookup { ...lookup } actions={ actions.lookup } />
+            <Register { ...register } fee={ fee } actions={ actions.register } />
             <Events events={ events } actions={ actions.events } />
             <Status address={ contract.address } owner={ owner } />
           </div>
