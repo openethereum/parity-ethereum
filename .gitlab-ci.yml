@@ -97,7 +97,6 @@ linux-armv7:
     - stable
   script:
     - export
-    - export CXX="arm-linux-gnueabihf-g++"
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -241,4 +240,4 @@ deploy-binaries:
     - tags
     - stable
   script:
-    - ./deploy.sh
+    - scripts/deploy.sh
