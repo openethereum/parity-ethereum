@@ -1,10 +1,10 @@
+import accountsReducer from './accounts/reducers.js';
 import lookupReducer from './Lookup/reducers.js';
 import eventsReducer from './events/reducers.js';
 import registerReducer from './register/reducers.js';
 
 const initialState = {
-  accounts: {},
-  account: null,
+  accounts: accountsReducer(undefined, { type: '' }),
   contract: null,
   fee: null,
   owner: null,
@@ -14,13 +14,8 @@ const initialState = {
 };
 
 export default (state = initialState, action) => {
-  if (action.type === 'set accounts')
-    return { ...state, accounts: action.accounts };
-
-  if (action.type === 'set account') {
-    if (state.accounts && state.accounts[action.address])
-      return { ...state, account: state.accounts[action.address] };
-    return state
+  if (action.type.slice(0, 8) === 'accounts') {
+    return { ...state, accounts: accountsReducer(state.accounts, action) };
   }
 
   if (action.type === 'set contract')

@@ -21,13 +21,13 @@ export default class Application extends Component {
   }
 
   render () {
-    const { accounts, account, contract, fee, owner, actions } = this.props;
+    const { accounts, contract, fee, owner, actions } = this.props;
 
     return (
       <div>
         <div className={ styles.header }>
           <h1>RΞgistry</h1>
-          <Accounts accounts={ accounts } account={ account } actions={ actions } />
+          <Accounts all={ accounts.all } selected={ accounts.selected } actions={ actions.accounts } />
         </div>
         { contract && fee && owner
           ? (

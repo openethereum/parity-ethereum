@@ -1,31 +1,11 @@
 import registryAbi from './abi/registry.json';
 const { api } = window.parity;
+import * as accounts from './accounts/actions.js';
 import * as lookup from './Lookup/actions.js';
 import * as events from './events/actions.js';
 import * as register from './register/actions.js';
 
-export { lookup, events, register };
-
-export const setAccounts = (accounts) => ({ type: 'set accounts', accounts });
-
-export const fetchAccounts = () => (dispatch) =>
-  Promise.all([
-    api.personal.listAccounts(),
-    api.personal.accountsInfo()
-  ])
-  .then(([ addresses, infos ]) => {
-    const accounts = addresses.reduce((accounts, address) => {
-      if (infos[address]) accounts[address] = { ...infos[address], address }
-      return accounts
-    }, {})
-    dispatch(setAccounts(accounts))
-  })
-  .catch((err) => {
-    console.error('could not fetch accounts');
-    if (err) console.error(err.stack);
-  });
-
-export const setAccount = (address) => ({ type: 'set account', address });
+export { accounts, lookup, events, register };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 

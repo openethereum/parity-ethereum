@@ -17,30 +17,33 @@ const renderAccount = (active) => (account) => (
 export default class Accounts extends Component {
 
   static propTypes = {
-    actions: PropTypes.object,
-    accounts: PropTypes.object,
-    account: PropTypes.object
+    actions: PropTypes.object.isRequired,
+    all: PropTypes.object.isRequired,
+    selected: PropTypes.object
   }
 
   componentDidMount () {
     // TODO remove this
-    this.props.actions.fetchAccounts();
+    this.props.actions.fetch();
   }
 
   state = { value: null };
 
   render () {
     const { open } = this.state;
-    const { accounts, account } = this.props;
+    const { all, selected } = this.props;
 
     return (
-      <Menu value={ account ? account.address : null } onChange={ this.onAccountSelect }>
-        { Object.values(accounts).map(renderAccount(account)) }
+      <Menu
+        value={ selected ? selected.address : null }
+        onChange={ this.onAccountSelect }
+      >
+        { Object.values(all).map(renderAccount(selected)) }
       </Menu>
     );
   }
 
   onAccountSelect = (e, address) => {
-    this.props.actions.setAccount(address);
+    this.props.actions.select(address);
   };
 }
