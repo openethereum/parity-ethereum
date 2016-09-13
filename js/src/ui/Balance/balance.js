@@ -9,12 +9,16 @@ export default class Balance extends Component {
   }
 
   static propTypes = {
-    balance: PropTypes.object.isRequired
+    balance: PropTypes.object
   }
 
   render () {
     const { api } = this.context;
     const { balance } = this.props;
+
+    if (!balance) {
+      return null;
+    }
 
     let body = balance.tokens
       .filter((balance) => new BigNumber(balance.value).gt(0))
