@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionAccountBalance from 'material-ui/svg-icons/action/account-balance';
 import ContentSend from 'material-ui/svg-icons/content/send';
@@ -11,15 +13,12 @@ import Transactions from './Transactions';
 
 import styles from './account.css';
 
-export default class Account extends Component {
-  static contextTypes = {
-    api: React.PropTypes.object,
-    accounts: PropTypes.array,
-    balances: PropTypes.object
-  }
-
+class Account extends Component {
   static propTypes = {
-    params: PropTypes.object
+    params: PropTypes.object,
+    accounts: PropTypes.object,
+    balances: PropTypes.object,
+    isTest: PropTypes.bool
   }
 
   propName = null
@@ -30,9 +29,11 @@ export default class Account extends Component {
   }
 
   render () {
-    const { accounts } = this.context;
+    const { accounts, balances, isTest } = this.props;
     const { address } = this.props.params;
-    const account = accounts.find((_account) => _account.address === address);
+
+    const account = (accounts || {})[address];
+    const balance = (balances || {})[address];
 
     if (!account) {
       return null;
@@ -45,8 +46,11 @@ export default class Account extends Component {
         { this.renderActionbar() }
         <Page>
           <Header
-            account={ account } />
+            isTest={ isTest }
+            account={ account }
+            balance={ balance } />
           <Transactions
+            accounts={ accounts }
             address={ address } />
         </Page>
       </div>
@@ -100,11 +104,15 @@ export default class Account extends Component {
     }
 
     const { address } = this.props.params;
-    const account = this.context.accounts.find((_account) => _account.address === address);
+    const { accounts, balances } = this.props;
+    const account = accounts[address];
+    const balance = balances[address];
 
     return (
       <Transfer
         account={ account }
+        balance={ balance }
+        balances={ balances }
         onClose={ this.onTransferClose } />
     );
   }
@@ -129,3 +137,24 @@ export default class Account extends Component {
     this.onTransferClick();
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+  const { balances } = state.balances;
+  const { isTest } = state.nodeStatus;
+
+  return {
+    isTest,
+    accounts,
+    balances
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Account);

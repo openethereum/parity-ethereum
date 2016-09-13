@@ -1,1 +1,1 @@
-export default from './ModalSteps';
+export default from './modalSteps';

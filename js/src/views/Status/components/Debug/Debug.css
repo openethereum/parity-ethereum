@@ -22,9 +22,11 @@
 
 .logs {
   width: 100%;
-  overflow: auto;
-  height: 50vh;
-  min-height: 400px;
+}
+
+.stopped {
+  color: #aaa;
+  padding: 1em 0;
 }
 
 .log {

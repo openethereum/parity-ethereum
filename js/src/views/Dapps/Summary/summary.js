@@ -11,11 +11,12 @@ export default class Summary extends Component {
 
   static propTypes = {
     app: PropTypes.object.isRequired,
+    tokens: PropTypes.object,
     children: PropTypes.node
   }
 
   render () {
-    const { app } = this.props;
+    const { app, tokens } = this.props;
 
     if (!app) {
       return null;
@@ -26,7 +27,8 @@ export default class Summary extends Component {
     return (
       <Container>
         <IdentityIcon
-          address={ app.address } />
+          address={ app.address }
+          tokens={ tokens } />
         <Title
           title={ <Link to={ url }>{ app.name }</Link> }
           byline={ app.description } />

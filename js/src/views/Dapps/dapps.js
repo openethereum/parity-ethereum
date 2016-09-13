@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { Actionbar, Page } from '../../ui';
 
@@ -6,9 +8,13 @@ import Summary from './Summary';
 
 import styles from './dapps.css';
 
-export default class Dapps extends Component {
+class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
+  }
+
+  static propTypes = {
+    tokens: PropTypes.object
   }
 
   state = {
@@ -49,6 +55,7 @@ export default class Dapps extends Component {
   }
 
   renderApps () {
+    const { tokens } = this.props;
     const { apps } = this.state;
 
     return apps.map((app, idx) => {
@@ -57,9 +64,27 @@ export default class Dapps extends Component {
           className={ styles.contract }
           key={ app.address }>
           <Summary
-            app={ app } />
+            app={ app }
+            tokens={ tokens } />
         </div>
       );
     });
   }
 }
+
+function mapStateToProps (state) {
+  const { tokens } = state.balances;
+
+  return {
+    tokens
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Dapps);

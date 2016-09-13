@@ -1,23 +1,20 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import styles from './balances.css';
+import styles from './balance.css';
 
-export default class Balances extends Component {
+export default class Balance extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    balances: PropTypes.object
+    api: PropTypes.object
   }
 
   static propTypes = {
-    account: PropTypes.object,
-    onChange: PropTypes.func
+    balance: PropTypes.object
   }
 
   render () {
-    const { api, balances } = this.context;
-    const { account } = this.props;
-    const balance = balances[account.address];
+    const { api } = this.context;
+    const { balance } = this.props;
 
     if (!balance) {
       return null;
@@ -56,13 +53,5 @@ export default class Balances extends Component {
         { body }
       </div>
     );
-  }
-
-  updateParent = () => {
-    if (!this.props.onChange) {
-      return;
-    }
-
-    this.props.onChange(this.state.balances);
   }
 }

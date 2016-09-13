@@ -10,42 +10,68 @@ import styles from './Debug.css';
 export default class Debug extends Component {
   static propTypes = {
     actions: PropTypes.shape({
-      removeDevLogs: PropTypes.func.isRequired,
-      updateDevLogging: PropTypes.func.isRequired
+      clearStatusLogs: PropTypes.func.isRequired,
+      toggleStatusLogs: PropTypes.func.isRequired
     }).isRequired,
-    statusDebug: PropTypes.shape({
-      levels: PropTypes.string.isRequired,
-      logging: PropTypes.bool.isRequired,
-      logs: PropTypes.arrayOf(PropTypes.string).isRequired
-    }).isRequired
+    nodeStatus: PropTypes.object.isRequired
   }
 
   render () {
+    const { nodeStatus } = this.props;
+    const { devLogsLevels } = nodeStatus;
+
     return (
       <Container>
         <ContainerTitle
           title='Node Logs' />
         { this.renderActions() }
         <h2 className={ styles.subheader }>
-          { this.props.statusDebug.levels || '-' }
+          { devLogsLevels || '-' }
         </h2>
-        <div className={ styles.logs }>
-          { this.renderLogs() }
-        </div>
+        { this.renderToggle() }
+        { this.renderLogs() }
       </Container>
     );
   }
 
+  renderToggle () {
+    const { devLogsEnabled } = this.props.nodeStatus;
+
+    if (devLogsEnabled) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.stopped }>
+        Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.
+      </div>
+    );
+  }
+
   renderLogs () {
-    return this.props.statusDebug.logs.map((log, idx) => (
+    const { nodeStatus } = this.props;
+    const { devLogs } = nodeStatus;
+
+    if (!devLogs) {
+      return null;
+    }
+
+    const logs = devLogs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
       </pre>
     ));
+
+    return (
+      <div className={ styles.logs }>
+        { logs }
+      </div>
+    );
   }
 
   renderActions () {
-    const toggleButton = this.props.statusDebug.logging
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const toggleButton = devLogsEnabled
       ? <AvPause />
       : <AvPlay />;
 
@@ -58,10 +84,15 @@ export default class Debug extends Component {
   }
 
   clear = () => {
-    this.props.actions.removeDevLogs();
+    const { clearStatusLogs } = this.props.actions;
+
+    clearStatusLogs();
   }
 
   toggle = () => {
-    this.props.actions.updateDevLogging(!this.props.statusDebug.logging);
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const { toggleStatusLogs } = this.props.actions;
+
+    toggleStatusLogs(!devLogsEnabled);
   }
 }

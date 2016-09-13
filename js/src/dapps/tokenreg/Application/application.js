@@ -56,8 +56,13 @@ export default class Application extends Component {
     };
   }
 
-  onNewBlockNumber = (blockNumber) => {
+  onNewBlockNumber = (_error, blockNumber) => {
     const { instance } = this.state;
+
+    if (_error) {
+      console.error('onNewBlockNumber', _error);
+      return;
+    }
 
     instance.fee
       .call()
@@ -96,7 +101,7 @@ export default class Application extends Component {
               owner
             });
 
-            api.events.subscribe('eth.blockNumber', this.onNewBlockNumber);
+            api.subscribe('eth_blockNumber', this.onNewBlockNumber);
           });
       })
       .catch((error) => {

@@ -122,10 +122,6 @@ module.exports = {
           return a;
         }
       ),
-      new webpack.NormalModuleReplacementPlugin(
-        /dapp-styles\/hex-grid-tile\.png$/,
-        require.resolve('dapp-styles/hex-grid-tile.png')
-      ),
       new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify(ENV),

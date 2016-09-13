@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 
-import { isInstanceOf, isString } from '../util/types';
+import { isHex, isInstanceOf, isString } from '../util/types';
 
 // const ZERO_64 = '0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -23,12 +23,13 @@ export function inBlockNumber (blockNumber) {
 }
 
 export function inData (data) {
-  return inHex(data);
+  if (data && data.length && !isHex(data)) {
+    data = data.split('').map((chr) => {
+      return `0${chr.charCodeAt(0).toString(16)}`.slice(-2);
+    }).join('');
+  }
 
-  // const hex = inHex(data).substr(2);
-  // const missing = hex.length % 64;
-  //
-  // return `0x${hex}${ZERO_64.slice(-1 * missing)}`;
+  return inHex(data);
 }
 
 export function inTopics (_topics) {

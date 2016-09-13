@@ -2,7 +2,7 @@ import { Http, Ws } from './transport/index';
 import Contract from './contract/index';
 
 import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc/index';
-import Events from './events/index';
+import Subscriptions from './subscriptions/index';
 import format from './format/index';
 import { isFunction } from './util/types';
 
@@ -21,7 +21,7 @@ export default class Api {
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
 
-    this._events = new Events(this);
+    this._subscriptions = new Subscriptions(this);
   }
 
   get db () {
@@ -56,16 +56,20 @@ export default class Api {
     return this._web3;
   }
 
-  get events () {
-    return this._events;
-  }
-
   get format () {
     return format;
   }
 
   newContract (abi, address) {
     return new Contract(this, abi).at(address);
+  }
+
+  subscribe (subscriptionName, callback) {
+    return this._subscriptions.subscribe(subscriptionName, callback);
+  }
+
+  unsubscribe (subscriptionId) {
+    return this._subscriptions.unsubscribe(subscriptionId);
   }
 
   static Transport = {

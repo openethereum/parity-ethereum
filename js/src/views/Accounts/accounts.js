@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
@@ -8,10 +10,15 @@ import { Actionbar, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
-export default class Accounts extends Component {
+class Accounts extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    accounts: PropTypes.array
+    api: PropTypes.object
+  }
+
+  static propTypes = {
+    accounts: PropTypes.object,
+    hasAccounts: PropTypes.bool,
+    balances: PropTypes.object
   }
 
   state = {
@@ -20,14 +27,17 @@ export default class Accounts extends Component {
   }
 
   render () {
-    const { accounts } = this.context;
+    const { accounts, hasAccounts, balances } = this.props;
 
     return (
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
         <Page>
-          <List accounts={ accounts } />
+          <List
+            accounts={ accounts }
+            balances={ balances }
+            empty={ !hasAccounts } />
           <Tooltip
             className={ styles.accountTooltip }
             text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
@@ -86,3 +96,23 @@ export default class Accounts extends Component {
   onNewAccountUpdate = () => {
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts, hasAccounts } = state.personal;
+  const { balances } = state.balances;
+
+  return {
+    accounts,
+    hasAccounts,
+    balances
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Accounts);

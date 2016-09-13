@@ -5,7 +5,6 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import { retrieveAccount } from '../../../util';
 import format from '../../../api/format';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
@@ -39,16 +38,11 @@ function formatEther (value) {
 }
 
 class Transactions extends Component {
-  static contextTypes = {
-    api: PropTypes.object,
-    accounts: PropTypes.array,
-    contacts: PropTypes.array,
-    contracts: PropTypes.array,
-    tokens: PropTypes.array
-  }
-
   static propTypes = {
     address: PropTypes.string.isRequired,
+    accounts: PropTypes.object,
+    contacts: PropTypes.object,
+    tokens: PropTypes.object,
     isTest: PropTypes.bool
   }
 
@@ -70,8 +64,8 @@ class Transactions extends Component {
   }
 
   renderAddress (prefix, address) {
-    const { accounts, contacts, contracts, tokens } = this.context;
-    const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
+    const { accounts, contacts, tokens } = this.props;
+    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
     const link = `${prefix}address/${address}`;
     const name = account
       ? account.name.toUpperCase()
@@ -179,9 +173,14 @@ class Transactions extends Component {
 
 function mapStateToProps (state) {
   const { isTest } = state.nodeStatus;
+  const { accounts, contacts } = state.personal;
+  const { tokens } = state.balances;
 
   return {
-    isTest
+    isTest,
+    accounts,
+    contacts,
+    tokens
   };
 }
 
