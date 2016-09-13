@@ -16,7 +16,6 @@
 
 use rayon::prelude::*;
 use std::time::{Instant, Duration};
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
@@ -176,7 +175,7 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
-	seals_internally: AtomicBool,
+	seals_internally: bool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -191,15 +190,20 @@ pub struct Miner {
 impl Miner {
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
+		let author = Address::default();
+		let is_sealer = spec.engine.is_sealer(&author);
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
 			options: Default::default(),
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(20), enabled: false}),
-			seals_internally: AtomicBool::new(spec.engine.seals_internally(&Address::default())),
+			sealing_work: Mutex::new(SealingWork{
+				queue: UsingQueue::new(20),
+				enabled: is_sealer.unwrap_or(false)
+			}),
+			seals_internally: is_sealer.is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
+			author: RwLock::new(author),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
 			engine: spec.engine.clone(),
@@ -212,14 +216,21 @@ impl Miner {
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
+		let author = Address::default();
+		let is_sealer = spec.engine.is_sealer(&author);
 		Arc::new(Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(options.work_queue_size), enabled: options.force_sealing || !options.new_work_notify.is_empty()}),
-			seals_internally: AtomicBool::new(spec.engine.seals_internally(&Address::default())),
+			sealing_work: Mutex::new(SealingWork{
+				queue: UsingQueue::new(options.work_queue_size),
+				enabled: options.force_sealing
+					|| !options.new_work_notify.is_empty()
+					|| is_sealer.unwrap_or(false)
+			}),
+			seals_internally: is_sealer.is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
+			author: RwLock::new(author),
 			extra_data: RwLock::new(Vec::new()),
 			options: options,
 			accounts: accounts,
@@ -364,7 +375,7 @@ impl Miner {
 				true
 			}
 		} else {
-			// sealing is disabled.
+			trace!(target: "miner", "requires_reseal: sealing is disabled");
 			false
 		}
 	}
@@ -582,7 +593,10 @@ impl MinerService for Miner {
 	}
 
 	fn set_author(&self, author: Address) {
-		self.seals_internally.store(self.engine.seals_internally(&author), AtomicOrdering::SeqCst);
+		if self.seals_internally {
+			let mut sealing_work = self.sealing_work.lock();
+			sealing_work.enabled = self.engine.is_sealer(&author).unwrap_or(false);
+		}
 		*self.author.write() = author;
 	}
 
@@ -708,7 +722,7 @@ impl MinerService for Miner {
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing.
-			if self.seals_internally.load(AtomicOrdering::SeqCst) || !self.prepare_work_sealing(chain) {
+			if self.seals_internally || !self.prepare_work_sealing(chain) {
 				// If new block has not been prepared (means we already had one)
 				// or Engine might be able to seal internally,
 				// we need to update sealing.
@@ -826,7 +840,7 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
-			if self.seals_internally.load(AtomicOrdering::SeqCst) {
+			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
 				self.seal_and_import_block_internally(chain, block);
 			} else {
@@ -1032,7 +1046,7 @@ mod tests {
 		assert_eq!(miner.pending_transactions_hashes().len(), 1);
 		assert_eq!(miner.pending_receipts().len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
-		assert_eq!(miner.prepare_work_sealing(&client), false);
+		assert!(!miner.prepare_work_sealing(&client));
 	}
 
 	#[test]
@@ -1051,16 +1065,26 @@ mod tests {
 		assert_eq!(miner.pending_transactions().len(), 0);
 		assert_eq!(miner.pending_receipts().len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
-		assert_eq!(miner.prepare_work_sealing(&client), true);
+		assert!(miner.prepare_work_sealing(&client));
+	}
+
+	#[test]
+	fn should_not_seal_unless_enabled() {
+		let miner = miner();
+		let client = TestBlockChainClient::default();
+		// By default resealing is not required.
+		assert!(!miner.requires_reseal(1u8.into()));
+
+		miner.import_external_transactions(&client, vec![transaction()]).pop().unwrap().unwrap();
+		assert!(miner.prepare_work_sealing(&client));
+		// Unless asked to prepare work.
+		assert!(miner.requires_reseal(1u8.into()));
 	}
 
 	#[test]
 	fn internal_seals_without_work() {
 		let miner = Miner::with_spec(&Spec::new_test_instant());
-		{
-			let mut sealing_work = miner.sealing_work.lock();
-			sealing_work.enabled = true;
-		}
+
 		let c = generate_dummy_client(2);
 		let client = c.reference().as_ref();
 
