@@ -2,8 +2,6 @@ import React, { Component, PropTypes } from 'react';
 import Menu from 'material-ui/Menu';
 import MenuItem from 'material-ui/MenuItem';
 
-// import styles from './lookup.css';
-
 const renderAccount = (active) => (account) => (
   <MenuItem
     key={ account.address }

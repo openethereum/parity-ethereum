@@ -18,14 +18,17 @@ export default (state = initialState, action) => {
     return { ...state, accounts: accountsReducer(state.accounts, action) };
   }
 
-  if (action.type === 'set contract')
+  if (action.type === 'set contract') {
     return { ...state, contract: action.contract };
+  }
 
-  if (action.type === 'set fee')
+  if (action.type === 'set fee') {
     return { ...state, fee: action.fee };
+  }
 
-  if (action.type === 'set owner')
+  if (action.type === 'set owner') {
     return { ...state, owner: action.owner };
+  }
 
   if (action.type.slice(0, 6) === 'lookup') {
     return { ...state, lookup: lookupReducer(state.lookup, action) };

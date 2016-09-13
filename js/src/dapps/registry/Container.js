@@ -22,17 +22,7 @@ class Container extends Component {
   }
 
   render () {
-    const props = this.props;
-    return (<Application
-      actions={ props.actions }
-      accounts={ props.accounts }
-      contract={ props.contract }
-      owner={ props.owner }
-      fee={ props.fee }
-      lookup={ props.lookup }
-      events={ props.events }
-      register={ props.register }
-    />);
+    return (<Application { ...this.props } />);
   }
 }
 
