@@ -1,25 +1,17 @@
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
-import { extend } from 'lodash';
 
 import { clearStatusLogs, toggleStatusLogs } from '../../../../redux/actions';
 
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
 
-import * as debugActions from '../../actions/debug';
-import * as ModifyMiningActions from '../../actions/modify-mining';
-
 import styles from './statusPage.css';
 
 class StatusPage extends Component {
   static propTypes = {
     nodeStatus: PropTypes.object.isRequired,
-    status: PropTypes.object.isRequired,
-    statusSettings: PropTypes.object.isRequired,
-    statusMining: PropTypes.object.isRequired,
-    statusDebug: PropTypes.object.isRequired,
     actions: PropTypes.object.isRequired
   }
 
@@ -39,12 +31,10 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return {
-    actions: bindActionCreators(
-      extend({}, ModifyMiningActions, debugActions, {
-        clearStatusLogs,
-        toggleStatusLogs
-      }),
-      dispatch)
+    actions: bindActionCreators({
+      clearStatusLogs,
+      toggleStatusLogs
+    }, dispatch)
   };
 }
 

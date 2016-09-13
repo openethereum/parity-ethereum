@@ -20,10 +20,6 @@ import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extensio
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
 
-// TODO: same with Status...
-import { Web3Provider as StatusWeb3Provider } from './views/Status/provider/web3-provider';
-import StatusEthcoreWeb3 from './views/Status/provider/web3-ethcore-provider';
-
 import './environment';
 
 import styles from './reset.css';
@@ -45,19 +41,12 @@ const ws = new Ws(parityUrl);
 const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
 
-// status
-const web3 = new Web3(new Web3.providers.HttpProvider(process.env.RPC_ADDRESS || '/rpc/'));
-const ethcoreWeb3 = new StatusEthcoreWeb3(web3);
-
-const store = initStore(api, ws, tokenSetter, web3);
+const store = initStore(api, ws, tokenSetter);
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new
 new SignerDataProvider(store, ws); // eslint-disable-line no-new
 ws.init(initToken);
-
-// status
-new StatusWeb3Provider(web3, ethcoreWeb3, store).start();
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 

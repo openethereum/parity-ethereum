@@ -1,6 +1,4 @@
-import React, { Component, PropTypes } from 'react';
-
-import styles from './apiProvider.css';
+import { Component, PropTypes } from 'react';
 
 export default class ApiProvider extends Component {
   static propTypes = {
@@ -15,9 +13,7 @@ export default class ApiProvider extends Component {
   render () {
     const { children } = this.props;
 
-    return (
-      <div className={ styles.api }>{ children }</div>
-    );
+    return children;
   }
 
   getChildContext () {
