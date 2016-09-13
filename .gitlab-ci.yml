@@ -4,7 +4,7 @@ stages:
   - deploy
 variables:
   GIT_DEPTH: "3"
-  SIMPLECOV: "true" 
+  SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
@@ -227,7 +227,9 @@ test-linux:
   stage: test
   before_script:
     - git submodule update --init --recursive
+    - cd js && npm install && cd ..
   script:
+    - cd js && npm run lint && npm test
     - ./test.sh --verbose
   tags:
     - rust-test
