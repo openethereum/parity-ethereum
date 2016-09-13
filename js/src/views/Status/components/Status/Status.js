@@ -9,15 +9,6 @@ import MiningSettings from '../MiningSettings';
 export default class Status extends Component {
   static propTypes = {
     nodeStatus: PropTypes.object.isRequired,
-    statusMining: PropTypes.object.isRequired,
-    status: PropTypes.shape({
-      name: PropTypes.string,
-      version: PropTypes.string.isRequired,
-      bestBlock: PropTypes.string.isRequired,
-      hashrate: PropTypes.string.isRequired,
-      accounts: PropTypes.arrayOf(PropTypes.string).isRequired,
-      peers: PropTypes.number.isRequired
-    }).isRequired,
     actions: PropTypes.object.isRequired
   }
 
@@ -59,11 +50,8 @@ export default class Status extends Component {
             <div className={ styles.col5 }>
               <MiningSettings
                 { ...this._test('mining') }
-                statusMining={ this.props.statusMining }
-                accounts={ this.props.status.accounts }
-                actions={ this.props.actions }
-                version={ this.props.status.version }
-                />
+                nodeStatus={ nodeStatus }
+                actions={ this.props.actions } />
             </div>
             <div className={ styles.col4 }>
               { this.renderSettings() }

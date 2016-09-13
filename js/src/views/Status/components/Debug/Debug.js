@@ -13,12 +13,7 @@ export default class Debug extends Component {
       clearStatusLogs: PropTypes.func.isRequired,
       toggleStatusLogs: PropTypes.func.isRequired
     }).isRequired,
-    nodeStatus: PropTypes.object.isRequired,
-    statusDebug: PropTypes.shape({
-      levels: PropTypes.string.isRequired,
-      logging: PropTypes.bool.isRequired,
-      logs: PropTypes.arrayOf(PropTypes.string).isRequired
-    }).isRequired
+    nodeStatus: PropTypes.object.isRequired
   }
 
   render () {

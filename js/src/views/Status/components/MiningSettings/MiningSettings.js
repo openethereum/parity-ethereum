@@ -9,28 +9,17 @@ import { decodeExtraData } from './decodeExtraData';
 const toNiceNumber = formatNumber();
 
 export default class MiningSettings extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  }
+
+  static propTypes = {
+    nodeStatus: PropTypes.object
+  }
 
   render () {
-    const { statusMining, actions } = this.props;
-
-    let onMinGasPriceChange = newVal => {
-      actions.modifyMinGasPrice(numberFromString(newVal));
-    };
-
-    let onExtraDataChange = (newVal, isResetToDefault) => {
-      // In case of resetting to default we are just using raw bytes from defaultExtraData
-      // When user sets new value we can safely send a string that will be converted to hex by formatter.
-      const val = isResetToDefault ? statusMining.defaultExtraData : newVal;
-      actions.modifyExtraData(val);
-    };
-
-    let onAuthorChange = newVal => {
-      actions.modifyAuthor(newVal);
-    };
-
-    let onGasFloorTargetChange = newVal => {
-      actions.modifyGasFloorTarget(numberFromString(newVal));
-    };
+    const { nodeStatus } = this.props;
+    const { coinbase, defaultExtraData, extraData, gasFloorTarget, minGasPrice } = nodeStatus;
 
     return (
       <div { ...this._testInherit() }>
@@ -38,50 +27,57 @@ export default class MiningSettings extends Component {
         <Input
           label='author'
           hint='the mining author'
-          value={ statusMining.author }
-          dataSource={ this.props.accounts }
-          onSubmit={ onAuthorChange }
+          value={ coinbase }
+          onSubmit={ this.onAuthorChange }
           { ...this._test('author') } />
         <Input
           label='extradata'
           hint='extra data for mined blocks'
-          value={ decodeExtraData(statusMining.extraData) }
-          onSubmit={ onExtraDataChange }
-          defaultValue={ decodeExtraData(statusMining.defaultExtraData) }
+          value={ decodeExtraData(extraData) }
+          onSubmit={ this.onExtraDataChange }
+          defaultValue={ decodeExtraData(defaultExtraData) }
           { ...this._test('extra-data') } />
         <Input
           label='minimal gas price'
           hint='the minimum gas price for mining'
-          value={ toNiceNumber(statusMining.minGasPrice) }
-          onSubmit={ onMinGasPriceChange }
+          value={ toNiceNumber(minGasPrice) }
+          onSubmit={ this.onMinGasPriceChange }
           { ...this._test('min-gas-price') } />
         <Input
           label='gas floor target'
           hint='the gas floor target for mining'
-          value={ toNiceNumber(statusMining.gasFloorTarget) }
-          onSubmit={ onGasFloorTargetChange }
+          value={ toNiceNumber(gasFloorTarget) }
+          onSubmit={ this.onGasFloorTargetChange }
           { ...this._test('gas-floor-target') } />
       </div>
     );
   }
 
-  static propTypes = {
-    accounts: PropTypes.arrayOf(PropTypes.string).isRequired,
-    version: PropTypes.string.isRequired,
-    statusMining: PropTypes.shape({
-      author: PropTypes.string.isRequired,
-      extraData: PropTypes.string.isRequired,
-      defaultExtraData: PropTypes.string.isRequired,
-      minGasPrice: PropTypes.string.isRequired,
-      gasFloorTarget: PropTypes.string.isRequired
-    }).isRequired,
-    actions: PropTypes.shape({
-      modifyMinGasPrice: PropTypes.func.isRequired,
-      modifyAuthor: PropTypes.func.isRequired,
-      modifyGasFloorTarget: PropTypes.func.isRequired,
-      modifyExtraData: PropTypes.func.isRequired,
-      resetExtraData: PropTypes.func.isRequired
-    }).isRequired
-  }
+  onMinGasPriceChange = (newVal) => {
+    const { api } = this.context;
 
+    api.ethcore.setMinGasPrice(numberFromString(newVal));
+  };
+
+  onExtraDataChange = (newVal, isResetToDefault) => {
+    const { api } = this.context;
+    const { nodeStatus } = this.props;
+
+    // In case of resetting to default we are just using raw bytes from defaultExtraData
+    // When user sets new value we can safely send a string that will be converted to hex by formatter.
+    const val = isResetToDefault ? nodeStatus.defaultExtraData : newVal;
+    api.ethcore.setExtraData(val);
+  };
+
+  onAuthorChange = (newVal) => {
+    const { api } = this.context;
+
+    api.ethcore.setAuthor(newVal);
+  };
+
+  onGasFloorTargetChange = (newVal) => {
+    const { api } = this.context;
+
+    api.ethcore.setGasFloorTarget(numberFromString(newVal));
+  };
 }
