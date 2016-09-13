@@ -16,25 +16,25 @@
 
 const ENDPOINT = 'https://cors.shapeshift.io';
 
-export default function (apikey) {
-  function call (method, options) {
-    return fetch(`${ENDPOINT}/${method}`, options)
-      .then((response) => {
-        if (response.status !== 200) {
-          throw { code: response.status, message: response.statusText }; // eslint-disable-line
-        }
+function call (method, options) {
+  return fetch(`${ENDPOINT}/${method}`, options)
+    .then((response) => {
+      if (response.status !== 200) {
+        throw { code: response.status, message: response.statusText }; // eslint-disable-line
+      }
 
-        return response.json();
-      })
-      .then((result) => {
-        if (result.error) {
-          throw { code: -1, message: result.error }; // eslint-disable-line
-        }
+      return response.json();
+    })
+    .then((result) => {
+      if (result.error) {
+        throw { code: -1, message: result.error }; // eslint-disable-line
+      }
 
-        return result;
-      });
-  }
+      return result;
+    });
+}
 
+export default function (apiKey) {
   function get (method) {
     return call(method, {
       method: 'GET',
@@ -45,24 +45,17 @@ export default function (apikey) {
   }
 
   function post (method, data) {
-    const params = {
-      apiKey: apikey
-    };
-
-    Object.keys(data).forEach((key) => {
-      params[key] = data[key];
-    });
-
-    const json = JSON.stringify(params);
+    const params = Object.assign({}, { apiKey }, data);
+    const body = JSON.stringify(params);
 
     return call(method, {
       method: 'POST',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
-        'Content-Length': json.length
+        'Content-Length': body.length
       },
-      body: json
+      body
     });
   }
 
