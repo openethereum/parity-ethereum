@@ -36,6 +36,14 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
+impl HeapSizeOf for PreverifiedBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children()
+			+ self.transactions.heap_size_of_children()
+			+ self.bytes.heap_size_of_children()
+	}
+}
+
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
 	try!(verify_header(&header, engine));
