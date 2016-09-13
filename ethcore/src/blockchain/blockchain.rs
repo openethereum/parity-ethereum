@@ -324,8 +324,7 @@ impl BlockProvider for BlockChain {
 	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
 		where F: Fn(&LogEntry) -> bool, Self: Sized {
 		// sort in reverse order
-		blocks.sort();
-		blocks.reverse();
+		blocks.sort_by(|a, b| b.cmp(a));
 
 		let mut log_index = 0;
 		let mut logs = blocks.into_iter()
