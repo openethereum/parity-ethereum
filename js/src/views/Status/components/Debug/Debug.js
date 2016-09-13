@@ -13,6 +13,7 @@ export default class Debug extends Component {
       removeDevLogs: PropTypes.func.isRequired,
       updateDevLogging: PropTypes.func.isRequired
     }).isRequired,
+    nodeStatus: PropTypes.object.isRequired,
     statusDebug: PropTypes.shape({
       levels: PropTypes.string.isRequired,
       logging: PropTypes.bool.isRequired,
@@ -21,13 +22,20 @@ export default class Debug extends Component {
   }
 
   render () {
+    const { nodeStatus } = this.props;
+    const { devLogs, devLogsLevels } = nodeStatus;
+
+    if (!devLogs) {
+      return null;
+    }
+
     return (
       <Container>
         <ContainerTitle
           title='Node Logs' />
         { this.renderActions() }
         <h2 className={ styles.subheader }>
-          { this.props.statusDebug.levels || '-' }
+          { devLogsLevels || '-' }
         </h2>
         <div className={ styles.logs }>
           { this.renderLogs() }
@@ -37,7 +45,10 @@ export default class Debug extends Component {
   }
 
   renderLogs () {
-    return this.props.statusDebug.logs.map((log, idx) => (
+    const { nodeStatus } = this.props;
+    const { devLogs } = nodeStatus;
+
+    return devLogs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
       </pre>

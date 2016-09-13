@@ -80,7 +80,7 @@ export default class Status {
       .then(([devLogs, devLogsLevels]) => {
         nextTimeout();
         this._store.dispatch(statusLogs({
-          devLogs,
+          devLogs: devLogs.slice(-1024),
           devLogsLevels
         }));
       })

@@ -1,5 +1,4 @@
 import React, { Component, PropTypes } from 'react';
-import formatNumber from 'format-number';
 import bytes from 'bytes';
 
 import { Container, ContainerTitle, Input } from '../../../../ui';
@@ -9,15 +8,8 @@ import MiningSettings from '../MiningSettings';
 
 export default class Status extends Component {
   static propTypes = {
+    nodeStatus: PropTypes.object.isRequired,
     statusMining: PropTypes.object.isRequired,
-    statusSettings: PropTypes.shape({
-      chain: PropTypes.string.isRequired,
-      networkPort: PropTypes.number.isRequired,
-      maxPeers: PropTypes.number.isRequired,
-      rpcEnabled: PropTypes.bool.isRequired,
-      rpcInterface: PropTypes.string.isRequired,
-      rpcPort: PropTypes.number.isRequired
-    }).isRequired,
     status: PropTypes.shape({
       name: PropTypes.string,
       version: PropTypes.string.isRequired,
@@ -30,10 +22,15 @@ export default class Status extends Component {
   }
 
   render () {
-    const { status, statusSettings } = this.props;
-    const bestBlock = formatNumber()(status.bestBlock);
-    const hashrate = bytes(status.hashrate) || 0;
-    const peers = `${status.activePeers}/${status.connectedPeers}/${statusSettings.maxPeers}`;
+    const { nodeStatus } = this.props;
+    const { netPeers } = nodeStatus;
+
+    if (!netPeers || !nodeStatus.blockNumber) {
+      return null;
+    }
+
+    const hashrate = bytes(nodeStatus.hashrate.toNumber()) || 0;
+    const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
 
     return (
       <Container>
@@ -42,15 +39,21 @@ export default class Status extends Component {
             <div className={ styles.col3 }>
               <div className={ styles.col12 }>
                 <ContainerTitle title='best block' />
-                <h2 { ...this._test('best-block') } className={ styles.blockinfo }>#{ bestBlock }</h2>
+                <h2 { ...this._test('best-block') } className={ styles.blockinfo }>
+                  #{ nodeStatus.blockNumber.toFormat() }
+                </h2>
               </div>
               <div className={ styles.col12 }>
                 <ContainerTitle title='peers' />
-                <h2 { ...this._test('peers') } className={ styles.blockinfo }>{ peers }</h2>
+                <h2 { ...this._test('peers') } className={ styles.blockinfo }>
+                  { peers }
+                </h2>
               </div>
               <div className={ styles.col12 }>
                 <ContainerTitle title='hash rate' />
-                <h2 { ...this._test('hashrate') } className={ styles.blockinfo }>{ `${hashrate} H/s` }</h2>
+                <h2 { ...this._test('hashrate') } className={ styles.blockinfo }>
+                  { `${hashrate} H/s` }
+                </h2>
               </div>
             </div>
             <div className={ styles.col5 }>
@@ -72,16 +75,19 @@ export default class Status extends Component {
   }
 
   renderNodeName () {
-    const { status } = this.props;
+    const { nodeStatus } = this.props;
+
     return (
       <span>
-        { status.name || 'Node' }
+        { nodeStatus.nodeName || 'Node' }
       </span>
     );
   }
 
   renderSettings () {
-    const { status, statusSettings } = this.props;
+    const { nodeStatus } = this.props;
+    const { rpcSettings, netPeers } = nodeStatus;
+    const peers = `${netPeers.active}/${netPeers.connected}/${netPeers.max}`;
 
     return (
       <div { ...this._test('settings') }>
@@ -89,21 +95,21 @@ export default class Status extends Component {
         <Input
           disabled
           label='chain'
-          value={ statusSettings.chain }
+          value={ nodeStatus.netChain }
           { ...this._test('chain') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
               disabled
               label='peers'
-              value={ `${status.activePeers}/${status.connectedPeers}/${statusSettings.maxPeers}` }
+              value={ peers }
               { ...this._test('peers') } />
           </div>
           <div className={ styles.col6 }>
             <Input
               disabled
               label='network port'
-              value={ statusSettings.networkPort }
+              value={ nodeStatus.netPort.toString() }
               { ...this._test('network-port') } />
           </div>
         </div>
@@ -111,21 +117,21 @@ export default class Status extends Component {
         <Input
           disabled
           label='rpc enabled'
-          value={ statusSettings.rpcEnabled ? 'yes' : 'no' }
+          value={ rpcSettings.enabled ? 'yes' : 'no' }
           { ...this._test('rpc-enabled') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
               disabled
               label='rpc interface'
-              value={ statusSettings.rpcInterface }
+              value={ rpcSettings.interface }
               { ...this._test('rpc-interface') } />
           </div>
           <div className={ styles.col6 }>
             <Input
               disabled
               label='rpc port'
-              value={ statusSettings.rpcPort }
+              value={ rpcSettings.port.toString() }
               { ...this._test('rpc-port') } />
           </div>
         </div>

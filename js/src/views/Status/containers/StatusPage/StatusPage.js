@@ -14,6 +14,7 @@ import styles from './statusPage.css';
 
 class StatusPage extends Component {
   static propTypes = {
+    nodeStatus: PropTypes.object.isRequired,
     status: PropTypes.object.isRequired,
     statusSettings: PropTypes.object.isRequired,
     statusMining: PropTypes.object.isRequired,
