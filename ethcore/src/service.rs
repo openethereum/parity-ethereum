@@ -94,7 +94,6 @@ impl ClientService {
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),
-			client_db: client_path.into(),
 			db_restore: client.clone(),
 		};
 		let snapshot = Arc::new(try!(SnapshotService::new(snapshot_params)));
@@ -187,7 +186,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
 			ClientIoMessage::BeginRestoration(ref manifest) => {
-				if let Err(e) = self.snapshot.init_restore(manifest.clone()) {
+				if let Err(e) = self.snapshot.init_restore(manifest.clone(), true) {
 					warn!("Failed to initialize snapshot restoration: {}", e);
 				}
 			}

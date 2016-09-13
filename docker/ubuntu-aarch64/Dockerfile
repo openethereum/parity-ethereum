@@ -23,15 +23,9 @@ RUN rustup target add aarch64-unknown-linux-gnu
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-# set compilers
-ENV CXX aarch64-linux-gnu-g++
-ENV CC aarch64-linux-gnu-gcc
-
 # show tools
  RUN rustc -vV && \
- cargo -V && \
- gcc -v &&\
- g++ -v
+ cargo -V 
 
 # build parity
 RUN git clone https://github.com/ethcore/parity && \

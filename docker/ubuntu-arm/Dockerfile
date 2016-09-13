@@ -23,15 +23,10 @@ RUN rustup target add armv7-unknown-linux-gnueabihf
 # show backtraces
 ENV RUST_BACKTRACE 1
 
-# set compilers
-ENV CXX arm-linux-gnueabihf-g++
-ENV CC arm-linux-gnueabihf-gcc
 
 # show tools
  RUN rustc -vV && \
- cargo -V && \
- gcc -v &&\
- g++ -v
+ cargo -V 
 
 # build parity
 RUN git clone https://github.com/ethcore/parity && \
