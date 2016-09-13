@@ -17,30 +17,21 @@
 import babel from 'rollup-plugin-babel';
 import cjs from 'rollup-plugin-commonjs';
 import json from 'rollup-plugin-json';
-import multiEntry from 'rollup-plugin-multi-entry';
 import globals from 'rollup-plugin-node-globals';
 import resolve from 'rollup-plugin-node-resolve';
 import postcss from 'rollup-plugin-postcss';
 import replace from 'rollup-plugin-replace';
+import uglify from 'rollup-plugin-uglify';
 import url from 'rollup-plugin-url';
 
-export default {
-  dest: 'dist/app.js',
-  entry: [
-    // dapps
-    'src/dapps/gavcoin.js',
-    'src/dapps/registry.js',
-    'src/dapps/tokenreg.js',
-
-    // libraries
-    'src/parity.js',
-
-    // app(s)
-    'src/app.js'
-  ],
+const { NODE_ENV, src } = process.env;
+const isProd = process.env.NODE_ENV === 'production';
+const config = {
+  dest: `dist/${src}.js`,
+  entry: `src/${src}.js`,
   format: 'cjs',
+  sourceMap: true,
   plugins: [
-    multiEntry(),
     babel({
       babelrc: false,
       exclude: 'node_modules/**',
@@ -56,7 +47,7 @@ export default {
       ]
     }),
     replace({
-      'process.env.NODE_ENV': JSON.stringify('development')
+      'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
     }),
     json(),
     postcss(),
@@ -69,6 +60,11 @@ export default {
       browser: true,
       main: true
     })
-  ],
-  sourceMap: true
+  ]
 };
+
+if (isProd) {
+  config.plugins.push(uglify());
+}
+
+export default config;
