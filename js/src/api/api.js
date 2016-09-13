@@ -4,6 +4,7 @@ import Contract from './contract/index';
 import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc/index';
 import Subscriptions from './subscriptions/index';
 import format from './format/index';
+import util from './util/index';
 import { isFunction } from './util/types';
 
 export default class Api {
@@ -58,6 +59,10 @@ export default class Api {
 
   get format () {
     return format;
+  }
+
+  get util () {
+    return util;
   }
 
   newContract (abi, address) {

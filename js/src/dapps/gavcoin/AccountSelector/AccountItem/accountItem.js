@@ -1,8 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 
-import styles from './accountItem.css';
+import IdentityIcon from '../../IdentityIcon';
 
-const { IdentityIcon } = window.parity.react;
+import styles from './accountItem.css';
 
 export default class AccountItem extends Component {
   static propTypes = {
@@ -31,9 +31,7 @@ export default class AccountItem extends Component {
     return (
       <div className={ styles.account }>
         <div className={ styles.image }>
-          <IdentityIcon
-            inline center
-            address={ account.address } />
+          <IdentityIcon address={ account.address } />
         </div>
         <div className={ styles.details }>
           <div className={ styles.name }>

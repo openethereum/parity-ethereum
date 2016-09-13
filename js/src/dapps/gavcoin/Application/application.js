@@ -6,6 +6,8 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 const muiTheme = getMuiTheme(lightBaseTheme);
 
+import { api } from '../parity';
+
 import registryAbi from '../abi/registry.json';
 import gavcoinAbi from '../abi/gavcoin.json';
 
@@ -14,8 +16,6 @@ import Actions, { ActionBuyIn, ActionRefund, ActionTransfer } from '../Actions';
 import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
-
-const { api } = window.parity;
 
 const DIVISOR = 10 ** 6;
 
