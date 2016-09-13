@@ -50,6 +50,7 @@ class Account extends Component {
             account={ account }
             balance={ balance } />
           <Transactions
+            accounts={ accounts }
             address={ address } />
         </Page>
       </div>

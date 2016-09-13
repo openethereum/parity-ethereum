@@ -81,11 +81,12 @@ export default class Balances {
             return Promise.all(promises);
           });
       })
-      .then((tokens) => {
-        this._tokens = tokens.map((token) => {
-          const [address, tag, format, name] = token;
+      .then((_tokens) => {
+        const tokens = {};
+        this._tokens = _tokens.map((_token) => {
+          const [address, tag, format, name] = _token;
 
-          return {
+          const token = {
             address,
             name,
             tag,
@@ -93,9 +94,12 @@ export default class Balances {
             images: images[name.toLowerCase()],
             contract: this._api.newContract(eip20Abi, address)
           };
+          tokens[address] = token;
+
+          return token;
         });
 
-        this._store.dispatch(getTokens(this._tokens));
+        this._store.dispatch(getTokens(tokens));
         this._retrieveBalances();
       });
   }
