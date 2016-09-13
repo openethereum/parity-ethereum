@@ -215,7 +215,7 @@ impl VerifiedTransaction {
 	}
 
 	fn sender(&self) -> Address {
-		self.transaction.sender().unwrap()
+		self.transaction.sender().expect("Sender is verified in new; qed")
 	}
 }
 
@@ -336,7 +336,7 @@ impl TransactionSet {
 				// Operation may be ok: only if hash is in gas-price's Set.
 				return hashes.remove(hash);
 			}
-			if hashes.iter().next().unwrap() != hash {
+			if hashes.iter().next().expect("We know that there is exactly one element, because it is tested above; qed") != hash {
 				// Operation failed: hash not the single item in gas-price's Set.
 				return false;
 			}
@@ -588,7 +588,7 @@ impl TransactionQueue {
 			return;
 		}
 
-		let transaction = transaction.unwrap();
+		let transaction = transaction.expect("None is tested in early-exit condition above; qed");
 		let sender = transaction.sender();
 		let nonce = transaction.nonce();
 		let current_nonce = fetch_account(&sender).nonce;
@@ -623,7 +623,7 @@ impl TransactionQueue {
 			None => vec![],
 		};
 		for k in all_nonces_from_sender {
-			let order = self.future.drop(sender, &k).unwrap();
+			let order = self.future.drop(sender, &k).expect("iterating over a collection that has been retrieved above; qed");
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
@@ -644,7 +644,8 @@ impl TransactionQueue {
 
 		for k in all_nonces_from_sender {
 			// Goes to future or is removed
-			let order = self.current.drop(sender, &k).unwrap();
+			let order = self.current.drop(sender, &k).expect("iterating over a collection that has been retrieved above;
+															 qed");
 			if k >= current_nonce {
 				self.future.insert(*sender, k, order.update_height(k, current_nonce));
 			} else {
@@ -704,7 +705,7 @@ impl TransactionQueue {
 			if let None = by_nonce {
 				return;
 			}
-			let mut by_nonce = by_nonce.unwrap();
+			let mut by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
 			while let Some(order) = by_nonce.remove(&current_nonce) {
 				// remove also from priority and hash
 				self.future.by_priority.remove(&order);
