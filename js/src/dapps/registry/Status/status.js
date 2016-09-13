@@ -14,8 +14,8 @@ export default class Status extends Component {
 
     return (
       <div className={ styles.status }>
-        <div className={ styles.address }>Registry at { address }</div>
-        <div className={ styles.owner }>Owned by { owner }</div>
+        <div className={ styles.address }>Registry at <code>{ address }</code></div>
+        <div className={ styles.owner }>Owned by <code>{ owner }</code></div>
       </div>
     );
   }

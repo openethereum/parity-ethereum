@@ -1,7 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import Menu from 'material-ui/Menu';
 import MenuItem from 'material-ui/MenuItem';
-import AccountIcon from 'material-ui/svg-icons/action/account-circle';
 
 // import styles from './lookup.css';
 

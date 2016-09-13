@@ -1,10 +1,10 @@
 import React, { Component, PropTypes } from 'react';
-import {Card, CardHeader, CardText} from 'material-ui/Card';
+import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
-const { fromWei } = window.parity.api.format;
+const { fromWei } = window.parity.api.format;
 
 import styles from './register.css';
 
@@ -19,13 +19,13 @@ export default class Register extends Component {
   state = { name: '' };
 
   render () {
-    const { name } = this.state
-    const props = this.props.register
-    const { fee } = this.props
+    const { name } = this.state;
+    const props = this.props.register;
+    const { fee } = this.props;
 
     return (
       <Card className={ styles.register }>
-        <CardHeader title="Register a Name" />
+        <CardHeader title={ 'Register a Name' } />
         <div className={ styles.box }>
           <TextField
             className={ styles.spacing }

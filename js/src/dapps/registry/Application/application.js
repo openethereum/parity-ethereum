@@ -26,7 +26,8 @@ export default class Application extends Component {
     owner: PropTypes.string,
     fee: PropTypes.object,
     lookup: PropTypes.object,
-    events: PropTypes.array
+    events: PropTypes.array,
+    register: PropTypes.object
   };
 
   render () {
@@ -45,16 +46,16 @@ export default class Application extends Component {
           <h1>RΞgistry</h1>
           <Accounts all={ accounts.all } selected={ accounts.selected } actions={ actions.accounts } />
         </div>
-        { contract && fee && owner
-          ? (
-            <div>
-              <Lookup lookup={ lookup } actions={ actions.lookup } />
-              <Register register={ register } fee={ fee } actions={ actions.register } />
-              <Events events={ events } actions={ actions.events } />
-              <Status address={ contract.address } owner={ owner } />
-            </div>
-          ) : <CircularProgress size={ 1 } />
-        }
+        { contract && fee && owner ? (
+          <div>
+            <Lookup lookup={ lookup } actions={ actions.lookup } />
+            <Register register={ register } fee={ fee } actions={ actions.register } />
+            <Events events={ events } actions={ actions.events } />
+            <Status address={ contract.address } owner={ owner } />
+          </div>
+        ) : (
+          <CircularProgress size={ 1 } />
+        ) }
       </div>
     );
   }

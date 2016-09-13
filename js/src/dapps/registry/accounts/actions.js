@@ -9,10 +9,10 @@ export const fetch = () => (dispatch) => {
   ])
   .then(([ addresses, infos ]) => {
     const accounts = addresses.reduce((accounts, address) => {
-      if (infos[address]) accounts[address] = { ...infos[address], address }
-      return accounts
-    }, {})
-    dispatch(set(accounts))
+      if (infos[address]) accounts[address] = { ...infos[address], address };
+      return accounts;
+    }, {});
+    dispatch(set(accounts));
   })
   .catch((err) => {
     console.error('could not fetch accounts');

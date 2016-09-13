@@ -1,6 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import {Card, CardHeader, CardText} from 'material-ui/Card';
-import TextField from 'material-ui/TextField';
+import { Card, CardHeader, CardText } from 'material-ui/Card';
 
 const { IdentityIcon } = window.parity.react;
 import styles from './events.css';
@@ -53,7 +52,7 @@ export default class Events extends Component {
   render () {
     return (
       <Card className={ styles.events }>
-        <CardHeader title="Stuff Happening" />
+        <CardHeader title={ 'Stuff Happening' } />
         <CardText>{
           this.props.events
             .filter((e) => eventTypes[e.type])

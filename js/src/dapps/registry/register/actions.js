@@ -23,7 +23,7 @@ export const register = (name) => (dispatch, getState) => {
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
       dispatch(start(name));
-      return reserve.postTransaction(options, values)
+      return reserve.postTransaction(options, values);
     })
     .then((data) => {
       dispatch(success(name));

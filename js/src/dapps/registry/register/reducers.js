@@ -4,7 +4,6 @@ const initialState = {
 };
 
 export default (state = initialState, action) => {
-
   if (action.type === 'register success')
     return { ...state, names: state.names
       .filter((n) => n !== action.name)

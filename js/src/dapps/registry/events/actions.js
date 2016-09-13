@@ -23,7 +23,7 @@ export const subscribe = (name, from = 0, to = 'latest') =>
           transaction: e.transactionHash,
           parameters: e.params
         };
-        dispatch(event(name, data))
+        dispatch(event(name, data));
       }
-    })
+    });
   };
