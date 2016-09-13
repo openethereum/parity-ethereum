@@ -1,24 +1,18 @@
-function getBalances (state, action) {
-  const { balances } = action;
+import { handleActions } from 'redux-actions';
 
-  return Object.assign({}, state, { balances });
-}
+const initialState = {
+};
 
-function getTokens (state, action) {
-  const { tokens } = action;
+export default handleActions({
+  getBalances (state, action) {
+    const { balances } = action;
 
-  return Object.assign({}, state, { tokens });
-}
+    return Object.assign({}, state, { balances });
+  },
 
-export default function balancesReducer (state = {}, action) {
-  switch (action.type) {
-    case 'getBalances':
-      return getBalances(state, action);
+  getTokens (state, action) {
+    const { tokens } = action;
 
-    case 'getTokens':
-      return getTokens(state, action);
-
-    default:
-      return state;
+    return Object.assign({}, state, { tokens });
   }
-}
+}, initialState);

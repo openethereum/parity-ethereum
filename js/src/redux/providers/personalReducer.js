@@ -1,33 +1,30 @@
-function personalAccountsInfo (state, action) {
-  const { accountsInfo } = action;
-  const accounts = {};
-  const contacts = {};
+import { handleActions } from 'redux-actions';
 
-  Object.keys(accountsInfo).forEach((address) => {
-    const account = accountsInfo[address];
-    const { name, meta, uuid } = account;
+const initialState = {
+};
 
-    if (uuid) {
-      accounts[address] = { address, name, meta, uuid };
-    } else {
-      contacts[address] = { address, name, meta };
-    }
-  });
+export default handleActions({
+  personalAccountsInfo (state, action) {
+    const { accountsInfo } = action;
+    const accounts = {};
+    const contacts = {};
 
-  return Object.assign({}, state, {
-    accounts,
-    hasAccounts: Object.keys(accounts).length !== 0,
-    contacts,
-    hasContacts: Object.keys(contacts).length !== 0
-  });
-}
+    Object.keys(accountsInfo).forEach((address) => {
+      const account = accountsInfo[address];
+      const { name, meta, uuid } = account;
 
-export default function personalReducer (state = {}, action) {
-  switch (action.type) {
-    case 'personalAccountsInfo':
-      return personalAccountsInfo(state, action);
+      if (uuid) {
+        accounts[address] = { address, name, meta, uuid };
+      } else {
+        contacts[address] = { address, name, meta };
+      }
+    });
 
-    default:
-      return state;
+    return Object.assign({}, state, {
+      accounts,
+      hasAccounts: Object.keys(accounts).length !== 0,
+      contacts,
+      hasContacts: Object.keys(contacts).length !== 0
+    });
   }
-}
+}, initialState);

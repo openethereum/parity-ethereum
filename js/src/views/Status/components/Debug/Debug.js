@@ -10,8 +10,8 @@ import styles from './Debug.css';
 export default class Debug extends Component {
   static propTypes = {
     actions: PropTypes.shape({
-      removeDevLogs: PropTypes.func.isRequired,
-      updateDevLogging: PropTypes.func.isRequired
+      clearStatusLogs: PropTypes.func.isRequired,
+      toggleStatusLogs: PropTypes.func.isRequired
     }).isRequired,
     nodeStatus: PropTypes.object.isRequired,
     statusDebug: PropTypes.shape({
@@ -23,11 +23,7 @@ export default class Debug extends Component {
 
   render () {
     const { nodeStatus } = this.props;
-    const { devLogs, devLogsLevels } = nodeStatus;
-
-    if (!devLogs) {
-      return null;
-    }
+    const { devLogsLevels } = nodeStatus;
 
     return (
       <Container>
@@ -48,6 +44,10 @@ export default class Debug extends Component {
     const { nodeStatus } = this.props;
     const { devLogs } = nodeStatus;
 
+    if (!devLogs) {
+      return null;
+    }
+
     return devLogs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
@@ -56,7 +56,8 @@ export default class Debug extends Component {
   }
 
   renderActions () {
-    const toggleButton = this.props.statusDebug.logging
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const toggleButton = devLogsEnabled
       ? <AvPause />
       : <AvPlay />;
 
@@ -69,10 +70,15 @@ export default class Debug extends Component {
   }
 
   clear = () => {
-    this.props.actions.removeDevLogs();
+    const { clearStatusLogs } = this.props.actions;
+
+    clearStatusLogs();
   }
 
   toggle = () => {
-    this.props.actions.updateDevLogging(!this.props.statusDebug.logging);
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const { toggleStatusLogs } = this.props.actions;
+
+    toggleStatusLogs(!devLogsEnabled);
   }
 }

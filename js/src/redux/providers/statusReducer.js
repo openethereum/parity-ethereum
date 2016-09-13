@@ -1,33 +1,37 @@
-function statusBlockNumber (state, action) {
-  const { blockNumber } = action;
+import { handleActions } from 'redux-actions';
 
-  return Object.assign({}, state, { blockNumber });
-}
+const initialState = {
+  devLogs: [],
+  devLogsLevels: null,
+  devLogsEnabled: false
+};
 
-function statusCollection (state, action) {
-  const { collection } = action;
+export default handleActions({
+  statusBlockNumber (state, action) {
+    const { blockNumber } = action;
 
-  return Object.assign({}, state, collection);
-}
+    return Object.assign({}, state, { blockNumber });
+  },
 
-function statusLogs (state, action) {
-  const { logInfo } = action;
+  statusCollection (state, action) {
+    const { collection } = action;
 
-  return Object.assign({}, state, logInfo);
-}
+    return Object.assign({}, state, collection);
+  },
 
-export default function statusReducer (state = {}, action) {
-  switch (action.type) {
-    case 'statusBlockNumber':
-      return statusBlockNumber(state, action);
+  statusLogs (state, action) {
+    const { logInfo } = action;
 
-    case 'statusCollection':
-      return statusCollection(state, action);
+    return Object.assign({}, state, logInfo);
+  },
 
-    case 'statusLogs':
-      return statusLogs(state, action);
+  toggleStatusLogs (state, action) {
+    const { devLogsEnabled } = action;
 
-    default:
-      return state;
+    return Object.assign({}, state, { devLogsEnabled });
+  },
+
+  clearStatusLogs (state, action) {
+    return Object.assign({}, state, { devLogs: [] });
   }
-}
+}, initialState);

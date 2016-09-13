@@ -3,12 +3,13 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { extend } from 'lodash';
 
+import { clearStatusLogs, toggleStatusLogs } from '../../../../redux/actions';
+
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
 
 import * as debugActions from '../../actions/debug';
 import * as ModifyMiningActions from '../../actions/modify-mining';
-import { updateLogging } from '../../actions/logger';
 
 import styles from './statusPage.css';
 
@@ -38,7 +39,12 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return {
-    actions: bindActionCreators(extend({}, ModifyMiningActions, debugActions, { updateLogging }), dispatch)
+    actions: bindActionCreators(
+      extend({}, ModifyMiningActions, debugActions, {
+        clearStatusLogs,
+        toggleStatusLogs
+      }),
+      dispatch)
   };
 }
 

@@ -4,7 +4,6 @@ export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-    this._status = null;
   }
 
   start () {
@@ -24,7 +23,7 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const nextTimeout = () => setTimeout(this._pollStatus, 1000);
+    const nextTimeout = (timeout = 1000) => setTimeout(this._pollStatus, timeout);
 
     Promise
       .all([
@@ -70,7 +69,13 @@ export default class Status {
   }
 
   _pollLogs = () => {
-    const nextTimeout = () => setTimeout(this._pollStatus, 1000);
+    const nextTimeout = (timeout = 1000) => setTimeout(this._pollLogs, timeout);
+    const { devLogsEnabled } = this._store.getState().nodeStatus;
+
+    if (!devLogsEnabled) {
+      nextTimeout();
+      return;
+    }
 
     Promise
       .all([

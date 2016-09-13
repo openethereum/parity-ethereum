@@ -18,3 +18,16 @@ export function statusLogs (logInfo) {
     logInfo
   };
 }
+
+export function toggleStatusLogs (devLogsEnabled) {
+  return {
+    type: 'toggleStatusLogs',
+    devLogsEnabled
+  };
+}
+
+export function clearStatusLogs () {
+  return {
+    type: 'clearStatusLogs'
+  };
+}
