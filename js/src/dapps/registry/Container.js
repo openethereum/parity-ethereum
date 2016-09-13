@@ -16,22 +16,22 @@ class Container extends Component {
     lookup: PropTypes.object,
     events: PropTypes.array
   };
+
   componentDidMount () {
     this.props.actions.fetchContract();
   }
 
   render () {
-    const { actions, accounts, account, contract, owner, fee, lookup, events, register } = this.props;
+    const props = this.props;
     return (<Application
-      actions={ actions }
-      accounts={ accounts }
-      account={ account }
-      contract={ contract }
-      owner={ owner }
-      fee={ fee }
-      lookup={ lookup }
-      events={ events }
-      register={ register }
+      actions={ props.actions }
+      accounts={ props.accounts }
+      contract={ props.contract }
+      owner={ props.owner }
+      fee={ props.fee }
+      lookup={ props.lookup }
+      events={ props.events }
+      register={ props.register }
     />);
   }
 }

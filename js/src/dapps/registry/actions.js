@@ -1,7 +1,7 @@
 import registryAbi from './abi/registry.json';
 const { api } = window.parity;
 import * as accounts from './accounts/actions.js';
-import * as lookup from './Lookup/actions.js';
+import * as lookup from './lookup/actions.js';
 import * as events from './events/actions.js';
 import * as register from './register/actions.js';
 

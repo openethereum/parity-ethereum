@@ -7,21 +7,37 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
 import Accounts from '../accounts';
-import Lookup from '../Lookup';
+import Lookup from '../lookup';
 import Register from '../register';
 import Events from '../events';
-import Status from '../Status';
+import Status from '../status';
 
 export default class Application extends Component {
-  static childContextTypes = {
-    muiTheme: PropTypes.object
-  };
+  static childContextTypes = { muiTheme: PropTypes.object };
   getChildContext () {
     return { muiTheme };
   }
 
+  static propTypes = {
+    actions: PropTypes.object,
+    accounts: PropTypes.object,
+    account: PropTypes.object,
+    contract: PropTypes.object,
+    owner: PropTypes.string,
+    fee: PropTypes.object,
+    lookup: PropTypes.object,
+    events: PropTypes.array
+  };
+
   render () {
-    const { accounts, contract, fee, owner, actions } = this.props;
+    const {
+      actions,
+      accounts,
+      contract, fee, owner,
+      lookup,
+      events,
+      register
+    } = this.props;
 
     return (
       <div>
@@ -32,9 +48,9 @@ export default class Application extends Component {
         { contract && fee && owner
           ? (
             <div>
-              <Lookup lookup={ this.props.lookup } actions={ actions.lookup } />
-              <Register register={ this.props.register } fee={ fee } actions={ actions.register } />
-              <Events events={ this.props.events } actions={ actions.events } />
+              <Lookup lookup={ lookup } actions={ actions.lookup } />
+              <Register register={ register } fee={ fee } actions={ actions.register } />
+              <Events events={ events } actions={ actions.events } />
               <Status address={ contract.address } owner={ owner } />
             </div>
           ) : <CircularProgress size={ 1 } />
@@ -44,9 +60,3 @@ export default class Application extends Component {
   }
 
 }
-
-Application.propTypes = {
-  contract: PropTypes.object,
-  fee: PropTypes.object,
-  owner: PropTypes.string
-};

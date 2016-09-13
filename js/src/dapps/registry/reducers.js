@@ -1,5 +1,5 @@
 import accountsReducer from './accounts/reducers.js';
-import lookupReducer from './Lookup/reducers.js';
+import lookupReducer from './lookup/reducers.js';
 import eventsReducer from './events/reducers.js';
 import registerReducer from './register/reducers.js';
 

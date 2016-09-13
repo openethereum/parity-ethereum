@@ -27,10 +27,7 @@ export default class Accounts extends Component {
     this.props.actions.fetch();
   }
 
-  state = { value: null };
-
   render () {
-    const { open } = this.state;
     const { all, selected } = this.props;
 
     return (
