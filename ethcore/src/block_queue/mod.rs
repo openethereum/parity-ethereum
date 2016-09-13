@@ -16,6 +16,7 @@
 
 //! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
+
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
@@ -215,12 +216,15 @@ impl BlockQueue {
 			}
 
 			let block = {
+				// acquire these locks before getting the block to verify.
 				let mut unverified = verification.unverified.lock();
-				if unverified.is_empty() {
-					continue;
-				}
 				let mut verifying = verification.verifying.lock();
-				let block = unverified.pop_front().unwrap();
+
+				let block = match unverified.pop_front() {
+					Some(block) => block,
+					None => continue,
+				};
+
 				verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
 				block
 			};
@@ -229,13 +233,16 @@ impl BlockQueue {
 			match verify_block_unordered(block.header, block.bytes, &*engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
-					for e in verifying.iter_mut() {
+					let mut idx = None;
+					for (i, e) in verifying.iter_mut().enumerate() {
 						if e.hash == block_hash {
+							idx = Some(i);
 							e.block = Some(verified);
 							break;
 						}
 					}
-					if !verifying.is_empty() && verifying.front().unwrap().hash == block_hash {
+
+					if idx == Some(0) {
 						// we're next!
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
@@ -250,20 +257,23 @@ impl BlockQueue {
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					bad.insert(block_hash.clone());
 					verifying.retain(|e| e.hash != block_hash);
-					BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
-					ready.set();
+
+					if verifying.front().map_or(false, |x| x.block.is_some()) {
+						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						ready.set();
+					}
 				}
 			}
 		}
 	}
 
 	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>) {
-		while !verifying.is_empty() && verifying.front().unwrap().block.is_some() {
-			let block = verifying.pop_front().unwrap().block.unwrap();
+		while let Some(block) = verifying.front_mut().and_then(|x| x.block.take()) {
+			assert!(verifying.pop_front().is_some());
+
 			if bad.contains(block.header.parent_hash()) {
 				bad.insert(block.header.hash());
-			}
-			else {
+			} else {
 				verified.push_back(block);
 			}
 		}
