@@ -159,6 +159,7 @@ impl Engine for AuthorityRound {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
+	fn seals_internally(&self) -> bool { true }
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
