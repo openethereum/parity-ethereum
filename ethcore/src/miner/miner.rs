@@ -16,6 +16,7 @@
 
 use rayon::prelude::*;
 use std::time::{Instant, Duration};
+use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
@@ -175,6 +176,7 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
+	seals_internally: AtomicBool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -195,6 +197,7 @@ impl Miner {
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(20), enabled: false}),
+			seals_internally: AtomicBool::new(spec.engine.seals_internally(&Address::default())),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -214,6 +217,7 @@ impl Miner {
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(options.work_queue_size), enabled: options.force_sealing || !options.new_work_notify.is_empty()}),
+			seals_internally: AtomicBool::new(spec.engine.seals_internally(&Address::default())),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -578,6 +582,7 @@ impl MinerService for Miner {
 	}
 
 	fn set_author(&self, author: Address) {
+		self.seals_internally.store(self.engine.seals_internally(&author), AtomicOrdering::SeqCst);
 		*self.author.write() = author;
 	}
 
@@ -703,7 +708,7 @@ impl MinerService for Miner {
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing.
-			if self.engine.seals_internally() || !self.prepare_work_sealing(chain) {
+			if self.seals_internally.load(AtomicOrdering::SeqCst) || !self.prepare_work_sealing(chain) {
 				// If new block has not been prepared (means we already had one)
 				// or Engine might be able to seal internally,
 				// we need to update sealing.
@@ -821,7 +826,7 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
-			if self.engine.seals_internally() {
+			if self.seals_internally.load(AtomicOrdering::SeqCst) {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
 				self.seal_and_import_block_internally(chain, block);
 			} else {

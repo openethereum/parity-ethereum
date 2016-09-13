@@ -58,7 +58,7 @@ impl Engine for InstantSeal {
 		Schedule::new_homestead()
 	}
 
-	fn seals_internally(&self) -> bool { true }
+	fn seals_internally(&self, _author: &Address) -> bool { true }
 
 	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		Some(Vec::new())

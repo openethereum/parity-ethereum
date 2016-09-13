@@ -99,7 +99,7 @@ impl Engine for BasicAuthority {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
-	fn seals_internally(&self) -> bool { true }
+	fn seals_internally(&self, _author: &Address) -> bool { true }
 
 	/// Attempt to seal the block internally.
 	///
