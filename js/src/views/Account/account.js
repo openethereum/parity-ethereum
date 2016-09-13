@@ -103,11 +103,15 @@ class Account extends Component {
     }
 
     const { address } = this.props.params;
-    const account = this.props.accounts[address];
+    const { accounts, balances } = this.props;
+    const account = accounts[address];
+    const balance = balances[address];
 
     return (
       <Transfer
         account={ account }
+        balance={ balance }
+        balances={ balances }
         onClose={ this.onTransferClose } />
     );
   }

@@ -10,10 +10,6 @@ import Transactions from '../Account/Transactions';
 import styles from './address.css';
 
 class Address extends Component {
-  static contextTypes = {
-
-  }
-
   static propTypes = {
     contacts: PropTypes.object,
     balances: PropTypes.object,

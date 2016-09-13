@@ -14,12 +14,12 @@ const CHECK_STYLE = {
 
 export default class Details extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    balances: PropTypes.object
+    api: PropTypes.object
   }
 
   static propTypes = {
     address: PropTypes.string,
+    balance: PropTypes.object,
     all: PropTypes.bool,
     extras: PropTypes.bool,
     recipient: PropTypes.string,
@@ -97,10 +97,10 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { api, balances } = this.context;
-    const { address, tag } = this.props;
+    const { api } = this.context;
+    const { balance, tag } = this.props;
 
-    const items = balances[address].tokens.map((balance, idx) => {
+    const items = balance.tokens.map((balance, idx) => {
       const token = balance.token;
       const isEth = idx === 0;
       let value = 0;
