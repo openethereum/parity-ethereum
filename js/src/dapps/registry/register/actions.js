@@ -9,8 +9,7 @@ export const fail = (name) => ({ type: 'register error', name });
 export const register = (name) => (dispatch, getState) => {
   const { contract, account } = getState();
   if (!contract || !account) return;
-  const reserve = contract.functions
-    .find((f) => f.name === 'reserve');
+  const reserve = contract.functions.reserve;
 
   const options = {
     from: account.address,
@@ -18,10 +17,10 @@ export const register = (name) => (dispatch, getState) => {
   };
   const values = [ sha3(name) ];
 
+  dispatch(start(name));
   reserve.estimateGas(options, values)
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
-      dispatch(start(name));
       return reserve.postTransaction(options, values);
     })
     .then((data) => {
