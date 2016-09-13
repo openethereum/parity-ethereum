@@ -58,6 +58,8 @@ impl Engine for InstantSeal {
 		Schedule::new_homestead()
 	}
 
+	fn seals_internally(&self) -> bool { true }
+
 	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		Some(Vec::new())
 	}
@@ -71,18 +73,12 @@ mod tests {
 	use spec::Spec;
 	use block::*;
 
-	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_instant() -> Spec {
-		let bytes: &[u8] = include_bytes!("../../res/instant_seal.json");
-		Spec::load(bytes).expect("invalid chain spec")
-	}
-
 	#[test]
 	fn instant_can_seal() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 
-		let spec = new_test_instant();
+		let spec = Spec::new_test_instant();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
@@ -98,7 +94,7 @@ mod tests {
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = new_test_instant().engine;
+		let engine = Spec::new_test_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());
