@@ -4,16 +4,13 @@ import blockies from 'blockies';
 import styles from './identityIcon.css';
 
 export default class IdentityIcon extends Component {
-  static contextTypes = {
-    tokens: PropTypes.array
-  }
-
   static propTypes = {
     address: PropTypes.string,
     className: PropTypes.string,
     center: PropTypes.bool,
     padded: PropTypes.bool,
-    inline: PropTypes.bool
+    inline: PropTypes.bool,
+    tokens: PropTypes.object
   }
 
   state = {
@@ -25,7 +22,9 @@ export default class IdentityIcon extends Component {
   }
 
   componentWillReceiveProps (newProps) {
-    if (newProps.address === this.props.address) {
+    const { address, tokens } = this.props;
+
+    if (newProps.address === address && newProps.tokens === tokens) {
       return;
     }
 
@@ -33,9 +32,8 @@ export default class IdentityIcon extends Component {
   }
 
   updateIcon (_address) {
-    const { tokens } = this.context;
-    const { inline } = this.props;
-    const token = (tokens || []).find((c) => c.address === _address);
+    const { tokens, inline } = this.props;
+    const token = (tokens || {})[_address];
 
     if (token && token.images) {
       this.setState({
