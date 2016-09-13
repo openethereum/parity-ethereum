@@ -54,9 +54,9 @@ export default class Lookup extends Component {
     this.setState({ name: e.target.value });
   };
   onKeyChange = (e) => {
-    this.setState({ key: e.target.value });
+    this.setState({ entry: e.target.value });
   };
   onLookupClick = () => {
-    this.props.actions.lookup(this.state.name, this.state.key);
+    this.props.actions.lookup(this.state.name, this.state.entry);
   };
 }

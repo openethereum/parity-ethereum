@@ -1,6 +1,6 @@
 const initialState = {
   pending: false,
-  name: null, key: null,
+  name: '', entry: '',
   result: null
 };
 
@@ -8,7 +8,7 @@ export default (state = initialState, action) => {
   if (action.type === 'lookup start') {
     return {
       pending: true,
-      name: action.name, key: action.key,
+      name: action.name, entry: action.entry,
       result: null
     };
   }
@@ -16,7 +16,7 @@ export default (state = initialState, action) => {
   if (action.type === 'lookup error') {
     return {
       pending: false,
-      name: null, key: null,
+      name: initialState.name, entry: initialState.entry,
       result: null
     };
   }
@@ -24,7 +24,7 @@ export default (state = initialState, action) => {
   if (action.type === 'lookup success') {
     return {
       pending: false,
-      name: null, key: null,
+      name: initialState.name, entry: initialState.entry,
       result: action.result
     };
   }
