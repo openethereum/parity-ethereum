@@ -34,6 +34,7 @@ use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, Transac
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
+use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -332,6 +333,36 @@ impl Miner {
 			}
 		}
 		(block, original_work_hash)
+	}
+
+	/// Check is reseal is allowed and necessary.
+	fn requires_reseal(&self, best_block: BlockNumber) -> bool {
+		let has_local_transactions = self.transaction_queue.lock().has_local_pending_transactions();
+		let mut sealing_work = self.sealing_work.lock();
+		if sealing_work.enabled {
+			trace!(target: "miner", "requires_reseal: sealing enabled");
+			let last_request = *self.sealing_block_last_request.lock();
+			let should_disable_sealing = !self.forced_sealing()
+				&& !has_local_transactions
+				&& best_block > last_request
+				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
+
+			trace!(target: "miner", "requires_reseal: should_disable_sealing={}; best_block={}, last_request={}", should_disable_sealing, best_block, last_request);
+
+			if should_disable_sealing {
+				trace!(target: "miner", "Miner sleeping (current {}, last {})", best_block, last_request);
+				sealing_work.enabled = false;
+				sealing_work.queue.reset();
+				false
+			} else {
+				// sealing enabled and we don't want to sleep.
+				*self.next_allowed_reseal.lock() = Instant::now() + self.options.reseal_min_period;
+				true
+			}
+		} else {
+			// sealing is disabled.
+			false
+		}
 	}
 
 	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
@@ -777,41 +808,13 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().last_nonce(address)
 	}
 
+
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "update_sealing");
-		let requires_reseal = {
-			let has_local_transactions = self.transaction_queue.lock().has_local_pending_transactions();
-			let mut sealing_work = self.sealing_work.lock();
-			if sealing_work.enabled {
-				trace!(target: "miner", "update_sealing: sealing enabled");
-				let current_no = chain.chain_info().best_block_number;
-				let last_request = *self.sealing_block_last_request.lock();
-				let should_disable_sealing = !self.forced_sealing()
-					&& !has_local_transactions
-					&& current_no > last_request
-					&& current_no - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
-				trace!(target: "miner", "update_sealing: should_disable_sealing={}; current_no={}, last_request={}", should_disable_sealing, current_no, last_request);
-
-				if should_disable_sealing {
-					trace!(target: "miner", "Miner sleeping (current {}, last {})", current_no, last_request);
-					sealing_work.enabled = false;
-					sealing_work.queue.reset();
-					false
-				} else {
-					// sealing enabled and we don't want to sleep.
-					*self.next_allowed_reseal.lock() = Instant::now() + self.options.reseal_min_period;
-					true
-				}
-			} else {
-				// sealing is disabled.
-				false
-			}
-		};
-
-		if requires_reseal {
+		if self.requires_reseal(chain.chain_info().best_block_number) {
 			// --------------------------------------------------------------------------
 			// | NOTE Code below requires transaction_queue and sealing_work locks.     |
 			// | Make sure to release the locks before calling that method.             |
@@ -937,11 +940,12 @@ mod tests {
 	use super::*;
 	use util::*;
 	use ethkey::{Generator, Random};
-	use client::{TestBlockChainClient, EachBlockWith};
-	use client::{TransactionImportResult};
-	use types::transaction::{Transaction, Action};
+	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
+	use header::BlockNumber;
+	use types::transaction::{Transaction, SignedTransaction, Action};
 	use block::*;
 	use spec::Spec;
+	use tests::helpers::{generate_dummy_client};
 
 	#[test]
 	fn should_prepare_block_to_seal() {
@@ -995,23 +999,24 @@ mod tests {
 		)).ok().expect("Miner was just created.")
 	}
 
+	fn transaction() -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret())
+	}
+
 	#[test]
 	fn should_make_pending_block_when_importing_own_transaction() {
 		// given
 		let client = TestBlockChainClient::default();
 		let miner = miner();
-		let transaction = {
-			let keypair = Random.generate().unwrap();
-			Transaction {
-				action: Action::Create,
-				value: U256::zero(),
-				data: "3331600055".from_hex().unwrap(),
-				gas: U256::from(100_000),
-				gas_price: U256::zero(),
-				nonce: U256::zero(),
-			}.sign(keypair.secret())
-		};
-
+		let transaction = transaction();
 		// when
 		let res = miner.import_own_transaction(&client, transaction);
 
@@ -1030,18 +1035,7 @@ mod tests {
 		// given
 		let client = TestBlockChainClient::default();
 		let miner = miner();
-		let transaction = {
-			let keypair = Random.generate().unwrap();
-			Transaction {
-				action: Action::Create,
-				value: U256::zero(),
-				data: "3331600055".from_hex().unwrap(),
-				gas: U256::from(100_000),
-				gas_price: U256::zero(),
-				nonce: U256::zero(),
-			}.sign(keypair.secret())
-		};
-
+		let transaction = transaction();
 		// when
 		let res = miner.import_external_transactions(&client, vec![transaction]).pop().unwrap();
 
@@ -1053,5 +1047,30 @@ mod tests {
 		assert_eq!(miner.pending_receipts().len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert_eq!(miner.prepare_work_sealing(&client), true);
+	}
+
+	#[test]
+	fn internal_seals_without_work() {
+		let miner = Miner::with_spec(&Spec::new_test_instant());
+		{
+			let mut sealing_work = miner.sealing_work.lock();
+			sealing_work.enabled = true;
+		}
+		let c = generate_dummy_client(2);
+		let client = c.reference().as_ref();
+
+		assert_eq!(miner.import_external_transactions(client, vec![transaction()]).pop().unwrap().unwrap(), TransactionImportResult::Current);
+
+		miner.update_sealing(client);
+		client.flush_queue();
+		assert!(miner.pending_block().is_none());
+		assert_eq!(client.chain_info().best_block_number, 3 as BlockNumber);
+
+		assert_eq!(miner.import_own_transaction(client, transaction()).unwrap(), TransactionImportResult::Current);
+
+		miner.update_sealing(client);
+		client.flush_queue();
+		assert!(miner.pending_block().is_none());
+		assert_eq!(client.chain_info().best_block_number, 4 as BlockNumber);
 	}
 }
