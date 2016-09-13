@@ -354,6 +354,10 @@ impl Service {
 		// destroy the old snapshot reader.
 		*reader = None;
 
+		if snapshot_dir.exists() {
+			try!(fs::remove_dir_all(&snapshot_dir));
+		}
+
 		try!(fs::rename(temp_dir, &snapshot_dir));
 
 		*reader = Some(try!(LooseReader::new(snapshot_dir)));
@@ -428,15 +432,10 @@ impl Service {
 
 			let snapshot_dir = self.snapshot_dir();
 
-			trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
-			if let Err(e) = fs::remove_dir_all(&snapshot_dir) {
-				match e.kind() {
-					ErrorKind::NotFound => {}
-					_ => return Err(e.into()),
-				}
+			if snapshot_dir.exists() {
+				trace!(target: "snapshot", "removing old snapshot dir at {}", snapshot_dir.to_string_lossy());
+				try!(fs::remove_dir_all(&snapshot_dir));
 			}
-
-			try!(fs::create_dir(&snapshot_dir));
 
 			trace!(target: "snapshot", "copying restored snapshot files over");
 			try!(fs::rename(self.temp_recovery_dir(), &snapshot_dir));

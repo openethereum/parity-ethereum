@@ -18,13 +18,13 @@
 
 use std::fs;
 use std::sync::{Arc};
-use std::sync::atomic::{AtomicBool, Ordering};
 
 use linked_hash_map::LinkedHashMap;
 use page::LocalPageEndpoint;
+use handlers::FetchControl;
 
 pub enum ContentStatus {
-	Fetching(Arc<AtomicBool>),
+	Fetching(Arc<FetchControl>),
 	Ready(LocalPageEndpoint),
 }
 
@@ -57,10 +57,10 @@ impl ContentCache {
 		while len > expected_size {
 			let entry = self.cache.pop_front().unwrap();
 			match entry.1 {
-				ContentStatus::Fetching(ref abort) => {
+				ContentStatus::Fetching(ref fetch) => {
 					trace!(target: "dapps", "Aborting {} because of limit.", entry.0);
 					// Mark as aborted
-					abort.store(true, Ordering::SeqCst);
+					fetch.abort()
 				},
 				ContentStatus::Ready(ref endpoint) => {
 					trace!(target: "dapps", "Removing {} because of limit.", entry.0);

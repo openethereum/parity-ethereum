@@ -104,7 +104,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			// Redirect any GET request to home.
 			_ if *req.method() == hyper::method::Method::Get => {
 				let address = apps::redirection_address(false, self.main_page);
-				Redirection::new(address.as_str())
+				Redirection::boxed(address.as_str())
 			},
 			// RPC by default
 			_ => {
