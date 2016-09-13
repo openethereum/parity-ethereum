@@ -1,8 +1,8 @@
 import Actionbar from './Actionbar';
-import ApiProvider from './ApiProvider';
 import Badge from './Badge';
 import Balance from './Balance';
 import Container, { Title as ContainerTitle } from './Container';
+import ContextProvider from './ContextProvider';
 import Errors from './Errors';
 import Form, { FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
@@ -14,11 +14,11 @@ import Tooltips, { Tooltip } from './Tooltips';
 
 export {
   Actionbar,
-  ApiProvider,
   Badge,
   Balance,
   Container,
   ContainerTitle,
+  ContextProvider,
   Errors,
   Form,
   FormWrap,
