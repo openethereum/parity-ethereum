@@ -40,8 +40,8 @@ const eventTypes = {
 export default class Events extends Component {
 
   static propTypes = {
-    actions: PropTypes.object,
-    events: PropTypes.array
+    actions: PropTypes.object.isRequired,
+    events: PropTypes.array.isRequired
   }
   componentDidMount () {
     // TODO remove this

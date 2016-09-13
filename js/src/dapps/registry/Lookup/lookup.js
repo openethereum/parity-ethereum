@@ -9,8 +9,10 @@ import styles from './lookup.css';
 export default class Lookup extends Component {
 
   static propTypes = {
-    actions: PropTypes.object,
-    lookup: PropTypes.object
+    actions: PropTypes.object.isRequired,
+    name: PropTypes.string.isRequired,
+    entry: PropTypes.string.isRequired,
+    result: PropTypes.string
   }
 
   state = { name: '', entry: 'A' };

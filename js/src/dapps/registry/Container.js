@@ -7,14 +7,13 @@ import * as actions from './actions';
 
 class Container extends Component {
   static propTypes = {
-    actions: PropTypes.object,
-    accounts: PropTypes.object,
-    account: PropTypes.object,
-    contract: PropTypes.object,
-    owner: PropTypes.string,
-    fee: PropTypes.object,
-    lookup: PropTypes.object,
-    events: PropTypes.array
+    actions: PropTypes.object.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contract: PropTypes.object.isRequired,
+    owner: PropTypes.string.isRequired,
+    fee: PropTypes.object.isRequired,
+    lookup: PropTypes.object.isRequired,
+    events: PropTypes.array.isRequired
   };
 
   componentDidMount () {
