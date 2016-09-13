@@ -1,6 +1,6 @@
 export const start = (name, from, to) => ({ type: 'events subscribe start', name, from, to });
 
-export const event = (name, event) => ({ type: 'events event', name, event });
+export const event = (name, event) => ({ type: 'events event', event: { ...event, type: name } });
 
 export const fail = (name) => ({ type: 'events subscribe fail', name });
 
@@ -19,6 +19,7 @@ export const subscribe = (name, from = 0, to = 'latest') =>
           key: '' + e.transactionHash + e.logIndex,
           state: e.type,
           block: e.blockNumber,
+          index: e.logIndex,
           transaction: e.transactionHash,
           parameters: e.params
         };

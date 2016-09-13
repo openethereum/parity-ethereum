@@ -6,18 +6,37 @@ const { IdentityIcon } = window.parity.react;
 import styles from './events.css';
 import bytesToHex from '../../../api/util/bytes-array-to-hex';
 
+const renderOwner = (owner) => (
+  <span className={ styles.owner }>
+    <IdentityIcon inline center address={ owner } />
+    <code>{ owner }</code>
+  </span>
+);
+
 const renderReserved = (e) => (
   <p key={ e.key } className={ styles.reserved }>
-    <div className={ styles.owner }>
-      <IdentityIcon inline center address={ e.parameters.owner } />
-      <code>{ e.parameters.owner }</code>
-    </div>
+    { renderOwner(e.parameters.owner) }
     { ' ' }
-    <abbr title={ e.transaction }>registered</abbr>
+    <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
     <code>{ bytesToHex(e.parameters.name) }</code>
   </p>
 );
+
+const renderDropped = (e) => (
+  <p key={ e.key } className={ styles.dropped }>
+    { renderOwner(e.parameters.owner) }
+    { ' ' }
+    <abbr title={ e.transaction }>dropped</abbr>
+    { ' ' }
+    <code>{ bytesToHex(e.parameters.name) }</code>
+  </p>
+);
+
+const eventTypes = {
+  Reserved: renderReserved,
+  Dropped: renderDropped
+};
 
 export default class Events extends Component {
 
@@ -28,6 +47,7 @@ export default class Events extends Component {
   componentDidMount () {
     // TODO remove this
     this.props.actions.subscribe('Reserved', 0, 'latest');
+    this.props.actions.subscribe('Dropped', 0, 'latest');
   }
 
   render () {
@@ -36,8 +56,8 @@ export default class Events extends Component {
         <CardHeader title="Stuff Happening" />
         <CardText>{
           this.props.events
-            .filter((e) => e.state === 'mined')
-            .map(renderReserved)
+            .filter((e) => eventTypes[e.type])
+            .map((e) => eventTypes[e.type](e))
         }</CardText>
       </Card>
     );

@@ -2,19 +2,21 @@
   margin: 1em;
 }
 
-.reserved {
-  display: flex;
+.reserved, .dropped {
   margin: .5em 0;
+  display: flex;
   justify-content: space-between;
+  flex-wrap: wrap;
   align-items: center;
+}
+
+.reserved abbr, .dropped abbr {
+  cursor: help;
 }
 
 .owner code {
   display: inline-block;
   vertical-align: top;
   line-height: 32px;
-}
-
-.reserved abbr {
-  cursor: help;
+  word-wrap: break-word;
 }
