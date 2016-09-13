@@ -35,38 +35,40 @@ export default function (apikey) {
       });
   }
 
+  function get (method) {
+    return call(method, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+  }
+
+  function post (method, data) {
+    const params = {
+      apiKey: apikey
+    };
+
+    Object.keys(data).forEach((key) => {
+      params[key] = data[key];
+    });
+
+    const json = JSON.stringify(params);
+
+    return call(method, {
+      method: 'POST',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Content-Length': json.length
+      },
+      body: json
+    });
+  }
+
   return {
-    ENDPOINT: ENDPOINT,
-
-    get: function (method) {
-      return call(method, {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
-    },
-
-    post: function (method, data) {
-      const params = {
-        apiKey: apikey
-      };
-
-      Object.keys(data).forEach((key) => {
-        params[key] = data[key];
-      });
-
-      const json = JSON.stringify(params);
-
-      return call(method, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'Content-Length': json.length
-        },
-        body: json
-      });
-    }
+    ENDPOINT,
+    get,
+    post
   };
 }

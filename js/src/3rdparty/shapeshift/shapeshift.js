@@ -15,25 +15,30 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default function (rpc) {
+  function getCoins () {
+    return rpc.get('getcoins');
+  }
+
+  function getMarketInfo (pair) {
+    return rpc.get(`marketinfo/${pair}`);
+  }
+
+  function getStatus (depositAddress) {
+    return rpc.get(`txStat/${depositAddress}`);
+  }
+
+  function shift (toAddress, returnAddress, pair) {
+    return rpc.post('shift', {
+      withdrawal: toAddress,
+      pair: pair,
+      returnAddress: returnAddress
+    });
+  }
+
   return {
-    getCoins: function () {
-      return rpc.get('getcoins');
-    },
-
-    getMarketInfo: function (pair) {
-      return rpc.get(`marketinfo/${pair}`);
-    },
-
-    getStatus: function (depositAddress) {
-      return rpc.get(`txStat/${depositAddress}`);
-    },
-
-    shift: function (toAddress, returnAddress, pair) {
-      return rpc.post('shift', {
-        withdrawal: toAddress,
-        pair: pair,
-        returnAddress: returnAddress
-      });
-    }
+    getCoins,
+    getMarketInfo,
+    getStatus,
+    shift
   };
 }
