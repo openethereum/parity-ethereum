@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import Balances from '../../../ui/Balances';
-import { Container, ContainerTitle, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -11,6 +10,7 @@ export default class Summary extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    balance: PropTypes.object.isRequired,
     contact: PropTypes.bool,
     children: PropTypes.node
   }
@@ -20,7 +20,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, children, contact } = this.props;
+    const { account, balance, children, contact } = this.props;
 
     if (!account) {
       return null;
@@ -35,8 +35,8 @@ export default class Summary extends Component {
         <ContainerTitle
           title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
           byline={ account.address } />
-        <Balances
-          account={ account } />
+        <Balance
+          balance={ balance } />
         { children }
       </Container>
     );

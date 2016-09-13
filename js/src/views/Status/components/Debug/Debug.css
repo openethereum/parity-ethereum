@@ -2,8 +2,8 @@
   margin-top: 0;
 }
 
-.inputTrigger { 
-  display: none; 
+.inputTrigger {
+  display: none;
   left: 310px;
   bottom: 4px;
   position: absolute;
@@ -11,8 +11,8 @@
   animation: fadein .3s;
 }
 
-*:hover > .inputTrigger { 
-  display: block; 
+*:hover > .inputTrigger {
+  display: block;
 }
 
 @keyframes fadein {
@@ -22,16 +22,18 @@
 
 .logs {
   width: 100%;
-  overflow: auto;
-  height: 50vh;
-  min-height: 400px;
-  background: #F5F4F2;
+}
+
+.stopped {
+  color: #aaa;
+  padding: 1em 0;
 }
 
 .log {
   margin: 0;
   white-space: nowrap;
   overflow: visible;
+  color: #aaa;
 }
 
 .container {
@@ -40,13 +42,6 @@
 
 .actions {
   float: right;
-  opacity: 0;
-  transition: opacity ease-in-out .5s;
-  transition-delay: 0.2s;
-}
-
-div:hover > .actions {
-  opacity: 1;
 }
 
 .actions a {

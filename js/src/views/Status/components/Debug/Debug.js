@@ -1,63 +1,98 @@
-
 import React, { Component, PropTypes } from 'react';
+import AvPause from 'material-ui/svg-icons/av/pause';
+import AvPlay from 'material-ui/svg-icons/av/play-arrow';
+import AvReplay from 'material-ui/svg-icons/av/replay';
+
+import { Container, ContainerTitle } from '../../../../ui';
 
 import styles from './Debug.css';
 
 export default class Debug extends Component {
+  static propTypes = {
+    actions: PropTypes.shape({
+      clearStatusLogs: PropTypes.func.isRequired,
+      toggleStatusLogs: PropTypes.func.isRequired
+    }).isRequired,
+    nodeStatus: PropTypes.object.isRequired
+  }
 
   render () {
+    const { nodeStatus } = this.props;
+    const { devLogsLevels } = nodeStatus;
+
     return (
-      <div className='dapp-flex-content'>
-        <main className={ `dapp-content ${styles.container}` }>
-          <div className={ 'dapp-container' }>
-            <h1><span>Debugging</span> logs</h1>
-            { this.renderActions() }
-            <h2 className={ styles.subheader }>{ this.props.statusDebug.levels || '-' }</h2>
-            <div className={ styles.logs }>
-              { this.renderLogs() }
-            </div>
-          </div>
-        </main>
+      <Container>
+        <ContainerTitle
+          title='Node Logs' />
+        { this.renderActions() }
+        <h2 className={ styles.subheader }>
+          { devLogsLevels || '-' }
+        </h2>
+        { this.renderToggle() }
+        { this.renderLogs() }
+      </Container>
+    );
+  }
+
+  renderToggle () {
+    const { devLogsEnabled } = this.props.nodeStatus;
+
+    if (devLogsEnabled) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.stopped }>
+        Refresh and display of logs from Parity is currently stopped via the UI, start it to see the latest updates.
       </div>
     );
   }
 
   renderLogs () {
-    return this.props.statusDebug.logs.map((log, idx) => (
+    const { nodeStatus } = this.props;
+    const { devLogs } = nodeStatus;
+
+    if (!devLogs) {
+      return null;
+    }
+
+    const logs = devLogs.map((log, idx) => (
       <pre className={ styles.log } key={ idx }>
         { log }
       </pre>
     ));
+
+    return (
+      <div className={ styles.logs }>
+        { logs }
+      </div>
+    );
   }
 
   renderActions () {
-    const toggleClass = this.props.statusDebug.logging ? 'icon-control-pause' : 'icon-control-play';
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const toggleButton = devLogsEnabled
+      ? <AvPause />
+      : <AvPlay />;
+
     return (
       <div className={ styles.actions }>
-        <a><i onClick={ this.toggle } className={ toggleClass }></i></a>
-        <a><i onClick={ this.clear } className='icon-trash'></i></a>
+        <a onClick={ this.toggle }>{ toggleButton }</a>
+        <a onClick={ this.clear }><AvReplay /></a>
       </div>
     );
   }
 
   clear = () => {
-    this.props.actions.removeDevLogs();
+    const { clearStatusLogs } = this.props.actions;
+
+    clearStatusLogs();
   }
 
   toggle = () => {
-    this.props.actions.updateDevLogging(!this.props.statusDebug.logging);
-  }
+    const { devLogsEnabled } = this.props.nodeStatus;
+    const { toggleStatusLogs } = this.props.actions;
 
-  static propTypes = {
-    actions: PropTypes.shape({
-      removeDevLogs: PropTypes.func.isRequired,
-      updateDevLogging: PropTypes.func.isRequired
-    }).isRequired,
-    statusDebug: PropTypes.shape({
-      levels: PropTypes.string.isRequired,
-      logging: PropTypes.bool.isRequired,
-      logs: PropTypes.arrayOf(PropTypes.string).isRequired
-    }).isRequired
+    toggleStatusLogs(!devLogsEnabled);
   }
-
 }

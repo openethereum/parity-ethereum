@@ -1,21 +1,18 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import styles from './Account.css';
 
-import { retrieveAccount } from '../../../../util';
 import { IdentityIcon } from '../../../../ui';
 import AccountLink from './AccountLink';
 
-export default class Account extends Component {
-  static contextTypes = {
-    accounts: PropTypes.array,
-    contacts: PropTypes.array,
-    contracts: PropTypes.array,
-    tokens: PropTypes.array
-  }
-
+class Account extends Component {
   static propTypes = {
     className: PropTypes.string,
+    accounts: PropTypes.object,
+    contacts: PropTypes.object,
+    tokens: PropTypes.object,
     address: PropTypes.string.isRequired,
     chain: PropTypes.string.isRequired,
     balance: PropTypes.object // eth BigNumber, not required since it mght take time to fetch
@@ -96,11 +93,12 @@ export default class Account extends Component {
   }
 
   _retrieveName () {
-    const { accounts, contacts, contracts, tokens } = this.context;
-    const { address } = this.props;
-    const account = retrieveAccount(address, accounts, contacts, contracts, tokens);
+    const { address, accounts, contacts, tokens } = this.props;
+    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
 
-    return account ? account.name : null;
+    return account
+      ? account.name
+      : null;
   }
 
   tinyAddress () {
@@ -115,3 +113,23 @@ export default class Account extends Component {
     return address.slice(2, 8) + '..' + address.slice(len - 7);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts, contacts } = state.personal;
+  const { tokens } = state.balances;
+
+  return {
+    accounts,
+    contacts,
+    tokens
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Account);

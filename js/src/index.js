@@ -10,19 +10,15 @@ import MuiThemeProvider from 'material-ui/styles/MuiThemeProvider';
 
 import Web3 from 'web3';
 
+import Api from './api';
 import { initStore } from './redux';
-import { muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer } from './views';
+import { ApiProvider, muiTheme } from './ui';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer, Status } from './views';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
 import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
-
-// TODO: same with Status...
-import { Web3Provider as StatusWeb3Provider } from './views/Status/provider/web3-provider';
-import StatusEthcoreWeb3 from './views/Status/provider/web3-ethcore-provider';
-import Status from './views/Status/containers/Container';
 
 import './environment';
 
@@ -31,6 +27,8 @@ import './index.html';
 
 es6Promise.polyfill();
 injectTapEventPlugin();
+
+const api = new Api(new Api.Transport.Http('/rpc/'));
 
 // signer
 function tokenSetter (token, cb) {
@@ -43,43 +41,38 @@ const ws = new Ws(parityUrl);
 const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
 
-// status
-const web3 = new Web3(new Web3.providers.HttpProvider(process.env.RPC_ADDRESS || '/rpc/'));
-const ethcoreWeb3 = new StatusEthcoreWeb3(web3);
-
-const store = initStore(ws, tokenSetter, web3);
+const store = initStore(api, ws, tokenSetter);
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new
 new SignerDataProvider(store, ws); // eslint-disable-line no-new
 ws.init(initToken);
 
-// status
-new StatusWeb3Provider(web3, ethcoreWeb3, store).start();
-
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
   <Provider store={ store }>
     <MuiThemeProvider muiTheme={ muiTheme }>
-      <SignerWeb3Provider web3={ web3ws }>
-        <Router className={ styles.reset } history={ routerHistory }>
-          <Redirect from='/' to='/accounts' />
-          <Route path='/' component={ Application }>
-            <Route path='accounts' component={ Accounts } />
-            <Route path='account/:address' component={ Account } />
-            <Route path='addresses' component={ Addresses } />
-            <Route path='address/:address' component={ Address } />
-            <Route path='apps' component={ Dapps } />
-            <Route path='app/:name' component={ Dapp } />
-            <Route path='contracts' component={ Contracts } />
-            <Route path='contract/:address' component={ Contract } />
-            <Route path='signer' component={ Signer } />
-            <Route path='status' component={ Status } />
-            <Route path='status/:subpage' component={ Status } />
-          </Route>
-        </Router>
-      </SignerWeb3Provider>
+      <ApiProvider api={ api }>
+        <SignerWeb3Provider web3={ web3ws }>
+          <Router className={ styles.reset } history={ routerHistory }>
+            <Redirect from='/' to='/accounts' />
+            <Route path='/' component={ Application }>
+              <Route path='accounts' component={ Accounts } />
+              <Route path='account/:address' component={ Account } />
+              <Route path='addresses' component={ Addresses } />
+              <Route path='address/:address' component={ Address } />
+              <Route path='apps' component={ Dapps } />
+              <Route path='app/:name' component={ Dapp } />
+              <Route path='contracts' component={ Contracts } />
+              <Route path='contract/:address' component={ Contract } />
+              <Route path='signer' component={ Signer } />
+              <Route path='status' component={ Status } />
+              <Route path='status/:subpage' component={ Status } />
+            </Route>
+          </Router>
+        </SignerWeb3Provider>
+      </ApiProvider>
     </MuiThemeProvider>
   </Provider>,
   document.querySelector('#container')

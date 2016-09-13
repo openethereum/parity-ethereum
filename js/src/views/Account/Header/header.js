@@ -1,7 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { Balances, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../../ui';
 
 import styles from './header.css';
 
@@ -9,12 +9,13 @@ const DEFAULT_NAME = 'Unnamed';
 
 export default class Header extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    balances: PropTypes.object
+    api: PropTypes.object
   }
 
   static propTypes = {
-    account: PropTypes.object
+    account: PropTypes.object,
+    balance: PropTypes.object,
+    isTest: PropTypes.bool
   }
 
   state = {
@@ -30,11 +31,9 @@ export default class Header extends Component {
   }
 
   render () {
-    const { balances } = this.context;
-    const { account } = this.props;
+    const { account, balance } = this.props;
     const { address } = account;
     const { name } = this.state;
-    const balance = balances[address];
 
     if (!account) {
       return null;
@@ -55,11 +54,12 @@ export default class Header extends Component {
             <div className={ styles.infoline }>
               { address }
             </div>
-            { this.renderTxCount(balance) }
+            { this.renderTxCount() }
           </div>
           <div className={ styles.balances }>
-            <Balances
-              account={ account } />
+            <Balance
+              account={ account }
+              balance={ balance } />
           </div>
         </Form>
       </Container>
@@ -79,14 +79,18 @@ export default class Header extends Component {
     );
   }
 
-  renderTxCount (balance) {
+  renderTxCount () {
+    const { isTest, balance } = this.props;
+
     if (!balance) {
       return null;
     }
 
+    const txCount = balance.txCount.sub(isTest ? 0x100000 : 0);
+
     return (
       <div className={ styles.infoline }>
-        { balance.txCount.toFormat() } outgoing transactions
+        { txCount.toFormat() } outgoing transactions
       </div>
     );
   }

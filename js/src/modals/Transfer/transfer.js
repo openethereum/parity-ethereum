@@ -30,12 +30,13 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
 class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    balances: PropTypes.object
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object,
+    balance: PropTypes.object,
+    balances: PropTypes.object,
     onClose: PropTypes.func,
     onNewError: PropTypes.func
   }
@@ -126,10 +127,13 @@ class Transfer extends Component {
   }
 
   renderDetailsPage () {
+    const { account, balance } = this.props;
+
     return (
       <Details
-        address={ this.props.account.address }
+        address={ account.address }
         all={ this.state.valueAll }
+        balance={ balance }
         extras={ this.state.extras }
         recipient={ this.state.recipient }
         recipientError={ this.state.recipientError }
@@ -305,12 +309,11 @@ class Transfer extends Component {
   }
 
   _onUpdateTag (tag) {
-    const { balances } = this.context;
-    const { account } = this.props;
+    const { balance } = this.props;
 
     this.setState({
       tag,
-      isEth: tag === balances[account.address].tokens[0].token.tag
+      isEth: tag === balance.tokens[0].token.tag
     }, this.recalculateGas);
   }
 
@@ -367,14 +370,13 @@ class Transfer extends Component {
       options.data = data;
     }
 
-    return this.context.api.eth.postTransaction(options);
+    return api.eth.postTransaction(options);
   }
 
   _sendToken () {
-    const { balances } = this.context;
-    const { account } = this.props;
+    const { account, balance } = this.props;
     const { recipient, value, tag } = this.state;
-    const token = balances[account.address].tokens.find((balance) => balance.token.tag === tag).token;
+    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
@@ -418,10 +420,9 @@ class Transfer extends Component {
   }
 
   _estimateGasToken () {
-    const { balances } = this.context;
-    const { account } = this.props;
+    const { account, balance } = this.props;
     const { recipient, value, tag } = this.state;
-    const token = balances[account.address].tokens.find((balance) => balance.token.tag === tag).token;
+    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .estimateGas({
@@ -449,7 +450,7 @@ class Transfer extends Component {
       options.data = data;
     }
 
-    return this.context.api.eth.estimateGas(options);
+    return api.eth.estimateGas(options);
   }
 
   recalculateGas = () => {
@@ -475,19 +476,18 @@ class Transfer extends Component {
 
   recalculate = () => {
     const { api } = this.context;
-    const { account } = this.props;
+    const { account, balance } = this.props;
 
-    if (!account) {
+    if (!account || !balance) {
       return;
     }
 
     const { gas, gasPrice, tag, valueAll, isEth } = this.state;
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
-    const balances = this.context.balances[account.address].tokens;
-    const balance = balances.find((balance) => tag === balance.token.tag);
-    const availableEth = new BigNumber(balances[0].value);
-    const available = new BigNumber(balance.value);
-    const format = new BigNumber(balance.token.format || 1);
+    const balance_ = balance.tokens.find((b) => tag === b.token.tag);
+    const availableEth = new BigNumber(balance_.value);
+    const available = new BigNumber(balance_.value);
+    const format = new BigNumber(balance_.token.format || 1);
 
     let { value, valueError } = this.state;
     let totalEth = gasTotal;
@@ -525,7 +525,7 @@ class Transfer extends Component {
   }
 
   getDefaults = () => {
-    const api = this.context.api;
+    const { api } = this.context;
 
     api.eth
       .gasPrice()

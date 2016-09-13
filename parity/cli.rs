@@ -33,7 +33,7 @@ Usage:
   parity export [ <file> ] [options]
   parity signer new-token [options]
   parity snapshot <file> [options]
-  parity restore <file> [options]
+  parity restore [ <file> ] [options]
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:

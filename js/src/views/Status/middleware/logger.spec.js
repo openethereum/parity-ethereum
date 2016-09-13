@@ -3,7 +3,7 @@ import logger from './logger';
 
 describe('MIDDLEWARE: LOGGER', () => {
   describe('MIDDLEWARE', () => {
-    const state = { logger: { logging: true } };
+    const state = { statusLogger: { logging: true } };
 
     beforeEach('spy console', () => {
       sinon.spy(console, 'log');

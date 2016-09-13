@@ -1,6 +1,6 @@
 import sinon from 'sinon';
 
-import { isArray, isFunction, isInstanceOf, isString } from './types';
+import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
 import Eth from '../rpc/eth';
 
 describe('api/util/types', () => {
@@ -25,6 +25,20 @@ describe('api/util/types', () => {
 
     it('correctly identifies function as true', () => {
       expect(isFunction(sinon.stub())).to.be.true;
+    });
+  });
+
+  describe('isHex', () => {
+    it('correctly identifies hex by leading 0x', () => {
+      expect(isHex('0x123')).to.be.true;
+    });
+
+    it('correctly identifies hex without leading 0x', () => {
+      expect(isHex('123')).to.be.true;
+    });
+
+    it('correctly identifies non-hex values', () => {
+      expect(isHex('123j')).to.be.false;
     });
   });
 

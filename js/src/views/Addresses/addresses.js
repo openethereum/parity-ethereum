@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
@@ -8,10 +10,15 @@ import { Actionbar, Page } from '../../ui';
 
 import styles from './addresses.css';
 
-export default class Addresses extends Component {
+class Addresses extends Component {
   static contextTypes = {
-    api: PropTypes.object,
-    contacts: PropTypes.array
+    api: PropTypes.object
+  }
+
+  static propTypes = {
+    balances: PropTypes.object,
+    contacts: PropTypes.object,
+    hasContacts: PropTypes.bool
   }
 
   state = {
@@ -19,7 +26,7 @@ export default class Addresses extends Component {
   }
 
   render () {
-    const { contacts } = this.context;
+    const { balances, contacts, hasContacts } = this.props;
 
     return (
       <div className={ styles.addresses }>
@@ -28,7 +35,9 @@ export default class Addresses extends Component {
         <Page>
           <List
             contact
-            accounts={ contacts } />
+            accounts={ contacts }
+            balances={ balances }
+            empty={ !hasContacts } />
         </Page>
       </div>
     );
@@ -88,3 +97,23 @@ export default class Addresses extends Component {
     }
   }
 }
+
+function mapStateToProps (state) {
+  const { balances } = state.balances;
+  const { contacts, hasContacts } = state.personal;
+
+  return {
+    balances,
+    contacts,
+    hasContacts
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Addresses);

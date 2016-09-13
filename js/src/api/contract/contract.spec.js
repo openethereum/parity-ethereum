@@ -35,11 +35,11 @@ describe('api/contract/Contract', () => {
 
   describe('constructor', () => {
     it('needs an EthAbi instance', () => {
-      expect(() => new Contract()).to.throw(/EthApi needs to be provided/);
+      expect(() => new Contract()).to.throw(/API instance needs to be provided to Contract/);
     });
 
     it('needs an ABI', () => {
-      expect(() => new Contract(eth)).to.throw(/Object ABI needs/);
+      expect(() => new Contract(eth)).to.throw(/ABI needs to be provided to Contract instance/);
     });
 
     describe('internal setup', () => {
@@ -47,7 +47,7 @@ describe('api/contract/Contract', () => {
 
       it('sets EthApi & parsed interface', () => {
         expect(contract.address).to.not.be.ok;
-        expect(contract.eth).to.deep.equal(eth);
+        expect(contract.api).to.deep.equal(eth);
         expect(isInstanceOf(contract.abi, Abi)).to.be.ok;
       });
 
@@ -151,8 +151,11 @@ describe('api/contract/Contract', () => {
         transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
         transactionIndex: '0x0'
       });
+      const log = decoded.logs[0];
 
-      expect(decoded.logs[0].params).to.deep.equal({
+      expect(log.event).to.equal('Message');
+      expect(log.address).to.equal('0xfa64203C044691aA57251aF95f4b48d85eC00Dd5');
+      expect(log.params).to.deep.equal({
         at: new BigNumber('1457965151'),
         message: 'post(message)',
         messageId: new BigNumber('281474976731085'),
@@ -277,6 +280,20 @@ describe('api/contract/Contract', () => {
       contract.at(ADDR);
       cons = contract.constructors[0];
       func = contract.functions.find((fn) => fn.name === 'test');
+    });
+
+    describe('_addOptionsTo', () => {
+      it('works on no object specified', () => {
+        expect(contract._addOptionsTo()).to.deep.equal({ to: ADDR });
+      });
+
+      it('uses the contract address when none specified', () => {
+        expect(contract._addOptionsTo({ from: 'me' })).to.deep.equal({ to: ADDR, from: 'me' });
+      });
+
+      it('overrides the contract address when specified', () => {
+        expect(contract._addOptionsTo({ to: 'you', from: 'me' })).to.deep.equal({ to: 'you', from: 'me' });
+      });
     });
 
     describe('attachments', () => {

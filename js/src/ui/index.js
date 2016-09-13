@@ -1,6 +1,7 @@
 import Actionbar from './Actionbar';
+import ApiProvider from './ApiProvider';
 import Badge from './Badge';
-import Balances from './Balances';
+import Balance from './Balance';
 import Container, { Title as ContainerTitle } from './Container';
 import Errors from './Errors';
 import Form, { FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
@@ -13,8 +14,9 @@ import Tooltips, { Tooltip } from './Tooltips';
 
 export {
   Actionbar,
+  ApiProvider,
   Badge,
-  Balances,
+  Balance,
   Container,
   ContainerTitle,
   Errors,

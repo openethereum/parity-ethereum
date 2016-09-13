@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { MenuItem, Toggle } from 'material-ui';
 
 import IdentityIcon from '../../IdentityIcon';
@@ -7,13 +9,9 @@ import Select from '../Select';
 
 import styles from './inputAddressSelect.css';
 
-export default class InputAddressSelect extends Component {
-  static contextTypes = {
-    accounts: PropTypes.array.isRequired,
-    contacts: PropTypes.array.isRequired
-  };
-
+class InputAddressSelect extends Component {
   static propTypes = {
+    entries: PropTypes.array,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
@@ -100,12 +98,9 @@ export default class InputAddressSelect extends Component {
   }
 
   renderSelectAccounts () {
-    const { accounts, contacts } = this.context;
+    const { entries } = this.props;
 
-    const entriesAccounts = accounts.map(this.renderAccountItem);
-    const entriesContacts = contacts.map(this.renderAccountItem);
-
-    return entriesAccounts.concat(entriesContacts);
+    return entries.map(this.renderAccountItem);
   }
 
   onToggle = () => {
@@ -121,10 +116,26 @@ export default class InputAddressSelect extends Component {
   }
 
   onChangeSelect = (event, idx) => {
-    const { accounts, contacts } = this.context;
-    const entries = accounts.concat(contacts);
+    const { entries } = this.props;
     console.log(entries[idx].address);
 
     this.props.onChange(event, entries[idx].address);
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts, contacts } = state.personal;
+
+  return {
+    entries: Object.values(accounts).concat(Object.values(contacts))
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(InputAddressSelect);

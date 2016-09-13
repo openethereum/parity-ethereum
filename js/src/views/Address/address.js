@@ -1,4 +1,6 @@
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { Actionbar, Page } from '../../ui';
 
@@ -7,19 +9,20 @@ import Transactions from '../Account/Transactions';
 
 import styles from './address.css';
 
-export default class Address extends Component {
-  static contextTypes = {
-    contacts: PropTypes.array
-  }
-
+class Address extends Component {
   static propTypes = {
+    contacts: PropTypes.object,
+    balances: PropTypes.object,
+    isTest: PropTypes.bool,
     params: PropTypes.object
   }
 
   render () {
-    const { contacts } = this.context;
+    const { contacts, balances, isTest } = this.props;
     const { address } = this.props.params;
-    const contact = contacts.find((_account) => _account.address === address);
+
+    const contact = (contacts || {})[address];
+    const balance = (balances || {})[address];
 
     if (!contact) {
       return null;
@@ -30,7 +33,9 @@ export default class Address extends Component {
         { this.renderActionbar() }
         <Page>
           <Header
-            account={ contact } />
+            isTest={ isTest }
+            account={ contact }
+            balance={ balance } />
           <Transactions
             address={ address } />
         </Page>
@@ -49,3 +54,24 @@ export default class Address extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { contacts } = state.personal;
+  const { balances } = state.balances;
+  const { isTest } = state.nodeStatus;
+
+  return {
+    isTest,
+    contacts,
+    balances
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Address);

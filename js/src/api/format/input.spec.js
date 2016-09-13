@@ -56,6 +56,10 @@ describe('api/format/input', () => {
     it('formats to hex', () => {
       expect(inData('123456')).to.equal('0x123456');
     });
+
+    it('converts a string to a hex representation', () => {
+      expect(inData('jaco')).to.equal('0x6a61636f');
+    });
   });
 
   describe('inHex', () => {
