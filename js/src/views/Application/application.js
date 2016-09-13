@@ -5,7 +5,7 @@ import { bindActionCreators } from 'redux';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
-import Status, { updateNodeStatus } from './Status';
+import Status from './Status';
 import TabBar from './TabBar';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
@@ -19,7 +19,6 @@ class Application extends Component {
     children: PropTypes.node,
     netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    onUpdateNodeStatus: PropTypes.func,
     pending: PropTypes.array
   }
 
@@ -28,7 +27,7 @@ class Application extends Component {
   }
 
   componentWillMount () {
-    this.pollStatus();
+    this.checkAccounts();
   }
 
   render () {
@@ -62,37 +61,18 @@ class Application extends Component {
     );
   }
 
-  pollStatus () {
+  checkAccounts () {
     const { api } = this.context;
-    const { onUpdateNodeStatus } = this.props;
-    const nextTimeout = () => setTimeout(() => this.pollStatus(), 1000);
 
-    Promise
-      .all([
-        api.eth.blockNumber(),
-        api.web3.clientVersion(),
-        api.ethcore.netChain(),
-        api.ethcore.netPeers(),
-        api.eth.syncing()
-      ])
-      .then(([blockNumber, clientVersion, netChain, netPeers, syncing]) => {
-        const isTest = netChain === 'morden' || netChain === 'testnet';
-
-        onUpdateNodeStatus({
-          blockNumber,
-          clientVersion,
-          netChain,
-          netPeers,
-          isTest,
-          syncing
+    api.personal
+      .listAccounts()
+      .then((accounts) => {
+        this.setState({
+          showFirst: accounts.length === 0
         });
-
-        nextTimeout();
       })
       .catch((error) => {
-        console.error('pollStatus', error);
-
-        nextTimeout();
+        console.error('checkAccounts', error);
       });
   }
 
@@ -117,9 +97,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    onUpdateNodeStatus: updateNodeStatus
-  }, dispatch);
+  return bindActionCreators({}, dispatch);
 }
 
 export default connect(

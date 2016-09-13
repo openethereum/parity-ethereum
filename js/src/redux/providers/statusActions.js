@@ -1,0 +1,20 @@
+export function statusBlockNumber (blockNumber) {
+  return {
+    type: 'statusBlockNumber',
+    blockNumber
+  };
+}
+
+export function statusCollection (collection) {
+  return {
+    type: 'statusCollection',
+    collection
+  };
+}
+
+export function statusLogs (logInfo) {
+  return {
+    type: 'statusLogs',
+    logInfo
+  };
+}
