@@ -159,7 +159,7 @@ impl Engine for AuthorityRound {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
-	fn seals_internally(&self) -> bool { true }
+	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
@@ -248,22 +248,16 @@ mod tests {
 	use std::thread::sleep;
 	use std::time::Duration;
 
-	/// Create a new test chain spec with `AuthorityRound` consensus engine.
-	fn new_test_authority() -> Spec {
-		let bytes: &[u8] = include_bytes!("../../res/authority_round.json");
-		Spec::load(bytes).expect("invalid chain spec")
-	}
-
 	#[test]
 	fn has_valid_metadata() {
-		let engine = new_test_authority().engine;
+		let engine = Spec::new_test_round().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = new_test_authority().engine;
+		let engine = Spec::new_test_round().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: 0.into(),
@@ -279,7 +273,7 @@ mod tests {
 
 	#[test]
 	fn verification_fails_on_short_seal() {
-		let engine = new_test_authority().engine;
+		let engine = Spec::new_test_round().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -293,7 +287,7 @@ mod tests {
 
 	#[test]
 	fn can_do_signature_verification_fail() {
-		let engine = new_test_authority().engine;
+		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![encode(&H520::default()).to_vec()]);
 
@@ -307,7 +301,7 @@ mod tests {
 		let addr = tap.insert_account("1".sha3(), "1").unwrap();
 		tap.unlock_account_permanently(addr, "1".into()).unwrap();
 
-		let spec = new_test_authority();
+		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
@@ -322,7 +316,7 @@ mod tests {
 
 	#[test]
 	fn proposer_switching() {
-		let engine = new_test_authority().engine;
+		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("0".sha3(), "0").unwrap();
