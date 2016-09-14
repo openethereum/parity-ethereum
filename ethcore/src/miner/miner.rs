@@ -188,33 +188,14 @@ pub struct Miner {
 }
 
 impl Miner {
-	/// Creates new instance of miner without accounts, but with given spec.
-	pub fn with_spec(spec: &Spec) -> Miner {
-		Miner {
-			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
-			options: Default::default(),
-			next_allowed_reseal: Mutex::new(Instant::now()),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{
-				queue: UsingQueue::new(20),
-				enabled: spec.engine.is_default_sealer().unwrap_or(false)
-			}),
-			seals_internally: spec.engine.is_default_sealer().is_some(),
-			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
-			engine: spec.engine.clone(),
-			work_poster: None,
-			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
-		}
-	}
-
-	/// Creates new instance of miner
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
+	/// Creates new instance of miner.
+	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+		let work_poster = match options.new_work_notify.is_empty() {
+			true => None,
+			false => Some(WorkPoster::new(&options.new_work_notify))
+		};
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
-		Arc::new(Miner {
+		Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
@@ -233,7 +214,17 @@ impl Miner {
 			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
-		})
+		}
+	}
+
+	/// Creates new instance of miner without accounts, but with given spec.
+	pub fn with_spec(spec: &Spec) -> Miner {
+		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, None)
+	}
+
+	/// Creates new instance of a miner Arc.
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+		Arc::new_raw(Miner::new(options, gas_pricer, spec, accounts)
 	}
 
 	fn forced_sealing(&self) -> bool {
