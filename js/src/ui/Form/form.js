@@ -20,7 +20,7 @@ import styles from './form.css';
 
 export default class Form extends Component {
   static propTypes = {
-    children: PropTypes.array
+    children: PropTypes.node
   }
 
   render () {
