@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default function (rpc) {
+  const subscriptions = [];
+
   function getCoins () {
     return rpc.get('getcoins');
   }
@@ -35,10 +37,52 @@ export default function (rpc) {
     });
   }
 
+  function subscribe (depositAddress, callback) {
+    const idx = subscriptions.length;
+
+    subscriptions.push({
+      depositAddress,
+      callback,
+      idx
+    });
+
+    return idx;
+  }
+
+  function _getStatusSubscription (subscription) {
+    if (!subscription) {
+      return;
+    }
+
+    getStatus(subscription.depositAddress)
+      .then((result) => {
+        switch (result.status) {
+          case 'no_deposits':
+          case 'received':
+            subscription.callback(null, status);
+            return;
+
+          case 'complete':
+          case 'failed':
+            subscription.callback(status.error, status);
+            subscriptions[subscription.idx] = null;
+            return;
+        }
+      })
+      .catch((error) => subscription.callback(error.message));
+  }
+
+  function _pollStatus () {
+    subscriptions.map(_getStatusSubscription);
+  }
+
+  setInterval(_pollStatus, 2000);
+
   return {
     getCoins,
     getMarketInfo,
     getStatus,
-    shift
+    shift,
+    subscribe
   };
 }
