@@ -43,7 +43,7 @@ const config = {
     postcss({}),
     json(),
     url({
-      limit: 0,
+      limit: 1,
       publicPath: 'dist/'
     }),
     babel({
@@ -53,14 +53,19 @@ const config = {
       runtimeHelpers: true
     }),
     resolve({
+      browser: true,
       jsnext: true,
-      skip: []
+      skip: [],
+      preferBuiltins: false
     }),
     cjs({
       exclude: [
         'src/**',
+        'node_modules/buffer-es6/**',
+        'node_modules/process-es6/**',
         'node_modules/moment/**',
-        'node_modules/redux/node_modules/symbol-observable/**'
+        'node_modules/redux/node_modules/symbol-observable/**',
+        'node_modules/rollup-plugin-node-globals/**'
       ],
       namedExports: {
         'es6-promise': ['polyfill'],
@@ -71,9 +76,9 @@ const config = {
       }
     }),
     // replace({
-    //   'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
+    //   'process.env.NODE_ENV': JSON.stringify(NODE_ENV || 'development')
     // }),
-    // globals()
+    globals()
   ]
 };
 
