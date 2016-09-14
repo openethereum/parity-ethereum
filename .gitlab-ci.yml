@@ -243,9 +243,9 @@ test-linux:
   stage: test
   before_script:
     - git submodule update --init --recursive
-    - cd js && npm install && cd ..
+    - ./js/scripts/install-deps.sh
   script:
-    - cd js && npm run lint && npm test
+    - ./js/scripts/test.sh
     - ./test.sh --verbose
   tags:
     - rust-test
