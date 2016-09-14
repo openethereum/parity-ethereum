@@ -498,7 +498,7 @@ impl BlockChain {
 
 				let mut batch = db.transaction();
 				if hash != bc.genesis_hash() {
-					info!("First block calculated: {:?}", hash);
+					trace!("First block calculated: {:?}", hash);
 					batch.put(db::COL_EXTRA, b"first", &hash);
 				}
 				db.write(batch).expect("Low level database error.");

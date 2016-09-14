@@ -121,6 +121,8 @@ const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
+// Min number of blocks to be behind for a snapshot sync
+const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 100000;
 
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
@@ -203,6 +205,13 @@ impl SyncStatus {
 	/// Indicates if initial sync is still in progress.
 	pub fn is_major_syncing(&self) -> bool {
 		self.state != SyncState::Idle && self.state != SyncState::NewBlocks
+	}
+
+	/// Indicates if snapshot download is in progress
+	pub fn is_snapshot_syncing(&self) -> bool {
+		self.state == SyncState::SnapshotManifest 
+			|| self.state == SyncState::SnapshotData 
+			|| self.state == SyncState::SnapshotWaiting
 	}
 
 	/// Returns max no of peers to display in informants
@@ -526,27 +535,27 @@ impl ChainSync {
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
 			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
+				peer.asking = PeerAsking::Nothing;
 				let item_count = r.item_count();
 				let (fork_number, fork_hash) = self.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
-				let header = try!(r.at(0)).as_raw();
-				if item_count == 0 || (item_count == 1 && header.sha3() == fork_hash) {
-					peer.asking = PeerAsking::Nothing;
-					if item_count == 0 {
-						trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
-						peer.confirmation = ForkConfirmation::TooShort;
-					} else {
+				if item_count == 0 || item_count != 1 {
+					trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
+					peer.confirmation = ForkConfirmation::TooShort;
+				} else {
+					let header = try!(r.at(0)).as_raw();
+					if header.sha3() == fork_hash {
 						trace!(target: "sync", "{}: Confirmed peer", peer_id);
 						peer.confirmation = ForkConfirmation::Confirmed;
 						if !io.chain_overlay().read().contains_key(&fork_number) {
 							io.chain_overlay().write().insert(fork_number, header.to_vec());
 						}
+					} else {
+						trace!(target: "sync", "{}: Fork mismatch", peer_id);
+						io.disconnect_peer(peer_id);
+						return Ok(());
 					}
-					true
-				} else {
-					trace!(target: "sync", "{}: Fork mismatch", peer_id);
-					io.disconnect_peer(peer_id);
-					return Ok(());
 				}
+				true
 			},
 			_ => false,
 		};
@@ -934,7 +943,6 @@ impl ChainSync {
 		if self.snapshot.is_complete() {
 			// wait for snapshot restoration process to complete
 			self.state = SyncState::SnapshotWaiting;
-			self.restart(io);
 		}
 		// give a task to the same peer first.
 		self.sync_peer(io, peer_id, false);
@@ -1019,6 +1027,7 @@ impl ChainSync {
 			} else {
 				return;
 			}
+			(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned().unwrap_or(0), peer.snapshot_hash.as_ref().cloned())
 		};
 		let chain_info = io.chain().chain_info();
 		let syncing_difficulty = chain_info.pending_total_difficulty;
@@ -1026,7 +1035,9 @@ impl ChainSync {
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
 		if force || self.state == SyncState::NewBlocks || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
-				SyncState::Idle if peer_snapshot_number.unwrap_or(0) > 0 && chain_info.best_block_number == 0 => {
+				SyncState::Idle if chain_info.best_block_number < peer_snapshot_number
+					&& (peer_snapshot_number - chain_info.best_block_number) > SNAPSHOT_RESTORE_THRESHOLD => {
+					trace!(target: "sync", "Starting snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
 					self.start_snapshot_sync(io, peer_id);
 				},
 				SyncState::Idle | SyncState::Blocks | SyncState::NewBlocks => {
@@ -1341,6 +1352,7 @@ impl ChainSync {
 		let overlay = io.chain_overlay().read();
 		while number <= last && count < max_count {
 			if let Some(hdr) = overlay.get(&number) {
+				trace!(target: "sync", "{}: Returning cached fork header", peer_id);
 				data.extend(hdr);
 				count += 1;
 			} else if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
@@ -1462,6 +1474,7 @@ impl ChainSync {
 		let rlp = match io.snapshot_service().chunk(hash) {
 			Some(data) => {
 				let mut rlp = RlpStream::new_list(1);
+				trace!(target: "sync", "{} <- SnapshotData", peer_id);
 				rlp.append(&data);
 				rlp
 			},
@@ -1582,7 +1595,8 @@ impl ChainSync {
 			self.state = SyncState::Blocks;
 			self.continue_sync(io);
 		} else if self.state == SyncState::SnapshotWaiting && io.snapshot_service().status() == RestorationStatus::Inactive {
-			self.state = SyncState::Idle;
+			trace!(target:"sync", "Snapshot restoration is complete");
+			self.restart(io);
 			self.continue_sync(io);
 		}
 	}

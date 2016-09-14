@@ -229,7 +229,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -285,7 +285,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
 
-	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let informant = Arc::new(Informant::new(
+		service.client(),
+		Some(sync_provider.clone()),
+		Some(manage_network.clone()),
+		Some(snapshot_service.clone()),
+		cmd.logger_config.color
+	));
 	let info_notify: Arc<ChainNotify> = informant.clone();
 	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {

@@ -415,9 +415,14 @@ impl Service {
 			guard: Guard::new(rest_dir),
 		};
 
+		let state_chunks = params.manifest.state_hashes.len();
+		let block_chunks = params.manifest.block_hashes.len();
+
 		*res = Some(try!(Restoration::new(params)));
 
 		*self.status.lock() = RestorationStatus::Ongoing {
+			state_chunks: state_chunks as u32,
+			block_chunks: block_chunks as u32,
 			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
 			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
@@ -535,7 +540,7 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
-		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done } = *cur_status {
+		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } = *cur_status {
 			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
 			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
 		}
