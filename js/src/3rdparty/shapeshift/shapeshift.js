@@ -63,13 +63,17 @@ export default function (rpc) {
             return;
 
           case 'complete':
+            subscription.callback(null, status);
+            subscriptions[subscription.idx] = null;
+            return;
+
           case 'failed':
-            subscription.callback(status.error, status);
+            subscription.callback({ message: status.error });
             subscriptions[subscription.idx] = null;
             return;
         }
       })
-      .catch((error) => subscription.callback(error.message));
+      .catch(subscription.callback);
   }
 
   function _pollStatus () {
