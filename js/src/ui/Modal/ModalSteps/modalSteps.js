@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
-import styles from './modalSteps.css';
+import styles from '../modal.css';
 
 export default class ModalSteps extends Component {
   static propTypes = {
@@ -31,7 +31,23 @@ export default class ModalSteps extends Component {
 
   render () {
     const { current, steps, title } = this.props;
-    const timeline = steps.map((label) => {
+
+    return (
+      <div className={ styles.title }>
+        <h3>{ steps[current] }</h3>
+        <div>{ title }</div>
+        <Stepper
+          activeStep={ current }>
+          { this.renderTimeline() }
+        </Stepper>
+      </div>
+    );
+  }
+
+  renderTimeline () {
+    const { steps } = this.props;
+
+    return steps.map((label) => {
       return (
         <Step
           key={ label }>
@@ -41,17 +57,5 @@ export default class ModalSteps extends Component {
         </Step>
       );
     });
-
-    return (
-      <div
-        className={ styles.title }>
-        <h3>{ steps[current] }</h3>
-        <div>{ title }</div>
-        <Stepper
-          activeStep={ current }>
-          { timeline }
-        </Stepper>
-      </div>
-    );
   }
 }

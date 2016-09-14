@@ -25,6 +25,8 @@ const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
 const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
 
+import styles from './modal.css';
+
 export default class Modal extends Component {
   static propTypes = {
     actions: PropTypes.node,
@@ -40,7 +42,7 @@ export default class Modal extends Component {
 
   render () {
     const { actions, current, children, scroll, steps, title, visible } = this.props;
-    let header = title;
+    let header;
 
     if (steps) {
       header = (
@@ -48,6 +50,12 @@ export default class Modal extends Component {
           current={ current }
           steps={ steps }
           title={ title } />
+      );
+    } else {
+      header = (
+        <div className={ styles.title }>
+          <h3>{ title }</h3>
+        </div>
       );
     }
 
