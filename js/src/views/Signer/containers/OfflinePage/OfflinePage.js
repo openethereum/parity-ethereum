@@ -20,7 +20,6 @@ import { connect } from 'react-redux';
 
 import { Container, ContainerTitle } from '../../../../ui';
 
-import { updateAppState } from '../../actions/signer';
 import { isExtension } from '../../utils/extension';
 
 class OfflinePage extends Component {
@@ -58,7 +57,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ updateAppState }, dispatch);
+  return bindActionCreators({}, dispatch);
 }
 
 export default connect(
