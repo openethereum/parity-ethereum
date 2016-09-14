@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import { RequestPendingWeb3 } from '../../components';
 import * as RequestsActions from '../../actions/requests';
 
-import styles from './embedded.js';
+import styles from './embedded.css';
 
 class Embedded extends Component {
   static propTypes = {

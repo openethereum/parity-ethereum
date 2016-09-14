@@ -14,18 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ReactDOM from 'react-dom';
 import React from 'react';
+import ReactDOM from 'react-dom';
+import { Provider } from 'react-redux';
 
-import injectTapEventPlugin from 'react-tap-event-plugin';
-injectTapEventPlugin();
+import store from './store';
+import Container from './Container';
 
-import Application from './tokenreg/Application';
-
-import './style.css';
-import './tokenreg.html';
+import '../style.css';
 
 ReactDOM.render(
-  <Application />,
+  (
+    <Provider store={ store }>
+      <Container />
+    </Provider>
+  ),
   document.querySelector('#container')
 );

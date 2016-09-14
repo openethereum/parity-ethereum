@@ -14,11 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Web3 from 'web3';
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-import './web3.html';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-const http = new Web3.providers.HttpProvider('/rpc/');
-const web3 = new Web3(http);
+import Application from './Application';
 
-window.web3 = web3;
+import '../style.css';
+
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);

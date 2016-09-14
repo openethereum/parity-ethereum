@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import utf8 from 'utf8';
+import * as utf8 from 'utf8';
 
 import { isArray } from './types';
 

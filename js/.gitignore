@@ -1,4 +1,9 @@
 coverage
 node_modules
 npm-debug.log
-build
+dist/**/*.gif
+dist/**/*.js
+dist/**/*.js.map
+dist/**/*.jpg
+dist/**/*.png
+dist/**/*.svg

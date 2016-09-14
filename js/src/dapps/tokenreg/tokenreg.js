@@ -14,16 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import babel from 'rollup-plugin-babel';
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-export default {
-  entry: 'src/index.js',
-  dest: 'release/index.js',
-  moduleName: 'Parity',
-  format: 'cjs',
-  plugins: [babel({
-    babelrc: false,
-    presets: ['es2015-rollup', 'stage-0'],
-    runtimeHelpers: true
-  })]
-};
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
+
+import Application from './Application';
+
+import '../style.css';
+
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);
