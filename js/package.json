@@ -25,23 +25,19 @@
   "scripts": {
     "browse": "browser-sync start --s --serveStatic 'dist/' --index 'index.html' --files '**/*.html, **/*.js' --no-notify",
     "start": "npm install && npm run buildDev && parallel watch browse",
-
     "build": "npm run buildProd",
     "buildDev": "NODE_ENV=development parallel rollupApp rollupParity rollupGavcoin rollupRegistry rollupTokenreg",
     "buildProd": "NODE_ENV=production parallel rollupApp rollupParity rollupGavcoin rollupRegistry rollupTokenreg",
-
     "rollupApp": "rollup -c --environment src:app",
     "rollupParity": "rollup -c --environment src:parity",
     "rollupGavcoin": "rollup -c --environment dapp:gavcoin",
     "rollupRegistry": "rollup -c --environment dapp:registry",
     "rollupTokenreg": "rollup -c --environment dapp:tokenreg",
-
     "test": "mocha 'src/**/*.spec.js'",
     "testCoverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
     "testE2E": "mocha 'src/**/*.e2e.js'",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
-
     "watch": "parallel watchApp watchParity watchGavcoin watchRegistry watchTokenreg",
     "watchApp": "onchange src -e src/dapps -- npm run rollupApp",
     "watchParity": "onchange src/parity.js src/abi src/api -- npm run rollupParity",
@@ -95,6 +91,7 @@
     "rollup-plugin-babel": "^2.6.1",
     "rollup-plugin-commonjs": "^3.3.1",
     "rollup-plugin-json": "^2.0.2",
+    "rollup-plugin-node-builtins": "^1.0.8",
     "rollup-plugin-node-globals": "^1.0.7",
     "rollup-plugin-node-resolve": "^2.0.0",
     "rollup-plugin-postcss": "^0.2.0",

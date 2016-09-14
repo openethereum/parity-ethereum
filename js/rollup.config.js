@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import babel from 'rollup-plugin-babel';
+import builtins from 'rollup-plugin-node-builtins';
 import cjs from 'rollup-plugin-commonjs';
 import json from 'rollup-plugin-json';
 import globals from 'rollup-plugin-node-globals';
@@ -52,19 +53,21 @@ const config = {
       presets: [ 'es2017', 'es2016', 'es2015-rollup', 'stage-0', 'react' ],
       runtimeHelpers: true
     }),
+    builtins(),
     resolve({
       browser: true,
       jsnext: true,
-      skip: [],
+      skip: ['crypto'],
       preferBuiltins: false
     }),
     cjs({
+      include: 'node_modules/**',
       exclude: [
-        'src/**',
         'node_modules/buffer-es6/**',
         'node_modules/process-es6/**',
         'node_modules/moment/**',
         'node_modules/redux/node_modules/symbol-observable/**',
+        'node_modules/rollup-plugin-node-builtins/**',
         'node_modules/rollup-plugin-node-globals/**'
       ],
       namedExports: {
