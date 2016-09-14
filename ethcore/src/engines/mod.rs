@@ -73,8 +73,11 @@ pub trait Engine : Sync + Send {
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
-	/// If true, generate_seal has to be implemented.
-	fn seals_internally(&self) -> bool { false }
+	/// If Some(true) this author is able to generate seals, generate_seal has to be implemented.
+	/// None indicates that this Engine never seals internally regardless of author (e.g. PoW).
+	fn is_sealer(&self, _author: &Address) -> Option<bool> { None }
+	/// Checks if default address is able to seal.
+	fn is_default_sealer(&self) -> Option<bool> { self.is_sealer(&Default::default()) }
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.
