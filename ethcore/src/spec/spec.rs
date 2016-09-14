@@ -266,6 +266,16 @@ impl Spec {
 	pub fn new_test_instant() -> Self {
 		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
 	}
+
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
+	pub fn new_test_round() -> Self {
+		Spec::load(include_bytes!("../../res/authority_round.json") as &[u8]).expect("authority_round.json is invalid")
+	}
+
+	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
+	pub fn new_test_tendermint() -> Self {
+		Spec::load(include_bytes!("../../res/tendermint.json") as &[u8]).expect("tendermint.json is invalid")
+	}
 }
 
 #[cfg(test)]
