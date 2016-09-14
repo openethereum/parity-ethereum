@@ -453,7 +453,7 @@ mod tests {
 	use io::*;
 	use spec::*;
 	use super::{BlockQueue, Config};
-	use super::kind::UnverifiedBlock;
+	use super::kind::blocks::Unverified;
 	use tests::helpers::*;
 	use error::*;
 	use views::*;
@@ -475,7 +475,7 @@ mod tests {
 	#[test]
 	fn can_import_blocks() {
 		let queue = get_test_queue();
-		if let Err(e) = queue.import(UnverifiedBlock::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 	}
@@ -483,11 +483,11 @@ mod tests {
 	#[test]
 	fn returns_error_for_duplicates() {
 		let queue = get_test_queue();
-		if let Err(e) = queue.import(UnverifiedBlock::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 
-		let duplicate_import = queue.import(UnverifiedBlock::new(get_good_dummy_block()));
+		let duplicate_import = queue.import(Unverified::new(get_good_dummy_block()));
 		match duplicate_import {
 			Err(e) => {
 				match e {
@@ -504,14 +504,14 @@ mod tests {
 		let queue = get_test_queue();
 		let block = get_good_dummy_block();
 		let hash = BlockView::new(&block).header().hash().clone();
-		if let Err(e) = queue.import(UnverifiedBlock::new(block)) {
+		if let Err(e) = queue.import(Unverified::new(block)) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
 		queue.flush();
 		queue.drain(10);
 		queue.mark_as_good(&[ hash ]);
 
-		if let Err(e) = queue.import(UnverifiedBlock::new(get_good_dummy_block())) {
+		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
 			panic!("error importing block that has already been drained ({:?})", e);
 		}
 	}
@@ -519,7 +519,7 @@ mod tests {
 	#[test]
 	fn returns_empty_once_finished() {
 		let queue = get_test_queue();
-		queue.import(UnverifiedBlock::new(get_good_dummy_block()))
+		queue.import(Unverified::new(get_good_dummy_block()))
 			.expect("error importing block that is valid by definition");
 		queue.flush();
 		queue.drain(1);
@@ -537,7 +537,7 @@ mod tests {
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {
-			queue.import(UnverifiedBlock::new(b)).unwrap();
+			queue.import(Unverified::new(b)).unwrap();
 		}
 		assert!(queue.queue_info().is_full());
 	}

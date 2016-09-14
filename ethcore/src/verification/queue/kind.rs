@@ -18,10 +18,10 @@
 
 use engines::Engine;
 use error::Error;
-use header::Header;
-use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
-use util::{Bytes, HeapSizeOf, H256};
+use util::{HeapSizeOf, H256};
+
+pub use self::blocks::Blocks;
 
 /// Something which can produce a hash and a parent hash.
 pub trait HasHash {
@@ -59,77 +59,89 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error>;
 }
 
-/// A mode for verifying blocks.
-pub struct Blocks;
+/// The blocks verification module.
+pub mod blocks {
+	use super::{Kind, HasHash};
 
-impl Kind for Blocks {
-	type Input = UnverifiedBlock;
-	type Unverified = UnverifiedBlock;
-	type Verified = PreverifiedBlock;
+	use engines::Engine;
+	use error::Error;
+	use header::Header;
+	use verification::{PreverifiedBlock, verify_block_basic, verify_block_unordered};
 
-	fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
-		match verify_block_basic(&input.header, &input.bytes, engine) {
-			Ok(()) => Ok(input),
-			Err(e) => {
-				warn!(target: "client", "Stage 1 block verification failed for {:?}", input.hash());
-				Err(e)
+	use util::{Bytes, HeapSizeOf, H256};
+
+	/// A mode for verifying blocks.
+	pub struct Blocks;
+
+	impl Kind for Blocks {
+		type Input = Unverified;
+		type Unverified = Unverified;
+		type Verified = PreverifiedBlock;
+
+		fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
+			match verify_block_basic(&input.header, &input.bytes, engine) {
+				Ok(()) => Ok(input),
+				Err(e) => {
+					warn!(target: "client", "Stage 1 block verification failed for {:?}", input.hash());
+					Err(e)
+				}
+			}
+		}
+
+		fn verify(un: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
+			let hash = un.hash();
+			match verify_block_unordered(un.header, un.bytes, engine) {
+				Ok(verified) => Ok(verified),
+				Err(e) => {
+					warn!(target: "client", "Stage 2 block verification failed for {}\n Error: {:?}", hash, e);
+					Err(e)
+				}
 			}
 		}
 	}
 
-	fn verify(un: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
-		let hash = un.hash();
-		match verify_block_unordered(un.header, un.bytes, engine) {
-			Ok(verified) => Ok(verified),
-			Err(e) => {
-				warn!(target: "client", "Stage 2 block verification failed for {}\n Error: {:?}", hash, e);
-				Err(e)
+	/// An unverified block.
+	pub struct Unverified {
+		header: Header,
+		bytes: Bytes,
+	}
+
+	impl Unverified {
+		/// Create an `Unverified` from raw bytes.
+		pub fn new(bytes: Bytes) -> Self {
+			use views::BlockView;
+
+			let header = BlockView::new(&bytes).header();
+			Unverified {
+				header: header,
+				bytes: bytes,
 			}
 		}
 	}
-}
 
-/// An unverified block.
-pub struct UnverifiedBlock {
-	header: Header,
-	bytes: Bytes,
-}
-
-impl UnverifiedBlock {
-	/// Create an `UnverifiedBlock` from raw bytes.
-	pub fn new(bytes: Bytes) -> Self {
-		use views::BlockView;
-
-		let header = BlockView::new(&bytes).header();
-		UnverifiedBlock {
-			header: header,
-			bytes: bytes,
+	impl HeapSizeOf for Unverified {
+		fn heap_size_of_children(&self) -> usize {
+			self.header.heap_size_of_children() + self.bytes.heap_size_of_children()
 		}
 	}
-}
 
-impl HeapSizeOf for UnverifiedBlock {
-	fn heap_size_of_children(&self) -> usize {
-		self.header.heap_size_of_children() + self.bytes.heap_size_of_children()
-	}
-}
+	impl HasHash for Unverified {
+		fn hash(&self) -> H256 {
+			self.header.hash()
+		}
 
-impl HasHash for UnverifiedBlock {
-	fn hash(&self) -> H256 {
-		self.header.hash()
+		fn parent_hash(&self) -> H256 {
+			self.header.parent_hash().clone()
+		}
 	}
 
-	fn parent_hash(&self) -> H256 {
-		self.header.parent_hash().clone()
-	}
-}
+	impl HasHash for PreverifiedBlock {
+		fn hash(&self) -> H256 {
+			self.header.hash()
+		}
 
-impl HasHash for PreverifiedBlock {
-	fn hash(&self) -> H256 {
-		self.header.hash()
-	}
-
-	fn parent_hash(&self) -> H256 {
-		self.header.parent_hash().clone()
+		fn parent_hash(&self) -> H256 {
+			self.header.parent_hash().clone()
+		}
 	}
 }

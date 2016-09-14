@@ -46,7 +46,7 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
-use verification::queue::{self, BlockQueue, QueueInfo as BlockQueueInfo};
+use verification::queue::{BlockQueue, QueueInfo as BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
@@ -802,11 +802,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => match self.block_queue.status(&hash) {
-				queue::Status::Queued => BlockStatus::Queued,
-				queue::Status::Bad => BlockStatus::Bad,
-				queue::Status::Unknown => BlockStatus::Unknown,
-			},
+			Some(hash) => self.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
 		}
 	}
@@ -918,10 +914,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use verification::queue::kind::{HasHash, UnverifiedBlock};
+		use verification::queue::kind::HasHash;
+		use verification::queue::kind::blocks::Unverified;
 
 		// create unverified block here so the `sha3` calculation can be cached.
-		let unverified = UnverifiedBlock::new(bytes);
+		let unverified = Unverified::new(bytes);
 
 		{
 			if self.chain.read().is_known(&unverified.hash()) {
