@@ -30,7 +30,7 @@ export default class Value extends Component {
 
     let value = '';
     if (amount) {
-      value = new BigNumber(amount).toFormat(6);
+      value = new BigNumber(amount).toFormat(3);
     }
 
     return (
