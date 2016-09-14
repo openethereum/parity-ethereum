@@ -190,8 +190,6 @@ pub struct Miner {
 impl Miner {
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
-		let author = Address::default();
-		let is_sealer = spec.engine.is_sealer(&author);
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
 			options: Default::default(),
@@ -199,11 +197,11 @@ impl Miner {
 			sealing_block_last_request: Mutex::new(0),
 			sealing_work: Mutex::new(SealingWork{
 				queue: UsingQueue::new(20),
-				enabled: is_sealer.unwrap_or(false)
+				enabled: spec.engine.is_default_sealer().unwrap_or(false)
 			}),
-			seals_internally: is_sealer.is_some(),
+			seals_internally: spec.engine.is_default_sealer().is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(author),
+			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			accounts: None,
 			engine: spec.engine.clone(),
@@ -216,8 +214,6 @@ impl Miner {
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
-		let author = Address::default();
-		let is_sealer = spec.engine.is_sealer(&author);
 		Arc::new(Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -226,11 +222,11 @@ impl Miner {
 				queue: UsingQueue::new(options.work_queue_size),
 				enabled: options.force_sealing
 					|| !options.new_work_notify.is_empty()
-					|| is_sealer.unwrap_or(false)
+					|| spec.engine.is_default_sealer().unwrap_or(false)
 			}),
-			seals_internally: is_sealer.is_some(),
+			seals_internally: spec.engine.is_default_sealer().is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(author),
+			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			options: options,
 			accounts: accounts,
