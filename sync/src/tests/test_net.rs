@@ -22,6 +22,8 @@ use ethcore::tests::helpers::*;
 use ethcore::header::BlockNumber;
 use ethcore::spec::Spec;
 use ethcore::snapshot::SnapshotService;
+use ethcore::transaction::{Transaction, SignedTransaction, Action};
+use ethkey::{Random, Generator};
 use sync_io::SyncIo;
 use chain::ChainSync;
 use ::SyncConfig;
@@ -92,11 +94,34 @@ pub struct TestPacket {
 	pub recipient: PeerId,
 }
 
+
+pub fn random_transaction() -> SignedTransaction {
+	let keypair = Random.generate().unwrap();
+	Transaction {
+		action: Action::Create,
+		value: U256::zero(),
+		data: "3331600055".from_hex().unwrap(),
+		gas: U256::from(100_000),
+		gas_price: U256::zero(),
+		nonce: U256::zero(),
+	}.sign(keypair.secret())
+}
+
 pub struct TestPeer {
 	pub chain: Arc<Client>,
 	pub snapshot_service: Arc<TestSnapshotService>,
 	pub sync: RwLock<ChainSync>,
 	pub queue: VecDeque<TestPacket>,
+}
+
+impl TestPeer {
+	pub fn issue_tx(&self, transaction: SignedTransaction) {
+		self.chain.import_own_transaction(transaction);
+	}
+
+	pub fn issue_rand_tx(&self) {
+		self.issue_tx(random_transaction())
+	}
 }
 
 pub struct TestNet {
@@ -130,9 +155,7 @@ impl TestNet {
 		net
 	}
 
-	pub fn new_with_spec_file<R, S>(n: usize, get_spec: &S) -> TestNet where
-		R: Read + Clone,
-		S: Fn()->Spec {
+	pub fn new_with_spec<S>(n: usize, get_spec: &S) -> TestNet where S: Fn()->Spec {
 		let mut net = TestNet {
 			peers: Vec::new(),
 			started: false,
