@@ -28,6 +28,7 @@ use ethereum;
 use devtools::*;
 use miner::Miner;
 use rlp::{self, RlpStream, Stream};
+use account_provider::AccountProvider;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -125,12 +126,12 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 }
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
-	generate_dummy_client_with_spec(Spec::new_test, block_number)
+	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, 0, &[])
 }
 
-pub fn generate_dummy_client_with_spec<F>(get_spec: F, block_number: u32) -> GuardedTempResult<Arc<Client>> where
+pub fn dummy_client_with_spec_and_accounts<F>(get_spec: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where
 	F: Fn()->Spec {
-	generate_dummy_client_with_spec_and_data(get_spec, block_number, 0, &[])
+	dummy_client_with_spec_and_data_and_accounts(get_spec, 0, 0, &[], accounts)
 }
 
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> {
@@ -138,6 +139,10 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 }
 
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
+	dummy_client_with_spec_and_data_and_accounts(get_test_spec, block_number, txs_per_block, tx_gas_prices, None)
+}
+
+pub fn dummy_client_with_spec_and_data_and_accounts<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256], accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
@@ -146,7 +151,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 		ClientConfig::default(),
 		&test_spec,
 		dir.as_path(),
-		Arc::new(Miner::with_spec(&test_spec)),
+		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
