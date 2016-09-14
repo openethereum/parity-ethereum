@@ -24,6 +24,8 @@ var WebpackErrorNotificationPlugin = require('webpack-error-notification');
 var ENV = process.env.NODE_ENV || 'development';
 var isProd = ENV === 'production';
 
+var extractCSS = new ExtractTextPlugin('[name].css', { allChunks: true });
+
 module.exports = {
   debug: !isProd,
   cache: !isProd,
@@ -73,24 +75,22 @@ module.exports = {
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: [
-          'style',
+        loader: extractCSS.extract('style', [
           'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss'
-        ]
+        ])
       },
       {
         test: /\.css$/,
         exclude: [/src/],
-        loader: 'style!css'
+        loader: extractCSS.extract('style', 'css')
       },
       {
         test: /\.less$/,
-        loaders: [
-          'style',
+        loader: extractCSS.extract('style', [
           'css',
           'less'
-        ]
+        ])
       },
       {
         test: /\.(png|jpg|)$/,
@@ -126,7 +126,8 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
-      new ExtractTextPlugin('[name].css'),
+      extractCSS,
+
       new WebpackErrorNotificationPlugin(),
       // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
       // TODO [jacogr] this shit needs to go, e.g. dapp-styles
@@ -144,7 +145,8 @@ module.exports = {
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           LOGGING: JSON.stringify(!isProd)
         }
-      })
+      }),
+      new webpack.optimize.CommonsChunkPlugin('commons', 'commons.js')
     ];
 
     if (isProd) {
