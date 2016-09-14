@@ -15,22 +15,38 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Modal } from '../../ui';
+import { IdentityIcon, Modal } from '../../ui';
+import { newError } from '../../redux/actions';
+import initShapeshift from '../../3rdparty/shapeshift';
+import shapeshiftLogo from '../../images/shapeshift-logo.png';
 
-const STAGE_NAMES = ['fund account'];
+import Options from './Options';
+import styles from './fundAccount.css';
 
-export default class FundAccount extends Component {
+const shapeshift = initShapeshift();
+
+const STAGE_NAMES = ['details', 'awaiting deposit', 'awaiting exchange', 'completed'];
+
+class FundAccount extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
+    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
 
   state = {
-    stage: 0
+    stage: 0,
+    coinSymbol: 'BTC',
+    coins: []
+  }
+
+  componentDidMount () {
+    this.retrieveCoins();
   }
 
   render () {
@@ -42,21 +58,62 @@ export default class FundAccount extends Component {
         current={ stage }
         steps={ STAGE_NAMES }
         visible>
-        <div>
-          Placeholder until such time as we have the ShapeShift.io integration going (just time, a scarce commodity)
-        </div>
+        { this.renderPage() }
       </Modal>
     );
   }
 
   renderDialogActions () {
-    return (
+    const { address } = this.props;
+    const { coins, stage } = this.state;
+
+    const logo = (
+      <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
+        <img src={ shapeshiftLogo } />
+      </a>
+    );
+    const cancelBtn = (
       <FlatButton
         icon={ <ContentClear /> }
         label='Cancel'
         primary
         onTouchTap={ this.onClose } />
     );
+
+    switch (stage) {
+      case 0:
+        return [
+          logo,
+          cancelBtn,
+          <FlatButton
+            disabled={ !coins.length }
+            icon={ <IdentityIcon address={ address } button /> }
+            label='Shift Funds'
+            primary
+            onTouchTap={ this.onShift } />
+        ];
+    }
+  }
+
+  renderPage () {
+    const { coinSymbol, coins, stage } = this.state;
+
+    switch (stage) {
+      case 0:
+        return (
+          <Options
+            coinSymbol={ coinSymbol }
+            coins={ coins } />
+        );
+    }
+  }
+
+  nextStage = () => {
+    const { stage } = this.state;
+
+    this.setState({
+      stage: stage + 1
+    });
   }
 
   onClose = () => {
@@ -66,4 +123,39 @@ export default class FundAccount extends Component {
       this.props.onClose && this.props.onClose();
     });
   }
+
+  onShift = () => {
+    this.nextStage();
+  }
+
+  retrieveCoins () {
+    const { newError } = this.props;
+
+    shapeshift
+      .getCoins()
+      .then((_coins) => {
+        const coins = Object.values(_coins).filter((coin) => coin.status === 'available');
+
+        this.setState({
+          coins
+        });
+      })
+      .catch((error) => {
+        console.error('retrieveCoins', error);
+        newError(new Error(`Failed to retrieve coins from ShapeShift.io: ${error.message}`));
+      });
+  }
 }
+
+function mapStateToProps (state) {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({ newError }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(FundAccount);
