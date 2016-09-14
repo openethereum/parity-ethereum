@@ -25,21 +25,23 @@ use io::*;
 use error::*;
 use engines::Engine;
 use service::*;
-use client::BlockStatus;
 
 use self::kind::{HasHash, Kind};
 
-pub use types::block_queue_info::BlockQueueInfo;
+pub use types::verification_queue_info::VerificationQueueInfo as QueueInfo;
 
 pub mod kind;
 
 const MIN_MEM_LIMIT: usize = 16384;
 const MIN_QUEUE_LIMIT: usize = 512;
 
-/// Block queue configuration
+/// Type alias for block queue convenience.
+pub type BlockQueue = VerificationQueue<self::kind::Blocks>;
+
+/// Verification queue configuration
 #[derive(Debug, PartialEq, Clone)]
-pub struct BlockQueueConfig {
-	/// Maximum number of blocks to keep in unverified queue.
+pub struct Config {
+	/// Maximum number of items to keep in unverified queue.
 	/// When the limit is reached, is_full returns true.
 	pub max_queue_size: usize,
 	/// Maximum heap memory to use.
@@ -47,32 +49,12 @@ pub struct BlockQueueConfig {
 	pub max_mem_use: usize,
 }
 
-impl Default for BlockQueueConfig {
+impl Default for Config {
 	fn default() -> Self {
-		BlockQueueConfig {
+		Config {
 			max_queue_size: 30000,
 			max_mem_use: 50 * 1024 * 1024,
 		}
-	}
-}
-
-
-impl BlockQueueInfo {
-	/// The total size of the queues.
-	pub fn total_queue_size(&self) -> usize { self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size }
-
-	/// The size of the unverified and verifying queues.
-	pub fn incomplete_queue_size(&self) -> usize { self.unverified_queue_size + self.verifying_queue_size }
-
-	/// Indicates that queue is full
-	pub fn is_full(&self) -> bool {
-		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size > self.max_queue_size ||
-			self.mem_used > self.max_mem_use
-	}
-
-	/// Indicates that queue is empty
-	pub fn is_empty(&self) -> bool {
-		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size == 0
 	}
 }
 
@@ -88,9 +70,19 @@ impl<K: Kind> HeapSizeOf for Verifying<K> {
 	}
 }
 
-/// A queue of blocks. Sits between network or other I/O and the `BlockChain`.
-/// Sorts them ready for blockchain insertion.
-pub struct BlockQueue<K: Kind> {
+/// Status of items in the queue.
+pub enum Status {
+	/// Currently queued.
+	Queued,
+	/// Known to be bad.
+	Bad,
+	/// Unknown.
+	Unknown,
+}
+
+/// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
+/// Keeps them in the same order as inserted, minus invalid items.
+pub struct VerificationQueue<K: Kind> {
 	panic_handler: Arc<PanicHandler>,
 	engine: Arc<Engine>,
 	more_to_verify: Arc<SCondvar>,
@@ -140,9 +132,9 @@ struct Verification<K: Kind> {
 	empty: SMutex<()>,
 }
 
-impl<K: Kind> BlockQueue<K> {
+impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: BlockQueueConfig, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
+	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verified: Mutex::new(VecDeque::new()),
@@ -177,13 +169,13 @@ impl<K: Kind> BlockQueue<K> {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-						BlockQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+						VerificationQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
 					}).unwrap()
 				})
 				.expect("Error starting block verification thread")
 			);
 		}
-		BlockQueue {
+		VerificationQueue {
 			engine: engine,
 			panic_handler: panic_handler,
 			ready_signal: ready_signal.clone(),
@@ -247,7 +239,7 @@ impl<K: Kind> BlockQueue<K> {
 						// we're next!
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
-						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
 						ready.set();
 					}
 				},
@@ -260,7 +252,7 @@ impl<K: Kind> BlockQueue<K> {
 					verifying.retain(|e| e.hash != hash);
 
 					if verifying.front().map_or(false, |x| x.output.is_some()) {
-						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
 						ready.set();
 					}
 				}
@@ -299,15 +291,15 @@ impl<K: Kind> BlockQueue<K> {
 		}
 	}
 
-	/// Check if the block is currently in the queue
-	pub fn status(&self, hash: &H256) -> BlockStatus {
+	/// Check if the item is currently in the queue
+	pub fn status(&self, hash: &H256) -> Status {
 		if self.processing.read().contains(hash) {
-			return BlockStatus::Queued;
+			return Status::Queued;
 		}
 		if self.verification.bad.lock().contains(hash) {
-			return BlockStatus::Bad;
+			return Status::Bad;
 		}
-		BlockStatus::Unknown
+		Status::Unknown
 	}
 
 	/// Add a block to the queue.
@@ -396,7 +388,7 @@ impl<K: Kind> BlockQueue<K> {
 	}
 
 	/// Get queue status.
-	pub fn queue_info(&self) -> BlockQueueInfo {
+	pub fn queue_info(&self) -> QueueInfo {
 		let (unverified_len, unverified_bytes) = {
 			let v = self.verification.unverified.lock();
 			(v.len(), v.heap_size_of_children())
@@ -409,7 +401,8 @@ impl<K: Kind> BlockQueue<K> {
 			let v = self.verification.verified.lock();
 			(v.len(), v.heap_size_of_children())
 		};
-		BlockQueueInfo {
+
+		QueueInfo {
 			unverified_queue_size: unverified_len,
 			verifying_queue_size: verifying_len,
 			verified_queue_size: verified_len,
@@ -435,22 +428,22 @@ impl<K: Kind> BlockQueue<K> {
 	}
 }
 
-impl<K: Kind> MayPanic for BlockQueue<K> {
+impl<K: Kind> MayPanic for VerificationQueue<K> {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
 }
 
-impl<K: Kind> Drop for BlockQueue<K> {
+impl<K: Kind> Drop for VerificationQueue<K> {
 	fn drop(&mut self) {
-		trace!(target: "shutdown", "[BlockQueue] Closing...");
+		trace!(target: "shutdown", "[VerificationQueue] Closing...");
 		self.clear();
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.more_to_verify.notify_all();
 		for t in self.verifiers.drain(..) {
 			t.join().unwrap();
 		}
-		trace!(target: "shutdown", "[BlockQueue] Closed.");
+		trace!(target: "shutdown", "[VerificationQueue] Closed.");
 	}
 }
 
@@ -459,16 +452,16 @@ mod tests {
 	use util::*;
 	use io::*;
 	use spec::*;
-	use block_queue::*;
-	use block_queue::kind::UnverifiedBlock;
+	use super::{BlockQueue, Config};
+	use super::kind::UnverifiedBlock;
 	use tests::helpers::*;
 	use error::*;
 	use views::*;
 
-	fn get_test_queue() -> BlockQueue<kind::Blocks> {
+	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		BlockQueue::<kind::Blocks>::new(BlockQueueConfig::default(), engine, IoChannel::disconnected())
+		BlockQueue::new(Config::default(), engine, IoChannel::disconnected())
 	}
 
 	#[test]
@@ -476,7 +469,7 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.engine;
-		let _ = BlockQueue::<kind::Blocks>::new(BlockQueueConfig::default(), engine, IoChannel::disconnected());
+		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected());
 	}
 
 	#[test]
@@ -538,9 +531,9 @@ mod tests {
 	fn test_mem_limit() {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		let mut config = BlockQueueConfig::default();
+		let mut config = Config::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
-		let queue = BlockQueue::<kind::Blocks>::new(config, engine, IoChannel::disconnected());
+		let queue = BlockQueue::new(config, engine, IoChannel::disconnected());
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {

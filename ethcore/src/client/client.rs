@@ -46,7 +46,7 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
-use block_queue::{BlockQueue, BlockQueueInfo, kind};
+use verification::queue::{self, BlockQueue, QueueInfo as BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
@@ -128,7 +128,7 @@ pub struct Client {
 	db: RwLock<Arc<Database>>,
 	pruning: journaldb::Algorithm,
 	state_db: RwLock<Box<JournalDB>>,
-	block_queue: BlockQueue<kind::Blocks>,
+	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
 	panic_handler: Arc<PanicHandler>,
@@ -802,7 +802,11 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.status(&hash),
+			Some(hash) => match self.block_queue.status(&hash) {
+				queue::Status::Queued => BlockStatus::Queued,
+				queue::Status::Bad => BlockStatus::Bad,
+				queue::Status::Unknown => BlockStatus::Unknown,
+			},
 			None => BlockStatus::Unknown
 		}
 	}
@@ -914,7 +918,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
-		use ::block_queue::kind::{HasHash, UnverifiedBlock};
+		use verification::queue::kind::{HasHash, UnverifiedBlock};
 
 		// create unverified block here so the `sha3` calculation can be cached.
 		let unverified = UnverifiedBlock::new(bytes);
