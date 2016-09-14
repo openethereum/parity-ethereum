@@ -35,6 +35,8 @@ const config = {
   format: 'cjs',
   sourceMap: true,
   plugins: [
+    json(),
+    postcss({}),
     babel({
       babelrc: false,
       exclude: 'node_modules/**',
@@ -52,8 +54,6 @@ const config = {
     replace({
       'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
     }),
-    json(),
-    postcss(),
     globals(),
     url({
       limit: 0,
