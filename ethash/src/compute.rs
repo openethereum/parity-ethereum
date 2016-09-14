@@ -91,7 +91,7 @@ pub struct Light {
 	seed_compute: Mutex<SeedHashCompute>,
 }
 
-/// Light cache structur
+/// Light cache structure
 impl Light {
 	/// Create a new light cache for a given block number
 	pub fn new(block_number: u64) -> Light {
@@ -134,16 +134,24 @@ impl Light {
 		})
 	}
 
-	pub fn to_file(&self) -> io::Result<()> {
+	pub fn to_file(&self) -> io::Result<PathBuf> {
 		let seed_compute = self.seed_compute.lock();
 		let path = Light::file_path(seed_compute.get_seedhash(self.block_number));
+
+		if self.block_number >= ETHASH_EPOCH_LENGTH * 2 {
+			let deprecated = Light::file_path(
+				seed_compute.get_seedhash(self.block_number - ETHASH_EPOCH_LENGTH * 2));
+			debug!(target: "ethash", "removing: {:?}", &deprecated);
+			try!(fs::remove_file(deprecated));
+		}
+
 		try!(fs::create_dir_all(path.parent().unwrap()));
-		let mut file = try!(File::create(path));
+		let mut file = try!(File::create(&path));
 
 		let cache_size = self.cache.len() * NODE_BYTES;
 		let buf = unsafe { slice::from_raw_parts(self.cache.as_ptr() as *const u8, cache_size) };
 		try!(file.write(buf));
-		Ok(())
+		Ok(path)
 	}
 }
 
@@ -454,4 +462,19 @@ fn test_seed_compute_after_newer() {
 	let _ = seed_compute.get_seedhash(972764);
 	let hash = [241, 175, 44, 134, 39, 121, 245, 239, 228, 236, 43, 160, 195, 152, 46, 7, 199, 5, 253, 147, 241, 206, 98, 43, 3, 104, 17, 40, 192, 79, 106, 162];
 	assert_eq!(seed_compute.get_seedhash(486382), hash);
+}
+
+#[test]
+fn test_drop_old_data() {
+	let first = Light::new(0).to_file().unwrap();
+
+	let second = Light::new(ETHASH_EPOCH_LENGTH).to_file().unwrap();
+	assert!(fs::metadata(&first).is_ok());
+
+	let _ = Light::new(ETHASH_EPOCH_LENGTH * 2).to_file();
+	assert!(fs::metadata(&first).is_err());
+	assert!(fs::metadata(&second).is_ok());
+
+	let _ = Light::new(ETHASH_EPOCH_LENGTH * 3).to_file();
+	assert!(fs::metadata(&second).is_err());
 }
