@@ -29,40 +29,51 @@ const { NODE_ENV, dapp, src } = process.env;
 const target = dapp ? `dapps/${dapp}/${dapp}` : src;
 const isProd = process.env.NODE_ENV === 'production';
 
+const dest = `dist/${target}.js`;
+const entry = `src/${target}.js`;
+
+console.log(`Building ${entry} to ${dest}`);
+
 const config = {
-  dest: `dist/${target}.js`,
-  entry: `src/${target}.js`,
+  dest,
+  entry,
   format: 'cjs',
   sourceMap: true,
   plugins: [
-    cjs({
-      exclude: 'node_modules/process-es6/**',
-      include: [
-        'node_modules/fbjs/**',
-        'node_modules/react/**',
-        'node_modules/react-dom/**'
-      ]
-    }),
-    resolve({
-      browser: true,
-      main: true
-    }),
+    postcss({}),
+    json(),
     url({
       limit: 0,
       publicPath: 'dist/'
     }),
-    json(),
-    postcss({}),
     babel({
       babelrc: false,
       exclude: 'node_modules/**',
       presets: [ 'es2017', 'es2016', 'es2015-rollup', 'stage-0', 'react' ],
       runtimeHelpers: true
     }),
-    replace({
-      'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
+    resolve({
+      jsnext: true,
+      skip: []
     }),
-    globals()
+    cjs({
+      exclude: [
+        'src/**',
+        'node_modules/moment/**',
+        'node_modules/redux/node_modules/symbol-observable/**'
+      ],
+      namedExports: {
+        'es6-promise': ['polyfill'],
+        'js-sha3': ['keccak_256'],
+        'lodash': ['isEqual'],
+        'react': ['Component', 'createElement', 'PropTypes'],
+        'utf8': ['encode', 'decode']
+      }
+    }),
+    // replace({
+    //   'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
+    // }),
+    // globals()
   ]
 };
 
