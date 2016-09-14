@@ -23,7 +23,7 @@
     "Promise"
   ],
   "scripts": {
-    "browse": "browser-sync start --s --index 'dist/index.html' --files 'dist/**/*.html, dist/**/*.js' --no-notify",
+    "browse": "browser-sync start --s --serveStatic 'dist/' --index 'index.html' --files '**/*.html, **/*.js' --no-notify",
     "build": "npm run buildProd",
     "buildDev": "NODE_ENV=development parallel rollupApp rollupParity rollupGavcoin rollupRegistry rollupTokenreg",
     "buildProd": "NODE_ENV=production parallel rollupApp rollupParity rollupGavcoin rollupRegistry rollupTokenreg",
