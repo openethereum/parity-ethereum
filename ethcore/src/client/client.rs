@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify
+	ChainNotify, TransactionImportResult
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -475,6 +475,11 @@ impl Client {
 		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
+	}
+
+	/// Import a locally created transaction.
+	pub fn import_own_transaction(&self, transaction: SignedTransaction) -> Result<TransactionImportResult, EthcoreError> {
+		self.miner.import_own_transaction(self, transaction)
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
