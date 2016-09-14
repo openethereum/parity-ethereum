@@ -477,9 +477,14 @@ impl Client {
 		results.len()
 	}
 
+	// TODO: these are only used for tests in sync and only contribute to huge Client 
 	/// Import a locally created transaction.
 	pub fn import_own_transaction(&self, transaction: SignedTransaction) -> Result<TransactionImportResult, EthcoreError> {
 		self.miner.import_own_transaction(self, transaction)
+	}
+	/// Set miner author.
+	pub fn set_author(&self, author: Address) {
+		self.miner.set_author(author)
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
