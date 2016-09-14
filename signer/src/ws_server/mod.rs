@@ -180,7 +180,6 @@ impl Drop for Server {
 		self.queue.finish();
 		self.broadcaster_handle.take().unwrap().join().unwrap();
 		self.handle.take().unwrap().join().unwrap();
-
 	}
 }
 
