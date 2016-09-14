@@ -224,7 +224,7 @@ impl Miner {
 
 	/// Creates new instance of a miner Arc.
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		Arc::new_raw(Miner::new(options, gas_pricer, spec, accounts)
+		Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts))
 	}
 
 	fn forced_sealing(&self) -> bool {
