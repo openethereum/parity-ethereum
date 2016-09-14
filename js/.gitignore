@@ -1,9 +1,9 @@
 coverage
 node_modules
 npm-debug.log
-dist/*.gif
-dist/*.js
-dist/*.js.map
-dist/*.jpg
-dist/*.png
-dist/*.svg
+dist/**/*.gif
+dist/**/*.js
+dist/**/*.js.map
+dist/**/*.jpg
+dist/**/*.png
+dist/**/*.svg
