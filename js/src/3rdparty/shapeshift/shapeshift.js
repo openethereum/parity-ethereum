@@ -45,11 +45,9 @@ export default function (rpc) {
       callback,
       idx
     });
-
-    return idx;
   }
 
-  function _getStatusSubscription (subscription) {
+  function _getSubscriptionStatus (subscription) {
     if (!subscription) {
       return;
     }
@@ -68,7 +66,10 @@ export default function (rpc) {
             return;
 
           case 'failed':
-            subscription.callback({ message: status.error });
+            subscription.callback({
+              message: status.error,
+              fatal: true
+            });
             subscriptions[subscription.idx] = null;
             return;
         }
@@ -77,7 +78,7 @@ export default function (rpc) {
   }
 
   function _pollStatus () {
-    subscriptions.map(_getStatusSubscription);
+    subscriptions.map(_getSubscriptionStatus);
   }
 
   setInterval(_pollStatus, 2000);
