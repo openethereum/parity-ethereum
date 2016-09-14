@@ -24,6 +24,10 @@
       {
         "name": "o_name",
         "type": "string"
+      },
+      {
+        "name": "o_owner",
+        "type": "address"
       }
     ],
     "type": "function"

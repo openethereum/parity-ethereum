@@ -74,7 +74,8 @@ export const loadToken = (index) => (dispatch, getState) => {
         address: result[0],
         tla: result[1],
         base: result[2].toNumber(),
-        name: result[3]
+        name: result[3],
+        owner: result[4]
       };
 
       console.log(`token loaded: #${index}`, data);

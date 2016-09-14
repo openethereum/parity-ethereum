@@ -24,7 +24,7 @@ export default class Token extends Component {
   };
 
   render () {
-    const { isLoading, address, tla, base, name, meta } = this.props;
+    const { isLoading, address, tla, base, name, meta, owner } = this.props;
 
     if (isLoading) {
       return (
@@ -47,6 +47,11 @@ export default class Token extends Component {
           isAddress={true}
           value={address}
           label="Address" />
+
+        <Chip
+          isAddress={true}
+          value={owner}
+          label="Owner" />
 
         <div className={ styles.metaForm }>
           <TextField
