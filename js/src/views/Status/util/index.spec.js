@@ -16,7 +16,7 @@
 
 import { toPromise, identity } from './';
 
-describe('util/index', () => {
+describe('util', () => {
   describe('toPromise', () => {
     it('rejects on error result', () => {
       const ERROR = new Error();

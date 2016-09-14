@@ -14,11 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Db from './db/index';
-export Eth from './eth/index';
-export Ethcore from './ethcore/index';
-export Net from './net/index';
-export Personal from './personal/index';
-export Shh from './shh/index';
-export Trace from './trace/index';
-export Web3 from './web3/index';
+export Db from './db';
+export Eth from './eth';
+export Ethcore from './ethcore';
+export Net from './net';
+export Personal from './personal';
+export Shh from './shh';
+export Trace from './trace';
+export Web3 from './web3';

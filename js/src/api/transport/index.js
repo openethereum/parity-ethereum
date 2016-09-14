@@ -14,5 +14,5 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Http from './http/index';
-export Ws from './ws/index';
+export Http from './http';
+export Ws from './ws';
