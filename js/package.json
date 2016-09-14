@@ -96,8 +96,8 @@
     "style-loader": "^0.13.0",
     "url-loader": "^0.5.7",
     "web3": "^0.17.0-alpha",
-    "webpack": "^1.12.14",
-    "webpack-dev-server": "^1.14.1",
+    "webpack": "^1.13.2",
+    "webpack-dev-server": "^1.15.2",
     "webpack-error-notification": "0.1.6",
     "webpack-hot-middleware": "^2.7.1",
     "websocket": "^1.0.23"
