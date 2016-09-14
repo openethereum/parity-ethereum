@@ -1,6 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
-import Checkbox from 'material-ui/Checkbox';
+import Toggle from 'material-ui/Toggle';
 
 import { IdentityIcon } from '../parity.js';
 import styles from './events.css';
@@ -59,18 +59,18 @@ export default class Events extends Component {
       <Card className={ styles.events }>
         <CardHeader title={ 'Stuff Happening' } />
         <CardActions className={ styles.options }>
-          <Checkbox
+          <Toggle
             label='Reserved'
-            checked={ subscriptions.Reserved !== null }
+            toggled={ subscriptions.Reserved !== null }
             disabled={ pending.Reserved }
-            onCheck={ this.onReservedChanged }
+            onToggle={ this.onReservedToggle }
             style={ inlineButton }
           />
-          <Checkbox
+          <Toggle
             label='Dropped'
-            checked={ subscriptions.Dropped !== null }
+            toggled={ subscriptions.Dropped !== null }
             disabled={ pending.Dropped }
-            onCheck={ this.onDroppedChanged }
+            onToggle={ this.onDroppedToggle }
             style={ inlineButton }
           />
         </CardActions>
@@ -83,19 +83,23 @@ export default class Events extends Component {
     );
   }
 
-  onReservedChanged = (e, isChecked) => {
+  onReservedToggle = (e, isToggled) => {
     const { pending, subscriptions, actions } = this.props;
     if (!pending.Reserved) {
-      if (isChecked && subscriptions.Reserved === null) {
+      if (isToggled && subscriptions.Reserved === null) {
         actions.subscribe('Reserved');
+      } else if (!isToggled && subscriptions.Reserved !== null) {
+        actions.unsubscribe('Reserved');
       }
     }
   };
-  onDroppedChanged = (e, isChecked) => {
+  onDroppedToggle = (e, isToggled) => {
     const { pending, subscriptions, actions } = this.props;
     if (!pending.Dropped) {
-      if (isChecked && subscriptions.Dropped === null) {
+      if (isToggled && subscriptions.Dropped === null) {
         actions.subscribe('Dropped');
+      } else if (!isToggled && subscriptions.Dropped !== null) {
+        actions.unsubscribe('Dropped');
       }
     }
   };

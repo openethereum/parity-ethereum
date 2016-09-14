@@ -35,6 +35,16 @@ export default (state = initialState, action) => {
     };
   }
 
+  if (action.type === 'events unsubscribe') {
+    console.warn('events unsubscribe', action);
+    return {
+      ...state,
+      pending: { ...state.pending, [action.name]: false },
+      subscriptions: { ...state.subscriptions, [action.name]: null },
+      events: state.events.filter((event) => event.type !== action.name)
+    };
+  }
+
   if (action.type === 'events event' && action.event.state === 'mined') {
     return { ...state, events: state.events
       .filter((event) => event.key !== action.event.key)

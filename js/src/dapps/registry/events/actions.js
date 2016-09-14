@@ -34,3 +34,14 @@ export const subscribe = (name, from = 0, to = 'latest') =>
       }
     });
   };
+
+export const unsubscribe = (name) =>
+  (dispatch, getState) => {
+    const state = getState();
+    if (!state.contract) return;
+    const subscriptions = state.events.subscriptions;
+    if (!(name in subscriptions) || subscriptions[name] === null) return;
+
+    state.contract.unsubscribe(subscriptions[name]);
+    dispatch({ type: 'events unsubscribe', name });
+  };
