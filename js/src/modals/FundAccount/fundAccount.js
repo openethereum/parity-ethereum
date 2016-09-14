@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
+import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { IdentityIcon, Modal } from '../../ui';
@@ -25,7 +26,12 @@ import { newError } from '../../redux/actions';
 import initShapeshift from '../../3rdparty/shapeshift';
 import shapeshiftLogo from '../../images/shapeshift-logo.png';
 
-import Options from './Options';
+import AwaitingDepositStep from './AwaitingDepositStep';
+import AwaitingExchangeStep from './AwaitingExchangeStep';
+import CompletedStep from './CompletedStep';
+import ErrorStep from './ErrorStep';
+import OptionsStep from './OptionsStep';
+
 import styles from './fundAccount.css';
 
 const shapeshift = initShapeshift();
@@ -42,7 +48,15 @@ class FundAccount extends Component {
   state = {
     stage: 0,
     coinSymbol: 'BTC',
-    coins: []
+    coinPair: 'btc_eth',
+    coins: [],
+    depositAddress: '',
+    refundAddress: '',
+    price: { rate: 123.456, minimum: 0.2, limit: 678.987 },
+    depositInfo: null,
+    exchangeInfo: null,
+    error: {},
+    hasAccepted: false
   }
 
   componentDidMount () {
@@ -50,13 +64,15 @@ class FundAccount extends Component {
   }
 
   render () {
-    const { stage } = this.state;
+    const { error, stage } = this.state;
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ STAGE_NAMES }
+        steps={ error.fatal ? null : STAGE_NAMES }
+        title={ error.fatal ? 'exchange failed' : null }
+        waiting={ [1, 2] }
         visible>
         { this.renderPage() }
       </Modal>
@@ -65,7 +81,7 @@ class FundAccount extends Component {
 
   renderDialogActions () {
     const { address } = this.props;
-    const { coins, stage } = this.state;
+    const { coins, error, stage, hasAccepted } = this.state;
 
     const logo = (
       <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
@@ -80,69 +96,203 @@ class FundAccount extends Component {
         onTouchTap={ this.onClose } />
     );
 
+    if (error.fatal) {
+      return [
+        logo,
+        cancelBtn
+      ];
+    }
+
     switch (stage) {
       case 0:
         return [
           logo,
           cancelBtn,
           <FlatButton
-            disabled={ !coins.length }
+            disabled={ !coins.length || !hasAccepted }
             icon={ <IdentityIcon address={ address } button /> }
             label='Shift Funds'
             primary
             onTouchTap={ this.onShift } />
         ];
+
+      case 1:
+      case 2:
+        return [
+          logo,
+          cancelBtn
+        ];
+
+      case 3:
+        return [
+          logo,
+          <FlatButton
+            icon={ <ActionDoneAll /> }
+            label='Close'
+            primary
+            onTouchTap={ this.onClose } />
+        ];
     }
   }
 
   renderPage () {
-    const { coinSymbol, coins, stage } = this.state;
+    const { error, stage } = this.state;
+
+    if (error.fatal) {
+      return (
+        <ErrorStep error={ error } />
+      );
+    }
 
     switch (stage) {
       case 0:
         return (
-          <Options
-            coinSymbol={ coinSymbol }
-            coins={ coins } />
+          <OptionsStep
+            { ...this.state }
+            onChangeSymbol={ this.onChangeSymbol }
+            onChangeRefund={ this.onChangeRefund }
+            onToggleAccept={ this.onToggleAccept } />
+        );
+
+      case 1:
+        return (
+          <AwaitingDepositStep { ...this.state } />
+        );
+
+      case 2:
+        return (
+          <AwaitingExchangeStep { ...this.state } />
+        );
+
+      case 3:
+        return (
+          <CompletedStep { ...this.state } />
         );
     }
   }
 
-  nextStage = () => {
-    const { stage } = this.state;
-
+  setStage (stage) {
     this.setState({
-      stage: stage + 1
+      stage,
+      error: {}
+    });
+  }
+
+  setFatalError (message) {
+    this.setState({
+      stage: 0,
+      error: {
+        fatal: true,
+        message
+      }
     });
   }
 
   onClose = () => {
-    this.setState({
-      stage: 0
-    }, () => {
-      this.props.onClose && this.props.onClose();
-    });
+    this.setStage(0);
+    this.props.onClose && this.props.onClose();
   }
 
   onShift = () => {
-    this.nextStage();
+    const { address, newError } = this.props;
+    const { coinPair, refundAddress } = this.state;
+
+    shapeshift
+      .shift(address, refundAddress, coinPair)
+      .then((result) => {
+        const depositAddress = result.deposit;
+
+        this.setState({ depositAddress }, () => {
+          this.setStage(1);
+          shapeshift.subscribe(depositAddress, this.onExchangeInfo);
+        });
+      })
+      .catch((error) => {
+        console.error('onShift', error);
+        const message = `Failed to start exchange: ${error.message}`;
+
+        newError(new Error(message));
+        // this.setFatalError(message);
+      });
+  }
+
+  onChangeSymbol = (event, coinSymbol) => {
+    const coinPair = `${coinSymbol.toLowerCase()}_eth`;
+
+    this.setState({
+      coinPair,
+      coinSymbol,
+      price: null
+    });
+    this.getPrice(coinPair);
+  }
+
+  onChangeRefund = (event, refundAddress) => {
+    this.setState({ refundAddress });
+  }
+
+  onToggleAccept = () => {
+    const { hasAccepted } = this.state;
+
+    this.setState({
+      hasAccepted: !hasAccepted
+    });
+  }
+
+  onExchangeInfo = (error, result) => {
+    const { newError } = this.props;
+
+    if (error) {
+      if (error.fatal) {
+        this.setFatalError(error.message);
+      }
+
+      newError(error);
+      return;
+    }
+
+    switch (result.status) {
+      case 'received':
+        this.setState({ depositInfo: result });
+        this.setStage(2);
+        return;
+
+      case 'complete':
+        this.setState({ exchangeInfo: result });
+        this.setStage(3);
+        return;
+    }
+  }
+
+  getPrice (coinPair) {
+    shapeshift
+      .getMarketInfo(coinPair)
+      .then((price) => {
+        this.setState({ price });
+      })
+      .catch((error) => {
+        console.error('getPrice', error);
+      });
   }
 
   retrieveCoins () {
     const { newError } = this.props;
+    const { coinPair } = this.state;
 
     shapeshift
       .getCoins()
       .then((_coins) => {
         const coins = Object.values(_coins).filter((coin) => coin.status === 'available');
 
-        this.setState({
-          coins
-        });
+        this.getPrice(coinPair);
+        this.setState({ coins });
       })
       .catch((error) => {
         console.error('retrieveCoins', error);
-        newError(new Error(`Failed to retrieve coins from ShapeShift.io: ${error.message}`));
+        const message = `Failed to retrieve available coins from ShapeShift.io: ${error.message}`;
+
+        newError(new Error(message));
+        this.setFatalError(message);
       });
   }
 }

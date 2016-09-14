@@ -14,42 +14,11 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.coinselector {
-}
-
-.coinselector .coinselect {
-  margin-top: 11px;
-}
-
-.coinselect {
-  max-height: 36px;
-  padding: 4px 0 0 0;
-  line-height: 32px;
-}
-
-.coinimage {
+.body {
   display: inline-block;
-  width: 32px;
-  height: 32px;
-  margin-right: 0.5em;
-}
-
-.coindetails {
-  display: inline-block;
-  vertical-align: top;
-}
-
-.coinsymbol {
-  display: inline-block;
-  margin-right: 0.5em;
   color: #aaa;
 }
 
-.coinname {
+.amount {
   display: inline-block;
-}
-
-.nocoins {
-  padding-top: 1em;
-  color: #aaa;
 }

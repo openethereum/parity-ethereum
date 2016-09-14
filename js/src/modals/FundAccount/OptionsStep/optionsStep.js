@@ -15,25 +15,33 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
+import { Checkbox, MenuItem } from 'material-ui';
 
 import { Form, Input, Select } from '../../../ui';
 
-import styles from './options.css';
+import Price from '../Price';
 
-export default class Options extends Component {
+import styles from './optionsStep.css';
+
+export default class OptionsStep extends Component {
   static propTypes = {
+    refundAddress: PropTypes.string.isRequired,
     coinSymbol: PropTypes.string.isRequired,
-    coins: PropTypes.array.isRequired
+    coins: PropTypes.array.isRequired,
+    price: PropTypes.object,
+    hasAccepted: PropTypes.bool.isRequired,
+    onChangeSymbol: PropTypes.func.isRequired,
+    onChangeRefund: PropTypes.func.isRequired,
+    onToggleAccept: PropTypes.func.isRequired
   };
 
   render () {
-    const { coinSymbol, coins } = this.props;
+    const { coinSymbol, coins, refundAddress, hasAccepted, onToggleAccept } = this.props;
     const label = `(optional) ${coinSymbol} return address`;
 
-    if (!coins.length) {
+    if (false && !coins.length) {
       return (
-        <div className={ styles.nocoins }>
+        <div className={ styles.empty }>
           There are currently no coins available to fund with.
         </div>
       );
@@ -42,19 +50,29 @@ export default class Options extends Component {
     const items = coins.map(this.renderCoinSelectItem);
 
     return (
-      <Form>
-        <Select
-          className={ styles.coinselector }
-          label='fund account from'
-          hint='the type of crypto conversion to do'
-          value={ coinSymbol }
-          onChange={ this.onSelectCoin }>
-          { items }
-        </Select>
-        <Input
-          label={ label }
-          hint='the return address for send failures' />
-      </Form>
+      <div className={ styles.body }>
+        <Form>
+          <Select
+            className={ styles.coinselector }
+            label='fund account from'
+            hint='the type of crypto conversion to do'
+            value={ coinSymbol }
+            onChange={ this.onSelectCoin }>
+            { items }
+          </Select>
+          <Input
+            label={ label }
+            hint='the return address for send failures'
+            value={ refundAddress }
+            onSubmit={ this.onChangeRefund } />
+          <Checkbox
+            className={ styles.accept }
+            label='I understand that ShapeShift.io is a 3rd-party service and by using the service any transfer of information and/or funds is completely out of the control of Parity'
+            checked={ hasAccepted }
+            onCheck={ onToggleAccept } />
+        </Form>
+        <Price { ...this.props } />
+      </div>
     );
   }
 
@@ -86,6 +104,10 @@ export default class Options extends Component {
   }
 
   onSelectCoin = (event, idx, value) => {
-    console.log(idx, value);
+    this.props.onChangeSymbol(value);
+  }
+
+  onChangeAddress = (event, value) => {
+    this.props.onChangeRefund(value);
   }
 }

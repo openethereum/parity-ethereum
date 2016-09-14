@@ -14,4 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './Options';
+import BigNumber from 'bignumber.js';
+import React, { Component, PropTypes } from 'react';
+
+import styles from './value.css';
+
+export default class Value extends Component {
+  static propTypes = {
+    amount: PropTypes.number,
+    symbol: PropTypes.string
+  }
+
+  render () {
+    const { amount, symbol } = this.props;
+
+    let value = '';
+    if (amount) {
+      value = new BigNumber(amount).toFormat(6);
+    }
+
+    return (
+      <div className={ styles.body }>
+        <span>{ value }</span><small>{ symbol || 'ΞTH' }</small>
+      </div>
+    );
+  }
+}
