@@ -313,6 +313,10 @@ mod tests {
 			self.block(hash).map(|b| BlockChain::block_to_body(&b))
 		}
 
+		fn best_ancient_block(&self) -> Option<H256> {
+			None
+		}
+
 		/// Get the familial details concerning a block.
 		fn block_details(&self, hash: &H256) -> Option<BlockDetails> {
 			self.blocks.get(hash).map(|bytes| {

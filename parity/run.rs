@@ -69,6 +69,7 @@ pub struct RunCmd {
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<U256>,
+	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -170,6 +171,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
 	sync_config.fork_block = spec.fork_block();
+	sync_config.warp_sync = cmd.warp_sync;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));

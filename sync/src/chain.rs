@@ -324,6 +324,8 @@ pub struct ChainSync {
 	network_id: U256,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
+	/// Snapshot sync allowed.
+	snapshot_sync_enabled: bool,
 	/// Snapshot downloader.
 	snapshot: Snapshot,
 }
@@ -345,6 +347,7 @@ impl ChainSync {
 			last_sent_block_number: 0,
 			network_id: config.network_id,
 			fork_block: config.fork_block,
+			snapshot_sync_enabled: config.warp_sync,
 			snapshot: Snapshot::new(),
 		};
 		sync.init_downloaders(chain);
@@ -1035,7 +1038,8 @@ impl ChainSync {
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
 		if force || self.state == SyncState::NewBlocks || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
-				SyncState::Idle if chain_info.best_block_number < peer_snapshot_number
+				SyncState::Idle if self.snapshot_sync_enabled
+					&& chain_info.best_block_number < peer_snapshot_number
 					&& (peer_snapshot_number - chain_info.best_block_number) > SNAPSHOT_RESTORE_THRESHOLD => {
 					trace!(target: "sync", "Starting snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
 					self.start_snapshot_sync(io, peer_id);
@@ -1720,7 +1724,6 @@ impl ChainSync {
 
 	/// propagates new transactions to all peers
 	pub fn propagate_new_transactions(&mut self, io: &mut SyncIo) -> usize {
-
 		// Early out of nobody to send to.
 		if self.peers.is_empty() {
 			return 0;

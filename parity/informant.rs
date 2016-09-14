@@ -97,7 +97,7 @@ impl Informant {
 
 		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
 			|| sync_status.map_or(false, |s| s.is_major_syncing());
-		let (snapshot, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
+		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
 			match s.status() {
 				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
 					(true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
@@ -105,7 +105,7 @@ impl Informant {
 			}
 		);
 
-		if !importing && elapsed < Duration::from_secs(30) {
+		if !importing && !snapshot_sync && elapsed < Duration::from_secs(30) {
 			return;
 		}
 
@@ -121,7 +121,7 @@ impl Informant {
 
 		info!(target: "import", "{}   {}   {}",
 			match importing {
-				true => match snapshot {
+				true => match snapshot_sync {
 					false => format!("Syncing {} {}   {}   {}+{} Qed",
 						paint(White.bold(), format!("{:>8}", format!("#{}", chain_info.best_block_number))),
 						paint(White.bold(), format!("{}", chain_info.best_block_hash)),

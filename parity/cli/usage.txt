@@ -67,6 +67,7 @@ Account Options:
 
 Networking Options:
   --no-network             Disable p2p networking. (default: {flag_no_network})
+  --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).
   --min-peers NUM          Try to maintain at least NUM peers (default: {flag_min_peers}).
