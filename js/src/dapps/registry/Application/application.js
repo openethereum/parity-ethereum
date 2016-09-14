@@ -49,7 +49,7 @@ export default class Application extends Component {
           <div>
             <Lookup { ...lookup } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
-            <Events events={ events } actions={ actions.events } />
+            <Events { ...events } actions={ actions.events } />
             <Status address={ contract.address } owner={ owner } />
           </div>
         ) : (

@@ -2,6 +2,10 @@
   margin: 1em;
 }
 
+.options {
+  margin: 0 .5em;
+}
+
 .reserved, .dropped {
   margin: .5em 0;
   display: flex;
