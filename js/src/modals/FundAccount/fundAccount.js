@@ -52,7 +52,7 @@ class FundAccount extends Component {
     coins: [],
     depositAddress: '',
     refundAddress: '',
-    price: { rate: 123.456, minimum: 0.2, limit: 678.987 },
+    price: null,
     depositInfo: null,
     exchangeInfo: null,
     error: {},
