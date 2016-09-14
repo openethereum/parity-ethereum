@@ -32,6 +32,7 @@ export default class Modal extends Component {
     actions: PropTypes.node,
     children: PropTypes.node,
     current: PropTypes.number,
+    waiting: PropTypes.array,
     scroll: PropTypes.bool,
     steps: PropTypes.array,
     title: React.PropTypes.oneOfType([
@@ -41,13 +42,14 @@ export default class Modal extends Component {
   }
 
   render () {
-    const { actions, current, children, scroll, steps, title, visible } = this.props;
+    const { actions, current, children, scroll, steps, waiting, title, visible } = this.props;
     let header;
 
     if (steps) {
       header = (
         <ModalSteps
           current={ current }
+          waiting={ waiting }
           steps={ steps }
           title={ title } />
       );

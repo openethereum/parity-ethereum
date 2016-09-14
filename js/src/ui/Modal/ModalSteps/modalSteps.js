@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
+import { LinearProgress } from 'material-ui';
 import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
 import styles from '../modal.css';
@@ -24,6 +24,7 @@ export default class ModalSteps extends Component {
   static propTypes = {
     current: PropTypes.number,
     steps: PropTypes.array.isRequired,
+    waiting: PropTypes.array,
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
     ])
@@ -40,6 +41,7 @@ export default class ModalSteps extends Component {
           activeStep={ current }>
           { this.renderTimeline() }
         </Stepper>
+        { this.renderWaiting() }
       </div>
     );
   }
@@ -57,5 +59,20 @@ export default class ModalSteps extends Component {
         </Step>
       );
     });
+  }
+
+  renderWaiting () {
+    const { current, waiting } = this.props;
+    const isWaiting = (waiting || []).includes(current);
+
+    if (!isWaiting) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.waiting }>
+        <LinearProgress />
+      </div>
+    );
   }
 }
