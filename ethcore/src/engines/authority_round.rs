@@ -108,7 +108,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 
 	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
-			println!("timeout");
+			debug!(target: "authorityround", "timeout");
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::Relaxed);
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
@@ -118,7 +118,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 
 	fn message(&self, io: &IoContext<BlockArrived>, _net_message: &BlockArrived) {
 		if let Some(engine) = self.engine.upgrade() {
-			println!("Message: {:?}", get_time().sec);
+			trace!(target: "authorityround", "Message: {:?}", get_time().sec);
 			engine.step.fetch_add(1, AtomicOrdering::Relaxed);
 			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
@@ -159,7 +159,11 @@ impl Engine for AuthorityRound {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
-	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
+	fn is_sealer(&self, author: &Address) -> Option<bool> {
+		let ref p = self.our_params;
+		Some(p.our_params.authorities.contains(author))
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
