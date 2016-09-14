@@ -390,8 +390,8 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
-		unimplemented!();
+	fn logs(&self, _filter: Filter, _limit: Option<usize>) -> Vec<LocalizedLogEntry> {
+		Vec::new()
 	}
 
 	fn last_hashes(&self) -> LastHashes {

@@ -23,6 +23,7 @@ use header::*;
 use super::extras::*;
 use transaction::*;
 use views::*;
+use log_entry::{LogEntry, LocalizedLogEntry};
 use receipt::Receipt;
 use blooms::{Bloom, BloomGroup};
 use blockchain::block_info::{BlockInfo, BlockLocation, BranchBecomingCanonChainData};
@@ -127,6 +128,10 @@ pub trait BlockProvider {
 
 	/// Returns numbers of blocks containing given bloom.
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockNumber, to_block: BlockNumber) -> Vec<BlockNumber>;
+
+	/// Returns logs matching given filter.
+	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+		where F: Fn(&LogEntry) -> bool, Self: Sized;
 }
 
 #[derive(Debug, Hash, Eq, PartialEq, Clone)]
@@ -314,6 +319,51 @@ impl BlockProvider for BlockChain {
 			.into_iter()
 			.map(|b| b as BlockNumber)
 			.collect()
+	}
+
+	fn logs<F>(&self, mut blocks: Vec<BlockNumber>, matches: F, limit: Option<usize>) -> Vec<LocalizedLogEntry>
+		where F: Fn(&LogEntry) -> bool, Self: Sized {
+		// sort in reverse order
+		blocks.sort_by(|a, b| b.cmp(a));
+
+		let mut log_index = 0;
+		let mut logs = blocks.into_iter()
+			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
+			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
+			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
+			.flat_map(|(number, hash, mut receipts, hashes)| {
+				assert_eq!(receipts.len(), hashes.len());
+				log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
+
+				let receipts_len = receipts.len();
+				receipts.reverse();
+				receipts.into_iter()
+					.map(|receipt| receipt.logs)
+					.zip(hashes)
+					.enumerate()
+					.flat_map(move |(index, (mut logs, tx_hash))| {
+						let current_log_index = log_index;
+						log_index -= logs.len();
+
+						logs.reverse();
+						logs.into_iter()
+							.enumerate()
+							.map(move |(i, log)| LocalizedLogEntry {
+								entry: log,
+								block_hash: hash,
+								block_number: number,
+								transaction_hash: tx_hash,
+								// iterating in reverse order
+								transaction_index: receipts_len - index - 1,
+								log_index: current_log_index - i - 1,
+							})
+					})
+			})
+			.filter(|log_entry| matches(&log_entry.entry))
+			.take(limit.unwrap_or(::std::usize::MAX))
+			.collect::<Vec<LocalizedLogEntry>>();
+		logs.reverse();
+		logs
 	}
 }
 
@@ -1160,6 +1210,7 @@ mod tests {
 	use blockchain::extras::TransactionAddress;
 	use views::BlockView;
 	use transaction::{Transaction, Action};
+	use log_entry::{LogEntry, LocalizedLogEntry};
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
@@ -1235,7 +1286,7 @@ mod tests {
 		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		for _ in 0..10 {
 			let block = canon_chain.generate(&mut finalizer).unwrap();
 			block_hashes.push(BlockView::new(&block).header_view().sha3());
@@ -1612,11 +1663,132 @@ mod tests {
 	}
 
 	fn insert_block(db: &Arc<Database>, bc: &BlockChain, bytes: &[u8], receipts: Vec<Receipt>) -> ImportRoute {
-		let mut batch =db.transaction();
+		let mut batch = db.transaction();
 		let res = bc.insert_block(&mut batch, bytes, receipts);
 		db.write(batch).unwrap();
 		bc.commit();
 		res
+	}
+
+	#[test]
+	fn test_logs() {
+		// given
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		// just insert dummy transaction so that #transactions=#receipts
+		let t1 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+		let t2 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+		let t3 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+		let tx_hash1 = t1.hash();
+		let tx_hash2 = t2.hash();
+		let tx_hash3 = t3.hash();
+		let b1 = canon_chain.with_transaction(t1).with_transaction(t2).generate(&mut finalizer).unwrap();
+		let b2 = canon_chain.with_transaction(t3).generate(&mut finalizer).unwrap();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		insert_block(&db, &bc, &b1, vec![Receipt {
+			state_root: H256::default(),
+			gas_used: 10_000.into(),
+			log_bloom: Default::default(),
+			logs: vec![
+				LogEntry { address: Default::default(), topics: vec![], data: vec![1], },
+				LogEntry { address: Default::default(), topics: vec![], data: vec![2], },
+			],
+		},
+		Receipt {
+			state_root: H256::default(),
+			gas_used: 10_000.into(),
+			log_bloom: Default::default(),
+			logs: vec![
+				LogEntry { address: Default::default(), topics: vec![], data: vec![3], },
+			],
+		}]);
+		insert_block(&db, &bc, &b2, vec![
+			Receipt {
+				state_root: H256::default(),
+				gas_used: 10_000.into(),
+				log_bloom: Default::default(),
+				logs: vec![
+					LogEntry { address: Default::default(), topics: vec![], data: vec![4], },
+				],
+			}
+		]);
+
+		// when
+		let block1 = BlockView::new(&b1);
+		let block2 = BlockView::new(&b2);
+		let logs1 = bc.logs(vec![1, 2], |_| true, None);
+		let logs2 = bc.logs(vec![1, 2], |_| true, Some(1));
+
+		// then
+		assert_eq!(logs1, vec![
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![1] },
+				block_hash: block1.hash(),
+				block_number: block1.header().number(),
+				transaction_hash: tx_hash1.clone(),
+				transaction_index: 0,
+				log_index: 0,
+			},
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![2] },
+				block_hash: block1.hash(),
+				block_number: block1.header().number(),
+				transaction_hash: tx_hash1.clone(),
+				transaction_index: 0,
+				log_index: 1,
+			},
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![3] },
+				block_hash: block1.hash(),
+				block_number: block1.header().number(),
+				transaction_hash: tx_hash2.clone(),
+				transaction_index: 1,
+				log_index: 2,
+			},
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![4] },
+				block_hash: block2.hash(),
+				block_number: block2.header().number(),
+				transaction_hash: tx_hash3.clone(),
+				transaction_index: 0,
+				log_index: 0,
+			}
+		]);
+		assert_eq!(logs2, vec![
+			LocalizedLogEntry {
+				entry: LogEntry { address: Default::default(), topics: vec![], data: vec![4] },
+				block_hash: block2.hash(),
+				block_number: block2.header().number(),
+				transaction_hash: tx_hash3.clone(),
+				transaction_index: 0,
+				log_index: 0,
+			}
+		]);
 	}
 
 	#[test]
