@@ -1,13 +1,13 @@
 import React, { Component, PropTypes } from 'react';
 
+import { api } from '../parity';
+
 import EventBuyin from './EventBuyin';
 import EventNewTranch from './EventNewTranch';
 import EventRefund from './EventRefund';
 import EventTransfer from './EventTransfer';
 
 import styles from './events.css';
-
-const { api } = window.parity;
 
 export default class Events extends Component {
   static childContextTypes = {

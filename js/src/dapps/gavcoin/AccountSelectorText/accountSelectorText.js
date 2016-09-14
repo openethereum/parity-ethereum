@@ -1,9 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
 
+import IdentityIcon from '../IdentityIcon';
 import AccountSelector from '../AccountSelector';
-
-const { IdentityIcon } = window.parity.react;
 
 import styles from './accountSelectorText.css';
 
@@ -77,9 +76,7 @@ export default class AccountSelectorText extends Component {
 
     return (
       <div className={ styles.addricon }>
-        <IdentityIcon
-          inline center
-          address={ account.address } />
+        <IdentityIcon address={ account.address } />
       </div>
     );
   }

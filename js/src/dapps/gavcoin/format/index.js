@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 
-const { api } = window.parity;
+import { api } from '../parity';
 
 const DIVISOR = 10 ** 6;
 const ZERO = new BigNumber(0);

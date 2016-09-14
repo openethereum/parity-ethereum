@@ -1,8 +1,7 @@
 import React, { Component, PropTypes } from 'react';
-
 import { Chip } from 'material-ui';
 
-const { IdentityIcon } = window.parity.react;
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './accounts.css';
 
@@ -44,9 +43,7 @@ export default class Accounts extends Component {
           <Chip
             className={ styles.account }
             key={ account.address }>
-            <IdentityIcon
-              inline center
-              address={ account.address } />
+            <IdentityIcon address={ account.address } />
             <span className={ styles.name }>
               { account.name }
             </span>

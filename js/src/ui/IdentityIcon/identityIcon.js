@@ -1,9 +1,12 @@
 import React, { Component, PropTypes } from 'react';
-import blockies from 'blockies';
 
 import styles from './identityIcon.css';
 
 export default class IdentityIcon extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     address: PropTypes.string,
     className: PropTypes.string,
@@ -18,7 +21,9 @@ export default class IdentityIcon extends Component {
   }
 
   componentDidMount () {
-    this.updateIcon(this.props.address);
+    const { address } = this.props;
+
+    this.updateIcon(address);
   }
 
   componentWillReceiveProps (newProps) {
@@ -32,6 +37,7 @@ export default class IdentityIcon extends Component {
   }
 
   updateIcon (_address) {
+    const { api } = this.context;
     const { tokens, inline } = this.props;
     const token = (tokens || {})[_address];
 
@@ -43,14 +49,8 @@ export default class IdentityIcon extends Component {
       return;
     }
 
-    const address = _address.toLowerCase();
-
     this.setState({
-      iconsrc: blockies({
-        seed: address,
-        size: 8,
-        scale: inline ? 4 : 7
-      }).toDataURL()
+      iconsrc: api.util.createIdentityImg(_address, inline ? 4 : 7)
     });
   }
 
