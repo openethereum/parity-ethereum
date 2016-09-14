@@ -1,6 +1,3 @@
-<<<<<<< HEAD
-import { Logging } from '../subscriptions';
-=======
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -17,8 +14,7 @@ import { Logging } from '../subscriptions';
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Logging } from '../subscriptions/index';
->>>>>>> js
+import { Logging } from '../subscriptions';
 
 export default class JsonRpcBase {
   constructor () {

@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-import { Http, Ws } from './transport';
-import Contract from './contract';
-
-import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc';
-import Subscriptions from './subscriptions';
-import format from './format';
-=======
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -22,14 +14,13 @@ import format from './format';
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Http, Ws } from './transport/index';
-import Contract from './contract/index';
+import { Http, Ws } from './transport';
+import Contract from './contract';
 
-import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc/index';
-import Subscriptions from './subscriptions/index';
-import format from './format/index';
-import util from './util/index';
->>>>>>> js
+import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc';
+import Subscriptions from './subscriptions';
+import format from './format';
+import util from './util';
 import { isFunction } from './util/types';
 
 export default class Api {

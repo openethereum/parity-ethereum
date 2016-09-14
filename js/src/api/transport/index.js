@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-export Http from './http';
-export Ws from './ws';
-=======
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -18,6 +14,5 @@ export Ws from './ws';
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Http from './http/index';
-export Ws from './ws/index';
->>>>>>> js
+export Http from './http';
+export Ws from './ws';
