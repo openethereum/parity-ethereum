@@ -16,7 +16,7 @@
 
 import 'isomorphic-fetch';
 
-import es6Promise from 'es6-promise';
+import * as es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
 import Abi from './abi';
