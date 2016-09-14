@@ -1,10 +1,9 @@
 import React, { Component, PropTypes } from 'react';
 
+import IdentityIcon from '../../IdentityIcon';
 import { formatBlockNumber, formatCoins, formatEth } from '../../format';
 
 import styles from '../events.css';
-
-const { IdentityIcon } = window.parity.react;
 
 const EMPTY_COLUMN = (
   <td></td>
@@ -55,7 +54,7 @@ export default class Event extends Component {
 
     return (
       <td className={ styles.account }>
-        <IdentityIcon inline center address={ address } />
+        <IdentityIcon address={ address } />
         { this.renderAddressName(address) }
       </td>
     );

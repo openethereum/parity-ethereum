@@ -3,13 +3,12 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, TextField } from 'material-ui';
 
+import { api } from '../../parity';
 import AccountSelector from '../../AccountSelector';
 import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 import styles from '../actions.css';
-
-const { api } = window.parity;
 
 const NAME_ID = ' ';
 
