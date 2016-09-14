@@ -1,12 +1,19 @@
 .status {
-  padding: 1em 1em 2em 1em;
+  background: rgba(25, 75, 125, 1);
+  color: rgba(255, 255, 255, 1);
+  padding: 4em 0 2em 0;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
 }
 
-.address {
-}
-
-.fee {
-}
-
-.owner {
+.title {
+  font-size: 3rem;
+  font-weight: 300;
+  margin-top: 0;
+  text-transform: uppercase;
 }

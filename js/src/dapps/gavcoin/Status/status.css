@@ -6,6 +6,13 @@
   flex-wrap: wrap;
 }
 
+.title {
+  margin-top: 0;
+  font-weight: 300;
+  font-size: 2.5rem;
+  text-transform: uppercase;
+}
+
 .item {
   flex: 0 1 30%;
   width: 30%;

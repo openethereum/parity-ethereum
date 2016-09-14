@@ -1,7 +1,7 @@
 import { SET_LOADING, SET_CONTRACT_DETAILS } from './actions';
 
 const initialState = {
-  isLoading: false,
+  isLoading: true,
   contract: {
     addres: null,
     instance: null,

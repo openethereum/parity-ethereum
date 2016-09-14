@@ -5,6 +5,9 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Loading from '../Loading';
 import Status from '../Status';
+import Tokens from '../Tokens';
+
+import styles from './application.css';
 
 const muiTheme = getMuiTheme(lightBaseTheme);
 
@@ -23,11 +26,13 @@ export default class Application extends Component {
     }
 
     return (
-      <div>
+      <div className={ styles.application }>
         <Status
           address={ contract.address }
           fee={ contract.fee }
           owner={ contract.owner } />
+
+        <Tokens />
       </div>
     );
   }
