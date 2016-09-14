@@ -611,6 +611,7 @@ dependencies = [
  "ethcore-ipc-nano 1.4.0",
  "ethcore-network 1.4.0",
  "ethcore-util 1.4.0",
+ "ethkey 0.2.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
