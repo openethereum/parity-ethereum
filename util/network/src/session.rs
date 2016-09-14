@@ -30,7 +30,7 @@ use node_table::NodeId;
 use stats::NetworkStats;
 use time;
 
-const PING_TIMEOUT_SEC: u64 = 30;
+const PING_TIMEOUT_SEC: u64 = 65;
 const PING_INTERVAL_SEC: u64 = 30;
 
 /// Peer session over encrypted connection.

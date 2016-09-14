@@ -147,7 +147,7 @@ const BODIES_TIMEOUT_SEC: f64 = 10f64;
 const RECEIPTS_TIMEOUT_SEC: f64 = 10f64;
 const FORK_HEADER_TIMEOUT_SEC: f64 = 3f64;
 const SNAPSHOT_MANIFEST_TIMEOUT_SEC: f64 = 3f64;
-const SNAPSHOT_DATA_TIMEOUT_SEC: f64 = 10f64;
+const SNAPSHOT_DATA_TIMEOUT_SEC: f64 = 60f64;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
