@@ -35,14 +35,6 @@ const config = {
   format: 'cjs',
   sourceMap: true,
   plugins: [
-    json(),
-    postcss({}),
-    babel({
-      babelrc: false,
-      exclude: 'node_modules/**',
-      presets: [ 'es2017', 'es2016', 'es2015-rollup', 'stage-0', 'react' ],
-      runtimeHelpers: true
-    }),
     cjs({
       exclude: 'node_modules/process-es6/**',
       include: [
@@ -51,18 +43,26 @@ const config = {
         'node_modules/react-dom/**'
       ]
     }),
-    replace({
-      'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
+    resolve({
+      browser: true,
+      main: true
     }),
-    globals(),
     url({
       limit: 0,
       publicPath: 'dist/'
     }),
-    resolve({
-      browser: true,
-      main: true
-    })
+    json(),
+    postcss({}),
+    babel({
+      babelrc: false,
+      exclude: 'node_modules/**',
+      presets: [ 'es2017', 'es2016', 'es2015-rollup', 'stage-0', 'react' ],
+      runtimeHelpers: true
+    }),
+    replace({
+      'process.env.NODE_ENV': JSON.stringify(NODE_ENV)
+    }),
+    globals()
   ]
 };
 
