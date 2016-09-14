@@ -152,7 +152,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							filter.to_block = BlockID::Latest;
 
 							// retrieve logs in range from_block..min(BlockID::Latest..to_block)
-							let mut logs = client.logs(filter.clone())
+							let mut logs = client.logs(filter.clone(), None)
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
@@ -194,7 +194,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
 						let include_pending = filter.to_block == Some(BlockNumber::Pending);
 						let filter: EthcoreFilter = filter.clone().into();
-						let mut logs = take_weak!(self.client).logs(filter.clone())
+						let mut logs = take_weak!(self.client).logs(filter.clone(), None)
 							.into_iter()
 							.map(From::from)
 							.collect::<Vec<Log>>();
