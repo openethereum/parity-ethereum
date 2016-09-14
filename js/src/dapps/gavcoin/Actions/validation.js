@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js';
 
-const { api } = window.parity;
+import { api } from '../parity';
 
 export const ERRORS = {
   invalidAccount: 'please select an account to transact with',
