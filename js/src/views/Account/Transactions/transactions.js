@@ -91,6 +91,7 @@ class Transactions extends Component {
       <td className={ styles.left }>
         <IdentityIcon
           inline center
+          tokens={ tokens }
           address={ address } />
         <a
           href={ link }
