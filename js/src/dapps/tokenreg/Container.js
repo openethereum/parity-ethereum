@@ -4,6 +4,7 @@ import { connect } from 'react-redux';
 import Application from './Application';
 
 import { loadContract } from './Status/actions';
+import { loadAccounts } from './Accounts/actions';
 
 class Container extends Component {
   static propTypes = {
@@ -12,7 +13,7 @@ class Container extends Component {
   };
 
   componentDidMount() {
-    this.props.onLoadContract();
+    this.props.onLoad();
   }
 
   render() {
@@ -36,8 +37,9 @@ const mapStateToProps = (state) => {
 
 const mapDispatchToProps = (dispatch) => {
   return {
-    onLoadContract: () => {
+    onLoad: () => {
       dispatch(loadContract());
+      dispatch(loadAccounts());
     }
   };
 };

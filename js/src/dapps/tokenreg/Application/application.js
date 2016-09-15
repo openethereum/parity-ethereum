@@ -6,6 +6,7 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 import Loading from '../Loading';
 import Status from '../Status';
 import Tokens from '../Tokens';
+import Actions from '../Actions';
 
 import styles from './application.css';
 
@@ -31,6 +32,8 @@ export default class Application extends Component {
           address={ contract.address }
           fee={ contract.fee }
           owner={ contract.owner } />
+
+        <Actions />
 
         <Tokens />
       </div>

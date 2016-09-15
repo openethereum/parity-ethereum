@@ -1,7 +1,7 @@
 .token{
   display: flex;
 
-  width: 300px;
+  width: 20rem;
   margin: 1rem;
   padding: 1rem;
   flex-direction: column;
