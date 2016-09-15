@@ -1,10 +1,10 @@
 #!/bin/bash
 
 export TARGETS="
-	-p bigint\
 	-p rlp\
 	-p ethash \
 	-p ethcore \
+	-p ethcore-bigint\
 	-p ethcore-dapps \
 	-p ethcore-rpc \
 	-p ethcore-signer \

@@ -20,7 +20,7 @@ extern crate lazy_static;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_serialize;
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 
 mod brain;
 mod error;

@@ -16,7 +16,7 @@
 
 //! Crypto utils used ethstore and network.
 
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 extern crate tiny_keccak;
 extern crate crypto as rcrypto;
 extern crate secp256k1;
