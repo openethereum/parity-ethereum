@@ -56,7 +56,8 @@ class FundAccount extends Component {
     depositInfo: null,
     exchangeInfo: null,
     error: {},
-    hasAccepted: false
+    hasAccepted: false,
+    shifting: false
   }
 
   componentDidMount () {
@@ -81,7 +82,7 @@ class FundAccount extends Component {
 
   renderDialogActions () {
     const { address } = this.props;
-    const { coins, error, stage, hasAccepted } = this.state;
+    const { coins, error, stage, hasAccepted, shifting } = this.state;
 
     const logo = (
       <a href='http://shapeshift.io' target='_blank' className={ styles.shapeshift }>
@@ -109,7 +110,7 @@ class FundAccount extends Component {
           logo,
           cancelBtn,
           <FlatButton
-            disabled={ !coins.length || !hasAccepted }
+            disabled={ !coins.length || !hasAccepted || shifting }
             icon={ <IdentityIcon address={ address } button /> }
             label='Shift Funds'
             primary
@@ -197,9 +198,14 @@ class FundAccount extends Component {
     const { address, newError } = this.props;
     const { coinPair, refundAddress } = this.state;
 
+    this.setState({
+      shifting: true
+    });
+
     shapeshift
       .shift(address, refundAddress, coinPair)
       .then((result) => {
+        console.log('onShift', result);
         const depositAddress = result.deposit;
 
         this.setState({ depositAddress }, () => {
@@ -212,7 +218,7 @@ class FundAccount extends Component {
         const message = `Failed to start exchange: ${error.message}`;
 
         newError(new Error(message));
-        // this.setFatalError(message);
+        this.setFatalError(message);
       });
   }
 
@@ -243,6 +249,8 @@ class FundAccount extends Component {
     const { newError } = this.props;
 
     if (error) {
+      console.error('onExchangeInfo', error);
+
       if (error.fatal) {
         this.setFatalError(error.message);
       }
@@ -250,6 +258,8 @@ class FundAccount extends Component {
       newError(error);
       return;
     }
+
+    console.log('onExchangeInfo', result.status, result);
 
     switch (result.status) {
       case 'received':
