@@ -30,9 +30,9 @@ export default class Contract {
     this._abi = new Abi(abi);
 
     this._subscriptions = [];
-    this._constructors = this._abi.constructors.map((cons) => this._bindFunction(cons));
-    this._functions = this._abi.functions.map((func) => this._bindFunction(func));
-    this._events = this._abi.events.map((event) => this._bindEvent(event));
+    this._constructors = this._abi.constructors.map(this._bindFunction);
+    this._functions = this._abi.functions.map(this._bindFunction);
+    this._events = this._abi.events.map(this._bindEvent);
 
     this._instance = {};
 
@@ -169,7 +169,7 @@ export default class Contract {
     }, options);
   }
 
-  _bindFunction (func) {
+  _bindFunction = (func) => {
     func.call = (options, values) => {
       return this._api.eth
         .call(this._encodeOptions(func, this._addOptionsTo(options), values))
@@ -193,71 +193,19 @@ export default class Contract {
     return func;
   }
 
-  _bindEvent (event) {
-    const subscriptions = [];
-
-    event.subscribe = (_options, callback) => {
-      const subscriptionId = subscriptions.length;
-      const options = Object.assign({}, _options, {
-        address: this._address,
-        topics: [event.signature]
-      });
-
-      this._api.eth
-        .newFilter(options)
-        .then((filterId) => {
-          return this._api.eth
-            .getFilterLogs(filterId)
-            .then((logs) => {
-              callback(this.parseEventLogs(logs));
-
-              subscriptions.push({
-                options,
-                callback,
-                filterId
-              });
-            });
-        });
-
-      return subscriptionId;
+  _bindEvent = (event) => {
+    event.subscribe = (options = {}, callback) => {
+      return this._subscribe(event, options, callback);
     };
 
     event.unsubscribe = (subscriptionId) => {
-      const subscription = subscriptions[subscriptionId];
-
-      this._api.eth
-        .uninstallFilter(subscription.filterId);
-
-      subscriptions[subscriptionId] = null;
+      return this.unsubscribe(subscriptionId);
     };
-
-    const sendChanges = (subscription) => {
-      if (!subscription) {
-        return;
-      }
-
-      this._api.eth
-        .getFilterChanges(subscription.filterId)
-        .then((logs) => {
-          try {
-            subscription.callback(this.parseEventLogs(logs));
-          } catch (error) {
-            console.error('pollChanges', error);
-          }
-        });
-    };
-
-    const onTriggerSend = (blockNumber) => {
-      subscriptions.forEach(sendChanges);
-    };
-
-    setInterval(onTriggerSend, 1000);
 
     return event;
   }
 
-  subscribe (eventName, _options = {}, callback) {
-    const subscriptionId = this._subscriptions.length;
+  subscribe (eventName = null, options = {}, callback) {
     let event = null;
 
     if (eventName) {
@@ -269,6 +217,11 @@ export default class Contract {
       }
     }
 
+    return this._subscribe(event, options, callback);
+  }
+
+  _subscribe (event = null, _options, callback) {
+    const subscriptionId = this._subscriptions.length;
     const options = Object.assign({}, _options, {
       address: this._address,
       topics: [event ? event.signature : null]
