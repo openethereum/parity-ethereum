@@ -34,7 +34,7 @@
 //!
 //! use std::sync::Arc;
 //! use ethcore_signer::ServerBuilder;
-//! use ethcore_rpc::SignerService;
+//! use ethcore_rpc::ConfirmationsQueue;
 //!
 //!	fn main() {
 //!	 let queue = Arc::new(ConfirmationsQueue::default());
