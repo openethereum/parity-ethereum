@@ -38,6 +38,7 @@ dependencies = [
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -83,16 +84,6 @@ dependencies = [
 name = "base64"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-
-[[package]]
-name = "bigint"
-version = "0.1.0"
-dependencies = [
- "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
-]
 
 [[package]]
 name = "bit-set"
@@ -302,6 +293,16 @@ dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-bigint"
+version = "0.1.0"
+dependencies = [
+ "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -516,11 +517,11 @@ version = "1.4.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "bigint 0.1.0",
  "clippy 0.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "ethcore-bigint 0.1.0",
  "ethcore-devtools 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -547,8 +548,8 @@ dependencies = [
 name = "ethcrypto"
 version = "0.1.0"
 dependencies = [
- "bigint 0.1.0",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "ethcore-bigint 0.1.0",
  "ethkey 0.2.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -569,9 +570,9 @@ dependencies = [
 name = "ethkey"
 version = "0.2.0"
 dependencies = [
- "bigint 0.1.0",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
+ "ethcore-bigint 0.1.0",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1344,8 +1345,8 @@ dependencies = [
 name = "rlp"
 version = "0.1.0"
 dependencies = [
- "bigint 0.1.0",
  "elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-bigint 0.1.0",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1677,6 +1678,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "toml"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "traitobject"
 version = "0.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1983,6 +1992,7 @@ dependencies = [
 "checksum time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)" = "3c7ec6d62a20df54e07ab3b78b9a3932972f4b7981de295563686849eb3989af"
 "checksum tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)" = "f7aef43048292ca0bae4ab32180e85f6202cf2816c2a210c396a84b99dab9270"
 "checksum toml 0.1.28 (registry+https://github.com/rust-lang/crates.io-index)" = "fcd27a04ca509aff336ba5eb2abc58d456f52c4ff64d9724d88acb85ead560b6"
+"checksum toml 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "a442dfc13508e603c3f763274361db7f79d7469a0e95c411cde53662ab30fc72"
 "checksum traitobject 0.0.1 (registry+https://github.com/rust-lang/crates.io-index)" = "07eaeb7689bb7fca7ce15628319635758eda769fed481ecfe6686ddef2600616"
 "checksum transient-hashmap 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "15f7cc7116182edca1ed08f6f8c4da92104555ca77addbabea4eaa59b20373d0"
 "checksum typeable 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1410f6f91f21d1612654e7cc69193b0334f909dcf2c790c4826254fbb86f8887"

@@ -1,8 +1,9 @@
 [package]
-description = "Rust-assembler implementation of big integers arithmetic"
+description = "Large fixed-size integers and hash function outputs"
 homepage = "http://ethcore.io"
+repository = "https://github.com/ethcore/parity"
 license = "GPL-3.0"
-name = "bigint"
+name = "ethcore-bigint"
 version = "0.1.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
