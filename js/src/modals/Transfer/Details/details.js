@@ -131,7 +131,7 @@ export default class Details extends Component {
 
         const label = (
           <div className={ styles.token }>
-            <img src={ token.images.small } />
+            <img src={ token.image } />
             <div className={ styles.tokenname }>
               { token.name }
             </div>

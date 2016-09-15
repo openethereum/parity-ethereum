@@ -58,9 +58,9 @@ export default class IdentityIcon extends Component {
     const { button, tokens, inline } = this.props;
     const token = (tokens || {})[_address];
 
-    if (token && token.images) {
+    if (token && token.image) {
       this.setState({
-        iconsrc: token.images[inline ? 'small' : 'normal']
+        iconsrc: token.image
       });
 
       return;
