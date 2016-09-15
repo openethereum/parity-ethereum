@@ -85,12 +85,12 @@ class Transfer extends Component {
   render () {
     const { stage, extras } = this.state;
 
+    // title={ this.renderAccount() }
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
-        title={ this.renderAccount() }
         visible>
         { this.renderPage() }
       </Modal>
