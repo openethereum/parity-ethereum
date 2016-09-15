@@ -78,7 +78,7 @@ export default function (rpc) {
   }
 
   function _pollStatus () {
-    subscriptions.map(_getSubscriptionStatus);
+    subscriptions.forEach(_getSubscriptionStatus);
   }
 
   setInterval(_pollStatus, 2000);
