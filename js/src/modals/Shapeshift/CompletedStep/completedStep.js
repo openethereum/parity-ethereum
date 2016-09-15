@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import Value from '../Value';
 
-import styles from '../fundAccount.css';
+import styles from '../shapeshift.css';
 
 export default class CompletedStep extends Component {
   static propTypes = {

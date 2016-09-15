@@ -32,7 +32,7 @@ import CompletedStep from './CompletedStep';
 import ErrorStep from './ErrorStep';
 import OptionsStep from './OptionsStep';
 
-import styles from './fundAccount.css';
+import styles from './shapeshift.css';
 
 const shapeshift = initShapeshift();
 

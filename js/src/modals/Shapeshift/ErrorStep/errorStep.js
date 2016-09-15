@@ -16,33 +16,26 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import Value from '../Value';
-import styles from '../fundAccount.css';
+import styles from '../shapeshift.css';
 
-export default class Price extends Component {
+export default class ErrorStep extends Component {
   static propTypes = {
-    coinSymbol: PropTypes.string.isRequired,
-    price: PropTypes.shape({
-      rate: PropTypes.number.isRequired,
-      minimum: PropTypes.number.isRequired,
-      limit: PropTypes.number.isRequired
-    })
+    error: PropTypes.shape({
+      fatal: PropTypes.bool,
+      message: PropTypes.string.isRequired
+    }).isRequired
   }
 
   render () {
-    const { coinSymbol, price } = this.props;
-
-    if (!price) {
-      return null;
-    }
+    const { error } = this.props;
 
     return (
-      <div className={ styles.price }>
-        <div>
-          <Value amount={ 1 } symbol={ coinSymbol } /> = <Value amount={ price.rate } />
+      <div className={ styles.body }>
+        <div className={ styles.info }>
+          The funds shifting via <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> failed with a fatal error on the exchange. The error message received from the exchange is as follow:
         </div>
-        <div>
-          (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+        <div className={ styles.error }>
+          { error.message }
         </div>
       </div>
     );
