@@ -164,7 +164,7 @@ export default class Balances {
           this._tokens.forEach((token, tidx) => {
             balance.tokens.push({
               token,
-              value: balanceOf[tidx].toString()
+              value: balanceOf[tidx]
             });
           });
         });
