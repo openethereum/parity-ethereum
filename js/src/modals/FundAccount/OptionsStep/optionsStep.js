@@ -39,7 +39,7 @@ export default class OptionsStep extends Component {
     const { coinSymbol, coins, refundAddress, hasAccepted, onToggleAccept } = this.props;
     const label = `(optional) ${coinSymbol} return address`;
 
-    if (false && !coins.length) {
+    if (!coins.length) {
       return (
         <div className={ styles.empty }>
           There are currently no coins available to fund with.
