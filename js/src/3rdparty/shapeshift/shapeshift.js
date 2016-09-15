@@ -57,11 +57,11 @@ export default function (rpc) {
         switch (result.status) {
           case 'no_deposits':
           case 'received':
-            subscription.callback(null, status);
+            subscription.callback(null, result);
             return;
 
           case 'complete':
-            subscription.callback(null, status);
+            subscription.callback(null, result);
             subscriptions[subscription.idx] = null;
             return;
 
