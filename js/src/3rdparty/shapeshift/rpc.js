@@ -19,15 +19,15 @@ const ENDPOINT = 'https://cors.shapeshift.io';
 function call (method, options) {
   return fetch(`${ENDPOINT}/${method}`, options)
     .then((response) => {
-      if (response.status !== 200) {
-        throw { code: response.status, message: response.statusText }; // eslint-disable-line
+      if (!response.ok) {
+        throw new Error(response.statusText);
       }
 
       return response.json();
     })
     .then((result) => {
       if (result.error) {
-        throw { code: -1, message: result.error }; // eslint-disable-line
+        throw new Error(result.error);
       }
 
       return result;
