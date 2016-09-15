@@ -21,7 +21,6 @@ import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
-import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
@@ -181,6 +180,7 @@ class Transfer extends Component {
   }
 
   renderDialogActions () {
+    const { account } = this.props;
     const { extras, sending, stage } = this.state;
 
     const cancelBtn = (
@@ -205,7 +205,7 @@ class Transfer extends Component {
     const sendBtn = (
       <FlatButton
         disabled={ !this.isValid() || sending }
-        icon={ <ContentSend /> }
+        icon={ <IdentityIcon address={ account.address } button /> }
         label='Send' primary
         onTouchTap={ this.onSend } />
     );
