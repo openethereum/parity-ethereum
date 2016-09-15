@@ -16,7 +16,9 @@
 
 import Abi from '../../abi';
 import Api from '../api';
-import { isInstanceOf } from '../util/types';
+import { isInstanceOf, isObject } from '../util/types';
+
+const DEFAULT_DEPLOY_GAS = 900000;
 
 export default class Contract {
   constructor (api, abi) {
@@ -79,15 +81,18 @@ export default class Contract {
     return this;
   }
 
-  deploy (code, values) {
-    const options = {
-      data: code,
-      gas: 900000
-    };
+  deploy (_optionsOrCode, values) {
+    const options = Object.assign(
+      { gas: DEFAULT_DEPLOY_GAS },
+      isObject(_optionsOrCode)
+        ? _optionsOrCode
+        : { data: _optionsOrCode }
+    );
 
     return this._api.eth
       .postTransaction(this._encodeOptions(this.constructors[0], options, values))
-      .then((txhash) => this.pollTransactionReceipt(txhash))
+      .then(this._pollCheckRequest)
+      .then(this._pollTransactionReceipt)
       .then((receipt) => {
         this._address = receipt.contractAddress;
         return this._api.eth.getCode(this._address);
@@ -130,26 +135,33 @@ export default class Contract {
     return receipt;
   }
 
-  pollTransactionReceipt (txhash) {
+  _pollEthMethod (method, input) {
     return new Promise((resolve, reject) => {
       const timeout = () => {
-        this._api.eth
-          .getTransactionReceipt(txhash)
-          .then((receipt) => {
-            if (receipt) {
-              resolve(receipt);
+        this._api.eth[method](input)
+          .then((result) => {
+            if (result) {
+              resolve(result);
             } else {
               setTimeout(timeout, 500);
             }
           })
           .catch((error) => {
-            console.error('pollTransactionReceipt', error);
+            console.error('_pollEthEndpoint', error);
             reject(error);
           });
       };
 
       timeout();
     });
+  }
+
+  _pollCheckRequest = (requestId) => {
+    return this._pollEthMethod('checkRequest', requestId);
+  }
+
+  _pollTransactionReceipt = (txhash) => {
+    return this._pollEthMethod('getTransactionReceipt', txhash);
   }
 
   _encodeOptions (func, options, values) {

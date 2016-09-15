@@ -182,7 +182,7 @@ describe('api/contract/Contract', () => {
     });
   });
 
-  describe('pollTransactionReceipt', () => {
+  describe('_pollTransactionReceipt', () => {
     const contract = new Contract(eth, ABI);
     const RECEIPT = { contractAddress: '0xd337e80eedbdf86edbba021797d7e4e00bb78351' };
     const EXPECT = { contractAddress: '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351' };
@@ -199,7 +199,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .pollTransactionReceipt('0x123')
+          ._pollTransactionReceipt('0x123')
           .then((_receipt) => {
             receipt = _receipt;
           });
@@ -225,7 +225,7 @@ describe('api/contract/Contract', () => {
 
       it('returns the errors', () => {
         return contract
-          .pollTransactionReceipt('0x123')
+          ._pollTransactionReceipt('0x123')
           .catch((error) => {
             expect(error.message).to.match(/failure/);
           });
@@ -244,6 +244,8 @@ describe('api/contract/Contract', () => {
       before(() => {
         scope = mockHttp([
           { method: 'eth_postTransaction', reply: { result: '0x678' } },
+          { method: 'eth_checkRequest', reply: { result: null } },
+          { method: 'eth_checkRequest', reply: { result: '0x890' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x456' } }
@@ -252,11 +254,11 @@ describe('api/contract/Contract', () => {
         return contract.deploy('0x123', []);
       });
 
-      it('calls postTransaction, getTransactionReceipt & getCode in order', () => {
+      it('calls postTransaction, eth_checkRequest, getTransactionReceipt & getCode in order', () => {
         expect(scope.isDone()).to.be.true;
       });
 
-      it('passes the options & password through to postTransaction', () => {
+      it('passes the options through to postTransaction', () => {
         expect(scope.body.eth_postTransaction.params).to.deep.equal([
           { data: '0x123', gas: '0xdbba0' }
         ]);
@@ -271,6 +273,7 @@ describe('api/contract/Contract', () => {
       before(() => {
         scope = mockHttp([
           { method: 'eth_postTransaction', reply: { result: '0x678' } },
+          { method: 'eth_checkRequest', reply: { result: '0x789' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
           { method: 'eth_getCode', reply: { result: '0x' } }
         ]);
