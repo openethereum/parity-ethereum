@@ -42,7 +42,7 @@ export default class OptionsStep extends Component {
     if (!coins.length) {
       return (
         <div className={ styles.empty }>
-          There are currently no coins available to fund with.
+          There are currently no exchange pairs/coins available to fund with.
         </div>
       );
     }
