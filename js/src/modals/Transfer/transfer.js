@@ -314,7 +314,7 @@ class Transfer extends Component {
 
     if (!recipient || !recipient.length) {
       recipientError = ERRORS.requireRecipient;
-    } else if (!api.format.isAddressValid(recipient)) {
+    } else if (!api.util.isAddressValid(recipient)) {
       recipientError = ERRORS.invalidAddress;
     }
 
@@ -379,7 +379,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: api.format.toWei(value || 0)
+      value: api.util.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -459,7 +459,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: api.format.toWei(value || 0)
+      value: api.util.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -511,7 +511,7 @@ class Transfer extends Component {
 
     if (valueAll) {
       if (isEth) {
-        const bn = api.format.fromWei(availableEth.minus(gasTotal));
+        const bn = api.util.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
       } else {
         value = available.div(format).toString();
@@ -519,7 +519,7 @@ class Transfer extends Component {
     }
 
     if (isEth) {
-      totalEth = totalEth.plus(api.format.toWei(value || 0));
+      totalEth = totalEth.plus(api.util.toWei(value || 0));
     }
 
     if (new BigNumber(value || 0).gt(available.div(format))) {
@@ -533,7 +533,7 @@ class Transfer extends Component {
     }
 
     this.setState({
-      total: api.format.fromWei(totalEth).toString(),
+      total: api.util.fromWei(totalEth).toString(),
       totalError,
       value,
       valueError

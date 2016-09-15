@@ -122,7 +122,7 @@ export default class Details extends Component {
       let value = 0;
 
       if (isEth) {
-        value = api.format.fromWei(balance.value).toFormat(3);
+        value = api.util.fromWei(balance.value).toFormat(3);
       } else {
         value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
       }
