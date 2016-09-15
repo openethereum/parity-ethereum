@@ -22,6 +22,13 @@ import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
 import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
 import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
+import imagesUnknown32 from '../../images/contracts/unknown-32.png';
+import imagesUnknown56 from '../../images/contracts/unknown-56.png';
+
+const unknownImage = {
+  small: imagesUnknown32,
+  normal: imagesUnknown56
+};
 
 // TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
 const images = {
@@ -107,7 +114,7 @@ export default class Balances {
             name,
             tag,
             format: format.toString(),
-            images: images[name.toLowerCase()],
+            images: images[name.toLowerCase()] || unknownImage,
             contract: this._api.newContract(eip20Abi, address)
           };
           tokens[address] = token;
