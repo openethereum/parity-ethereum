@@ -72,26 +72,51 @@ module.exports = {
         test: /\.html$/,
         loader: 'file?name=[name].[ext]'
       },
+
+      // {
+      //   test: /\.css$/,
+      //   include: [/src/],
+      //   loader: extractCSS.extract('style', [
+      //     'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+      //     'postcss'
+      //   ])
+      // },
+      // {
+      //   test: /\.css$/,
+      //   exclude: [/src/],
+      //   loader: extractCSS.extract('style', 'css')
+      // },
+      // {
+      //   test: /\.less$/,
+      //   loader: extractCSS.extract('style', [
+      //     'css',
+      //     'less'
+      //   ])
+      // },
+
       {
         test: /\.css$/,
         include: [/src/],
-        loader: extractCSS.extract('style', [
+        loaders: [
+          'style',
           'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss'
-        ])
+        ]
       },
       {
         test: /\.css$/,
         exclude: [/src/],
-        loader: extractCSS.extract('style', 'css')
+        loader: 'style!css'
       },
       {
         test: /\.less$/,
-        loader: extractCSS.extract('style', [
+        loaders: [
+          'style',
           'css',
           'less'
-        ])
+        ]
       },
+
       {
         test: /\.(png|jpg|)$/,
         loader: 'file-loader'
@@ -126,7 +151,7 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
-      extractCSS,
+      // extractCSS,
 
       new WebpackErrorNotificationPlugin(),
       // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
@@ -146,7 +171,10 @@ module.exports = {
           LOGGING: JSON.stringify(!isProd)
         }
       }),
-      new webpack.optimize.CommonsChunkPlugin('commons', 'commons.js')
+      new webpack.optimize.CommonsChunkPlugin({
+        filename: 'commons.js',
+        name: 'commons'
+      })
     ];
 
     if (isProd) {
