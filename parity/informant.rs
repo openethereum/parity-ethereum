@@ -41,7 +41,7 @@ pub struct Informant {
 	skipped: AtomicUsize,
 }
 
-trait MillisecondDuration {
+pub trait MillisecondDuration {
 	fn as_milliseconds(&self) -> u64;
 }
 
