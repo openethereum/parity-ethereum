@@ -501,7 +501,7 @@ class Transfer extends Component {
     const { gas, gasPrice, tag, valueAll, isEth } = this.state;
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
     const balance_ = balance.tokens.find((b) => tag === b.token.tag);
-    const availableEth = new BigNumber(balance_.value);
+    const availableEth = new BigNumber(balance.tokens[0].value);
     const available = new BigNumber(balance_.value);
     const format = new BigNumber(balance_.token.format || 1);
 
