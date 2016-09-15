@@ -51,7 +51,7 @@ export default class AwaitingDepositStep extends Component {
     return (
       <div className={ styles.center }>
         <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> is awaiting a { typeSymbol } deposit. Send the funds from you { typeSymbol } network client to -
+          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> is awaiting a { typeSymbol } deposit. Send the funds from your { typeSymbol } network client to -
         </div>
         <div className={ styles.hero }>
           { depositAddress }
