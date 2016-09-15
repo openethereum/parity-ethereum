@@ -104,7 +104,7 @@ export default class OptionsStep extends Component {
   }
 
   onSelectCoin = (event, idx, value) => {
-    this.props.onChangeSymbol(value);
+    this.props.onChangeSymbol(event, value);
   }
 
   onChangeAddress = (event, value) => {
