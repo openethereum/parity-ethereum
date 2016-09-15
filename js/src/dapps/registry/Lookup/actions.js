@@ -1,4 +1,4 @@
-const sha3 = window.parity.api.format.sha3;
+const sha3 = window.parity.api.util.sha3;
 
 export const start = (name, key) => ({ type: 'lookup start', name, key });
 

@@ -44,7 +44,7 @@ export default class ActionBuyIn extends Component {
     accountError: ERRORS.invalidAccount,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    maxPrice: api.format.fromWei(this.props.price.mul(1.2)).toString(),
+    maxPrice: api.util.fromWei(this.props.price.mul(1.2)).toString(),
     maxPriceError: null,
     sending: false,
     complete: false
@@ -93,7 +93,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maximum price in ΞTH (current ${api.format.fromWei(this.props.price).toFormat(3)})`;
+    const maxPriceLabel = `maximum price in ΞTH (current ${api.util.fromWei(this.props.price).toFormat(3)})`;
 
     return (
       <div>
@@ -167,11 +167,11 @@ export default class ActionBuyIn extends Component {
 
   onSend = () => {
     const { instance } = this.context;
-    const maxPrice = api.format.toWei(this.state.maxPrice);
+    const maxPrice = api.util.toWei(this.state.maxPrice);
     const values = [this.state.account.address, maxPrice.toString()];
     const options = {
       from: this.state.account.address,
-      value: api.format.toWei(this.state.amount).toString()
+      value: api.util.toWei(this.state.amount).toString()
     };
 
     this.setState({
