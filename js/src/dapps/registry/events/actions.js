@@ -1,3 +1,5 @@
+import { getBlockByNumber } from '../parity.js';
+
 export const start = (name, from, to) => ({ type: 'events subscribe start', name, from, to });
 export const fail = (name) => ({ type: 'events subscribe fail', name });
 export const success = (name, subscription) => ({ type: 'events subscribe success', name, subscription });
@@ -19,19 +21,26 @@ export const subscribe = (name, from = 0, to = 'latest') =>
       }
       dispatch(success(name, subscription));
 
-      for (let e of events) {
-        const data = {
-          type: name,
-          key: '' + e.transactionHash + e.logIndex,
-          state: e.type,
-          block: e.blockNumber,
-          index: e.logIndex,
-          transaction: e.transactionHash,
-          parameters: e.params
-        };
-        console.warn('event', data);
-        dispatch(event(name, data));
-      }
+      events.forEach((e) => {
+        getBlockByNumber(e.blockNumber)
+        .then((block) => {
+          const data = {
+            type: name,
+            key: '' + e.transactionHash + e.logIndex,
+            state: e.type,
+            block: e.blockNumber,
+            index: e.logIndex,
+            transaction: e.transactionHash,
+            parameters: e.params,
+            timestamp: block.timestamp
+          };
+          dispatch(event(name, data));
+        })
+        .catch((err) => {
+          console.error(`could not fetch block ${e.blockNumber}.`);
+          console.error(err);
+        });
+      });
     });
   };
 

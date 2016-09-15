@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
+import moment from 'moment';
 
 import { IdentityIcon } from '../parity.js';
 import styles from './events.css';
@@ -19,6 +20,15 @@ const renderOwner = (owner) => (
   </span>
 );
 
+const renderTimestamp = (ts) => {
+  ts = moment(ts);
+  return (
+    <time dateTime={ ts.toISOString() }>
+      <abbr title={ ts.format('MMMM Do YYYY, h:mm:ss a') }>{ ts.fromNow() }</abbr>
+    </time>
+  );
+};
+
 const renderReserved = (e) => (
   <p key={ e.key } className={ styles.reserved }>
     { renderOwner(e.parameters.owner) }
@@ -26,6 +36,8 @@ const renderReserved = (e) => (
     <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
     <code>{ bytesToHex(e.parameters.name) }</code>
+    { ' ' }
+    { renderTimestamp(e.timestamp) }
   </p>
 );
 
@@ -36,6 +48,8 @@ const renderDropped = (e) => (
     <abbr title={ e.transaction }>dropped</abbr>
     { ' ' }
     <code>{ bytesToHex(e.parameters.name) }</code>
+    { ' ' }
+    { renderTimestamp(e.timestamp) }
   </p>
 );
 
