@@ -81,7 +81,14 @@ export default class IdentityIcon extends Component {
   render () {
     const { button, className, center, inline, padded } = this.props;
     const { iconsrc } = this.state;
-    const classes = `${styles.icon} ${center ? styles.center : styles.left} ${padded ? styles.padded : ''} ${inline ? styles.inline : ''} ${button ? styles.button : ''} ${className}`;
+    const classes = [
+      styles.icon,
+      button ? styles.button : '',
+      center ? styles.center : styles.left,
+      inline ? styles.inline : '',
+      padded ? styles.padded : '',
+      className
+    ].join(' ');
 
     let size = '56px';
     if (button) {
