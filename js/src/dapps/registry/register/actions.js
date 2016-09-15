@@ -11,6 +11,7 @@ export const register = (name) => (dispatch, getState) => {
   if (!contract || !account) return;
   const reserve = contract.functions.reserve;
 
+  name = name.toLowerCase();
   const options = {
     from: account.address,
     value: toWei(1).toString()
