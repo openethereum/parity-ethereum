@@ -12,15 +12,15 @@ export default class Register extends Component {
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
-    names: PropTypes.array.isRequired,
-    fee: PropTypes.object.isRequired
+    fee: PropTypes.object.isRequired,
+    pending: PropTypes.bool.isRequired
   }
 
   state = { name: '' };
 
   render () {
     const { name } = this.state;
-    const { fee } = this.props;
+    const { fee, pending } = this.props;
 
     return (
       <Card className={ styles.register }>
@@ -33,6 +33,7 @@ export default class Register extends Component {
             onChange={ this.onNameChange }
           />
           <RaisedButton
+            disabled={ pending }
             className={ styles.spacing }
             label='Register'
             primary

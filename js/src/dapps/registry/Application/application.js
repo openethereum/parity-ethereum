@@ -26,7 +26,7 @@ export default class Application extends Component {
     fee: PropTypes.object.isRequired,
     lookup: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
-    register: PropTypes.object
+    register: PropTypes.object.isRequired
   };
 
   render () {

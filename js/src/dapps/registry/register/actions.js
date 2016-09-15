@@ -4,12 +4,14 @@ export const start = (name) => ({ type: 'register start', name });
 
 export const success = (name) => ({ type: 'register success', name });
 
-export const fail = (name) => ({ type: 'register error', name });
+export const fail = (name) => ({ type: 'register fail', name });
 
 export const register = (name) => (dispatch, getState) => {
-  const { contract, account } = getState();
+  const state = getState();
+  const account = state.accounts.selected;
+  const contract = state.contract;
   if (!contract || !account) return;
-  const reserve = contract.functions.reserve;
+  const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   name = name.toLowerCase();
   const options = {
