@@ -81,12 +81,12 @@ export default class Contract {
     return this;
   }
 
-  deploy (_optionsOrCode, values) {
+  deploy (optionsOrCode, values) {
     const options = Object.assign(
       { gas: DEFAULT_DEPLOY_GAS },
-      isObject(_optionsOrCode)
-        ? _optionsOrCode
-        : { data: _optionsOrCode }
+      isObject(optionsOrCode)
+        ? optionsOrCode
+        : { data: optionsOrCode }
     );
 
     return this._api.eth
