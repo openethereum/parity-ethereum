@@ -175,6 +175,7 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
+	seals_internally: bool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -187,33 +188,24 @@ pub struct Miner {
 }
 
 impl Miner {
-	/// Creates new instance of miner without accounts, but with given spec.
-	pub fn with_spec(spec: &Spec) -> Miner {
-		Miner {
-			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
-			options: Default::default(),
-			next_allowed_reseal: Mutex::new(Instant::now()),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(20), enabled: false}),
-			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
-			engine: spec.engine.clone(),
-			work_poster: None,
-			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
-		}
-	}
-
-	/// Creates new instance of miner
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
+	/// Creates new instance of miner.
+	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+		let work_poster = match options.new_work_notify.is_empty() {
+			true => None,
+			false => Some(WorkPoster::new(&options.new_work_notify))
+		};
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
-		Arc::new(Miner {
+		Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
 			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(options.work_queue_size), enabled: options.force_sealing || !options.new_work_notify.is_empty()}),
+			sealing_work: Mutex::new(SealingWork{
+				queue: UsingQueue::new(options.work_queue_size),
+				enabled: options.force_sealing
+					|| !options.new_work_notify.is_empty()
+					|| spec.engine.is_default_sealer().unwrap_or(false)
+			}),
+			seals_internally: spec.engine.is_default_sealer().is_some(),
 			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
@@ -222,7 +214,17 @@ impl Miner {
 			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
-		})
+		}
+	}
+
+	/// Creates new instance of miner without accounts, but with given spec.
+	pub fn with_spec(spec: &Spec) -> Miner {
+		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, None)
+	}
+
+	/// Creates new instance of a miner Arc.
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+		Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts))
 	}
 
 	fn forced_sealing(&self) -> bool {
@@ -360,7 +362,7 @@ impl Miner {
 				true
 			}
 		} else {
-			// sealing is disabled.
+			trace!(target: "miner", "requires_reseal: sealing is disabled");
 			false
 		}
 	}
@@ -578,6 +580,10 @@ impl MinerService for Miner {
 	}
 
 	fn set_author(&self, author: Address) {
+		if self.seals_internally {
+			let mut sealing_work = self.sealing_work.lock();
+			sealing_work.enabled = self.engine.is_sealer(&author).unwrap_or(false);
+		}
 		*self.author.write() = author;
 	}
 
@@ -703,7 +709,7 @@ impl MinerService for Miner {
 		if imported.is_ok() && self.options.reseal_on_own_tx && self.tx_reseal_allowed() {
 			// Make sure to do it after transaction is imported and lock is droped.
 			// We need to create pending block and enable sealing.
-			if self.engine.seals_internally() || !self.prepare_work_sealing(chain) {
+			if self.seals_internally || !self.prepare_work_sealing(chain) {
 				// If new block has not been prepared (means we already had one)
 				// or Engine might be able to seal internally,
 				// we need to update sealing.
@@ -821,7 +827,7 @@ impl MinerService for Miner {
 			// --------------------------------------------------------------------------
 			trace!(target: "miner", "update_sealing: preparing a block");
 			let (block, original_work_hash) = self.prepare_block(chain);
-			if self.engine.seals_internally() {
+			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
 				self.seal_and_import_block_internally(chain, block);
 			} else {
@@ -1027,7 +1033,7 @@ mod tests {
 		assert_eq!(miner.pending_transactions_hashes().len(), 1);
 		assert_eq!(miner.pending_receipts().len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
-		assert_eq!(miner.prepare_work_sealing(&client), false);
+		assert!(!miner.prepare_work_sealing(&client));
 	}
 
 	#[test]
@@ -1046,16 +1052,26 @@ mod tests {
 		assert_eq!(miner.pending_transactions().len(), 0);
 		assert_eq!(miner.pending_receipts().len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
-		assert_eq!(miner.prepare_work_sealing(&client), true);
+		assert!(miner.prepare_work_sealing(&client));
+	}
+
+	#[test]
+	fn should_not_seal_unless_enabled() {
+		let miner = miner();
+		let client = TestBlockChainClient::default();
+		// By default resealing is not required.
+		assert!(!miner.requires_reseal(1u8.into()));
+
+		miner.import_external_transactions(&client, vec![transaction()]).pop().unwrap().unwrap();
+		assert!(miner.prepare_work_sealing(&client));
+		// Unless asked to prepare work.
+		assert!(miner.requires_reseal(1u8.into()));
 	}
 
 	#[test]
 	fn internal_seals_without_work() {
 		let miner = Miner::with_spec(&Spec::new_test_instant());
-		{
-			let mut sealing_work = miner.sealing_work.lock();
-			sealing_work.enabled = true;
-		}
+
 		let c = generate_dummy_client(2);
 		let client = c.reference().as_ref();
 
