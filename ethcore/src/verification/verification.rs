@@ -296,7 +296,7 @@ mod tests {
 			self.blocks.contains_key(hash)
 		}
 
-		fn first_block(&self) -> H256 {
+		fn first_block(&self) -> Option<H256> {
 			unimplemented!()
 		}
 

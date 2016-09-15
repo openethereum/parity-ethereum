@@ -44,14 +44,15 @@ pub trait BlockProvider {
 	/// (though not necessarily a part of the canon chain).
 	fn is_known(&self, hash: &H256) -> bool;
 
-	/// Get the first block which this chain holds.
+	/// Get the first block of the best part of the chain.
+	/// Return `None` if there is no gap and the first block is the genesis.
 	/// Any queries of blocks which precede this one are not guaranteed to
 	/// succeed.
-	fn first_block(&self) -> H256;
+	fn first_block(&self) -> Option<H256>;
 
 	/// Get the number of the first block.
-	fn first_block_number(&self) -> BlockNumber {
-		self.block_number(&self.first_block()).expect("First block always stored; qed")
+	fn first_block_number(&self) -> Option<BlockNumber> {
+		self.first_block().map(|b| self.block_number(&b).expect("First block always stored; qed"))
 	}
 
 	/// Get the best block of an first block sequence if there is a gap.
@@ -168,7 +169,7 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
 	blooms_config: bc::Config,
-	first_block: H256,
+	first_block: Option<H256>,
 
 	best_block: RwLock<BestBlock>,
 	best_ancient_block: RwLock<Option<BestAncientBlock>>,
@@ -200,7 +201,7 @@ impl BlockProvider for BlockChain {
 		self.db.exists_with_cache(db::COL_EXTRA, &self.block_details, hash)
 	}
 
-	fn first_block(&self) -> H256 {
+	fn first_block(&self) -> Option<H256> {
 		self.first_block.clone()
 	}
 
@@ -414,7 +415,7 @@ impl BlockChain {
 				levels: LOG_BLOOMS_LEVELS,
 				elements_per_index: LOG_BLOOMS_ELEMENTS_PER_INDEX,
 			},
-			first_block: H256::zero(),
+			first_block: None,
 			best_block: RwLock::new(BestBlock::default()),
 			best_ancient_block: RwLock::new(None),
 			block_headers: RwLock::new(HashMap::new()),
@@ -469,7 +470,7 @@ impl BlockChain {
 			let best_block_total_difficulty = bc.block_details(&best_block_hash).unwrap().total_difficulty;
 			let best_block_rlp = bc.block(&best_block_hash).unwrap();
 
-			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map_or(Vec::new(), |v| v.to_vec());
+			let raw_first = bc.db.get(db::COL_EXTRA, b"first").unwrap().map(|v| v.to_vec());
 			let mut best_ancient = bc.db.get(db::COL_EXTRA, b"ancient").unwrap().map(|h| H256::from_slice(&h));
 			let best_ancient_number;
 			if best_ancient.is_none() && best_block_number > 1 && bc.block_hash(1).is_none() {
@@ -480,32 +481,34 @@ impl BlockChain {
 			}
 
 			// binary search for the first block.
-			if raw_first.is_empty() {
-				let (mut f, mut hash) = (best_block_number, best_block_hash);
-				let mut l = best_ancient_number.unwrap_or(0);
+			match raw_first {
+				None => {
+					let (mut f, mut hash) = (best_block_number, best_block_hash);
+					let mut l = best_ancient_number.unwrap_or(0);
 
-				loop {
-					if l >= f { break; }
+					loop {
+						if l >= f { break; }
 
-					let step = (f - l) >> 1;
-					let m = l + step;
+						let step = (f - l) >> 1;
+						let m = l + step;
 
-					match bc.block_hash(m) {
-						Some(h) => { f = m; hash = h },
-						None => { l = m + 1 },
+						match bc.block_hash(m) {
+							Some(h) => { f = m; hash = h },
+							None => { l = m + 1 },
+						}
 					}
-				}
 
-				let mut batch = db.transaction();
-				if hash != bc.genesis_hash() {
-					trace!("First block calculated: {:?}", hash);
-					batch.put(db::COL_EXTRA, b"first", &hash);
+					if hash != bc.genesis_hash() {
+						trace!("First block calculated: {:?}", hash);
+						let mut batch = db.transaction();
+						batch.put(db::COL_EXTRA, b"first", &hash);
+						db.write(batch).expect("Low level database error.");
+						bc.first_block = Some(hash);
+					}
+				},
+				Some(raw_first) => {
+					bc.first_block = Some(H256::from_slice(&raw_first));
 				}
-				db.write(batch).expect("Low level database error.");
-
-				bc.first_block = hash;
-			} else {
-				bc.first_block = H256::from_slice(&raw_first);
 			}
 
 			// and write them
@@ -672,20 +675,6 @@ impl BlockChain {
 			ancestor: current_from,
 			index: index
 		}
-	}
-
-	/// Inserts a verified, known block from the canonical chain.
-	///
-	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
-	/// This is used by snapshot restoration.
-	///
-	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
-	/// Returns true if the block is disconnected.
-	pub fn insert_snapshot_block(&self, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool) -> bool {
-		let mut batch = self.db.transaction();
-		let result = self.insert_unordered_block(&mut batch, bytes, receipts, parent_td, is_best, false);
-		self.db.write(batch).unwrap();
-		result
 	}
 
 	/// Inserts a verified, known block from the canonical chain.
@@ -1279,8 +1268,8 @@ impl BlockChain {
 			genesis_hash: self.genesis_hash(),
 			best_block_hash: best_block.hash.clone(),
 			best_block_number: best_block.number,
-			first_block_hash: Some(self.first_block()),
-			first_block_number: Some(From::from(self.first_block_number())),
+			first_block_hash: self.first_block(),
+			first_block_number: From::from(self.first_block_number()),
 			ancient_block_hash: best_ancient_block.as_ref().map(|b| b.hash.clone()),
 			ancient_block_number: best_ancient_block.as_ref().map(|b| b.number),
 		}

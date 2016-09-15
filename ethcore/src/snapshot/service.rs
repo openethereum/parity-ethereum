@@ -98,7 +98,7 @@ impl Restoration {
 			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
+		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), manifest.block_number));
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
