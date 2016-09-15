@@ -38,9 +38,12 @@ export default class CompletedStep extends Component {
     const { outgoingCoin, outgoingType } = exchangeInfo;
 
     return (
-      <div className={ styles.body }>
+      <div className={ styles.center }>
         <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> has completed the exchange of <Value amount={ incomingCoin } symbol={ incomingType } /> for <Value amount={ outgoingCoin } symbol={ outgoingType } />.
+          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> has completed the funds exchange.
+        </div>
+        <div className={ styles.hero }>
+          <Value amount={ incomingCoin } symbol={ incomingType } /> => <Value amount={ outgoingCoin } symbol={ outgoingType } />
         </div>
         <div className={ styles.info }>
           The funds will reflect in your Parity account shortly.

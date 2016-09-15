@@ -32,12 +32,15 @@ export default class AwaitingExchangeStep extends Component {
     const { incomingCoin, incomingType } = depositInfo;
 
     return (
-      <div className={ styles.body }>
+      <div className={ styles.center }>
         <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> has received a deposit of <Value amount={ incomingCoin } symbol={ incomingType } />.
+          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> has received a deposit of -
+        </div>
+        <div className={ styles.hero }>
+          <Value amount={ incomingCoin } symbol={ incomingType } />
         </div>
         <div className={ styles.info }>
-          Awaiting the exchange and transfer of funds to your Parity account.
+          Awaiting the completion of the funds exchange and transfer of funds to your Parity account.
         </div>
       </div>
     );

@@ -16,8 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input } from '../../../ui';
-
 import Value from '../Value';
 
 import styles from '../fundAccount.css';
@@ -25,7 +23,7 @@ import styles from '../fundAccount.css';
 export default class AwaitingDepositStep extends Component {
   static propTypes = {
     coinSymbol: PropTypes.string.isRequired,
-    depositAddress: PropTypes.string.isRequired,
+    depositAddress: PropTypes.string,
     price: PropTypes.shape({
       rate: PropTypes.number.isRequired,
       minimum: PropTypes.number.isRequired,
@@ -35,19 +33,34 @@ export default class AwaitingDepositStep extends Component {
 
   render () {
     const { coinSymbol, depositAddress, price } = this.props;
-    const label = `send the ${coinSymbol} funds for exchange to (in your ${coinSymbol} network client)`;
+    const typeSymbol = (
+      <div className={ styles.symbol }>
+        { coinSymbol }
+      </div>
+    );
 
-    return (
-      <div className={ styles.body }>
-        <div className={ styles.info }>
-          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> is awaiting a <Value symbol={ coinSymbol } /> deposit (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum).
+    if (!depositAddress) {
+      return (
+        <div className={ styles.center }>
+          <div className={ styles.busy }>
+            Awaiting confirmation of the deposit address for your { typeSymbol } funds exchange
+          </div>
         </div>
-        <Form>
-          <Input
-            disabled
-            label={ label }
-            value={ depositAddress } />
-        </Form>
+      );
+    }
+    return (
+      <div className={ styles.center }>
+        <div className={ styles.info }>
+          <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> is awaiting a { typeSymbol } deposit. Send the funds from you { typeSymbol } network client to -
+        </div>
+        <div className={ styles.hero }>
+          { depositAddress }
+        </div>
+        <div className={ styles.price }>
+          <div>
+            (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+          </div>
+        </div>
       </div>
     );
   }

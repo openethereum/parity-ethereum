@@ -199,6 +199,7 @@ class FundAccount extends Component {
     const { coinPair, refundAddress } = this.state;
 
     this.setState({
+      stage: 1,
       shifting: true
     });
 
@@ -208,10 +209,8 @@ class FundAccount extends Component {
         console.log('onShift', result);
         const depositAddress = result.deposit;
 
-        this.setState({ depositAddress }, () => {
-          this.setStage(1);
-          shapeshift.subscribe(depositAddress, this.onExchangeInfo);
-        });
+        shapeshift.subscribe(depositAddress, this.onExchangeInfo);
+        this.setState({ depositAddress });
       })
       .catch((error) => {
         console.error('onShift', error);

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import Value from '../Value';
-import styles from './price.css';
+import styles from '../fundAccount.css';
 
 export default class Price extends Component {
   static propTypes = {
@@ -33,16 +33,17 @@ export default class Price extends Component {
     const { coinSymbol, price } = this.props;
 
     if (!price) {
-      return (
-        <div className={ styles.empty }>
-          The price information is not available yet.
-        </div>
-      );
+      return null;
     }
 
     return (
-      <div className={ styles.body }>
-        <Value amount={ 1 } symbol={ coinSymbol } /> = <Value amount={ price.rate } /> (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+      <div className={ styles.price }>
+        <div>
+          <Value amount={ 1 } symbol={ coinSymbol } /> = <Value amount={ price.rate } />
+        </div>
+        <div>
+          (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+        </div>
       </div>
     );
   }
