@@ -5,6 +5,7 @@ const initialState = {
   contract: {
     addres: null,
     instance: null,
+    raw: null,
     owner: null,
     fee: null,
   }

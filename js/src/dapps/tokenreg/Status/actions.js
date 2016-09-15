@@ -22,10 +22,14 @@ export const loadContract = () => (dispatch) => {
       return registry.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
     })
     .then((address) => {
-      console.log(`tokenreg was found at ${address}`);
-      const { instance } = api.newContract(tokenregAbi, address);
+      address = '0x162369DB9dA6d924e11Bb1718FdE36e10fbc7C46';
 
-      dispatch(setContractDetails({ address, instance }));
+      console.log(`tokenreg was found at ${address}`);
+      const contract = api.newContract(tokenregAbi, address);
+
+      const { instance } = contract;
+
+      dispatch(setContractDetails({ address, instance, raw: contract }));
       dispatch(loadContractDetails());
     })
     .catch((error) => {

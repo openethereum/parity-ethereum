@@ -1,4 +1,7 @@
 .tokens {
   width: 80%;
   padding-top: 2rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
 }

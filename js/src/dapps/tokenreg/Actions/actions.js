@@ -1,5 +1,3 @@
-import { setTokensLoading } from '../Tokens/actions';
-
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
@@ -27,6 +25,8 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
 
   let state = getState();
   let contractInstance = state.status.contract.instance;
+  let rawContract = state.status.contract.raw;
+  let fee = state.status.contract.fee;
 
   const { address, base, name, tla } = tokenData;
 
@@ -34,7 +34,8 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
 
   let values = [ address, tla, base, name ];
   let options = {
-    from: state.accounts.selected.address
+    from: state.accounts.selected.address,
+    value: fee
   };
 
   contractInstance
@@ -48,6 +49,20 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     })
     .then((result) => {
       dispatch(registerCompleted());
+
+      rawContract.subscribe(null, {
+        fromBlock: 0,
+        toBlock: 'pending'
+      }, (error, logs) => {
+        if (error) {
+          console.error('setupFilters', error);
+          return;
+        }
+
+        if (logs.length === 0) return;
+
+        console.log('logs', logs);
+      });
     })
     .catch((e) => {
       console.error('registerToken error', e);
