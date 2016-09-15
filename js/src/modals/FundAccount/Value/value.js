@@ -21,7 +21,10 @@ import styles from './value.css';
 
 export default class Value extends Component {
   static propTypes = {
-    amount: PropTypes.number,
+    amount: PropTypes.oneOfType([
+      PropTypes.number,
+      PropTypes.string
+    ]),
     symbol: PropTypes.string
   }
 

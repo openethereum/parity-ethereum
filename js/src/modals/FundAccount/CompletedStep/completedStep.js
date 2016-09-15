@@ -22,13 +22,12 @@ import styles from '../fundAccount.css';
 
 export default class CompletedStep extends Component {
   static propTypes = {
-    address: PropTypes.string.isRequired,
     depositInfo: PropTypes.shape({
       incomingCoin: PropTypes.number.isRequired,
       incomingType: PropTypes.string.isRequired
     }).isRequired,
     exchangeInfo: PropTypes.shape({
-      outgoingCoin: PropTypes.number.isRequired,
+      outgoingCoin: PropTypes.string.isRequired,
       outgoingType: PropTypes.string.isRequired
     }).isRequired
   }
