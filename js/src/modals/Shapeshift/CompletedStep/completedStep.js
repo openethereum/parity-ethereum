@@ -46,7 +46,7 @@ export default class CompletedStep extends Component {
           <Value amount={ incomingCoin } symbol={ incomingType } /> => <Value amount={ outgoingCoin } symbol={ outgoingType } />
         </div>
         <div className={ styles.info }>
-          The funds will reflect in your Parity account shortly.
+          The change in funds will be reflected in your Parity account shortly.
         </div>
       </div>
     );
