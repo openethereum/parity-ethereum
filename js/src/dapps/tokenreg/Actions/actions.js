@@ -38,9 +38,26 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     value: fee
   };
 
-  contractInstance
-    .register
-    .estimateGas(options, values)
+  Promise.resolve()
+    .then(() => {
+      return contractInstance
+        .fromTLA.call({}, [ tla ])
+        .then((result) => {
+          throw new Error(`A Token has already been registered with the TLA ${tla}`);
+        }, () => {});
+    })
+    .then(() => {
+      return contractInstance
+        .fromAddress.call({}, [ tla ])
+        .then((result) => {
+          throw new Error(`A Token has already been registered with the Address ${address}`);
+        }, () => {});
+    })
+    .then(() => {
+      return contractInstance
+        .register
+        .estimateGas(options, values);
+    })
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
       console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
@@ -50,19 +67,19 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     .then((result) => {
       dispatch(registerCompleted());
 
-      rawContract.subscribe(null, {
-        fromBlock: 0,
-        toBlock: 'pending'
-      }, (error, logs) => {
-        if (error) {
-          console.error('setupFilters', error);
-          return;
-        }
+      // rawContract.subscribe(null, {
+      //   fromBlock: 0,
+      //   toBlock: 'pending'
+      // }, (error, logs) => {
+      //   if (error) {
+      //     console.error('setupFilters', error);
+      //     return;
+      //   }
 
-        if (logs.length === 0) return;
+      //   if (logs.length === 0) return;
 
-        console.log('logs', logs);
-      });
+      //   console.log('logs', logs);
+      // });
     })
     .catch((e) => {
       console.error('registerToken error', e);

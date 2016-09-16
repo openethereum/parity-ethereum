@@ -31,20 +31,6 @@ export const loadContract = () => (dispatch) => {
 
       dispatch(setContractDetails({ address, instance, raw: contract }));
       dispatch(loadContractDetails());
-
-      contract.subscribe(null, {
-        fromBlock: 0,
-        toBlock: 'pending'
-      }, (error, logs) => {
-        if (error) {
-          console.error('setupFilters', error);
-          return;
-        }
-
-        if (logs.length === 0) return;
-
-        console.log('logs', logs);
-      });
     })
     .catch((error) => {
       console.error('loadContract error', error);
