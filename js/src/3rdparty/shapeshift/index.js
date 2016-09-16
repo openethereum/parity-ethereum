@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '../ui/Errors/actions';
-import { clearStatusLogs, toggleStatusLogs } from './providers/statusActions';
+import initRpc from './rpc';
+import initShapeshift from './shapeshift';
 
-export {
-  newError,
-  clearStatusLogs,
-  toggleStatusLogs
-};
+export default function (apikey) {
+  return initShapeshift(initRpc(apikey));
+}

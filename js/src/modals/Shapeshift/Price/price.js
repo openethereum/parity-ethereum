@@ -16,25 +16,35 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './form.css';
+import Value from '../Value';
+import styles from '../shapeshift.css';
 
-export default class Form extends Component {
+export default class Price extends Component {
   static propTypes = {
-    children: PropTypes.node
+    coinSymbol: PropTypes.string.isRequired,
+    price: PropTypes.shape({
+      rate: PropTypes.number.isRequired,
+      minimum: PropTypes.number.isRequired,
+      limit: PropTypes.number.isRequired
+    })
   }
 
   render () {
-    // HACK: hidden inputs to disable Chrome's autocomplete
+    const { coinSymbol, price } = this.props;
+
+    if (!price) {
+      return null;
+    }
+
     return (
-      <form
-        autoComplete='new-password'
-        className={ styles.form }>
-        <div className={ styles.autofill }>
-          <input type='text' name='fakeusernameremembered' />
-          <input type='password' name='fakepasswordremembered' />
+      <div className={ styles.price }>
+        <div>
+          <Value amount={ 1 } symbol={ coinSymbol } /> = <Value amount={ price.rate } />
         </div>
-        { this.props.children }
-      </form>
+        <div>
+          (<Value amount={ price.minimum } symbol={ coinSymbol } /> minimum, <Value amount={ price.limit } symbol={ coinSymbol } /> maximum)
+        </div>
+      </div>
     );
   }
 }

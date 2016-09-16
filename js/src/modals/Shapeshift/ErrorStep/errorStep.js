@@ -16,25 +16,28 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './form.css';
+import styles from '../shapeshift.css';
 
-export default class Form extends Component {
+export default class ErrorStep extends Component {
   static propTypes = {
-    children: PropTypes.node
+    error: PropTypes.shape({
+      fatal: PropTypes.bool,
+      message: PropTypes.string.isRequired
+    }).isRequired
   }
 
   render () {
-    // HACK: hidden inputs to disable Chrome's autocomplete
+    const { error } = this.props;
+
     return (
-      <form
-        autoComplete='new-password'
-        className={ styles.form }>
-        <div className={ styles.autofill }>
-          <input type='text' name='fakeusernameremembered' />
-          <input type='password' name='fakepasswordremembered' />
+      <div className={ styles.body }>
+        <div className={ styles.info }>
+          The funds shifting via <a href='https://shapeshift.io' target='_blank'>ShapeShift.io</a> failed with a fatal error on the exchange. The error message received from the exchange is as follow:
         </div>
-        { this.props.children }
-      </form>
+        <div className={ styles.error }>
+          { error.message }
+        </div>
+      </div>
     );
   }
 }

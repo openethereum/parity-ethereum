@@ -14,38 +14,53 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.icon {
-  border-radius: 50%;
-  margin: 0;
+.body {
+}
+
+.shapeshift {
+  position: absolute;
+  bottom: 0.5em;
+  left: 1em;
+  cursor: pointer;
+  outline: none;
+}
+
+.shapeshift img {
+  height: 28px;
+}
+
+.info, .busy {
+  padding-top: 1.5em;
 }
 
 .center {
+}
+
+.center div {
   text-align: center;
 }
 
-.left {
-  float: left;
-  text-align: left;
-  margin-right: 1em;
+.error {
+  padding-top: 1.5em;
+  color: #e44;
 }
 
-.right {
-  float: right;
-  text-align: right;
+.hero {
+  padding-top: 0.75em;
+  text-align: center;
+  font-size: 1.75em;
 }
 
-.padded {
-  margin: 1em 0 0 0;
+.symbol {
+  display: inline-block;
+  color: #aaa;
 }
 
-.inline {
-  display: inline;
-  margin-right: 0.75em;
+.price div {
+  text-align: center;
+  font-size: small;
 }
 
-.button {
-  display: inline;
-  width: 24px;
-  height: 24px;
-  margin: 6px 0.25em 0 12px;
+.empty {
+  color: #aaa;
 }

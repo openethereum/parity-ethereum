@@ -25,11 +25,14 @@ const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
 const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
 
+import styles from './modal.css';
+
 export default class Modal extends Component {
   static propTypes = {
     actions: PropTypes.node,
     children: PropTypes.node,
     current: PropTypes.number,
+    waiting: PropTypes.array,
     scroll: PropTypes.bool,
     steps: PropTypes.array,
     title: React.PropTypes.oneOfType([
@@ -39,15 +42,22 @@ export default class Modal extends Component {
   }
 
   render () {
-    const { actions, current, children, scroll, steps, title, visible } = this.props;
-    let header = title;
+    const { actions, current, children, scroll, steps, waiting, title, visible } = this.props;
+    let header;
 
     if (steps) {
       header = (
         <ModalSteps
           current={ current }
+          waiting={ waiting }
           steps={ steps }
           title={ title } />
+      );
+    } else {
+      header = (
+        <div className={ styles.title }>
+          <h3>{ title }</h3>
+        </div>
       );
     }
 

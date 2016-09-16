@@ -23,3 +23,7 @@
   margin: 0;
   text-transform: uppercase;
 }
+
+.waiting {
+  margin: 0 -1em 0 -1em;
+}
