@@ -16,7 +16,7 @@
 
 import ParamType from './paramType';
 
-export function toParamType (type, indexed = false) {
+export function toParamType (type, indexed) {
   if (type[type.length - 1] === ']') {
     const last = type.lastIndexOf('[');
     const length = type.substr(last + 1, type.length - last - 2);

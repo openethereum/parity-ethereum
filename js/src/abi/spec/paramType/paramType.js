@@ -17,7 +17,7 @@
 import TYPES from './types';
 
 export default class ParamType {
-  constructor (type, subtype, length, indexed) {
+  constructor (type, subtype = null, length = 0, indexed = false) {
     ParamType.validateType(type);
 
     this._type = type;
