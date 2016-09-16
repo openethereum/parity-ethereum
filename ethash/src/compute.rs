@@ -141,8 +141,11 @@ impl Light {
 		if self.block_number >= ETHASH_EPOCH_LENGTH * 2 {
 			let deprecated = Light::file_path(
 				seed_compute.get_seedhash(self.block_number - ETHASH_EPOCH_LENGTH * 2));
-			debug!(target: "ethash", "removing: {:?}", &deprecated);
-			try!(fs::remove_file(deprecated));
+
+			if deprecated.exists() {
+				debug!(target: "ethash", "removing: {:?}", &deprecated);
+				try!(fs::remove_file(deprecated));
+			}
 		}
 
 		try!(fs::create_dir_all(path.parent().unwrap()));
