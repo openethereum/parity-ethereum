@@ -63,6 +63,12 @@ pub struct BasicRecorder {
 	min_depth: u32,
 }
 
+impl Default for BasicRecorder {
+	fn default() -> Self {
+		BasicRecorder::new()
+	}
+}
+
 impl BasicRecorder {
 	/// Create a new `BasicRecorder` which records all given nodes.
 	#[inline]

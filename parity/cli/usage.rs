@@ -169,14 +169,10 @@ macro_rules! usage {
 						let result = rustc_serialize::Decodable::decode(&mut toml::Decoder::new(toml::Value::Table(value)));
 						match result {
 							Ok(config) => Ok(config),
-							Err(e) => {
-								return Err(e.into());
-							}
+							Err(e) => Err(e.into()),
 						}
 					},
-					None => {
-						return Err(ArgsError::Parsing(value_parser.errors));
-					},
+					None => Err(ArgsError::Parsing(value_parser.errors)),
 				}
 			}
 
