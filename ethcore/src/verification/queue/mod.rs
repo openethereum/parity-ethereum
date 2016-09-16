@@ -38,6 +38,9 @@ const MIN_QUEUE_LIMIT: usize = 512;
 /// Type alias for block queue convenience.
 pub type BlockQueue = VerificationQueue<self::kind::Blocks>;
 
+/// Type alias for header queue convenience.
+pub type HeaderQueue = VerificationQueue<self::kind::Headers>;
+
 /// Verification queue configuration
 #[derive(Debug, PartialEq, Clone)]
 pub struct Config {

@@ -22,6 +22,7 @@ use error::Error;
 use util::{HeapSizeOf, H256};
 
 pub use self::blocks::Blocks;
+pub use self::headers::Headers;
 
 /// Something which can produce a hash and a parent hash.
 pub trait HasHash {
@@ -142,6 +143,40 @@ pub mod blocks {
 
 		fn parent_hash(&self) -> H256 {
 			self.header.parent_hash().clone()
+		}
+	}
+}
+
+/// Verification for headers.
+pub mod headers {
+	use super::{Kind, HasHash};
+
+	use engines::Engine;
+	use error::Error;
+	use header::Header;
+	use verification::verify_header_params;
+
+	use util::hash::H256;
+
+	impl HasHash for Header {
+		fn hash(&self) -> H256 { self.hash() }
+		fn parent_hash(&self) -> H256 { self.parent_hash().clone() }
+	}
+
+	/// A mode for verifying headers.
+	pub struct Headers;
+
+	impl Kind for Headers {
+		type Input = Header;
+		type Unverified = Header;
+		type Verified = Header;
+
+		fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error> {
+			verify_header_params(&input, engine).map(|_| input)
+		}
+
+		fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
+			engine.verify_block_unordered(&unverified, None).map(|_| unverified)
 		}
 	}
 }
