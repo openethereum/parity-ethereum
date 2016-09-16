@@ -31,6 +31,7 @@ const NAME_ID = ' ';
 export default class Select extends Component {
   static propTypes = {
     children: PropTypes.node,
+    className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
@@ -45,24 +46,27 @@ export default class Select extends Component {
   }
 
   render () {
+    const { disabled, error, label, hint, value, children, className, onBlur, onChange, onKeyDown } = this.props;
+
     return (
       <SelectField
+        className={ className }
         autoComplete='off'
-        disabled={ this.props.disabled }
-        errorText={ this.props.error }
+        disabled={ disabled }
+        errorText={ error }
         floatingLabelFixed
-        floatingLabelText={ this.props.label }
+        floatingLabelText={ label }
         fullWidth
-        hintText={ this.props.hint }
+        hintText={ hint }
         name={ NAME_ID }
         id={ NAME_ID }
         underlineDisabledStyle={ UNDERLINE_DISABLED }
         underlineStyle={ UNDERLINE_NORMAL }
-        value={ this.props.value }
-        onBlur={ this.props.onBlur }
-        onChange={ this.props.onChange }
-        onKeyDown={ this.props.onKeyDown }>
-        { this.props.children }
+        value={ value }
+        onBlur={ onBlur }
+        onChange={ onChange }
+        onKeyDown={ onKeyDown }>
+        { children }
       </SelectField>
     );
   }

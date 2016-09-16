@@ -14,10 +14,11 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.account {
+.body {
+  display: inline-block;
+  color: #aaa;
 }
 
-.btnicon {
-  width: 24px;
-  height: 24px;
+.amount {
+  display: inline-block;
 }
