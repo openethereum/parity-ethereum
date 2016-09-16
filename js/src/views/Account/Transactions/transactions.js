@@ -152,22 +152,27 @@ class Transactions extends Component {
     });
 
     return (
-      <table className={ styles.transactions }>
-        <thead>
-          <tr className={ styles.info }>
-            <th>&nbsp;</th>
-            <th className={ styles.left }>from</th>
-            <th className={ styles.left }>to</th>
-            <th className={ styles.center }>transaction</th>
-            <th className={ styles.right }>block</th>
-            <th className={ styles.right }>age</th>
-            <th className={ styles.right }>value</th>
-          </tr>
-        </thead>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
+      <div className={ styles.transactions }>
+        <table>
+          <thead>
+            <tr className={ styles.info }>
+              <th>&nbsp;</th>
+              <th className={ styles.left }>from</th>
+              <th className={ styles.left }>to</th>
+              <th className={ styles.center }>transaction</th>
+              <th className={ styles.right }>block</th>
+              <th className={ styles.right }>age</th>
+              <th className={ styles.right }>value</th>
+            </tr>
+          </thead>
+          <tbody>
+            { rows }
+          </tbody>
+        </table>
+        <div className={ styles.etherscan }>
+          Transaction list powered by <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
+        </div>
+      </div>
     );
   }
 
