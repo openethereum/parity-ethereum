@@ -41,7 +41,9 @@ pub struct Informant {
 	skipped: AtomicUsize,
 }
 
+/// Something that can be converted to milliseconds.
 pub trait MillisecondDuration {
+	/// Get the value in milliseconds.
 	fn as_milliseconds(&self) -> u64;
 }
 
