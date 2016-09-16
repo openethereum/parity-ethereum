@@ -1,7 +1,7 @@
 import registryAbi from '../abi/registry.json';
 import tokenregAbi from '../abi/tokenreg.json';
 
-import { loadToken, setTokenPending, deleteToken } from '../Tokens/actions';
+import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
 const { api } = window.parity;
 
@@ -102,6 +102,16 @@ export const subscribeEvents = () => (dispatch, getState) => {
         let event = log.event,
             type = log.type,
             params = log.params;
+
+        if (event === 'Registered' && type === 'pending') {
+          return dispatch(setTokenData(params.id.toNumber(), {
+            tla: '...',
+            base: -1,
+            address: params.addr,
+            name: params.name,
+            isPending: true
+          }));
+        }
 
         if (event === 'Registered' && type === 'mined') {
           return dispatch(loadToken(params.id.toNumber()));

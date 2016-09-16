@@ -88,7 +88,8 @@ export const loadToken = (index) => (dispatch, getState) => {
         tla: result[1],
         base: result[2].toNumber(),
         name: result[3],
-        owner: result[4]
+        owner: result[4],
+        isPending: false
       };
 
       console.log(`token loaded: #${index}`, data);

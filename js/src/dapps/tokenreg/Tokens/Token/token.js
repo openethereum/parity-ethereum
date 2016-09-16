@@ -44,19 +44,9 @@ export default class Token extends Component {
         <div className={ styles.title }>{ tla }</div>
         <div className={ styles.name }>"{ name }"</div>
 
-        <Chip
-          value={base.toString()}
-          label="Base" />
-
-        <Chip
-          isAddress={true}
-          value={address}
-          label="Address" />
-
-        <Chip
-          isAddress={true}
-          value={owner}
-          label="Owner" />
+        {this.renderBase(base)}
+        {this.renderAddress(address)}
+        {this.renderOwner(owner)}
 
         <div className={ styles.metaForm }>
           <TextField
@@ -79,6 +69,35 @@ export default class Token extends Component {
         { this.renderMeta(meta) }
         { this.renderUnregister() }
       </Paper>
+    );
+  }
+
+  renderBase(base) {
+    if (!base || base < 0) return null;
+    return (
+      <Chip
+          value={base.toString()}
+          label="Base" />
+    );
+  }
+
+  renderAddress(address) {
+    if (!address) return null;
+    return (
+      <Chip
+          isAddress={true}
+          value={address}
+          label="Address" />
+    );
+  }
+
+  renderOwner(owner) {
+    if (!owner) return null;
+    return (
+      <Chip
+          isAddress={true}
+          value={owner}
+          label="Owner" />
     );
   }
 
