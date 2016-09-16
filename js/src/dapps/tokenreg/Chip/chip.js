@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Chip } from 'material-ui';
 
-const { IdentityIcon } = window.parity.react;
+import IdentityIcon from '../IdentityIcon' ;
 
 import styles from './chip.css';
 

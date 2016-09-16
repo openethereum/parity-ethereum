@@ -22,7 +22,7 @@ export const loadContract = () => (dispatch) => {
       return registry.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
     })
     .then((address) => {
-      address = '0x162369DB9dA6d924e11Bb1718FdE36e10fbc7C46';
+      address = '0x40cFb0cd89d0D281889eE7920a1929ab1d0A96cF';
 
       console.log(`tokenreg was found at ${address}`);
       const contract = api.newContract(tokenregAbi, address);
@@ -31,6 +31,20 @@ export const loadContract = () => (dispatch) => {
 
       dispatch(setContractDetails({ address, instance, raw: contract }));
       dispatch(loadContractDetails());
+
+      contract.subscribe(null, {
+        fromBlock: 0,
+        toBlock: 'pending'
+      }, (error, logs) => {
+        if (error) {
+          console.error('setupFilters', error);
+          return;
+        }
+
+        if (logs.length === 0) return;
+
+        console.log('logs', logs);
+      });
     })
     .catch((error) => {
       console.error('loadContract error', error);

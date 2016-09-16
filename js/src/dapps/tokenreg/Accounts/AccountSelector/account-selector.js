@@ -3,7 +3,7 @@ import {List, ListItem, MakeSelectable} from 'material-ui/List';
 import Subheader from 'material-ui/Subheader';
 import Avatar from 'material-ui/Avatar';
 
-const { IdentityIcon } = window.parity.react;
+import IdentityIcon from '../../IdentityIcon';
 
 import styles from './account-selector.css';
 
