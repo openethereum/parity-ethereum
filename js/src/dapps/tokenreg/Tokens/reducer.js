@@ -3,7 +3,9 @@ import {
   SET_TOKEN_COUNT,
   SET_TOKEN_DATA,
   SET_TOKEN_META,
-  SET_TOKEN_LOADING
+  SET_TOKEN_LOADING,
+  SET_TOKEN_PENDING,
+  DELETE_TOKEN
 } from './actions';
 
 const initialState = {
@@ -52,6 +54,27 @@ export default (state = initialState, action) => {
         ...tokens[index],
         isLoading: action.isLoading
       };
+
+      return { ...state, tokens: tokens };
+    }
+
+    case SET_TOKEN_PENDING:{
+      let index = action.index;
+      let tokens = [].concat(state.tokens);
+
+      tokens[index] = {
+        ...tokens[index],
+        isPending: action.isPending
+      };
+
+      return { ...state, tokens: tokens };
+    }
+
+    case DELETE_TOKEN:{
+      let index = action.index;
+      let tokens = [].concat(state.tokens);
+
+      delete tokens[index];
 
       return { ...state, tokens: tokens };
     }

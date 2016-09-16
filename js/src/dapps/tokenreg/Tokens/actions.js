@@ -30,6 +30,18 @@ export const setTokenLoading = (index, isLoading) => ({
   index, isLoading
 });
 
+export const SET_TOKEN_PENDING = 'SET_TOKEN_PENDING';
+export const setTokenPending = (index, isPending) => ({
+  type: SET_TOKEN_PENDING,
+  index, isPending
+});
+
+export const DELETE_TOKEN = 'DELETE_TOKEN';
+export const deleteToken = (index) => ({
+  type: DELETE_TOKEN,
+  index
+});
+
 export const loadTokens = () => (dispatch, getState) => {
   console.log('loading tokens...');
 
@@ -53,7 +65,7 @@ export const loadTokens = () => (dispatch, getState) => {
       dispatch(setTokensLoading(false));
     })
     .catch((e) => {
-      console.error('loadTokens error', e);
+      console.error(`loadTokens error`, e);
     });
 };
 
@@ -69,6 +81,7 @@ export const loadToken = (index) => (dispatch, getState) => {
     .token
     .call({}, [ parseInt(index) ])
     .then((result) => {
+      console.log(`token #${index} loaded with data`, result);
       let data = {
         index: parseInt(index),
         address: result[0],
@@ -83,7 +96,12 @@ export const loadToken = (index) => (dispatch, getState) => {
       dispatch(setTokenLoading(index, false));
     })
     .catch((e) => {
-      console.error('loadToken #${index} error', e);
+      dispatch(setTokenData(index, null));
+      dispatch(setTokenLoading(index, false));
+
+      if (!e instanceof TypeError) {
+        console.error(`loadToken #${index} error`, e);
+      }
     });
 };
 
@@ -110,6 +128,31 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
       dispatch(setTokenLoading(index, false));
     })
     .catch((e) => {
-      console.error('loadToken #${index} error', e);
+      console.error(`loadToken #${index} error`, e);
     });
 }
+
+export const unregisterToken = (index) => (dispatch, getState) => {
+  console.log('unregistering token', index);
+
+  let state = getState();
+  let contractInstance = state.status.contract.instance;
+
+  let values = [ index ];
+  let options = {
+    from: state.accounts.selected.address
+  };
+
+  contractInstance
+    .unregister
+    .estimateGas(options, values)
+    .then((gasEstimate) => {
+      options.gas = gasEstimate.mul(1.2).toFixed(0);
+      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
+
+      return contractInstance.unregister.postTransaction(options, values);
+    })
+    .catch((e) => {
+      console.error(`unregisterToken #${index} error`, e);
+    });
+};

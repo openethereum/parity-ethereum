@@ -7,7 +7,9 @@ import styles from './tokens.css';
 
 export default class Tokens extends Component {
   static propTypes = {
+    handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
+    isOwner: PropTypes.bool,
     isLoading: PropTypes.bool,
     tokens: PropTypes.array,
     tokenCount: PropTypes.number
@@ -27,11 +29,17 @@ export default class Tokens extends Component {
   }
 
   renderTokens(tokens) {
-    return tokens.map((token, index) => (
-      <Token
-        { ...token }
-        handleMetaLookup={ this.props.handleMetaLookup }
-        key={index} />
-    ));
+    return tokens.map((token, index) => {
+      if (!token || !token.tla) return null;
+
+      return (
+        <Token
+          { ...token }
+          handleUnregister={ this.props.handleUnregister }
+          handleMetaLookup={ this.props.handleMetaLookup }
+          key={index}
+          isOwner={ this.props.isOwner } />
+      );
+    });
   }
 }

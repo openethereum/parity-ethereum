@@ -1,6 +1,8 @@
 import registryAbi from '../abi/registry.json';
 import tokenregAbi from '../abi/tokenreg.json';
 
+import { loadToken, setTokenPending, deleteToken } from '../Tokens/actions';
+
 const { api } = window.parity;
 
 export const SET_LOADING = 'SET_LOADING';
@@ -31,6 +33,7 @@ export const loadContract = () => (dispatch) => {
 
       dispatch(setContractDetails({ address, instance, raw: contract }));
       dispatch(loadContractDetails());
+      dispatch(subscribeEvents());
     })
     .catch((error) => {
       console.error('loadContract error', error);
@@ -45,15 +48,19 @@ export const loadContractDetails = () => (dispatch, getState) => {
 
   Promise
     .all([
+      api.personal.listAccounts(),
       instance.owner.call(),
       instance.fee.call()
     ])
-    .then(([owner, fee]) => {
+    .then(([accounts, owner, fee]) => {
       console.log(`owner as ${owner}, fee set at ${fee.toFormat()}`);
+
+      const isOwner = accounts.filter(a => a === owner).length > 0;
 
       dispatch(setContractDetails({
         fee,
-        owner
+        owner,
+        isOwner
       }));
 
       dispatch(setLoading(false));
@@ -67,4 +74,56 @@ export const SET_CONTRACT_DETAILS = 'SET_CONTRACT_DETAILS';
 export const setContractDetails = (details) => ({
   type: SET_CONTRACT_DETAILS,
   details
+});
+
+export const subscribeEvents = () => (dispatch, getState) => {
+  let state = getState();
+
+  let contract = state.status.contract.raw;
+  let previousSubscriptionId = state.status.subscriptionId;
+
+  if (previousSubscriptionId) {
+    contract.unsubscribe(subscriptionId);
+  }
+
+  let subscriptionId = contract
+    .subscribe(null, {
+      fromBlock: 0,
+      toBlock: 'pending'
+    }, (error, logs) => {
+      if (error) {
+        console.error('setupFilters', error);
+        return;
+      }
+
+      if (!logs || logs.length === 0) return;
+
+      logs.forEach(log => {
+        let event = log.event,
+            type = log.type,
+            params = log.params;
+
+        if (event === 'Registered' && type === 'mined') {
+          return dispatch(loadToken(params.id.toNumber()));
+        }
+
+        if (event === 'Unregistered' && type === 'pending') {
+          return dispatch(setTokenPending(params.id.toNumber(), true));
+        }
+
+        if (event === 'Unregistered' && type === 'mined') {
+          return dispatch(deleteToken(params.id.toNumber()));
+        }
+
+        console.log('new log event', log);
+      });
+    });
+
+  dispatch(setSubscriptionId(subscriptionId));
+};
+
+export const SET_SUBSCRIPTION_ID = 'SET_SUBSCRIPTION_ID';
+export const setSubscriptionId = subscriptionId => ({
+  type: SET_SUBSCRIPTION_ID,
+  subscriptionId
 });

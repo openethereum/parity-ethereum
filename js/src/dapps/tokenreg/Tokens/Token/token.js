@@ -2,6 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import Paper from 'material-ui/Paper';
 import { RaisedButton, TextField } from 'material-ui';
 import FindIcon from 'material-ui/svg-icons/action/find-in-page';
+import DeleteIcon from 'material-ui/svg-icons/action/delete';
 
 import Loading from '../../Loading';
 import Chip from '../../Chip';
@@ -10,8 +11,11 @@ import styles from './token.css';
 
 export default class Token extends Component {
   static propTypes = {
+    handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
     isLoading: PropTypes.bool,
+    isPending: PropTypes.bool,
+    isOwner: PropTypes.bool,
     address: PropTypes.string,
     tla: PropTypes.string,
     name: PropTypes.string,
@@ -36,6 +40,7 @@ export default class Token extends Component {
 
     return (
       <Paper zDepth={2} className={ styles.token }>
+        { this.renderIsPending() }
         <div className={ styles.title }>{ tla }</div>
         <div className={ styles.name }>"{ name }"</div>
 
@@ -72,7 +77,32 @@ export default class Token extends Component {
         </div>
 
         { this.renderMeta(meta) }
+        { this.renderUnregister() }
       </Paper>
+    );
+  }
+
+  renderIsPending() {
+    const { isPending } = this.props;
+
+    if (!isPending) return null;
+
+    return (
+      <div className={ styles.pending } />
+    );
+  }
+
+  renderUnregister() {
+    if (!this.props.isOwner) return null;
+
+    return (
+      <RaisedButton
+        className={ styles.unregister }
+        label='Unregister'
+        icon={ <DeleteIcon /> }
+        secondary
+        fullWidth
+        onTouchTap={ this.onUnregister } />
     );
   }
 
@@ -83,6 +113,11 @@ export default class Token extends Component {
       <p className={ styles['meta-query'] }>{meta.query}</p>
       <p className={ styles['meta-value'] }>{meta.value}</p>
     </div>);
+  }
+
+  onUnregister = () => {
+    let index = this.props.index;
+    this.props.handleUnregister(index);
   }
 
   onMetaLookup = () => {

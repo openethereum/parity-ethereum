@@ -3,10 +3,11 @@ import { connect } from 'react-redux';
 
 import Tokens from './tokens';
 
-import { loadTokens, queryTokenMeta } from './actions';
+import { loadTokens, queryTokenMeta, unregisterToken } from './actions';
 
 class TokensContainer extends Component {
   static propTypes = {
+    isOwner: PropTypes.bool,
     isLoading: PropTypes.bool,
     tokens: PropTypes.array,
     tokenCount: PropTypes.number
@@ -25,8 +26,9 @@ class TokensContainer extends Component {
 
 const mapStateToProps = (state) => {
   const { isLoading, tokens, tokenCount } = state.tokens;
+  const { isOwner } = state.status.contract;
 
-  return { isLoading, tokens, tokenCount };
+  return { isLoading, tokens, tokenCount, isOwner };
 };
 
 const mapDispatchToProps = (dispatch) => {
@@ -37,6 +39,10 @@ const mapDispatchToProps = (dispatch) => {
 
     handleMetaLookup: (index, query) => {
       dispatch(queryTokenMeta(index, query))
+    },
+
+    handleUnregister: (index) => {
+      dispatch(unregisterToken(index));
     }
   };
 };
