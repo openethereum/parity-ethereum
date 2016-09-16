@@ -74,14 +74,14 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn status(&self) -> RestorationStatus {
-		match &*self.restoration_manifest.lock() {
-			&Some(ref manifest) if self.state_restoration_chunks.lock().len() == manifest.state_hashes.len() &&
+		match *self.restoration_manifest.lock() {
+			Some(ref manifest) if self.state_restoration_chunks.lock().len() == manifest.state_hashes.len() &&
 				self.block_restoration_chunks.lock().len() == manifest.block_hashes.len() => RestorationStatus::Inactive,
-			&Some(_) => RestorationStatus::Ongoing {
+			Some(_) => RestorationStatus::Ongoing {
 				state_chunks_done: self.state_restoration_chunks.lock().len() as u32,
 				block_chunks_done: self.block_restoration_chunks.lock().len() as u32,
 			},
-			&None => RestorationStatus::Inactive,
+			None => RestorationStatus::Inactive,
 		}
 	}
 
@@ -98,13 +98,13 @@ impl SnapshotService for TestSnapshotService {
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.restoration_manifest.lock().as_ref().map_or(false, |ref m| m.state_hashes.iter().any(|h| h == &hash)) {
+		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.state_hashes.iter().any(|h| h == &hash)) {
 			self.state_restoration_chunks.lock().insert(hash, chunk);
 		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		if self.restoration_manifest.lock().as_ref().map_or(false, |ref m| m.block_hashes.iter().any(|h| h == &hash)) {
+		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.block_hashes.iter().any(|h| h == &hash)) {
 			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
 	}
