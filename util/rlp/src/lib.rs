@@ -65,7 +65,7 @@ pub use self::rlpin::{Rlp, RlpIterator};
 pub use self::rlpstream::RlpStream;
 pub use self::rlpcompression::RlpType;
 
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 extern crate elastic_array;
 extern crate rustc_serialize;
 
