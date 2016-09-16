@@ -17,10 +17,10 @@
 import { toParamType } from '../paramType/format';
 
 export default class EventParam {
-  constructor (name, type, indexed) {
+  constructor (name, type, indexed = false) {
     this._name = name;
-    this._kind = toParamType(type);
-    this._indexed = !!indexed;
+    this._indexed = indexed;
+    this._kind = toParamType(type, indexed);
   }
 
   get name () {
