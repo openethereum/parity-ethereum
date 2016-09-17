@@ -121,7 +121,7 @@ class Address extends Component {
           </div>
         </div>
         <div className={ styles.description }>
-          { contact.meta.description || 'this is just some long description to make me feel happy about myself and to see what actually happens and just maybe we should throw some wrapping in here as well' }
+          { contact.meta.description }
         </div>
       </ConfirmDialog>
     );
