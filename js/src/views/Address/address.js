@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 
+import { newError } from '../../redux/actions';
 import { Actionbar, Button, ConfirmDialog, IdentityIcon, Page } from '../../ui';
 
 import Header from '../Account/Header';
@@ -135,8 +136,14 @@ class Address extends Component {
 
     this.toggleDeleteDialog();
     contact.meta.deleted = true;
-    api.personal.setAccountMeta(address, contact.meta);
-    router.push('/addresses');
+
+    api.personal
+      .setAccountMeta(address, contact.meta)
+      .then(() => router.push('/addresses'))
+      .catch((error) => {
+        console.error('onDeleteConfirmed', error);
+        newError(new Error(`Deletion failed: ${error.message}`));
+      });
   }
 
   toggleDeleteDialog = () => {
@@ -161,7 +168,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({ newError }, dispatch);
 }
 
 export default connect(
