@@ -36,6 +36,7 @@ const TABMAP = {
   apps: 'app',
   contracts: 'contract'
 };
+const LS_VIEWS = 'views';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -55,6 +56,10 @@ export default class TabBar extends Component {
     statusVisible: true,
     signerVisible: true,
     activeRoute: '/accounts'
+  }
+
+  componentDidMount () {
+    this.loadViews();
   }
 
   render () {
@@ -89,7 +94,7 @@ export default class TabBar extends Component {
 
       return (
         <MenuItem
-          className={ isActive ? styles.menuEnabled : styles.menuDisabled }
+          className={ tab.fixed ? styles.menuDisabled : styles.menuEnabled }
           leftIcon={ icon }
           key={ id }
           data-id={ id }
@@ -207,11 +212,57 @@ export default class TabBar extends Component {
 
     this.setState({
       [toggle]: !isActive
+    }, this.saveViews);
+  }
+
+  getDefaultViews () {
+    const views = {};
+
+    Object.keys(this.tabs).forEach((id) => {
+      const tab = this.tabs[id];
+
+      views[id] = {
+        active: tab.active || false
+      };
     });
+
+    return views;
+  }
+
+  loadViews () {
+    const defaults = this.getDefaultViews();
+    const state = {};
+    let lsdata;
+
+    try {
+      const json = window.localStorage.getItem(LS_VIEWS) || {};
+
+      lsdata = Object.assign(defaults, JSON.parse(json));
+    } catch (e) {
+      lsdata = defaults;
+    }
+
+    Object.keys(lsdata).forEach((id) => {
+      state[`${id}Visible`] = lsdata[id].active;
+    });
+
+    this.setState(state, this.saveViews);
+  }
+
+  saveViews = () => {
+    const lsdata = this.getDefaultViews();
+
+    Object.keys(lsdata).forEach((id) => {
+      lsdata[id].active = this.state[`${id}Visible`];
+    });
+
+    window.localStorage.setItem(LS_VIEWS, JSON.stringify(lsdata));
   }
 
   tabs = {
     accounts: {
+      active: true,
+      fixed: true,
       icon: <ActionAccountBalanceWallet />,
       label: 'Accounts',
       route: '/accounts',
@@ -219,18 +270,21 @@ export default class TabBar extends Component {
       body: <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
     },
     addresses: {
+      active: true,
       icon: <CommunicationContacts />,
       label: 'Addressbook',
       route: '/addresses',
       value: 'address'
     },
     apps: {
+      active: true,
       icon: <NavigationApps />,
       label: 'Applications',
       route: '/apps',
       value: 'app'
     },
     status: {
+      active: true,
       icon: <ActionTrackChanges />,
       label: 'Status',
       renderLabel: this.renderStatusLabel,
@@ -238,6 +292,7 @@ export default class TabBar extends Component {
       value: 'status'
     },
     signer: {
+      active: true,
       fixed: true,
       icon: <SignerIcon className={ styles.signerIcon } />,
       label: 'Signer',

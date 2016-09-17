@@ -80,17 +80,21 @@ button.tabactive:hover {
   margin: 12px -12px;
 }
 
+.settings svg {
+  fill: rgb(0, 151, 167) !important;
+}
+
 svg.optionSelected {
   fill: rgb(250, 250, 250) !important;
 }
 
 svg.optionUnselected  {
-  opacity: 0.25;
+  opacity: 0.1;
 }
 
 .menuEnabled {
 }
 
-.menuDisabled svg.selected {
-  fill: rgb(117, 117, 117) !important;
+.menuDisabled svg.optionSelected {
+  fill: rgba(255, 255, 255, 0.3) !important;
 }
