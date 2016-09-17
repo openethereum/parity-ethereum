@@ -22,8 +22,6 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
-import styles from './addAddress.css';
-
 export default class AddAddress extends Component {
   static propTypes = {
     contacts: PropTypes.object.isRequired,
@@ -42,10 +40,8 @@ export default class AddAddress extends Component {
     return (
       <Modal
         visible
-        actions={ this.renderDialogActions() }>
-        <div className={ styles.header }>
-          <h3>add saved address</h3>
-        </div>
+        actions={ this.renderDialogActions() }
+        title='add saved address'>
         { this.renderFields() }
       </Modal>
     );
