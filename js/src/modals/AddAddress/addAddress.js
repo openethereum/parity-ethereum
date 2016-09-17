@@ -25,11 +25,8 @@ import { ERRORS, validateAddress, validateName } from '../../util/validation';
 import styles from './addAddress.css';
 
 export default class AddAddress extends Component {
-  static contextTypes = {
-    contacts: PropTypes.array.isRequired
-  };
-
   static propTypes = {
+    contacts: PropTypes.object.isRequired,
     onClose: PropTypes.func
   };
 
@@ -102,11 +99,11 @@ export default class AddAddress extends Component {
   }
 
   onEditAddress = (event, _address) => {
-    const { contacts } = this.context;
+    const { contacts } = this.props;
     let { address, addressError } = validateAddress(_address);
 
     if (!addressError) {
-      const contact = contacts.find((contact) => contact.address === address);
+      const contact = contacts[address];
 
       if (contact) {
         addressError = ERRORS.duplicateAddress;
