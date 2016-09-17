@@ -17,6 +17,8 @@
 import Actionbar from './Actionbar';
 import Badge from './Badge';
 import Balance from './Balance';
+import Button from './Button';
+import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import Errors from './Errors';
@@ -32,6 +34,8 @@ export {
   Actionbar,
   Badge,
   Balance,
+  Button,
+  ConfirmDialog,
   Container,
   ContainerTitle,
   ContextProvider,
