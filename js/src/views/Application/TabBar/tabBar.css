@@ -20,14 +20,19 @@
   position: relative;
 }
 
-.tabactive {
-  background: rgb(80, 80, 80) !important;
-  border-radius: 4px 4px 0 0;
-}
-
 .tabs {
   width: 100%;
   position: relative;
+}
+
+.tabs button:hover {
+  background: rgb(72, 72, 72) !important;
+}
+
+button.tabactive,
+button.tabactive:hover {
+  background: rgb(80, 80, 80) !important;
+  border-radius: 4px 4px 0 0;
 }
 
 .tabbarTooltip {
@@ -68,4 +73,24 @@
   width: 24px;
   height: 24px;
   margin-bottom: 5px;
+}
+
+.settings {
+  padding-left: 24px;
+  margin: 12px -12px;
+}
+
+svg.optionSelected {
+  fill: rgb(250, 250, 250) !important;
+}
+
+svg.optionUnselected  {
+  opacity: 0.25;
+}
+
+.menuEnabled {
+}
+
+.menuDisabled svg.selected {
+  fill: rgb(117, 117, 117) !important;
 }
