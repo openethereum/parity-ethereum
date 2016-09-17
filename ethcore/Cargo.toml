@@ -20,12 +20,12 @@ num_cpus = "0.2"
 crossbeam = "0.2.9"
 lazy_static = "0.2"
 bloomchain = "0.1"
-rayon = "0.3.1"
+rayon = "0.4.2"
 semver = "0.2"
 bit-set = "0.4"
 time = "0.1"
 evmjit = { path = "../evmjit", optional = true }
-clippy = { version = "0.0.85", optional = true}
+clippy = { version = "0.0.90", optional = true}
 ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
