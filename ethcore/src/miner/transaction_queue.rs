@@ -949,7 +949,7 @@ mod test {
 		new_tx_pair(default_nonce(), default_gas_price(), nonce_increment, gas_price_increment)
 	}
 
-	/// Returns two transactions with identical (sender, nonce) but different gas_price/hash.
+	/// Returns two transactions with identical (sender, nonce) but different gas price/hash.
 	fn new_similar_tx_pair() -> (SignedTransaction, SignedTransaction) {
 		new_tx_pair_default(0.into(), 1.into())
 	}
