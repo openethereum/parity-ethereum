@@ -26,9 +26,6 @@ export default class Button extends Component {
     onClick: PropTypes.func
   }
 
-  state = {
-  }
-
   render () {
     const { className, disabled, icon, label, onClick } = this.props;
 
