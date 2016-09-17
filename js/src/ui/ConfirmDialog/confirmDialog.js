@@ -10,6 +10,7 @@ import styles from './confirmDialog.css';
 export default class ConfirmDialog extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
+    className: PropTypes.string,
     iconNo: PropTypes.node,
     iconYes: PropTypes.node,
     labelNo: PropTypes.string,
@@ -23,10 +24,11 @@ export default class ConfirmDialog extends Component {
   }
 
   render () {
-    const { children, title, visible } = this.props;
+    const { children, className, title, visible } = this.props;
 
     return (
       <Modal
+        className={ className }
         actions={ this.renderActions() }
         title={ title }
         visible={ visible }>
