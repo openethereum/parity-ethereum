@@ -96,6 +96,7 @@
     "rollup-plugin-uglify": "^1.0.1",
     "rucksack-css": "^0.8.6",
     "sinon": "^1.17.4",
+    "sinon-as-promised": "^4.0.2",
     "sinon-chai": "^2.8.0",
     "style-loader": "^0.13.0",
     "url-loader": "^0.5.7",
