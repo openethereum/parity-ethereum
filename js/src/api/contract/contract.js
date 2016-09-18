@@ -29,7 +29,8 @@ export default class Contract {
     this._api = api;
     this._abi = new Abi(abi);
 
-    this._subscriptions = [];
+    this._subscriptions = {};
+    this._subscriptionId = 0;
     this._constructors = this._abi.constructors.map(this._bindFunction);
     this._functions = this._abi.functions.map(this._bindFunction);
     this._events = this._abi.events.map(this._bindEvent);
@@ -221,7 +222,7 @@ export default class Contract {
   }
 
   _subscribe (event = null, _options, callback) {
-    const subscriptionId = this._subscriptions.length;
+    const subscriptionId = this._subscriptionId++;
     const options = Object.assign({}, _options, {
       address: this._address,
       topics: [event ? event.signature : null]
@@ -235,11 +236,11 @@ export default class Contract {
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
 
-            this._subscriptions.push({
+            this._subscriptions[subscriptionId] = {
               options,
               callback,
               filterId
-            });
+            };
           });
       })
       .catch((error) => {
@@ -251,14 +252,12 @@ export default class Contract {
   }
 
   unsubscribe (subscriptionId) {
-    const subscription = this._subscriptions[subscriptionId];
-
-    this._api.eth.uninstallFilter(subscription.filterId);
-    this._subscriptions[subscriptionId] = null;
+    this._api.eth.uninstallFilter(this._subscriptions[subscriptionId].filterId);
+    delete this._subscriptions[subscriptionId];
   }
 
   _sendSubscriptionChanges = () => {
-    const subscriptions = this._subscriptions.filter((subscription) => subscription);
+    const subscriptions = Object.values(this._subscriptions);
     const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
 
     Promise
