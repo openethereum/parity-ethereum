@@ -208,18 +208,21 @@ export default class Contract {
   }
 
   subscribe (eventName = null, options = {}, callback) {
-    let event = null;
+    return new Promise((resolve, reject) => {
+      let event = null;
 
-    if (eventName) {
-      event = this._events.find((evt) => evt.name === eventName);
+      if (eventName) {
+        event = this._events.find((evt) => evt.name === eventName);
 
-      if (!event) {
-        const events = this._events.map((evt) => evt.name).join(', ');
-        throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
+        if (!event) {
+          const events = this._events.map((evt) => evt.name).join(', ');
+          reject(new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`));
+          return;
+        }
       }
-    }
 
-    return this._subscribe(event, options, callback);
+      return this._subscribe(event, options, callback).then(resolve).catch(reject);
+    });
   }
 
   _subscribe (event = null, _options, callback) {
@@ -229,32 +232,30 @@ export default class Contract {
       topics: [event ? event.signature : null]
     });
 
-    this._api.eth
+    return this._api.eth
       .newFilter(options)
       .then((filterId) => {
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
-
             this._subscriptions[subscriptionId] = {
               options,
               callback,
               filterId
             };
-          });
-      })
-      .catch((error) => {
-        console.log('subscribe', error);
-        callback(error);
-      });
 
-    return subscriptionId;
+            return subscriptionId;
+          });
+      });
   }
 
   unsubscribe (subscriptionId) {
-    this._api.eth.uninstallFilter(this._subscriptions[subscriptionId].filterId);
-    delete this._subscriptions[subscriptionId];
+    return this._api.eth
+      .uninstallFilter(this._subscriptions[subscriptionId].filterId)
+      .then(() => {
+        delete this._subscriptions[subscriptionId];
+      });
   }
 
   _sendSubscriptionChanges = () => {
