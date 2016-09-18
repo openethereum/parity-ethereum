@@ -51,6 +51,7 @@ linux-beta:
     paths:
     - x86_64-unknown-linux-gnu/beta/parity
     name: "beta-x86_64-unknown-linux-gnu_parity"
+  allow_failure: true
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly

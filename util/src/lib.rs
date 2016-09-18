@@ -99,7 +99,7 @@ extern crate time;
 extern crate ethcore_devtools as devtools;
 extern crate libc;
 extern crate target_info;
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 extern crate parking_lot;
 extern crate ansi_term;
 extern crate tiny_keccak;

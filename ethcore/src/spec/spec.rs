@@ -183,7 +183,7 @@ impl Spec {
 			let r = Rlp::new(&seal);
 			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 		});
-		return header;
+		header
 	}
 
 	/// Compose the genesis block for this chain.
@@ -278,7 +278,7 @@ mod tests {
 	// https://github.com/ethcore/parity/issues/1840
 	#[test]
 	fn test_load_empty() {
-		assert!(Spec::load(&vec![] as &[u8]).is_err());
+		assert!(Spec::load(&[] as &[u8]).is_err());
 	}
 
 	#[test]
