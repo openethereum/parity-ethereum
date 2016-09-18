@@ -40,32 +40,25 @@ function stubApi (blockNumber) {
 }
 
 describe('api/subscriptions/eth', () => {
+  let api;
+  let eth;
+  let cb;
+
+  beforeEach(() => {
+    api = stubApi();
+    cb = sinon.stub();
+    eth = new Eth(cb, api);
+  });
+
   describe('constructor', () => {
-    let api;
-    let eth;
-    let cb;
-
-    beforeEach(() => {
-      api = stubApi();
-      cb = sinon.stub();
-      eth = new Eth(cb, api);
-    });
-
     it('starts the instance in a stopped state', () => {
       expect(eth.isStarted).to.be.false;
     });
   });
 
   describe('start', () => {
-    let api;
-    let eth;
-    let cb;
-
     describe('blockNumber available', () => {
       beforeEach(() => {
-        api = stubApi();
-        cb = sinon.stub();
-        eth = new Eth(cb, api);
         return eth.start();
       });
 
@@ -85,7 +78,6 @@ describe('api/subscriptions/eth', () => {
     describe('blockNumber not available', () => {
       beforeEach(() => {
         api = stubApi(-1);
-        cb = sinon.stub();
         eth = new Eth(cb, api);
         return eth.start();
       });

@@ -19,15 +19,15 @@ import sinon from 'sinon';
 import Logging from './logging';
 
 describe('api/subscriptions/logging', () => {
+  let cb;
+  let logging;
+
+  beforeEach(() => {
+    cb = sinon.stub();
+    logging = new Logging(cb);
+  });
+
   describe('constructor', () => {
-    let cb;
-    let logging;
-
-    beforeEach(() => {
-      cb = sinon.stub();
-      logging = new Logging(cb);
-    });
-
     it('starts the instance in a started state', () => {
       expect(logging.isStarted).to.be.true;
     });
@@ -37,11 +37,8 @@ describe('api/subscriptions/logging', () => {
     const method = 'method';
     const params = 'params';
     const json = 'json';
-    let cb;
 
     beforeEach(() => {
-      cb = sinon.stub();
-      new Logging(cb); // eslint-disable-line no-new
       Logging.send(method, params, json);
     });
 

@@ -57,36 +57,27 @@ function stubLogging () {
 }
 
 describe('api/subscriptions/personal', () => {
+  let api;
+  let cb;
+  let logging;
+  let personal;
+
+  beforeEach(() => {
+    api = stubApi();
+    cb = sinon.stub();
+    logging = stubLogging();
+    personal = new Personal(cb, api, logging);
+  });
+
   describe('constructor', () => {
-    let api;
-    let cb;
-    let logging;
-    let personal;
-
-    beforeEach(() => {
-      api = stubApi();
-      cb = sinon.stub();
-      logging = stubLogging();
-      personal = new Personal(cb, api, logging);
-    });
-
     it('starts the instance in a stopped state', () => {
       expect(personal.isStarted).to.be.false;
     });
   });
 
   describe('start', () => {
-    let api;
-    let cb;
-    let logging;
-    let personal;
-
     describe('info available', () => {
       beforeEach(() => {
-        api = stubApi();
-        cb = sinon.stub();
-        logging = stubLogging();
-        personal = new Personal(cb, api, logging);
         return personal.start();
       });
 
@@ -111,8 +102,6 @@ describe('api/subscriptions/personal', () => {
     describe('info not available', () => {
       beforeEach(() => {
         api = stubApi([], {});
-        cb = sinon.stub();
-        logging = stubLogging();
         personal = new Personal(cb, api, logging);
         return personal.start();
       });
