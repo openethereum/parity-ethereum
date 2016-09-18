@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isError } from '../uitl/types';
+
 import Eth from './eth';
 import Logging from './logging';
 import Personal from './personal';
@@ -26,6 +28,8 @@ const EVENTS = [
 ];
 const ALIASSES = {};
 
+let nextSubscriptionId = 0;
+
 export default class Subscriptions {
   constructor (api) {
     this._api = api;
@@ -34,7 +38,7 @@ export default class Subscriptions {
     this.values = {};
 
     EVENTS.forEach((subscriptionName) => {
-      this.subscriptions[subscriptionName] = [];
+      this.subscriptions[subscriptionName] = {};
       this.values[subscriptionName] = {
         error: null,
         data: null
@@ -50,50 +54,62 @@ export default class Subscriptions {
     const subscriptionName = ALIASSES[_subscriptionName] || _subscriptionName;
 
     if (!EVENTS.includes(subscriptionName)) {
-      throw new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${EVENTS.join(', ')}`);
+      return new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${EVENTS.join(', ')}`);
     }
 
     return subscriptionName;
   }
 
   subscribe (_subscriptionName, callback) {
-    const subscriptionName = this._validateType(_subscriptionName);
-    const subscriptionId = this.subscriptions[subscriptionName].length;
-    const { error, data } = this.values[subscriptionName];
-    const [prefix] = subscriptionName.split('_');
-    const engine = this[`_${prefix}`];
+    return new Promise((resolve, reject) => {
+      const subscriptionName = this._validateType(_subscriptionName);
 
-    this.subscriptions[subscriptionName].push(callback);
+      if (isError(subscriptionName)) {
+        reject(subscriptionName);
+        return;
+      }
 
-    if (!engine.isStarted) {
-      engine.start();
-    } else {
-      this._sendData(callback, error, data);
-    }
+      const subscriptionId = nextSubscriptionId++;
+      const { error, data } = this.values[subscriptionName];
+      const [prefix] = subscriptionName.split('_');
+      const engine = this[`_${prefix}`];
 
-    return subscriptionId;
+      this.subscriptions[subscriptionName][subscriptionId] = callback;
+
+      if (!engine.isStarted) {
+        engine.start();
+      } else {
+        this._sendData(subscriptionName, subscriptionId, callback, error, data);
+      }
+
+      resolve(subscriptionId);
+    });
   }
 
   unsubscribe (_subscriptionName, subscriptionId) {
-    const subscriptionName = this._validateType(_subscriptionName);
+    return new Promise((resolve, reject) => {
+      const subscriptionName = this._validateType(_subscriptionName);
 
-    if (subscriptionId >= this.subscriptions[subscriptionName].length) {
-      throw new Error(`Cannot find subscriptions at index ${subscriptionId} for type ${subscriptionName}`);
-    }
+      if (isError(subscriptionName)) {
+        reject(subscriptionName);
+        return;
+      }
 
-    this.subscriptions[subscriptionName][subscriptionId] = null;
+      if (!this.subscriptions[subscriptionName][subscriptionId]) {
+        reject(new Error(`Cannot find subscription ${subscriptionId} for type ${subscriptionName}`));
+        return;
+      }
 
-    return true;
+      delete this.subscriptions[subscriptionName][subscriptionId];
+      resolve();
+    });
   }
 
-  _sendData (callback, error, data) {
-    if (!callback) {
-      return;
-    }
-
+  _sendData (subscriptionName, subscriptionId, callback, error, data) {
     try {
       callback(error, data);
     } catch (error) {
+      console.error(`Unable to update callback for ${subscriptionName}, subscriptionId ${subscriptionId}`, error);
     }
   }
 
@@ -103,8 +119,10 @@ export default class Subscriptions {
     }
 
     this.values[subscriptionName] = { error, data };
-    this.subscriptions[subscriptionName].forEach((callback) => {
-      this._sendData(callback, error, data);
+    Object.keys(this.subscriptions[subscriptionName]).forEach((subscriptionId) => {
+      const callback = this.subscriptions[subscriptionName][subscriptionId];
+
+      this._sendData(subscriptionName, subscriptionId, callback, error, data);
     });
   }
 }
