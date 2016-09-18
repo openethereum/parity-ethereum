@@ -1617,7 +1617,7 @@ mod tests {
 		let mut block_header = bc.block_header(&best_hash);
 
 		while !block_header.is_none() {
-			block_header = bc.block_header(&block_header.unwrap().parent_hash());
+			block_header = bc.block_header(block_header.unwrap().parent_hash());
 		}
 		assert!(bc.cache_size().blocks > 1024 * 1024);
 
