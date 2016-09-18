@@ -20,6 +20,10 @@ export function isArray (test) {
   return Object.prototype.toString.call(test) === '[object Array]';
 }
 
+export function isError (test) {
+  return Object.prototype.toString.call(test) === '[object Error]';
+}
+
 export function isFunction (test) {
   return Object.prototype.toString.call(test) === '[object Function]';
 }
