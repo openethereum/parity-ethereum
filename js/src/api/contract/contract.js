@@ -18,8 +18,6 @@ import Abi from '../../abi';
 import Api from '../api';
 import { isInstanceOf, isObject } from '../util/types';
 
-const DEFAULT_DEPLOY_GAS = 900000;
-
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
@@ -82,17 +80,31 @@ export default class Contract {
   }
 
   deploy (optionsOrCode, values) {
-    const options = Object.assign(
-      { gas: DEFAULT_DEPLOY_GAS },
-      isObject(optionsOrCode)
-        ? optionsOrCode
-        : { data: optionsOrCode }
+    let gas;
+
+    const options = Object.assign({}, isObject(optionsOrCode)
+      ? optionsOrCode
+      : { data: optionsOrCode }
     );
 
     return this._api.eth
-      .postTransaction(this._encodeOptions(this.constructors[0], options, values))
+      .estimateGas(this._encodeOptions(this.constructors[0], options, values))
+      .then((_gas) => {
+        gas = _gas.mul(1.2);
+        options.gas = gas.toFixed(0);
+        return this._api.eth.postTransaction(this._encodeOptions(this.constructors[0], options, values));
+      })
       .then(this._pollCheckRequest)
-      .then(this._pollTransactionReceipt)
+      .then((txhash) => {
+        return this._pollTransactionReceipt(txhash, gas);
+      })
+      .then((receipt) => {
+        if (receipt.gasUsed.eq(gas)) {
+          throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
+        }
+
+        return receipt;
+      })
       .then((receipt) => {
         this._address = receipt.contractAddress;
         return this._api.eth.getCode(this._address);
@@ -135,12 +147,12 @@ export default class Contract {
     return receipt;
   }
 
-  _pollEthMethod (method, input) {
+  _pollEthMethod (method, input, validate) {
     return new Promise((resolve, reject) => {
       const timeout = () => {
         this._api.eth[method](input)
           .then((result) => {
-            if (result) {
+            if (validate(result)) {
               resolve(result);
             } else {
               setTimeout(timeout, 500);
@@ -157,11 +169,17 @@ export default class Contract {
   }
 
   _pollCheckRequest = (requestId) => {
-    return this._pollEthMethod('checkRequest', requestId);
+    return this._pollEthMethod('checkRequest', requestId, (txhash) => txhash);
   }
 
-  _pollTransactionReceipt = (txhash) => {
-    return this._pollEthMethod('getTransactionReceipt', txhash);
+  _pollTransactionReceipt = (txhash, gas) => {
+    return this._pollEthMethod('getTransactionReceipt', txhash, (receipt) => {
+      if (!receipt || receipt.blockNumber.eq(0)) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
   _encodeOptions (func, options, values) {

@@ -184,8 +184,10 @@ describe('api/contract/Contract', () => {
 
   describe('_pollTransactionReceipt', () => {
     const contract = new Contract(eth, ABI);
-    const RECEIPT = { contractAddress: '0xd337e80eedbdf86edbba021797d7e4e00bb78351' };
-    const EXPECT = { contractAddress: '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351' };
+    const ADDRESS = '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351';
+    const BLOCKNUMBER = '555000';
+    const RECEIPT = { contractAddress: ADDRESS.toLowerCase(), blockNumber: BLOCKNUMBER };
+    const EXPECT = { contractAddress: ADDRESS, blockNumber: new BigNumber(BLOCKNUMBER) };
 
     let scope;
     let receipt;
@@ -235,32 +237,36 @@ describe('api/contract/Contract', () => {
 
   describe('deploy', () => {
     const contract = new Contract(eth, ABI);
-    const RECEIPT = { contractAddress: '0xd337e80eedbdf86edbba021797d7e4e00bb78351' };
     const ADDRESS = '0xD337e80eEdBdf86eDBba021797d7e4e00Bb78351';
+    const RECEIPT_PEND = { contractAddress: ADDRESS.toLowerCase(), gasUsed: 50, blockNumber: 0 };
+    const RECEIPT_DONE = { contractAddress: ADDRESS.toLowerCase(), gasUsed: 50, blockNumber: 2500 };
+    const RECEIPT_EXCP = { contractAddress: ADDRESS.toLowerCase(), gasUsed: 1200, blockNumber: 2500 };
 
     let scope;
 
     describe('success', () => {
       before(() => {
         scope = mockHttp([
+          { method: 'eth_estimateGas', reply: { result: 1000 } },
           { method: 'eth_postTransaction', reply: { result: '0x678' } },
           { method: 'eth_checkRequest', reply: { result: null } },
           { method: 'eth_checkRequest', reply: { result: '0x890' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
-          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
+          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_PEND } },
+          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
           { method: 'eth_getCode', reply: { result: '0x456' } }
         ]);
 
         return contract.deploy('0x123', []);
       });
 
-      it('calls postTransaction, eth_checkRequest, getTransactionReceipt & getCode in order', () => {
+      it('calls estimateGas, postTransaction, checkRequest, getTransactionReceipt & getCode in order', () => {
         expect(scope.isDone()).to.be.true;
       });
 
-      it('passes the options through to postTransaction', () => {
+      it('passes the options through to postTransaction (incl. gas calculation)', () => {
         expect(scope.body.eth_postTransaction.params).to.deep.equal([
-          { data: '0x123', gas: '0xdbba0' }
+          { data: '0x123', gas: '0x4b0' }
         ]);
       });
 
@@ -270,20 +276,34 @@ describe('api/contract/Contract', () => {
     });
 
     describe('error', () => {
-      before(() => {
-        scope = mockHttp([
+      it('fails when gasUsed == gas', () => {
+        mockHttp([
+          { method: 'eth_estimateGas', reply: { result: 1000 } },
           { method: 'eth_postTransaction', reply: { result: '0x678' } },
           { method: 'eth_checkRequest', reply: { result: '0x789' } },
-          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT } },
-          { method: 'eth_getCode', reply: { result: '0x' } }
+          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_EXCP } }
         ]);
-      });
 
-      it('fails when no code was deployed', () => {
         return contract
           .deploy('0x123', [])
           .catch((error) => {
-            expect(error.message).to.match(/not deployed/);
+            expect(error.message).to.match(/not deployed, gasUsed/);
+          });
+      });
+
+      it('fails when no code was deployed', () => {
+        mockHttp([
+          { method: 'eth_estimateGas', reply: { result: 1000 } },
+          { method: 'eth_postTransaction', reply: { result: '0x678' } },
+          { method: 'eth_checkRequest', reply: { result: '0x789' } },
+          { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
+          { method: 'eth_getCode', reply: { result: '0x' } }
+        ]);
+
+        return contract
+          .deploy('0x123', [])
+          .catch((error) => {
+            expect(error.message).to.match(/not deployed, getCode/);
           });
       });
     });
