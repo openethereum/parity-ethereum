@@ -18,6 +18,8 @@ import Abi from '../../abi';
 import Api from '../api';
 import { isInstanceOf } from '../util/types';
 
+let nextSubscriptionId = 0;
+
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
@@ -30,7 +32,6 @@ export default class Contract {
     this._abi = new Abi(abi);
 
     this._subscriptions = {};
-    this._subscriptionId = 0;
     this._constructors = this._abi.constructors.map(this._bindFunction);
     this._functions = this._abi.functions.map(this._bindFunction);
     this._events = this._abi.events.map(this._bindEvent);
@@ -222,7 +223,7 @@ export default class Contract {
   }
 
   _subscribe (event = null, _options, callback) {
-    const subscriptionId = this._subscriptionId++;
+    const subscriptionId = nextSubscriptionId++;
     const options = Object.assign({}, _options, {
       address: this._address,
       topics: [event ? event.signature : null]
