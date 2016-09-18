@@ -34,7 +34,7 @@ describe('api/util/types', () => {
     });
   });
 
-  describe.only('isError', () => {
+  describe('isError', () => {
     it('correctly identifies null as false', () => {
       expect(isError(null)).to.be.false;
     });
