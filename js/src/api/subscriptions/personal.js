@@ -32,13 +32,15 @@ export default class Personal {
   start () {
     this._started = true;
 
-    this._listAccounts();
-    this._accountsInfo();
-    this._loggingSubscribe();
+    return Promise.all([
+      this._listAccounts(),
+      this._accountsInfo(),
+      this._loggingSubscribe()
+    ]);
   }
 
   _listAccounts = () => {
-    this._api.personal
+    return this._api.personal
       .listAccounts()
       .then((accounts) => {
         let different = false;
@@ -55,7 +57,7 @@ export default class Personal {
   }
 
   _accountsInfo = () => {
-    this._api.personal
+    return this._api.personal
       .accountsInfo()
       .then((info) => {
         const infoKeys = Object.keys(info);
@@ -78,7 +80,7 @@ export default class Personal {
   }
 
   _loggingSubscribe () {
-    this._subscriber.subscribe('logging', (error, data) => {
+    return this._subscriber.subscribe('logging', (error, data) => {
       if (error || !data) {
         return;
       }

@@ -99,7 +99,7 @@ describe('api/subscriptions/eth', () => {
       });
 
       it('does not update subscribers', () => {
-        expect(cb).not.to.have.been.called;
+        expect(cb).not.to.been.called;
       });
     });
   });
