@@ -20,24 +20,24 @@ import Eth from './eth';
 import Logging from './logging';
 import Personal from './personal';
 
-const EVENTS = [
+const events = [
   'logging',
   'eth_blockNumber',
   'personal_accountsInfo',
   'personal_listAccounts'
 ];
-const ALIASSES = {};
+const aliasses = {};
 
 let nextSubscriptionId = 0;
 
-export default class Subscriptions {
+export default class Manager {
   constructor (api) {
     this._api = api;
 
     this.subscriptions = {};
     this.values = {};
 
-    EVENTS.forEach((subscriptionName) => {
+    events.forEach((subscriptionName) => {
       this.subscriptions[subscriptionName] = {};
       this.values[subscriptionName] = {
         error: null,
@@ -51,10 +51,10 @@ export default class Subscriptions {
   }
 
   _validateType (_subscriptionName) {
-    const subscriptionName = ALIASSES[_subscriptionName] || _subscriptionName;
+    const subscriptionName = aliasses[_subscriptionName] || _subscriptionName;
 
-    if (!EVENTS.includes(subscriptionName)) {
-      return new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${EVENTS.join(', ')}`);
+    if (!events.includes(subscriptionName)) {
+      return new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${events.join(', ')}`);
     }
 
     return subscriptionName;
@@ -126,3 +126,7 @@ export default class Subscriptions {
     });
   }
 }
+
+export {
+  events
+};
