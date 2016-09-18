@@ -61,23 +61,46 @@ describe('api/subscriptions/eth', () => {
     let eth;
     let cb;
 
-    beforeEach(() => {
-      api = stubApi();
-      cb = sinon.stub();
-      eth = new Eth(cb, api);
-      return eth.start();
+    describe('blockNumber available', () => {
+      beforeEach(() => {
+        api = stubApi();
+        cb = sinon.stub();
+        eth = new Eth(cb, api);
+        return eth.start();
+      });
+
+      it('sets the started status', () => {
+        expect(eth.isStarted).to.be.true;
+      });
+
+      it('calls eth_blockNumber', () => {
+        expect(api._calls.blockNumber.length).to.be.ok;
+      });
+
+      it('updates subscribers', () => {
+        expect(cb).to.have.been.calledWith('eth_blockNumber', null, new BigNumber(START_BLOCK));
+      });
     });
 
-    it('sets the started status', () => {
-      expect(eth.isStarted).to.be.true;
-    });
+    describe('blockNumber not available', () => {
+      beforeEach(() => {
+        api = stubApi(-1);
+        cb = sinon.stub();
+        eth = new Eth(cb, api);
+        return eth.start();
+      });
 
-    it('calls eth_blockNumber', () => {
-      expect(api._calls.blockNumber.length).to.be.ok;
-    });
+      it('sets the started status', () => {
+        expect(eth.isStarted).to.be.true;
+      });
 
-    it('updates subscribers', () => {
-      expect(cb).to.have.been.calledWith('eth_blockNumber', null, new BigNumber(START_BLOCK));
+      it('calls eth_blockNumber', () => {
+        expect(api._calls.blockNumber.length).to.be.ok;
+      });
+
+      it('does not update subscribers', () => {
+        expect(cb).not.to.have.been.called;
+      });
     });
   });
 });
