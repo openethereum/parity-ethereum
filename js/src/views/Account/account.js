@@ -18,11 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
-import ActionAccountBalance from 'material-ui/svg-icons/action/account-balance';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import { FundAccount, Transfer } from '../../modals';
+import { Shapeshift, Transfer } from '../../modals';
 import { Actionbar, Page } from '../../ui';
+
+import shapeshiftBtn from '../../images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
@@ -82,11 +83,11 @@ class Account extends Component {
         primary
         onTouchTap={ this.onTransferClick } />,
       <FlatButton
-        key='fundAccount'
-        icon={ <ActionAccountBalance /> }
-        label='fund account'
+        key='shapeshift'
+        icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
+        label='shapeshift'
         primary
-        onTouchTap={ this.onFundAccountClick } />
+        onTouchTap={ this.onShapeshiftAccountClick } />
     ];
 
     return (
@@ -106,9 +107,9 @@ class Account extends Component {
     const { address } = this.props.params;
 
     return (
-      <FundAccount
+      <Shapeshift
         address={ address }
-        onClose={ this.onFundAccountClose } />
+        onClose={ this.onShapeshiftAccountClose } />
     );
   }
 
@@ -133,14 +134,14 @@ class Account extends Component {
     );
   }
 
-  onFundAccountClick = () => {
+  onShapeshiftAccountClick = () => {
     this.setState({
       fundDialog: !this.state.fundDialog
     });
   }
 
-  onFundAccountClose = () => {
-    this.onFundAccountClick();
+  onShapeshiftAccountClose = () => {
+    this.onShapeshiftAccountClick();
   }
 
   onTransferClick = () => {

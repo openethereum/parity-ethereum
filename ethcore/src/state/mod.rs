@@ -1314,13 +1314,13 @@ fn storage_at_from_database() {
 	let temp = RandomTempPath::new();
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
-		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+		state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64)));
 		state.commit().unwrap();
 		state.drop()
 	};
 
 	let s = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
+	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))), H256::from(&U256::from(69u64)));
 }
 
 #[test]

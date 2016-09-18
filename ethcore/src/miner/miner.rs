@@ -246,6 +246,7 @@ impl Miner {
 		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.base().clone())
 	}
 
+	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	/// Prepares new block for sealing including top transactions from queue.
 	fn prepare_block(&self, chain: &MiningBlockChainClient) -> (ClosedBlock, Option<H256>) {
 		{
@@ -369,7 +370,7 @@ impl Miner {
 
 	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
 	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
-	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> { 
+	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
 		trace!(target: "miner", "seal_block_internally: block has transaction - attempting internal seal.");
 		let s = self.engine.generate_seal(block.block(), match self.accounts {
 			Some(ref x) => Some(&**x),
@@ -672,6 +673,7 @@ impl MinerService for Miner {
 		results
 	}
 
+	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn import_own_transaction(
 		&self,
 		chain: &MiningBlockChainClient,
