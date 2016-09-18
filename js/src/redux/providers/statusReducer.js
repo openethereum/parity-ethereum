@@ -14,12 +14,32 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { handleActions } from 'redux-actions';
 
 const initialState = {
+  blockNumber: new BigNumber(0),
   devLogs: [],
   devLogsLevels: null,
-  devLogsEnabled: false
+  devLogsEnabled: false,
+  clientVersion: '',
+  coinbase: '',
+  defaultExtraData: '',
+  extraData: '',
+  gasFloorTarget: new BigNumber(0),
+  hashrate: new BigNumber(0),
+  minGasPrice: new BigNumber(0),
+  netChain: 'morden',
+  netPeers: {
+    active: new BigNumber(0),
+    connected: new BigNumber(0),
+    max: new BigNumber(0)
+  },
+  netPort: new BigNumber(0),
+  nodeName: '',
+  rpcSettings: {},
+  syncing: false,
+  isTest: true
 };
 
 export default handleActions({

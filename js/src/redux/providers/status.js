@@ -29,13 +29,17 @@ export default class Status {
   }
 
   _subscribeBlockNumber () {
-    this._api.subscribe('eth_blockNumber', (error, blockNumber) => {
-      if (error) {
-        return;
-      }
+    this._api
+      .subscribe('eth_blockNumber', (error, blockNumber) => {
+        if (error) {
+          return;
+        }
 
-      this._store.dispatch(statusBlockNumber(blockNumber));
-    });
+        this._store.dispatch(statusBlockNumber(blockNumber));
+      })
+      .then((subscriptionId) => {
+        console.log('status._subscribeBlockNumber', 'subscriptionId', subscriptionId);
+      });
   }
 
   _pollStatus = () => {
