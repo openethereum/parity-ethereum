@@ -15,11 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Modal, Form, Input, InputAddress } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
 export default class AddAddress extends Component {
@@ -52,16 +51,14 @@ export default class AddAddress extends Component {
     const hasError = !!(addressError || nameError);
 
     return ([
-      <FlatButton
+      <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        primary
-        onTouchTap={ this.onClose } />,
-      <FlatButton
+        onClick={ this.onClose } />,
+      <Button
         icon={ <ContentAdd /> }
         label='Save Address'
         disabled={ hasError }
-        primary
         onTouchTap={ this.onAdd } />
     ]);
   }

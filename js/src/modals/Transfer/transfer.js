@@ -18,14 +18,13 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '../../ui/Errors';
-import { IdentityIcon, Modal } from '../../ui';
+import { Button, IdentityIcon, Modal } from '../../ui';
 
 import Complete from './Complete';
 import Details from './Details';
@@ -184,36 +183,36 @@ class Transfer extends Component {
     const { extras, sending, stage } = this.state;
 
     const cancelBtn = (
-      <FlatButton
+      <Button
         icon={ <ContentClear /> }
-        label='Cancel' primary
-        onTouchTap={ this.onClose } />
+        label='Cancel'
+        onClick={ this.onClose } />
     );
     const nextBtn = (
-      <FlatButton
+      <Button
         disabled={ !this.isValid() }
         icon={ <NavigationArrowForward /> }
-        label='Next' primary
-        onTouchTap={ this.onNext } />
+        label='Next'
+        onClick={ this.onNext } />
     );
     const prevBtn = (
-      <FlatButton
+      <Button
         icon={ <NavigationArrowBack /> }
-        label='Back' primary
-        onTouchTap={ this.onPrev } />
+        label='Back'
+        onClick={ this.onPrev } />
     );
     const sendBtn = (
-      <FlatButton
+      <Button
         disabled={ !this.isValid() || sending }
         icon={ <IdentityIcon address={ account.address } button /> }
-        label='Send' primary
-        onTouchTap={ this.onSend } />
+        label='Send'
+        onClick={ this.onSend } />
     );
     const doneBtn = (
-      <FlatButton
+      <Button
         icon={ <ActionDoneAll /> }
-        label='Close' primary
-        onTouchTap={ this.onClose } />
+        label='Close'
+        onClick={ this.onClose } />
     );
 
     switch (stage) {

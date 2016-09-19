@@ -19,20 +19,19 @@ import { FlatButton } from 'material-ui';
 
 export default class Button extends Component {
   static propTypes = {
+    className: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
     label: PropTypes.string,
-    onClick: PropTypes.func.isRequired
-  }
-
-  state = {
+    onClick: PropTypes.func
   }
 
   render () {
-    const { disabled, icon, label, onClick } = this.props;
+    const { className, disabled, icon, label, onClick } = this.props;
 
     return (
       <FlatButton
+        className={ className }
         disabled={ disabled }
         icon={ icon }
         label={ label }
