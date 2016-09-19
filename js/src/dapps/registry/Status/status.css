@@ -16,15 +16,6 @@
 */
 .status {
   padding: 1em;
-  color: #fff;
-  background-color: #c0392b;
-}
-
-.address {
-}
-
-.fee {
-}
-
-.owner {
+  color: #333;
+  background-color: #f0f0f0;
 }

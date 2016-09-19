@@ -1,15 +1,18 @@
 import registryAbi from './abi/registry.json';
-const { api } = window.parity;
-import * as lookup from './Lookup/actions.js';
+import { newContract, ethcore } from './parity.js';
+import * as accounts from './accounts/actions.js';
+import * as lookup from './lookup/actions.js';
+import * as events from './events/actions.js';
+import * as register from './register/actions.js';
 
-export { lookup };
+export { accounts, lookup, events, register };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) =>
-  api.ethcore.registryAddress()
+  ethcore.registryAddress()
   .then((address) => {
-    const contract = api.newContract(registryAbi, address);
+    const contract = newContract(registryAbi, address);
     dispatch(setContract(contract));
     dispatch(fetchFee());
     dispatch(fetchOwner());
