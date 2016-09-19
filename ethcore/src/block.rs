@@ -383,6 +383,7 @@ impl<'x> OpenBlock<'x> {
 		if s.block.base.header.receipts_root().is_zero() || s.block.base.header.receipts_root() == &SHA3_NULL_RLP {
 			s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect()));
 		}
+
 		s.block.base.header.set_state_root(s.block.state.root().clone());
 		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
 		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
@@ -418,6 +419,10 @@ impl ClosedBlock {
 		if let Err(e) = self.block.state.commit() {
 			warn!("Error committing closed block's state: {:?}", e);
 		}
+
+		// set the state root here, after commit recalculates with the block
+		// rewards.
+		self.block.base.header.set_state_root(self.block.state.root().clone());
 
 		LockedBlock {
 			block: self.block,
