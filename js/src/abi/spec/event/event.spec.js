@@ -46,7 +46,7 @@ describe('abi/spec/event/Event', () => {
 
   describe('inputParamTypes', () => {
     it('returns all the types', () => {
-      expect(event.inputParamTypes()).to.deep.equal([new ParamType('bool'), new ParamType('uint', null, 256)]);
+      expect(event.inputParamTypes()).to.deep.equal([new ParamType('bool'), new ParamType('uint', null, 256, true)]);
     });
   });
 
@@ -86,9 +86,9 @@ describe('abi/spec/event/Event', () => {
       expect(decoded.address).to.equal('0x4444444444444444444444444444444444444444');
       expect(decoded.params).to.deep.equal([
         new DecodedLogParam('a', new ParamType('int', null, 256), new Token('int', new BigNumber(3))),
-        new DecodedLogParam('b', new ParamType('int', null, 256), new Token('int', new BigNumber(2))),
+        new DecodedLogParam('b', new ParamType('int', null, 256, true), new Token('int', new BigNumber(2))),
         new DecodedLogParam('c', new ParamType('address'), new Token('address', '0x2222222222222222222222222222222222222222')),
-        new DecodedLogParam('d', new ParamType('address'), new Token('address', '0x1111111111111111111111111111111111111111'))
+        new DecodedLogParam('d', new ParamType('address', null, 0, true), new Token('address', '0x1111111111111111111111111111111111111111'))
       ]);
     });
 

@@ -32,7 +32,7 @@ export default class Ws extends JsonRpcBase {
 
   _onMessage = (event) => {
     const result = JSON.parse(event.data);
-    const {resolve, reject} = this._messages[result.id];
+    const { resolve, reject } = this._messages[result.id];
 
     if (result.error) {
       this.error(event.data);
