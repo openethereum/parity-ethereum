@@ -169,12 +169,12 @@ module.exports = {
     quiet: false,
     hot: !isProd,
     proxy: {
-      '/rpc/*': {
+      '/rpc*': {
         target: 'http://localhost:8080',
         changeOrigin: true
       },
-      '/api/ping': {
-        target: 'http://127.0.0.1:8080/index.html',
+      '/api*': {
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true
       }
     }
