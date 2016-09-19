@@ -57,6 +57,10 @@ impl JobDispatcher for StratumJobDispatcher {
 			}
 		}
 	}
+
+	fn job(&self, _worker_id: String) -> Option<String> {
+		self.initial()
+	}
 }
 
 impl StratumJobDispatcher {

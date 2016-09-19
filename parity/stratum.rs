@@ -26,6 +26,7 @@ use hypervisor::{HYPERVISOR_IPC_URL, ControlService};
 use std::net::{SocketAddr, IpAddr};
 use std::str::FromStr;
 use nanoipc;
+use std::thread;
 
 pub const MODULE_ID: IpcModuleId = 8000;
 
@@ -82,6 +83,15 @@ pub fn main() {
 		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM_CONTROL),
 		MODULE_ID
 	);
+
+	let timer_svc = server.clone();
+	let timer_stop = service_stop.clone();
+	thread::spawn(move || {
+		while !timer_stop.load(Ordering::SeqCst) {
+			thread::park_timeout_ms(5000);
+			timer_svc.maintain();
+		}
+	});
 
 	let control_service = Arc::new(StratumControlService::default());
 	let as_control = control_service.clone() as Arc<ControlService>;
