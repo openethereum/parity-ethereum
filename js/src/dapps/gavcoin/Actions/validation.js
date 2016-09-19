@@ -46,11 +46,11 @@ export function validateAccount (account) {
     return ERRORS.invalidAccount;
   }
 
-  if (!api.format.isAddressValid(account.address)) {
+  if (!api.util.isAddressValid(account.address)) {
     return ERRORS.invalidAddress;
   }
 
-  account.address = api.format.toChecksumAddress(account.address);
+  account.address = api.util.toChecksumAddress(account.address);
 
   return null;
 }

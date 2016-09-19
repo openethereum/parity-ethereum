@@ -118,7 +118,7 @@ export default class NewGeth extends Component {
                 .map((address, idx) => {
                   return {
                     address,
-                    balance: api.format.fromWei(balances[idx]).toFormat(5),
+                    balance: api.util.fromWei(balances[idx]).toFormat(5),
                     checked: false
                   };
                 })

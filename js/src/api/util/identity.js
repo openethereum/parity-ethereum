@@ -1,6 +1,6 @@
 import blockies from 'blockies';
 
-export function createIdentityImg (address, scale = 7) {
+export function createIdentityImg (address, scale = 8) {
   return blockies({
     seed: (address || '').toLowerCase(),
     size: 8,

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import format from '../api/format';
+import util from '../api/util';
 
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
@@ -28,10 +28,10 @@ export function validateAddress (address) {
 
   if (!address) {
     addressError = ERRORS.invalidAddress;
-  } else if (!format.isAddressValid(address)) {
+  } else if (!util.isAddressValid(address)) {
     addressError = ERRORS.invalidAddress;
   } else {
-    address = format.toChecksumAddress(address);
+    address = util.toChecksumAddress(address);
   }
 
   return {

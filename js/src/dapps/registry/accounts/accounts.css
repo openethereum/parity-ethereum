@@ -1,0 +1,21 @@
+.button {
+  /* TODO remove !important once material design lite is used */
+  padding: 0 !important;
+}
+
+.icon {
+  /* TODO remove !important once material design lite is used */
+  margin: 0 !important;
+  width: 30px !important;
+  height: 30px !important;
+}
+
+.menuIcon {
+  display: inline-block;
+  vertical-align: middle;
+}
+.menuText {
+  display: inline-block;
+  line-height: 20px;
+  vertical-align: middle;
+}

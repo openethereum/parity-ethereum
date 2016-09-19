@@ -1,4 +1,4 @@
-const sha3 = window.parity.api.format.sha3;
+import { sha3 } from '../parity.js';
 
 export const start = (name, key) => ({ type: 'lookup start', name, key });
 
@@ -12,6 +12,7 @@ export const lookup = (name, key) => (dispatch, getState) => {
   const getAddress = contract.functions
     .find((f) => f.name === 'getAddress');
 
+  name = name.toLowerCase();
   dispatch(start(name, key));
   getAddress.call({}, [sha3(name), key])
     .then((address) => dispatch(success(address)))

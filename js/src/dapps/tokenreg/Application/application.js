@@ -80,7 +80,7 @@ export default class Application extends Component {
         console.log(`registry found at ${registryAddress}`);
         const registry = api.newContract(registryAbi, registryAddress).instance;
 
-        return registry.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
+        return registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']);
       })
       .then((address) => {
         console.log(`tokenreg was found at ${address}`);
