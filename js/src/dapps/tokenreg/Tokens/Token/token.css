@@ -41,12 +41,20 @@
   overflow-wrap: break-word;
 }
 
+.meta-info {
+  margin-top: 1.5rem;
+  margin-bottom: -0.5rem;
+  font-size: 0.9rem;
+  color: gray;
+}
+
 .unregister {
   margin-top: 1rem;
 }
 
 .add-meta {
   margin-top: 1rem;
+  width: 100%;
 }
 
 .pending {

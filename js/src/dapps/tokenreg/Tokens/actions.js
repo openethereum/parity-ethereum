@@ -1,4 +1,4 @@
-const sha3 = window.parity.api.format.sha3;
+const { sha3, bytesToHex } = window.parity.api.util;
 
 export const SET_TOKENS_LOADING = 'SET_TOKENS_LOADING';
 export const setTokensLoading = (isLoading) => ({
@@ -131,7 +131,8 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     .call({}, [ index, key ])
     .then((value) => {
       let meta = {
-        key, query, value
+        key, query,
+        value: bytesToHex(value)
       };
 
       console.log(`token meta loaded: #${index}`, value);

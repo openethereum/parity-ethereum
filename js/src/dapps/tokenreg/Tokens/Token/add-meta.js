@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, RaisedButton, FlatButton, TextField } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
 
-import { STRING_TYPE, validate } from '../../Actions/validation';
+import { STRING_TYPE, HEX_TYPE, validate } from '../../Actions/validation';
 
 import styles from './token.css';
 
@@ -12,7 +12,7 @@ const initState = {
   complete: false,
   fields: {
     key: { ...defaultField, type: STRING_TYPE },
-    value: { ...defaultField, type: STRING_TYPE }
+    value: { ...defaultField, type: HEX_TYPE }
   }
 };
 
@@ -36,9 +36,8 @@ export default class AddMeta extends Component {
   render () {
     if (!this.props.isTokenOwner) return null;
 
-    return (<div>
+    return (<div className={ styles['add-meta'] }>
       <RaisedButton
-        className={ styles['add-meta'] }
         label='Add Meta'
         icon={ <AddIcon /> }
         primary

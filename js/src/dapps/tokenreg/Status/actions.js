@@ -21,7 +21,7 @@ export const loadContract = () => (dispatch) => {
       console.log(`registry found at ${registryAddress}`);
       const registry = api.newContract(registryAbi, registryAddress).instance;
 
-      return registry.getAddress.call({}, [api.format.sha3('tokenreg'), 'A']);
+      return registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']);
     })
     .then((address) => {
       address = '0x40cFb0cd89d0D281889eE7920a1929ab1d0A96cF';
@@ -88,7 +88,7 @@ export const subscribeEvents = () => (dispatch, getState) => {
 
   let subscriptionId = contract
     .subscribe(null, {
-      fromBlock: 0,
+      fromBlock: 'latest',
       toBlock: 'pending'
     }, (error, logs) => {
       if (error) {
@@ -123,6 +123,27 @@ export const subscribeEvents = () => (dispatch, getState) => {
 
         if (event === 'Unregistered' && type === 'mined') {
           return dispatch(deleteToken(params.id.toNumber()));
+        }
+
+        if (event === 'MetaChanged' && type === 'pending') {
+          return dispatch(setTokenData(
+            params.id.toNumber(),
+            { metaPending: true, metaMined: false }
+          ));
+        }
+
+        if (event === 'MetaChanged' && type === 'mined') {
+          setTimeout(() => {
+            dispatch(setTokenData(
+              params.id.toNumber(),
+              { metaPending: false, metaMined: false }
+            ));
+          }, 5000);
+
+          return dispatch(setTokenData(
+            params.id.toNumber(),
+            { metaPending: false, metaMined: true }
+          ));
         }
 
         console.log('new log event', log);

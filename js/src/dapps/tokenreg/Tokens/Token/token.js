@@ -26,7 +26,9 @@ export default class Token extends Component {
     base: PropTypes.number,
     index: PropTypes.number,
     meta: PropTypes.object,
-    owner: PropTypes.string
+    owner: PropTypes.string,
+    metaPending: PropTypes.bool,
+    metaMined: PropTypes.bool
   };
 
   state = {
@@ -75,6 +77,9 @@ export default class Token extends Component {
         { this.renderMeta(meta) }
         { this.renderAddMeta() }
         { this.renderUnregister() }
+
+        { this.renderMetaPending() }
+        { this.renderMetaMined() }
       </Paper>
     );
   }
@@ -150,6 +155,28 @@ export default class Token extends Component {
         <span className={ styles['meta-key'] }>{ meta.query }</span>:
       </p>
       <p className={ styles['meta-value'] }>{ meta.value }</p>
+    </div>);
+  }
+
+  renderMetaPending () {
+    let isMetaPending = this.props.metaPending;
+    if (!isMetaPending) return;
+
+    return (<div>
+      <p className={ styles['meta-info'] }>
+        Meta-Data pending...
+      </p>
+    </div>);
+  }
+
+  renderMetaMined () {
+    let isMetaMined = this.props.metaMined;
+    if (!isMetaMined) return;
+
+    return (<div>
+      <p className={ styles['meta-info'] }>
+        Meta-Data saved on the blockchain!
+      </p>
     </div>);
   }
 
