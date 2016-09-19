@@ -14,14 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAddress, toChecksumAddress } from '../../abi/util/address';
-import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
 
-export default {
-  isAddressValid: isAddress,
-  fromWei: fromWei,
-  toChecksumAddress: toChecksumAddress,
-  toWei: toWei,
-  sha3: sha3
-};
+describe('api/util/sha3', () => {
+  describe('sha3', () => {
+    it('constructs a correct sha3 value', () => {
+      expect(sha3('jacogr')).to.equal('0x2f4ff4b5a87abbd2edfed699db48a97744e028c7f7ce36444d40d29d792aa4dc');
+    });
+  });
+});

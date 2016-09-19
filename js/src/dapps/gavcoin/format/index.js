@@ -48,5 +48,5 @@ export function formatCoins (amount, decimals = 6) {
 }
 
 export function formatEth (eth, decimals = 3) {
-  return api.format.fromWei(eth).toFormat(decimals);
+  return api.util.fromWei(eth).toFormat(decimals);
 }

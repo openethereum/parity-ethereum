@@ -1,51 +1,65 @@
 import React, { Component, PropTypes } from 'react';
+import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
-import FlatButton from 'material-ui/FlatButton';
+import RaisedButton from 'material-ui/RaisedButton';
+import SearchIcon from 'material-ui/svg-icons/action/search';
 
 import styles from './lookup.css';
 
 export default class Lookup extends Component {
 
   static propTypes = {
-    actions: PropTypes.object,
-    lookup: PropTypes.object
+    actions: PropTypes.object.isRequired,
+    name: PropTypes.string.isRequired,
+    entry: PropTypes.string.isRequired,
+    result: PropTypes.string
   }
 
-  state = { name: '', key: '' };
+  state = { name: '', entry: 'A' };
 
   render () {
-    const self = this;
-    const onNameChange = (e) => {
-      self.setState({ name: e.target.value });
-    };
-    const onKeyChange = (e) => {
-      self.setState({ key: e.target.value });
-    };
-    const onLookupClick = () => {
-      self.props.actions.lookup(self.state.name, self.state.key);
-    };
+    const name = this.state.name || this.props.name;
+    const entry = this.state.entry || this.props.entry;
+    const result = this.props.result || '';
 
     return (
-      <div className={ styles.lookup }>
-        <TextField
-          hintText='name'
-          value={ this.state.name || this.props.lookup.name || '' }
-          onChange={ onNameChange }
-        />
-        <TextField
-          hintText='key'
-          value={ this.state.key || this.props.lookup.key || '' }
-          onChange={ onKeyChange }
-        />
-        <FlatButton
-          label='Lookup'
-          primary
-          onClick={ onLookupClick }
-        />
-        <div className={ styles.results }>
-          { this.props.lookup.result || '' }
+      <Card className={ styles.lookup }>
+        <CardHeader title={ 'Query the Registry' } />
+        <div className={ styles.box }>
+          <TextField
+            className={ styles.spacing }
+            hintText='name'
+            value={ name }
+            onChange={ this.onNameChange }
+          />
+          <TextField
+            className={ styles.spacing }
+            hintText='entry'
+            value={ entry }
+            onChange={ this.onKeyChange }
+          />
+          <RaisedButton
+            className={ styles.spacing }
+            label='Lookup'
+            primary
+            icon={ <SearchIcon /> }
+            onClick={ this.onLookupClick }
+          />
         </div>
-      </div>
+        <CardText>
+          <code>{ result }</code>
+        </CardText>
+      </Card>
     );
   }
+
+  onNameChange = (e) => {
+    this.setState({ name: e.target.value });
+  };
+  onKeyChange = (e) => {
+    this.setState({ entry: e.target.value });
+  };
+  onLookupClick = () => {
+    this.props.actions.lookup(this.state.name, this.state.entry);
+  };
 }

@@ -7,25 +7,21 @@ import * as actions from './actions';
 
 class Container extends Component {
   static propTypes = {
-    actions: PropTypes.object,
-    contract: PropTypes.object,
-    owner: PropTypes.string,
-    fee: PropTypes.object,
-    lookup: PropTypes.object
+    actions: PropTypes.object.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contract: PropTypes.object.isRequired,
+    owner: PropTypes.string.isRequired,
+    fee: PropTypes.object.isRequired,
+    lookup: PropTypes.object.isRequired,
+    events: PropTypes.array.isRequired
   };
+
   componentDidMount () {
     this.props.actions.fetchContract();
   }
 
   render () {
-    const { actions, contract, owner, fee, lookup } = this.props;
-    return (<Application
-      actions={ actions }
-      contract={ contract }
-      owner={ owner }
-      fee={ fee }
-      lookup={ lookup }
-    />);
+    return (<Application { ...this.props } />);
   }
 }
 
@@ -35,7 +31,10 @@ export default connect(
   // react -> redux connection
   (dispatch) => {
     const bound = bindActionCreators(actions, dispatch);
+    bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
+    bound.events = bindActionCreators(actions.events, dispatch);
+    bound.register = bindActionCreators(actions.register, dispatch);
     return { actions: bound };
   }
 )(Container);

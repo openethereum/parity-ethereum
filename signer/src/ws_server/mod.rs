@@ -127,7 +127,7 @@ impl Server {
 		// Spawn a thread with event loop
 		let handle = thread::spawn(move || {
 			ph.catch_panic(move || {
-				match ws.listen(addr.clone()).map_err(ServerError::from) {
+				match ws.listen(addr).map_err(ServerError::from) {
 					Err(ServerError::IoError(io)) => die(format!(
 						"Signer: Could not start listening on specified address. Make sure that no other instance is running on Signer's port. Details: {:?}",
 						io

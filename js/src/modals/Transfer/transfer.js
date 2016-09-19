@@ -18,15 +18,13 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
-import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '../../ui/Errors';
-import { IdentityIcon, Modal } from '../../ui';
+import { Button, IdentityIcon, Modal } from '../../ui';
 
 import Complete from './Complete';
 import Details from './Details';
@@ -86,12 +84,12 @@ class Transfer extends Component {
   render () {
     const { stage, extras } = this.state;
 
+    // title={ this.renderAccount() }
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
-        title={ this.renderAccount() }
         visible>
         { this.renderPage() }
       </Modal>
@@ -181,39 +179,40 @@ class Transfer extends Component {
   }
 
   renderDialogActions () {
+    const { account } = this.props;
     const { extras, sending, stage } = this.state;
 
     const cancelBtn = (
-      <FlatButton
+      <Button
         icon={ <ContentClear /> }
-        label='Cancel' primary
-        onTouchTap={ this.onClose } />
+        label='Cancel'
+        onClick={ this.onClose } />
     );
     const nextBtn = (
-      <FlatButton
+      <Button
         disabled={ !this.isValid() }
         icon={ <NavigationArrowForward /> }
-        label='Next' primary
-        onTouchTap={ this.onNext } />
+        label='Next'
+        onClick={ this.onNext } />
     );
     const prevBtn = (
-      <FlatButton
+      <Button
         icon={ <NavigationArrowBack /> }
-        label='Back' primary
-        onTouchTap={ this.onPrev } />
+        label='Back'
+        onClick={ this.onPrev } />
     );
     const sendBtn = (
-      <FlatButton
+      <Button
         disabled={ !this.isValid() || sending }
-        icon={ <ContentSend /> }
-        label='Send' primary
-        onTouchTap={ this.onSend } />
+        icon={ <IdentityIcon address={ account.address } button /> }
+        label='Send'
+        onClick={ this.onSend } />
     );
     const doneBtn = (
-      <FlatButton
+      <Button
         icon={ <ActionDoneAll /> }
-        label='Close' primary
-        onTouchTap={ this.onClose } />
+        label='Close'
+        onClick={ this.onClose } />
     );
 
     switch (stage) {
@@ -314,7 +313,7 @@ class Transfer extends Component {
 
     if (!recipient || !recipient.length) {
       recipientError = ERRORS.requireRecipient;
-    } else if (!api.format.isAddressValid(recipient)) {
+    } else if (!api.util.isAddressValid(recipient)) {
       recipientError = ERRORS.invalidAddress;
     }
 
@@ -379,7 +378,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: api.format.toWei(value || 0)
+      value: api.util.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -459,7 +458,7 @@ class Transfer extends Component {
       to: recipient,
       gas,
       gasPrice,
-      value: api.format.toWei(value || 0)
+      value: api.util.toWei(value || 0)
     };
 
     if (data && data.length) {
@@ -501,7 +500,7 @@ class Transfer extends Component {
     const { gas, gasPrice, tag, valueAll, isEth } = this.state;
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
     const balance_ = balance.tokens.find((b) => tag === b.token.tag);
-    const availableEth = new BigNumber(balance_.value);
+    const availableEth = new BigNumber(balance.tokens[0].value);
     const available = new BigNumber(balance_.value);
     const format = new BigNumber(balance_.token.format || 1);
 
@@ -511,7 +510,7 @@ class Transfer extends Component {
 
     if (valueAll) {
       if (isEth) {
-        const bn = api.format.fromWei(availableEth.minus(gasTotal));
+        const bn = api.util.fromWei(availableEth.minus(gasTotal));
         value = (bn.lt(0) ? new BigNumber(0.0) : bn).toString();
       } else {
         value = available.div(format).toString();
@@ -519,7 +518,7 @@ class Transfer extends Component {
     }
 
     if (isEth) {
-      totalEth = totalEth.plus(api.format.toWei(value || 0));
+      totalEth = totalEth.plus(api.util.toWei(value || 0));
     }
 
     if (new BigNumber(value || 0).gt(available.div(format))) {
@@ -533,7 +532,7 @@ class Transfer extends Component {
     }
 
     this.setState({
-      total: api.format.fromWei(totalEth).toString(),
+      total: api.util.fromWei(totalEth).toString(),
       totalError,
       value,
       valueError

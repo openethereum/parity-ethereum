@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import format from '../../../api/format';
+import util from '../../../api/util';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
 
@@ -44,7 +44,7 @@ function formatTime (time) {
 }
 
 function formatEther (value) {
-  const ether = format.fromWei(value);
+  const ether = util.fromWei(value);
 
   if (ether.gt(0)) {
     return `${ether.toFormat(5)}`;
@@ -91,6 +91,7 @@ class Transactions extends Component {
       <td className={ styles.left }>
         <IdentityIcon
           inline center
+          tokens={ tokens }
           address={ address } />
         <a
           href={ link }
@@ -151,22 +152,27 @@ class Transactions extends Component {
     });
 
     return (
-      <table className={ styles.transactions }>
-        <thead>
-          <tr className={ styles.info }>
-            <th>&nbsp;</th>
-            <th className={ styles.left }>from</th>
-            <th className={ styles.left }>to</th>
-            <th className={ styles.center }>transaction</th>
-            <th className={ styles.right }>block</th>
-            <th className={ styles.right }>age</th>
-            <th className={ styles.right }>value</th>
-          </tr>
-        </thead>
-        <tbody>
-          { rows }
-        </tbody>
-      </table>
+      <div className={ styles.transactions }>
+        <table>
+          <thead>
+            <tr className={ styles.info }>
+              <th>&nbsp;</th>
+              <th className={ styles.left }>from</th>
+              <th className={ styles.left }>to</th>
+              <th className={ styles.center }>transaction</th>
+              <th className={ styles.right }>block</th>
+              <th className={ styles.right }>age</th>
+              <th className={ styles.right }>value</th>
+            </tr>
+          </thead>
+          <tbody>
+            { rows }
+          </tbody>
+        </table>
+        <div className={ styles.etherscan }>
+          Transaction list powered by <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
+        </div>
+      </div>
     );
   }
 

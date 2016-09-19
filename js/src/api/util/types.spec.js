@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
+import { isArray, isFunction, isHex, isInstanceOf, isObject, isString } from './types';
 import Eth from '../rpc/eth';
 
 describe('api/util/types', () => {
@@ -69,6 +69,24 @@ describe('api/util/types', () => {
 
     it('correctly reports false for own', () => {
       expect(isInstanceOf({}, Eth)).to.be.false;
+    });
+  });
+
+  describe('isObject', () => {
+    it('correctly identifies empty object as object', () => {
+      expect(isObject({})).to.be.true;
+    });
+
+    it('correctly identifies non-empty object as object', () => {
+      expect(isObject({ data: '123' })).to.be.true;
+    });
+
+    it('correctly identifies Arrays as non-objects', () => {
+      expect(isObject([1, 2, 3])).to.be.false;
+    });
+
+    it('correctly identifies Strings as non-objects', () => {
+      expect(isObject('123')).to.be.false;
     });
   });
 

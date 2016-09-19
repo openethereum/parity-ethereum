@@ -75,5 +75,13 @@ describe('abi/spec/paramType/ParamType', () => {
     it('sets the length of the object', () => {
       expect((new ParamType('array', 'bool', 1)).length).to.equal(1);
     });
+
+    it('sets the index of the object', () => {
+      expect((new ParamType('array', 'bool', 1, true)).indexed).to.be.true;
+    });
+
+    it('sets default values where none supplied', () => {
+      expect(Object.values(new ParamType('string'))).to.deep.equal(['string', null, 0, false]);
+    });
   });
 });

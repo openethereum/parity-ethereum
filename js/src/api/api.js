@@ -19,7 +19,6 @@ import Contract from './contract';
 
 import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
-import format from './format';
 import util from './util';
 import { isFunction } from './util/types';
 
@@ -71,10 +70,6 @@ export default class Api {
 
   get web3 () {
     return this._web3;
-  }
-
-  get format () {
-    return format;
   }
 
   get util () {

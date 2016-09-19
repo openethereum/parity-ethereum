@@ -14,4 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './modalSteps';
+export function bytesToHex (bytes) {
+  return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
+}

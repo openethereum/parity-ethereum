@@ -1,0 +1,23 @@
+.register {
+  margin: 1em;
+}
+
+.box {
+  margin: 0 1em 1em 1em;
+}
+
+.spacing {
+  margin-left: 1em;
+}
+
+.noSpacing {
+  margin-top: 0;
+}
+
+.link {
+  color: #00BCD4;
+  text-decoration: none;
+}
+.link:hover {
+  text-decoration: underline;
+}

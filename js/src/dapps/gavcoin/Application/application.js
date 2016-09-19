@@ -181,7 +181,7 @@ export default class Application extends Component {
             const ethBalance = ethBalances[idx];
             const gavBalance = gavBalances[idx];
 
-            account.ethBalance = api.format.fromWei(ethBalance).toFormat(3);
+            account.ethBalance = api.util.fromWei(ethBalance).toFormat(3);
             account.gavBalance = gavBalance.div(DIVISOR).toFormat(6);
             account.hasGav = gavBalance.gt(0);
 
@@ -204,7 +204,7 @@ export default class Application extends Component {
 
         return Promise
           .all([
-            registry.getAddress.call({}, [api.format.sha3('gavcoin'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('gavcoin'), 'A']),
             api.personal.listAccounts(),
             api.personal.accountsInfo()
           ]);

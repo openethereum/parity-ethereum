@@ -34,7 +34,6 @@ export default class Status extends Component {
           isAddress={ false }
           value={ api.format.fromWei(fee).toFixed(3) + 'ΞTH' }
           label='Fee' />
-
       </div>
     );
   }
