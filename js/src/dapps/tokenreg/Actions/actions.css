@@ -1,0 +1,33 @@
+.actions {
+  padding-top: 2rem;
+}
+
+.button {
+  margin: 0 0.5em;
+}
+
+.button button {
+  background-color: rgba(50, 100, 150, 1) !important;
+  height: 56px !important;
+  padding: 0 10px !important;
+}
+
+.button button[disabled] {
+  background-color: rgba(50, 50, 50, 0.25) !important;
+}
+
+.dialog {
+}
+
+.dialog h3 {
+  color: rgba(50, 100, 150, 1) !important;
+  text-transform: uppercase;
+}
+
+.dialogtext {
+  padding-top: 1em;
+}
+
+.error {
+  color: red;
+}
