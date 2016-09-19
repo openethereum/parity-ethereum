@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog } from 'material-ui';
 
-import ModalSteps from './ModalSteps';
+import Title from './Title';
 
 const ACTIONS_STYLE = { borderStyle: 'none' };
 const TITLE_STYLE = { borderStyle: 'none' };
@@ -43,23 +43,13 @@ export default class Modal extends Component {
 
   render () {
     const { actions, current, children, scroll, steps, waiting, title, visible } = this.props;
-    let header;
-
-    if (steps) {
-      header = (
-        <ModalSteps
-          current={ current }
-          waiting={ waiting }
-          steps={ steps }
-          title={ title } />
-      );
-    } else {
-      header = (
-        <div className={ styles.title }>
-          <h3>{ title }</h3>
-        </div>
-      );
-    }
+    const header = (
+      <Title
+        current={ current }
+        waiting={ waiting }
+        steps={ steps }
+        title={ title } />
+    );
 
     return (
       <Dialog

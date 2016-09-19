@@ -78,6 +78,7 @@ class Addresses extends Component {
   }
 
   renderAddAddress () {
+    const { contacts } = this.props;
     const { showAdd } = this.state;
 
     if (!showAdd) {
@@ -86,6 +87,7 @@ class Addresses extends Component {
 
     return (
       <AddAddress
+        contacts={ contacts }
         onClose={ this.onCloseAdd } />
     );
   }

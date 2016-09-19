@@ -18,27 +18,20 @@ import { getBalances, getTokens } from './balancesActions';
 
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 
-import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
-import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
-import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
-import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
+import imagesEthereum from '../../images/contracts/ethereum-56.png';
+import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
+import imagesUnknown from '../../images/contracts/unknown-56.png';
 
 // TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
 const images = {
-  ethereum: {
-    small: imagesEthereum32,
-    normal: imagesEthereum56
-  },
-  gavcoin: {
-    small: imagesGavcoin32,
-    normal: imagesGavcoin56
-  }
+  ethereum: imagesEthereum,
+  gavcoin: imagesGavcoin
 };
 
 const ETH = {
   name: 'Ethereum',
   tag: 'ΞTH',
-  images: images.ethereum
+  image: images.ethereum
 };
 
 export default class Balances {
@@ -107,7 +100,7 @@ export default class Balances {
             name,
             tag,
             format: format.toString(),
-            images: images[name.toLowerCase()],
+            image: images[name.toLowerCase()] || imagesUnknown,
             contract: this._api.newContract(eip20Abi, address)
           };
           tokens[address] = token;
@@ -164,7 +157,7 @@ export default class Balances {
           this._tokens.forEach((token, tidx) => {
             balance.tokens.push({
               token,
-              value: balanceOf[tidx].toString()
+              value: balanceOf[tidx]
             });
           });
         });
