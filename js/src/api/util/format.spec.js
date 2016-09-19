@@ -14,24 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
 import { bytesToHex } from './format';
-import { fromWei, toWei } from './wei';
-import { sha3 } from './sha3';
-import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
-import { createIdentityImg } from './identity';
 
-export default {
-  isAddressValid,
-  isArray,
-  isFunction,
-  isHex,
-  isInstanceOf,
-  isString,
-  bytesToHex,
-  createIdentityImg,
-  fromWei,
-  toChecksumAddress,
-  toWei,
-  sha3
-};
+describe('api/util/format', () => {
+  describe('bytesToHex', () => {
+    it('correctly converts an empty array', () => {
+      expect(bytesToHex([])).to.equal('0x');
+    });
+
+    it('correctly converts a non-empty array', () => {
+      expect(bytesToHex([0, 15, 16])).to.equal('0x000f10');
+    });
+  });
+});
