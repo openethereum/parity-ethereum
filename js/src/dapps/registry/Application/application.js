@@ -7,10 +7,10 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
 import Accounts from '../accounts';
-import Lookup from '../lookup';
+import Lookup from '../Lookup';
 import Register from '../register';
 import Events from '../events';
-import Status from '../status';
+import Status from '../Status';
 
 export default class Application extends Component {
   static childContextTypes = { muiTheme: PropTypes.object };
