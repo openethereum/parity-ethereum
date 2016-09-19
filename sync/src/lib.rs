@@ -39,6 +39,8 @@ extern crate rlp;
 
 #[cfg(test)]
 extern crate ethkey;
+#[cfg(test)]
+extern crate ethcore_devtools as devtools;
 
 #[macro_use]
 extern crate log;
