@@ -41,7 +41,7 @@ class Address extends Component {
   }
 
   state = {
-    deleteDialog: false
+    showDeleteDialog: false
   }
 
   render () {
@@ -77,7 +77,7 @@ class Address extends Component {
         key='delete'
         icon={ <ActionDelete /> }
         label='delete address'
-        onClick={ this.toggleDeleteDialog } />
+        onClick={ this.showDeleteDialog } />
     ];
 
     return (
@@ -89,9 +89,9 @@ class Address extends Component {
 
   renderDeleteConfirm () {
     const { contacts } = this.props;
-    const { deleteDialog } = this.state;
+    const { showDeleteDialog } = this.state;
 
-    if (!deleteDialog) {
+    if (!showDeleteDialog) {
       return;
     }
 
@@ -103,8 +103,8 @@ class Address extends Component {
         className={ styles.delete }
         title='confirm removal'
         visible
-        onNo={ this.toggleDeleteDialog }
-        onYes={ this.onDeleteConfirmed }>
+        onDeny={ this.closeDeleteDialog }
+        onConfirm={ this.onDeleteConfirmed }>
         <div className={ styles.hero }>
           Are you sure you want to remove the following address from your addressbook?
         </div>
@@ -146,12 +146,12 @@ class Address extends Component {
       });
   }
 
-  toggleDeleteDialog = () => {
-    const { deleteDialog } = this.state;
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
 
-    this.setState({
-      deleteDialog: !deleteDialog
-    });
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
   }
 }
 
