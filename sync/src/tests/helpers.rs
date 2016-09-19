@@ -19,7 +19,6 @@ use network::*;
 use tests::snapshot::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
-use ethcore::spec::Spec;
 use ethcore::snapshot::SnapshotService;
 use sync_io::SyncIo;
 use chain::ChainSync;
