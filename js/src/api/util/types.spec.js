@@ -16,11 +16,7 @@
 
 import sinon from 'sinon';
 
-<<<<<<< HEAD
-import { isArray, isError, isFunction, isHex, isInstanceOf, isString } from './types';
-=======
-import { isArray, isFunction, isHex, isInstanceOf, isObject, isString } from './types';
->>>>>>> js
+import { isArray, isError, isFunction, isHex, isInstanceOf, isObject, isString } from './types';
 import Eth from '../rpc/eth';
 
 describe('api/util/types', () => {
