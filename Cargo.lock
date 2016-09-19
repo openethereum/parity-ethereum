@@ -757,7 +757,7 @@ dependencies = [
 [[package]]
 name = "json-tcp-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/json-tcp-server#c2858522274ae56042472bb5d22845a1b85e5338"
+source = "git+https://github.com/ethcore/json-tcp-server#0c041f8891c9ca6556f77ace6cf4325854ac14a8"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -765,6 +765,7 @@ dependencies = [
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
