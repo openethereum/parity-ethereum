@@ -22,7 +22,10 @@ export default class Button extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
-    label: PropTypes.string,
+    label: PropTypes.oneOfType([
+      React.PropTypes.string,
+      React.PropTypes.object
+    ]),
     onClick: PropTypes.func
   }
 

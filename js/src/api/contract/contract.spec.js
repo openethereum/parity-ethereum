@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import sinon from 'sinon';
 
 import { TEST_HTTP_URL, mockHttp } from '../../../test/mockRpc';
 
@@ -423,6 +424,114 @@ describe('api/contract/Contract', () => {
             expect(result.length).to.equal(2);
             expect(result[0].toString(16)).to.equal('123456');
             expect(result[1].toString(16)).to.equal('456789');
+          });
+      });
+    });
+  });
+
+  describe('subscribe', () => {
+    const abi = [
+      {
+        anonymous: false, name: 'Message', type: 'event',
+        inputs: [
+          { indexed: true, name: 'postId', type: 'uint256' },
+          { indexed: false, name: 'parentId', type: 'uint256' },
+          { indexed: false, name: 'sender', type: 'address' },
+          { indexed: false, name: 'at', type: 'uint256' },
+          { indexed: false, name: 'messageId', type: 'uint256' },
+          { indexed: false, name: 'message', type: 'string' }
+        ]
+      }
+    ];
+    const logs = [{
+      address: '0x22bff18ec62281850546a664bb63a5c06ac5f76c',
+      blockHash: '0xa9280530a3b47bee2fc80f2862fd56502ae075350571d724d6442ea4c597347b',
+      blockNumber: '0x4fcd',
+      data: '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063cf90d3f0410092fc0fca41846f5962239791950000000000000000000000000000000000000000000000000000000056e6c85f0000000000000000000000000000000000000000000000000001000000004fcd00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d706f7374286d6573736167652900000000000000000000000000000000000000',
+      logIndex: '0x0',
+      topics: [
+        '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5',
+        '0x0000000000000000000000000000000000000000000000000001000000004fe0'
+      ],
+      transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
+      transactionIndex: '0x0'
+    }];
+    const parsed = [{
+      address: '0xfa64203C044691aA57251aF95f4b48d85eC00Dd5',
+      blockHash: '0xa9280530a3b47bee2fc80f2862fd56502ae075350571d724d6442ea4c597347b',
+      blockNumber: new BigNumber(20429),
+      data: '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063cf90d3f0410092fc0fca41846f5962239791950000000000000000000000000000000000000000000000000000000056e6c85f0000000000000000000000000000000000000000000000000001000000004fcd00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d706f7374286d6573736167652900000000000000000000000000000000000000',
+      event: 'Message',
+      logIndex: new BigNumber(0),
+      params: {
+        at: new BigNumber(1457965151),
+        message: 'post(message)',
+        messageId: new BigNumber(281474976731085),
+        parentId: new BigNumber(0),
+        postId: new BigNumber(281474976731104),
+        sender: '0x63Cf90D3f0410092FC0fca41846f596223979195'
+      },
+      topics: [
+        '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5', '0x0000000000000000000000000000000000000000000000000001000000004fe0'
+      ],
+      transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
+      transactionIndex: new BigNumber(0)
+    }];
+    let contract;
+
+    beforeEach(() => {
+      contract = new Contract(eth, abi);
+      contract.at(ADDR);
+    });
+
+    describe('invalid events', () => {
+      it('fails to subscribe to an invalid names', () => {
+        return contract
+          .subscribe('invalid')
+          .catch((error) => {
+            expect(error.message).to.match(/invalid is not a valid eventName/);
+          });
+      });
+    });
+
+    describe('valid events', () => {
+      let cbb;
+      let cbe;
+
+      beforeEach(() => {
+        scope = mockHttp([
+          { method: 'eth_newFilter', reply: { result: '0x123' } },
+          { method: 'eth_getFilterLogs', reply: { result: logs } },
+          { method: 'eth_newFilter', reply: { result: '0x123' } },
+          { method: 'eth_getFilterLogs', reply: { result: logs } }
+        ]);
+        cbb = sinon.stub();
+        cbe = sinon.stub();
+
+        return contract.subscribe('Message', {}, cbb);
+      });
+
+      it('sets the subscriptionId returned', () => {
+        return contract
+          .subscribe('Message', {}, cbe)
+          .then((subscriptionId) => {
+            expect(subscriptionId).to.equal(1);
+          });
+      });
+
+      it('creates a new filter and retrieves the logs on it', () => {
+        return contract
+          .subscribe('Message', {}, cbe)
+          .then((subscriptionId) => {
+            expect(scope.isDone()).to.be.true;
+          });
+      });
+
+      it('returns the logs to the callback', () => {
+        return contract
+          .subscribe('Message', {}, cbe)
+          .then((subscriptionId) => {
+            expect(cbe).to.have.been.calledWith(null, parsed);
           });
       });
     });

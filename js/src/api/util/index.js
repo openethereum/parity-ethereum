@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
+import { bytesToHex } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
 import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
@@ -27,6 +28,7 @@ export default {
   isHex,
   isInstanceOf,
   isString,
+  bytesToHex,
   createIdentityImg,
   fromWei,
   toChecksumAddress,

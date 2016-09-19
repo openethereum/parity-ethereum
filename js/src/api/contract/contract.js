@@ -18,6 +18,8 @@ import Abi from '../../abi';
 import Api from '../api';
 import { isInstanceOf, isObject } from '../util/types';
 
+let nextSubscriptionId = 0;
+
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
@@ -29,10 +31,10 @@ export default class Contract {
     this._api = api;
     this._abi = new Abi(abi);
 
-    this._subscriptions = [];
-    this._constructors = this._abi.constructors.map((cons) => this._bindFunction(cons));
-    this._functions = this._abi.functions.map((func) => this._bindFunction(func));
-    this._events = this._abi.events.map((event) => this._bindEvent(event));
+    this._subscriptions = {};
+    this._constructors = this._abi.constructors.map(this._bindFunction);
+    this._functions = this._abi.functions.map(this._bindFunction);
+    this._events = this._abi.events.map(this._bindEvent);
 
     this._instance = {};
 
@@ -199,7 +201,7 @@ export default class Contract {
     }, options);
   }
 
-  _bindFunction (func) {
+  _bindFunction = (func) => {
     func.call = (options, values) => {
       return this._api.eth
         .call(this._encodeOptions(func, this._addOptionsTo(options), values))
@@ -223,119 +225,71 @@ export default class Contract {
     return func;
   }
 
-  _bindEvent (event) {
-    const subscriptions = [];
-
-    event.subscribe = (_options, callback) => {
-      const subscriptionId = subscriptions.length;
-      const options = Object.assign({}, _options, {
-        address: this._address,
-        topics: [event.signature]
-      });
-
-      this._api.eth
-        .newFilter(options)
-        .then((filterId) => {
-          return this._api.eth
-            .getFilterLogs(filterId)
-            .then((logs) => {
-              callback(this.parseEventLogs(logs));
-
-              subscriptions.push({
-                options,
-                callback,
-                filterId
-              });
-            });
-        });
-
-      return subscriptionId;
+  _bindEvent = (event) => {
+    event.subscribe = (options = {}, callback) => {
+      return this._subscribe(event, options, callback);
     };
 
     event.unsubscribe = (subscriptionId) => {
-      const subscription = subscriptions[subscriptionId];
-
-      this._api.eth
-        .uninstallFilter(subscription.filterId);
-
-      subscriptions[subscriptionId] = null;
+      return this.unsubscribe(subscriptionId);
     };
-
-    const sendChanges = (subscription) => {
-      if (!subscription) {
-        return;
-      }
-
-      this._api.eth
-        .getFilterChanges(subscription.filterId)
-        .then((logs) => {
-          try {
-            subscription.callback(this.parseEventLogs(logs));
-          } catch (error) {
-            console.error('pollChanges', error);
-          }
-        });
-    };
-
-    const onTriggerSend = (blockNumber) => {
-      subscriptions.forEach(sendChanges);
-    };
-
-    setInterval(onTriggerSend, 1000);
 
     return event;
   }
 
-  subscribe (eventName, _options = {}, callback) {
-    const subscriptionId = this._subscriptions.length;
-    let event = null;
+  subscribe (eventName = null, options = {}, callback) {
+    return new Promise((resolve, reject) => {
+      let event = null;
 
-    if (eventName) {
-      event = this._events.find((evt) => evt.name === eventName);
+      if (eventName) {
+        event = this._events.find((evt) => evt.name === eventName);
 
-      if (!event) {
-        const events = this._events.map((evt) => evt.name).join(', ');
-        throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
+        if (!event) {
+          const events = this._events.map((evt) => evt.name).join(', ');
+          reject(new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`));
+          return;
+        }
       }
-    }
 
+      return this._subscribe(event, options, callback).then(resolve).catch(reject);
+    });
+  }
+
+  _subscribe (event = null, _options, callback) {
+    const subscriptionId = nextSubscriptionId++;
     const options = Object.assign({}, _options, {
       address: this._address,
       topics: [event ? event.signature : null]
     });
 
-    this._api.eth
+    return this._api.eth
       .newFilter(options)
       .then((filterId) => {
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
-
-            this._subscriptions.push({
+            this._subscriptions[subscriptionId] = {
               options,
               callback,
               filterId
-            });
-          });
-      })
-      .catch((error) => {
-        console.log('subscribe', error);
-        callback(error);
-      });
+            };
 
-    return subscriptionId;
+            return subscriptionId;
+          });
+      });
   }
 
   unsubscribe (subscriptionId) {
-    const subscription = this._subscriptions[subscriptionId];
-
-    this._api.eth.uninstallFilter(subscription.filterId);
-    this._subscriptions[subscriptionId] = null;
+    return this._api.eth
+      .uninstallFilter(this._subscriptions[subscriptionId].filterId)
+      .then(() => {
+        delete this._subscriptions[subscriptionId];
+      });
   }
 
   _sendSubscriptionChanges = () => {
-    const subscriptions = this._subscriptions.filter((subscription) => subscription);
+    const subscriptions = Object.values(this._subscriptions);
     const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
 
     Promise

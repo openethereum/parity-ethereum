@@ -32,13 +32,13 @@ export default class Eth {
   start () {
     this._started = true;
 
-    this._blockNumber();
+    return this._blockNumber();
   }
 
   _blockNumber = () => {
-    const nextTimeout = () => setTimeout(this._blockNumber, 1000);
+    const nextTimeout = () => setTimeout(() => this._blockNumber(), 1000);
 
-    this._api.eth
+    return this._api.eth
       .blockNumber()
       .then((blockNumber) => {
         if (!blockNumber.eq(this._lastBlock)) {

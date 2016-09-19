@@ -13,35 +13,42 @@ export const subscribe = (name, from = 0, to = 'latest') =>
     const opt = { fromBlock: from, toBlock: to };
 
     dispatch(start(name, from, to));
-    const subscription = contract.subscribe(name, opt, (err, events) => {
-      if (err) {
-        console.error(`could not subscribe to event ${name}.`);
-        console.error(err);
-        return dispatch(fail(name));
-      }
-      dispatch(success(name, subscription));
 
-      events.forEach((e) => {
-        getBlockByNumber(e.blockNumber)
-        .then((block) => {
-          const data = {
-            type: name,
-            key: '' + e.transactionHash + e.logIndex,
-            state: e.type,
-            block: e.blockNumber,
-            index: e.logIndex,
-            transaction: e.transactionHash,
-            parameters: e.params,
-            timestamp: block.timestamp
-          };
-          dispatch(event(name, data));
-        })
-        .catch((err) => {
-          console.error(`could not fetch block ${e.blockNumber}.`);
-          console.error(err);
+    contract
+      .subscribe(name, opt, (error, events) => {
+        if (error) {
+          console.error(`error receiving events for ${name}`, error);
+          return;
+        }
+
+        events.forEach((e) => {
+          getBlockByNumber(e.blockNumber)
+          .then((block) => {
+            const data = {
+              type: name,
+              key: '' + e.transactionHash + e.logIndex,
+              state: e.type,
+              block: e.blockNumber,
+              index: e.logIndex,
+              transaction: e.transactionHash,
+              parameters: e.params,
+              timestamp: block.timestamp
+            };
+            dispatch(event(name, data));
+          })
+          .catch((err) => {
+            console.error(`could not fetch block ${e.blockNumber}.`);
+            console.error(err);
+          });
         });
+      })
+      .then((subscriptionId) => {
+        dispatch(success(name, subscriptionId));
+      })
+      .catch((error) => {
+        console.error('event subscription failed', error);
+        dispatch(fail(name));
       });
-    });
   };
 
 export const unsubscribe = (name) =>
@@ -51,6 +58,12 @@ export const unsubscribe = (name) =>
     const subscriptions = state.events.subscriptions;
     if (!(name in subscriptions) || subscriptions[name] === null) return;
 
-    state.contract.unsubscribe(subscriptions[name]);
-    dispatch({ type: 'events unsubscribe', name });
+    state.contract
+      .unsubscribe(subscriptions[name])
+      .then(() => {
+        dispatch({ type: 'events unsubscribe', name });
+      })
+      .catch((error) => {
+        console.error('event unsubscribe failed', error);
+      });
   };
