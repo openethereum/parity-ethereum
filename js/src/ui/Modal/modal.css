@@ -15,11 +15,19 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .title {
-  padding: 1em 1em 0 1em;
+  padding: 1em;
   background: rgba(0, 0, 0, 0.175);
 }
 
 .title h3 {
   margin: 0;
   text-transform: uppercase;
+}
+
+.title .steps {
+  margin-bottom: -1em;
+}
+
+.waiting {
+  margin: 0 -1em 0 -1em;
 }

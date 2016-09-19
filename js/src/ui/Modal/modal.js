@@ -18,18 +18,21 @@ import React, { Component, PropTypes } from 'react';
 
 import { Dialog } from 'material-ui';
 
-import ModalSteps from './ModalSteps';
+import Title from './Title';
 
 const ACTIONS_STYLE = { borderStyle: 'none' };
 const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
 const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
 
+import styles from './modal.css';
+
 export default class Modal extends Component {
   static propTypes = {
     actions: PropTypes.node,
     children: PropTypes.node,
     current: PropTypes.number,
+    waiting: PropTypes.array,
     scroll: PropTypes.bool,
     steps: PropTypes.array,
     title: React.PropTypes.oneOfType([
@@ -39,17 +42,14 @@ export default class Modal extends Component {
   }
 
   render () {
-    const { actions, current, children, scroll, steps, title, visible } = this.props;
-    let header = title;
-
-    if (steps) {
-      header = (
-        <ModalSteps
-          current={ current }
-          steps={ steps }
-          title={ title } />
-      );
-    }
+    const { actions, current, children, scroll, steps, waiting, title, visible } = this.props;
+    const header = (
+      <Title
+        current={ current }
+        waiting={ waiting }
+        steps={ steps }
+        title={ title } />
+    );
 
     return (
       <Dialog

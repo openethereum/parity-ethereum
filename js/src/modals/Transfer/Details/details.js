@@ -116,42 +116,44 @@ export default class Details extends Component {
     const { api } = this.context;
     const { balance, tag } = this.props;
 
-    const items = balance.tokens.map((balance, idx) => {
-      const token = balance.token;
-      const isEth = idx === 0;
-      let value = 0;
+    const items = balance.tokens
+      .filter((token) => token.value.gt(0))
+      .map((balance, idx) => {
+        const token = balance.token;
+        const isEth = idx === 0;
+        let value = 0;
 
-      if (isEth) {
-        value = api.util.fromWei(balance.value).toFormat(3);
-      } else {
-        value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
-      }
+        if (isEth) {
+          value = api.util.fromWei(balance.value).toFormat(3);
+        } else {
+          value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+        }
 
-      const label = (
-        <div className={ styles.token }>
-          <img src={ token.images.small } />
-          <div className={ styles.tokenname }>
-            { token.name }
+        const label = (
+          <div className={ styles.token }>
+            <img src={ token.image } />
+            <div className={ styles.tokenname }>
+              { token.name }
+            </div>
+            <div className={ styles.tokenbalance }>
+              { value }<small> { token.tag }</small>
+            </div>
           </div>
-          <div className={ styles.tokenbalance }>
-            { value }<small> { token.tag }</small>
-          </div>
-        </div>
-      );
+        );
 
-      return (
-        <MenuItem
-          key={ token.tag }
-          value={ token.tag }
-          label={ label }>
-          { label }
-        </MenuItem>
-      );
-    });
+        return (
+          <MenuItem
+            key={ token.tag }
+            value={ token.tag }
+            label={ label }>
+            { label }
+          </MenuItem>
+        );
+      });
 
     return (
       <Select
-        label='type of transfer'
+        label='type of token transfer'
         hint='type of token to transfer'
         value={ tag }
         onChange={ this.onChangeToken }>

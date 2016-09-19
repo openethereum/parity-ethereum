@@ -25,6 +25,7 @@ export default class IdentityIcon extends Component {
 
   static propTypes = {
     address: PropTypes.string,
+    button: PropTypes.bool,
     className: PropTypes.string,
     center: PropTypes.bool,
     padded: PropTypes.bool,
@@ -54,27 +55,47 @@ export default class IdentityIcon extends Component {
 
   updateIcon (_address) {
     const { api } = this.context;
-    const { tokens, inline } = this.props;
+    const { button, tokens, inline } = this.props;
     const token = (tokens || {})[_address];
 
-    if (token && token.images) {
+    if (token && token.image) {
       this.setState({
-        iconsrc: token.images[inline ? 'small' : 'normal']
+        iconsrc: token.image
       });
 
       return;
     }
 
+    let scale = 7;
+    if (button) {
+      scale = 3;
+    } else if (inline) {
+      scale = 4;
+    }
+
     this.setState({
-      iconsrc: api.util.createIdentityImg(_address, inline ? 4 : 7)
+      iconsrc: api.util.createIdentityImg(_address, scale)
     });
   }
 
   render () {
-    const { className, center, inline, padded } = this.props;
+    const { button, className, center, inline, padded } = this.props;
     const { iconsrc } = this.state;
-    const size = inline ? '32px' : '56px';
-    const classes = `${styles.icon} ${center ? styles.center : styles.left} ${padded ? styles.padded : ''} ${inline ? styles.inline : ''} ${className}`;
+    const classes = [
+      styles.icon,
+      button ? styles.button : '',
+      center ? styles.center : styles.left,
+      inline ? styles.inline : '',
+      padded ? styles.padded : '',
+      className
+    ].join(' ');
+
+    let size = '56px';
+    if (button) {
+      size = '24px';
+    } else if (inline) {
+      size = '32px';
+    }
 
     return (
       <img
