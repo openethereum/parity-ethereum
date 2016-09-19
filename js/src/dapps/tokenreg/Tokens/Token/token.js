@@ -20,7 +20,9 @@ export default class Token extends Component {
     tla: PropTypes.string,
     name: PropTypes.string,
     base: PropTypes.number,
-    index: PropTypes.number
+    index: PropTypes.number,
+    meta: PropTypes.object,
+    owner: PropTypes.string
   };
 
   state = {
@@ -33,28 +35,28 @@ export default class Token extends Component {
     if (isLoading) {
       return (
         <div className={ styles.token }>
-          <Loading size={1} />
+          <Loading size={ 1 } />
         </div>
       );
     }
 
     return (
-      <Paper zDepth={2} className={ styles.token }>
+      <Paper zDepth={ 2 } className={ styles.token }>
         { this.renderIsPending() }
         <div className={ styles.title }>{ tla }</div>
         <div className={ styles.name }>"{ name }"</div>
 
-        {this.renderBase(base)}
-        {this.renderAddress(address)}
-        {this.renderOwner(owner)}
+        { this.renderBase(base) }
+        { this.renderAddress(address) }
+        { this.renderOwner(owner) }
 
         <div className={ styles.metaForm }>
           <TextField
-            autoComplete="off"
+            autoComplete='off'
             floatingLabelFixed
             fullWidth
-            floatingLabelText="Meta Key"
-            hintText="The key of the meta-data to lookup"
+            floatingLabelText='Meta Key'
+            hintText='The key of the meta-data to lookup'
             value={ this.state.metaQuery }
             onChange={ this.onMetaQueryChange } />
 
@@ -72,36 +74,36 @@ export default class Token extends Component {
     );
   }
 
-  renderBase(base) {
+  renderBase (base) {
     if (!base || base < 0) return null;
     return (
       <Chip
-          value={base.toString()}
-          label="Base" />
+        value={ base.toString() }
+        label='Base' />
     );
   }
 
-  renderAddress(address) {
+  renderAddress (address) {
     if (!address) return null;
     return (
       <Chip
-          isAddress={true}
-          value={address}
-          label="Address" />
+        isAddress
+        value={ address }
+        label='Address' />
     );
   }
 
-  renderOwner(owner) {
+  renderOwner (owner) {
     if (!owner) return null;
     return (
       <Chip
-          isAddress={true}
-          value={owner}
-          label="Owner" />
+        isAddress
+        value={ owner }
+        label='Owner' />
     );
   }
 
-  renderIsPending() {
+  renderIsPending () {
     const { isPending } = this.props;
 
     if (!isPending) return null;
@@ -111,7 +113,7 @@ export default class Token extends Component {
     );
   }
 
-  renderUnregister() {
+  renderUnregister () {
     if (!this.props.isOwner) return null;
 
     return (
@@ -125,12 +127,12 @@ export default class Token extends Component {
     );
   }
 
-  renderMeta(meta) {
+  renderMeta (meta) {
     if (!meta) return;
 
     return (<div>
-      <p className={ styles['meta-query'] }>{meta.query}</p>
-      <p className={ styles['meta-value'] }>{meta.value}</p>
+      <p className={ styles['meta-query'] }>{ meta.query }</p>
+      <p className={ styles['meta-value'] }>{ meta.value }</p>
     </div>);
   }
 

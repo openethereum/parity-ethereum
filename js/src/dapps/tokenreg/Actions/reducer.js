@@ -54,8 +54,6 @@ export default (state = initialState, action) => {
     }
 
     case REGISTER_RESET: {
-      let registerState = state.register;
-
       return {
         ...state,
         register: initialState.register

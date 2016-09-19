@@ -99,9 +99,9 @@ export const subscribeEvents = () => (dispatch, getState) => {
       if (!logs || logs.length === 0) return;
 
       logs.forEach(log => {
-        let event = log.event,
-            type = log.type,
-            params = log.params;
+        const event = log.event;
+        const type = log.type;
+        const params = log.params;
 
         if (event === 'Registered' && type === 'pending') {
           return dispatch(setTokenData(params.id.toNumber(), {

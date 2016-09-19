@@ -1,4 +1,4 @@
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 
 import Actions from './component';
@@ -9,7 +9,7 @@ import { registerToken, registerReset } from './actions';
 
 class TokensContainer extends Component {
 
-  render() {
+  render () {
     return (<Actions
       { ...this.props }
     />);

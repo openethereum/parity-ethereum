@@ -10,13 +10,13 @@ import styles from '../actions.css';
 
 const defaultField = { error: null, value: '', valid: false };
 const initState = {
-    fields: {
-      address: { ...defaultField, type: ADDRESS_TYPE },
-      tla: { ...defaultField, type: TLA_TYPE },
-      base: { ...defaultField, type: UINT_TYPE },
-      name: { ...defaultField, type: STRING_TYPE }
-    }
-  };
+  fields: {
+    address: { ...defaultField, type: ADDRESS_TYPE },
+    tla: { ...defaultField, type: TLA_TYPE },
+    base: { ...defaultField, type: UINT_TYPE },
+    name: { ...defaultField, type: STRING_TYPE }
+  }
+};
 
 export default class ActionTransfer extends Component {
 
@@ -31,6 +31,13 @@ export default class ActionTransfer extends Component {
 
   state = initState;
 
+  constructor () {
+    super();
+
+    this.onClose = this.onClose.bind(this);
+    this.onRegister = this.onRegister.bind(this);
+  }
+
   render () {
     const { sending, error, complete } = this.props;
 
@@ -40,7 +47,7 @@ export default class ActionTransfer extends Component {
         open={ this.props.show }
         modal={ sending || complete }
         className={ styles.dialog }
-        onRequestClose={ this.onClose.bind(this) }
+        onRequestClose={ this.onClose }
         actions={ this.renderActions() } >
         { this.renderContent() }
       </Dialog>
@@ -48,7 +55,6 @@ export default class ActionTransfer extends Component {
   }
 
   renderActions () {
-    const { fields } = this.state;
     const { complete, sending, error } = this.props;
 
     if (error) {
@@ -56,7 +62,7 @@ export default class ActionTransfer extends Component {
         <FlatButton
           label='Close'
           primary
-          onTouchTap={ this.onClose.bind(this) } />
+          onTouchTap={ this.onClose } />
       );
     }
 
@@ -65,7 +71,7 @@ export default class ActionTransfer extends Component {
         <FlatButton
           label='Done'
           primary
-          onTouchTap={ this.onClose.bind(this) } />
+          onTouchTap={ this.onClose } />
       );
     }
 
@@ -75,12 +81,12 @@ export default class ActionTransfer extends Component {
       <FlatButton
         label='Cancel'
         primary
-        onTouchTap={ this.onClose.bind(this) } />,
+        onTouchTap={ this.onClose } />,
       <FlatButton
         label={ sending ? 'Sending...' : 'Register' }
         primary
         disabled={ !isValid || sending }
-        onTouchTap={ this.onRegister.bind(this) } />
+        onTouchTap={ this.onRegister } />
     ]);
   }
 
@@ -109,6 +115,11 @@ export default class ActionTransfer extends Component {
   renderForm () {
     const { fields } = this.state;
 
+    let onChangeAddress = this.onChange.bind(this, 'address');
+    let onChangeTLA = this.onChange.bind(this, 'tla');
+    let onChangeBase = this.onChange.bind(this, 'base');
+    let onChangeName = this.onChange.bind(this, 'name');
+
     return (
       <div>
         <AccountSelector />
@@ -120,7 +131,7 @@ export default class ActionTransfer extends Component {
           fullWidth
           hintText='The token address'
           errorText={ fields.address.error }
-          onChange={ this.onChange.bind(this, 'address') } />
+          onChange={ onChangeAddress } />
 
         <TextField
           autoComplete='off'
@@ -129,7 +140,7 @@ export default class ActionTransfer extends Component {
           fullWidth
           hintText='The token short name (3 characters)'
           errorText={ fields.tla.error }
-          onChange={ this.onChange.bind(this, 'tla') } />
+          onChange={ onChangeTLA } />
 
         <TextField
           autoComplete='off'
@@ -138,7 +149,7 @@ export default class ActionTransfer extends Component {
           fullWidth
           hintText='The token precision'
           errorText={ fields.base.error }
-          onChange={ this.onChange.bind(this, 'base') } />
+          onChange={ onChangeBase } />
 
         <TextField
           autoComplete='off'
@@ -147,12 +158,12 @@ export default class ActionTransfer extends Component {
           fullWidth
           hintText='The token name'
           errorText={ fields.name.error }
-          onChange={ this.onChange.bind(this, 'name') } />
+          onChange={ onChangeName } />
       </div>
     );
   }
 
-  isValid() {
+  isValid () {
     const { fields } = this.state;
 
     return Object.keys(fields)
@@ -162,7 +173,7 @@ export default class ActionTransfer extends Component {
       }, true);
   }
 
-  onRegister() {
+  onRegister () {
     let { fields } = this.state;
 
     let data = Object.keys(fields)
@@ -174,12 +185,12 @@ export default class ActionTransfer extends Component {
     this.props.handleRegisterToken(data);
   }
 
-  onClose() {
+  onClose () {
     this.setState(initState);
     this.props.onClose();
   }
 
-  onChange(fieldKey, event) {
+  onChange (fieldKey, event) {
     const value = event.target.value;
 
     let fields = this.state.fields;

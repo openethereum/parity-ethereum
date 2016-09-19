@@ -17,6 +17,11 @@ export default class Application extends Component {
     muiTheme: PropTypes.object
   }
 
+  static propTypes = {
+    isLoading: PropTypes.bool,
+    contract: PropTypes.object
+  };
+
   render () {
     const { isLoading, contract } = this.props;
 

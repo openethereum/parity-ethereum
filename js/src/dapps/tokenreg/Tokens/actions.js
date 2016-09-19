@@ -65,7 +65,7 @@ export const loadTokens = () => (dispatch, getState) => {
       dispatch(setTokensLoading(false));
     })
     .catch((e) => {
-      console.error(`loadTokens error`, e);
+      console.error('loadTokens error', e);
     });
 };
 
@@ -131,7 +131,7 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     .catch((e) => {
       console.error(`loadToken #${index} error`, e);
     });
-}
+};
 
 export const unregisterToken = (index) => (dispatch, getState) => {
   console.log('unregistering token', index);

@@ -9,14 +9,15 @@ import { loadAccounts } from './Accounts/actions';
 class Container extends Component {
   static propTypes = {
     isLoading: PropTypes.bool,
-    contract: PropTypes.object
+    contract: PropTypes.object,
+    onLoad: PropTypes.func
   };
 
-  componentDidMount() {
+  componentDidMount () {
     this.props.onLoad();
   }
 
-  render() {
+  render () {
     const { isLoading, contract } = this.props;
 
     return (<Application

@@ -24,6 +24,13 @@ export default class Actions extends Component {
     }
   }
 
+  constructor () {
+    super();
+
+    this.onRegisterClose = this.onRegisterClose.bind(this);
+    this.onShow = this.onShow.bind(this, REGISTER);
+  }
+
   render () {
     return (
       <div className={ styles.actions }>
@@ -32,23 +39,23 @@ export default class Actions extends Component {
           icon={ <ContentSendIcon /> }
           label='Register Token'
           primary
-          onTouchTap={ this.onShow.bind(this, REGISTER) } />
+          onTouchTap={ this.onShow } />
 
         <Register
           show={ this.state.show[ REGISTER ] }
-          onClose={ this.onRegisterClose.bind(this) }
+          onClose={ this.onRegisterClose }
           handleRegisterToken={ this.props.handleRegisterToken }
           { ...this.props.register } />
       </div>
     );
   }
 
-  onRegisterClose() {
+  onRegisterClose () {
     this.onHide(REGISTER);
     this.props.handleRegisterClose();
   }
 
-  onShow(key) {
+  onShow (key) {
     this.setState({
       show: {
         [ key ]: true
@@ -56,7 +63,7 @@ export default class Actions extends Component {
     });
   }
 
-  onHide(key) {
+  onHide (key) {
     this.setState({
       show: {
         [ key ]: false

@@ -23,8 +23,8 @@ export const loadAccounts = () => (dispatch) => {
 
       let accountsList = accounts
         .map(address => ({
-            ...accountsInfo[address],
-            address
+          ...accountsInfo[address],
+          address
         }));
 
       console.log('accounts', accountsList);
@@ -34,5 +34,5 @@ export const loadAccounts = () => (dispatch) => {
     })
     .catch(e => {
       console.error('loadAccounts error', e);
-    })
+    });
 };

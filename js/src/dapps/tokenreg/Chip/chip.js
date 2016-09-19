@@ -19,12 +19,12 @@ export default class CustomChip extends Component {
     return (
       <Chip
         className={ styles.chip }
-        style={{
+        style={ {
           margin: '0.5em',
           background: 'rgb(50, 100, 150)',
           display: 'flex',
           flexDirection: 'column'
-        }}>
+        } }>
         { this.renderIcon(isAddress, value) }
         <span className={ styles.value } title={ value }>
           { value }
@@ -36,7 +36,7 @@ export default class CustomChip extends Component {
     );
   }
 
-  renderIcon(isAddress, address) {
+  renderIcon (isAddress, address) {
     if (!isAddress) return;
 
     return (

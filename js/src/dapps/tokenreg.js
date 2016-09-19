@@ -29,9 +29,9 @@ import './tokenreg.html';
 
 ReactDOM.render(
   (
-    <Provider store={ store }>
-      <Container />
-    </Provider>
+  <Provider store={ store }>
+    <Container />
+  </Provider>
   ),
   document.querySelector('#container')
 );

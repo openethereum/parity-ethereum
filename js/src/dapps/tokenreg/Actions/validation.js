@@ -29,7 +29,7 @@ const validateAddress = (address) => {
     error: null,
     valid: true
   };
-}
+};
 
 const validateTLA = (tla) => {
   if (tla.toString().length !== 3) {
@@ -44,7 +44,7 @@ const validateTLA = (tla) => {
     error: null,
     valid: true
   };
-}
+};
 
 const validateUint = (uint) => {
   if (isNaN(parseInt(uint)) || parseInt(uint) < 0) {
@@ -59,7 +59,7 @@ const validateUint = (uint) => {
     error: null,
     valid: true
   };
-}
+};
 
 const validateString = (string) => {
   if (string.toString().length === 0) {
@@ -74,7 +74,7 @@ const validateString = (string) => {
     error: null,
     valid: true
   };
-}
+};
 
 export const validate = (value, type) => {
   if (type === ADDRESS_TYPE) return validateAddress(value);

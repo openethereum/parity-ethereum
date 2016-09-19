@@ -21,19 +21,19 @@ export default class Status extends Component {
         <h1 className={ styles.title }>Token Registry</h1>
 
         <Chip
-          isAddress={ true }
-          value={address}
-          label="Address" />
+          isAddress
+          value={ address }
+          label='Address' />
 
         <Chip
-          isAddress={ true }
-          value={owner}
-          label="Owner" />
+          isAddress
+          value={ owner }
+          label='Owner' />
 
         <Chip
           isAddress={ false }
           value={ api.format.fromWei(fee).toFixed(3) + 'ΞTH' }
-          label="Fee" />
+          label='Fee' />
 
       </div>
     );

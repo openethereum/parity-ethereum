@@ -10,7 +10,7 @@ class AccountSelectorContainer extends Component {
     accounts: PropTypes.object
   };
 
-  render() {
+  render () {
     return (<AccountSelector
       { ...this.props }
     />);

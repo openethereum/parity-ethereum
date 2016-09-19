@@ -13,7 +13,7 @@ const initialState = {
     raw: null,
     owner: null,
     isOwner: false,
-    fee: null,
+    fee: null
   }
 };
 

@@ -11,14 +11,13 @@ export default class Tokens extends Component {
     handleMetaLookup: PropTypes.func,
     isOwner: PropTypes.bool,
     isLoading: PropTypes.bool,
-    tokens: PropTypes.array,
-    tokenCount: PropTypes.number
+    tokens: PropTypes.array
   };
 
   render () {
-    const { isLoading, tokens, tokenCount } = this.props;
+    const { isLoading, tokens } = this.props;
 
-    let loading = isLoading ? (<Loading size={2} />) : null;
+    let loading = isLoading ? (<Loading size={ 2 } />) : null;
 
     return (
       <div className={ styles.tokens }>
@@ -28,7 +27,7 @@ export default class Tokens extends Component {
     );
   }
 
-  renderTokens(tokens) {
+  renderTokens (tokens) {
     return tokens.map((token, index) => {
       if (!token || !token.tla) return null;
 
@@ -37,7 +36,7 @@ export default class Tokens extends Component {
           { ...token }
           handleUnregister={ this.props.handleUnregister }
           handleMetaLookup={ this.props.handleMetaLookup }
-          key={index}
+          key={ index }
           isOwner={ this.props.isOwner } />
       );
     });

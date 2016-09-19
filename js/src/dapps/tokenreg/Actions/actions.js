@@ -25,7 +25,6 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
 
   let state = getState();
   let contractInstance = state.status.contract.instance;
-  let rawContract = state.status.contract.raw;
   let fee = state.status.contract.fee;
 
   const { address, base, name, tla } = tokenData;

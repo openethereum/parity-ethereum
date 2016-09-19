@@ -10,14 +10,15 @@ class TokensContainer extends Component {
     isOwner: PropTypes.bool,
     isLoading: PropTypes.bool,
     tokens: PropTypes.array,
-    tokenCount: PropTypes.number
+    tokenCount: PropTypes.number,
+    onLoadTokens: PropTypes.func
   };
 
-  componentDidMount() {
+  componentDidMount () {
     this.props.onLoadTokens();
   }
 
-  render() {
+  render () {
     return (<Tokens
       { ...this.props }
     />);
@@ -38,7 +39,7 @@ const mapDispatchToProps = (dispatch) => {
     },
 
     handleMetaLookup: (index, query) => {
-      dispatch(queryTokenMeta(index, query))
+      dispatch(queryTokenMeta(index, query));
     },
 
     handleUnregister: (index) => {
