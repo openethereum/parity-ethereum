@@ -350,14 +350,9 @@ mod tests {
 		// Too early.
 		assert!(engine.verify_block_seal(&header).is_err());
 
-		sleep(Duration::from_millis(1000));
+		sleep(Duration::from_millis(2000));
 
 		// Right step.
-		assert!(engine.verify_block_seal(&header).is_ok());
-
-		sleep(Duration::from_millis(1000));
-
-		// Future step.
 		assert!(engine.verify_block_seal(&header).is_ok());
 	}
 }
