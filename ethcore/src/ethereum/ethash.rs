@@ -160,7 +160,7 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(&fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();

@@ -19,6 +19,7 @@ use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, Blo
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
+use types::filter::Filter;
 use common::*;
 use devtools::*;
 use miner::Miner;
@@ -129,6 +130,34 @@ fn returns_chain_info() {
 	let block = BlockView::new(&dummy_block);
 	let info = client.chain_info();
 	assert_eq!(info.best_block_hash, block.header().hash());
+}
+
+#[test]
+fn returns_logs() {
+	let dummy_block = get_good_dummy_block();
+	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
+	let client = client_result.reference();
+	let logs = client.logs(Filter {
+		from_block: BlockID::Earliest,
+		to_block: BlockID::Latest,
+		address: None,
+		topics: vec![],
+	}, None);
+	assert_eq!(logs.len(), 0);
+}
+
+#[test]
+fn returns_logs_with_limit() {
+	let dummy_block = get_good_dummy_block();
+	let client_result = get_test_client_with_blocks(vec![dummy_block.clone()]);
+	let client = client_result.reference();
+	let logs = client.logs(Filter {
+		from_block: BlockID::Earliest,
+		to_block: BlockID::Latest,
+		address: None,
+		topics: vec![],
+	}, Some(2));
+	assert_eq!(logs.len(), 0);
 }
 
 #[test]

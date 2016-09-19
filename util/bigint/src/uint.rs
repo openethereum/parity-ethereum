@@ -30,11 +30,12 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! Big unsigned integer types
+//! Big unsigned integer types.
 //!
 //! Implementation of a various large-but-fixed sized unsigned integer types.
-//! The functions here are designed to be fast.
-//!
+//! The functions here are designed to be fast. There are optional `x86_64`
+//! implementations for even more speed, hidden behind the `x64_arithmetic`
+//! feature flag.
 
 use std::{mem, fmt};
 use std::str::{FromStr};
