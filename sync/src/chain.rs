@@ -906,6 +906,7 @@ impl ChainSync {
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
+		trace!(target:"sync", "continue_sync");
 		let mut peers: Vec<(PeerId, U256, u32)> = self.peers.iter().filter_map(|(k, p)|
 			if p.can_sync() { Some((*k, p.difficulty.unwrap_or_else(U256::zero), p.protocol_version)) } else { None }).collect();
 		thread_rng().shuffle(&mut peers); //TODO: sort by rating
@@ -1249,6 +1250,7 @@ impl ChainSync {
 
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		trace!(target: "sync", "Received tx from {}", peer_id);
 		// accepting transactions once only fully synced
 		if !io.is_chain_queue_empty() {
 			return Ok(());
@@ -1701,7 +1703,6 @@ impl ChainSync {
 
 	/// propagates new transactions to all peers
 	pub fn propagate_new_transactions(&mut self, io: &mut SyncIo) -> usize {
-
 		// Early out of nobody to send to.
 		if self.peers.is_empty() {
 			return 0;
@@ -1793,6 +1794,7 @@ impl ChainSync {
 	/// called when block is imported to chain - propagates the blocks and updates transactions sent to peers
 	pub fn chain_new_blocks(&mut self, io: &mut SyncIo, _imported: &[H256], invalid: &[H256], _enacted: &[H256], _retracted: &[H256], sealed: &[H256]) {
 		if io.is_chain_queue_empty() {
+			trace!(target: "sync", "Chain not empty!");
 			self.propagate_latest_blocks(io, sealed);
 		}
 		if !invalid.is_empty() {
