@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import format from '../../../api/format';
+import util from '../../../api/util';
 import etherscan from '../../../3rdparty/etherscan';
 import { Container, IdentityIcon } from '../../../ui';
 
@@ -44,7 +44,7 @@ function formatTime (time) {
 }
 
 function formatEther (value) {
-  const ether = format.fromWei(value);
+  const ether = util.fromWei(value);
 
   if (ether.gt(0)) {
     return `${ether.toFormat(5)}`;
