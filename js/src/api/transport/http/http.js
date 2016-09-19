@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
 
 /* global fetch */
@@ -41,7 +42,9 @@ export default class Http extends JsonRpcBase {
   }
 
   execute (method, ...params) {
-    return fetch(this._url, this._encodeOptions(method, params))
+    const request = this._encodeOptions(method, params);
+
+    return fetch(this._url, request)
       .then((response) => {
         if (response.status !== 200) {
           this.error(JSON.stringify({ status: response.status, statusText: response.statusText }));
@@ -50,14 +53,16 @@ export default class Http extends JsonRpcBase {
 
         return response.json();
       })
-      .then((result) => {
-        if (result.error) {
-          this.error(JSON.stringify(result));
-          throw new Error(`${result.error.code}: ${result.error.message}`);
+      .then((response) => {
+        Logging.send(method, params, { request, response });
+
+        if (response.error) {
+          this.error(JSON.stringify(response));
+          throw new Error(`${response.error.code}: ${response.error.message}`);
         }
 
-        this.log(JSON.stringify(result));
-        return result.result;
+        this.log(JSON.stringify(response));
+        return response.result;
       });
   }
 }

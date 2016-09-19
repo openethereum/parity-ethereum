@@ -17,13 +17,12 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '../../ui/Errors';
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
@@ -105,30 +104,27 @@ class FirstRun extends Component {
       case 0:
       case 2:
         return (
-          <FlatButton
+          <Button
             icon={ <NavigationArrowForward /> }
             label='Next'
-            primary
-            onTouchTap={ this.onNext } />
+            onClick={ this.onNext } />
         );
 
       case 1:
         return (
-          <FlatButton
+          <Button
             icon={ <ActionDone /> }
             label='Create'
             disabled={ !canCreate }
-            primary
-            onTouchTap={ this.onCreate } />
+            onClick={ this.onCreate } />
         );
 
       case 3:
         return (
-          <FlatButton
+          <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            primary
-            onTouchTap={ this.onClose } />
+            onClick={ this.onClose } />
       );
     }
   }
