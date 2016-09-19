@@ -3,7 +3,6 @@ import Paper from 'material-ui/Paper';
 import { RaisedButton, TextField } from 'material-ui';
 import FindIcon from 'material-ui/svg-icons/action/find-in-page';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
-import AddIcon from 'material-ui/svg-icons/content/add';
 
 import Loading from '../../Loading';
 import Chip from '../../Chip';

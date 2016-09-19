@@ -24,8 +24,6 @@ export const loadContract = () => (dispatch) => {
       return registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']);
     })
     .then((address) => {
-      address = '0x40cFb0cd89d0D281889eE7920a1929ab1d0A96cF';
-
       console.log(`tokenreg was found at ${address}`);
       const contract = api.newContract(tokenregAbi, address);
 
