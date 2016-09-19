@@ -3,9 +3,8 @@ import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
-import { IdentityIcon } from '../parity.js';
+import { bytesToHex, IdentityIcon } from '../parity.js';
 import styles from './events.css';
-import bytesToHex from '../../../api/util/bytes-array-to-hex';
 
 const inlineButton = {
   display: 'inline-block',

@@ -30,7 +30,7 @@ export function isFunction (test) {
 
 export function isHex (_test) {
   if (_test.substr(0, 2) === '0x') {
-    return true;
+    return isHex(_test.slice(2));
   }
 
   const test = _test.toLowerCase();

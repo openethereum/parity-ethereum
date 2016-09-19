@@ -24,6 +24,8 @@ var WebpackErrorNotificationPlugin = require('webpack-error-notification');
 var ENV = process.env.NODE_ENV || 'development';
 var isProd = ENV === 'production';
 
+var extractCSS = new ExtractTextPlugin('[name].css', { allChunks: true });
+
 module.exports = {
   debug: !isProd,
   cache: !isProd,
@@ -70,6 +72,28 @@ module.exports = {
         test: /\.html$/,
         loader: 'file?name=[name].[ext]'
       },
+
+      // {
+      //   test: /\.css$/,
+      //   include: [/src/],
+      //   loader: extractCSS.extract('style', [
+      //     'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+      //     'postcss'
+      //   ])
+      // },
+      // {
+      //   test: /\.css$/,
+      //   exclude: [/src/],
+      //   loader: extractCSS.extract('style', 'css')
+      // },
+      // {
+      //   test: /\.less$/,
+      //   loader: extractCSS.extract('style', [
+      //     'css',
+      //     'less'
+      //   ])
+      // },
+
       {
         test: /\.css$/,
         include: [/src/],
@@ -92,6 +116,7 @@ module.exports = {
           'less'
         ]
       },
+
       {
         test: /\.(png|jpg|)$/,
         loader: 'file-loader'
@@ -126,7 +151,8 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
-      new ExtractTextPlugin('[name].css'),
+      // extractCSS,
+
       new WebpackErrorNotificationPlugin(),
       // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
       // TODO [jacogr] this shit needs to go, e.g. dapp-styles
@@ -144,6 +170,10 @@ module.exports = {
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           LOGGING: JSON.stringify(!isProd)
         }
+      }),
+      new webpack.optimize.CommonsChunkPlugin({
+        filename: 'commons.js',
+        name: 'commons'
       })
     ];
 
@@ -175,6 +205,7 @@ module.exports = {
       },
       '/api/ping': {
         target: 'http://127.0.0.1:8080/index.html',
+        ignorePath: true,
         changeOrigin: true
       }
     }

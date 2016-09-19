@@ -15,7 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .loading {
-  width: 100%;
-  text-align: center;
-  padding: 1em;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
