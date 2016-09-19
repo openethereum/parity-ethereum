@@ -115,7 +115,7 @@ fn should_serve_rpc() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.body, format!("57\n{}\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
+	assert_eq!(response.body, format!("58\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
 }
 
 #[test]
@@ -137,7 +137,7 @@ fn should_serve_rpc_at_slash_rpc() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.body, format!("57\n{}\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
+	assert_eq!(response.body, format!("58\n{}\n\n0\n\n", r#"{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error","data":null},"id":null}"#));
 }
 
 

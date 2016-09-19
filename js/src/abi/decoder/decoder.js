@@ -98,6 +98,12 @@ export default class Decoder {
         return new DecodeResult(new Token(param.type, taken.bytes), offset + 1);
 
       case 'string':
+        if (param.indexed) {
+          taken = Decoder.takeBytes(slices, offset, 32);
+
+          return new DecodeResult(new Token('fixedBytes', taken.bytes), offset + 1);
+        }
+
         lengthOffset = asU32(Decoder.peek(slices, offset)).div(32).toNumber();
         length = asU32(Decoder.peek(slices, lengthOffset)).toNumber();
         taken = Decoder.takeBytes(slices, lengthOffset + 1, length);
