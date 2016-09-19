@@ -87,7 +87,7 @@ export default class TabBar extends Component {
   renderSettingsMenu () {
     const items = Object.keys(this.tabs).map((id) => {
       const tab = this.tabs[id];
-      const isActive = this.state[`${id}Visible`];
+      const isActive = this.state[this.visibleId(id)];
       const icon = (
         <RemoveRedEye className={ isActive ? styles.optionSelected : styles.optionUnselected } />
       );
@@ -126,22 +126,22 @@ export default class TabBar extends Component {
       .filter((id) => {
         const tab = this.tabs[id];
         const isFixed = tab.fixed;
-        const isVisible = this.state[`${id}Visible`];
+        const isVisible = this.state[this.visibleId(id)];
 
         return isFixed || isVisible;
       })
       .map((id) => {
         const tab = this.tabs[id];
+        const onActivate = () => this.onActivate(tab.route);
 
         return (
           <Tab
             className={ hash === tab.value ? styles.tabactive : '' }
-            data-route={ tab.route }
             value={ tab.value }
             icon={ tab.icon }
             key={ id }
             label={ tab.renderLabel ? tab.renderLabel(tab.label) : this.renderLabel(tab.label) }
-            onActive={ this.onActivate }>
+            onActive={ onActivate }>
             { tab.body }
           </Tab>
         );
@@ -193,9 +193,12 @@ export default class TabBar extends Component {
     return this.renderLabel(label, bubble);
   }
 
-  onActivate = (tab) => {
+  visibleId (id) {
+    return `${id}Visible`;
+  }
+
+  onActivate = (activeRoute) => {
     const { router } = this.context;
-    const activeRoute = tab.props['data-route'];
 
     router.push(activeRoute);
     this.setState(activeRoute);
@@ -203,7 +206,7 @@ export default class TabBar extends Component {
 
   toggleMenu = (event, menu) => {
     const id = menu.props['data-id'];
-    const toggle = `${id}Visible`;
+    const toggle = this.visibleId(id);
     const isActive = this.state[toggle];
 
     if (this.tabs[id].fixed) {
@@ -243,7 +246,7 @@ export default class TabBar extends Component {
     }
 
     Object.keys(lsdata).forEach((id) => {
-      state[`${id}Visible`] = lsdata[id].active;
+      state[this.visibleId(id)] = lsdata[id].active;
     });
 
     this.setState(state, this.saveViews);
@@ -253,7 +256,7 @@ export default class TabBar extends Component {
     const lsdata = this.getDefaultViews();
 
     Object.keys(lsdata).forEach((id) => {
-      lsdata[id].active = this.state[`${id}Visible`];
+      lsdata[id].active = this.state[this.visibleId(id)];
     });
 
     window.localStorage.setItem(LS_VIEWS, JSON.stringify(lsdata));
