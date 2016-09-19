@@ -16,7 +16,7 @@
 
 import { bytesToHex } from './format';
 
-describe('api/util', () => {
+describe('api/util/format', () => {
   describe('bytesToHex', () => {
     it('correctly converts an empty array', () => {
       expect(bytesToHex([])).to.equal('0x');
