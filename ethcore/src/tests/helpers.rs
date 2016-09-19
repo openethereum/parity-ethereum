@@ -28,7 +28,6 @@ use ethereum;
 use devtools::*;
 use miner::Miner;
 use rlp::{self, RlpStream, Stream};
-use account_provider::AccountProvider;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -37,7 +36,6 @@ pub enum ChainEra {
 	DaoHardfork,
 }
 
-/// Engine for testing nested calls.
 pub struct TestEngine {
 	engine: Arc<Engine>,
 	max_depth: usize
@@ -126,12 +124,7 @@ pub fn create_test_block_with_data(header: &Header, transactions: &[SignedTransa
 }
 
 pub fn generate_dummy_client(block_number: u32) -> GuardedTempResult<Arc<Client>> {
-	generate_dummy_client_with_spec_and_data(Spec::new_null, block_number, 0, &[])
-}
-
-pub fn dummy_client_with_spec_and_accounts<F>(get_spec: F, accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where
-	F: Fn()->Spec {
-	dummy_client_with_spec_and_data_and_accounts(get_spec, 0, 0, &[], accounts)
+	generate_dummy_client_with_spec_and_data(Spec::new_test, block_number, 0, &[])
 }
 
 pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> {
@@ -139,10 +132,6 @@ pub fn generate_dummy_client_with_data(block_number: u32, txs_per_block: usize, 
 }
 
 pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256]) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
-	dummy_client_with_spec_and_data_and_accounts(get_test_spec, block_number, txs_per_block, tx_gas_prices, None)
-}
-
-pub fn dummy_client_with_spec_and_data_and_accounts<F>(get_test_spec: F, block_number: u32, txs_per_block: usize, tx_gas_prices: &[U256], accounts: Option<Arc<AccountProvider>>) -> GuardedTempResult<Arc<Client>> where F: Fn()->Spec {
 	let dir = RandomTempPath::new();
 	let test_spec = get_test_spec();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
@@ -151,7 +140,7 @@ pub fn dummy_client_with_spec_and_data_and_accounts<F>(get_test_spec: F, block_n
 		ClientConfig::default(),
 		&test_spec,
 		dir.as_path(),
-		Arc::new(Miner::with_spec_and_accounts(&test_spec, accounts)),
+		Arc::new(Miner::with_spec(&test_spec)),
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
@@ -277,7 +266,6 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	}
 }
 
-/// New db at path.
 fn new_db(path: &str) -> Arc<Database> {
 	Arc::new(
 		Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path)
@@ -285,7 +273,6 @@ fn new_db(path: &str) -> Arc<Database> {
 	)
 }
 
-/// Make blockchain.
 pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
@@ -304,7 +291,6 @@ pub fn generate_dummy_blockchain(block_number: u32) -> GuardedTempResult<BlockCh
 	}
 }
 
-/// Blockchain with extra data.
 pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
@@ -324,7 +310,6 @@ pub fn generate_dummy_blockchain_with_extra(block_number: u32) -> GuardedTempRes
 	}
 }
 
-/// Make blochchain.
 pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	let temp = RandomTempPath::new();
 	let db = new_db(temp.as_str());
@@ -336,7 +321,6 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	}
 }
 
-/// Temporary journal db at random path.
 pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
@@ -347,7 +331,6 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 	}
 }
 
-/// Temporary state.
 pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_journal_db_in(temp.as_path());
@@ -358,25 +341,21 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	}
 }
 
-/// Temporary journal db.
 pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
 	journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None)
 }
 
-/// Temporary state db.
 pub fn get_temp_state_in(path: &Path) -> State {
 	let journal_db = get_temp_journal_db_in(path);
 	State::new(journal_db, U256::from(0), Default::default())
 }
 
-/// Sequence of good blocks.
 pub fn get_good_dummy_block_seq(count: usize) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
   	get_good_dummy_block_fork_seq(1, count, &test_spec.genesis_header().hash())
 }
 
-/// Forked sequence of good blocks.
 pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_hash: &H256) -> Vec<Bytes> {
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
@@ -401,7 +380,6 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	r
 }
 
-/// Good block.
 pub fn get_good_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
@@ -416,7 +394,6 @@ pub fn get_good_dummy_block() -> Bytes {
 	create_test_block(&block_header)
 }
 
-/// Block with bad state.
 pub fn get_bad_state_dummy_block() -> Bytes {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
