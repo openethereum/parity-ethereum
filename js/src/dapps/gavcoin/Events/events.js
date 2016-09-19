@@ -96,7 +96,7 @@ export default class Events extends Component {
 
     const sortEvents = (a, b) => b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
     const logToEvent = (log) => {
-      const key = api.format.sha3(JSON.stringify(log));
+      const key = api.util.sha3(JSON.stringify(log));
       const { blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
 
       return {

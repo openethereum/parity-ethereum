@@ -42,7 +42,7 @@ export default class Balance extends Component {
         const token = balance.token;
         const value = token.format
           ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
-          : api.format.fromWei(balance.value).toFormat(3);
+          : api.util.fromWei(balance.value).toFormat(3);
 
         return (
           <div
