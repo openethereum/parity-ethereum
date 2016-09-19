@@ -17,12 +17,13 @@
 import TYPES from './types';
 
 export default class ParamType {
-  constructor (type, subtype, length) {
+  constructor (type, subtype = null, length = 0, indexed = false) {
     ParamType.validateType(type);
 
     this._type = type;
     this._subtype = subtype;
     this._length = length;
+    this._indexed = indexed;
   }
 
   get type () {
@@ -35,6 +36,10 @@ export default class ParamType {
 
   get length () {
     return this._length;
+  }
+
+  get indexed () {
+    return this._indexed;
   }
 
   static validateType (type) {
