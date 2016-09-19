@@ -22,7 +22,7 @@ use std::time::Duration;
 use ethcore::client::BlockChainClient;
 
 #[test]
-fn issue_tx() {
+fn 2_peer_1_tx_seal() {
 	::env_logger::init().ok();
 	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
 	net.peer(1).issue_rand_tx();

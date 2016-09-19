@@ -80,13 +80,17 @@ impl AuthorityRound {
 		engine
 	}
 
-	fn proposer(&self) -> &Address {
-		let ref p = self.our_params;
-		p.authorities.get(self.step.load(AtomicOrdering::Relaxed)%p.authority_n).unwrap()
+	fn step(&self) -> usize {
+		self.step.load(AtomicOrdering::SeqCst)
 	}
 
-	fn is_proposer(&self, address: &Address) -> bool {
-		self.proposer() == address
+	fn step_proposer(&self, step: usize) -> &Address {
+		let ref p = self.our_params;
+		p.authorities.get(step%p.authority_n).unwrap()
+	}
+
+	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
+		self.step_proposer(step) == address
 	}
 }
 
@@ -110,7 +114,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			debug!(target: "authorityround", "timeout");
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step.fetch_add(1, AtomicOrdering::Relaxed);
+				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
 			}
 		}
@@ -119,7 +123,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 	fn message(&self, io: &IoContext<BlockArrived>, _net_message: &BlockArrived) {
 		if let Some(engine) = self.engine.upgrade() {
 			trace!(target: "authorityround", "Message: {:?}", get_time().sec);
-			engine.step.fetch_add(1, AtomicOrdering::Relaxed);
+			engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
 		}
@@ -130,7 +134,7 @@ impl Engine for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	// One field - the proposer signature.
-	fn seal_fields(&self) -> usize { 1 }
+	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
@@ -170,11 +174,12 @@ impl Engine for AuthorityRound {
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		let header = block.header();
-		if self.is_proposer(header.author()) {
+		let step = self.step();
+		if self.is_step_proposer(step, header.author()) {
 			if let Some(ap) = accounts {
 				// Account should be permanently unlocked, otherwise sealing will fail.
 				if let Ok(signature) = ap.sign(*header.author(), header.bare_hash()) {
-					return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
+					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
 					trace!(target: "authorityround", "generate_seal: FAIL: accounts secret key unavailable");
 				}
@@ -188,19 +193,30 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
-			return Err(From::from(BlockError::InvalidSealArity(
+			trace!(target: "authorityround", "verify_block_basic: wrong number of seal fields");
+			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
-			)));
+			)))
+		} else {
+			Ok(())
 		}
-		Ok(())
 	}
 
 	/// Check if the signature belongs to the correct proposer.
+	/// TODO: Keep track of BlockNumber to step relationship
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
-		if try!(verify_address(self.proposer(), &sig.into(), &header.bare_hash())) {
-			Ok(())
+		let step = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<usize>());
+		if step <= self.step() {
+			let sig = try!(UntrustedRlp::new(&header.seal()[1]).as_val::<H520>());
+			let ok_sig = try!(verify_address(self.step_proposer(step), &sig.into(), &header.bare_hash()));
+			if ok_sig {
+				Ok(())
+			} else {
+				trace!(target: "authorityround", "verify_block_unordered: invalid seal signature");
+				try!(Err(BlockError::InvalidSeal))
+			}
 		} else {
+			trace!(target: "authorityround", "verify_block_unordered: block from the future");
 			try!(Err(BlockError::InvalidSeal))
 		}
 	}
@@ -320,7 +336,6 @@ mod tests {
 
 	#[test]
 	fn proposer_switching() {
-		let engine = Spec::new_test_round().engine;
 		let mut header: Header = Header::default();
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("0".sha3(), "0").unwrap();
@@ -328,19 +343,21 @@ mod tests {
 		header.set_author(addr);
 
 		let signature = tap.sign_with_password(addr, "0".into(), header.bare_hash()).unwrap();
-		header.set_seal(vec![encode(&(&*signature as &[u8])).to_vec()]);
+		header.set_seal(vec![vec![1u8], encode(&(&*signature as &[u8])).to_vec()]);
 
-		// Wrong step.
-		assert!(engine.verify_block_unordered(&header, None).is_err());
+		let engine = Spec::new_test_round().engine;
+
+		// Too early.
+		assert!(engine.verify_block_seal(&header).is_err());
 
 		sleep(Duration::from_millis(1000));
 
 		// Right step.
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
+		assert!(engine.verify_block_seal(&header).is_ok());
 
 		sleep(Duration::from_millis(1000));
 
-		// Wrong step.
-		assert!(engine.verify_block_unordered(&header, None).is_err());
+		// Future step.
+		assert!(engine.verify_block_seal(&header).is_ok());
 	}
 }
