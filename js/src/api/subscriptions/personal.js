@@ -20,9 +20,6 @@ export default class Personal {
     this._api = api;
     this._updateSubscriptions = updateSubscriptions;
     this._started = false;
-
-    this._lastAccounts = [];
-    this._lastInfo = {};
   }
 
   get isStarted () {
@@ -43,16 +40,7 @@ export default class Personal {
     return this._api.personal
       .listAccounts()
       .then((accounts) => {
-        let different = false;
-
-        if (accounts.length !== this._lastAccounts.length) {
-          different = true;
-        }
-
-        if (different) {
-          this._lastAccounts = accounts;
-          this._updateSubscriptions('personal_listAccounts', null, accounts);
-        }
+        this._updateSubscriptions('personal_listAccounts', null, accounts);
       });
   }
 
@@ -60,10 +48,7 @@ export default class Personal {
     return this._api.personal
       .accountsInfo()
       .then((info) => {
-        if (JSON.stringify(this._lastInfo) !== JSON.stringify(info)) {
-          this._lastInfo = info;
-          this._updateSubscriptions('personal_accountsInfo', null, info);
-        }
+        this._updateSubscriptions('personal_accountsInfo', null, info);
       });
   }
 

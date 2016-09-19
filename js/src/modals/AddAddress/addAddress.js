@@ -59,7 +59,7 @@ export default class AddAddress extends Component {
         icon={ <ContentAdd /> }
         label='Save Address'
         disabled={ hasError }
-        onTouchTap={ this.onAdd } />
+        onClick={ this.onAdd } />
     ]);
   }
 
