@@ -205,7 +205,6 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: Arc<LastHashes>,
-	unclosed_state: State,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.
@@ -343,11 +342,12 @@ impl<'x> OpenBlock<'x> {
 		}
 	}
 
-	/// Turn this into a `ClosedBlock`. A `BlockChain` must be provided in order to figure out the uncles.
+	/// Turn this into a `ClosedBlock`.
 	pub fn close(self) -> ClosedBlock {
 		let mut s = self;
 
-		let unclosed_state = s.block.state.clone();
+		// take a snapshot so the engine's changes can be rolled back.
+		s.block.state.snapshot();
 
 		s.engine.on_close_block(&mut s.block);
 		s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect()));
@@ -362,33 +362,12 @@ impl<'x> OpenBlock<'x> {
 			block: s.block,
 			uncle_bytes: uncle_bytes,
 			last_hashes: s.last_hashes,
-			unclosed_state: unclosed_state,
 		}
 	}
 
-	/// Turn this into a `LockedBlock`. A BlockChain must be provided in order to figure out the uncles.
+	/// Turn this into a `LockedBlock`.
 	pub fn close_and_lock(self) -> LockedBlock {
-		let mut s = self;
-
-		s.engine.on_close_block(&mut s.block);
-		if s.block.base.header.transactions_root().is_zero() || s.block.base.header.transactions_root() == &SHA3_NULL_RLP {
-			s.block.base.header.set_transactions_root(ordered_trie_root(s.block.base.transactions.iter().map(|e| e.rlp_bytes().to_vec()).collect()));
-		}
-		let uncle_bytes = s.block.base.uncles.iter().fold(RlpStream::new_list(s.block.base.uncles.len()), |mut s, u| {s.append_raw(&u.rlp(Seal::With), 1); s} ).out();
-		if s.block.base.header.uncles_hash().is_zero() {
-			s.block.base.header.set_uncles_hash(uncle_bytes.sha3());
-		}
-		if s.block.base.header.receipts_root().is_zero() || s.block.base.header.receipts_root() == &SHA3_NULL_RLP {
-			s.block.base.header.set_receipts_root(ordered_trie_root(s.block.receipts.iter().map(|r| r.rlp_bytes().to_vec()).collect()));
-		}
-		s.block.base.header.set_state_root(s.block.state.root().clone());
-		s.block.base.header.set_log_bloom(s.block.receipts.iter().fold(LogBloom::zero(), |mut b, r| {b = &b | &r.log_bloom; b})); //TODO: use |= operator
-		s.block.base.header.set_gas_used(s.block.receipts.last().map_or(U256::zero(), |r| r.gas_used));
-
-		LockedBlock {
-			block: s.block,
-			uncle_bytes: uncle_bytes,
-		}
+		self.close().lock()
 	}
 }
 
@@ -409,7 +388,11 @@ impl ClosedBlock {
 	pub fn hash(&self) -> H256 { self.header().rlp_sha3(Seal::Without) }
 
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
-	pub fn lock(self) -> LockedBlock {
+	pub fn lock(mut self) -> LockedBlock {
+		// finalize the changes made by the engine.
+		self.block.state.clear_snapshot();
+		self.block.state.commit();
+
 		LockedBlock {
 			block: self.block,
 			uncle_bytes: self.uncle_bytes,
@@ -417,12 +400,12 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen(self, engine: &Engine) -> OpenBlock {
+	pub fn reopen(mut self, engine: &Engine) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
-		let mut block = self.block;
-		block.state = self.unclosed_state;
+		self.block.state.revert_snapshot();
+
 		OpenBlock {
-			block: block,
+			block: self.block,
 			engine: engine,
 			last_hashes: self.last_hashes,
 		}
