@@ -169,7 +169,7 @@ module.exports = {
     quiet: false,
     hot: !isProd,
     proxy: {
-      '/rpc*': {
+      '/rpc/*': {
         target: 'http://localhost:8080',
         changeOrigin: true
       },
