@@ -11,16 +11,16 @@ export default class ConfirmDialog extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
     className: PropTypes.string,
-    iconNo: PropTypes.node,
-    iconYes: PropTypes.node,
-    labelNo: PropTypes.string,
-    labelYes: PropTypes.string,
+    iconConfirm: PropTypes.node,
+    iconDeny: PropTypes.node,
+    labelConfirm: PropTypes.string,
+    labelDeny: PropTypes.string,
     title: PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
     ]).isRequired,
     visible: PropTypes.bool.isRequired,
-    onNo: PropTypes.func.isRequired,
-    onYes: PropTypes.func.isRequired
+    onConfirm: PropTypes.func.isRequired,
+    onDeny: PropTypes.func.isRequired
   }
 
   render () {
@@ -40,17 +40,17 @@ export default class ConfirmDialog extends Component {
   }
 
   renderActions () {
-    const { iconNo, iconYes, labelNo, labelYes, onNo, onYes } = this.props;
+    const { iconConfirm, iconDeny, labelConfirm, labelDeny, onConfirm, onDeny } = this.props;
 
     return [
       <Button
-        label={ labelNo || 'no' }
-        icon={ iconNo || <ContentClear /> }
-        onClick={ onNo } />,
+        label={ labelDeny || 'no' }
+        icon={ iconDeny || <ContentClear /> }
+        onClick={ onDeny } />,
       <Button
-        label={ labelYes || 'yes' }
-        icon={ iconYes || <ActionDone /> }
-        onClick={ onYes } />
+        label={ labelConfirm || 'yes' }
+        icon={ iconConfirm || <ActionDone /> }
+        onClick={ onConfirm } />
     ];
   }
 }

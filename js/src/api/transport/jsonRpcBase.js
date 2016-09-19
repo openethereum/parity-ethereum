@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Logging } from '../subscriptions';
-
 export default class JsonRpcBase {
   constructor () {
     this._id = 1;
@@ -29,8 +27,6 @@ export default class JsonRpcBase {
       params: params,
       id: this._id++
     });
-
-    Logging.send(method, params, json);
 
     return json;
   }

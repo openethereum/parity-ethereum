@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 
+import { newError } from '../../redux/actions';
 import { Actionbar, Button, ConfirmDialog, IdentityIcon, Page } from '../../ui';
 
 import Header from '../Account/Header';
@@ -40,7 +41,7 @@ class Address extends Component {
   }
 
   state = {
-    deleteDialog: false
+    showDeleteDialog: false
   }
 
   render () {
@@ -76,7 +77,7 @@ class Address extends Component {
         key='delete'
         icon={ <ActionDelete /> }
         label='delete address'
-        onClick={ this.toggleDeleteDialog } />
+        onClick={ this.showDeleteDialog } />
     ];
 
     return (
@@ -88,9 +89,9 @@ class Address extends Component {
 
   renderDeleteConfirm () {
     const { contacts } = this.props;
-    const { deleteDialog } = this.state;
+    const { showDeleteDialog } = this.state;
 
-    if (!deleteDialog) {
+    if (!showDeleteDialog) {
       return;
     }
 
@@ -102,8 +103,8 @@ class Address extends Component {
         className={ styles.delete }
         title='confirm removal'
         visible
-        onNo={ this.toggleDeleteDialog }
-        onYes={ this.onDeleteConfirmed }>
+        onDeny={ this.closeDeleteDialog }
+        onConfirm={ this.onDeleteConfirmed }>
         <div className={ styles.hero }>
           Are you sure you want to remove the following address from your addressbook?
         </div>
@@ -121,7 +122,7 @@ class Address extends Component {
           </div>
         </div>
         <div className={ styles.description }>
-          { contact.meta.description || 'this is just some long description to make me feel happy about myself and to see what actually happens and just maybe we should throw some wrapping in here as well' }
+          { contact.meta.description }
         </div>
       </ConfirmDialog>
     );
@@ -133,18 +134,24 @@ class Address extends Component {
     const { address } = this.props.params;
     const contact = (contacts || {})[address];
 
-    this.toggleDeleteDialog();
+    this.closeDeleteDialog();
     contact.meta.deleted = true;
-    api.personal.setAccountMeta(address, contact.meta);
-    router.push('/addresses');
+
+    api.personal
+      .setAccountMeta(address, contact.meta)
+      .then(() => router.push('/addresses'))
+      .catch((error) => {
+        console.error('onDeleteConfirmed', error);
+        newError(new Error(`Deletion failed: ${error.message}`));
+      });
   }
 
-  toggleDeleteDialog = () => {
-    const { deleteDialog } = this.state;
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
 
-    this.setState({
-      deleteDialog: !deleteDialog
-    });
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
   }
 }
 
@@ -161,7 +168,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({ newError }, dispatch);
 }
 
 export default connect(
