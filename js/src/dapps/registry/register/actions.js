@@ -11,6 +11,7 @@ export const register = (name) => (dispatch, getState) => {
   const account = state.accounts.selected;
   const contract = state.contract;
   if (!contract || !account) return;
+  if (state.register.posted.includes(name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   name = name.toLowerCase();

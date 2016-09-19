@@ -1,5 +1,6 @@
 const initialState = {
-  pending: false
+  pending: false,
+  posted: []
 };
 
 export default (state = initialState, action) => {
@@ -7,7 +8,10 @@ export default (state = initialState, action) => {
     return { ...state, pending: true };
   }
   if (action.type === 'register success') {
-    return { ...state, pending: false };
+    return {
+      ...state, pending: false,
+      posted: state.posted.concat(action.name)
+    };
   }
   if (action.type === 'register fail') {
     return { ...state, pending: false };
