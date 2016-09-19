@@ -134,7 +134,7 @@ class Address extends Component {
     const { address } = this.props.params;
     const contact = (contacts || {})[address];
 
-    this.toggleDeleteDialog();
+    this.closeDeleteDialog();
     contact.meta.deleted = true;
 
     api.personal
