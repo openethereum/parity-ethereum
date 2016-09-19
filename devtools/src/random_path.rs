@@ -77,7 +77,7 @@ impl Drop for RandomTempPath {
 	fn drop(&mut self) {
 		if let Err(_) = fs::remove_dir_all(&self) {
 			if let Err(e) = fs::remove_file(&self) {
-				panic!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
+				println!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
 			}
 		}
 	}

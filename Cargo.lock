@@ -605,6 +605,7 @@ dependencies = [
  "clippy 0.0.85 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.4.0",
+ "ethcore-devtools 1.4.0",
  "ethcore-io 1.4.0",
  "ethcore-ipc 1.4.0",
  "ethcore-ipc-codegen 1.4.0",
