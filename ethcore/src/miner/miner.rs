@@ -78,7 +78,7 @@ impl Default for MinerOptions {
 		MinerOptions {
 			new_work_notify: vec![],
 			force_sealing: false,
-			reseal_on_external_tx: false,
+			reseal_on_external_tx: true,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
@@ -397,6 +397,7 @@ impl Miner {
 		if !block.transactions().is_empty() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+					trace!(target: "miner", "import_block_internally: imported internally sealed block");
 					return true
 				}
 			}
@@ -659,7 +660,7 @@ impl MinerService for Miner {
 		chain: &MiningBlockChainClient,
 		transactions: Vec<SignedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
-
+		trace!(target: "external_tx", "Importing external transactions");
 		let results = {
 			let mut transaction_queue = self.transaction_queue.lock();
 			self.add_transactions_to_queue(

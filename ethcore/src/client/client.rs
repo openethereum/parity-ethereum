@@ -470,6 +470,7 @@ impl Client {
 
 	/// Import transactions from the IO queue
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
+		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
@@ -1060,6 +1061,7 @@ impl BlockChainClient for Client {
 			let len = transactions.len();
 			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
 				Ok(_) => {
+					trace!(target: "external_tx", "Sending IoMessage");
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}
 				Err(e) => {
