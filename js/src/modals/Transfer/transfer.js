@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
@@ -5,7 +21,6 @@ import { bindActionCreators } from 'redux';
 import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
-import ContentSend from 'material-ui/svg-icons/content/send';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
@@ -70,12 +85,12 @@ class Transfer extends Component {
   render () {
     const { stage, extras } = this.state;
 
+    // title={ this.renderAccount() }
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
-        title={ this.renderAccount() }
         visible>
         { this.renderPage() }
       </Modal>
@@ -165,6 +180,7 @@ class Transfer extends Component {
   }
 
   renderDialogActions () {
+    const { account } = this.props;
     const { extras, sending, stage } = this.state;
 
     const cancelBtn = (
@@ -189,7 +205,7 @@ class Transfer extends Component {
     const sendBtn = (
       <FlatButton
         disabled={ !this.isValid() || sending }
-        icon={ <ContentSend /> }
+        icon={ <IdentityIcon address={ account.address } button /> }
         label='Send' primary
         onTouchTap={ this.onSend } />
     );
@@ -485,7 +501,7 @@ class Transfer extends Component {
     const { gas, gasPrice, tag, valueAll, isEth } = this.state;
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
     const balance_ = balance.tokens.find((b) => tag === b.token.tag);
-    const availableEth = new BigNumber(balance_.value);
+    const availableEth = new BigNumber(balance.tokens[0].value);
     const available = new BigNumber(balance_.value);
     const format = new BigNumber(balance_.token.format || 1);
 

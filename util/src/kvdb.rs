@@ -330,8 +330,8 @@ impl Database {
 
 	/// Commit buffered changes to database.
 	pub fn flush(&self) -> Result<(), String> {
-		match &*self.db.read() {
-			&Some(DBAndColumns { ref db, ref cfs }) => {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
 				let mut overlay = self.overlay.write();
 
@@ -366,15 +366,15 @@ impl Database {
 				}
 				db.write_opt(batch, &self.write_opts)
 			},
-			&None => Err("Database is closed".to_owned())
+			None => Err("Database is closed".to_owned())
 		}
 	}
 
 
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
-		match &*self.db.read() {
-			&Some(DBAndColumns { ref db, ref cfs }) => {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
 				let ops = tr.ops;
 				for op in ops {
@@ -393,14 +393,14 @@ impl Database {
 				}
 				db.write_opt(batch, &self.write_opts)
 			},
-			&None => Err("Database is closed".to_owned())
+			None => Err("Database is closed".to_owned())
 		}
 	}
 
 	/// Get value by key.
 	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
-		match &*self.db.read() {
-			&Some(DBAndColumns { ref db, ref cfs }) => {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
 				match overlay.get(key) {
 					Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
@@ -412,15 +412,15 @@ impl Database {
 					},
 				}
 			},
-			&None => Ok(None),
+			None => Ok(None),
 		}
 	}
 
 	/// Get value by partial key. Prefix size should match configured prefix size. Only searches flushed values.
 	// TODO: support prefix seek for unflushed data
 	pub fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		match &*self.db.read() {
-			&Some(DBAndColumns { ref db, ref cfs }) => {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
 				let mut iter = col.map_or_else(|| db.iterator(IteratorMode::From(prefix, Direction::Forward)),
 					|c| db.iterator_cf(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward)).unwrap());
 				match iter.next() {
@@ -429,19 +429,19 @@ impl Database {
 					_ => None
 				}
 			},
-			&None => None,
+			None => None,
 		}
 	}
 
 	/// Get database iterator for flushed data.
 	pub fn iter(&self, col: Option<u32>) -> DatabaseIterator {
 		//TODO: iterate over overlay
-		match &*self.db.read() {
-			&Some(DBAndColumns { ref db, ref cfs }) => {
+		match *self.db.read() {
+			Some(DBAndColumns { ref db, ref cfs }) => {
 				col.map_or_else(|| DatabaseIterator { iter: db.iterator(IteratorMode::Start) },
 					|c| DatabaseIterator { iter: db.iterator_cf(cfs[c as usize], IteratorMode::Start).unwrap() })
 			},
-			&None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
+			None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
 		}
 	}
 

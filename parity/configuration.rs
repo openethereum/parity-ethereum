@@ -19,8 +19,7 @@ use std::io::Read;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::cmp::max;
-use cli::{USAGE, Args};
-use docopt::{Docopt, Error as DocoptError};
+use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url};
@@ -60,8 +59,8 @@ pub struct Configuration {
 }
 
 impl Configuration {
-	pub fn parse<S, I>(command: I) -> Result<Self, DocoptError> where I: IntoIterator<Item=S>, S: AsRef<str> {
-		let args = try!(Docopt::new(USAGE).and_then(|d| d.argv(command).decode()));
+	pub fn parse<S: AsRef<str>>(command: &[S]) -> Result<Self, ArgsError> {
+		let args = try!(Args::parse(command));
 
 		let config = Configuration {
 			args: args,
@@ -628,8 +627,7 @@ impl Configuration {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use cli::USAGE;
-	use docopt::Docopt;
+	use cli::Args;
 	use ethcore_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockID};
 	use helpers::{replace_home, default_network_config};
@@ -647,21 +645,21 @@ mod tests {
 
 	fn parse(args: &[&str]) -> Configuration {
 		Configuration {
-			args: Docopt::new(USAGE).unwrap().argv(args).decode().unwrap(),
+			args: Args::parse_without_config(args).unwrap(),
 		}
 	}
 
 	#[test]
 	fn test_command_version() {
 		let args = vec!["parity", "--version"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Version);
 	}
 
 	#[test]
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
@@ -672,7 +670,7 @@ mod tests {
 	#[test]
 	fn test_command_account_list() {
 		let args = vec!["parity", "account", "list"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Account(
 			AccountCmd::List(replace_home("$HOME/.parity/keys")))
 		);
@@ -681,7 +679,7 @@ mod tests {
 	#[test]
 	fn test_command_account_import() {
 		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
 			to: replace_home("$HOME/.parity/keys"),
@@ -691,7 +689,7 @@ mod tests {
 	#[test]
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
@@ -703,7 +701,7 @@ mod tests {
 	#[test]
 	fn test_command_blockchain_import() {
 		let args = vec!["parity", "import", "blockchain.json"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
 			logger_config: Default::default(),
@@ -723,7 +721,7 @@ mod tests {
 	#[test]
 	fn test_command_blockchain_export() {
 		let args = vec!["parity", "export", "blockchain.json"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
 			logger_config: Default::default(),
@@ -744,7 +742,7 @@ mod tests {
 	#[test]
 	fn test_command_blockchain_export_with_custom_format() {
 		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
 			logger_config: Default::default(),
@@ -765,7 +763,7 @@ mod tests {
 	#[test]
 	fn test_command_signer_new_token() {
 		let args = vec!["parity", "signer", "new-token"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		let expected = replace_home("$HOME/.parity/signer");
 		assert_eq!(conf.into_command().unwrap(), Cmd::SignerToken(expected));
 	}
@@ -773,7 +771,7 @@ mod tests {
 	#[test]
 	fn test_run_cmd() {
 		let args = vec!["parity"];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap(), Cmd::Run(RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
@@ -962,7 +960,7 @@ mod tests {
 		let filename = temp.as_str().to_owned() + "/peers";
 		File::create(filename.clone()).unwrap().write_all(b"  \n\t\n").unwrap();
 		let args = vec!["parity", "--reserved-peers", &filename];
-		let conf = Configuration::parse(args).unwrap();
+		let conf = Configuration::parse(&args).unwrap();
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }

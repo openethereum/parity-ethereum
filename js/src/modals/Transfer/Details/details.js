@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
@@ -100,42 +116,44 @@ export default class Details extends Component {
     const { api } = this.context;
     const { balance, tag } = this.props;
 
-    const items = balance.tokens.map((balance, idx) => {
-      const token = balance.token;
-      const isEth = idx === 0;
-      let value = 0;
+    const items = balance.tokens
+      .filter((token) => token.value.gt(0))
+      .map((balance, idx) => {
+        const token = balance.token;
+        const isEth = idx === 0;
+        let value = 0;
 
-      if (isEth) {
-        value = api.format.fromWei(balance.value).toFormat(3);
-      } else {
-        value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
-      }
+        if (isEth) {
+          value = api.format.fromWei(balance.value).toFormat(3);
+        } else {
+          value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+        }
 
-      const label = (
-        <div className={ styles.token }>
-          <img src={ token.images.small } />
-          <div className={ styles.tokenname }>
-            { token.name }
+        const label = (
+          <div className={ styles.token }>
+            <img src={ token.image } />
+            <div className={ styles.tokenname }>
+              { token.name }
+            </div>
+            <div className={ styles.tokenbalance }>
+              { value }<small> { token.tag }</small>
+            </div>
           </div>
-          <div className={ styles.tokenbalance }>
-            { value }<small> { token.tag }</small>
-          </div>
-        </div>
-      );
+        );
 
-      return (
-        <MenuItem
-          key={ token.tag }
-          value={ token.tag }
-          label={ label }>
-          { label }
-        </MenuItem>
-      );
-    });
+        return (
+          <MenuItem
+            key={ token.tag }
+            value={ token.tag }
+            label={ label }>
+            { label }
+          </MenuItem>
+        );
+      });
 
     return (
       <Select
-        label='type of transfer'
+        label='type of token transfer'
         hint='type of token to transfer'
         value={ tag }
         onChange={ this.onChangeToken }>

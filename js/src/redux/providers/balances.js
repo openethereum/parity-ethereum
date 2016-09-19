@@ -1,28 +1,37 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import { getBalances, getTokens } from './balancesActions';
 
 import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
 
-import imagesEthereum32 from '../../images/contracts/ethereum-32.png';
-import imagesEthereum56 from '../../images/contracts/ethereum-56.png';
-import imagesGavcoin32 from '../../images/contracts/gavcoin-32.png';
-import imagesGavcoin56 from '../../images/contracts/gavcoin-56.png';
+import imagesEthereum from '../../images/contracts/ethereum-56.png';
+import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
+import imagesUnknown from '../../images/contracts/unknown-56.png';
 
 // TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
 const images = {
-  ethereum: {
-    small: imagesEthereum32,
-    normal: imagesEthereum56
-  },
-  gavcoin: {
-    small: imagesGavcoin32,
-    normal: imagesGavcoin56
-  }
+  ethereum: imagesEthereum,
+  gavcoin: imagesGavcoin
 };
 
 const ETH = {
   name: 'Ethereum',
   tag: 'ΞTH',
-  images: images.ethereum
+  image: images.ethereum
 };
 
 export default class Balances {
@@ -91,7 +100,7 @@ export default class Balances {
             name,
             tag,
             format: format.toString(),
-            images: images[name.toLowerCase()],
+            image: images[name.toLowerCase()] || imagesUnknown,
             contract: this._api.newContract(eip20Abi, address)
           };
           tokens[address] = token;
@@ -148,7 +157,7 @@ export default class Balances {
           this._tokens.forEach((token, tidx) => {
             balance.tokens.push({
               token,
-              value: balanceOf[tidx].toString()
+              value: balanceOf[tidx]
             });
           });
         });

@@ -28,7 +28,8 @@ pub fn expect_no_params(params: Params) -> Result<(), Error> {
 	}
 }
 
-fn params_len(params: &Params) -> usize {
+/// Returns number of different parameters in given `Params` object.
+pub fn params_len(params: &Params) -> usize {
 	match params {
 		&Params::Array(ref vec) => vec.len(),
 		_ => 0,

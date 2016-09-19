@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
@@ -6,14 +22,9 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
-import styles from './addAddress.css';
-
 export default class AddAddress extends Component {
-  static contextTypes = {
-    contacts: PropTypes.array.isRequired
-  };
-
   static propTypes = {
+    contacts: PropTypes.object.isRequired,
     onClose: PropTypes.func
   };
 
@@ -29,10 +40,8 @@ export default class AddAddress extends Component {
     return (
       <Modal
         visible
-        actions={ this.renderDialogActions() }>
-        <div className={ styles.header }>
-          <h3>add saved address</h3>
-        </div>
+        actions={ this.renderDialogActions() }
+        title='add saved address'>
         { this.renderFields() }
       </Modal>
     );
@@ -86,11 +95,11 @@ export default class AddAddress extends Component {
   }
 
   onEditAddress = (event, _address) => {
-    const { contacts } = this.context;
+    const { contacts } = this.props;
     let { address, addressError } = validateAddress(_address);
 
     if (!addressError) {
-      const contact = contacts.find((contact) => contact.address === address);
+      const contact = contacts[address];
 
       if (contact) {
         addressError = ERRORS.duplicateAddress;
