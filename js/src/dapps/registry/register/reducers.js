@@ -1,9 +1,14 @@
 const initialState = {
+  hasAccount: false,
   pending: false,
   posted: []
 };
 
 export default (state = initialState, action) => {
+  if (action.type === 'accounts select') {
+    return { ...state, hasAccount: !!action.address };
+  }
+
   if (action.type === 'register start') {
     return { ...state, pending: true };
   }
