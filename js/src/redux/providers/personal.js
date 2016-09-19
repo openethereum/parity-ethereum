@@ -27,13 +27,17 @@ export default class Personal {
   }
 
   _subscribeAccountsInfo () {
-    this._api.subscribe('personal_accountsInfo', (error, accountsInfo) => {
-      if (error) {
-        console.error('personal_accountsInfo', error);
-        return;
-      }
+    this._api
+      .subscribe('personal_accountsInfo', (error, accountsInfo) => {
+        if (error) {
+          console.error('personal_accountsInfo', error);
+          return;
+        }
 
-      this._store.dispatch(personalAccountsInfo(accountsInfo));
-    });
+        this._store.dispatch(personalAccountsInfo(accountsInfo));
+      })
+      .then((subscriptionId) => {
+        console.log('personal._subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+      });
   }
 }
