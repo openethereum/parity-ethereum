@@ -22,14 +22,9 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
-import styles from './addAddress.css';
-
 export default class AddAddress extends Component {
-  static contextTypes = {
-    contacts: PropTypes.array.isRequired
-  };
-
   static propTypes = {
+    contacts: PropTypes.object.isRequired,
     onClose: PropTypes.func
   };
 
@@ -45,10 +40,8 @@ export default class AddAddress extends Component {
     return (
       <Modal
         visible
-        actions={ this.renderDialogActions() }>
-        <div className={ styles.header }>
-          <h3>add saved address</h3>
-        </div>
+        actions={ this.renderDialogActions() }
+        title='add saved address'>
         { this.renderFields() }
       </Modal>
     );
@@ -102,11 +95,11 @@ export default class AddAddress extends Component {
   }
 
   onEditAddress = (event, _address) => {
-    const { contacts } = this.context;
+    const { contacts } = this.props;
     let { address, addressError } = validateAddress(_address);
 
     if (!addressError) {
-      const contact = contacts.find((contact) => contact.address === address);
+      const contact = contacts[address];
 
       if (contact) {
         addressError = ERRORS.duplicateAddress;

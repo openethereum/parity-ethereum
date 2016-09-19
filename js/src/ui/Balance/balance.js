@@ -49,7 +49,7 @@ export default class Balance extends Component {
             className={ styles.balance }
             key={ token.tag }>
             <img
-              src={ token.images.small }
+              src={ token.image }
               alt={ token.name } />
             <div>{ value }<small> { token.tag }</small></div>
           </div>
