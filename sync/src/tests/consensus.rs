@@ -28,10 +28,32 @@ fn issue_tx() {
 	net.peer(1).issue_rand_tx();
 	sleep(Duration::from_secs(1));
 	net.sync();
-	sleep(Duration::from_secs(1));
 	net.sync();
 	net.sync();
 	net.sync();
 	println!("{:?}", net.peer(0).client.chain_info());
 	println!("{:?}", net.peer(1).client.chain_info());
+}
+
+#[test]
+fn issue_many() {
+	::env_logger::init().ok();
+	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
+	net.peer(1).issue_rand_tx();
+	net.peer(1).issue_rand_tx();
+	net.peer(1).issue_rand_tx();
+	net.peer(1).issue_rand_tx();
+	net.peer(1).issue_rand_tx();
+	sleep(Duration::from_secs(1));
+	net.sync();
+	net.sync();
+	net.peer(0).issue_rand_tx();
+	net.peer(0).issue_rand_tx();
+	net.peer(0).issue_rand_tx();
+	net.peer(0).issue_rand_tx();
+	net.peer(0).issue_rand_tx();
+	net.sync();
+	net.sync();
+	//println!("{:?}", net.peer(0).client.chain_info());
+	//println!("{:?}", net.peer(1).client.chain_info());
 }

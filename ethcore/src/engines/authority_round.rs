@@ -161,8 +161,7 @@ impl Engine for AuthorityRound {
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
 		let ref p = self.our_params;
-		Some(p.authorities.contains(author));
-		Some(true)
+		Some(p.authorities.contains(author))
 	}
 
 	/// Attempt to seal the block internally.
