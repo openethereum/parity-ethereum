@@ -31,6 +31,7 @@ export default class Modal extends Component {
   static propTypes = {
     actions: PropTypes.node,
     children: PropTypes.node,
+    className: PropTypes.string,
     current: PropTypes.number,
     waiting: PropTypes.array,
     scroll: PropTypes.bool,
@@ -42,7 +43,7 @@ export default class Modal extends Component {
   }
 
   render () {
-    const { actions, current, children, scroll, steps, waiting, title, visible } = this.props;
+    const { actions, className, current, children, scroll, steps, waiting, title, visible } = this.props;
     const header = (
       <Title
         current={ current }
@@ -53,6 +54,7 @@ export default class Modal extends Component {
 
     return (
       <Dialog
+        className={ className }
         actions={ actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }

@@ -5,37 +5,58 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
-import Status from '../Status';
-import Lookup from '../Lookup';
+import styles from './application.css';
+import Accounts from '../accounts';
+import Lookup from '../lookup';
+import Register from '../register';
+import Events from '../events';
+import Status from '../status';
 
 export default class Application extends Component {
-  static childContextTypes = {
-    muiTheme: PropTypes.object
-  };
+  static childContextTypes = { muiTheme: PropTypes.object };
   getChildContext () {
     return { muiTheme };
   }
 
-  render () {
-    const { contract, fee, owner, actions } = this.props;
+  static propTypes = {
+    actions: PropTypes.object.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contract: PropTypes.object.isRequired,
+    owner: PropTypes.string.isRequired,
+    fee: PropTypes.object.isRequired,
+    lookup: PropTypes.object.isRequired,
+    events: PropTypes.array.isRequired,
+    register: PropTypes.object.isRequired
+  };
 
-    if (!contract || !fee || !owner) {
-      return (<CircularProgress size={ 1 } />);
-    }
+  render () {
+    const {
+      actions,
+      accounts,
+      contract, owner, fee,
+      lookup,
+      events,
+      register
+    } = this.props;
+
     return (
       <div>
-        <Status address={ contract.address } fee={ fee } owner={ owner } />
-        <Lookup lookup={ this.props.lookup } actions={ actions.lookup } />
+        <div className={ styles.header }>
+          <h1>RΞgistry</h1>
+          <Accounts { ...accounts } actions={ actions.accounts } />
+        </div>
+        { contract && fee && owner ? (
+          <div>
+            <Lookup { ...lookup } actions={ actions.lookup } />
+            <Register { ...register } fee={ fee } actions={ actions.register } />
+            <Events { ...events } actions={ actions.events } />
+            <Status address={ contract.address } owner={ owner } />
+          </div>
+        ) : (
+          <CircularProgress size={ 1 } />
+        ) }
       </div>
     );
   }
 
 }
-
-Application.propTypes = {
-  actions: PropTypes.object,
-  contract: PropTypes.object,
-  fee: PropTypes.object,
-  lookup: PropTypes.object,
-  owner: PropTypes.string
-};

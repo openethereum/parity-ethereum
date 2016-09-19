@@ -17,8 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 
-import { Actionbar, Page } from '../../ui';
+import { newError } from '../../redux/actions';
+import { Actionbar, Button, ConfirmDialog, IdentityIcon, Page } from '../../ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
@@ -26,11 +28,20 @@ import Transactions from '../Account/Transactions';
 import styles from './address.css';
 
 class Address extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired,
+    router: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     contacts: PropTypes.object,
     balances: PropTypes.object,
     isTest: PropTypes.bool,
     params: PropTypes.object
+  }
+
+  state = {
+    showDeleteDialog: false
   }
 
   render () {
@@ -46,7 +57,8 @@ class Address extends Component {
 
     return (
       <div className={ styles.address }>
-        { this.renderActionbar() }
+        { this.renderActionbar(contact) }
+        { this.renderDeleteConfirm() }
         <Page>
           <Header
             isTest={ isTest }
@@ -59,15 +71,87 @@ class Address extends Component {
     );
   }
 
-  renderActionbar () {
+  renderActionbar (contact) {
     const buttons = [
+      <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete address'
+        onClick={ this.showDeleteDialog } />
     ];
 
     return (
       <Actionbar
         title='Address Information'
-        buttons={ buttons } />
+        buttons={ contact.meta.deleted ? [] : buttons } />
     );
+  }
+
+  renderDeleteConfirm () {
+    const { contacts } = this.props;
+    const { showDeleteDialog } = this.state;
+
+    if (!showDeleteDialog) {
+      return;
+    }
+
+    const { address } = this.props.params;
+    const contact = contacts[address];
+
+    return (
+      <ConfirmDialog
+        className={ styles.delete }
+        title='confirm removal'
+        visible
+        onDeny={ this.closeDeleteDialog }
+        onConfirm={ this.onDeleteConfirmed }>
+        <div className={ styles.hero }>
+          Are you sure you want to remove the following address from your addressbook?
+        </div>
+        <div className={ styles.info }>
+          <IdentityIcon
+            className={ styles.icon }
+            address={ address } />
+          <div className={ styles.nameinfo }>
+            <div className={ styles.header }>
+              { contact.name || 'Unnamed' }
+            </div>
+            <div className={ styles.address }>
+              { address }
+            </div>
+          </div>
+        </div>
+        <div className={ styles.description }>
+          { contact.meta.description }
+        </div>
+      </ConfirmDialog>
+    );
+  }
+
+  onDeleteConfirmed = () => {
+    const { api, router } = this.context;
+    const { contacts } = this.props;
+    const { address } = this.props.params;
+    const contact = (contacts || {})[address];
+
+    this.closeDeleteDialog();
+    contact.meta.deleted = true;
+
+    api.personal
+      .setAccountMeta(address, contact.meta)
+      .then(() => router.push('/addresses'))
+      .catch((error) => {
+        console.error('onDeleteConfirmed', error);
+        newError(new Error(`Deletion failed: ${error.message}`));
+      });
+  }
+
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
+
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
   }
 }
 
@@ -84,7 +168,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({ newError }, dispatch);
 }
 
 export default connect(

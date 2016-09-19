@@ -25,16 +25,16 @@ export default handleActions({
     const accounts = {};
     const contacts = {};
 
-    Object.keys(accountsInfo).forEach((address) => {
-      const account = accountsInfo[address];
-      const { name, meta, uuid } = account;
-
-      if (uuid) {
-        accounts[address] = { address, name, meta, uuid };
-      } else {
-        contacts[address] = { address, name, meta };
-      }
-    });
+    Object.keys(accountsInfo)
+      .map((address) => Object.assign({}, accountsInfo[address], { address }))
+      .filter((account) => !account.meta.deleted)
+      .forEach((account) => {
+        if (account.uuid) {
+          accounts[account.address] = account;
+        } else {
+          contacts[account.address] = account;
+        }
+      });
 
     return Object.assign({}, state, {
       accounts,
