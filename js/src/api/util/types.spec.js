@@ -16,7 +16,7 @@
 
 import sinon from 'sinon';
 
-import { isArray, isFunction, isHex, isInstanceOf, isObject, isString } from './types';
+import { isArray, isError, isFunction, isHex, isInstanceOf, isObject, isString } from './types';
 import Eth from '../rpc/eth';
 
 describe('api/util/types', () => {
@@ -31,6 +31,16 @@ describe('api/util/types', () => {
 
     it('correctly identifies array as true', () => {
       expect(isArray([1, 2, 3])).to.be.true;
+    });
+  });
+
+  describe('isError', () => {
+    it('correctly identifies null as false', () => {
+      expect(isError(null)).to.be.false;
+    });
+
+    it('correctly identifies Error as true', () => {
+      expect(isError(new Error('an error'))).to.be.true;
     });
   });
 

@@ -81,10 +81,10 @@ export const subscribeEvents = () => (dispatch, getState) => {
   let previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
-    contract.unsubscribe(subscriptionId);
+    contract.unsubscribe(previousSubscriptionId);
   }
 
-  let subscriptionId = contract
+  contract
     .subscribe(null, {
       fromBlock: 'latest',
       toBlock: 'pending'
@@ -146,9 +146,10 @@ export const subscribeEvents = () => (dispatch, getState) => {
 
         console.log('new log event', log);
       });
+    })
+    .then((subscriptionId) => {
+      dispatch(setSubscriptionId(subscriptionId));
     });
-
-  dispatch(setSubscriptionId(subscriptionId));
 };
 
 export const SET_SUBSCRIPTION_ID = 'SET_SUBSCRIPTION_ID';
