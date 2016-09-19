@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 
 import Tokens from './tokens';
 
-import { loadTokens, queryTokenMeta, unregisterToken } from './actions';
+import { loadTokens, queryTokenMeta, unregisterToken, addTokenMeta } from './actions';
 
 class TokensContainer extends Component {
   static propTypes = {
@@ -44,6 +44,10 @@ const mapDispatchToProps = (dispatch) => {
 
     handleUnregister: (index) => {
       dispatch(unregisterToken(index));
+    },
+
+    handleAddMeta: (index, key, value) => {
+      dispatch(addTokenMeta(index, key, value));
     }
   };
 };

@@ -30,6 +30,11 @@
   font-weight: bold;
 }
 
+.meta-key {
+  margin: 0 0.3rem;
+  font-family: monospace;
+}
+
 .meta-value {
   margin-top: 0.5rem;
   max-width: 100%;
@@ -37,6 +42,10 @@
 }
 
 .unregister {
+  margin-top: 1rem;
+}
+
+.add-meta {
   margin-top: 1rem;
 }
 
@@ -48,4 +57,9 @@
   left: 0;
   z-index: 100;
   background-color: rgba(0, 0, 0, 0.35);
+}
+
+.dialog h3 {
+  color: rgba(50, 100, 150, 1) !important;
+  text-transform: uppercase;
 }

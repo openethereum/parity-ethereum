@@ -75,6 +75,8 @@ export const loadToken = (index) => (dispatch, getState) => {
   let state = getState();
   let contractInstance = state.status.contract.instance;
 
+  let userAccounts = state.accounts.list;
+
   dispatch(setTokenLoading(index, true));
 
   contractInstance
@@ -82,14 +84,22 @@ export const loadToken = (index) => (dispatch, getState) => {
     .call({}, [ parseInt(index) ])
     .then((result) => {
       console.log(`token #${index} loaded with data`, result);
+
+      let tokenOwner = result[4];
+
+      let isTokenOwner = userAccounts
+        .filter(a => a.address === tokenOwner)
+        .length > 0;
+
       let data = {
         index: parseInt(index),
         address: result[0],
         tla: result[1],
         base: result[2].toNumber(),
         name: result[3],
-        owner: result[4],
-        isPending: false
+        owner: tokenOwner,
+        isPending: false,
+        isTokenOwner
       };
 
       console.log(`token loaded: #${index}`, data);
@@ -130,6 +140,35 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     })
     .catch((e) => {
       console.error(`loadToken #${index} error`, e);
+    });
+};
+
+export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
+  console.log('add token meta', index, key, value);
+
+  let state = getState();
+  let contractInstance = state.status.contract.instance;
+
+  let token = state.tokens.tokens.find(t => t.index === index);
+  let keyHash = sha3(key);
+
+  let options = {
+    from: token.owner
+  };
+
+  let values = [ index, keyHash, value ];
+
+  contractInstance
+    .setMeta
+    .estimateGas(options, values)
+    .then((gasEstimate) => {
+      options.gas = gasEstimate.mul(1.2).toFixed(0);
+      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
+
+      return contractInstance.setMeta.postTransaction(options, values);
+    })
+    .catch((e) => {
+      console.error(`addTokenMeta #${index} error`, e);
     });
 };
 

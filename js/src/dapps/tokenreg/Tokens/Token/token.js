@@ -3,19 +3,23 @@ import Paper from 'material-ui/Paper';
 import { RaisedButton, TextField } from 'material-ui';
 import FindIcon from 'material-ui/svg-icons/action/find-in-page';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
+import AddIcon from 'material-ui/svg-icons/content/add';
 
 import Loading from '../../Loading';
 import Chip from '../../Chip';
+import AddMeta from './add-meta';
 
 import styles from './token.css';
 
 export default class Token extends Component {
   static propTypes = {
+    handleAddMeta: PropTypes.func,
     handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
     isLoading: PropTypes.bool,
     isPending: PropTypes.bool,
     isOwner: PropTypes.bool,
+    isTokenOwner: PropTypes.bool,
     address: PropTypes.string,
     tla: PropTypes.string,
     name: PropTypes.string,
@@ -69,6 +73,7 @@ export default class Token extends Component {
         </div>
 
         { this.renderMeta(meta) }
+        { this.renderAddMeta() }
         { this.renderUnregister() }
       </Paper>
     );
@@ -113,6 +118,15 @@ export default class Token extends Component {
     );
   }
 
+  renderAddMeta () {
+    return (
+      <AddMeta
+        handleAddMeta={ this.props.handleAddMeta }
+        isTokenOwner={ this.props.isTokenOwner }
+        index={ this.props.index } />
+    );
+  }
+
   renderUnregister () {
     if (!this.props.isOwner) return null;
 
@@ -131,7 +145,10 @@ export default class Token extends Component {
     if (!meta) return;
 
     return (<div>
-      <p className={ styles['meta-query'] }>{ meta.query }</p>
+      <p className={ styles['meta-query'] }>
+        Meta for key
+        <span className={ styles['meta-key'] }>{ meta.query }</span>:
+      </p>
       <p className={ styles['meta-value'] }>{ meta.value }</p>
     </div>);
   }

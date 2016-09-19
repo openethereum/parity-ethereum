@@ -7,6 +7,7 @@ import styles from './tokens.css';
 
 export default class Tokens extends Component {
   static propTypes = {
+    handleAddMeta: PropTypes.func,
     handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
     isOwner: PropTypes.bool,
@@ -36,6 +37,7 @@ export default class Tokens extends Component {
           { ...token }
           handleUnregister={ this.props.handleUnregister }
           handleMetaLookup={ this.props.handleMetaLookup }
+          handleAddMeta={ this.props.handleAddMeta }
           key={ index }
           isOwner={ this.props.isOwner } />
       );
