@@ -156,7 +156,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
+	fn logs(&self, filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError>;

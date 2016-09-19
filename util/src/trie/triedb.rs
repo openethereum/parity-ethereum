@@ -128,7 +128,7 @@ impl<'db> TrieDB<'db> {
 	}
 
 	/// Get the root node's RLP.
-	fn root_node<'a, R: 'a + Recorder>(&self, r: &'a mut R) -> super::Result<Node> {
+	fn root_node<R: Recorder>(&self, r: &mut R) -> super::Result<Node> {
 		self.root_data(r).map(Node::decoded)
 	}
 
