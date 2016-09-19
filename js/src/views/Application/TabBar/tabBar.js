@@ -15,12 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { IconButton, IconMenu, MenuItem } from 'material-ui';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
 import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
+import ActionSettings from 'material-ui/svg-icons/action/settings';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
+import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Badge, SignerIcon, Tooltip } from '../../../ui';
 
@@ -33,6 +36,7 @@ const TABMAP = {
   apps: 'app',
   contracts: 'contract'
 };
+const LS_VIEWS = 'views';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -45,68 +49,114 @@ export default class TabBar extends Component {
     netChain: PropTypes.string
   }
 
-  render () {
-    const windowHash = (window.location.hash || '')
-      .split('?')[0].split('/')[1];
-    const hash = TABMAP[windowHash] || windowHash;
+  state = {
+    accountsVisible: true,
+    addressesVisible: true,
+    appsVisible: true,
+    statusVisible: true,
+    signerVisible: true,
+    activeRoute: '/accounts'
+  }
 
+  componentDidMount () {
+    this.loadViews();
+  }
+
+  render () {
     return (
       <Toolbar
         className={ styles.toolbar }>
-        <ToolbarGroup>
-          <div className={ styles.logo }>
-            <img src={ imagesEthcoreBlock } />
-            <div>Parity</div>
-          </div>
-        </ToolbarGroup>
-        <Tabs
-          className={ styles.tabs }
-          value={ hash }>
-          <Tab
-            className={ hash === 'account' ? styles.tabactive : '' }
-            data-route='/accounts'
-            value='account'
-            icon={ <ActionAccountBalanceWallet /> }
-            label={ this.renderLabel('accounts') }
-            onActive={ this.onActivate }>
-            <Tooltip
-              className={ styles.tabbarTooltip }
-              text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
-          </Tab>
-          <Tab
-            className={ hash === 'address' ? styles.tabactive : '' }
-            data-route='/addresses'
-            value='address'
-            icon={ <CommunicationContacts /> }
-            label={ this.renderLabel('address book') }
-            onActive={ this.onActivate } />
-          <Tab
-            className={ hash === 'app' ? styles.tabactive : '' }
-            data-route='/apps'
-            value='app'
-            icon={ <NavigationApps /> }
-            label={ this.renderLabel('apps') }
-            onActive={ this.onActivate } />
-          <Tab
-            className={ hash === 'status' ? styles.tabactive : '' }
-            data-route='/status'
-            value='status'
-            icon={ <ActionTrackChanges /> }
-            label={ this.renderStatusLabel() }
-            onActive={ this.onActivate } />
-          <Tab
-            className={ hash === 'signer' ? styles.tabactive : '' }
-            data-route='/signer'
-            value='signer'
-            icon={ <SignerIcon className={ styles.signerIcon } /> }
-            label={ this.renderSignerLabel() }
-            onActive={ this.onActivate } />
-        </Tabs>
+        { this.renderLogo() }
+        { this.renderTabs() }
+        { this.renderSettingsMenu() }
       </Toolbar>
     );
   }
 
-  renderLabel (name, bubble) {
+  renderLogo () {
+    return (
+      <ToolbarGroup>
+        <div className={ styles.logo }>
+          <img src={ imagesEthcoreBlock } />
+          <div>Parity</div>
+        </div>
+      </ToolbarGroup>
+    );
+  }
+
+  renderSettingsMenu () {
+    const items = Object.keys(this.tabs).map((id) => {
+      const tab = this.tabs[id];
+      const isActive = this.state[this.visibleId(id)];
+      const icon = (
+        <RemoveRedEye className={ isActive ? styles.optionSelected : styles.optionUnselected } />
+      );
+
+      return (
+        <MenuItem
+          className={ tab.fixed ? styles.menuDisabled : styles.menuEnabled }
+          leftIcon={ icon }
+          key={ id }
+          data-id={ id }
+          disabled={ tab.fixed }
+          primaryText={ tab.label } />
+      );
+    });
+
+    return (
+      <ToolbarGroup>
+        <IconMenu
+          className={ styles.settings }
+          iconButtonElement={ <IconButton><ActionSettings /></IconButton> }
+          anchorOrigin={ { horizontal: 'right', vertical: 'bottom' } }
+          targetOrigin={ { horizontal: 'right', vertical: 'bottom' } }
+          touchTapCloseDelay={ 0 }
+          onItemTouchTap={ this.toggleMenu }>
+          { items }
+        </IconMenu>
+      </ToolbarGroup>
+    );
+  }
+
+  renderTabs () {
+    const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
+    const hash = TABMAP[windowHash] || windowHash;
+
+    const items = Object.keys(this.tabs)
+      .filter((id) => {
+        const tab = this.tabs[id];
+        const isFixed = tab.fixed;
+        const isVisible = this.state[this.visibleId(id)];
+
+        return isFixed || isVisible;
+      })
+      .map((id) => {
+        const tab = this.tabs[id];
+        const onActivate = () => this.onActivate(tab.route);
+
+        return (
+          <Tab
+            className={ hash === tab.value ? styles.tabactive : '' }
+            value={ tab.value }
+            icon={ tab.icon }
+            key={ id }
+            label={ tab.renderLabel ? tab.renderLabel(tab.label) : this.renderLabel(tab.label) }
+            onActive={ onActivate }>
+            { tab.body }
+          </Tab>
+        );
+      });
+
+    return (
+      <Tabs
+        className={ styles.tabs }
+        value={ hash }>
+        { items }
+      </Tabs>
+    );
+  }
+
+  renderLabel = (name, bubble) => {
     return (
       <div className={ styles.label }>
         { name }
@@ -115,7 +165,7 @@ export default class TabBar extends Component {
     );
   }
 
-  renderSignerLabel () {
+  renderSignerLabel = (label) => {
     const { pending } = this.props;
     let bubble = null;
 
@@ -128,10 +178,10 @@ export default class TabBar extends Component {
       );
     }
 
-    return this.renderLabel('signer', bubble);
+    return this.renderLabel(label, bubble);
   }
 
-  renderStatusLabel () {
+  renderStatusLabel = (label) => {
     const { isTest, netChain } = this.props;
     const bubble = (
       <Badge
@@ -140,12 +190,118 @@ export default class TabBar extends Component {
         value={ isTest ? 'TEST' : netChain } />
       );
 
-    return this.renderLabel('status', bubble);
+    return this.renderLabel(label, bubble);
   }
 
-  onActivate = (tab) => {
+  visibleId (id) {
+    return `${id}Visible`;
+  }
+
+  onActivate = (activeRoute) => {
     const { router } = this.context;
 
-    router.push(tab.props['data-route']);
+    router.push(activeRoute);
+    this.setState(activeRoute);
+  }
+
+  toggleMenu = (event, menu) => {
+    const id = menu.props['data-id'];
+    const toggle = this.visibleId(id);
+    const isActive = this.state[toggle];
+
+    if (this.tabs[id].fixed) {
+      return;
+    }
+
+    this.setState({
+      [toggle]: !isActive
+    }, this.saveViews);
+  }
+
+  getDefaultViews () {
+    const views = {};
+
+    Object.keys(this.tabs).forEach((id) => {
+      const tab = this.tabs[id];
+
+      views[id] = {
+        active: tab.active || false
+      };
+    });
+
+    return views;
+  }
+
+  loadViews () {
+    const defaults = this.getDefaultViews();
+    const state = {};
+    let lsdata;
+
+    try {
+      const json = window.localStorage.getItem(LS_VIEWS) || {};
+
+      lsdata = Object.assign(defaults, JSON.parse(json));
+    } catch (e) {
+      lsdata = defaults;
+    }
+
+    Object.keys(lsdata).forEach((id) => {
+      state[this.visibleId(id)] = lsdata[id].active;
+    });
+
+    this.setState(state, this.saveViews);
+  }
+
+  saveViews = () => {
+    const lsdata = this.getDefaultViews();
+
+    Object.keys(lsdata).forEach((id) => {
+      lsdata[id].active = this.state[this.visibleId(id)];
+    });
+
+    window.localStorage.setItem(LS_VIEWS, JSON.stringify(lsdata));
+  }
+
+  tabs = {
+    accounts: {
+      active: true,
+      fixed: true,
+      icon: <ActionAccountBalanceWallet />,
+      label: 'Accounts',
+      route: '/accounts',
+      value: 'account',
+      body: <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+    },
+    addresses: {
+      active: true,
+      icon: <CommunicationContacts />,
+      label: 'Addressbook',
+      route: '/addresses',
+      value: 'address'
+    },
+    apps: {
+      active: true,
+      icon: <NavigationApps />,
+      label: 'Applications',
+      route: '/apps',
+      value: 'app'
+    },
+    status: {
+      active: true,
+      icon: <ActionTrackChanges />,
+      label: 'Status',
+      renderLabel: this.renderStatusLabel,
+      route: '/status',
+      value: 'status'
+    },
+    signer: {
+      active: true,
+      fixed: true,
+      icon: <SignerIcon className={ styles.signerIcon } />,
+      label: 'Signer',
+      renderLabel: this.renderSignerLabel,
+      route: '/signer',
+      value: 'signer'
+    }
   }
 }
