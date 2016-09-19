@@ -43,7 +43,7 @@ use ethcore::filter::Filter as EthcoreFilter;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256};
-use v1::helpers::{CallRequest as CRequest, errors};
+use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
 use v1::helpers::params::{expect_no_params, params_len, from_params_default_second, from_params_default_third};
 
@@ -515,14 +515,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				logs.extend(pending);
 			}
 
-			let len = logs.len();
-			match limit {
-				Some(limit) if len >= limit => {
-					logs = logs.split_off(len - limit);
-				},
-				_ => {},
-			}
-
+			let logs = limit_logs(logs, limit);
 			Ok(to_value(&logs))
 		})
 	}
