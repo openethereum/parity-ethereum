@@ -33,7 +33,9 @@ export default class Application extends Component {
 }
 
 Application.propTypes = {
+  actions: PropTypes.object,
   contract: PropTypes.object,
   fee: PropTypes.object,
+  lookup: PropTypes.object,
   owner: PropTypes.string
 };

@@ -17,11 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { IdentityIcon, Modal } from '../../ui';
+import { Button, IdentityIcon, Modal } from '../../ui';
 import { newError } from '../../redux/actions';
 import initShapeshift from '../../3rdparty/shapeshift';
 import shapeshiftLogo from '../../images/shapeshift-logo.png';
@@ -90,11 +89,10 @@ class FundAccount extends Component {
       </a>
     );
     const cancelBtn = (
-      <FlatButton
+      <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        primary
-        onTouchTap={ this.onClose } />
+        onClick={ this.onClose } />
     );
 
     if (error.fatal) {
@@ -109,12 +107,11 @@ class FundAccount extends Component {
         return [
           logo,
           cancelBtn,
-          <FlatButton
+          <Button
             disabled={ !coins.length || !hasAccepted || shifting }
             icon={ <IdentityIcon address={ address } button /> }
             label='Shift Funds'
-            primary
-            onTouchTap={ this.onShift } />
+            onClick={ this.onShift } />
         ];
 
       case 1:
@@ -127,11 +124,10 @@ class FundAccount extends Component {
       case 3:
         return [
           logo,
-          <FlatButton
+          <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            primary
-            onTouchTap={ this.onClose } />
+            onClick={ this.onClose } />
         ];
     }
   }

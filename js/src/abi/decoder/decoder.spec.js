@@ -166,6 +166,12 @@ describe('abi/decoder/Decoder', () => {
         Decoder.decodeParam(new ParamType('string'), [padU32(0x20), padU32(9), string1], 0).token
       ).to.deep.equal(tokenString1);
     });
+
+    it('decodes string (indexed)', () => {
+      expect(
+        Decoder.decodeParam(new ParamType('string', null, 0, true), [bytes1], 0)
+      ).to.deep.equal(Decoder.decodeParam(new ParamType('fixedBytes', null, 32, true), [bytes1], 0));
+    });
   });
 
   describe('decode', () => {

@@ -20,10 +20,10 @@ import { Step, Stepper, StepLabel } from 'material-ui/Stepper';
 
 import styles from '../modal.css';
 
-export default class ModalSteps extends Component {
+export default class Title extends Component {
   static propTypes = {
     current: PropTypes.number,
-    steps: PropTypes.array.isRequired,
+    steps: PropTypes.array,
     waiting: PropTypes.array,
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
@@ -35,13 +35,26 @@ export default class ModalSteps extends Component {
 
     return (
       <div className={ styles.title }>
-        <h3>{ steps[current] }</h3>
-        <div>{ title }</div>
+        <h3>{ steps ? steps[current] : title }</h3>
+        { this.renderSteps() }
+        { this.renderWaiting() }
+      </div>
+    );
+  }
+
+  renderSteps () {
+    const { current, steps } = this.props;
+
+    if (!steps) {
+      return;
+    }
+
+    return (
+      <div className={ styles.steps }>
         <Stepper
           activeStep={ current }>
           { this.renderTimeline() }
         </Stepper>
-        { this.renderWaiting() }
       </div>
     );
   }
