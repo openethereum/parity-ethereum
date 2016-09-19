@@ -17,12 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar, Page } from '../../ui';
+import { Actionbar, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -61,12 +60,11 @@ class Addresses extends Component {
 
   renderActionbar () {
     const buttons = [
-      <FlatButton
+      <Button
         key='newAddress'
         icon={ <ContentAdd /> }
         label='new address'
-        primary
-        onTouchTap={ this.onOpenAdd } />
+        onClick={ this.onOpenAdd } />
     ];
 
     return (
@@ -78,6 +76,7 @@ class Addresses extends Component {
   }
 
   renderAddAddress () {
+    const { contacts } = this.props;
     const { showAdd } = this.state;
 
     if (!showAdd) {
@@ -86,6 +85,7 @@ class Addresses extends Component {
 
     return (
       <AddAddress
+        contacts={ contacts }
         onClose={ this.onCloseAdd } />
     );
   }

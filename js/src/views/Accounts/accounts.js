@@ -17,12 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, Page, Tooltip } from '../../ui';
+import { Actionbar, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -64,12 +63,11 @@ class Accounts extends Component {
 
   renderActionbar () {
     const buttons = [
-      <FlatButton
+      <Button
         key='newAccount'
         icon={ <ContentAdd /> }
         label='new account'
-        primary
-        onTouchTap={ this.onNewAccountClick } />
+        onClick={ this.onNewAccountClick } />
     ];
 
     return (

@@ -43,6 +43,10 @@ export function isHex (_test) {
   return hex;
 }
 
+export function isObject (test) {
+  return Object.prototype.toString.call(test) === '[object Object]';
+}
+
 export function isString (test) {
   return Object.prototype.toString.call(test) === '[object String]';
 }

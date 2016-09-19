@@ -39,6 +39,11 @@ export default class Eth {
       .execute('eth_call', inOptions(options), inBlockNumber(blockNumber));
   }
 
+  checkRequest (requestId) {
+    return this._transport
+      .execute('eth_checkRequest', inNumber16(requestId));
+  }
+
   coinbase () {
     return this._transport
       .execute('eth_coinbase')

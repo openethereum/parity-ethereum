@@ -18,10 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Badge, ContainerTitle, SignerIcon } from '../../ui';
+import { Badge, Button, ContainerTitle, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
@@ -55,18 +54,16 @@ class ParityBar extends Component {
       <div className={ styles.bar }>
         <div className={ styles.corner }>
           <Link to='/apps'>
-            <FlatButton
+            <Button
               className={ styles.button }
               icon={ parityIcon }
-              label={ this.renderLabel('Parity') }
-              primary />
+              label={ this.renderLabel('Parity') } />
           </Link>
-          <FlatButton
+          <Button
             className={ styles.button }
             icon={ <SignerIcon className={ styles.signerIcon } /> }
             label={ this.renderSignerLabel() }
-            primary
-            onTouchTap={ this.toggleDisplay } />
+            onClick={ this.toggleDisplay } />
         </div>
       </div>
     );
@@ -80,11 +77,10 @@ class ParityBar extends Component {
             <ContainerTitle title='Parity Signer: Pending' />
           </div>
           <div className={ styles.actions }>
-            <FlatButton
+            <Button
               icon={ <ContentClear /> }
               label='Close'
-              primary
-              onTouchTap={ this.toggleDisplay } />
+              onClick={ this.toggleDisplay } />
           </div>
         </div>
         <Signer />

@@ -17,11 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { Shapeshift, Transfer } from '../../modals';
-import { Actionbar, Page } from '../../ui';
+import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../images/shapeshift-btn.png';
 
@@ -76,18 +75,16 @@ class Account extends Component {
 
   renderActionbar () {
     const buttons = [
-      <FlatButton
+      <Button
         key='transferFunds'
         icon={ <ContentSend /> }
         label='transfer'
-        primary
-        onTouchTap={ this.onTransferClick } />,
-      <FlatButton
+        onClick={ this.onTransferClick } />,
+      <Button
         key='shapeshift'
         icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
         label='shapeshift'
-        primary
-        onTouchTap={ this.onShapeshiftAccountClick } />
+        onClick={ this.onShapeshiftAccountClick } />
     ];
 
     return (

@@ -60,19 +60,7 @@ export default class Personal {
     return this._api.personal
       .accountsInfo()
       .then((info) => {
-        const infoKeys = Object.keys(info);
-        const lastKeys = Object.keys(this._lastInfo);
-        let different = false;
-
-        if (infoKeys.length !== lastKeys.length) {
-          different = true;
-        } else {
-          different = !!infoKeys.find((key) => {
-            return (!lastKeys[key] || this._lastInfo[key].name !== info[key].name);
-          });
-        }
-
-        if (different) {
+        if (JSON.stringify(this._lastInfo) !== JSON.stringify(info)) {
           this._lastInfo = info;
           this._updateSubscriptions('personal_accountsInfo', null, info);
         }

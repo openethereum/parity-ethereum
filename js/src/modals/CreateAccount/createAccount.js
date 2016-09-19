@@ -17,14 +17,13 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { FlatButton } from 'material-ui';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Modal } from '../../ui';
+import { Button, Modal } from '../../ui';
 import { newError } from '../../ui/Errors';
 
 import AccountDetails from './AccountDetails';
@@ -135,16 +134,14 @@ class CreateAccount extends Component {
     switch (stage) {
       case 0:
         return [
-          <FlatButton
+          <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            primary
-            onTouchTap={ this.onClose } />,
-          <FlatButton
+            onClick={ this.onClose } />,
+          <Button
             icon={ <NavigationArrowForward /> }
             label='Next'
-            primary
-            onTouchTap={ this.onNext } />
+            onClick={ this.onNext } />
         ];
       case 1:
         const createLabel = createType === 'fromNew'
@@ -152,31 +149,27 @@ class CreateAccount extends Component {
           : 'Import';
 
         return [
-          <FlatButton
+          <Button
             icon={ <ContentClear /> }
             label='Cancel'
-            primary
-            onTouchTap={ this.onClose } />,
-          <FlatButton
+            onClick={ this.onClose } />,
+          <Button
             icon={ <NavigationArrowBack /> }
             label='Back'
-            primary
-            onTouchTap={ this.onPrev } />,
-          <FlatButton
+            onClick={ this.onPrev } />,
+          <Button
             icon={ <ActionDone /> }
             label={ createLabel }
             disabled={ !this.state.canCreate }
-            primary
-            onTouchTap={ this.onCreate } />
+            onClick={ this.onCreate } />
         ];
 
       case 2:
         return (
-          <FlatButton
+          <Button
             icon={ <ActionDoneAll /> }
             label='Close'
-            primary
-            onTouchTap={ this.onClose } />
+            onClick={ this.onClose } />
         );
     }
   }
