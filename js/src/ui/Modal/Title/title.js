@@ -23,7 +23,7 @@ import styles from '../modal.css';
 export default class Title extends Component {
   static propTypes = {
     current: PropTypes.number,
-    steps: PropTypes.array.isRequired,
+    steps: PropTypes.array,
     waiting: PropTypes.array,
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string

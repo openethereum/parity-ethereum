@@ -14,44 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class JsonRpcBase {
-  constructor () {
-    this._id = 1;
-    this._debug = false;
+import React, { Component, PropTypes } from 'react';
+import { FlatButton } from 'material-ui';
+
+export default class Button extends Component {
+  static propTypes = {
+    disabled: PropTypes.bool,
+    icon: PropTypes.node,
+    label: PropTypes.string,
+    onClick: PropTypes.func.isRequired
   }
 
-  encode (method, params) {
-    const json = JSON.stringify({
-      jsonrpc: '2.0',
-      method: method,
-      params: params,
-      id: this._id++
-    });
-
-    return json;
+  state = {
   }
 
-  get id () {
-    return this._id;
-  }
+  render () {
+    const { disabled, icon, label, onClick } = this.props;
 
-  get isDebug () {
-    return this._debug;
-  }
-
-  setDebug (flag) {
-    this._debug = flag;
-  }
-
-  error (error) {
-    if (this.isDebug) {
-      console.error(error);
-    }
-  }
-
-  log (log) {
-    if (this.isDebug) {
-      console.log(log);
-    }
+    return (
+      <FlatButton
+        disabled={ disabled }
+        icon={ icon }
+        label={ label }
+        primary
+        onTouchTap={ onClick } />
+    );
   }
 }
