@@ -391,7 +391,9 @@ impl ClosedBlock {
 	pub fn lock(mut self) -> LockedBlock {
 		// finalize the changes made by the engine.
 		self.block.state.clear_snapshot();
-		self.block.state.commit();
+		if let Err(e) = self.block.state.commit() {
+			warn!("Error committing closed block's state: {:?}", e);
+		}
 
 		LockedBlock {
 			block: self.block,
