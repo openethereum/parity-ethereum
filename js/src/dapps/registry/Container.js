@@ -9,6 +9,7 @@ class Container extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
     owner: PropTypes.string.isRequired,
     fee: PropTypes.object.isRequired,
@@ -17,6 +18,7 @@ class Container extends Component {
   };
 
   componentDidMount () {
+    this.props.actions.addresses.fetch();
     this.props.actions.fetchContract();
   }
 
@@ -31,6 +33,7 @@ export default connect(
   // react -> redux connection
   (dispatch) => {
     const bound = bindActionCreators(actions, dispatch);
+    bound.addresses = bindActionCreators(actions.addresses, dispatch);
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
