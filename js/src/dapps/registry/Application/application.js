@@ -48,6 +48,9 @@ export default class Application extends Component {
             <Lookup { ...lookup } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
             <Events { ...events } actions={ actions.events } />
+            <p className={ styles.address }>
+              The Registry is provided by the contract at <code>{ contract.address }.</code>
+            </p>
           </div>
         ) : (
           <CircularProgress size={ 1 } />
