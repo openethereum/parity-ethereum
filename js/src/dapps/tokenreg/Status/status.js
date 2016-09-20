@@ -26,11 +26,6 @@ export default class Status extends Component {
           label='Address' />
 
         <Chip
-          isAddress
-          value={ owner }
-          label='Owner' />
-
-        <Chip
           isAddress={ false }
           value={ api.util.fromWei(fee).toFixed(3) + 'ΞTH' }
           label='Fee' />
