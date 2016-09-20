@@ -10,7 +10,7 @@ export const fetch = () => (dispatch) => {
       .map((address) => ({
         ...data[address], address,
         isAccount: accounts.includes(address)
-      }))
+      }));
     dispatch(set(addresses));
   })
   .catch((err) => {

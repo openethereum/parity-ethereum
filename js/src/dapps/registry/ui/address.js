@@ -12,7 +12,7 @@ const align = {
 };
 
 export default (address, accounts, contacts, shortenHash = true) => {
-  let caption
+  let caption;
   if (accounts[address]) {
     caption = (<abbr title={ address } style={ align }>{ accounts[address].name }</abbr>);
   } else if (contacts[address]) {
