@@ -24,7 +24,7 @@ export default class CustomChip extends Component {
         className={ styles.chip }
         style={ {
           margin: '0.5em',
-          background: 'rgb(50, 100, 150)',
+          background: '#27ae60',
           display: 'flex',
           flexDirection: 'column'
         } }>
