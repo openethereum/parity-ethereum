@@ -19,6 +19,8 @@
 use v1::types::{Bytes, H160, U256};
 use v1::helpers;
 
+use std::fmt;
+
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -38,6 +40,15 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+}
+
+impl fmt::Display for TransactionRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "{:?} from {:?} to {:?}",
+			   self.value.unwrap_or(U256::from(0)),
+			   self.from,
+			   self.to)
+	}
 }
 
 impl From<helpers::TransactionRequest> for TransactionRequest {
@@ -192,4 +203,3 @@ mod tests {
 		assert!(deserialized.is_err(), "Should be error because to is empty");
 	}
 }
-

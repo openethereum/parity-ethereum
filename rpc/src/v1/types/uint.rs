@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
+use std::fmt;
+use rustc_serialize::hex::ToHex;
 use serde;
 use util::{U256 as EthU256, U128 as EthU128, Uint};
 
@@ -43,6 +45,12 @@ macro_rules! impl_uint {
 		impl Into<$other> for $name {
 			fn into(self) -> $other {
 				self.0
+			}
+		}
+
+		impl fmt::LowerHex for $name {
+			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+				write!(f, "{:#x}", self.0)
 			}
 		}
 

@@ -22,7 +22,7 @@ use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, 
 use v1::helpers;
 
 /// Confirmation waiting in a queue
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct ConfirmationRequest {
 	/// Id of this confirmation
 	pub id: U256,
@@ -39,8 +39,24 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 	}
 }
 
+impl fmt::Display for ConfirmationRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		write!(f, "id: {:?}, {}", self.id, self.payload)
+	}
+}
+
+impl fmt::Display for ConfirmationPayload {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		match self {
+			&ConfirmationPayload::Transaction(ref transaction)
+				=> write!(f, "{}", transaction),
+			&ConfirmationPayload::Sign(_) => write!(f, "TODO: data"),
+		}
+	}
+}
+
 /// Sign request
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct SignRequest {
 	/// Address
 	pub address: H160,
@@ -102,7 +118,7 @@ impl Serialize for ConfirmationResponse {
 }
 
 /// Confirmation payload, i.e. the thing to be confirmed
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
 	#[serde(rename="sendTransaction")]
@@ -136,7 +152,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 }
 
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TransactionModification {
 	/// Modified gas price
@@ -290,4 +306,3 @@ mod tests {
 		});
 	}
 }
-
