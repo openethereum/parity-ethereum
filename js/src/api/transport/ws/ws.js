@@ -19,25 +19,36 @@ import JsonRpcBase from '../jsonRpcBase';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, protocols) {
+  constructor (url, hash) {
     super();
 
     this._messages = {};
 
-    this._ws = new WebSocket(url, protocols);
+    this._ws = new WebSocket(url, hash);
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
+
+    this._connected = false;
   }
 
   _onOpen = (event) => {
+    console.log('ws:onOpen', event);
+    this._connected = true;
+
+    Object.keys(this._messages)
+      .filter((id) => this._messages[id].queued)
+      .forEach(this._send);
   }
 
   _onClose = (event) => {
+    console.log('ws:onClose', event);
+    this._connected = false;
   }
 
   _onError = (event) => {
+    console.error('ws:onError', event);
   }
 
   _onMessage = (event) => {
@@ -62,12 +73,25 @@ export default class Ws extends JsonRpcBase {
 
   execute (method, ...params) {
     return new Promise((resolve, reject) => {
+      const id = this.id;
       const json = this.encode(method, params);
-      this._messages[this.id] = { method, params, json, resolve: resolve, reject: reject };
 
+      this._messages[id] = { id, method, params, json, resolve, reject };
       this.log(json);
-
-      this._ws.send(json);
+      this._send(id);
     });
+  }
+
+  _send = (id) => {
+    const message = this._messages[id];
+
+    try {
+      // console.log('sending', id, message);
+      this._ws.send(message.json);
+      message.queued = false;
+    } catch (error) {
+      console.error('queuing', id, error);
+      message.queued = true;
+    }
   }
 }
