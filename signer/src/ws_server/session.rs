@@ -25,13 +25,15 @@ use jsonrpc_core::IoHandler;
 use util::{H256, Mutex, version};
 
 #[cfg(feature = "ui")]
-mod signer {
-	use signer::SignerApp;
-	use dapps::{self, WebApp};
+mod ui {
+	extern crate parity_ui as ui;
+	extern crate parity_dapps_glue as dapps;
+
+	use self::dapps::WebApp;
 
 	#[derive(Default)]
 	pub struct Handler {
-		signer: SignerApp,
+		ui: ui::App,
 	}
 
 	impl Handler {
@@ -40,12 +42,12 @@ mod signer {
 				"" | "/" => "index.html",
 				path => &path[1..],
 			};
-			self.signer.file(file)
+			self.ui.file(file)
 		}
 	}
 }
 #[cfg(not(feature = "ui"))]
-mod signer {
+mod ui {
 	pub struct File {
 		pub content: &'static str,
 		pub content_type: &'static str,
@@ -118,7 +120,7 @@ pub struct Session {
 	self_origin: String,
 	authcodes_path: PathBuf,
 	handler: Arc<IoHandler>,
-	file_handler: Arc<signer::Handler>,
+	file_handler: Arc<ui::Handler>,
 }
 
 impl ws::Handler for Session {
@@ -193,7 +195,7 @@ pub struct Factory {
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	file_handler: Arc<signer::Handler>,
+	file_handler: Arc<ui::Handler>,
 }
 
 impl Factory {
@@ -203,7 +205,7 @@ impl Factory {
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,
-			file_handler: Arc::new(signer::Handler::default()),
+			file_handler: Arc::new(ui::Handler::default()),
 		}
 	}
 }
