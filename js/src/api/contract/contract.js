@@ -81,23 +81,39 @@ export default class Contract {
     return this;
   }
 
-  deploy (optionsOrCode, values) {
+  deploy (optionsOrCode, values, statecb) {
     let gas;
+
+    const setState = (state) => {
+      if (!statecb) {
+        return;
+      }
+
+      return statecb(null, state);
+    };
 
     const options = Object.assign({}, isObject(optionsOrCode)
       ? optionsOrCode
       : { data: optionsOrCode }
     );
 
+    setState({ state: 'estimateGas' });
+
     return this._api.eth
       .estimateGas(this._encodeOptions(this.constructors[0], options, values))
       .then((_gas) => {
         gas = _gas.mul(1.2);
         options.gas = gas.toFixed(0);
+
+        setState({ state: 'postTransaction', gas });
         return this._api.eth.postTransaction(this._encodeOptions(this.constructors[0], options, values));
       })
-      .then(this._pollCheckRequest)
+      .then((requestId) => {
+        setState({ state: 'checkRequest', requestId });
+        return this._pollCheckRequest(requestId);
+      })
       .then((txhash) => {
+        setState({ state: 'getTransactionReceipt', txhash });
         return this._pollTransactionReceipt(txhash, gas);
       })
       .then((receipt) => {
@@ -105,18 +121,21 @@ export default class Contract {
           throw new Error(`Contract not deployed, gasUsed == ${gas.toFixed(0)}`);
         }
 
-        return receipt;
-      })
-      .then((receipt) => {
+        setState({ state: 'hasReceipt', receipt });
         this._address = receipt.contractAddress;
-        return this._api.eth.getCode(this._address);
+        return receipt.contractAddress;
+      })
+      .then((address) => {
+        setState({ state: 'getCode' });
+        return this._api.eth.getCode(address);
       })
       .then((code) => {
         if (code === '0x') {
           throw new Error('Contract not deployed, getCode returned 0x');
         }
 
-        return this.address;
+        setState({ state: 'completed' });
+        return this._address;
       });
   }
 
