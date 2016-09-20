@@ -29,6 +29,8 @@ usage! {
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
+		cmd_sign: bool,
+		cmd_reject: bool,
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
@@ -39,6 +41,7 @@ usage! {
 		arg_pid_file: String,
 		arg_file: Option<String>,
 		arg_path: Vec<String>,
+		arg_id: Option<usize>,
 
 		// Flags
 		// -- Legacy Options

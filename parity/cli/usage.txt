@@ -12,6 +12,9 @@ Usage:
   parity import [ <file> ] [options]
   parity export [ <file> ] [options]
   parity signer new-token [options]
+  parity signer list [options]
+  parity signer sign [ <id> ] [ --password FILE ] [options]
+  parity signer reject <id> [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
   parity tools hash <file>
