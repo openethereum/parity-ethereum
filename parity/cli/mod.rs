@@ -197,6 +197,14 @@ usage! {
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
 			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
+		flag_stratum: bool = false,
+			or |c: &Config| otry!(otry!(c.mining).stratum).enabled.clone(),
+		flag_stratum_interface: String = "local",
+			or |c: &Config| otry!(otry!(c.mining).stratum).interface.clone(),
+		flag_stratum_port: u16 = 8008,
+			or |c: &Config| otry!(otry!(c.mining).stratum).port.clone(),
+		flag_stratum_secret: Option<String>,
+			or |c: &Config| otry!(otry!(c.mining).stratum).secret.clone(),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
@@ -348,6 +356,14 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
+	stratum: Option<Stratum>,
+}
+
+struct Stratum {
+	enabled: bool,
+	interface: String,
+	port: u16,
+	secret: String,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]

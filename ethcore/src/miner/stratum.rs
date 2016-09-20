@@ -27,7 +27,7 @@ use miner::{Miner, MinerService};
 use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
-use util::rlp::encode;
+use rlp::encode;
 
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
@@ -43,6 +43,22 @@ impl JobDispatcher for StratumJobDispatcher {
 		self.job()
 	}
 
+	fn with_core<F, R>(&self, f: F) -> Option<R> where F: Fn(Arc<Client>, Arc<Miner>) -> Option<R> {
+		let client = {
+			let maybe_client = self.client.upgrade();
+			if maybe_client.is_err() { return None }
+			maybe_client.unwrap()
+		};
+
+		let miner = {
+			let maybe_miner = self.miner.upgrade();
+			if maybe_miner.is_err() { return None }
+			maybe_miner.unwrap()
+		};
+
+		(f)(client, miner)
+	}
+
 	fn job(&self) -> Option<String> {
 		{
 			let last_work = self.last_work.write();
@@ -51,19 +67,18 @@ impl JobDispatcher for StratumJobDispatcher {
 			}
 		}
 
-		let client = self.client.upgrade().unwrap();
-		let miner = self.miner.upgrade().unwrap();
+		self.with_core(|client, miner| {
+			if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
+				let pow_hash = b.hash();
+				let number = b.block().header().number();
+				let difficulty = b.block().header().difficulty();
 
-		if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
-			let pow_hash = b.hash();
-			let number = b.block().header().number();
-			let difficulty = b.block().header().difficulty();
-
-			(pow_hash, *difficulty, number)
-		}) {
-			*self.last_work.write() = Some((pow_hash, difficulty, number));
-			Some(self.payload(pow_hash, difficulty, number))
-		} else { None }
+				(pow_hash, *difficulty, number)
+			}) {
+				*self.last_work.write() = Some((pow_hash, difficulty, number));
+				Some(self.payload(pow_hash, difficulty, number))
+			} else { None }
+		})
 	}
 
 	fn submit(&self, payload: Vec<String>) {
@@ -149,7 +164,7 @@ impl From<nanoipc::SocketError> for Error {
 impl super::work_notify::NotifyWork for Stratum {
 	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		nanoipc::init_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
+		nanoipc::client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
 			.and_then(|client| {
 				client.push_work_all(
 					self.dispatcher.payload(pow_hash, difficulty, number)

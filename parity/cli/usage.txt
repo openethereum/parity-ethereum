@@ -285,7 +285,6 @@ Miscellaneous Options:
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.
   -h --help                Show this screen.
-<<<<<<< HEAD:parity/cli.rs
 "#;
 
 #[derive(Debug, PartialEq, RustcDecodable)]
@@ -436,6 +435,4 @@ There is NO WARRANTY, to the extent permitted by law.
 By Wood/Paronyan/Kotewicz/Drwięga/Volf.\
 ", version())
 }
-=======
->>>>>>> master:parity/cli/usage.txt
 

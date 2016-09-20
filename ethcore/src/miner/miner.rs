@@ -201,7 +201,6 @@ pub struct Miner {
 }
 
 impl Miner {
-<<<<<<< HEAD
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
 		Miner {
