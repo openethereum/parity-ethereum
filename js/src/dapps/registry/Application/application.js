@@ -10,7 +10,6 @@ import Accounts from '../accounts';
 import Lookup from '../Lookup';
 import Register from '../register';
 import Events from '../events';
-import Status from '../Status';
 
 export default class Application extends Component {
   static childContextTypes = { muiTheme: PropTypes.object };
@@ -23,7 +22,6 @@ export default class Application extends Component {
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
-    owner: PropTypes.string.isRequired,
     fee: PropTypes.object.isRequired,
     lookup: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
@@ -34,7 +32,7 @@ export default class Application extends Component {
     const {
       actions,
       accounts, contacts,
-      contract, owner, fee,
+      contract, fee,
       lookup,
       events,
       register
@@ -46,12 +44,14 @@ export default class Application extends Component {
           <h1>RΞgistry</h1>
           <Accounts { ...accounts } actions={ actions.accounts } />
         </div>
-        { contract && fee && owner ? (
+        { contract && fee ? (
           <div>
             <Lookup { ...lookup } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
-            <Status address={ contract.address } owner={ owner } />
+            <p className={ styles.address }>
+              The Registry is provided by the contract at <code>{ contract.address }.</code>
+            </p>
           </div>
         ) : (
           <CircularProgress size={ 1 } />

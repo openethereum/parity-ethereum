@@ -1,4 +1,5 @@
 import React from 'react';
+import renderHash from './hash.js';
 import { IdentityIcon } from '../parity.js';
 
 const container = {
@@ -17,7 +18,7 @@ export default (address, accounts, contacts) => {
   } else if (contacts[address]) {
     caption = (<abbr title={ address } style={ align }>{ contacts[address].name }</abbr>);
   } else {
-    caption = (<code style={ align }>{ address }</code>);
+    caption = (<code style={ align }>{ renderHash(address) }</code>);
   }
   return (
     <div style={ container }>

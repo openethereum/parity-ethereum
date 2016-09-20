@@ -4,6 +4,7 @@ import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
 import { bytesToHex, IdentityIcon } from '../parity.js';
+import renderHash from '../ui/hash.js';
 import renderAddress from '../ui/address.js';
 import styles from './events.css';
 
@@ -28,7 +29,7 @@ const renderReserved = (e, accounts, contacts) => (
     { ' ' }
     <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
+    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
     { renderTimestamp(e.timestamp) }
   </p>
@@ -40,7 +41,7 @@ const renderDropped = (e, accounts, contacts) => (
     { ' ' }
     <abbr title={ e.transaction }>dropped</abbr>
     { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
+    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
     { renderTimestamp(e.timestamp) }
   </p>
