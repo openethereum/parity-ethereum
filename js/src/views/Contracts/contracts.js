@@ -15,44 +15,109 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import Summary from './Summary';
+import { Actionbar, Button, Page } from '../../ui';
+import { DeployContract } from '../../modals';
+
+import List from '../Accounts/List';
 
 import styles from './contracts.css';
 
-export default class Contracts extends Component {
+class Contracts extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    contracts: PropTypes.array.isRequired
+    api: PropTypes.object.isRequired
+  }
+
+  static propTypes = {
+    balances: PropTypes.object,
+    accounts: PropTypes.object,
+    contracts: PropTypes.object,
+    hasContracts: PropTypes.bool
   }
 
   state = {
+    deployContract: false
   }
 
   render () {
+    const { contracts, hasContracts, balances } = this.props;
+
     return (
-      <div>
-        <div className={ styles.contracts }>
-          { this.renderContracts() }
-        </div>
+      <div className={ styles.contracts }>
+        { this.renderActionbar() }
+        { this.renderDeployContract() }
+        <Page>
+          <List
+            contact
+            accounts={ contracts }
+            balances={ balances }
+            empty={ !hasContracts } />
+        </Page>
       </div>
     );
   }
 
-  renderContracts () {
-    if (!this.context.contracts) {
+  renderActionbar () {
+    const buttons = [
+      <Button
+        key='deployContract'
+        icon={ <ContentAdd /> }
+        label='deploy contract'
+        onClick={ this.onDeployContract } />
+    ];
+
+    return (
+      <Actionbar
+        className={ styles.toolbar }
+        title='Contracts'
+        buttons={ buttons } />
+    );
+  }
+
+  renderDeployContract () {
+    const { accounts } = this.props;
+    const { deployContract } = this.state;
+
+    if (!deployContract) {
       return null;
     }
 
-    return this.context.contracts.map((contract, idx) => {
-      return (
-        <div
-          className={ styles.contract }
-          key={ contract.address }>
-          <Summary
-            contract={ contract } />
-        </div>
-      );
-    });
+    return (
+      <DeployContract
+        accounts={ accounts }
+        onClose={ this.onDeployContractClose } />
+    );
+  }
+
+  onDeployContractClose = () => {
+    this.setState({ deployContract: false });
+  }
+
+  onDeployContract = () => {
+    this.setState({ deployContract: true });
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts, contracts, hasContracts } = state.personal;
+  const { balances } = state.balances;
+
+  return {
+    accounts,
+    contracts,
+    hasContracts,
+    balances
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Contracts);

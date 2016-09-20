@@ -16,6 +16,7 @@
 
 import AddAddress from './AddAddress';
 import CreateAccount from './CreateAccount';
+import DeployContract from './DeployContract';
 import FirstRun from './FirstRun';
 import Shapeshift from './Shapeshift';
 import Transfer from './Transfer';
@@ -23,6 +24,7 @@ import Transfer from './Transfer';
 export {
   AddAddress,
   CreateAccount,
+  DeployContract,
   FirstRun,
   Shapeshift,
   Transfer
