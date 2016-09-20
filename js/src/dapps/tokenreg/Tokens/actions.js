@@ -1,3 +1,5 @@
+import { getTokenTotalSupply } from '../utils';
+
 const { sha3, bytesToHex } = window.parity.api.util;
 
 export const SET_TOKENS_LOADING = 'SET_TOKENS_LOADING';
@@ -90,8 +92,6 @@ export const loadToken = (index) => (dispatch, getState) => {
     .token
     .call({}, [ parseInt(index) ])
     .then((result) => {
-      console.log(`token #${index} loaded with data`, result);
-
       let tokenOwner = result[4];
 
       let isTokenOwner = userAccounts
@@ -110,9 +110,28 @@ export const loadToken = (index) => (dispatch, getState) => {
         isTokenOwner
       };
 
+      return data;
+    })
+    .then(data => {
+      return getTokenTotalSupply(data.address)
+        .then(totalSupply => {
+          data.totalSupply = totalSupply;
+          return data;
+        });
+    })
+    .then(data => {
+      // If no total supply, must not be a proper token
+      if (data.totalSupply === null) {
+        dispatch(setTokenData(index, null));
+        dispatch(setTokenLoading(index, false));
+        return;
+      }
+
+      data.totalSupply = data.totalSupply.toNumber();
       console.log(`token loaded: #${index}`, data);
       dispatch(setTokenData(index, data));
       dispatch(setTokenLoading(index, false));
+
     })
     .catch((e) => {
       dispatch(setTokenData(index, null));

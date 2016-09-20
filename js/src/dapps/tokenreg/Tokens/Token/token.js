@@ -28,6 +28,7 @@ export default class Token extends Component {
     name: PropTypes.string,
     base: PropTypes.number,
     index: PropTypes.number,
+    totalSupply: PropTypes.number.isRequired,
     meta: PropTypes.object,
     owner: PropTypes.string,
     ownerAccountInfo: PropTypes.shape({
@@ -43,7 +44,7 @@ export default class Token extends Component {
   };
 
   render () {
-    const { isLoading, address, tla, base, name, meta, owner } = this.props;
+    const { isLoading, address, tla, base, name, meta, owner, totalSupply } = this.props;
 
     if (isLoading) {
       return (
@@ -60,6 +61,7 @@ export default class Token extends Component {
         <div className={ styles.name }>"{ name }"</div>
 
         { this.renderBase(base) }
+        { this.renderTotalSupply(totalSupply, base, tla) }
         { this.renderAddress(address) }
         { this.renderOwner(owner) }
 
@@ -117,6 +119,16 @@ export default class Token extends Component {
         isAddress
         value={ address }
         label='Address' />
+    );
+  }
+
+  renderTotalSupply (totalSupply, base, tla) {
+    let balance = Math.round((totalSupply / base) * 100) / 100;
+
+    return (
+      <Chip
+        value={ `${balance.toString()} ${tla}` }
+        label='Balance' />
     );
   }
 
