@@ -9,12 +9,11 @@ const { api } = window.parity;
 export default class Status extends Component {
   static propTypes = {
     address: PropTypes.string,
-    fee: PropTypes.object,
-    owner: PropTypes.string
+    fee: PropTypes.object
   };
 
   render () {
-    const { address, fee, owner } = this.props;
+    const { address, fee } = this.props;
 
     return (
       <div className={ styles.status }>

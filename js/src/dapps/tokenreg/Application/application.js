@@ -35,8 +35,7 @@ export default class Application extends Component {
       <div className={ styles.application }>
         <Status
           address={ contract.address }
-          fee={ contract.fee }
-          owner={ contract.owner } />
+          fee={ contract.fee } />
 
         <Actions />
 
