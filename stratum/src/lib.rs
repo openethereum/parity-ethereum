@@ -143,7 +143,7 @@ impl Stratum {
 		let workers = self.workers.read();
 		for socket_addr in job_que.drain() {
 			if let Some(worker_id) = workers.get(&socket_addr) {
-				let job_payload = self.dispatcher.job(worker_id.to_owned());
+				let job_payload = self.dispatcher.job();
 				job_payload.map(
 					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
 				);

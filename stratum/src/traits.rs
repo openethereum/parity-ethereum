@@ -41,7 +41,9 @@ pub trait JobDispatcher: Send + Sync {
 	// json for difficulty dispatch
 	fn difficulty(&self) -> Option<String> { None }
 	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: String) -> Option<String> { None }
+	fn job(&self) -> Option<String> { None }
+	// miner job result
+	fn submit(&self, payload: Vec<String>);
 }
 
 #[derive(Ipc)]

@@ -19,13 +19,15 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::Ordering;
 use std::thread;
 use nanoipc;
-use util::{H256, U256, FixedHash};
+use util::{H256, U256, FixedHash, H64};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use util::{Mutex, RwLock};
 use miner::{Miner, MinerService};
 use client::Client;
 use block::IsBlock;
+use std::str::FromStr;
+use util::rlp::{encode, decode};
 
 pub struct StratumJobDispatcher {
 	last_work: RwLock<Option<(H256, U256, u64)>>,
@@ -36,6 +38,11 @@ pub struct StratumJobDispatcher {
 
 impl JobDispatcher for StratumJobDispatcher {
 	fn initial(&self) -> Option<String> {
+		// initial payload may contain additional data, not in this case
+		self.job()
+	}
+
+	fn job(&self) -> Option<String> {
 		let mut work = self.last_work.write().take();
 		match work {
 			Some((pow_hash, difficulty, number)) => {
@@ -58,8 +65,42 @@ impl JobDispatcher for StratumJobDispatcher {
 		}
 	}
 
-	fn job(&self, _worker_id: String) -> Option<String> {
-		self.initial()
+	fn submit(&self, payload: Vec<String>) {
+		if payload.len() != 3 {
+			warn!(target: "stratum", "submit_work: invalid work submit request({:?})", payload);
+		}
+
+		let nonce = match H64::from_str(&payload[0]) {
+			Ok(nonce) => nonce,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work: invalid nonce ({:?})", e);
+				return;
+			}
+		};
+
+
+		let pow_hash = match H256::from_str(&payload[1]) {
+			Ok(pow_hash) => pow_hash,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work: invalid hash ({:?})", e);
+				return;
+			}
+		};
+
+		let mix_hash = match H256::from_str(&payload[2]) {
+			Ok(mix_hash) => mix_hash,
+			Err(e) => {
+				warn!(target: "stratum", "submit_work: invalid mix-hash ({:?})", e);
+				return;
+			}
+		};
+
+		trace!(target: "stratum", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
+		let client = self.client.upgrade().unwrap();
+		let miner = self.miner.upgrade().unwrap();
+
+		let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+		let r = miner.submit_seal(&*client, pow_hash, seal);
 	}
 }
 
