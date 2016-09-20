@@ -46,7 +46,7 @@ export default class Application extends Component {
         </div>
         { contract && fee ? (
           <div>
-            <Lookup { ...lookup } actions={ actions.lookup } />
+            <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <p className={ styles.address }>

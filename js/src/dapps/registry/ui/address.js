@@ -11,14 +11,14 @@ const align = {
   lineHeight: '32px'
 };
 
-export default (address, accounts, contacts) => {
+export default (address, accounts, contacts, shortenHash = true) => {
   let caption
   if (accounts[address]) {
     caption = (<abbr title={ address } style={ align }>{ accounts[address].name }</abbr>);
   } else if (contacts[address]) {
     caption = (<abbr title={ address } style={ align }>{ contacts[address].name }</abbr>);
   } else {
-    caption = (<code style={ align }>{ renderHash(address) }</code>);
+    caption = (<code style={ align }>{ shortenHash ? renderHash(address) : address }</code>);
   }
   return (
     <div style={ container }>
