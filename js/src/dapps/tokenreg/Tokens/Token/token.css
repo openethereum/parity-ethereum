@@ -10,6 +10,10 @@
   padding-bottom: 1.5rem;
 }
 
+.loading {
+  margin: 1rem 0;
+}
+
 .name {
   padding-bottom: 0.75rem;
 }
@@ -46,6 +50,10 @@
   margin-bottom: -0.5rem;
   font-size: 0.9rem;
   color: gray;
+}
+
+.meta-form {
+  width: 100%;
 }
 
 .unregister {

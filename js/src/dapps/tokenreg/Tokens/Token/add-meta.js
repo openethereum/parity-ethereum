@@ -1,17 +1,19 @@
 import React, { Component, PropTypes } from 'react';
-import { Dialog, RaisedButton, FlatButton, TextField } from 'material-ui';
+import { Dialog, RaisedButton, FlatButton, TextField, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
 
-import { STRING_TYPE, HEX_TYPE, validate } from '../../Actions/validation';
+import { HEX_TYPE, validate } from '../../Actions/validation';
 
 import styles from './token.css';
+
+import { metaDataKeys } from '../../constants';
 
 const defaultField = { error: null, value: '', valid: false };
 const initState = {
   showDialog: false,
   complete: false,
+  metaKeyIndex: 0,
   fields: {
-    key: { ...defaultField, type: STRING_TYPE },
     value: { ...defaultField, type: HEX_TYPE }
   }
 };
@@ -99,19 +101,20 @@ export default class AddMeta extends Component {
   renderForm () {
     const { fields } = this.state;
 
-    let onChangeKey = this.onChange.bind(this, 'key');
     let onChangeValue = this.onChange.bind(this, 'value');
 
     return (
       <div>
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Meta Key'
+        <SelectField
+          floatingLabelText='Choose the meta-data to add'
           fullWidth
-          hintText='The key of the meta-data'
-          errorText={ fields.key.error }
-          onChange={ onChangeKey } />
+          value={ this.state.metaKeyIndex }
+          onChange={ this.onMetaKeyChange }>
+
+          { this.renderMetaKeyItems() }
+
+        </SelectField>
+
         <TextField
           autoComplete='off'
           floatingLabelFixed
@@ -122,6 +125,15 @@ export default class AddMeta extends Component {
           onChange={ onChangeValue } />
       </div>
     );
+  }
+
+  renderMetaKeyItems () {
+    return metaDataKeys.map((key, index) => (
+      <MenuItem
+        value={ index }
+        key={ index }
+        label={ key.label } primaryText={ key.label } />
+    ));
   }
 
   isValid () {
@@ -143,9 +155,12 @@ export default class AddMeta extends Component {
   }
 
   onAdd (index) {
+    let keyIndex = this.state.metaKeyIndex;
+    let key = metaDataKeys[keyIndex].value;
+
     this.props.handleAddMeta(
       index,
-      this.state.fields.key.value,
+      key,
       this.state.fields.value.value
     );
 
@@ -174,6 +189,10 @@ export default class AddMeta extends Component {
         [fieldKey]: newFieldState
       }
     });
+  }
+
+  onMetaKeyChange = (event, metaKeyIndex) => {
+    this.setState({ metaKeyIndex });
   }
 
 }
