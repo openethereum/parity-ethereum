@@ -22,6 +22,7 @@ use state::*;
 use verification::PreverifiedBlock;
 use trace::FlatTrace;
 use factory::Factories;
+use rlp::*;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -416,7 +417,7 @@ impl ClosedBlock {
 	}
 
 	/// Given an engine reference, reopen the `ClosedBlock` into an `OpenBlock`.
-	pub fn reopen<'a>(self, engine: &'a Engine) -> OpenBlock<'a> {
+	pub fn reopen(self, engine: &Engine) -> OpenBlock {
 		// revert rewards (i.e. set state back at last transaction's state).
 		let mut block = self.block;
 		block.state = self.unclosed_state;

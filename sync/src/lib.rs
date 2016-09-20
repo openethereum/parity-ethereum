@@ -26,62 +26,30 @@
 //! Implements ethereum protocol version 63 as specified here:
 //! https://github.com/ethereum/wiki/wiki/Ethereum-Wire-Protocol
 //!
-//! Usage example:
-//!
-//! ```rust
-//! extern crate ethcore_util as util;
-//! extern crate ethcore_io as io;
-//! extern crate ethcore;
-//! extern crate ethsync;
-//! use std::env;
-//! use std::sync::Arc;
-//! use io::IoChannel;
-//! use ethcore::client::{Client, ClientConfig};
-//! use ethsync::{EthSync, SyncConfig, ManageNetwork, NetworkConfiguration};
-//! use ethcore::ethereum;
-//! use ethcore::miner::{GasPricer, Miner};
-//!
-//! fn main() {
-//! 	let dir = env::temp_dir();
-//!		let spec = ethereum::new_frontier();
-//! 	let miner = Miner::new(
-//! 		Default::default(),
-//! 		GasPricer::new_fixed(20_000_000_000u64.into()),
-//! 		&spec,
-//! 		None
-//! 	);
-//! 	let client = Client::new(
-//!			ClientConfig::default(),
-//!			&spec,
-//!			&dir,
-//!			miner,
-//!			IoChannel::disconnected()
-//!		).unwrap();
-//! 	let sync = EthSync::new(SyncConfig::default(), client, NetworkConfiguration::from(NetworkConfiguration::new())).unwrap();
-//! 	sync.start_network();
-//! }
-//! ```
 
-#[macro_use]
-extern crate log;
-#[macro_use]
-extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate env_logger;
 extern crate time;
 extern crate rand;
+extern crate semver;
+extern crate parking_lot;
+extern crate rlp;
+
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate ethcore_util as util;
 #[macro_use]
 extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
-extern crate semver;
-extern crate parking_lot;
 
 mod chain;
 mod blocks;
 mod sync_io;
+mod snapshot;
 
 #[cfg(test)]
 mod tests;
@@ -95,4 +63,3 @@ pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNet
 	ServiceConfiguration, NetworkConfiguration};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
-

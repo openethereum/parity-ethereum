@@ -16,7 +16,6 @@
 
 //! Diff misc.
 
-use std::fs::File;
 use common::*;
 use rlp::{Stream, RlpStream};
 use target_info::Target;
@@ -31,14 +30,6 @@ pub enum Filth {
 	Clean,
 	/// Data has been changed.
 	Dirty,
-}
-
-/// Read the whole contents of a file `name`.
-pub fn contents(name: &str) -> Result<Bytes, UtilError> {
-	let mut file = try!(File::open(name));
-	let mut ret: Vec<u8> = Vec::new();
-	try!(file.read_to_end(&mut ret));
-	Ok(ret)
 }
 
 /// Get the standard version string for this software.

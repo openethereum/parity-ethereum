@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use elastic_array::*;
-use rlp::bytes::{ToBytes, VecLike};
-use rlp::{Stream, Encoder, Encodable};
-use rlp::rlptraits::{ByteEncodable, RlpEncodable};
+
+use ::{Stream, Encoder, Encodable};
+use bytes::{ToBytes, VecLike};
+use rlptraits::{ByteEncodable, RlpEncodable};
 
 #[derive(Debug, Copy, Clone)]
 struct ListInfo {

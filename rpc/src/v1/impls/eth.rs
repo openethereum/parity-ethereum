@@ -29,8 +29,8 @@ use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
 use util::sha3::*;
-use util::rlp::{encode, decode, UntrustedRlp, View};
 use util::{FromHex, Mutex};
+use rlp::{self, UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
 use ethcore::header::Header as BlockHeader;
@@ -45,7 +45,7 @@ use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256};
 use v1::helpers::{CallRequest as CRequest, errors};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
-use v1::helpers::params::{expect_no_params, from_params_default_second, from_params_default_third};
+use v1::helpers::params::{expect_no_params, params_len, from_params_default_second, from_params_default_third};
 
 /// Eth RPC options
 pub struct EthClientOptions {
@@ -123,7 +123,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 					timestamp: view.timestamp().into(),
 					difficulty: view.difficulty().into(),
 					total_difficulty: total_difficulty.into(),
-					seal_fields: view.seal().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+					seal_fields: view.seal().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
 						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
@@ -147,7 +147,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	fn uncle(&self, id: UncleID) -> Result<Value, Error> {
 		let client = take_weak!(self.client);
 		let uncle: BlockHeader = match client.uncle(id) {
-			Some(rlp) => decode(&rlp),
+			Some(rlp) => rlp::decode(&rlp),
 			None => { return Ok(Value::Null); }
 		};
 		let parent_difficulty = match client.block_total_difficulty(BlockID::Hash(uncle.parent_hash().clone())) {
@@ -173,7 +173,7 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 			total_difficulty: (uncle.difficulty().clone() + parent_difficulty).into(),
 			receipts_root: uncle.receipts_root().clone().into(),
 			extra_data: uncle.extra_data().clone().into(),
-			seal_fields: uncle.seal().clone().into_iter().map(|f| decode(&f)).map(Bytes::new).collect(),
+			seal_fields: uncle.seal().clone().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![]),
 		};
@@ -254,7 +254,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		let status = take_weak!(self.sync).status();
 		let res = match status.state {
 			SyncState::Idle => SyncStatus::None,
-			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead => {
+			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead
+				| SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState::SnapshotWaiting => {
 				let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
 				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 
@@ -497,22 +498,33 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
-				let include_pending = filter.to_block == Some(BlockNumber::Pending);
-				let filter: EthcoreFilter = filter.into();
-				let mut logs = take_weak!(self.client).logs(filter.clone())
-					.into_iter()
-					.map(From::from)
-					.collect::<Vec<Log>>();
+		let params = match params_len(&params) {
+			1 => from_params::<(Filter, )>(params).map(|(filter, )| (filter, None)),
+			_ => from_params::<(Filter, usize)>(params).map(|(filter, val)| (filter, Some(val))),
+		};
+		params.and_then(|(filter, limit)| {
+			let include_pending = filter.to_block == Some(BlockNumber::Pending);
+			let filter: EthcoreFilter = filter.into();
+			let mut logs = take_weak!(self.client).logs(filter.clone(), limit)
+				.into_iter()
+				.map(From::from)
+				.collect::<Vec<Log>>();
 
-				if include_pending {
-					let pending = pending_logs(&*take_weak!(self.miner), &filter);
-					logs.extend(pending);
-				}
+			if include_pending {
+				let pending = pending_logs(&*take_weak!(self.miner), &filter);
+				logs.extend(pending);
+			}
 
-				Ok(to_value(&logs))
-			})
+			let len = logs.len();
+			match limit {
+				Some(limit) if len >= limit => {
+					logs = logs.split_off(len - limit);
+				},
+				_ => {},
+			}
+
+			Ok(to_value(&logs))
+		})
 	}
 
 	fn work(&self, params: Params) -> Result<Value, Error> {
@@ -566,7 +578,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			trace!(target: "miner", "submit_work: Decoded: nonce={}, pow_hash={}, mix_hash={}", nonce, pow_hash, mix_hash);
 			let miner = take_weak!(self.miner);
 			let client = take_weak!(self.client);
-			let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
+			let seal = vec![rlp::encode(&mix_hash).to_vec(), rlp::encode(&nonce).to_vec()];
 			let r = miner.submit_seal(&*client, pow_hash, seal);
 			Ok(to_value(&r.is_ok()))
 		})

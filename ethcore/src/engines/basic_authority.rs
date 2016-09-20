@@ -99,6 +99,10 @@ impl Engine for BasicAuthority {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
+	fn is_sealer(&self, author: &Address) -> Option<bool> {
+		Some(self.our_params.authorities.contains(author))
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
@@ -109,7 +113,7 @@ impl Engine for BasicAuthority {
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = ap.sign(*block.header().author(), message) {
-				return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
+				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -131,6 +135,8 @@ impl Engine for BasicAuthority {
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		use rlp::{UntrustedRlp, View};
+
 		// check the signature is legit.
 		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
 		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
@@ -172,7 +178,7 @@ impl Engine for BasicAuthority {
 impl Header {
 	/// Get the none field of the header.
 	pub fn signature(&self) -> H520 {
-		decode(&self.seal()[0])
+		::rlp::decode(&self.seal()[0])
 	}
 }
 
@@ -185,7 +191,10 @@ mod tests {
 	use spec::Spec;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_authority() -> Spec { Spec::load(include_bytes!("../../res/test_authority.json")) }
+	fn new_test_authority() -> Spec {
+		let bytes: &[u8] = include_bytes!("../../res/test_authority.json");
+		Spec::load(bytes).expect("invalid chain spec")
+	}
 
 	#[test]
 	fn has_valid_metadata() {
@@ -228,7 +237,7 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&H520::default()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
 		let verify_result = engine.verify_block_unordered(&header, None);
 		assert!(verify_result.is_err());
@@ -251,5 +260,15 @@ mod tests {
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
+	}
+
+	#[test]
+	fn seals_internally() {
+		let tap = AccountProvider::transient_provider();
+		let authority = tap.insert_account("".sha3(), "").unwrap();
+
+		let engine = new_test_authority().engine;
+		assert!(!engine.is_sealer(&Address::default()).unwrap());
+		assert!(engine.is_sealer(&authority).unwrap());
 	}
 }

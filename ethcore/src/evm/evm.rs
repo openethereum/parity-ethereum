@@ -16,11 +16,13 @@
 
 //! Evm interface.
 
-use common::*;
+use std::{ops, cmp, fmt};
+use util::{U128, U256, U512, Uint};
+use action_params::ActionParams;
 use evm::Ext;
 
 /// Evm errors.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Error {
 	/// `OutOfGas` is returned when transaction execution runs out of gas.
 	/// The state should be reverted to the state from before the
@@ -61,6 +63,21 @@ pub enum Error {
 	/// Likely to cause consensus issues.
 	#[allow(dead_code)] // created only by jit
 	Internal,
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::Error::*;
+		let message = match *self {
+			OutOfGas => "Out of gas",
+			BadJumpDestination { .. } => "Bad jump destination",
+			BadInstruction { .. } => "Bad instruction",
+			StackUnderflow { .. } => "Stack underflow",
+			OutOfStack { .. } => "Out of stack",
+			Internal => "Internal error",
+		};
+		message.fmt(f)
+	}
 }
 
 /// A specialized version of Result over EVM errors.
@@ -193,53 +210,55 @@ pub trait Evm {
 	fn exec(&mut self, params: ActionParams, ext: &mut Ext) -> Result<GasLeft>;
 }
 
-
-#[test]
 #[cfg(test)]
-fn should_calculate_overflow_mul_shr_without_overflow() {
-	// given
-	let num = 1048576;
+mod tests {
+	use util::{U256, Uint};
+	use super::CostType;
 
-	// when
-	let (res1, o1) = U256::from(num).overflow_mul_shr(U256::from(num), 20);
-	let (res2, o2) = num.overflow_mul_shr(num, 20);
+	#[test]
+	fn should_calculate_overflow_mul_shr_without_overflow() {
+		// given
+		let num = 1048576;
 
-	// then
-	assert_eq!(res1, U256::from(num));
-	assert!(!o1);
-	assert_eq!(res2, num);
-	assert!(!o2);
-}
+		// when
+		let (res1, o1) = U256::from(num).overflow_mul_shr(U256::from(num), 20);
+		let (res2, o2) = num.overflow_mul_shr(num, 20);
 
-#[test]
-#[cfg(test)]
-fn should_calculate_overflow_mul_shr_with_overflow() {
-	// given
-	let max = ::std::u64::MAX;
-	let num1 = U256([max, max, max, max]);
-	let num2 = ::std::usize::MAX;
+		// then
+		assert_eq!(res1, U256::from(num));
+		assert!(!o1);
+		assert_eq!(res2, num);
+		assert!(!o2);
+	}
 
-	// when
-	let (res1, o1) = num1.overflow_mul_shr(num1, 256);
-	let (res2, o2) = num2.overflow_mul_shr(num2, 64);
+	#[test]
+	fn should_calculate_overflow_mul_shr_with_overflow() {
+		// given
+		let max = u64::max_value();
+		let num1 = U256([max, max, max, max]);
+		let num2 = usize::max_value();
 
-	// then
-	assert_eq!(res2, num2 - 1);
-	assert!(o2);
+		// when
+		let (res1, o1) = num1.overflow_mul_shr(num1, 256);
+		let (res2, o2) = num2.overflow_mul_shr(num2, 64);
 
-	assert_eq!(res1, !U256::zero() - U256::one());
-	assert!(o1);
-}
+		// then
+		assert_eq!(res2, num2 - 1);
+		assert!(o2);
 
-#[test]
-#[cfg(test)]
-fn should_validate_u256_to_usize_conversion() {
-	// given
-	let v = U256::from(::std::usize::MAX) + U256::from(1);
+		assert_eq!(res1, !U256::zero() - U256::one());
+		assert!(o1);
+	}
 
-	// when
-	let res = usize::from_u256(v);
+	#[test]
+	fn should_validate_u256_to_usize_conversion() {
+		// given
+		let v = U256::from(usize::max_value()) + U256::from(1);
 
-	// then
-	assert!(res.is_err());
+		// when
+		let res = usize::from_u256(v);
+
+		// then
+		assert!(res.is_err());
+	}
 }

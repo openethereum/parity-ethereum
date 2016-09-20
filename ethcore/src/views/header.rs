@@ -16,7 +16,8 @@
 
 //! View onto block header rlp
 
-use util::{Rlp, U256, Bytes, Hashable, H256, Address, H2048, View};
+use util::{U256, Bytes, Hashable, H256, Address, H2048};
+use rlp::{Rlp, View};
 use header::BlockNumber;
 
 /// View onto block header rlp.

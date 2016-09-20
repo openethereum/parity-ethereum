@@ -16,7 +16,7 @@
 
 //! Spec seal.
 
-use util::rlp::*;
+use rlp::*;
 use util::hash::{H64, H256};
 use ethjson;
 

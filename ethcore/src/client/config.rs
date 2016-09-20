@@ -62,7 +62,7 @@ impl FromStr for DatabaseCompactionProfile {
 }
 
 /// Operating mode for the client.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {
 	/// Always on.
 	Active,

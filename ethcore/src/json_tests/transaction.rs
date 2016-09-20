@@ -17,6 +17,7 @@
 use super::test_common::*;
 use evm;
 use ethjson;
+use rlp::{UntrustedRlp, View};
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let tests = ethjson::transaction::Test::load(json_data).unwrap();

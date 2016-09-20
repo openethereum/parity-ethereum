@@ -302,8 +302,8 @@ impl From<ExecutionError> for Error {
 	}
 }
 
-impl From<DecoderError> for Error {
-	fn from(err: DecoderError) -> Error {
+impl From<::rlp::DecoderError> for Error {
+	fn from(err: ::rlp::DecoderError) -> Error {
 		Error::Util(UtilError::Decoder(err))
 	}
 }

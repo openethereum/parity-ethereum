@@ -17,10 +17,11 @@
 //! Account state encoding and decoding
 
 use account_db::{AccountDB, AccountDBMut};
-use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY};
-use util::rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
-use util::trie::{TrieDB, Trie};
 use snapshot::Error;
+
+use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY};
+use util::trie::{TrieDB, Trie};
+use rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
 
 use std::collections::{HashMap, HashSet};
 
@@ -206,9 +207,9 @@ mod tests {
 	use tests::helpers::get_temp_journal_db;
 	use snapshot::tests::helpers::fill_storage;
 
-	use util::{SHA3_NULL_RLP, SHA3_EMPTY};
+	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
 	use util::{Address, FixedHash, H256, HashDB};
-	use util::rlp::{UntrustedRlp, View};
+	use rlp::{UntrustedRlp, View};
 
 	use std::collections::{HashSet, HashMap};
 

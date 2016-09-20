@@ -93,9 +93,15 @@ pub struct Server {
 	broadcaster_handle: Option<thread::JoinHandle<()>>,
 	queue: Arc<ConfirmationsQueue>,
 	panic_handler: Arc<PanicHandler>,
+	addr: SocketAddr,
 }
 
 impl Server {
+	/// Returns the address this server is listening on
+	pub fn addr(&self) -> &SocketAddr {
+		&self.addr
+	}
+
 	/// Starts a new `WebSocket` server in separate thread.
 	/// Returns a `Server` handle which closes the server when droped.
 	fn start(addr: SocketAddr, handler: Arc<IoHandler>, queue: Arc<ConfirmationsQueue>, authcodes_path: PathBuf, skip_origin_validation: bool) -> Result<Server, ServerError> {
@@ -158,6 +164,7 @@ impl Server {
 			broadcaster_handle: Some(broadcaster_handle),
 			queue: queue,
 			panic_handler: panic_handler,
+			addr: addr,
 		})
 	}
 }
