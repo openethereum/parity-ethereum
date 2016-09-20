@@ -19,6 +19,7 @@ export default class Token extends Component {
     handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
     isLoading: PropTypes.bool,
+    isMetaLoading: PropTypes.bool,
     isPending: PropTypes.bool,
     isOwner: PropTypes.bool,
     isTokenOwner: PropTypes.bool,
@@ -171,6 +172,14 @@ export default class Token extends Component {
   }
 
   renderMeta (meta) {
+    let isMetaLoading = this.props.isMetaLoading;
+
+    if (isMetaLoading) {
+      return (<div>
+        <Loading size={ 0.5 } />
+      </div>);
+    }
+
     if (!meta) return;
 
     let metaData = metaDataKeys.find(m => m.value === meta.query);

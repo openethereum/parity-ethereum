@@ -30,6 +30,12 @@ export const setTokenLoading = (index, isLoading) => ({
   index, isLoading
 });
 
+export const SET_TOKEN_META_LOADING = 'SET_TOKEN_META_LOADING';
+export const setTokenMetaLoading = (index, isMetaLoading) => ({
+  type: SET_TOKEN_META_LOADING,
+  index, isMetaLoading
+});
+
 export const SET_TOKEN_PENDING = 'SET_TOKEN_PENDING';
 export const setTokenPending = (index, isPending) => ({
   type: SET_TOKEN_PENDING,
@@ -126,7 +132,8 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
 
   let key = sha3(query);
 
-  dispatch(setTokenLoading(index, true));
+  let startDate = Date.now();
+  dispatch(setTokenMetaLoading(index, true));
 
   contractInstance
     .meta
@@ -139,7 +146,10 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
 
       console.log(`token meta loaded: #${index}`, value);
       dispatch(setTokenMeta(index, meta));
-      dispatch(setTokenLoading(index, false));
+
+      setTimeout(() => {
+        dispatch(setTokenMetaLoading(index, false));
+      }, 500 - (Date.now() - startDate));
     })
     .catch((e) => {
       console.error(`loadToken #${index} error`, e);
