@@ -133,6 +133,7 @@ impl ClientService {
 	}
 
 	#[cfg(feature="stratum")]
+	/// Runs stratum if feature is on
 	pub fn stratum_probably(cfg: &Option<StratumOptions>, miner: &Arc<Miner>, client: &Arc<Client>) -> Option<Box<miner::NotifyWork>> {
 		use miner::Stratum;
 		use miner::NotifyWork;

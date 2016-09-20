@@ -21,7 +21,7 @@ pub use blockchain::Config as BlockChainConfig;
 pub use trace::{Config as TraceConfig, Switch};
 pub use evm::VMType;
 pub use verification::VerifierType;
-use util::{journaldb, CompactionProfile, H256};
+use util::{journaldb, CompactionProfile};
 use util::trie::TrieSpec;
 
 /// Client state db compaction profile

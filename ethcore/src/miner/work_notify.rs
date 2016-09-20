@@ -26,7 +26,9 @@ use hyper::Url;
 use util::*;
 use ethereum::ethash::Ethash;
 
+/// Trait for notifying about new mining work
 pub trait NotifyWork : Send + Sync {
+	/// Fired when new mining job available
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64);
 }
 

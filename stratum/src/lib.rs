@@ -88,12 +88,27 @@ impl Stratum {
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
 		delegate.add_method("mining.subscribe", Stratum::subscribe);
 		delegate.add_method("mining.authorize", Stratum::authorize);
+		delegate.add_method("mining.submit", Stratum::submit);
 		stratum.handler.add_delegate(delegate);
 
 		try!(stratum.rpc_server.run_async());
 
 		Ok(stratum)
 	}
+
+	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+		Ok(match params {
+			Params::Array(vals) => {
+				self.dispatcher.submit(vals.iter().map(|val| format!("{}", val)).collect::<Vec<String>>());
+				to_value(&true)
+			},
+			_ => {
+				trace!(target: "stratum", "Invalid submit work format {:?}", params);
+				to_value(&false)
+			}
+		})
+	}
+
 
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		use std::str::FromStr;

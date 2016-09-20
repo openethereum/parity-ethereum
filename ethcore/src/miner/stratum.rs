@@ -27,8 +27,9 @@ use miner::{Miner, MinerService};
 use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
-use util::rlp::{encode, decode};
+use util::rlp::encode;
 
+/// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
 	last_work: RwLock<Option<(H256, U256, u64)>>,
 	seed_compute: Mutex<SeedHashCompute>,
@@ -43,26 +44,26 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		let mut work = self.last_work.write().take();
-		match work {
-			Some((pow_hash, difficulty, number)) => {
-				work = Some((pow_hash, difficulty, number));
-				Some(self.payload(pow_hash, difficulty, number))
-			},
-			None => {
-				let client = self.client.upgrade().unwrap();
-				let miner = self.miner.upgrade().unwrap();
-
-				miner.map_sealing_work(&*client, |b| {
-					let pow_hash = b.hash();
-					let number = b.block().header().number();
-					let difficulty = b.block().header().difficulty();
-
-					work = Some((pow_hash, *difficulty, number));
-					self.payload(pow_hash, *difficulty, number)
-				})
+		{
+			let last_work = self.last_work.write();
+			if let Some((pow_hash, difficulty, number)) = *last_work {
+				return Some(self.payload(pow_hash, difficulty, number));
 			}
 		}
+
+		let client = self.client.upgrade().unwrap();
+		let miner = self.miner.upgrade().unwrap();
+
+		if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
+			let pow_hash = b.hash();
+			let number = b.block().header().number();
+			let difficulty = b.block().header().difficulty();
+
+			(pow_hash, *difficulty, number)
+		}) {
+			*self.last_work.write() = Some((pow_hash, difficulty, number));
+			Some(self.payload(pow_hash, difficulty, number))
+		} else { None }
 	}
 
 	fn submit(&self, payload: Vec<String>) {
@@ -100,11 +101,14 @@ impl JobDispatcher for StratumJobDispatcher {
 		let miner = self.miner.upgrade().unwrap();
 
 		let seal = vec![encode(&mix_hash).to_vec(), encode(&nonce).to_vec()];
-		let r = miner.submit_seal(&*client, pow_hash, seal);
+		if let Err(e) = miner.submit_seal(&*client, pow_hash, seal) {
+			warn!(target: "stratum", "submit_work error: {:?}", e);
+		};
 	}
 }
 
 impl StratumJobDispatcher {
+	/// New stratum job dispatcher given the miner and client
 	fn new(miner: &Arc<Miner>, client: &Arc<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
 			seed_compute: Mutex::new(SeedHashCompute::new()),
@@ -114,6 +118,7 @@ impl StratumJobDispatcher {
 		}
 	}
 
+	/// Serializes payload for stratum service
 	fn payload(&self, pow_hash: H256, difficulty: U256, number: u64) -> String {
 		// TODO: move this to engine
 		let target = Ethash::difficulty_to_boundary(&difficulty);
@@ -126,6 +131,7 @@ impl StratumJobDispatcher {
 	}
 }
 
+/// Wrapper for dedicated stratum service
 pub struct Stratum {
 	dispatcher: Arc<StratumJobDispatcher>,
 	base_dir: String,
@@ -158,6 +164,7 @@ impl super::work_notify::NotifyWork for Stratum {
 }
 
 impl Stratum {
+	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
 	pub fn new(base_dir: &str, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Stratum, Error> {
 		Ok(Stratum {
 			dispatcher: Arc::new(StratumJobDispatcher::new(miner, client)),
@@ -166,6 +173,7 @@ impl Stratum {
 		})
 	}
 
+	/// Run stratum job dispatcher in separate thread
 	pub fn run_async(&self) {
 		let socket_url = format!("ipc://{}/ipc/parity-mining-jobs.ipc", &self.base_dir);
 		let stop = self.stop.share();

@@ -216,6 +216,7 @@ impl Miner {
 		}
 	}
 
+	/// Push notifier that will handle new jobs
 	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
 		self.notifiers.write().push(notifier)
 	}
