@@ -86,7 +86,6 @@ export default class Ws extends JsonRpcBase {
     const message = this._messages[id];
 
     try {
-      // console.log('sending', id, message);
       this._ws.send(message.json);
       message.queued = false;
     } catch (error) {
