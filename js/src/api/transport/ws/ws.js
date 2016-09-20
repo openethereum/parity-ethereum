@@ -92,7 +92,7 @@ export default class Ws extends JsonRpcBase {
     if (this._connected) {
       try {
         this._ws.send(message.json);
-        message.success = true;
+        success = true;
       } catch (error) {
         console.error('queuing', id, error);
       }
