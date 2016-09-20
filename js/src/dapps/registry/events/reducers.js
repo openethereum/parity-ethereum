@@ -36,7 +36,6 @@ export default (state = initialState, action) => {
   }
 
   if (action.type === 'events unsubscribe') {
-    console.warn('events unsubscribe', action);
     return {
       ...state,
       pending: { ...state.pending, [action.name]: false },

@@ -12,9 +12,12 @@ import Register from '../register';
 import Events from '../events';
 
 export default class Application extends Component {
-  static childContextTypes = { muiTheme: PropTypes.object };
+  static childContextTypes = {
+    muiTheme: PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired
+  };
   getChildContext () {
-    return { muiTheme };
+    return { muiTheme, api: window.parity.api };
   }
 
   static propTypes = {

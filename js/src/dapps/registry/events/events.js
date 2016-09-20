@@ -63,12 +63,6 @@ export default class Events extends Component {
     contacts: PropTypes.object.isRequired
   }
 
-  static childContextTypes = { api: PropTypes.object.isRequired }
-  getChildContext () {
-    // TODO let /src/ui/IdentityIcon import from the api directly
-    return { api: window.parity.api };
-  }
-
   render () {
     const { subscriptions, pending, accounts, contacts } = this.props;
     return (
