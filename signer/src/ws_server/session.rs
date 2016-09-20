@@ -26,21 +26,39 @@ use util::{H256, Mutex, version};
 
 #[cfg(feature = "ui")]
 mod signer {
-	use signer;
+	use signer::SignerApp;
+	use dapps::{self, WebApp};
 
-	pub fn handle(req: &str) -> Option<signer::File> {
-		signer::handle(req)
+	#[derive(Default)]
+	pub struct Handler {
+		signer: SignerApp,
+	}
+
+	impl Handler {
+		pub fn handle(&self, req: &str) -> Option<&dapps::File> {
+			let file = match req {
+				"" | "/" => "index.html",
+				path => &path[1..],
+			};
+			self.signer.file(file)
+		}
 	}
 }
 #[cfg(not(feature = "ui"))]
 mod signer {
 	pub struct File {
-		pub content: String,
-		pub mime: String,
+		pub content: &'static str,
+		pub content_type: &'static str,
 	}
 
-	pub fn handle(_req: &str) -> Option<File> {
-		None
+	#[derive(Default)]
+	pub struct Handler {
+	}
+
+	impl Handler {
+		pub fn handle(&self, _req: &str) -> Option<&File> {
+			None
+		}
 	}
 }
 
@@ -100,6 +118,7 @@ pub struct Session {
 	self_origin: String,
 	authcodes_path: PathBuf,
 	handler: Arc<IoHandler>,
+	file_handler: Arc<signer::Handler>,
 }
 
 impl ws::Handler for Session {
@@ -145,12 +164,12 @@ impl ws::Handler for Session {
 		}
 
 		// Otherwise try to serve a page.
-		Ok(signer::handle(req.resource())
+		Ok(self.file_handler.handle(req.resource())
 			.map_or_else(
 				// return 404 not found
 				|| error(ErrorType::NotFound, "Not found", "Requested file was not found.", None),
 				// or serve the file
-				|f| add_headers(ws::Response::ok(f.content.into()), &f.mime)
+				|f| add_headers(ws::Response::ok_raw(f.content.to_vec()), f.content_type)
 			))
 	}
 
@@ -174,6 +193,7 @@ pub struct Factory {
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
+	file_handler: Arc<signer::Handler>,
 }
 
 impl Factory {
@@ -183,6 +203,7 @@ impl Factory {
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,
+			file_handler: Arc::new(signer::Handler::default()),
 		}
 	}
 }
@@ -197,6 +218,7 @@ impl ws::Factory for Factory {
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),
 			authcodes_path: self.authcodes_path.clone(),
+			file_handler: self.file_handler.clone(),
 		}
 	}
 }
