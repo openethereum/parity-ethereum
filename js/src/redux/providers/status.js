@@ -63,7 +63,8 @@ export default class Status {
       ])
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
-        const collection = {
+
+        this._store.dispatch(statusCollection({
           clientVersion,
           coinbase,
           defaultExtraData,
@@ -78,9 +79,7 @@ export default class Status {
           rpcSettings,
           syncing,
           isTest
-        };
-
-        this._store.dispatch(statusCollection(collection));
+        }));
         nextTimeout();
       })
       .catch((error) => {
