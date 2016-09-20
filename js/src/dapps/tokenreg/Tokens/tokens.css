@@ -1,7 +1,7 @@
 .tokens {
-  width: 80%;
+  width: 90%;
   padding-top: 2rem;
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-start;
+  justify-content: space-around;
 }
