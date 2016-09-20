@@ -66,6 +66,7 @@ json-tests = ["ethcore/json-tests"]
 stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]
+evm-debug = ["ethcore/evm-debug"]
 
 [[bin]]
 path = "parity/main.rs"

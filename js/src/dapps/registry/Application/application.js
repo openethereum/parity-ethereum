@@ -12,14 +12,18 @@ import Register from '../register';
 import Events from '../events';
 
 export default class Application extends Component {
-  static childContextTypes = { muiTheme: PropTypes.object };
+  static childContextTypes = {
+    muiTheme: PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired
+  };
   getChildContext () {
-    return { muiTheme };
+    return { muiTheme, api: window.parity.api };
   }
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
     fee: PropTypes.object.isRequired,
     lookup: PropTypes.object.isRequired,
@@ -30,7 +34,7 @@ export default class Application extends Component {
   render () {
     const {
       actions,
-      accounts,
+      accounts, contacts,
       contract, fee,
       lookup,
       events,
@@ -45,9 +49,9 @@ export default class Application extends Component {
         </div>
         { contract && fee ? (
           <div>
-            <Lookup { ...lookup } actions={ actions.lookup } />
+            <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
-            <Events { ...events } actions={ actions.events } />
+            <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <p className={ styles.address }>
               The Registry is provided by the contract at <code>{ contract.address }.</code>
             </p>
