@@ -108,7 +108,6 @@ known_heap_size!(0, PeerInfo);
 
 type PacketDecodeError = DecoderError;
 
-const PROTOCOL_VERSION: u8 = 64u8;
 const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
 const MAX_NODE_DATA_TO_SEND: usize = 1024;
@@ -1274,7 +1273,7 @@ impl ChainSync {
 		let pv64 = io.eth_protocol_version(peer) >= 64;
 		let mut packet = RlpStream::new_list(if pv64 { 7 } else { 5 });
 		let chain = io.chain().chain_info();
-		packet.append(&(PROTOCOL_VERSION as u32));
+		packet.append(&(io.eth_protocol_version(peer) as u32));
 		packet.append(&self.network_id);
 		packet.append(&chain.total_difficulty);
 		packet.append(&chain.best_block_hash);
