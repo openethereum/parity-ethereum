@@ -34,11 +34,6 @@ export default class Accounts extends Component {
     return { api: window.parity.api };
   }
 
-  componentDidMount () {
-    // TODO remove this
-    this.props.actions.fetch();
-  }
-
   render () {
     const { all, selected } = this.props;
 
