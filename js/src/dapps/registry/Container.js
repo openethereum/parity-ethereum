@@ -9,6 +9,7 @@ class Container extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
     owner: PropTypes.string.isRequired,
     fee: PropTypes.object.isRequired,

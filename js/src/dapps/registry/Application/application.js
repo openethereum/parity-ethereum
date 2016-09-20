@@ -21,6 +21,7 @@ export default class Application extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired,
     owner: PropTypes.string.isRequired,
     fee: PropTypes.object.isRequired,
@@ -32,7 +33,7 @@ export default class Application extends Component {
   render () {
     const {
       actions,
-      accounts,
+      accounts, contacts,
       contract, owner, fee,
       lookup,
       events,
@@ -49,7 +50,7 @@ export default class Application extends Component {
           <div>
             <Lookup { ...lookup } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
-            <Events { ...events } actions={ actions.events } />
+            <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <Status address={ contract.address } owner={ owner } />
           </div>
         ) : (
