@@ -498,14 +498,10 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn logs(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		let params = match params_len(&params) {
-			1 => from_params::<(Filter, )>(params).map(|(filter, )| (filter, None)),
-			_ => from_params::<(Filter, usize)>(params).map(|(filter, val)| (filter, Some(val))),
-		};
-		params.and_then(|(filter, limit)| {
+		from_params::<(Filter, )>(params).and_then(|(filter,)| {
 			let include_pending = filter.to_block == Some(BlockNumber::Pending);
 			let filter: EthcoreFilter = filter.into();
-			let mut logs = take_weak!(self.client).logs(filter.clone(), limit)
+			let mut logs = take_weak!(self.client).logs(filter.clone())
 				.into_iter()
 				.map(From::from)
 				.collect::<Vec<Log>>();
@@ -515,7 +511,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 				logs.extend(pending);
 			}
 
-			let logs = limit_logs(logs, limit);
+			let logs = limit_logs(logs, filter.limit);
 			Ok(to_value(&logs))
 		})
 	}

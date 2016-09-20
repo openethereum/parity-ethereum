@@ -13,8 +13,8 @@ pub enum PollFilter {
 	Block(BlockNumber),
 	/// Hashes of all transactions which client was notified about.
 	PendingTransaction(Vec<H256>),
-	/// Number of From block number, pending logs and log filter itself with optional limit for initial logs.
-	Logs(BlockNumber, HashSet<Log>, Filter, Option<usize>)
+	/// Number of From block number, pending logs and log filter itself.
+	Logs(BlockNumber, HashSet<Log>, Filter)
 }
 
 /// Returns only last `n` logs

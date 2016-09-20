@@ -398,10 +398,10 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
 		let mut logs = self.logs.read().clone();
 		let len = logs.len();
-		match limit {
+		match filter.limit {
 			Some(limit) if limit <= len => logs.split_off(len - limit),
 			_ => logs,
 		}

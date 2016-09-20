@@ -154,23 +154,42 @@ fn rpc_eth_hashrate() {
 #[test]
 fn rpc_eth_logs() {
 	let tester = EthTester::default();
+	tester.client.set_logs(vec![LocalizedLogEntry {
+		block_number: 1,
+		block_hash: H256::default(),
+		entry: LogEntry {
+			address: Address::default(),
+			topics: vec![],
+			data: vec![1,2,3],
+		},
+		transaction_index: 0,
+		transaction_hash: H256::default(),
+		log_index: 0,
+	}, LocalizedLogEntry {
+		block_number: 1,
+		block_hash: H256::default(),
+		entry: LogEntry {
+			address: Address::default(),
+			topics: vec![],
+			data: vec![1,2,3],
+		},
+		transaction_index: 0,
+		transaction_hash: H256::default(),
+		log_index: 0,
+	}]);
 
-	let request = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{}], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-}
+	let request1 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{}], "id": 1}"#;
+	let request2 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":1}], "id": 1}"#;
+	let request3 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{"limit":0}], "id": 1}"#;
 
-#[test]
-fn rpc_eth_logs_with_limit() {
-	let tester = EthTester::default();
+	let response1 = r#"{"jsonrpc":"2.0","result":[{"address":"0x0000000000000000000000000000000000000000","blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","blockNumber":"0x1","data":"0x010203","logIndex":"0x0","topics":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"},{"address":"0x0000000000000000000000000000000000000000","blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","blockNumber":"0x1","data":"0x010203","logIndex":"0x0","topics":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"}],"id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","result":[{"address":"0x0000000000000000000000000000000000000000","blockHash":"0x0000000000000000000000000000000000000000000000000000000000000000","blockNumber":"0x1","data":"0x010203","logIndex":"0x0","topics":[],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"}],"id":1}"#;
+	let response3 = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
-	let request1 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{}, 1], "id": 1}"#;
-	let request2 = r#"{"jsonrpc": "2.0", "method": "eth_getLogs", "params": [{}, 0], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
-
-	assert_eq!(tester.io.handle_request_sync(request1), Some(response.to_owned()));
-	assert_eq!(tester.io.handle_request_sync(request2), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request1), Some(response1.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request2), Some(response2.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(request3), Some(response3.to_owned()));
 }
 
 #[test]
@@ -203,7 +222,7 @@ fn rpc_logs_filter() {
 
 	// Register filters first
 	let request_default = r#"{"jsonrpc": "2.0", "method": "eth_newFilter", "params": [{}], "id": 1}"#;
-	let request_limit= r#"{"jsonrpc": "2.0", "method": "eth_newFilter", "params": [{}, 1], "id": 1}"#;
+	let request_limit = r#"{"jsonrpc": "2.0", "method": "eth_newFilter", "params": [{"limit":1}], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
 	let response2 = r#"{"jsonrpc":"2.0","result":"0x1","id":1}"#;
 
