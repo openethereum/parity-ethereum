@@ -126,7 +126,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
 			evm_debug!({
-				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
+				println!("[0x{:x}][{}(0x{:x}) Gas: {:?}\n  Gas Before: {:?}",
 					reader.position,
 					color(instruction, info.name),
 					instruction,

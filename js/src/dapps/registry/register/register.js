@@ -47,7 +47,7 @@ export default class Register extends Component {
           />
           { posted.map((name) => (
             <p key={ name }>
-              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the registraction of <code>{ name }</code>.
+              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the registration of <code>{ name }</code>.
             </p>
           )) }
         </CardText>
