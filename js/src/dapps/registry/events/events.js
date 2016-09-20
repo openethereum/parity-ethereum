@@ -12,10 +12,17 @@ const inlineButton = {
   marginRight: '1em'
 };
 
+const renderHash = (hash) => {
+  const shortened = hash.length > (2 + 9 + 9)
+    ? hash.substr(2, 9) + '...' + hash.slice(-9)
+    : hash.slice(2);
+  return (<abbr title={ hash }>{ shortened }</abbr>);
+};
+
 const renderOwner = (owner) => (
   <span className={ styles.owner }>
     <IdentityIcon inline center address={ owner } />
-    <code>{ owner }</code>
+    <code>{ renderHash(owner) }</code>
   </span>
 );
 
@@ -34,7 +41,7 @@ const renderReserved = (e) => (
     { ' ' }
     <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
+    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
     { renderTimestamp(e.timestamp) }
   </p>
@@ -46,7 +53,7 @@ const renderDropped = (e) => (
     { ' ' }
     <abbr title={ e.transaction }>dropped</abbr>
     { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
+    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
     { renderTimestamp(e.timestamp) }
   </p>
