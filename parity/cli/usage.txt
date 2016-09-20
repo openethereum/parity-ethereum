@@ -189,9 +189,10 @@ Sealing/Mining Options:
                            (default: {flag_remove_solved})
   --notify-work URLS       URLs to which work package notifications are pushed.
                            URLS should be a comma-delimited list of HTTP URLs.
-  --stratum                Run Stratum server for miners to connect
-  --stratum-interface IP   Address to for stratum server to listen on [default: local]
-  --stratum-port PORT      Address to for stratum server to listen on [default: 8008]
+                           (default: {flag_notify_work:?})
+  --stratum                Run Stratum server for miners to connect (default: {flag_stratum})
+  --stratum-interface IP   Address to for stratum server to listen on (default: {flag_stratum_interface})
+  --stratum-port PORT      Address to for stratum server to listen on (default: {flag_stratum_port})
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
@@ -285,3 +286,5 @@ Miscellaneous Options:
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.
   -h --help                Show this screen.
+
+0
