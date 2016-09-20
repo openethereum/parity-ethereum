@@ -173,10 +173,23 @@ export default class Token extends Component {
   renderMeta (meta) {
     if (!meta) return;
 
+    let metaData = metaDataKeys.find(m => m.value === meta.query);
+
+    if (!meta.value) {
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          No <span className={ styles['meta-key'] }>
+            { metaData.label.toLowerCase() }
+          </span> meta-data...
+        </p>
+      </div>);
+    }
+
     return (<div>
       <p className={ styles['meta-query'] }>
-        Meta for key
-        <span className={ styles['meta-key'] }>{ meta.query }</span>:
+        <span className={ styles['meta-key'] }>
+          { metaData.label }
+        </span> meta-data:
       </p>
       <p className={ styles['meta-value'] }>{ meta.value }</p>
     </div>);

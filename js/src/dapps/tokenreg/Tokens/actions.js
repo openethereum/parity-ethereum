@@ -134,7 +134,7 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     .then((value) => {
       let meta = {
         key, query,
-        value: bytesToHex(value)
+        value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };
 
       console.log(`token meta loaded: #${index}`, value);

@@ -31,12 +31,10 @@
   font-size: 0.9rem;
   margin-top: 1.5rem;
   margin-bottom: 0;
-  font-weight: bold;
 }
 
 .meta-key {
-  margin: 0 0.3rem;
-  font-family: monospace;
+  font-weight: bold;
 }
 
 .meta-value {

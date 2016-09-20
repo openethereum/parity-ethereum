@@ -40,7 +40,7 @@ export default class AddMeta extends Component {
 
     return (<div className={ styles['add-meta'] }>
       <RaisedButton
-        label='Add Meta'
+        label='Add Meta-Data'
         icon={ <AddIcon /> }
         primary
         fullWidth
