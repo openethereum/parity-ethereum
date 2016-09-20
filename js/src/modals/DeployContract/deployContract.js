@@ -215,6 +215,7 @@ class DeployContract extends Component {
         return Promise.all([
           api.personal.setAccountName(address, name),
           api.personal.setAccountMeta(address, {
+            abi: parsedAbi,
             contract: true,
             deleted: false,
             description
