@@ -200,13 +200,17 @@ class DeployContract extends Component {
   onDeployStart = () => {
     const { api } = this.context;
     const { newError } = this.props;
-    const { parsedAbi, code, description, name } = this.state;
+    const { parsedAbi, code, description, name, fromAddress } = this.state;
+    const options = {
+      data: code,
+      from: fromAddress
+    };
 
     this.setState({ step: 2 });
 
     api
       .newContract(parsedAbi)
-      .deploy(code, null, this.onDeploymentState)
+      .deploy(options, null, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
           api.personal.setAccountName(address, name),

@@ -16,7 +16,7 @@
 
 import Abi from '../../abi';
 import Api from '../api';
-import { isInstanceOf, isObject } from '../util/types';
+import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
@@ -81,7 +81,7 @@ export default class Contract {
     return this;
   }
 
-  deploy (optionsOrCode, values, statecb) {
+  deploy (options, values, statecb) {
     let gas;
 
     const setState = (state) => {
@@ -91,11 +91,6 @@ export default class Contract {
 
       return statecb(null, state);
     };
-
-    const options = Object.assign({}, isObject(optionsOrCode)
-      ? optionsOrCode
-      : { data: optionsOrCode }
-    );
 
     setState({ state: 'estimateGas' });
 
@@ -204,12 +199,13 @@ export default class Contract {
   }
 
   _encodeOptions (func, options, values) {
-    const tokens = this._abi.encodeTokens(func.inputParamTypes(), values);
+    const tokens = func ? this._abi.encodeTokens(func.inputParamTypes(), values) : null;
+    const call = tokens ? func.encodeCall(tokens) : null;
 
     if (options.data && options.data.substr(0, 2) === '0x') {
       options.data = options.data.substr(2);
     }
-    options.data = `0x${options.data || ''}${func.encodeCall(tokens)}`;
+    options.data = `0x${options.data || ''}${call || ''}`;
 
     return options;
   }
