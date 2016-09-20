@@ -3,7 +3,9 @@ import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
-import { bytesToHex, IdentityIcon } from '../parity.js';
+import { bytesToHex } from '../parity.js';
+import renderHash from '../ui/hash.js';
+import renderAddress from '../ui/address.js';
 import styles from './events.css';
 
 const inlineButton = {
@@ -11,20 +13,6 @@ const inlineButton = {
   width: 'auto',
   marginRight: '1em'
 };
-
-const renderHash = (hash) => {
-  const shortened = hash.length > (2 + 9 + 9)
-    ? hash.substr(2, 9) + '...' + hash.slice(-9)
-    : hash.slice(2);
-  return (<abbr title={ hash }>{ shortened }</abbr>);
-};
-
-const renderOwner = (owner) => (
-  <span className={ styles.owner }>
-    <IdentityIcon inline center address={ owner } />
-    <code>{ renderHash(owner) }</code>
-  </span>
-);
 
 const renderTimestamp = (ts) => {
   ts = moment(ts);
@@ -35,9 +23,9 @@ const renderTimestamp = (ts) => {
   );
 };
 
-const renderReserved = (e) => (
+const renderReserved = (e, accounts, contacts) => (
   <p key={ e.key } className={ styles.reserved }>
-    { renderOwner(e.parameters.owner) }
+    { renderAddress(e.parameters.owner, accounts, contacts) }
     { ' ' }
     <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
@@ -47,9 +35,9 @@ const renderReserved = (e) => (
   </p>
 );
 
-const renderDropped = (e) => (
+const renderDropped = (e, accounts, contacts) => (
   <p key={ e.key } className={ styles.dropped }>
-    { renderOwner(e.parameters.owner) }
+    { renderAddress(e.parameters.owner, accounts, contacts) }
     { ' ' }
     <abbr title={ e.transaction }>dropped</abbr>
     { ' ' }
@@ -70,11 +58,13 @@ export default class Events extends Component {
     actions: PropTypes.object.isRequired,
     subscriptions: PropTypes.object.isRequired,
     pending: PropTypes.object.isRequired,
-    events: PropTypes.array.isRequired
+    events: PropTypes.array.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired
   }
 
   render () {
-    const { subscriptions, pending } = this.props;
+    const { subscriptions, pending, accounts, contacts } = this.props;
     return (
       <Card className={ styles.events }>
         <CardHeader title={ 'Stuff Happening' } />
@@ -97,7 +87,7 @@ export default class Events extends Component {
         <CardText>{
           this.props.events
             .filter((e) => eventTypes[e.type])
-            .map((e) => eventTypes[e.type](e))
+            .map((e) => eventTypes[e.type](e, accounts, contacts))
         }</CardText>
       </Card>
     );
