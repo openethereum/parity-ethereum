@@ -31,6 +31,7 @@ use ethcore::miner::Miner;
 use ethcore::service::ClientService;
 use std::time::Duration;
 use std::thread::sleep;
+use rand::{thread_rng, Rng};
 
 pub struct TestIo<'p> {
 	pub client: Arc<Client>,
@@ -196,6 +197,12 @@ impl MockPeer {
 	pub fn issue_rand_tx(&self) {
 		self.issue_tx(random_transaction())
 	}
+
+	pub fn issue_rand_txs(&self, n: usize) {
+		for _ in 0..n {
+			self.issue_rand_tx();
+		}
+	}
 }
 
 pub struct MockNet {
@@ -264,7 +271,6 @@ impl MockNet {
 			let mut io = TestIo::new(peer0.client.clone(), &peer0.snapshot_service, &mut *q0, None);
 			p.sync.write().maintain_sync(&mut io);
 			p.sync.write().propagate_new_transactions(&mut io);
-			sleep(Duration::from_secs(2));
 		}
 	}
 
@@ -302,5 +308,17 @@ impl MockNet {
 
 	pub fn done(&self) -> bool {
 		self.peers.iter().all(|p| p.queue.try_read().unwrap().is_empty())
+	}
+
+	pub fn rand_peer(&self) -> Arc<MockPeer> {
+		thread_rng().choose(&self.peers).unwrap().clone()
+	}
+
+	pub fn rand_simulation(&mut self, steps: usize) {
+		for _ in 0..steps {
+			self.rand_peer().issue_rand_tx();
+			sleep(Duration::from_millis(100));
+			self.sync();
+		}
 	}
 }

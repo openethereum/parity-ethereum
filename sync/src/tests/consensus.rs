@@ -22,14 +22,11 @@ use std::time::Duration;
 use ethcore::client::BlockChainClient;
 
 #[test]
-fn 2_peer_1_tx_seal() {
+fn two_peer_tx_seal() {
 	::env_logger::init().ok();
 	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
 	net.peer(1).issue_rand_tx();
 	sleep(Duration::from_secs(1));
-	net.sync();
-	net.sync();
-	net.sync();
 	net.sync();
 	println!("{:?}", net.peer(0).client.chain_info());
 	println!("{:?}", net.peer(1).client.chain_info());
@@ -39,21 +36,22 @@ fn 2_peer_1_tx_seal() {
 fn issue_many() {
 	::env_logger::init().ok();
 	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
-	net.peer(1).issue_rand_tx();
-	net.peer(1).issue_rand_tx();
-	net.peer(1).issue_rand_tx();
-	net.peer(1).issue_rand_tx();
-	net.peer(1).issue_rand_tx();
+	net.peer(1).issue_rand_txs(5);
 	sleep(Duration::from_secs(1));
 	net.sync();
+	net.peer(0).issue_rand_txs(5);
 	net.sync();
-	net.peer(0).issue_rand_tx();
-	net.peer(0).issue_rand_tx();
-	net.peer(0).issue_rand_tx();
-	net.peer(0).issue_rand_tx();
-	net.peer(0).issue_rand_tx();
-	net.sync();
-	net.sync();
-	//println!("{:?}", net.peer(0).client.chain_info());
-	//println!("{:?}", net.peer(1).client.chain_info());
+	println!("{:?}", net.peer(0).client.chain_info());
+	println!("{:?}", net.peer(1).client.chain_info());
+}
+
+#[test]
+fn rand_simulation() {
+	::env_logger::init().ok();
+	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
+
+	net.rand_simulation(10);
+
+	println!("{:?}", net.peer(0).client.chain_info());
+	println!("{:?}", net.peer(1).client.chain_info());
 }
