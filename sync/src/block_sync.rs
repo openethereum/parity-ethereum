@@ -205,7 +205,7 @@ impl BlockDownloader {
 				continue;
 			}
 
-			if self.highest_block == None || number > self.highest_block.unwrap() {
+			if self.highest_block.as_ref().map_or(true, |n| number > *n) {
 				self.highest_block = Some(number);
 			}
 			let hash = info.hash();

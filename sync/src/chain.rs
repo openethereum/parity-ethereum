@@ -592,12 +592,14 @@ impl ChainSync {
 			let mut downloader = match block_set {
 				BlockSet::NewBlocks => &mut self.new_blocks,
 				BlockSet::OldBlocks => {
-					if self.old_blocks.is_none() {
-						trace!(target: "sync", "Ignored block headers while block download is inactive");
-						self.continue_sync(io);
-						return Ok(());
+					match self.old_blocks {
+						None => {
+							trace!(target: "sync", "Ignored block headers while block download is inactive");
+							self.continue_sync(io);
+							return Ok(());
+						},
+						Some(ref mut blocks) => blocks,
 					}
-					self.old_blocks.as_mut().expect("Checked with condition above; qed")
 				}
 			};
 			downloader.import_headers(io, r, expected_hash)
@@ -646,13 +648,13 @@ impl ChainSync {
 			let result = {
 				let mut downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
-					BlockSet::OldBlocks => {
-						if self.old_blocks.is_none() {
+					BlockSet::OldBlocks => match self.old_blocks {
+						None => {
 							trace!(target: "sync", "Ignored block headers while block download is inactive");
 							self.continue_sync(io);
 							return Ok(());
-						}
-						self.old_blocks.as_mut().expect("Checked with condition above; qed")
+						},
+						Some(ref mut blocks) => blocks,
 					}
 				};
 				downloader.import_bodies(io, r)
@@ -700,13 +702,13 @@ impl ChainSync {
 			let result = {
 				let mut downloader = match block_set {
 					BlockSet::NewBlocks => &mut self.new_blocks,
-					BlockSet::OldBlocks => {
-						if self.old_blocks.is_none() {
+					BlockSet::OldBlocks => match self.old_blocks {
+						None => {
 							trace!(target: "sync", "Ignored block headers while block download is inactive");
 							self.continue_sync(io);
 							return Ok(());
-						}
-						self.old_blocks.as_mut().expect("Checked with condition above; qed")
+						},
+						Some(ref mut blocks) => blocks,
 					}
 				};
 				downloader.import_receipts(io, r)
@@ -1026,11 +1028,10 @@ impl ChainSync {
 					trace!(target: "sync", "Waiting for the snapshot restoration");
 					return;
 				}
-				(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned(), peer.snapshot_hash.as_ref().cloned())
+				(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned().unwrap_or(0), peer.snapshot_hash.as_ref().cloned())
 			} else {
 				return;
 			}
-			(peer.latest_hash.clone(), peer.difficulty.clone(), peer.snapshot_number.as_ref().cloned().unwrap_or(0), peer.snapshot_hash.as_ref().cloned())
 		};
 		let chain_info = io.chain().chain_info();
 		let syncing_difficulty = chain_info.pending_total_difficulty;
@@ -1234,9 +1235,13 @@ impl ChainSync {
 			if peer.asking != asking {
 				trace!(target:"sync", "Asking {:?} while expected {:?}", peer.asking, asking);
 				peer.asking = PeerAsking::Nothing;
+				return false;
+			} else {
+				peer.asking = PeerAsking::Nothing;
+				return true;
 			}
 		}
-		false
+		return false;
 	}
 
 	/// Generic request sender

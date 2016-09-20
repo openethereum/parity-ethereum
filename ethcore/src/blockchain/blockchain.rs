@@ -52,7 +52,7 @@ pub trait BlockProvider {
 
 	/// Get the number of the first block.
 	fn first_block_number(&self) -> Option<BlockNumber> {
-		self.first_block().map(|b| self.block_number(&b).expect("First block always stored; qed"))
+		self.first_block().map(|b| self.block_number(&b).expect("First block is always set to an existing block or `None`. Existing block always has a number; qed"))
 	}
 
 	/// Get the best block of an first block sequence if there is a gap.
@@ -60,7 +60,7 @@ pub trait BlockProvider {
 
 	/// Get the number of the first block.
 	fn best_ancient_number(&self) -> Option<BlockNumber> {
-		self.best_ancient_block().map(|h| self.block_number(&h).expect("Best ancient block always stored; qed"))
+		self.best_ancient_block().map(|h| self.block_number(&h).expect("Ancient block is always set to an existing block or `None`. Existing block always has a number; qed"))
 	}
 	/// Get raw block data
 	fn block(&self, hash: &H256) -> Option<Bytes>;
@@ -169,10 +169,14 @@ impl bc::group::BloomGroupDatabase for BlockChain {
 pub struct BlockChain {
 	// All locks must be captured in the order declared here.
 	blooms_config: bc::Config,
-	first_block: Option<H256>,
 
 	best_block: RwLock<BestBlock>,
+	// Stores best block of the first uninterrupted sequence of blocks. `None` if there are no gaps.
+	// Only updated with `insert_unordered_block`.
 	best_ancient_block: RwLock<Option<BestAncientBlock>>,
+	// Stores the last block of the last sequence of blocks. `None` if there are no gaps.
+	// This is calculated on start and does not get updated.
+	first_block: Option<H256>,
 
 	// block cache
 	block_headers: RwLock<HashMap<H256, Bytes>>,
