@@ -201,24 +201,6 @@ pub struct Miner {
 }
 
 impl Miner {
-	/// Creates new instance of miner without accounts, but with given spec.
-	pub fn with_spec(spec: &Spec) -> Miner {
-		Miner {
-			transaction_queue: Arc::new(Mutex::new(TransactionQueue::new())),
-			options: Default::default(),
-			next_allowed_reseal: Mutex::new(Instant::now()),
-			sealing_block_last_request: Mutex::new(0),
-			sealing_work: Mutex::new(SealingWork{queue: UsingQueue::new(20), enabled: false}),
-			gas_range_target: RwLock::new((U256::zero(), U256::zero())),
-			author: RwLock::new(Address::default()),
-			extra_data: RwLock::new(Vec::new()),
-			accounts: None,
-			engine: spec.engine.clone(),
-			notifiers: RwLock::new(Vec::new()),
-			gas_pricer: Mutex::new(GasPricer::new_fixed(20_000_000_000u64.into())),
-		}
-	}
-
 	/// Push notifier that will handle new jobs
 	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
 		self.notifiers.write().push(notifier)
