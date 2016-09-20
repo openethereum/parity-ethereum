@@ -43,22 +43,6 @@ impl JobDispatcher for StratumJobDispatcher {
 		self.job()
 	}
 
-	fn with_core<F, R>(&self, f: F) -> Option<R> where F: Fn(Arc<Client>, Arc<Miner>) -> Option<R> {
-		let client = {
-			let maybe_client = self.client.upgrade();
-			if maybe_client.is_err() { return None }
-			maybe_client.unwrap()
-		};
-
-		let miner = {
-			let maybe_miner = self.miner.upgrade();
-			if maybe_miner.is_err() { return None }
-			maybe_miner.unwrap()
-		};
-
-		(f)(client, miner)
-	}
-
 	fn job(&self) -> Option<String> {
 		{
 			let last_work = self.last_work.write();
@@ -144,6 +128,10 @@ impl StratumJobDispatcher {
 			pow_hash.hex(), seed_hash.hex(), target.hex(), number
 		)
 	}
+
+	fn with_core<F, R>(&self, f: F) -> Option<R> where F: Fn(Arc<Client>, Arc<Miner>) -> Option<R> {
+		self.client.upgrade().and_then(|client| self.miner.upgrade().and_then(|miner| (f)(client, miner)))
+	}
 }
 
 /// Wrapper for dedicated stratum service
@@ -164,7 +152,7 @@ impl From<nanoipc::SocketError> for Error {
 impl super::work_notify::NotifyWork for Stratum {
 	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		nanoipc::client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
+		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
 			.and_then(|client| {
 				client.push_work_all(
 					self.dispatcher.payload(pow_hash, difficulty, number)
