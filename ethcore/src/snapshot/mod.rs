@@ -358,7 +358,8 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	let mut used_code = HashSet::new();
 
 	// account_key here is the address' hash.
-	for (account_key, account_data) in account_trie.iter() {
+	for item in try!(account_trie.iter()) {
+		let (account_key, account_data) = try!(item);
 		let account = Account::from_thin_rlp(account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
