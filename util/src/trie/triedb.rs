@@ -279,30 +279,38 @@ pub struct TrieDBIterator<'a> {
 
 impl<'a> TrieDBIterator<'a> {
 	/// Create a new iterator.
-	pub fn new(db: &'a TrieDB) -> TrieDBIterator<'a> {
+	pub fn new(db: &'a TrieDB) -> super::Result<TrieDBIterator<'a>> {
 		let mut r = TrieDBIterator {
 			db: db,
 			trail: vec![],
 			key_nibbles: Vec::new(),
 		};
-		r.descend(db.root_data(&mut NoOp).unwrap());
-		r
+
+		try!(db.root_data(&mut NoOp).and_then(|root| r.descend(root)));
+		Ok(r)
 	}
 
 	/// Descend into a payload.
-	fn descend(&mut self, d: &'a [u8]) {
+	fn descend(&mut self, d: &'a [u8]) -> super::Result<()> {
 		self.trail.push(Crumb {
 			status: Status::Entering,
-			node: self.db.get_node(d, &mut NoOp, 0).unwrap(),
+			node: try!(self.db.get_node(d, &mut NoOp, 0)),
 		});
 		match self.trail.last().unwrap().node {
 			Node::Leaf(n, _) | Node::Extension(n, _) => { self.key_nibbles.extend(n.iter()); },
 			_ => {}
 		}
+
+		Ok(())
 	}
 
 	/// Descend into a payload and get the next item.
-	fn descend_next(&mut self, d: &'a [u8]) -> Option<(Bytes, &'a [u8])> { self.descend(d); self.next() }
+	fn descend_next(&mut self, d: &'a [u8]) -> Option<TrieItem<'a>> {
+		match self.descend(d) {
+			Ok(()) => self.next(),
+			Err(e) => Some(Err(e)),
+		}
+	}
 
 	/// The present key.
 	fn key(&self) -> Bytes {
@@ -312,12 +320,12 @@ impl<'a> TrieDBIterator<'a> {
 }
 
 impl<'a> Iterator for TrieDBIterator<'a> {
-	type Item = (Bytes, &'a [u8]);
+	type Item = TrieItem<'a>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		let b = match self.trail.last_mut() {
 			Some(mut b) => { b.increment(); b.clone() },
-			None => return None
+			None => return None,
 		};
 		match (b.status, b.node) {
 			(Status::Exiting, n) => {
@@ -332,7 +340,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 				self.trail.pop();
 				self.next()
 			},
-			(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => Some((self.key(), v)),
+			(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => Some(Ok((self.key(), v))),
 			(Status::At, Node::Extension(_, d)) => self.descend_next(d),
 			(Status::At, Node::Branch(_, _)) => self.next(),
 			(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
@@ -352,8 +360,8 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 }
 
 impl<'db> Trie for TrieDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
-		Box::new(TrieDBIterator::new(self))
+	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 
 	fn root(&self) -> &H256 { self.root }
@@ -392,6 +400,6 @@ fn iterator() {
 	}
 
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), t.iter().map(|x|x.0).collect::<Vec<_>>());
-	assert_eq!(d, t.iter().map(|x|x.1).collect::<Vec<_>>());
+	assert_eq!(d.iter().map(|i|i.to_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
+	assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
 }
