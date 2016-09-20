@@ -26,6 +26,10 @@ export default class Token extends Component {
     index: PropTypes.number,
     meta: PropTypes.object,
     owner: PropTypes.string,
+    ownerAccountInfo: PropTypes.shape({
+      name: PropTypes.string,
+      meta: PropTypes.object
+    }),
     metaPending: PropTypes.bool,
     metaMined: PropTypes.bool
   };
@@ -104,9 +108,17 @@ export default class Token extends Component {
 
   renderOwner (owner) {
     if (!owner) return null;
+
+    let ownerInfo = this.props.ownerAccountInfo;
+
+    let displayValue = (ownerInfo && ownerInfo.name)
+      ? ownerInfo.name
+      : owner;
+
     return (
       <Chip
         isAddress
+        displayValue={ displayValue }
         value={ owner }
         label='Owner' />
     );

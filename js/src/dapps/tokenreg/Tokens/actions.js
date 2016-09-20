@@ -76,6 +76,7 @@ export const loadToken = (index) => (dispatch, getState) => {
   let contractInstance = state.status.contract.instance;
 
   let userAccounts = state.accounts.list;
+  let accountsInfo = state.accounts.accountsInfo;
 
   dispatch(setTokenLoading(index, true));
 
@@ -98,6 +99,7 @@ export const loadToken = (index) => (dispatch, getState) => {
         base: result[2].toNumber(),
         name: result[3],
         owner: tokenOwner,
+        ownerAccountInfo: accountsInfo[tokenOwner],
         isPending: false,
         isTokenOwner
       };
