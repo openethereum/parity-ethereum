@@ -21,12 +21,18 @@ import { Form, Input, AddressSelect } from '../../../ui';
 export default class DetailsStep extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    abi: PropTypes.string,
+    abiError: PropTypes.string,
+    code: PropTypes.string,
+    codeError: PropTypes.string,
     description: PropTypes.string,
     descriptionError: PropTypes.string,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
+    onAbiChange: PropTypes.func.isRequired,
+    onCodeChange: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired
@@ -34,7 +40,7 @@ export default class DetailsStep extends Component {
 
   render () {
     const { accounts } = this.props;
-    const { fromAddress, fromAddressError, name, nameError, description, descriptionError, onDescriptionChange, onFromAddressChange, onNameChange } = this.props;
+    const { abi, abiError, code, codeError, onAbiChange, onCodeChange, fromAddress, fromAddressError, name, nameError, onFromAddressChange, onNameChange } = this.props;
 
     return (
       <Form>
@@ -52,11 +58,17 @@ export default class DetailsStep extends Component {
           value={ name }
           onSubmit={ onNameChange } />
         <Input
-          label='(optional) contract description'
-          hint='a description for the deployed contract'
-          error={ descriptionError }
-          value={ description }
-          onSubmit={ onDescriptionChange } />
+          label='abi'
+          hint='the abi of the contract to deploy'
+          error={ abiError }
+          value={ abi }
+          onSubmit={ onAbiChange } />
+        <Input
+          label='code'
+          hint='the compiled code of the contract to deploy'
+          error={ codeError }
+          value={ code }
+          onSubmit={ onCodeChange } />
       </Form>
     );
   }

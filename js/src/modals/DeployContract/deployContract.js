@@ -23,10 +23,11 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { newError } from '../../redux/actions';
 import { Button, IdentityIcon, Modal } from '../../ui';
 
-import CodeStep from './CodeStep';
+import BusyStep from './BusyStep';
+import CompletedStep from './CompletedStep';
 import DetailsStep from './DetailsStep';
 
-const steps = ['contract details', 'interface & code', 'deployment', 'completed'];
+const steps = ['contract details', 'deployment', 'completed'];
 
 class DeployContract extends Component {
   static contextTypes = {
@@ -62,7 +63,7 @@ class DeployContract extends Component {
         actions={ this.renderDialogActions() }
         current={ step }
         steps={ steps }
-        waiting={ [2] }
+        waiting={ [1] }
         visible>
         { this.renderStep() }
       </Modal>
@@ -71,8 +72,7 @@ class DeployContract extends Component {
 
   renderDialogActions () {
     const { abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
-    const isValidStep0 = !nameError && !fromAddressError && !descriptionError;
-    const isValidStep1 = !abiError && !codeError;
+    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError;
 
     const cancelBtn = (
       <Button
@@ -86,28 +86,18 @@ class DeployContract extends Component {
         return [
           cancelBtn,
           <Button
-            disabled={ !isValidStep0 }
-            icon={ <IdentityIcon button address={ fromAddress } /> }
-            label='Next'
-            onClick={ this.onNextStep } />
-        ];
-
-      case 1:
-        return [
-          cancelBtn,
-          <Button
-            disabled={ !isValidStep1 }
+            disabled={ !isValid }
             icon={ <IdentityIcon button address={ fromAddress } /> }
             label='Create'
             onClick={ this.onDeployStart } />
         ];
 
-      case 2:
+      case 1:
         return [
           cancelBtn
         ];
 
-      case 3:
+      case 2:
         return [
           <Button
             icon={ <ActionDoneAll /> }
@@ -119,33 +109,29 @@ class DeployContract extends Component {
 
   renderStep () {
     const { accounts } = this.props;
-    const { abi, abiError, code, codeError, description, descriptionError, fromAddress, fromAddressError, name, nameError, step } = this.state;
+    const { step } = this.state;
 
     switch (step) {
       case 0:
         return (
           <DetailsStep
+            { ...this.state }
             accounts={ accounts }
-            description={ description }
-            descriptionError={ descriptionError }
-            onDescriptionChange={ this.onDescriptionChange }
-            fromAddress={ fromAddress }
-            fromAddressError={ fromAddressError }
+            onAbiChange={ this.onAbiChange }
+            onCodeChange={ this.onCodeChange }
             onFromAddressChange={ this.onFromAddressChange }
-            name={ name }
-            nameError={ nameError }
+            onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange } />
         );
 
       case 1:
         return (
-          <CodeStep
-            abi={ abi }
-            abiError={ abiError }
-            onAbiChange={ this.onAbiChange }
-            code={ code }
-            codeError={ codeError }
-            onCodeChange={ this.onCodeChange } />
+          <BusyStep { ...this.state } />
+        );
+
+      case 2:
+        return (
+          <CompletedStep { ...this.state } />
         );
     }
   }
@@ -206,7 +192,7 @@ class DeployContract extends Component {
       from: fromAddress
     };
 
-    this.setState({ step: 2 });
+    this.setState({ step: 1 });
 
     api
       .newContract(parsedAbi)
@@ -223,6 +209,7 @@ class DeployContract extends Component {
         ])
         .then(() => {
           console.log(`contract deployed at ${address}`);
+          this.setState({ step: 2, address });
         });
       })
       .catch((error) => {
@@ -266,12 +253,6 @@ class DeployContract extends Component {
         console.error('Unknow contract deployment state', data);
         return;
     }
-  }
-
-  onNextStep = () => {
-    this.setState({
-      step: this.state.step + 1
-    });
   }
 
   onClose = () => {

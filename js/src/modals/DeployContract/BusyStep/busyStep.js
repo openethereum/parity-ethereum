@@ -16,36 +16,16 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input } from '../../../ui';
-
-export default class CodeStep extends Component {
+export default class BusyStep extends Component {
   static propTypes = {
-    abi: PropTypes.string,
-    abiError: PropTypes.string,
-    code: PropTypes.string,
-    codeError: PropTypes.string,
-    onAbiChange: PropTypes.func.isRequired,
-    onCodeChange: PropTypes.func.isRequired
+    deployStep: PropTypes.string
   }
 
   render () {
-    const { abi, abiError, code, codeError, onAbiChange, onCodeChange } = this.props;
+    const { deployStep } = this.props;
 
     return (
-      <Form>
-        <Input
-          label='abi'
-          hint='the abi of the contract to deploy'
-          error={ abiError }
-          value={ abi }
-          onSubmit={ onAbiChange } />
-        <Input
-          label='code'
-          hint='the compiled code of the contract to deploy'
-          error={ codeError }
-          value={ code }
-          onSubmit={ onCodeChange } />
-      </Form>
+      <div>{ deployStep }</div>
     );
   }
 }
