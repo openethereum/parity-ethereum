@@ -27,7 +27,6 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
-    this._connected = false;
 
     this._connect();
   }
