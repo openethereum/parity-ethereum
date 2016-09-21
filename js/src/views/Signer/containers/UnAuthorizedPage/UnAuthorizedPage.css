@@ -14,12 +14,9 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.container {
-  padding: 0;
-}
 
-.lead {
-  margin-bottom: 2rem;
+.section {
+  padding: 1em 0;
 }
 
 .toggleToken {

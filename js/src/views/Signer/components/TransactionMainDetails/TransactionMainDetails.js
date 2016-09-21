@@ -104,17 +104,21 @@ export default class TransactionMainDetails extends Component {
     return (
       <div className={ styles.transaction }>
         <div className={ styles.from }>
-          <Account address={ from } balance={ fromBalance } chain={ chain } />
+          <div className={ styles.account }>
+            <Account address={ from } balance={ fromBalance } chain={ chain } />
+          </div>
         </div>
         <div className={ styles.tx }>
           { this.renderValue() }
           <div>&rArr;</div>
           { this.renderTotalValue() }
         </div>
-        <div className={ styles.contract }>
-          <ContractIcon className={ styles.contractIcon } />
-          <br />
-          Contract
+        <div className={ styles.to }>
+          <div className={ styles.account }>
+            <ContractIcon className={ styles.contractIcon } />
+            <br />
+            Contract
+          </div>
         </div>
       </div>
     );
