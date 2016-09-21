@@ -232,7 +232,7 @@ windows:
     - cargo build --release --verbose
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/release/parity.exe
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-pc-windows-msvc/parity --body target/release/parity.exe
   tags:
    - rust-windows
   artifacts:
