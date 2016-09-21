@@ -27,9 +27,8 @@ export default class Ws extends JsonRpcBase {
     this._url = url;
     this._token = token;
     this._messages = {};
-    this._connected = false;
 
-    this._init();
+    this._connect();
   }
 
   _hash () {
@@ -39,13 +38,15 @@ export default class Ws extends JsonRpcBase {
     return `${sha3}_${time}`;
   }
 
-  _init () {
+  _connect () {
     this._ws = new WebSocket(this._url, this._hash());
 
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
+
+    this._connected = false;
   }
 
   _onOpen = (event) => {
@@ -60,7 +61,7 @@ export default class Ws extends JsonRpcBase {
   _onClose = (event) => {
     console.log('ws:onClose', event);
     this._connected = false;
-    this._init();
+    this._connect();
   }
 
   _onError = (event) => {
@@ -103,5 +104,10 @@ export default class Ws extends JsonRpcBase {
       this._messages[id] = { id, method, params, json, resolve, reject };
       this._send(id);
     });
+  }
+
+  updateToken (token) {
+    this._token = token;
+    this._connect();
   }
 }
