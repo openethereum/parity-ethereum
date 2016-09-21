@@ -18,17 +18,17 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from '../deployContract.css';
 
-export default class CompletedStep extends Component {
+export default class ErrorStep extends Component {
   static propTypes = {
-    address: PropTypes.string
+    error: PropTypes.string
   }
 
   render () {
-    const { address } = this.props;
+    const { error } = this.props;
 
     return (
       <div className={ styles.center }>
-        The contract has been deployed to { address } and added to your list of available contracts
+        The contract deployment failed: { error }
       </div>
     );
   }

@@ -16,16 +16,20 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import styles from '../deployContract.css';
+
 export default class BusyStep extends Component {
   static propTypes = {
-    deployStep: PropTypes.string
+    deployState: PropTypes.string
   }
 
   render () {
-    const { deployStep } = this.props;
+    const { deployState } = this.props;
 
     return (
-      <div>{ deployStep }</div>
+      <div className={ styles.center }>
+        The deployment is currently in progress, { deployState }
+      </div>
     );
   }
 }

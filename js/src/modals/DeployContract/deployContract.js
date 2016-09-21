@@ -26,6 +26,7 @@ import { Button, IdentityIcon, Modal } from '../../ui';
 import BusyStep from './BusyStep';
 import CompletedStep from './CompletedStep';
 import DetailsStep from './DetailsStep';
+import ErrorStep from './ErrorStep';
 
 const steps = ['contract details', 'deployment', 'completed'];
 
@@ -52,17 +53,19 @@ class DeployContract extends Component {
     fromAddressError: null,
     name: '',
     nameError: 'Contract name needs to be >2 charaters',
-    step: 0
+    step: 0,
+    deployError: null
   }
 
   render () {
-    const { step } = this.state;
+    const { step, deployError } = this.state;
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ step }
-        steps={ steps }
+        steps={ deployError ? null : steps }
+        title={ deployError ? 'deployment failed' : null }
         waiting={ [1] }
         visible>
         { this.renderStep() }
@@ -71,7 +74,7 @@ class DeployContract extends Component {
   }
 
   renderDialogActions () {
-    const { abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
+    const { deployError, abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
     const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError;
 
     const cancelBtn = (
@@ -80,6 +83,10 @@ class DeployContract extends Component {
         label='Cancel'
         onClick={ this.onClose } />
     );
+
+    if (deployError) {
+      return cancelBtn;
+    }
 
     switch (step) {
       case 0:
@@ -109,7 +116,13 @@ class DeployContract extends Component {
 
   renderStep () {
     const { accounts } = this.props;
-    const { step } = this.state;
+    const { deployError, step } = this.state;
+
+    if (deployError) {
+      return (
+        <ErrorStep error={ deployError } />
+      );
+    }
 
     switch (step) {
       case 0:
@@ -163,7 +176,7 @@ class DeployContract extends Component {
     try {
       const parsedAbi = JSON.parse(abi);
 
-      if (!api.util.isArray(parsedAbi) && !parsedAbi.length) {
+      if (!api.util.isArray(parsedAbi) || !parsedAbi.length) {
         throw new Error();
       }
 
@@ -176,7 +189,7 @@ class DeployContract extends Component {
 
   onCodeChange = (code) => {
     const { api } = this.context;
-    const codeError = api.util.isHex(code)
+    const codeError = api.util.isHex(code) && code.length
       ? null
       : 'provide the valid compiled hex string of the contract code';
 
@@ -212,9 +225,10 @@ class DeployContract extends Component {
           this.setState({ step: 2, address });
         });
       })
-      .catch((error) => {
-        console.error('error deploying contract', error);
-        newError(error);
+      .catch((deployError) => {
+        console.error('error deploying contract', deployError);
+        this.setState({ deployError });
+        newError(deployError);
       });
   }
 
@@ -233,7 +247,7 @@ class DeployContract extends Component {
         return;
 
       case 'checkRequest':
-        this.setState({ deployState: 'Waiting for confirmation of transaction in the Signer' });
+        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer' });
         return;
 
       case 'getTransactionReceipt':

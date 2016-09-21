@@ -14,22 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-
-import styles from '../deployContract.css';
-
-export default class CompletedStep extends Component {
-  static propTypes = {
-    address: PropTypes.string
-  }
-
-  render () {
-    const { address } = this.props;
-
-    return (
-      <div className={ styles.center }>
-        The contract has been deployed to { address } and added to your list of available contracts
-      </div>
-    );
-  }
-}
+export default from './errorStep';
