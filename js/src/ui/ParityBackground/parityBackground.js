@@ -17,12 +17,11 @@
 import GeoPattern from 'geopattern';
 import React, { Component, PropTypes } from 'react';
 
-import styles from './procBackground.css';
-
-export default class ProcBackground extends Component {
+export default class ParityBackground extends Component {
   static propTypes = {
     children: PropTypes.node,
-    seed: PropTypes.string.isRequired
+    className: PropTypes.string,
+    background: PropTypes.string.isRequired
   }
 
   state = {
@@ -30,31 +29,29 @@ export default class ProcBackground extends Component {
   }
 
   componentDidMount () {
-    const { seed } = this.props;
+    const { background } = this.props;
 
-    this.updateBackground(seed);
+    this.updateBackground(background);
   }
 
   componentWillReceiveProps (newProps) {
-    const { seed } = this.props;
+    const { background } = this.props;
 
-    if (newProps.seed === seed) {
+    if (newProps.background === background) {
       return;
     }
 
-    this.updateBackground(newProps.seed);
+    this.updateBackground(newProps.background);
   }
 
   render () {
-    const { children } = this.props;
+    const { children, className } = this.props;
     const { background } = this.state;
-    const style = { background };
+    const style = { background, minHeight: '100%' };
 
     return (
-      <div className={ styles.background } style={ style }>
-        <div className={ styles.content }>
-          { children }
-        </div>
+      <div className={ className } style={ style }>
+        { children }
       </div>
     );
   }

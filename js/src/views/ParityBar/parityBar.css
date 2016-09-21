@@ -34,6 +34,7 @@
   right: 16px;
   width: 860px;
   height: 250px;
+  min-height: 250px !important;
   border-radius: 4px 4px 0 0;
   background: rgb(48, 48, 48);
   padding: 1em;
@@ -41,7 +42,6 @@
 }
 
 .corner {
-  background: rgb(48, 48, 48);
   position: absolute;
   bottom: 0;
   right: 16px;

@@ -22,16 +22,17 @@ import styles from '../application.css';
 
 export default class DappContainer extends Component {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node.isRequired,
+    background: PropTypes.string.isRequired
   };
 
   render () {
-    const { children } = this.props;
+    const { background, children } = this.props;
 
     return (
       <div className={ styles.container }>
         { children }
-        <ParityBar />
+        <ParityBar background={ background } />
       </div>
     );
   }

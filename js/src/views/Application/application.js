@@ -28,7 +28,8 @@ const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 class Application extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    background: PropTypes.string
   }
 
   static propTypes = {
@@ -47,6 +48,7 @@ class Application extends Component {
   }
 
   render () {
+    const { background } = this.context;
     const { children, pending, netChain, isTest } = this.props;
     const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -57,7 +59,7 @@ class Application extends Component {
       );
     } else if (root === 'app') {
       return (
-        <DappContainer>
+        <DappContainer background={ background }>
           { children }
         </DappContainer>
       );
@@ -65,6 +67,7 @@ class Application extends Component {
 
     return (
       <Container
+        background={ background }
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
         <TabBar

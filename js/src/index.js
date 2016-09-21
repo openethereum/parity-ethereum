@@ -26,7 +26,7 @@ import Web3 from 'web3';
 
 import Api from './api';
 import { initStore } from './redux';
-import { ContextProvider, muiTheme, ProcBackground } from './ui';
+import { ContextProvider, muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer, Status } from './views';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
@@ -46,7 +46,8 @@ const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
-const backgroundSeed = api.util.sha3(initToken);
+
+const background = api.util.sha3(initToken + Date.now());
 
 // signer
 function tokenSetter (token, cb) {
@@ -67,27 +68,25 @@ ws.init(initToken);
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
-  <ProcBackground seed={ backgroundSeed }>
-    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-      <SignerWeb3Provider web3={ web3ws }>
-        <Router className={ styles.reset } history={ routerHistory }>
-          <Redirect from='/' to='/accounts' />
-          <Route path='/' component={ Application }>
-            <Route path='accounts' component={ Accounts } />
-            <Route path='account/:address' component={ Account } />
-            <Route path='addresses' component={ Addresses } />
-            <Route path='address/:address' component={ Address } />
-            <Route path='apps' component={ Dapps } />
-            <Route path='app/:name' component={ Dapp } />
-            <Route path='contracts' component={ Contracts } />
-            <Route path='contract/:address' component={ Contract } />
-            <Route path='signer' component={ Signer } />
-            <Route path='status' component={ Status } />
-            <Route path='status/:subpage' component={ Status } />
-          </Route>
-        </Router>
-      </SignerWeb3Provider>
-    </ContextProvider>
-  </ProcBackground>,
+  <ContextProvider api={ api } background={ background } muiTheme={ muiTheme } store={ store }>
+    <SignerWeb3Provider web3={ web3ws }>
+      <Router className={ styles.reset } history={ routerHistory }>
+        <Redirect from='/' to='/accounts' />
+        <Route path='/' component={ Application }>
+          <Route path='accounts' component={ Accounts } />
+          <Route path='account/:address' component={ Account } />
+          <Route path='addresses' component={ Addresses } />
+          <Route path='address/:address' component={ Address } />
+          <Route path='apps' component={ Dapps } />
+          <Route path='app/:name' component={ Dapp } />
+          <Route path='contracts' component={ Contracts } />
+          <Route path='contract/:address' component={ Contract } />
+          <Route path='signer' component={ Signer } />
+          <Route path='status' component={ Status } />
+          <Route path='status/:subpage' component={ Status } />
+        </Route>
+      </Router>
+    </SignerWeb3Provider>
+  </ContextProvider>,
   document.querySelector('#container')
 );

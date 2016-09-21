@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Badge, Button, ContainerTitle, SignerIcon } from '../../ui';
+import { Badge, Button, ContainerTitle, ParityBackground, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
@@ -28,6 +28,7 @@ import styles from './parityBar.css';
 
 class ParityBar extends Component {
   static propTypes = {
+    background: PropTypes.string.isRequired,
     pending: PropTypes.array
   }
 
@@ -44,6 +45,8 @@ class ParityBar extends Component {
   }
 
   renderBar () {
+    const { background } = this.props;
+
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
@@ -52,7 +55,7 @@ class ParityBar extends Component {
 
     return (
       <div className={ styles.bar }>
-        <div className={ styles.corner }>
+        <ParityBackground className={ styles.corner } background={ background }>
           <Link to='/apps'>
             <Button
               className={ styles.button }
@@ -64,14 +67,16 @@ class ParityBar extends Component {
             icon={ <SignerIcon className={ styles.signerIcon } /> }
             label={ this.renderSignerLabel() }
             onClick={ this.toggleDisplay } />
-        </div>
+        </ParityBackground>
       </div>
     );
   }
 
   renderExpanded () {
+    const { background } = this.props;
+
     return (
-      <div className={ styles.expanded }>
+      <ParityBackground background={ background } className={ styles.expanded }>
         <div className={ styles.header }>
           <div className={ styles.title }>
             <ContainerTitle title='Parity Signer: Pending' />
@@ -84,7 +89,7 @@ class ParityBar extends Component {
           </div>
         </div>
         <Signer />
-      </div>
+      </ParityBackground>
     );
   }
 
