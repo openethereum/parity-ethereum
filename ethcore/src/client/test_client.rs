@@ -73,6 +73,8 @@ pub struct TestBlockChainClient {
 	pub spec: Spec,
 	/// VM Factory
 	pub vm_factory: EvmFactory,
+	/// Timestamp assigned to latest sealed block
+	pub latest_block_timestamp: RwLock<u64>,
 }
 
 #[derive(Clone)]
@@ -114,6 +116,7 @@ impl TestBlockChainClient {
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter),
+			latest_block_timestamp: RwLock::new(10_000_000),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -153,6 +156,11 @@ impl TestBlockChainClient {
 	/// Set block queue size for testing
 	pub fn set_queue_size(&self, size: usize) {
 		self.queue_size.store(size, AtomicOrder::Relaxed);
+	}
+
+	/// Set timestamp assigned to latest sealed block
+	pub fn set_latest_block_timestamp(&self, ts: u64) {
+		*self.latest_block_timestamp.write() = ts;
 	}
 
 	/// Add blocks to test client.
@@ -279,7 +287,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 			extra_data
 		).expect("Opening block for tests will not fail.");
 		// TODO [todr] Override timestamp for predictability (set_timestamp_now kind of sucks)
-		open_block.set_timestamp(10_000_000);
+		open_block.set_timestamp(*self.latest_block_timestamp.read());
 		open_block
 	}
 

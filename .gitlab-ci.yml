@@ -11,6 +11,11 @@ cache:
 linux-beta:
   stage: build
   image: ethcore/rust:beta
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - cargo build --release --verbose
     - strip target/release/parity
@@ -24,6 +29,11 @@ linux-beta:
 linux-stable:
   stage: build
   image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - cargo build --release --verbose
     - strip target/release/parity
@@ -37,6 +47,11 @@ linux-stable:
 linux-nightly:
   stage: build
   image: ethcore/rust:nightly
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - cargo build --release --verbose
     - strip target/release/parity
@@ -47,9 +62,15 @@ linux-nightly:
     paths:
     - target/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - export CXX="g++"
     - export CC="gcc"
@@ -65,6 +86,11 @@ linux-centos:
 linux-armv7:
   stage: build
   image: ethcore/rust-arm:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -79,9 +105,15 @@ linux-armv7:
     paths:
     - target/armv7-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
@@ -96,9 +128,15 @@ linux-arm:
     paths:
     - target/arm-unknown-linux-gnueabihf/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-armv6:
   stage: build
   image: ethcore/rust-arm:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
@@ -113,9 +151,15 @@ linux-armv6:
     paths:
     - target/arm-unknown-linux-gnueabi/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 linux-aarch64:
   stage: build
   image: ethcore/rust-arm:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
@@ -130,8 +174,14 @@ linux-aarch64:
     paths:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "${CI_BUILD_NAME}_parity"
+  allow_failure: true
 darwin:
   stage: build
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - cargo build --release --verbose
   tags:
@@ -142,6 +192,11 @@ darwin:
     name: "${CI_BUILD_NAME}_parity"
 windows:
   stage: build
+  only:
+    - master
+    - beta
+    - tags
+    - stable
   script:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64

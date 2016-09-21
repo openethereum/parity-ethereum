@@ -408,7 +408,7 @@ impl StateRebuilder {
 	/// Create a new state rebuilder to write into the given backing DB.
 	pub fn new(db: Arc<Database>, pruning: Algorithm) -> Self {
 		StateRebuilder {
-			db: journaldb::new(db.clone(), pruning, ::client::DB_COL_STATE),
+			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
 		}
 	}

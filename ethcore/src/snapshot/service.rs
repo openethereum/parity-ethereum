@@ -99,7 +99,7 @@ struct Restoration {
 impl Restoration {
 	// make a new restoration, building databases in the given path.
 	fn new(manifest: &ManifestData, pruning: Algorithm, path: &Path, gb: &[u8]) -> Result<Self, Error> {
-		let cfg = DatabaseConfig::with_columns(::client::DB_NO_OF_COLUMNS);
+		let cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 		let raw_db = Arc::new(try!(Database::open(&cfg, &*path.to_string_lossy())
 			.map_err(UtilError::SimpleString)));
 

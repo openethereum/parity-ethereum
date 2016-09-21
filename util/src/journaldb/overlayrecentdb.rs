@@ -250,9 +250,9 @@ impl JournalDB for OverlayRecentDB {
 			k.append(&now);
 			k.append(&index);
 			k.append(&&PADDING[..]);
-			try!(batch.put_vec(self.column, &k.drain(), r.out()));
+			batch.put_vec(self.column, &k.drain(), r.out());
 			if journal_overlay.latest_era.map_or(true, |e| now > e) {
-				try!(batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec()));
+				batch.put_vec(self.column, &LATEST_ERA_KEY, encode(&now).to_vec());
 				journal_overlay.latest_era = Some(now);
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
@@ -272,7 +272,7 @@ impl JournalDB for OverlayRecentDB {
 					r.append(&end_era);
 					r.append(&index);
 					r.append(&&PADDING[..]);
-					try!(batch.delete(self.column, &r.drain()));
+					batch.delete(self.column, &r.drain());
 					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
 					{
 						if canon_id == journal.id {
@@ -291,7 +291,7 @@ impl JournalDB for OverlayRecentDB {
 				}
 				// apply canon inserts first
 				for (k, v) in canon_insertions {
-					try!(batch.put(self.column, &k, &v));
+					batch.put(self.column, &k, &v);
 					journal_overlay.pending_overlay.insert(to_short_key(&k), v);
 				}
 				// update the overlay
@@ -301,7 +301,7 @@ impl JournalDB for OverlayRecentDB {
 				// apply canon deletions
 				for k in canon_deletions {
 					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-						try!(batch.delete(self.column, &k));
+						batch.delete(self.column, &k);
 					}
 				}
 			}
@@ -325,13 +325,13 @@ impl JournalDB for OverlayRecentDB {
 					if try!(self.backing.get(self.column, &key)).is_some() {
 						return Err(BaseDataError::AlreadyExists(key).into());
 					}
-					try!(batch.put(self.column, &key, &value))
+					batch.put(self.column, &key, &value)
 				}
 				-1 => {
 					if try!(self.backing.get(self.column, &key)).is_none() {
 						return Err(BaseDataError::NegativelyReferencedHash(key).into());
 					}
-					try!(batch.delete(self.column, &key))
+					batch.delete(self.column, &key)
 				}
 				_ => panic!("Attempted to inject invalid state."),
 			}

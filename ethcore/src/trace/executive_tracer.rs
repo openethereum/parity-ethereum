@@ -52,11 +52,12 @@ fn update_trace_address(traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	let mut subtrace_subtraces_left = 0;
 	traces.into_iter().map(|mut trace| {
 		let is_top_subtrace = trace.trace_address.is_empty();
+		let is_subtrace = trace.trace_address.len() == 1;
 		trace.trace_address.push_front(top_subtrace_index);
 
 		if is_top_subtrace {
 			subtrace_subtraces_left = trace.subtraces;
-		} else {
+		} else if is_subtrace {
 			subtrace_subtraces_left -= 1;
 		}
 

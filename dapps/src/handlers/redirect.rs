@@ -21,13 +21,13 @@ use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
 pub struct Redirection {
-	to_url: &'static str
+	to_url: String
 }
 
 impl Redirection {
-	pub fn new(url: &'static str) -> Box<Self> {
+	pub fn new(url: &str) -> Box<Self> {
 		Box::new(Redirection {
-			to_url: url
+			to_url: url.to_owned()
 		})
 	}
 }

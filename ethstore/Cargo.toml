@@ -21,7 +21,6 @@ itertools = "0.4"
 
 [build-dependencies]
 serde_codegen = { version = "0.7", optional = true }
-syntex = "0.33.0"
 
 [features]
 default = ["serde_codegen"]

@@ -49,6 +49,13 @@ include!(concat!(env!("OUT_DIR"), "/lib.rs"));
 include!("lib.rs.in");
 
 #[cfg(feature = "with-syntex")]
+pub fn expand(src: &std::path::Path, dst: &std::path::Path) {
+	let mut registry = syntex::Registry::new();
+	register(&mut registry);
+	registry.expand("", src, dst).unwrap();
+}
+
+#[cfg(feature = "with-syntex")]
 pub fn register(reg: &mut syntex::Registry) {
 	use syntax::{ast, fold};
 

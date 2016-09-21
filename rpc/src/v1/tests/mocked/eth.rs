@@ -30,6 +30,7 @@ use ethsync::SyncState;
 use v1::{Eth, EthClient, EthClientOptions, EthSigning, EthSigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use rustc_serialize::hex::ToHex;
+use time::get_time;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -818,7 +819,7 @@ fn rpc_eth_compile_serpent() {
 }
 
 #[test]
-fn returns_no_work_if_cant_mine() {
+fn rpc_get_work_returns_no_work_if_cant_mine() {
 	let eth_tester = EthTester::default();
 	eth_tester.client.set_queue_size(10);
 
@@ -829,7 +830,7 @@ fn returns_no_work_if_cant_mine() {
 }
 
 #[test]
-fn returns_correct_work_package() {
+fn rpc_get_work_returns_correct_work_package() {
 	let eth_tester = EthTester::default();
 	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
 
@@ -840,7 +841,7 @@ fn returns_correct_work_package() {
 }
 
 #[test]
-fn should_not_return_block_number() {
+fn rpc_get_work_should_not_return_block_number() {
 	let eth_tester = EthTester::new_with_options(EthClientOptions {
 		allow_pending_receipt_query: true,
 		send_block_number_in_get_work: false,
@@ -851,4 +852,29 @@ fn should_not_return_block_number() {
 	let response = r#"{"jsonrpc":"2.0","result":["0x3bbe93f74e7b97ae00784aeff8819c5cb600dd87e8b282a5d3446f3f871f0347","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000"],"id":1}"#;
 
 	assert_eq!(eth_tester.io.handle_request(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_get_work_should_timeout() {
+	let eth_tester = EthTester::default();
+	eth_tester.miner.set_author(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap());
+	eth_tester.client.set_latest_block_timestamp(get_time().sec as u64 - 1000);  // Set latest block to 1000 seconds ago
+	let hash = eth_tester.miner.map_sealing_work(&*eth_tester.client, |b| b.hash()).unwrap();
+
+	// Request with timeout of 0 seconds. This should work since we're disabling timeout.
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": [], "id": 1}"#;
+	let work_response = format!(
+		r#"{{"jsonrpc":"2.0","result":["0x{:?}","0x0000000000000000000000000000000000000000000000000000000000000000","0x0000800000000000000000000000000000000000000000000000000000000000","0x01"],"id":1}}"#,
+		hash,
+	);
+	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+
+	// Request with timeout of 10K seconds. This should work.
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10000"], "id": 1}"#;
+	assert_eq!(eth_tester.io.handle_request(request), Some(work_response.to_owned()));
+
+	// Request with timeout of 10 seconds. This should fail.
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_getWork", "params": ["10"], "id": 1}"#;
+	let err_response = r#"{"jsonrpc":"2.0","error":{"code":-32003,"message":"Work has not changed.","data":null},"id":1}"#;
+	assert_eq!(eth_tester.io.handle_request(request), Some(err_response.to_owned()));
 }

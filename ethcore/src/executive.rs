@@ -16,12 +16,11 @@
 
 //! Transaction Execution environment.
 use common::*;
-use state::*;
+use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
-use substate::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
@@ -487,7 +486,7 @@ mod tests {
 	use super::*;
 	use common::*;
 	use evm::{Factory, VMType};
-	use substate::*;
+	use state::Substate;
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
