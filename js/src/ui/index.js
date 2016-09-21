@@ -22,7 +22,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import Errors from './Errors';
-import Form, { FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
+import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
 import Modal from './Modal';
 import muiTheme from './Theme';
@@ -32,6 +32,7 @@ import Tooltips, { Tooltip } from './Tooltips';
 
 export {
   Actionbar,
+  AddressSelect,
   Badge,
   Balance,
   Button,

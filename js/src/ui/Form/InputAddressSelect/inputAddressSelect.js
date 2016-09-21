@@ -17,17 +17,16 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { MenuItem, Toggle } from 'material-ui';
+import { Toggle } from 'material-ui';
 
-import IdentityIcon from '../../IdentityIcon';
+import AddressSelect from '../AddressSelect';
 import InputAddress from '../InputAddress';
-import Select from '../Select';
 
 import styles from './inputAddressSelect.css';
 
 class InputAddressSelect extends Component {
   static propTypes = {
-    entries: PropTypes.array,
+    accounts: PropTypes.object,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
@@ -72,51 +71,18 @@ class InputAddressSelect extends Component {
   }
 
   renderSelect () {
-    const { disabled, error, hint, label, value } = this.props;
+    const { accounts, disabled, error, hint, label, value } = this.props;
 
     return (
-      <Select
+      <AddressSelect
+        accounts={ accounts }
         disabled={ disabled }
         label={ label }
         hint={ hint }
         error={ error }
         value={ value }
-        onChange={ this.onChangeSelect }>
-        { this.renderSelectAccounts() }
-      </Select>
+        onChange={ this.onChangeSelect } />
     );
-  }
-
-  renderAccountItem = (account) => {
-    const item = (
-      <div className={ styles.account }>
-        <div className={ styles.image }>
-          <IdentityIcon
-            inline center
-            address={ account.address } />
-        </div>
-        <div className={ styles.details }>
-          <div className={ styles.name }>
-            { account.name || 'Unnamed' }
-          </div>
-        </div>
-      </div>
-    );
-
-    return (
-      <MenuItem
-        key={ account.address }
-        value={ account.address }
-        label={ item }>
-        { item }
-      </MenuItem>
-    );
-  }
-
-  renderSelectAccounts () {
-    const { entries } = this.props;
-
-    return entries.map(this.renderAccountItem);
   }
 
   onToggle = () => {
@@ -131,11 +97,8 @@ class InputAddressSelect extends Component {
     this.props.onChange(event, value);
   }
 
-  onChangeSelect = (event, idx) => {
-    const { entries } = this.props;
-    console.log(entries[idx].address);
-
-    this.props.onChange(event, entries[idx].address);
+  onChangeSelect = (event, value) => {
+    this.props.onChange(event, value);
   }
 }
 

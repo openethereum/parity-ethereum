@@ -14,18 +14,25 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.inputselect {
-  position: relative;
+.account {
+  max-height: 36px;
+  padding: 4px 0 0 0;
+  line-height: 32px;
+  margin-top: 11px;
 }
 
-.inputselect svg {
-  padding-right: 84px;
+.details {
+  display: inline-block;
+  vertical-align: top;
 }
 
-.toggle {
-  position: absolute !important;
-  top: 38px;
-  right: 0;
-  display: inline-block !important;
-  width: auto !important;
+.image {
+  display: inline-block;
+  max-height: 32px;
+}
+
+.name {
+  line-height: 32px;
+  vertical-align: top;
+  text-transform: uppercase;
 }

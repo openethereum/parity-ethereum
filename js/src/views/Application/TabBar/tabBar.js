@@ -22,6 +22,7 @@ import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-bal
 import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
 import ActionSettings from 'material-ui/svg-icons/action/settings';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
+import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
@@ -285,6 +286,13 @@ export default class TabBar extends Component {
       label: 'Applications',
       route: '/apps',
       value: 'app'
+    },
+    contracts: {
+      active: false,
+      icon: <ImageGridOn />,
+      label: 'Contracts',
+      route: '/contracts',
+      value: 'contract'
     },
     status: {
       active: true,

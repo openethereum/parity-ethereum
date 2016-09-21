@@ -14,21 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddressSelect from './AddressSelect';
-import FormWrap from './FormWrap';
-import Input from './Input';
-import InputAddress from './InputAddress';
-import InputAddressSelect from './InputAddressSelect';
-import InputInline from './InputInline';
-import Select from './Select';
+import React, { Component, PropTypes } from 'react';
 
-export default from './form';
-export {
-  AddressSelect,
-  FormWrap,
-  Input,
-  InputAddress,
-  InputAddressSelect,
-  InputInline,
-  Select
-};
+import styles from '../deployContract.css';
+
+export default class ErrorStep extends Component {
+  static propTypes = {
+    error: PropTypes.string
+  }
+
+  render () {
+    const { error } = this.props;
+
+    return (
+      <div className={ styles.center }>
+        The contract deployment failed: { error }
+      </div>
+    );
+  }
+}
