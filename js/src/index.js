@@ -42,15 +42,16 @@ import './index.html';
 es6Promise.polyfill();
 injectTapEventPlugin();
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
+const initToken = window.localStorage.getItem('sysuiToken');
+const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
+
+const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
 
 // signer
 function tokenSetter (token, cb) {
   window.localStorage.setItem('sysuiToken', token);
 }
 
-const initToken = window.localStorage.getItem('sysuiToken');
-const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
 const ws = new Ws(parityUrl);
 const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
