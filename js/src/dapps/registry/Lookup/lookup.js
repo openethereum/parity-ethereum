@@ -1,12 +1,11 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
-import DropDownMenu from 'material-ui/DropDownMenu';
-import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
 import renderAddress from '../ui/address.js';
 
+import recordTypeSelect from '../ui/record-type-select.js';
 import styles from './lookup.css';
 
 const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
@@ -48,15 +47,7 @@ export default class Lookup extends Component {
             value={ name }
             onChange={ this.onNameChange }
           />
-          <DropDownMenu
-            className={ styles.spacing }
-            value={ type }
-            onChange={ this.onTypeChange }
-          >
-            <MenuItem value='A' primaryText='A – Ethereum address' />
-            <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
-            <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
-          </DropDownMenu>
+          { recordTypeSelect(type, this.onTypeChange, styles.spacing) }
           <RaisedButton
             className={ styles.spacing }
             label='Lookup'
