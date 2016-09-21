@@ -17,6 +17,8 @@
 import GeoPattern from 'geopattern';
 import React, { Component, PropTypes } from 'react';
 
+import styles from './procBackground.css';
+
 export default class ProcBackground extends Component {
   static propTypes = {
     children: PropTypes.node,
@@ -46,11 +48,18 @@ export default class ProcBackground extends Component {
   render () {
     const { children } = this.props;
     const { backgroundImage } = this.state;
-    const style = { backgroundImage, width: '100%', height: '100%' };
+    const style = {
+      backgroundImage,
+      backgroundAttachment: 'fixed',
+      width: '100%',
+      height: '100%'
+    };
 
     return (
       <div style={ style }>
-        { children }
+        <div className={ styles.overlay }>
+          { children }
+        </div>
       </div>
     );
   }
