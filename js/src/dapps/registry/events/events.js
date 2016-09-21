@@ -14,8 +14,11 @@ const inlineButton = {
   marginRight: '1em'
 };
 
-const renderTimestamp = (ts) => {
+const renderTimestamp = (ts, pending) => {
   ts = moment(ts);
+  if (pending) {
+    return (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
+  }
   return (
     <time dateTime={ ts.toISOString() }>
       <abbr title={ ts.format('MMMM Do YYYY, h:mm:ss a') }>{ ts.fromNow() }</abbr>
@@ -24,26 +27,26 @@ const renderTimestamp = (ts) => {
 };
 
 const renderReserved = (e, accounts, contacts) => (
-  <p key={ e.key } className={ styles.reserved }>
+  <p key={ e.key } className={ styles.reserved + (e.state === 'pending' ? ' ' + styles.pending : '') }>
     { renderAddress(e.parameters.owner, accounts, contacts) }
     { ' ' }
     <abbr title={ e.transaction }>reserved</abbr>
     { ' ' }
     <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
-    { renderTimestamp(e.timestamp) }
+    { renderTimestamp(e.timestamp, e.state === 'pending') }
   </p>
 );
 
 const renderDropped = (e, accounts, contacts) => (
-  <p key={ e.key } className={ styles.dropped }>
+  <p key={ e.key } className={ styles.dropped + (e.state === 'pending' ? ' ' + styles.pending : '') }>
     { renderAddress(e.parameters.owner, accounts, contacts) }
     { ' ' }
     <abbr title={ e.transaction }>dropped</abbr>
     { ' ' }
     <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
     { ' ' }
-    { renderTimestamp(e.timestamp) }
+    { renderTimestamp(e.timestamp, e.state === 'pending') }
   </p>
 );
 

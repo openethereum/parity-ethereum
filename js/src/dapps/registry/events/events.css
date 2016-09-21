@@ -18,6 +18,10 @@
   cursor: help;
 }
 
+.pending {
+  opacity: .6;
+}
+
 .owner code {
   display: inline-block;
   vertical-align: top;
