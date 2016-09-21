@@ -9,6 +9,7 @@ import styles from './application.css';
 import Accounts from '../accounts';
 import Lookup from '../Lookup';
 import Register from '../register';
+import Records from '../records';
 import Events from '../events';
 
 const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
@@ -53,6 +54,7 @@ export default class Application extends Component {
           <div>
             <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
+            <Records />
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <p className={ styles.address }>
               The Registry is provided by the contract at <code>{ contract.address }.</code>
