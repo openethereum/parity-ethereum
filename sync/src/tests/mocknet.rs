@@ -29,6 +29,7 @@ use ::SyncConfig;
 use devtools::RandomTempPath;
 use ethcore::miner::Miner;
 use ethcore::service::ClientService;
+use ethcore::header::BlockNumber;
 use std::time::Duration;
 use std::thread::sleep;
 use rand::{thread_rng, Rng};
@@ -271,6 +272,7 @@ impl MockNet {
 			let mut io = TestIo::new(peer0.client.clone(), &peer0.snapshot_service, &mut *q0, None);
 			p.sync.write().maintain_sync(&mut io);
 			p.sync.write().propagate_new_transactions(&mut io);
+			sleep(Duration::from_millis(10));
 		}
 	}
 
@@ -317,8 +319,18 @@ impl MockNet {
 	pub fn rand_simulation(&mut self, steps: usize) {
 		for _ in 0..steps {
 			self.rand_peer().issue_rand_tx();
-			sleep(Duration::from_millis(100));
+			sleep(Duration::from_millis(500));
 			self.sync();
+		}
+	}
+
+	pub fn is_synced(&self, block: BlockNumber) {
+		println!("Is block {:?}", &block);
+		let hash = self.peer(0).client.chain_info().best_block_hash;
+		for p in &self.peers {
+			let ci = p.client.chain_info();
+			assert_eq!(ci.best_block_number, block);
+			assert_eq!(ci.best_block_hash, hash);
 		}
 	}
 }

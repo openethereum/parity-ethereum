@@ -112,8 +112,8 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 
 	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
-			debug!(target: "authorityround", "timeout");
 			if let Some(engine) = self.engine.upgrade() {
+				debug!(target: "authorityround", "Timeout step: {}", engine.step.load(AtomicOrdering::Relaxed));
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
 			}

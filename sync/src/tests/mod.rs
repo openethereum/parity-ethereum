@@ -19,4 +19,4 @@ pub mod snapshot;
 pub mod mocknet;
 mod chain;
 mod rpc;
-mod consensus;
+mod auth_round;
