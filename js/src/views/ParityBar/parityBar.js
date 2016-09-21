@@ -28,7 +28,6 @@ import styles from './parityBar.css';
 
 class ParityBar extends Component {
   static propTypes = {
-    background: PropTypes.string.isRequired,
     pending: PropTypes.array
   }
 
@@ -45,8 +44,6 @@ class ParityBar extends Component {
   }
 
   renderBar () {
-    const { background } = this.props;
-
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
@@ -55,7 +52,7 @@ class ParityBar extends Component {
 
     return (
       <div className={ styles.bar }>
-        <ParityBackground className={ styles.corner } background={ background }>
+        <ParityBackground className={ styles.corner }>
           <Link to='/apps'>
             <Button
               className={ styles.button }
@@ -73,10 +70,8 @@ class ParityBar extends Component {
   }
 
   renderExpanded () {
-    const { background } = this.props;
-
     return (
-      <ParityBackground background={ background } className={ styles.expanded }>
+      <ParityBackground className={ styles.expanded }>
         <div className={ styles.header }>
           <div className={ styles.title }>
             <ContainerTitle title='Parity Signer: Pending' />

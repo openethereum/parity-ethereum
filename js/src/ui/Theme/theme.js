@@ -35,4 +35,12 @@ muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
 
+muiTheme.parity = {
+  backgroundSeed: '0x0',
+
+  setBackgroundSeed: (seed) => {
+    muiTheme.parity.backgroundSeed = seed;
+  }
+};
+
 export default muiTheme;

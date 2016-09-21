@@ -19,7 +19,6 @@ import { Component, PropTypes } from 'react';
 export default class ContextProvider extends Component {
   static propTypes = {
     api: PropTypes.object.isRequired,
-    background: PropTypes.string.isRequired,
     muiTheme: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired,
     children: PropTypes.node.isRequired
@@ -27,7 +26,6 @@ export default class ContextProvider extends Component {
 
   static childContextTypes = {
     api: PropTypes.object,
-    background: PropTypes.string,
     muiTheme: PropTypes.object,
     store: PropTypes.object
   }
@@ -39,11 +37,10 @@ export default class ContextProvider extends Component {
   }
 
   getChildContext () {
-    const { api, background, muiTheme, store } = this.props;
+    const { api, muiTheme, store } = this.props;
 
     return {
       api,
-      background,
       muiTheme,
       store
     };

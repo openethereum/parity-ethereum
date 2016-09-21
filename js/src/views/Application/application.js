@@ -48,7 +48,6 @@ class Application extends Component {
   }
 
   render () {
-    const { background } = this.context;
     const { children, pending, netChain, isTest } = this.props;
     const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -59,7 +58,7 @@ class Application extends Component {
       );
     } else if (root === 'app') {
       return (
-        <DappContainer background={ background }>
+        <DappContainer>
           { children }
         </DappContainer>
       );
@@ -67,7 +66,6 @@ class Application extends Component {
 
     return (
       <Container
-        background={ background }
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
         <TabBar

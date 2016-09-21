@@ -20,48 +20,25 @@ import React, { Component, PropTypes } from 'react';
 const GRADIENT = 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5))';
 
 export default class ParityBackground extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     children: PropTypes.node,
-    className: PropTypes.string,
-    background: PropTypes.string.isRequired
-  }
-
-  state = {
-    background: ''
-  }
-
-  componentDidMount () {
-    const { background } = this.props;
-
-    this.updateBackground(background);
-  }
-
-  componentWillReceiveProps (newProps) {
-    const { background } = this.props;
-
-    if (newProps.background === background) {
-      return;
-    }
-
-    this.updateBackground(newProps.background);
+    className: PropTypes.string
   }
 
   render () {
     const { children, className } = this.props;
-    const { background } = this.state;
-    const style = { background };
+    const { backgroundSeed } = this.context.muiTheme.parity;
+    const url = GeoPattern.generate(backgroundSeed).toDataUrl();
+    const style = { background: `${GRADIENT}, ${url}` };
 
     return (
       <div className={ className } style={ style }>
         { children }
       </div>
     );
-  }
-
-  updateBackground (seed) {
-    const url = GeoPattern.generate(seed).toDataUrl();
-    const background = `${GRADIENT}, ${url}`;
-
-    this.setState({ background });
   }
 }

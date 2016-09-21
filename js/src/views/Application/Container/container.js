@@ -23,17 +23,16 @@ import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {
-    background: PropTypes.string.isRequired,
     children: PropTypes.node.isRequired,
     showFirstRun: PropTypes.bool,
     onCloseFirstRun: PropTypes.func
   };
 
   render () {
-    const { background, children, showFirstRun, onCloseFirstRun } = this.props;
+    const { children, showFirstRun, onCloseFirstRun } = this.props;
 
     return (
-      <ParityBackground background={ background } className={ styles.container }>
+      <ParityBackground className={ styles.container }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
