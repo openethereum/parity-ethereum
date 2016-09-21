@@ -420,10 +420,27 @@ impl fmt::Debug for State {
 
 impl Clone for State {
 	fn clone(&self) -> State {
+		let cache = {
+			let mut cache = HashMap::new();
+			for (key, val) in self.cache.borrow().iter() {
+				let key = key.clone();
+				match *val {
+					Some(ref acc) if acc.is_dirty() => {
+						cache.insert(key, Some(acc.clone()));
+					},
+					None => {
+						cache.insert(key, None);
+					},
+					_ => {},
+				}
+			}
+			cache
+		};
+
 		State {
 			db: self.db.boxed_clone(),
 			root: self.root.clone(),
-			cache: RefCell::new(self.cache.borrow().clone()),
+			cache: RefCell::new(cache),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),

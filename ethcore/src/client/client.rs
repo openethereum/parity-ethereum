@@ -144,7 +144,9 @@ pub struct Client {
 	factories: Factories,
 }
 
-const HISTORY: u64 = 1200;
+/// The pruning constant -- how old blocks must be before we
+/// assume finality of a given candidate.
+pub const HISTORY: u64 = 1200;
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
@@ -957,7 +959,7 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn logs(&self, filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry> {
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
 		let blocks = filter.bloom_possibilities().iter()
 			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
 			.flat_map(|m| m)
@@ -966,7 +968,7 @@ impl BlockChainClient for Client {
 			.into_iter()
 			.collect::<Vec<u64>>();
 
-		self.chain.read().logs(blocks, |entry| filter.matches(entry), limit)
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

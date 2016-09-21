@@ -23,7 +23,7 @@ use ethcore::client::MiningBlockChainClient;
 use util::{U256, Address, H256, Mutex};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
-use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationsQueue, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest};
+use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest, SignerService};
 use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch};
 use v1::traits::EthSigning;
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
@@ -43,7 +43,7 @@ fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> Fille
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-	queue: Weak<ConfirmationsQueue>,
+	signer: Weak<SignerService>,
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
@@ -60,9 +60,9 @@ pub enum DispatchResult {
 
 impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates a new signing queue client given shared signing queue.
-	pub fn new(queue: &Arc<ConfirmationsQueue>, client: &Arc<C>, miner: &Arc<M>, accounts: &Arc<AccountProvider>) -> Self {
+	pub fn new(signer: &Arc<SignerService>, client: &Arc<C>, miner: &Arc<M>, accounts: &Arc<AccountProvider>) -> Self {
 		EthSigningQueueClient {
-			queue: Arc::downgrade(queue),
+			signer: Arc::downgrade(signer),
 			accounts: Arc::downgrade(accounts),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -86,8 +86,8 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 				return Ok(DispatchResult::Value(to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
 			}
 
-			let queue = take_weak!(self.queue);
-			queue.add_request(ConfirmationPayload::Sign(address, msg))
+			let signer = take_weak!(self.signer);
+			signer.add_request(ConfirmationPayload::Sign(address, msg))
 				.map(DispatchResult::Promise)
 				.map_err(|_| errors::request_rejected_limit())
 		})
@@ -105,9 +105,9 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender).map(DispatchResult::Value);
 				}
 
-				let queue = take_weak!(self.queue);
+				let signer = take_weak!(self.signer);
 				let request = fill_optional_fields(request, &*client, &*miner);
-				queue.add_request(ConfirmationPayload::Transaction(request))
+				signer.add_request(ConfirmationPayload::Transaction(request))
 					.map(DispatchResult::Promise)
 					.map_err(|_| errors::request_rejected_limit())
 			})
