@@ -27,7 +27,7 @@ use std::path::{Path, PathBuf};
 
 use util::Bytes;
 use util::hash::H256;
-use util::rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
+use rlp::{self, Encodable, RlpStream, UntrustedRlp, Stream, View};
 
 use super::ManifestData;
 
@@ -339,5 +339,93 @@ impl SnapshotReader for LooseReader {
 		try!(file.read_to_end(&mut buf));
 
 		Ok(buf)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use devtools::RandomTempPath;
+	use util::sha3::Hashable;
+
+	use snapshot::ManifestData;
+	use super::{SnapshotWriter, SnapshotReader, PackedWriter, PackedReader, LooseWriter, LooseReader};
+
+	const STATE_CHUNKS: &'static [&'static [u8]] = &[b"dog", b"cat", b"hello world", b"hi", b"notarealchunk"];
+	const BLOCK_CHUNKS: &'static [&'static [u8]] = &[b"hello!", b"goodbye!", b"abcdefg", b"hijklmnop", b"qrstuvwxy", b"and", b"z"];
+
+	#[test]
+	fn packed_write_and_read() {
+		let path = RandomTempPath::new();
+		let mut writer = PackedWriter::new(path.as_path()).unwrap();
+
+		let mut state_hashes = Vec::new();
+		let mut block_hashes = Vec::new();
+
+		for chunk in STATE_CHUNKS {
+			let hash = chunk.sha3();
+			state_hashes.push(hash.clone());
+			writer.write_state_chunk(hash, chunk).unwrap();
+		}
+
+		for chunk in BLOCK_CHUNKS {
+			let hash = chunk.sha3();
+			block_hashes.push(hash.clone());
+			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+		}
+
+		let manifest = ManifestData {
+			state_hashes: state_hashes,
+			block_hashes: block_hashes,
+			state_root: b"notarealroot".sha3(),
+			block_number: 12345678987654321,
+			block_hash: b"notarealblock".sha3(),
+		};
+
+		writer.finish(manifest.clone()).unwrap();
+
+		let reader = PackedReader::new(path.as_path()).unwrap().unwrap();
+		assert_eq!(reader.manifest(), &manifest);
+
+		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {
+			reader.chunk(hash.clone()).unwrap();
+		}
+	}
+
+	#[test]
+	fn loose_write_and_read() {
+		let path = RandomTempPath::new();
+		let mut writer = LooseWriter::new(path.as_path().into()).unwrap();
+
+		let mut state_hashes = Vec::new();
+		let mut block_hashes = Vec::new();
+
+		for chunk in STATE_CHUNKS {
+			let hash = chunk.sha3();
+			state_hashes.push(hash.clone());
+			writer.write_state_chunk(hash, chunk).unwrap();
+		}
+
+		for chunk in BLOCK_CHUNKS {
+			let hash = chunk.sha3();
+			block_hashes.push(hash.clone());
+			writer.write_block_chunk(chunk.sha3(), chunk).unwrap();
+		}
+
+		let manifest = ManifestData {
+			state_hashes: state_hashes,
+			block_hashes: block_hashes,
+			state_root: b"notarealroot".sha3(),
+			block_number: 12345678987654321,
+			block_hash: b"notarealblock".sha3(),
+		};
+
+		writer.finish(manifest.clone()).unwrap();
+
+		let reader = LooseReader::new(path.as_path().into()).unwrap();
+		assert_eq!(reader.manifest(), &manifest);
+
+		for hash in manifest.state_hashes.iter().chain(&manifest.block_hashes) {
+			reader.chunk(hash.clone()).unwrap();
+		}
 	}
 }

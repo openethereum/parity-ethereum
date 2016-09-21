@@ -58,6 +58,8 @@ impl Engine for InstantSeal {
 		Schedule::new_homestead()
 	}
 
+	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
+
 	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
 		Some(Vec::new())
 	}
@@ -71,23 +73,19 @@ mod tests {
 	use spec::Spec;
 	use block::*;
 
-	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_instant() -> Spec { Spec::load(include_bytes!("../../res/instant_seal.json")) }
-
 	#[test]
 	fn instant_can_seal() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 
-		let spec = new_test_instant();
+		let spec = Spec::new_test_instant();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_journal_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		// Seal with empty AccountProvider.
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
@@ -96,12 +94,12 @@ mod tests {
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = new_test_instant().engine;
+		let engine = Spec::new_test_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());
 
-		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 	}

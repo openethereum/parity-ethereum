@@ -98,12 +98,10 @@ impl AccountDiff {
 
 // TODO: refactor into something nicer.
 fn interpreted_hash(u: &H256) -> String {
-	use util::bytes::*;
-
 	if u <= &H256::from(0xffffffff) {
-		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u32(), U256::from(u.as_slice()).low_u32())
+		format!("{} = 0x{:x}", U256::from(&**u).low_u32(), U256::from(&**u).low_u32())
 	} else if u <= &H256::from(u64::max_value()) {
-		format!("{} = 0x{:x}", U256::from(u.as_slice()).low_u64(), U256::from(u.as_slice()).low_u64())
+		format!("{} = 0x{:x}", U256::from(&**u).low_u64(), U256::from(&**u).low_u64())
 //	} else if u <= &H256::from("0xffffffffffffffffffffffffffffffffffffffff") {
 //		format!("@{}", Address::from(u))
 	} else {
@@ -113,7 +111,7 @@ fn interpreted_hash(u: &H256) -> String {
 
 impl fmt::Display for AccountDiff {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		use util::bytes::*;
+		use util::bytes::ToPretty;
 
 		match self.nonce {
 			Diff::Born(ref x) => try!(write!(f, "  non {}", x)),

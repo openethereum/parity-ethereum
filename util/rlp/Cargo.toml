@@ -1,0 +1,12 @@
+[package]
+description = "Recursive-length prefix encoding, decoding, and compression"
+license = "GPL-3.0"
+name = "rlp"
+version = "0.1.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+elastic-array = "0.5"
+ethcore-bigint = { path = "../bigint" }
+lazy_static = "0.2"
+rustc-serialize = "0.3"

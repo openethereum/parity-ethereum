@@ -44,8 +44,6 @@ impl fmt::Display for BaseDataError {
 #[derive(Debug)]
 /// General error type which should be capable of representing all errors in ethcore.
 pub enum UtilError {
-	/// Error concerning the crypto utility subsystem.
-	Crypto(::crypto::CryptoError),
 	/// Error concerning the Rust standard library's IO subsystem.
 	StdIo(::std::io::Error),
 	/// Error concerning the hex conversion logic.
@@ -65,7 +63,6 @@ pub enum UtilError {
 impl fmt::Display for UtilError {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			UtilError::Crypto(ref err) => f.write_fmt(format_args!("{}", err)),
 			UtilError::StdIo(ref err) => f.write_fmt(format_args!("{}", err)),
 			UtilError::FromHex(ref err) => f.write_fmt(format_args!("{}", err)),
 			UtilError::BaseData(ref err) => f.write_fmt(format_args!("{}", err)),
@@ -77,7 +74,7 @@ impl fmt::Display for UtilError {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Error indicating an expected value was not found.
 pub struct Mismatch<T: fmt::Debug> {
 	/// Value expected.
@@ -92,7 +89,7 @@ impl<T: fmt::Debug + fmt::Display> fmt::Display for Mismatch<T> {
 	}
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 /// Error indicating value found is outside of a valid range.
 pub struct OutOfBounds<T: fmt::Debug> {
 	/// Minimum allowed value.
@@ -131,12 +128,6 @@ impl From<BaseDataError> for UtilError {
 impl From<::std::io::Error> for UtilError {
 	fn from(err: ::std::io::Error) -> UtilError {
 		UtilError::StdIo(err)
-	}
-}
-
-impl From<::crypto::CryptoError> for UtilError {
-	fn from(err: ::crypto::CryptoError) -> UtilError {
-		UtilError::Crypto(err)
 	}
 }
 

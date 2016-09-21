@@ -17,6 +17,7 @@
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
 use common::*;
+use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -81,23 +82,26 @@ impl Engine for BasicAuthority {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.difficulty = parent.difficulty;
-		header.gas_limit = {
-			let gas_limit = parent.gas_limit;
+		header.set_difficulty(parent.difficulty().clone());
+		header.set_gas_limit({
+			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
 			if gas_limit < gas_floor_target {
 				min(gas_floor_target, gas_limit + gas_limit / bound_divisor - 1.into())
 			} else {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
-		};
-		header.note_dirty();
+		});
 //		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
 
 	/// Apply the block reward on finalisation of the block.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+
+	fn is_sealer(&self, author: &Address) -> Option<bool> {
+		Some(self.our_params.authorities.contains(author))
+	}
 
 	/// Attempt to seal the block internally.
 	///
@@ -109,7 +113,7 @@ impl Engine for BasicAuthority {
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
 			if let Ok(signature) = ap.sign(*block.header().author(), message) {
-				return Some(vec![encode(&(&*signature as &[u8])).to_vec()]);
+				return Some(vec![::rlp::encode(&(&*signature as &[u8])).to_vec()]);
 			} else {
 				trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
 			}
@@ -122,18 +126,20 @@ impl Engine for BasicAuthority {
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
 		// check the seal fields.
 		// TODO: pull this out into common code.
-		if header.seal.len() != self.seal_fields() {
+		if header.seal().len() != self.seal_fields() {
 			return Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.seal_fields(), found: header.seal.len() }
+				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
 		Ok(())
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
+		use rlp::{UntrustedRlp, View};
+
 		// check the signature is legit.
-		let sig = try!(UntrustedRlp::new(&header.seal[0]).as_val::<H520>());
-		let signer = Address::from(try!(ec::recover(&sig, &header.bare_hash())).sha3());
+		let sig = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<H520>());
+		let signer = public_to_address(&try!(recover(&sig.into(), &header.bare_hash())));
 		if !self.our_params.authorities.contains(&signer) {
 			return try!(Err(BlockError::InvalidSeal));
 		}
@@ -151,10 +157,10 @@ impl Engine for BasicAuthority {
 			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
 		}
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
-		let min_gas = parent.gas_limit - parent.gas_limit / gas_limit_divisor;
-		let max_gas = parent.gas_limit + parent.gas_limit / gas_limit_divisor;
-		if header.gas_limit <= min_gas || header.gas_limit >= max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit })));
+		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
+		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
+		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
+			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
 		Ok(())
 	}
@@ -172,7 +178,7 @@ impl Engine for BasicAuthority {
 impl Header {
 	/// Get the none field of the header.
 	pub fn signature(&self) -> H520 {
-		decode(&self.seal()[0])
+		::rlp::decode(&self.seal()[0])
 	}
 }
 
@@ -185,7 +191,10 @@ mod tests {
 	use spec::Spec;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
-	fn new_test_authority() -> Spec { Spec::load(include_bytes!("../../res/test_authority.json")) }
+	fn new_test_authority() -> Spec {
+		let bytes: &[u8] = include_bytes!("../../res/test_authority.json");
+		Spec::load(bytes).expect("invalid chain spec")
+	}
 
 	#[test]
 	fn has_valid_metadata() {
@@ -228,15 +237,10 @@ mod tests {
 	fn can_do_signature_verification_fail() {
 		let engine = new_test_authority().engine;
 		let mut header: Header = Header::default();
-		header.set_seal(vec![rlp::encode(&Signature::zero()).to_vec()]);
+		header.set_seal(vec![::rlp::encode(&H520::default()).to_vec()]);
 
 		let verify_result = engine.verify_block_unordered(&header, None);
-
-		match verify_result {
-			Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature))) => {},
-			Err(_) => { panic!("should be block difficulty error (got {:?})", verify_result); },
-			_ => { panic!("Should be error, got Ok"); },
-		}
+		assert!(verify_result.is_err());
 	}
 
 	#[test]
@@ -252,10 +256,19 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let vm_factory = Default::default();
-		let b = OpenBlock::new(engine, &vm_factory, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
+	}
+
+	#[test]
+	fn seals_internally() {
+		let tap = AccountProvider::transient_provider();
+		let authority = tap.insert_account("".sha3(), "").unwrap();
+
+		let engine = new_test_authority().engine;
+		assert!(!engine.is_sealer(&Address::default()).unwrap());
+		assert!(engine.is_sealer(&authority).unwrap());
 	}
 }

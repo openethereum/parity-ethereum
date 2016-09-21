@@ -62,7 +62,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(gas_price,)| {
 			take_weak!(self.miner).set_minimal_gas_price(gas_price.into());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -70,7 +70,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
 			take_weak!(self.miner).set_gas_floor_target(target.into());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -78,7 +78,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(target,)| {
 			take_weak!(self.miner).set_gas_ceil_target(target.into());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -86,7 +86,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(Bytes,)>(params).and_then(|(extra_data,)| {
 			take_weak!(self.miner).set_extra_data(extra_data.to_vec());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -94,7 +94,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(H160,)>(params).and_then(|(author,)| {
 			take_weak!(self.miner).set_author(author.into());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -102,7 +102,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(usize,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_transactions_limit(limit);
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -110,7 +110,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(U256,)>(params).and_then(|(limit,)| {
 			take_weak!(self.miner).set_tx_gas_limit(limit.into());
-			to_value(&true)
+			Ok(to_value(&true))
 		})
 	}
 
@@ -118,7 +118,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).add_reserved_peer(peer) {
-				Ok(()) => to_value(&true),
+				Ok(()) => Ok(to_value(&true)),
 				Err(e) => Err(errors::invalid_params("Peer address", e)),
 			}
 		})
@@ -128,7 +128,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		from_params::<(String,)>(params).and_then(|(peer,)| {
 			match take_weak!(self.net).remove_reserved_peer(peer) {
-				Ok(()) => to_value(&true),
+				Ok(()) => Ok(to_value(&true)),
 				Err(e) => Err(errors::invalid_params("Peer address", e)),
 			}
 		})
@@ -138,14 +138,14 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 		try!(self.active());
 		try!(expect_no_params(params));
 		take_weak!(self.net).deny_unreserved_peers();
-		to_value(&true)
+		Ok(to_value(&true))
 	}
 
 	fn accept_non_reserved_peers(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
 		take_weak!(self.net).accept_unreserved_peers();
-		to_value(&true)
+		Ok(to_value(&true))
 	}
 
 	fn start_network(&self, params: Params) -> Result<Value, Error> {

@@ -25,6 +25,7 @@ ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
+toml = "0.2"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
@@ -38,9 +39,10 @@ ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
+rlp = { path = "util/rlp" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.85", optional = true}
+clippy = { version = "0.0.90", optional = true}
 ethcore-stratum = { path = "stratum" }
 
 [target.'cfg(windows)'.dependencies]
@@ -61,6 +63,10 @@ dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
+stratum = ["ipc"]
+ethkey-cli = ["ethcore/ethkey-cli"]
+ethstore-cli = ["ethcore/ethstore-cli"]
+evm-debug = ["ethcore/evm-debug"]
 
 [[bin]]
 path = "parity/main.rs"

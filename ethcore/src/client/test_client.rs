@@ -18,6 +18,8 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use rlp::*;
+use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
@@ -32,7 +34,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::{Factory as EvmFactory, VMType};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
@@ -65,6 +67,8 @@ pub struct TestBlockChainClient {
 	pub execution_result: RwLock<Option<Result<Executed, CallError>>>,
 	/// Transaction receipts.
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
+	/// Logs
+	pub logs: RwLock<Vec<LocalizedLogEntry>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -112,6 +116,7 @@ impl TestBlockChainClient {
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
+			logs: RwLock::new(Vec::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
@@ -163,24 +168,29 @@ impl TestBlockChainClient {
 		*self.latest_block_timestamp.write() = ts;
 	}
 
+	/// Set logs to return for each logs call.
+	pub fn set_logs(&self, logs: Vec<LocalizedLogEntry>) {
+		*self.logs.write() = logs;
+	}
+
 	/// Add blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().len();
 		for n in len..(len + count) {
 			let mut header = BlockHeader::new();
-			header.difficulty = From::from(n);
-			header.parent_hash = self.last_hash.read().clone();
-			header.number = n as BlockNumber;
-			header.gas_limit = U256::from(1_000_000);
+			header.set_difficulty(From::from(n));
+			header.set_parent_hash(self.last_hash.read().clone());
+			header.set_number(n as BlockNumber);
+			header.set_gas_limit(U256::from(1_000_000));
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
 					let mut uncle_header = BlockHeader::new();
-					uncle_header.difficulty = From::from(n);
-					uncle_header.parent_hash = self.last_hash.read().clone();
-					uncle_header.number = n as BlockNumber;
+					uncle_header.set_difficulty(From::from(n));
+					uncle_header.set_parent_hash(self.last_hash.read().clone());
+					uncle_header.set_number(n as BlockNumber);
 					uncles.append(&uncle_header);
-					header.uncles_hash = uncles.as_raw().sha3();
+					header.set_uncles_hash(uncles.as_raw().sha3());
 					uncles
 				},
 				_ => RlpStream::new_list(0)
@@ -188,7 +198,7 @@ impl TestBlockChainClient {
 			let txs = match with {
 				EachBlockWith::Transaction | EachBlockWith::UncleAndTransaction => {
 					let mut txs = RlpStream::new_list(1);
-					let keypair = KeyPair::create().unwrap();
+					let keypair = Random.generate().unwrap();
 					// Update nonces value
 					self.nonces.write().insert(keypair.address(), U256::one());
 					let tx = Transaction {
@@ -203,7 +213,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::EMPTY_LIST_RLP.to_vec()
+				_ => ::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -218,11 +228,11 @@ impl TestBlockChainClient {
 	pub fn corrupt_block(&mut self, n: BlockNumber) {
 		let hash = self.block_hash(BlockID::Number(n)).unwrap();
 		let mut header: BlockHeader = decode(&self.block_header(BlockID::Number(n)).unwrap());
-		header.extra_data = b"This extra data is way too long to be considered valid".to_vec();
+		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -230,11 +240,11 @@ impl TestBlockChainClient {
 	pub fn corrupt_block_parent(&mut self, n: BlockNumber) {
 		let hash = self.block_hash(BlockID::Number(n)).unwrap();
 		let mut header: BlockHeader = decode(&self.block_header(BlockID::Number(n)).unwrap());
-		header.parent_hash = H256::from(42);
+		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -252,6 +262,24 @@ impl TestBlockChainClient {
 			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
 			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: Action::Create,
+			value: U256::from(100),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		};
+		let signed_tx = tx.sign(keypair.secret());
+		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
+		let res = res.into_iter().next().unwrap().expect("Successful import");
+		assert_eq!(res, TransactionImportResult::Current);
 	}
 }
 
@@ -276,7 +304,6 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
 			engine,
-			self.vm_factory(),
 			Default::default(),
 			false,
 			db,
@@ -371,8 +398,13 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
-		unimplemented!();
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut logs = self.logs.read().clone();
+		let len = logs.len();
+		match filter.limit {
+			Some(limit) if limit <= len => logs.split_off(len - limit),
+			_ => logs,
+		}
 	}
 
 	fn last_hashes(&self) -> LastHashes {
@@ -470,20 +502,20 @@ impl BlockChainClient for TestBlockChainClient {
 	fn import_block(&self, b: Bytes) -> Result<H256, BlockImportError> {
 		let header = Rlp::new(&b).val_at::<BlockHeader>(0);
 		let h = header.hash();
-		let number: usize = header.number as usize;
+		let number: usize = header.number() as usize;
 		if number > self.blocks.read().len() {
 			panic!("Unexpected block number. Expected {}, got {}", self.blocks.read().len(), number);
 		}
 		if number > 0 {
-			match self.blocks.read().get(&header.parent_hash) {
+			match self.blocks.read().get(header.parent_hash()) {
 				Some(parent) => {
 					let parent = Rlp::new(parent).val_at::<BlockHeader>(0);
-					if parent.number != (header.number - 1) {
+					if parent.number() != (header.number() - 1) {
 						panic!("Unexpected block parent");
 					}
 				},
 				None => {
-					panic!("Unknown block parent {:?} for block {}", header.parent_hash, number);
+					panic!("Unknown block parent {:?} for block {}", header.parent_hash(), number);
 				}
 			}
 		}
@@ -491,18 +523,18 @@ impl BlockChainClient for TestBlockChainClient {
 		if number == len {
 			{
 				let mut difficulty = self.difficulty.write();
-				*difficulty = *difficulty + header.difficulty;
+				*difficulty = *difficulty + header.difficulty().clone();
 			}
 			mem::replace(&mut *self.last_hash.write(), h.clone());
 			self.blocks.write().insert(h.clone(), b);
 			self.numbers.write().insert(number, h.clone());
-			let mut parent_hash = header.parent_hash;
+			let mut parent_hash = header.parent_hash().clone();
 			if number > 0 {
 				let mut n = number - 1;
 				while n > 0 && self.numbers.read()[&n] != parent_hash {
 					*self.numbers.write().get_mut(&n).unwrap() = parent_hash.clone();
 					n -= 1;
-					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash;
+					parent_hash = Rlp::new(&self.blocks.read()[&parent_hash]).val_at::<BlockHeader>(0).parent_hash().clone();
 				}
 			}
 		}

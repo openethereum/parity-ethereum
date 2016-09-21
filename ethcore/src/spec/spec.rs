@@ -24,8 +24,7 @@ use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
 use ethjson;
-
-use std::cell::RefCell;
+use rlp::{Rlp, RlpStream, View, Stream};
 
 /// Parameters common to all engines.
 #[derive(Debug, PartialEq, Clone)]
@@ -161,32 +160,30 @@ impl Spec {
 
 	/// Get the header of the genesis block.
 	pub fn genesis_header(&self) -> Header {
-		Header {
-			parent_hash: self.parent_hash.clone(),
-			timestamp: self.timestamp,
-			number: 0,
-			author: self.author.clone(),
-			transactions_root: self.transactions_root.clone(),
-			uncles_hash: RlpStream::new_list(0).out().sha3(),
-			extra_data: self.extra_data.clone(),
-			state_root: self.state_root().clone(),
-			receipts_root: self.receipts_root.clone(),
-			log_bloom: H2048::new().clone(),
-			gas_used: self.gas_used.clone(),
-			gas_limit: self.gas_limit.clone(),
-			difficulty: self.difficulty.clone(),
-			seal: {
-				let seal = {
-					let mut s = RlpStream::new_list(self.seal_fields);
-					s.append_raw(&self.seal_rlp, self.seal_fields);
-					s.out()
-				};
-				let r = Rlp::new(&seal);
-				(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
-			},
-			hash: RefCell::new(None),
-			bare_hash: RefCell::new(None),
-		}
+		let mut header: Header = Default::default();
+		header.set_parent_hash(self.parent_hash.clone());
+		header.set_timestamp(self.timestamp);
+		header.set_number(0);
+		header.set_author(self.author.clone());
+		header.set_transactions_root(self.transactions_root.clone());
+		header.set_uncles_hash(RlpStream::new_list(0).out().sha3());
+		header.set_extra_data(self.extra_data.clone());
+		header.set_state_root(self.state_root().clone());
+		header.set_receipts_root(self.receipts_root.clone());
+		header.set_log_bloom(H2048::new().clone());
+		header.set_gas_used(self.gas_used.clone());
+		header.set_gas_limit(self.gas_limit.clone());
+		header.set_difficulty(self.difficulty.clone());
+		header.set_seal({
+			let seal = {
+				let mut s = RlpStream::new_list(self.seal_fields);
+				s.append_raw(&self.seal_rlp, self.seal_fields);
+				s.out()
+			};
+			let r = Rlp::new(&seal);
+			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
+		});
+		header
 	}
 
 	/// Compose the genesis block for this chain.
@@ -235,7 +232,7 @@ impl Spec {
 			{
 				let mut t = SecTrieDBMut::new(db, &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
-					try!(t.insert(address.as_slice(), &account.rlp()));
+					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
@@ -247,18 +244,26 @@ impl Spec {
 	}
 
 	/// Loads spec from json file.
-	pub fn load(reader: &[u8]) -> Self {
-		From::from(ethjson::spec::Spec::load(reader).expect("invalid json file"))
+	pub fn load<R>(reader: R) -> Result<Self, String> where R: Read {
+		match ethjson::spec::Spec::load(reader) {
+			Ok(spec) => Ok(spec.into()),
+			_ => Err("Spec json is invalid".into()),
+		}
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Spec {
-		Spec::load(include_bytes!("../../res/null_morden.json"))
+	pub fn new_test() -> Self {
+		Spec::load(include_bytes!("../../res/null_morden.json") as &[u8]).expect("null_morden.json is invalid")
 	}
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
-	pub fn new_null() -> Spec {
-		Spec::load(include_bytes!("../../res/null.json"))
+	pub fn new_null() -> Self {
+		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
+	}
+
+	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
+	pub fn new_test_instant() -> Self {
+		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
 	}
 }
 
@@ -269,6 +274,12 @@ mod tests {
 	use util::sha3::*;
 	use views::*;
 	use super::*;
+
+	// https://github.com/ethcore/parity/issues/1840
+	#[test]
+	fn test_load_empty() {
+		assert!(Spec::load(&[] as &[u8]).is_err());
+	}
 
 	#[test]
 	fn test_chain() {

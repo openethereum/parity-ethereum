@@ -20,7 +20,7 @@ use snapshot::{chunk_state, Progress, StateRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
 
-use rand;
+use rand::{XorShiftRng, SeedableRng};
 use util::hash::H256;
 use util::journaldb::{self, Algorithm};
 use util::kvdb::{Database, DatabaseConfig};
@@ -33,7 +33,7 @@ use std::sync::Arc;
 #[test]
 fn snap_and_restore() {
 	let mut producer = StateProducer::new();
-	let mut rng = rand::thread_rng();
+	let mut rng = XorShiftRng::from_seed([1, 2, 3, 4]);
 	let mut old_db = MemoryDB::new();
 	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
@@ -73,6 +73,8 @@ fn snap_and_restore() {
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
+		rebuilder.check_missing().unwrap();
+
 		new_db
 	};
 

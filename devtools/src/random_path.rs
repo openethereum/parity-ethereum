@@ -23,7 +23,8 @@ use std::ops::{Deref, DerefMut};
 use rand::random;
 
 pub struct RandomTempPath {
-	path: PathBuf
+	path: PathBuf,
+	pub panic_on_drop_failure: bool,
 }
 
 pub fn random_filename() -> String {
@@ -39,7 +40,8 @@ impl RandomTempPath {
 		let mut dir = env::temp_dir();
 		dir.push(random_filename());
 		RandomTempPath {
-			path: dir.clone()
+			path: dir.clone(),
+			panic_on_drop_failure: true,
 		}
 	}
 
@@ -48,7 +50,8 @@ impl RandomTempPath {
 		dir.push(random_filename());
 		fs::create_dir_all(dir.as_path()).unwrap();
 		RandomTempPath {
-			path: dir.clone()
+			path: dir.clone(),
+			panic_on_drop_failure: true,
 		}
 	}
 
@@ -67,10 +70,26 @@ impl RandomTempPath {
 	}
 }
 
+impl AsRef<Path> for RandomTempPath {
+	fn as_ref(&self) -> &Path {
+		self.as_path()
+	}
+}
+impl Deref for RandomTempPath {
+	type Target = Path;
+	fn deref(&self) -> &Self::Target {
+		self.as_path()
+	}
+}
+
 impl Drop for RandomTempPath {
 	fn drop(&mut self) {
-		if let Err(e) = fs::remove_dir_all(self.as_path()) {
-			panic!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
+		if let Err(_) = fs::remove_dir_all(&self) {
+			if let Err(e) = fs::remove_file(&self) {
+				if self.panic_on_drop_failure {
+					panic!("Failed to remove temp directory. Here's what prevented this from happening:  ({})", e);
+				}
+			}
 		}
 	}
 }

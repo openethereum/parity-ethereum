@@ -20,7 +20,7 @@ extern crate lazy_static;
 extern crate tiny_keccak;
 extern crate secp256k1;
 extern crate rustc_serialize;
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 
 mod brain;
 mod error;
@@ -31,7 +31,7 @@ mod random;
 mod signature;
 
 lazy_static! {
-	static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
+	pub static ref SECP256K1: secp256k1::Secp256k1 = secp256k1::Secp256k1::new();
 }
 
 /// Generates new keypair.

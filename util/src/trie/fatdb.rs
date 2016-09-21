@@ -17,7 +17,7 @@
 use hash::H256;
 use sha3::Hashable;
 use hashdb::HashDB;
-use super::{TrieDB, Trie, TrieDBIterator, TrieItem};
+use super::{TrieDB, Trie, TrieDBIterator, TrieItem, Recorder};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 /// Additionaly it stores inserted hash-key mappings for later retrieval.
@@ -43,16 +43,11 @@ impl<'db> FatDB<'db> {
 	pub fn db(&self) -> &HashDB {
 		self.raw.db()
 	}
-
-	/// Iterator over all key / vlaues in the trie.
-	pub fn iter(&self) -> FatDBIterator {
-		FatDBIterator::new(&self.raw)
-	}
 }
 
 impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
-		Box::new(FatDB::iter(self))
+	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+		FatDBIterator::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 
 	fn root(&self) -> &H256 {
@@ -63,10 +58,10 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
-		where 'a: 'key
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<&'a [u8]>>
+		where 'a: 'b, R: Recorder
 	{
-		self.raw.get(&key.sha3())
+		self.raw.get_recorded(&key.sha3(), rec)
 	}
 }
 
@@ -78,22 +73,24 @@ pub struct FatDBIterator<'db> {
 
 impl<'db> FatDBIterator<'db> {
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB) -> Self {
-		FatDBIterator {
-			trie_iterator: TrieDBIterator::new(trie),
+	pub fn new(trie: &'db TrieDB) -> super::Result<Self> {
+		Ok(FatDBIterator {
+			trie_iterator: try!(TrieDBIterator::new(trie)),
 			trie: trie,
-		}
+		})
 	}
 }
 
 impl<'db> Iterator for FatDBIterator<'db> {
-	type Item = (Vec<u8>, &'db [u8]);
+	type Item = TrieItem<'db>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.trie_iterator.next()
-			.map(|(hash, value)| {
-				(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
-			})
+			.map(|res|
+				res.map(|(hash, value)| {
+					(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
+				})
+			)
 	}
 }
 
@@ -110,5 +107,5 @@ fn fatdb_to_trie() {
 	}
 	let t = FatDB::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
-	assert_eq!(t.iter().collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
+	assert_eq!(t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
 }

@@ -19,23 +19,28 @@
 #![cfg_attr(feature="nightly", feature(custom_derive, custom_attribute, plugin))]
 #![cfg_attr(feature="nightly", plugin(serde_macros, clippy))]
 
-#[macro_use]
-extern crate log;
 extern crate rustc_serialize;
 extern crate serde;
 extern crate serde_json;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
-#[macro_use]
-extern crate ethcore_util as util;
+
 extern crate ethcore_io as io;
 extern crate ethcore;
+extern crate ethkey;
+extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
 extern crate transient_hashmap;
 extern crate json_ipc_server as ipc;
 extern crate ethcore_ipc;
 extern crate time;
+extern crate rlp;
+
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate ethcore_util as util;
 
 #[cfg(test)]
 extern crate ethjson;
@@ -49,7 +54,7 @@ use self::jsonrpc_core::{IoHandler, IoDelegate};
 
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
-pub use v1::{SigningQueue, ConfirmationsQueue, NetworkSettings};
+pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
 
 /// An object that can be extended with `IoDelegates`
 pub trait Extendable {

@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{KeyPair, sign, decrypt, Address, Secret, Signature, Message};
+use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
-use crypto::Keccak256;
+use crypto::{Keccak256};
 use random::Random;
 use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 
@@ -172,7 +172,7 @@ impl SafeAccount {
 
 	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let secret = try!(self.crypto.secret(password));
-		decrypt(&secret, shared_mac, message).map_err(From::from)
+		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {

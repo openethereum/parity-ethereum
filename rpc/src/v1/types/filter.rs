@@ -66,6 +66,8 @@ pub struct Filter {
 	pub address: Option<FilterAddress>,
 	/// Topics
 	pub topics: Option<Vec<Topic>>,
+	/// Limit
+	pub limit: Option<usize>,
 }
 
 impl Into<EthFilter> for Filter {
@@ -85,7 +87,8 @@ impl Into<EthFilter> for Filter {
 					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
 				}).filter_map(|m| m).collect()).into_iter();
 				vec![iter.next(), iter.next(), iter.next(), iter.next()]
-			}
+			},
+			limit: self.limit,
 		}
 	}
 }
@@ -120,7 +123,8 @@ mod tests {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
 			address: None,
-			topics: None
+			topics: None,
+			limit: None,
 		});
 	}
 }

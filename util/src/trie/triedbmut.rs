@@ -19,10 +19,11 @@
 use super::{TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
-use ::{Bytes, HashDB, H256, SHA3_NULL_RLP};
+use ::{Bytes, HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream, View, Stream};
+use ::sha3::SHA3_NULL_RLP;
 
 use elastic_array::ElasticArray1024;
 
@@ -56,11 +57,11 @@ impl From<H256> for NodeHandle {
 	}
 }
 
-fn empty_children() -> [Option<NodeHandle>; 16] {
-	[
+fn empty_children() -> Box<[Option<NodeHandle>; 16]> {
+	Box::new([
 		None, None, None, None, None, None, None, None,
 		None, None, None, None, None, None, None, None,
-	]
+	])
 }
 
 /// Node types in the Trie.
@@ -78,7 +79,7 @@ enum Node {
 	/// The child node is always a branch.
 	Extension(Bytes, NodeHandle),
 	/// A branch has up to 16 children and an optional value.
-	Branch([Option<NodeHandle>; 16], Option<Bytes>)
+	Branch(Box<[Option<NodeHandle>; 16]>, Option<Bytes>)
 }
 
 impl Node {
@@ -261,18 +262,18 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+///
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
 /// use util::hash::*;
-/// use util::rlp::*;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), SHA3_NULL_RLP);
+///   assert_eq!(*t.root(), ::util::sha3::SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar");
@@ -820,18 +821,18 @@ impl<'a> TrieDBMut<'a> {
 	/// Commit the in-memory changes to disk, freeing their storage and
 	/// updating the state root.
 	pub fn commit(&mut self) {
-		let handle = match self.root_handle() {
-			NodeHandle::Hash(_) => return, // no changes necessary.
-			NodeHandle::InMemory(h) => h,
-		};
-
 		trace!(target: "trie", "Committing trie changes to db.");
 
-		// kill all the nodes on death row.
+		// always kill all the nodes on death row.
 		trace!(target: "trie", "{:?} nodes to remove from db", self.death_row.len());
 		for hash in self.death_row.drain() {
 			self.db.remove(&hash);
 		}
+
+		let handle = match self.root_handle() {
+			NodeHandle::Hash(_) => return, // no changes necessary.
+			NodeHandle::InMemory(h) => h,
+		};
 
 		match self.storage.destroy(handle) {
 			Stored::New(node) => {
@@ -906,21 +907,29 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 			return self.remove(key);
 		}
 
+		trace!(target: "trie", "insert: key={:?}, value={:?}", key.pretty(), value.pretty());
+
 		let root_handle = self.root_handle();
-		let (new_handle, _) = try!(self.insert_at(root_handle, NibbleSlice::new(key), value.to_owned()));
+		let (new_handle, changed) = try!(self.insert_at(root_handle, NibbleSlice::new(key), value.to_owned()));
+
+		trace!(target: "trie", "insert: altered trie={}", changed);
 		self.root_handle = NodeHandle::InMemory(new_handle);
 
 		Ok(())
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
+		trace!(target: "trie", "remove: key={:?}", key.pretty());
+
 		let root_handle = self.root_handle();
 		let key = NibbleSlice::new(key);
 		match try!(self.remove_at(root_handle, key)) {
-			Some((handle, _)) => {
+			Some((handle, changed)) => {
+				trace!(target: "trie", "remove: altered trie={}", changed);
 				self.root_handle = NodeHandle::InMemory(handle);
 			}
 			None => {
+				trace!(target: "trie", "remove: obliterated trie");
 				self.root_handle = NodeHandle::Hash(SHA3_NULL_RLP);
 				*self.root = SHA3_NULL_RLP;
 			}
@@ -943,8 +952,8 @@ mod tests {
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;
-	use rlp::*;
 	use bytes::ToPretty;
+	use sha3::SHA3_NULL_RLP;
 	use super::super::TrieMut;
 	use super::super::standardmap::*;
 
