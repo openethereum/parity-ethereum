@@ -22,7 +22,7 @@ use ethcore::client::{TestBlockChainClient};
 
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
-use v1::helpers::{ConfirmationsQueue, NetworkSettings};
+use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use super::manage_network::TestManageNetwork;
 
@@ -262,8 +262,8 @@ fn rpc_ethcore_unsigned_transactions_count() {
 	let sync = sync_provider();
 	let net = network_service();
 	let io = IoHandler::new();
-	let queue = Arc::new(ConfirmationsQueue::default());
-	let ethcore = EthcoreClient::new(&client, &miner, &sync, &net, logger(), settings(), Some(queue)).to_delegate();
+	let signer = Arc::new(SignerService::new_test());
+	let ethcore = EthcoreClient::new(&client, &miner, &sync, &net, logger(), settings(), Some(signer)).to_delegate();
 	io.add_delegate(ethcore);
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
