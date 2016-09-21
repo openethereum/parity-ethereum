@@ -157,7 +157,7 @@ mod tests {
 
 	#[test]
 	fn should_return_true_if_code_is_initial_and_store_is_empty() {
-			// given
+		// given
 		let code = "initial";
 		let time = 99;
 		let mut codes = AuthCodes::new(vec![], || 100);
