@@ -93,7 +93,7 @@ linux-centos:
     name: "centos-x86_64-unknown-linux-gnu_parity"
 linux-armv7:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-armv7:latest
   only:
     - master
     - beta
@@ -147,7 +147,7 @@ linux-arm:
   allow_failure: true
 linux-armv6:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-armv6:latest
   only:
     - master
     - beta
@@ -174,7 +174,7 @@ linux-armv6:
   allow_failure: true
 linux-aarch64:
   stage: build
-  image: ethcore/rust-arm:latest
+  image: ethcore/rust-aarch64:latest
   only:
     - master
     - beta
@@ -208,13 +208,14 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
-    - mkdir -p x86_64-apple-darwin
-    - cp target/release/parity x86_64-apple-darwin/parity
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key master/aarch64-unknown-linux-gnu/parity --body target/release/parity
   tags:
     - osx
   artifacts:
     paths:
-    - x86_64-apple-darwin/parity
+    - target/release/parity
     name: "x86_64-apple-darwin_parity"
 windows:
   stage: build
@@ -229,6 +230,9 @@ windows:
     - set RUST_BACKTRACE=1
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key master/aarch64-unknown-linux-gnu/parity --body target/release/parity.exe
   tags:
    - rust-windows
   artifacts:
@@ -246,12 +250,12 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
-deploy-binaries:
-  stage: deploy
-  only:
-    - master
-    - beta
-    - tags
-    - stable
-  script:
-    - scripts/deploy.sh
+#deploy-binaries:
+#  stage: deploy
+#  only:
+#    - master
+#    - beta
+#    - tags
+#    - stable
+#  script:
+#    - scripts/deploy.sh
