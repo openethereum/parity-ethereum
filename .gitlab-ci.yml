@@ -22,7 +22,7 @@ linux-stable:
     - strip target/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/x86_64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
   tags:
     - rust
     - rust-stable
@@ -83,7 +83,7 @@ linux-centos:
     - strip target/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/x86_64-centos-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-centos-linux-gnu/parity --body target/release/parity
   tags:
     - rust
     - rust-centos
@@ -109,7 +109,7 @@ linux-armv7:
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/armv7-unknown-linux-gnueabihf/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/release/parity
   tags:
     - rust
     - rust-arm
@@ -136,7 +136,7 @@ linux-arm:
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/arm-unknown-linux-gnueabihf/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/release/parity
   tags:
     - rust
     - rust-arm
@@ -163,7 +163,7 @@ linux-armv6:
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/arm-unknown-linux-gnueabi/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/release/parity
   tags:
     - rust
     - rust-arm
@@ -190,7 +190,7 @@ linux-aarch64:
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/aarch64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/release/parity
   tags:
     - rust
     - rust-arm
@@ -210,7 +210,7 @@ darwin:
     - cargo build --release --verbose
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/aarch64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
   tags:
     - osx
   artifacts:
@@ -232,7 +232,7 @@ windows:
     - cargo build --release --verbose
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key master/aarch64-unknown-linux-gnu/parity --body target/release/parity.exe
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/release/parity.exe
   tags:
    - rust-windows
   artifacts:
