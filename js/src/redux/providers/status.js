@@ -64,7 +64,6 @@ export default class Status {
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        nextTimeout();
         this._store.dispatch(statusCollection({
           clientVersion,
           coinbase,
@@ -81,6 +80,7 @@ export default class Status {
           syncing,
           isTest
         }));
+        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
@@ -103,11 +103,11 @@ export default class Status {
         this._api.ethcore.devLogsLevels()
       ])
       .then(([devLogs, devLogsLevels]) => {
-        nextTimeout();
         this._store.dispatch(statusLogs({
           devLogs: devLogs.slice(-1024),
           devLogsLevels
         }));
+        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollLogs', error);
