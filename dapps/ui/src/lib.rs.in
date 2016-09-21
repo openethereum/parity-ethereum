@@ -22,7 +22,7 @@ use parity_dapps_glue::{WebApp, File, Info};
 #[derive(WebAppFiles)]
 #[webapp(path = "./web")]
 pub struct App {
-	files: HashMap<&'static str, File>,
+	pub files: HashMap<&'static str, File>,
 }
 
 impl Default for App {
@@ -40,10 +40,10 @@ impl WebApp for App {
 
 	fn info(&self) -> Info {
 		Info {
-			name: "Parity Home Screen",
+			name: "Parity UI",
 			version: env!("CARGO_PKG_VERSION"),
 			author: "Ethcore <admin@ethcore.io>",
-			description: "Home Screen and injectable topbar for Parity Dapps.",
+			description: "New UI for Parity. (Experimental)",
 			icon_url: "icon.png",
 		}
 	}
