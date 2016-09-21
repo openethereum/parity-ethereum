@@ -33,7 +33,7 @@ muiTheme.tabs.selectedTextColor = 'rgb(255, 255, 255)'; // 'rgb(0, 151, 167)'; /
 muiTheme.tabs.textColor = 'rgb(0, 151, 167)'; // 'rgba(255, 255, 255, 1)'; // 'rgba(0, 151, 167, 1)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
-muiTheme.toolbar.backgroundColor = 'rgba(0, 0, 0, 0.5)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
+muiTheme.toolbar.backgroundColor = 'rgba(0, 0, 0, 0.7)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
 
 muiTheme.parity = {
   backgroundSeed: '0x0',
