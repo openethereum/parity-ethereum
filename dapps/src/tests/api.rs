@@ -57,7 +57,7 @@ fn should_serve_apps() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
-	assert!(response.body.contains("Parity Home Screen"));
+	assert!(response.body.contains("Parity Home Screen"), response.body);
 }
 
 #[test]

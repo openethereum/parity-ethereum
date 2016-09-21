@@ -45,14 +45,16 @@ impl StateProducer {
 		}
 	}
 
+	#[cfg_attr(feature="dev", allow(let_and_return))]
 	/// Tick the state producer. This alters the state, writing new data into
 	/// the database.
 	pub fn tick<R: Rng>(&mut self, rng: &mut R, db: &mut HashDB) {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
-			let temp = trie.iter() // binding required due to complicated lifetime stuff
+			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
+				.map(Result::unwrap)
 				.map(|(k, v)| (H256::from_slice(&k), v.to_owned()))
 				.collect();
 
@@ -78,7 +80,7 @@ impl StateProducer {
 		let new_accs = rng.gen::<u32>() % 5;
 
 		for _ in 0..new_accs {
-			let address_hash = H256::random();
+			let address_hash = H256(rng.gen());
 			let balance: usize = rng.gen();
 			let nonce: usize = rng.gen();
 			let acc = ::state::Account::new_basic(balance.into(), nonce.into()).rlp();

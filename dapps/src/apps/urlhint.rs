@@ -17,6 +17,7 @@
 use std::fmt;
 use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
+use mime_guess;
 
 use ethabi::{Interface, Contract, Token};
 use util::{Address, Bytes, Hashable};
@@ -33,8 +34,9 @@ pub struct GithubApp {
 
 impl GithubApp {
 	pub fn url(&self) -> String {
+		// Since https fetcher doesn't support redirections we use direct link
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
-		format!("http://github.todr.me/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
+		format!("https://codeload.github.com/{}/{}/zip/{}", self.account, self.repo, self.commit.to_hex())
 	}
 
 	fn commit(bytes: &[u8]) -> Option<[u8;COMMIT_LEN]> {
@@ -51,6 +53,13 @@ impl GithubApp {
 	}
 }
 
+#[derive(Debug, PartialEq)]
+pub struct Content {
+	pub url: String,
+	pub mime: String,
+	pub owner: Address,
+}
+
 /// RAW Contract interface.
 /// Should execute transaction using current blockchain state.
 pub trait ContractClient: Send + Sync {
@@ -60,10 +69,19 @@ pub trait ContractClient: Send + Sync {
 	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
+/// Result of resolving id to URL
+#[derive(Debug, PartialEq)]
+pub enum URLHintResult {
+	/// Dapp
+	Dapp(GithubApp),
+	/// Content
+	Content(Content),
+}
+
 /// URLHint Contract interface
 pub trait URLHint {
 	/// Resolves given id to registrar entry.
-	fn resolve(&self, app_id: Bytes) -> Option<GithubApp>;
+	fn resolve(&self, id: Bytes) -> Option<URLHintResult>;
 }
 
 pub struct URLHintContract {
@@ -109,10 +127,10 @@ impl URLHintContract {
 		}
 	}
 
-	fn encode_urlhint_call(&self, app_id: Bytes) -> Option<Bytes> {
+	fn encode_urlhint_call(&self, id: Bytes) -> Option<Bytes> {
 		let call = self.urlhint
 			.function("entries".into())
-			.and_then(|f| f.encode_call(vec![Token::FixedBytes(app_id)]));
+			.and_then(|f| f.encode_call(vec![Token::FixedBytes(id)]));
 
 		match call {
 			Ok(res) => {
@@ -125,7 +143,7 @@ impl URLHintContract {
 		}
 	}
 
-	fn decode_urlhint_output(&self, output: Bytes) -> Option<GithubApp> {
+	fn decode_urlhint_output(&self, output: Bytes) -> Option<URLHintResult> {
 		trace!(target: "dapps", "Output: {:?}", output.to_hex());
 		let output = self.urlhint
 			.function("entries".into())
@@ -148,6 +166,17 @@ impl URLHintContract {
 					if owner == Address::default() {
 						return None;
 					}
+
+					let commit = GithubApp::commit(&commit);
+					if commit == Some(Default::default()) {
+						let mime = guess_mime_type(&account_slash_repo).unwrap_or("application/octet-stream".into());
+						return Some(URLHintResult::Content(Content {
+							url: account_slash_repo,
+							mime: mime,
+							owner: owner,
+						}));
+					}
+
 					let (account, repo) = {
 						let mut it = account_slash_repo.split('/');
 						match (it.next(), it.next()) {
@@ -156,12 +185,12 @@ impl URLHintContract {
 						}
 					};
 
-					GithubApp::commit(&commit).map(|commit| GithubApp {
+					commit.map(|commit| URLHintResult::Dapp(GithubApp {
 						account: account,
 						repo: repo,
 						commit: commit,
 						owner: owner,
-					})
+					}))
 				},
 				e => {
 					warn!(target: "dapps", "Invalid contract output parameters: {:?}", e);
@@ -176,10 +205,10 @@ impl URLHintContract {
 }
 
 impl URLHint for URLHintContract {
-	fn resolve(&self, app_id: Bytes) -> Option<GithubApp> {
+	fn resolve(&self, id: Bytes) -> Option<URLHintResult> {
 		self.urlhint_address().and_then(|address| {
 			// Prepare contract call
-			self.encode_urlhint_call(app_id)
+			self.encode_urlhint_call(id)
 				.and_then(|data| {
 					let call = self.client.call(address, data);
 					if let Err(ref e) = call {
@@ -192,6 +221,34 @@ impl URLHint for URLHintContract {
 	}
 }
 
+fn guess_mime_type(url: &str) -> Option<String> {
+	const CONTENT_TYPE: &'static str = "content-type=";
+
+	let mut it = url.split('#');
+	// skip url
+	let url = it.next();
+	// get meta headers
+	let metas = it.next();
+	if let Some(metas) = metas {
+		for meta in metas.split('&') {
+			let meta = meta.to_lowercase();
+			if meta.starts_with(CONTENT_TYPE) {
+				return Some(meta[CONTENT_TYPE.len()..].to_owned());
+			}
+		}
+	}
+	url.and_then(|url| {
+		url.split('.').last()
+	}).and_then(|extension| {
+		mime_guess::get_mime_type_str(extension).map(Into::into)
+	})
+}
+
+#[cfg(test)]
+pub fn test_guess_mime_type(url: &str) -> Option<String> {
+	guess_mime_type(url)
+}
+
 fn as_string<T: fmt::Debug>(e: T) -> String {
 	format!("{:?}", e)
 }
@@ -200,7 +257,7 @@ fn as_string<T: fmt::Debug>(e: T) -> String {
 mod tests {
 	use std::sync::Arc;
 	use std::str::FromStr;
-	use rustc_serialize::hex::{ToHex, FromHex};
+	use rustc_serialize::hex::FromHex;
 
 	use super::*;
 	use util::{Bytes, Address, Mutex, ToPretty};
@@ -278,12 +335,33 @@ mod tests {
 		let res = urlhint.resolve("test".bytes().collect());
 
 		// then
-		assert_eq!(res, Some(GithubApp {
+		assert_eq!(res, Some(URLHintResult::Dapp(GithubApp {
 			account: "ethcore".into(),
 			repo: "dao.claim".into(),
 			commit: GithubApp::commit(&"ec4c1fe06c808fe3739858c347109b1f5f1ed4b5".from_hex().unwrap()).unwrap(),
 			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
-		}))
+		})))
+	}
+
+	#[test]
+	fn should_decode_urlhint_content_output() {
+		// given
+		let mut registrar = FakeRegistrar::new();
+		registrar.responses = Mutex::new(vec![
+			Ok(format!("000000000000000000000000{}", URLHINT).from_hex().unwrap()),
+			Ok("00000000000000000000000000000000000000000000000000000000000000600000000000000000000000000000000000000000000000000000000000000000000000000000000000000000deadcafebeefbeefcafedeaddeedfeedffffffff000000000000000000000000000000000000000000000000000000000000003d68747470733a2f2f657468636f72652e696f2f6173736574732f696d616765732f657468636f72652d626c61636b2d686f72697a6f6e74616c2e706e67000000".from_hex().unwrap()),
+		]);
+		let urlhint = URLHintContract::new(Arc::new(registrar));
+
+		// when
+		let res = urlhint.resolve("test".bytes().collect());
+
+		// then
+		assert_eq!(res, Some(URLHintResult::Content(Content {
+			url: "https://ethcore.io/assets/images/ethcore-black-horizontal.png".into(),
+			mime: "image/png".into(),
+			owner: Address::from_str("deadcafebeefbeefcafedeaddeedfeedffffffff").unwrap(),
+		})))
 	}
 
 	#[test]
@@ -300,6 +378,22 @@ mod tests {
 		let url = app.url();
 
 		// then
-		assert_eq!(url, "http://github.todr.me/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
+		assert_eq!(url, "https://codeload.github.com/test/xyz/zip/000102030405060708090a0b0c0d0e0f10111213".to_owned());
+	}
+
+	#[test]
+	fn should_guess_mime_type_from_url() {
+		let url1 = "https://ethcore.io/parity";
+		let url2 = "https://ethcore.io/parity#content-type=image/png";
+		let url3 = "https://ethcore.io/parity#something&content-type=image/png";
+		let url4 = "https://ethcore.io/parity.png#content-type=image/jpeg";
+		let url5 = "https://ethcore.io/parity.png";
+
+
+		assert_eq!(test_guess_mime_type(url1), None);
+		assert_eq!(test_guess_mime_type(url2), Some("image/png".into()));
+		assert_eq!(test_guess_mime_type(url3), Some("image/png".into()));
+		assert_eq!(test_guess_mime_type(url4), Some("image/jpeg".into()));
+		assert_eq!(test_guess_mime_type(url5), Some("image/png".into()));
 	}
 }

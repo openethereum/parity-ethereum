@@ -24,7 +24,8 @@ mod executive_tracer;
 mod import;
 mod noop_tracer;
 
-pub use types::trace_types::*;
+pub use types::trace_types::{filter, flat, localized, trace};
+pub use types::trace_types::error::Error as TraceError;
 pub use self::config::{Config, Switch};
 pub use self::db::TraceDB;
 pub use self::error::Error;
@@ -71,10 +72,10 @@ pub trait Tracer: Send {
 	);
 
 	/// Stores failed call trace.
-	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>);
+	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>, error: TraceError);
 
 	/// Stores failed create trace.
-	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>);
+	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>, error: TraceError);
 
 	/// Stores suicide info.
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address);

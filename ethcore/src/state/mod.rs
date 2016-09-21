@@ -368,10 +368,27 @@ impl<B: Backend> fmt::Debug for State<B> {
 }
 
 impl<B: Backend> Clone for State<B> {
-	fn clone(&self) -> Self {
+	fn clone(&self) -> State<B> {
+		let cache = {
+			let mut cache = HashMap::new();
+			for (key, val) in self.cache.borrow().iter() {
+				let key = key.clone();
+				match *val {
+					Some(ref acc) if acc.is_dirty() => {
+						cache.insert(key, Some(acc.clone()));
+					},
+					None => {
+						cache.insert(key, None);
+					},
+					_ => {},
+				}
+			}
+			cache
+		};
+
 		State {
 			backend: self.backend.clone(),
-			cache: RefCell::new(self.cache.borrow().clone()),
+			cache: RefCell::new(cache),
 			snapshots: RefCell::new(self.snapshots.borrow().clone()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
@@ -392,8 +409,7 @@ use env_info::*;
 use spec::*;
 use transaction::*;
 use util::log::init_log;
-use trace::trace;
-use trace::FlatTrace;
+use trace::{FlatTrace, TraceError, trace};
 use types::executed::CallType;
 
 #[test]
@@ -486,7 +502,7 @@ fn should_trace_failed_create_transaction() {
 			gas: 78792.into(),
 			init: vec![91, 96, 0, 86],
 		}),
-		result: trace::Res::FailedCreate,
+		result: trace::Res::FailedCreate(TraceError::OutOfGas),
 		subtraces: 0
 	}];
 
@@ -817,7 +833,7 @@ fn should_trace_failed_call_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 		subtraces: 0,
 	}];
 
@@ -1032,7 +1048,7 @@ fn should_trace_failed_subcall_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 	}];
 
 	assert_eq!(result.trace, expected_trace);
@@ -1165,7 +1181,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 			input: vec![],
 			call_type: CallType::Call,
 		}),
-		result: trace::Res::FailedCall,
+		result: trace::Res::FailedCall(TraceError::OutOfGas),
 	}, FlatTrace {
 		trace_address: vec![0, 0].into_iter().collect(),
 		subtraces: 0,
@@ -1263,13 +1279,13 @@ fn storage_at_from_database() {
 	let temp = RandomTempPath::new();
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
-		state.set_storage(&a, H256::from(&U256::from(01u64)), H256::from(&U256::from(69u64)));
+		state.set_storage(&a, H256::from(&U256::from(1u64)), H256::from(&U256::from(69u64)));
 		state.commit().unwrap();
 		state.drop()
 	};
 
 	let s = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(01u64))), H256::from(&U256::from(69u64)));
+	assert_eq!(s.storage_at(&a, &H256::from(&U256::from(1u64))), H256::from(&U256::from(69u64)));
 }
 
 #[test]

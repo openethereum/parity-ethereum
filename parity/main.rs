@@ -51,6 +51,7 @@ extern crate ansi_term;
 
 extern crate regex;
 extern crate isatty;
+extern crate toml;
 
 #[macro_use]
 extern crate ethcore_util as util;
@@ -99,16 +100,18 @@ mod modules;
 mod account;
 mod blockchain;
 mod presale;
-mod run;
-mod sync;
 mod snapshot;
+mod run;
+#[cfg(feature="ipc")]
+mod sync;
+#[cfg(feature="ipc")]
 mod boot;
 
 #[cfg(feature="stratum")]
 mod stratum;
 
 use std::{process, env};
-use cli::print_version;
+use cli::Args;
 use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
 
@@ -118,7 +121,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 			try!(run::execute(run_cmd));
 			Ok("".into())
 		},
-		Cmd::Version => Ok(print_version()),
+		Cmd::Version => Ok(Args::print_version()),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
@@ -128,7 +131,8 @@ fn execute(command: Cmd) -> Result<String, String> {
 }
 
 fn start() -> Result<String, String> {
-	let conf = Configuration::parse(env::args()).unwrap_or_else(|e| e.exit());
+	let args: Vec<String> = env::args().collect();
+	let conf = Configuration::parse(&args).unwrap_or_else(|e| e.exit());
 
 	let deprecated = find_deprecated(&conf.args);
 	for d in deprecated {
@@ -158,10 +162,24 @@ mod stratum_optional {
 	}
 }
 
-fn main() {
+#[cfg(not(feature="ipc"))]
+fn sync_main() -> bool {
+	false
+}
+
+#[cfg(feature="ipc")]
+fn sync_main() -> bool {
 	// just redirect to the sync::main()
 	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
+		true
+	} else {
+		false
+	}
+}
+
+fn main() {
+	if sync_main() {
 		return;
 	}
 

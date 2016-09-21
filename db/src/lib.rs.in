@@ -66,13 +66,13 @@ pub fn extras_service_url(db_path: &str) -> Result<String, ::std::io::Error> {
 
 pub fn blocks_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
 	let url = try!(blocks_service_url(db_path));
-	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	let client = try!(nanoipc::generic_client::<DatabaseClient<_>>(&url));
 	Ok(client)
 }
 
 pub fn extras_client(db_path: &str) -> Result<DatabaseConnection, ServiceError> {
 	let url = try!(extras_service_url(db_path));
-	let client = try!(nanoipc::init_client::<DatabaseClient<_>>(&url));
+	let client = try!(nanoipc::generic_client::<DatabaseClient<_>>(&url));
 	Ok(client)
 }
 
