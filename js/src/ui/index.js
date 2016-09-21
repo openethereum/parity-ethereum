@@ -27,6 +27,7 @@ import IdentityIcon from './IdentityIcon';
 import Modal from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
+import ProcBackground from './ProcBackground';
 import SignerIcon from './SignerIcon';
 import Tooltips, { Tooltip } from './Tooltips';
 
@@ -52,6 +53,7 @@ export {
   Modal,
   muiTheme,
   Page,
+  ProcBackground,
   SignerIcon,
   Tooltip,
   Tooltips

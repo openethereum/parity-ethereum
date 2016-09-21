@@ -16,6 +16,7 @@
 */
 .container {
   padding: 0em 1em 1em 1em;
+  opacity: 0.9;
 }
 
 .padded {

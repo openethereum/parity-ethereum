@@ -28,11 +28,11 @@ muiTheme.raisedButton.primaryTextColor = 'white';
 muiTheme.snackbar.backgroundColor = 'rgba(255, 30, 30, 0.9)';
 muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.9)';
 muiTheme.tabs = lightTheme.tabs;
-muiTheme.tabs.backgroundColor = 'rgb(65, 65, 65)';
+muiTheme.tabs.backgroundColor = 'none'; // 'rgba(65, 65, 65, 0.75)';
 muiTheme.tabs.selectedTextColor = 'rgb(255, 255, 255)'; // 'rgb(0, 151, 167)'; // 'rgba(255, 136, 0, 0.8)';
 muiTheme.tabs.textColor = 'rgb(0, 151, 167)'; // 'rgba(255, 255, 255, 1)'; // 'rgba(0, 151, 167, 1)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
-muiTheme.toolbar.backgroundColor = 'rgb(80, 80, 80)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
+muiTheme.toolbar.backgroundColor = 'rgba(80, 80, 80, 0.75)'; // 'rgba(255, 136, 0, 0.5)'; // 'rgb(80, 80, 80)';
 
 export default muiTheme;

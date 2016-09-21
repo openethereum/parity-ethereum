@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .toolbar {
-  background: rgb(65, 65, 65) !important;
+  background: rgba(65, 65, 65, 0.75) !important;
   height: 72px !important;
   position: relative;
 }
@@ -25,13 +25,17 @@
   position: relative;
 }
 
+.tabs button {
+  background: none !important;
+}
+
 .tabs button:hover {
-  background: rgb(72, 72, 72) !important;
+  background: rgba(72, 72, 72, 0.75) !important;
 }
 
 button.tabactive,
 button.tabactive:hover {
-  background: rgb(80, 80, 80) !important;
+  background: rgba(80, 80, 80, 0.75) !important;
   border-radius: 4px 4px 0 0;
 }
 
