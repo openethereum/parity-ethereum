@@ -19,11 +19,6 @@ use io::PanicHandler;
 use rpc_apis;
 use helpers::replace_home;
 
-#[cfg(feature = "dapps")]
-pub use ethcore_dapps::Server as WebappServer;
-#[cfg(not(feature = "dapps"))]
-pub struct WebappServer;
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
@@ -77,6 +72,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 }
 
 pub use self::server::setup_dapps_server;
+pub use self::server::WebappServer;
 
 #[cfg(not(feature = "dapps"))]
 mod server {
