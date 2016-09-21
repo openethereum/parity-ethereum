@@ -16,7 +16,7 @@ class Container extends Component {
     owner: nullable(PropTypes.string.isRequired),
     fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
-    events: PropTypes.array.isRequired
+    events: PropTypes.object.isRequired
   };
 
   componentDidMount () {

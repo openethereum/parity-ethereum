@@ -29,7 +29,7 @@ export default class Application extends Component {
     contract: nullable(PropTypes.object.isRequired),
     fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
-    events: PropTypes.array.isRequired,
+    events: PropTypes.object.isRequired,
     register: PropTypes.object.isRequired
   };
 
