@@ -26,7 +26,7 @@ export default class ProcBackground extends Component {
   }
 
   state = {
-    backgroundImage: ''
+    background: ''
   }
 
   componentDidMount () {
@@ -47,17 +47,12 @@ export default class ProcBackground extends Component {
 
   render () {
     const { children } = this.props;
-    const { backgroundImage } = this.state;
-    const style = {
-      backgroundImage,
-      backgroundAttachment: 'fixed',
-      width: '100%',
-      height: '100%'
-    };
+    const { background } = this.state;
+    const style = { background };
 
     return (
-      <div style={ style }>
-        <div className={ styles.overlay }>
+      <div className={ styles.background } style={ style }>
+        <div className={ styles.content }>
           { children }
         </div>
       </div>
@@ -65,8 +60,9 @@ export default class ProcBackground extends Component {
   }
 
   updateBackground (seed) {
-    const backgroundImage = GeoPattern.generate(seed).toDataUrl();
+    const url = GeoPattern.generate(seed).toDataUrl();
+    const background = `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), ${url}`;
 
-    this.setState({ backgroundImage });
+    this.setState({ background });
   }
 }
