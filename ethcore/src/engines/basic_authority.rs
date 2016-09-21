@@ -99,6 +99,10 @@ impl Engine for BasicAuthority {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
+	fn is_sealer(&self, author: &Address) -> Option<bool> {
+		Some(self.our_params.authorities.contains(author))
+	}
+
 	/// Attempt to seal the block internally.
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
@@ -256,5 +260,15 @@ mod tests {
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
+	}
+
+	#[test]
+	fn seals_internally() {
+		let tap = AccountProvider::transient_provider();
+		let authority = tap.insert_account("".sha3(), "").unwrap();
+
+		let engine = new_test_authority().engine;
+		assert!(!engine.is_sealer(&Address::default()).unwrap());
+		assert!(engine.is_sealer(&authority).unwrap());
 	}
 }

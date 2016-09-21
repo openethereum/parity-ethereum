@@ -17,20 +17,20 @@
 use std::str::{FromStr, from_utf8};
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
-use std::time::Duration;
+use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
-use util::ToPretty;
+use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use informant::Informant;
+use informant::{Informant, MillisecondDuration};
 use io_handler::ImportIoHandler;
 use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
@@ -108,6 +108,8 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+	let timer = Instant::now();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -218,15 +220,25 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	}
 	client.flush_queue();
+	let report = client.report();
 
-	Ok("Import completed.".into())
+	let ms = timer.elapsed().as_milliseconds();
+	Ok(format!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
+		ms / 1000,
+		report.blocks_imported,
+		(report.blocks_imported * 1000) as u64 / ms,
+		report.transactions_applied,
+		(report.transactions_applied * 1000) as u64 / ms,
+		report.gas_processed / From::from(1_000_000),
+		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+	).into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	let format = cmd.format.unwrap_or_else(Default::default);
+	let format = cmd.format.unwrap_or_default();
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());

@@ -23,12 +23,12 @@ rlp = { path = "rlp" }
 heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.4"
 sha3 = { path = "sha3" }
-clippy = { version = "0.0.85", optional = true}
+clippy = { version = "0.0.90", optional = true}
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
-bigint = { path = "bigint" }
+ethcore-bigint = { path = "bigint" }
 parking_lot = "0.2.6"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
