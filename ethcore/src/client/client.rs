@@ -144,7 +144,9 @@ pub struct Client {
 	factories: Factories,
 }
 
-const HISTORY: u64 = 1200;
+/// The pruning constant -- how old blocks must be before we
+/// assume finality of a given candidate.
+pub const HISTORY: u64 = 1200;
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
