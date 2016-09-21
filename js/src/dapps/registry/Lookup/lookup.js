@@ -1,6 +1,8 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
+import DropDownMenu from 'material-ui/DropDownMenu';
+import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
 import renderAddress from '../ui/address.js';
@@ -14,18 +16,27 @@ export default class Lookup extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     name: PropTypes.string.isRequired,
-    entry: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
     result: nullable(PropTypes.string.isRequired),
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired
   }
 
-  state = { name: '', entry: 'A' };
+  state = { name: '', type: 'A' };
 
   render () {
     const name = this.state.name || this.props.name;
-    const entry = this.state.entry || this.props.entry;
+    const type = this.state.type || this.props.type;
     const { result, accounts, contacts } = this.props;
+
+    let output = '';
+    if (result) {
+      if (type === 'A') {
+        output = (<code>{ renderAddress(result, accounts, contacts, false) }</code>);
+      } else {
+        output = (<code>{ result }</code>);
+      }
+    }
 
     return (
       <Card className={ styles.lookup }>
@@ -37,12 +48,15 @@ export default class Lookup extends Component {
             value={ name }
             onChange={ this.onNameChange }
           />
-          <TextField
+          <DropDownMenu
             className={ styles.spacing }
-            hintText='entry'
-            value={ entry }
-            onChange={ this.onKeyChange }
-          />
+            value={ type }
+            onChange={ this.onTypeChange }
+          >
+            <MenuItem value='A' primaryText='A – Ethereum address' />
+            <MenuItem value='IMG' primaryText='IMG – hash of a picture in the blockchain' />
+            <MenuItem value='CONTENT' primaryText='CONTENT – hash of a data in the blockchain' />
+          </DropDownMenu>
           <RaisedButton
             className={ styles.spacing }
             label='Lookup'
@@ -51,12 +65,7 @@ export default class Lookup extends Component {
             onClick={ this.onLookupClick }
           />
         </div>
-        <CardText>
-          { result
-            ? (<code>{ renderAddress(result, accounts, contacts, false) }</code>)
-            : ''
-          }
-        </CardText>
+        <CardText>{ output }</CardText>
       </Card>
     );
   }
@@ -64,10 +73,10 @@ export default class Lookup extends Component {
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
-  onKeyChange = (e) => {
-    this.setState({ entry: e.target.value });
+  onTypeChange = (e, i, type) => {
+    this.setState({ type });
   };
   onLookupClick = () => {
-    this.props.actions.lookup(this.state.name, this.state.entry);
+    this.props.actions.lookup(this.state.name, this.state.type);
   };
 }
