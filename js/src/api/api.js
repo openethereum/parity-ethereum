@@ -28,6 +28,8 @@ export default class Api {
       throw new Error('EthApi needs transport with execute() function defined');
     }
 
+    this._transport = transport;
+
     this._db = new Db(transport);
     this._eth = new Eth(transport);
     this._ethcore = new Ethcore(transport);
@@ -66,6 +68,10 @@ export default class Api {
 
   get trace () {
     return this._trace;
+  }
+
+  get transport () {
+    return this._transport;
   }
 
   get web3 () {
