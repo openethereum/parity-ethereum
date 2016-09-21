@@ -64,6 +64,8 @@ export default class Modal extends Component {
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent={ !!scroll }
+        actionsContainerClassName={ styles.actions }
+        bodyClassName={ styles.body }
         contentClassName={ styles.content }
         contentStyle={ muiTheme.parity.getBackgroundStyle() }
         modal
