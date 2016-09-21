@@ -75,6 +75,7 @@ export default class Lookup extends Component {
   };
   onTypeChange = (e, i, type) => {
     this.setState({ type });
+    this.props.actions.clear();
   };
   onLookupClick = () => {
     this.props.actions.lookup(this.state.name, this.state.type);

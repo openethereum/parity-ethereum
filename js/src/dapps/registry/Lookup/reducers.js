@@ -5,6 +5,10 @@ const initialState = {
 };
 
 export default (state = initialState, action) => {
+  if (action.type === 'lookup clear') {
+    return { ...state, result: null };
+  }
+
   if (action.type === 'lookup start') {
     return {
       pending: true,

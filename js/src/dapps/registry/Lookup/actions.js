@@ -1,5 +1,7 @@
 import { sha3 } from '../parity.js';
 
+export const clear = () => ({ type: 'lookup clear' });
+
 export const start = (name, key) => ({ type: 'lookup start', name, key });
 
 export const success = (address) => ({ type: 'lookup success', result: address });
