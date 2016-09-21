@@ -33,16 +33,14 @@ export default class Container extends Component {
     const { background, children, showFirstRun, onCloseFirstRun } = this.props;
 
     return (
-      <div className={ styles.container }>
+      <ParityBackground background={ background } className={ styles.container }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
         <Tooltips />
         <Errors />
-        <ParityBackground background={ background }>
-          { children }
-        </ParityBackground>
-      </div>
+        { children }
+      </ParityBackground>
     );
   }
 }

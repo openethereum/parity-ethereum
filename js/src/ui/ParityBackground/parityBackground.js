@@ -17,6 +17,8 @@
 import GeoPattern from 'geopattern';
 import React, { Component, PropTypes } from 'react';
 
+const GRADIENT = 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5))';
+
 export default class ParityBackground extends Component {
   static propTypes = {
     children: PropTypes.node,
@@ -47,7 +49,7 @@ export default class ParityBackground extends Component {
   render () {
     const { children, className } = this.props;
     const { background } = this.state;
-    const style = { background, minHeight: '100%' };
+    const style = { background };
 
     return (
       <div className={ className } style={ style }>
@@ -58,7 +60,7 @@ export default class ParityBackground extends Component {
 
   updateBackground (seed) {
     const url = GeoPattern.generate(seed).toDataUrl();
-    const background = `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), ${url}`;
+    const background = `${GRADIENT}, ${url}`;
 
     this.setState({ background });
   }
