@@ -18,7 +18,7 @@ import { handleActions } from 'redux-actions';
 
 const initialState = {
   balances: {},
-  tokens: []
+  tokens: {}
 };
 
 export default handleActions({
