@@ -7,13 +7,15 @@ import renderAddress from '../ui/address.js';
 
 import styles from './lookup.css';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class Lookup extends Component {
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
     name: PropTypes.string.isRequired,
     entry: PropTypes.string.isRequired,
-    result: PropTypes.string.isRequired,
+    result: nullable(PropTypes.string.isRequired),
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired
   }

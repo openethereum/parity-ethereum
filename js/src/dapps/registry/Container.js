@@ -5,14 +5,16 @@ import { bindActionCreators } from 'redux';
 import Application from './Application';
 import * as actions from './actions';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 class Container extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
-    contract: PropTypes.object.isRequired,
-    owner: PropTypes.string.isRequired,
-    fee: PropTypes.object.isRequired,
+    contract: nullable(PropTypes.object.isRequired),
+    owner: nullable(PropTypes.string.isRequired),
+    fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired
   };

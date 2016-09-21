@@ -11,6 +11,8 @@ import Lookup from '../Lookup';
 import Register from '../register';
 import Events from '../events';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class Application extends Component {
   static childContextTypes = {
     muiTheme: PropTypes.object.isRequired,
@@ -24,8 +26,8 @@ export default class Application extends Component {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
-    contract: PropTypes.object.isRequired,
-    fee: PropTypes.object.isRequired,
+    contract: nullable(PropTypes.object.isRequired),
+    fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.array.isRequired,
     register: PropTypes.object.isRequired
