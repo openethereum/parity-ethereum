@@ -71,6 +71,10 @@ export function inFilter (options) {
           options[key] = inBlockNumber(options[key]);
           break;
 
+        case 'limit':
+          options[key] = inNumber10(options[key]);
+          break;
+
         case 'topics':
           options[key] = inTopics(options[key]);
       }
