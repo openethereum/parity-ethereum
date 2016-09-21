@@ -32,11 +32,10 @@
 
 .expanded {
   right: 16px;
-  width: 860px;
-  height: 250px;
+  width: 900px;
+  height: 300px;
   border-radius: 4px 4px 0 0;
   background: rgb(48, 48, 48);
-  padding: 1em;
   overflow-y: scroll;
 }
 
@@ -89,11 +88,15 @@
 
 .header {
   height: 36px;
-  padding-bottom: 1em;
+  padding: 1em;
 }
 
 .header:after {
   clear: both;
+}
+
+.body {
+  padding: 1em;
 }
 
 .title {

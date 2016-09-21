@@ -28,7 +28,7 @@
 .tabs button,
 .settings,
 .logo {
-  background: none; /* rgba(0, 0, 0, 0.25) !important; */
+  background: rgba(0, 0, 0, 0.7) !important; /* rgba(0, 0, 0, 0.25) !important; */
 }
 
 .tabs button:hover {
@@ -37,7 +37,7 @@
 
 button.tabactive,
 button.tabactive:hover {
-  background: rgba(0, 0, 0, 0.7) !important;
+  background: none !important;
   border-radius: 4px 4px 0 0;
 }
 

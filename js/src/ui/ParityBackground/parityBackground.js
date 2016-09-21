@@ -14,10 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import GeoPattern from 'geopattern';
 import React, { Component, PropTypes } from 'react';
-
-const GRADIENT = 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5))';
 
 export default class ParityBackground extends Component {
   static contextTypes = {
@@ -31,12 +28,10 @@ export default class ParityBackground extends Component {
 
   render () {
     const { children, className } = this.props;
-    const { backgroundSeed } = this.context.muiTheme.parity;
-    const url = GeoPattern.generate(backgroundSeed).toDataUrl();
-    const style = { background: `${GRADIENT}, ${url}` };
+    const { muiTheme } = this.context;
 
     return (
-      <div className={ className } style={ style }>
+      <div className={ className } style={ muiTheme.parity.getBackgroundStyle() }>
         { children }
       </div>
     );

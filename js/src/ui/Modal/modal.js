@@ -23,11 +23,14 @@ import Title from './Title';
 const ACTIONS_STYLE = { borderStyle: 'none' };
 const TITLE_STYLE = { borderStyle: 'none' };
 const DIALOG_STYLE = { paddingTop: '1px' };
-const CONTENT_STYLE = { transform: 'translate(0px, 0px)' };
 
 import styles from './modal.css';
 
 export default class Modal extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     actions: PropTypes.node,
     children: PropTypes.node,
@@ -43,6 +46,7 @@ export default class Modal extends Component {
   }
 
   render () {
+    const { muiTheme } = this.context;
     const { actions, className, current, children, scroll, steps, waiting, title, visible } = this.props;
     const header = (
       <Title
@@ -51,15 +55,17 @@ export default class Modal extends Component {
         steps={ steps }
         title={ title } />
     );
+    const classes = `${styles.dialog} ${className}`;
 
     return (
       <Dialog
-        className={ className }
+        className={ classes }
         actions={ actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
         autoScrollBodyContent={ !!scroll }
-        contentStyle={ CONTENT_STYLE }
+        contentClassName={ styles.content }
+        contentStyle={ muiTheme.parity.getBackgroundStyle() }
         modal
         open={ visible }
         repositionOnUpdate={ false }
