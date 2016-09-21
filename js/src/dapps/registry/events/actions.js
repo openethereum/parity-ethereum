@@ -6,7 +6,7 @@ export const success = (name, subscription) => ({ type: 'events subscribe succes
 
 export const event = (name, event) => ({ type: 'events event', name, event });
 
-export const subscribe = (name, from = 0, to = 'latest') =>
+export const subscribe = (name, from = 0, to = 'pending') =>
   (dispatch, getState) => {
     const { contract } = getState();
     if (!contract) return;

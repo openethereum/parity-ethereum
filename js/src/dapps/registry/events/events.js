@@ -14,42 +14,36 @@ const inlineButton = {
   marginRight: '1em'
 };
 
-const renderTimestamp = (ts) => {
-  ts = moment(ts);
+const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
+  if (e.state === 'pending') {
+    classNames += ' ' + styles.pending;
+  }
+
+  const timestamp = moment(e.timestamp);
+  let status;
+  if (e.state === 'pending') {
+    status = (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
+  } else {
+    status = (
+      <time dateTime={ timestamp.toISOString() }>
+        <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
+      </time>
+    );
+  }
+
   return (
-    <time dateTime={ ts.toISOString() }>
-      <abbr title={ ts.format('MMMM Do YYYY, h:mm:ss a') }>{ ts.fromNow() }</abbr>
-    </time>
+    <div key={ e.key } className={ classNames }>
+      { renderAddress(e.parameters.owner, accounts, contacts) }
+      { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
+      { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      { ' ' }{ status }
+    </div>
   );
 };
 
-const renderReserved = (e, accounts, contacts) => (
-  <p key={ e.key } className={ styles.reserved }>
-    { renderAddress(e.parameters.owner, accounts, contacts) }
-    { ' ' }
-    <abbr title={ e.transaction }>reserved</abbr>
-    { ' ' }
-    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-    { ' ' }
-    { renderTimestamp(e.timestamp) }
-  </p>
-);
-
-const renderDropped = (e, accounts, contacts) => (
-  <p key={ e.key } className={ styles.dropped }>
-    { renderAddress(e.parameters.owner, accounts, contacts) }
-    { ' ' }
-    <abbr title={ e.transaction }>dropped</abbr>
-    { ' ' }
-    <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-    { ' ' }
-    { renderTimestamp(e.timestamp) }
-  </p>
-);
-
 const eventTypes = {
-  Reserved: renderReserved,
-  Dropped: renderDropped
+  Reserved: renderEvent(styles.reserved, 'reserved'),
+  Dropped: renderEvent(styles.dropped, 'dropped')
 };
 
 export default class Events extends Component {
