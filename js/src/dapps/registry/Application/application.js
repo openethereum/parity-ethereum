@@ -31,7 +31,8 @@ export default class Application extends Component {
     fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.object.isRequired,
-    register: PropTypes.object.isRequired
+    register: PropTypes.object.isRequired,
+    records: PropTypes.object.isRequired
   };
 
   render () {
@@ -41,7 +42,8 @@ export default class Application extends Component {
       contract, fee,
       lookup,
       events,
-      register
+      register,
+      records
     } = this.props;
 
     return (
@@ -54,7 +56,7 @@ export default class Application extends Component {
           <div>
             <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
-            <Records />
+            <Records { ...records } actions={ actions.records } />
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <p className={ styles.address }>
               The Registry is provided by the contract at <code>{ contract.address }.</code>

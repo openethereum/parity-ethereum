@@ -70,6 +70,7 @@ export default class Records extends Component {
     this.setState({ value: e.target.value });
   };
   onSaveClick = () => {
-    // this.props.actions.lookup(this.state.name, this.state.type);
+    const { name, type, value } = this.state;
+    this.props.actions.update(name, type, value);
   };
 }
