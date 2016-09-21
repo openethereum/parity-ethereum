@@ -22,7 +22,6 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 const lightTheme = getMuiTheme(lightBaseTheme);
 const muiTheme = getMuiTheme(darkBaseTheme);
 
-muiTheme.dialog.bodyColor = 'transparent';
 muiTheme.stepper.textColor = '#eee';
 muiTheme.stepper.disabledTextColor = '#777';
 muiTheme.inkBar.backgroundColor = 'transparent';
