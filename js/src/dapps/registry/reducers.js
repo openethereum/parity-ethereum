@@ -3,6 +3,7 @@ import contactsReducer from './addresses/contacts-reducer.js';
 import lookupReducer from './Lookup/reducers.js';
 import eventsReducer from './events/reducers.js';
 import registerReducer from './register/reducers.js';
+import recordsReducer from './records/reducer.js';
 
 const contractReducer = (state = null, action) =>
   action.type === 'set contract' ? action.contract : state;
@@ -21,7 +22,8 @@ const initialState = {
   owner: ownerReducer(undefined, { type: '' }),
   lookup: lookupReducer(undefined, { type: '' }),
   events: eventsReducer(undefined, { type: '' }),
-  register: registerReducer(undefined, { type: '' })
+  register: registerReducer(undefined, { type: '' }),
+  records: recordsReducer(undefined, { type: '' })
 };
 
 export default (state = initialState, action) => ({
@@ -32,5 +34,6 @@ export default (state = initialState, action) => ({
   owner: ownerReducer(state.owner, action),
   lookup: lookupReducer(state.lookup, action),
   events: eventsReducer(state.events, action),
-  register: registerReducer(state.register, action)
+  register: registerReducer(state.register, action),
+  records: recordsReducer(state.records, action)
 });

@@ -9,7 +9,14 @@ import styles from './records.css';
 
 export default class Records extends Component {
 
-  static propTypes = {}
+  static propTypes = {
+    actions: PropTypes.object.isRequired,
+    hasAccount: PropTypes.bool.isRequired,
+    pending: PropTypes.bool.isRequired,
+    name: PropTypes.string.isRequired,
+    type: PropTypes.string.isRequired,
+    value: PropTypes.string.isRequired
+  }
 
   state = { name: '', type: 'A', value: '' };
 
