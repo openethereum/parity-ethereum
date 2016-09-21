@@ -61,7 +61,7 @@ export default class Events extends Component {
     const { subscriptions, pending, accounts, contacts } = this.props;
     return (
       <Card className={ styles.events }>
-        <CardHeader title={ 'Stuff Happening' } />
+        <CardHeader title='Event Log' />
         <CardActions className={ styles.options }>
           <Toggle
             label='Reserved'
