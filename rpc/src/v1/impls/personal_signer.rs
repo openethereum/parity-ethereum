@@ -43,7 +43,7 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		client: &Arc<C>,
 		miner: &Arc<M>,
 		signer: &Arc<SignerService>,
-		) -> Self {
+	) -> Self {
 		SignerClient {
 			signer: Arc::downgrade(signer),
 			accounts: Arc::downgrade(store),
