@@ -5,8 +5,9 @@ import * as accounts from './accounts/actions.js';
 import * as lookup from './Lookup/actions.js';
 import * as events from './events/actions.js';
 import * as register from './register/actions.js';
+import * as records from './records/actions.js';
 
-export { addresses, accounts, lookup, events, register };
+export { addresses, accounts, lookup, events, register, records };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
