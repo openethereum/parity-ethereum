@@ -27,7 +27,7 @@ export default class InputText extends Component {
     floatingLabelText: PropTypes.string,
     hintText: PropTypes.string,
 
-    contract: PropTypes.object.isRequired
+    contract: PropTypes.object
   }
 
   state = initState;

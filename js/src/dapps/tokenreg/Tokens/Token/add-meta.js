@@ -1,20 +1,21 @@
 import React, { Component, PropTypes } from 'react';
-import { Dialog, RaisedButton, FlatButton, TextField, SelectField, MenuItem } from 'material-ui';
+import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
 
-import { HEX_TYPE, validate } from '../../Inputs/validation';
+import InputText from '../../Inputs/Text';
 
 import styles from './token.css';
 
 import { metaDataKeys } from '../../constants';
 
-const defaultField = { error: null, value: '', valid: false };
 const initState = {
   showDialog: false,
   complete: false,
   metaKeyIndex: 0,
-  fields: {
-    value: { ...defaultField, type: HEX_TYPE }
+
+  form: {
+    valid: false,
+    value: ''
   }
 };
 
@@ -49,7 +50,7 @@ export default class AddMeta extends Component {
       <Dialog
         title='add meta data'
         open={ this.state.showDialog }
-        modal
+        modal={ this.state.complete }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
         actions={ this.renderActions() } >
@@ -70,7 +71,7 @@ export default class AddMeta extends Component {
       );
     }
 
-    const isValid = this.isValid();
+    const isValid = this.state.form.valid;
 
     return ([
       <FlatButton
@@ -99,9 +100,7 @@ export default class AddMeta extends Component {
   }
 
   renderForm () {
-    const { fields } = this.state;
-
-    let onChangeValue = this.onChange.bind(this, 'value');
+    let selectedMeta = metaDataKeys[this.state.metaKeyIndex];
 
     return (
       <div>
@@ -115,14 +114,13 @@ export default class AddMeta extends Component {
 
         </SelectField>
 
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Meta Value'
-          fullWidth
-          hintText='The value of the meta-data'
-          errorText={ fields.value.error }
-          onChange={ onChangeValue } />
+        <InputText
+          key={ selectedMeta.value }
+          floatingLabelText={ `${selectedMeta.label} value` }
+          hintText={ `The value of the ${selectedMeta.label.toLowerCase()} meta-data` }
+
+          validationType={ selectedMeta.validation }
+          onChange={ this.onChange } />
       </div>
     );
   }
@@ -134,16 +132,6 @@ export default class AddMeta extends Component {
         key={ index }
         label={ key.label } primaryText={ key.label } />
     ));
-  }
-
-  isValid () {
-    const { fields } = this.state;
-
-    return Object.keys(fields)
-      .map(key => fields[key].valid)
-      .reduce((current, fieldValid) => {
-        return current && fieldValid;
-      }, true);
   }
 
   onShowDialog () {
@@ -161,38 +149,26 @@ export default class AddMeta extends Component {
     this.props.handleAddMeta(
       index,
       key,
-      this.state.fields.value.value
+      this.state.form.value
     );
 
     this.setState({ complete: true });
   }
 
-  onChange (fieldKey, event) {
-    const value = event.target.value;
-
-    let fields = this.state.fields;
-    let fieldState = fields[fieldKey];
-    let validation = validate(value, fieldState.type);
-
-    let newFieldState = {
-      ...fieldState,
-      ...validation
-    };
-
-    newFieldState.value = (validation.value !== undefined)
-      ? validation.value
-      : value;
-
+  onChange = (valid, value) => {
     this.setState({
-      fields: {
-        ...fields,
-        [fieldKey]: newFieldState
+      form: {
+        valid, value
       }
     });
   }
 
   onMetaKeyChange = (event, metaKeyIndex) => {
-    this.setState({ metaKeyIndex });
+    this.setState({ metaKeyIndex, form: {
+      ...[this.state.form],
+      valid: false,
+      value: ''
+    } });
   }
 
 }

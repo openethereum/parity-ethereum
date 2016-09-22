@@ -1,6 +1,7 @@
 import {
   SET_LOADING,
   SET_CONTRACT_DETAILS,
+  SET_GITHUBHINT_CONTRACT,
   SET_SUBSCRIPTION_ID
 } from './actions';
 
@@ -14,6 +15,11 @@ const initialState = {
     owner: null,
     isOwner: false,
     fee: null
+  },
+  githubhint: {
+    address: null,
+    instance: null,
+    raw: null
   }
 };
 
@@ -28,6 +34,12 @@ export default (state = initialState, action) => {
     case SET_CONTRACT_DETAILS:
       return { ...state, contract: {
         ...state.contract,
+        ...action.details
+      } };
+
+    case SET_GITHUBHINT_CONTRACT:
+      return { ...state, githubhint: {
+        ...state.githubhint,
         ...action.details
       } };
 

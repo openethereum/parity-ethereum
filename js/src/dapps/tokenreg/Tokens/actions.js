@@ -188,7 +188,15 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
     from: token.owner
   };
 
-  let values = [ index, keyHash, value ];
+  let values;
+
+  if (key === 'IMG') {
+    let valueHash = sha3(value);
+    dispatch(addGithubhintURL(token.owner, valueHash, value));
+    values = [ index, keyHash, valueHash ];
+  } else {
+    values = [ index, keyHash, value ];
+  }
 
   contractInstance
     .setMeta
@@ -201,6 +209,30 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
     })
     .catch((e) => {
       console.error(`addTokenMeta #${index} error`, e);
+    });
+};
+
+export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
+  console.log('add githubhint url', key, url);
+
+  let state = getState();
+  let contractInstance = state.status.githubhint.instance;
+
+  let options = { from };
+
+  let values = [ key, url ];
+
+  contractInstance
+    .hintURL
+    .estimateGas(options, values)
+    .then((gasEstimate) => {
+      options.gas = gasEstimate.mul(1.2).toFixed(0);
+      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
+
+      return contractInstance.hintURL.postTransaction(options, values);
+    })
+    .catch((e) => {
+      console.error('addGithubhintURL error', e);
     });
 };
 

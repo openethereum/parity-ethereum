@@ -1,3 +1,5 @@
+import isURL from 'validator/lib/isURL';
+
 import { api } from '../parity';
 
 import { getTokenTotalSupply } from '../utils';
@@ -14,6 +16,7 @@ export const TLA_TYPE = 'TLA_TYPE';
 export const UINT_TYPE = 'UINT_TYPE';
 export const STRING_TYPE = 'STRING_TYPE';
 export const HEX_TYPE = 'HEX_TYPE';
+export const URL_TYPE = 'URL_TYPE';
 
 export const ERRORS = {
   invalidTLA: 'The TLA should be 3 characters long',
@@ -27,7 +30,8 @@ export const ERRORS = {
   invalidAmount: 'Please enter a positive amount > 0',
   invalidTotal: 'The amount is greater than the availale balance',
   tlaAlreadyTaken: 'This TLA address is already registered',
-  addressAlreadyTaken: 'This Token address is already registered'
+  addressAlreadyTaken: 'This Token address is already registered',
+  invalidURL: 'Please enter a valid URL'
 };
 
 const validateAddress = (address) => {
@@ -140,6 +144,21 @@ const validateHex = (string) => {
   };
 };
 
+const validateURL = (string) => {
+  if (!isURL(string.toString())) {
+    return {
+      error: ERRORS.invalidURL,
+      valid: false
+    };
+  }
+
+  return {
+    value: string.toString(),
+    error: null,
+    valid: true
+  };
+};
+
 export const validate = (value, type, contract) => {
   if (type === ADDRESS_TYPE) return validateAddress(value);
   if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract);
@@ -147,6 +166,7 @@ export const validate = (value, type, contract) => {
   if (type === UINT_TYPE) return validateUint(value);
   if (type === STRING_TYPE) return validateString(value);
   if (type === HEX_TYPE) return validateHex(value);
+  if (type === URL_TYPE) return validateURL(value);
 
   return { valid: true, error: null };
 };
