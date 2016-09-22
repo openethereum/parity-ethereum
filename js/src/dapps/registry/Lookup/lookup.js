@@ -4,6 +4,7 @@ import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
 import renderAddress from '../ui/address.js';
+import renderImage from '../ui/image.js';
 
 import recordTypeSelect from '../ui/record-type-select.js';
 import styles from './lookup.css';
@@ -32,6 +33,13 @@ export default class Lookup extends Component {
     if (result) {
       if (type === 'A') {
         output = (<code>{ renderAddress(result, accounts, contacts, false) }</code>);
+      } else if (type === 'IMG') {
+        output = renderImage(result);
+      } else if (type === 'CONTENT') {
+        output = (<div>
+          <code>{ result }</code>
+          <p>This is most likely just the hash of the content you are looking for</p>
+        </div>);
       } else {
         output = (<code>{ result }</code>);
       }
