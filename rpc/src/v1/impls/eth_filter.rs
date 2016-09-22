@@ -26,7 +26,7 @@ use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
 use v1::helpers::{PollFilter, PollManager, limit_logs};
-use v1::helpers::params::{expect_no_params, params_len};
+use v1::helpers::params::{expect_no_params};
 use v1::impls::eth::pending_logs;
 
 /// Eth filter rpc implementation.

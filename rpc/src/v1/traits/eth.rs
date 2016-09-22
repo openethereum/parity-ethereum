@@ -227,6 +227,10 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 	/// or an error.
 	fn check_request(&self, _: Params) -> Result<Value, Error>;
 
+	/// Decrypt some ECIES-encrypted message.
+	/// First parameter is the address with which it is encrypted, second is the ciphertext.
+	fn decrypt_message(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -235,6 +239,7 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 		delegate.add_method("eth_postSign", EthSigning::post_sign);
 		delegate.add_method("eth_postTransaction", EthSigning::post_transaction);
 		delegate.add_method("eth_checkRequest", EthSigning::check_request);
+		delegate.add_method("ethcore_decryptMessage", EthSigning::decrypt_message);
 		delegate
 	}
 }

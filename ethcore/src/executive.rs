@@ -193,7 +193,6 @@ impl<'a, B: 'a + state::Backend> Executive<'a, B> {
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
-				// TODO: move output upstream
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			}

@@ -26,7 +26,7 @@ use ethcore::account_provider::AccountProvider;
 use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest, SignerService};
 use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256, Bytes as RpcBytes};
 
 fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
@@ -168,6 +168,13 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
+	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(_account, _ciphertext)| {
+			Err(errors::unimplemented())
+		})
+	}
+
 	fn check_request(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		let mut pending = self.pending.lock();
@@ -239,6 +246,14 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 				let sender = request.from;
 				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender)
 			}))
+	}
+
+	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(address, ciphertext)| {
+			let s = try!(take_weak!(self.accounts).decrypt(address.into(), &[0; 0], &ciphertext.0).map_err(|_| Error::internal_error()));
+			Ok(to_value(RpcBytes::from(s)))
+		})
 	}
 
 	fn post_sign(&self, _: Params) -> Result<Value, Error> {
