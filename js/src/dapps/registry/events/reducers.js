@@ -11,8 +11,10 @@ const initialState = {
 };
 
 const sortEvents = (a, b) => {
-  const d = a.block.minus(b.block).toFixed(0);
-  if (d === 0) return a.index.minus(b.index).toFixed(0);
+  if (a.state === 'pending' && b.state !== 'pending') return -1;
+  if (a.state !== 'pending' && b.state === 'pending') return 1;
+  const d = b.block.minus(a.block).toFixed(0);
+  if (d === 0) return b.index.minus(a.index).toFixed(0);
   return d;
 };
 
@@ -36,7 +38,6 @@ export default (state = initialState, action) => {
   }
 
   if (action.type === 'events unsubscribe') {
-    console.warn('events unsubscribe', action);
     return {
       ...state,
       pending: { ...state.pending, [action.name]: false },
@@ -45,7 +46,7 @@ export default (state = initialState, action) => {
     };
   }
 
-  if (action.type === 'events event' && action.event.state === 'mined') {
+  if (action.type === 'events event') {
     return { ...state, events: state.events
       .filter((event) => event.key !== action.event.key)
       .concat(action.event)

@@ -19,7 +19,7 @@ import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 import { RaisedButton } from 'material-ui';
 
-import { Input } from '../../../../ui';
+import { Container, ContainerTitle, Input } from '../../../../ui';
 import { updateToken } from '../../actions/signer';
 
 import styles from './UnAuthorizedPage.css';
@@ -56,29 +56,32 @@ class UnAuthorizedPage extends Component {
   render () {
     const { processing, token } = this.state;
     return (
-      <div className={ styles.container }>
-        <h2>Not Authorized</h2>
-        <p className={ styles.lead }>
-          Connections used by Trusted Signer are secured. You need to authorize this app.
-        </p>
-        <p>Make sure Parity is running, generate authorization token:</p>
-        <p><code className={ styles.code }>$ parity signer new-token</code> &nbsp;and paste the token below:</p>
-        <Input
-          value={ token }
-          disabled={ processing }
-          onChange={ this.onTokenChange }
-          hint='token from Parity'
-          label='Authorization Token' />
-        <br />
-        <RaisedButton
-          primary
-          onClick={ this.onSubmit }
-          disabled={ processing || !token }
-          label='Authorize'
-         />
-        { this.renderInvalidToken() }
-        { this.renderProcessing() }
-      </div>
+      <Container>
+        <ContainerTitle title='Not Authorized' />
+        <div className={ styles.section }>
+          Connections used by Trusted Signer are secured. You need to authorize this application.
+        </div>
+        <div className={ styles.section }>
+          Make sure Parity is running and generate an authorization token with <code className={ styles.code }>parity signer new-token</code> in your console, pasting the token below:
+        </div>
+        <div className={ styles.section }>
+          <Input
+            value={ token }
+            disabled={ processing }
+            onChange={ this.onTokenChange }
+            hint='token from Parity'
+            label='Authorization Token' />
+          <br />
+          <RaisedButton
+            primary
+            onClick={ this.onSubmit }
+            disabled={ processing || !token }
+            label='Authorize'
+           />
+          { this.renderInvalidToken() }
+          { this.renderProcessing() }
+        </div>
+      </Container>
     );
   }
 

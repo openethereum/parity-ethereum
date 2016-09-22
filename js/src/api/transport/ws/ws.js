@@ -14,25 +14,65 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
+
+import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
-  constructor (url, protocols) {
+  constructor (url, token) {
     super();
 
+    this._url = url;
+    this._token = token;
     this._messages = {};
 
-    this._ws = new WebSocket(url, protocols);
+    this._connect();
+  }
+
+  _hash () {
+    const time = parseInt(new Date().getTime() / 1000, 10);
+    const sha3 = keccak_256(`${this._token}:${time}`);
+
+    return `${sha3}_${time}`;
+  }
+
+  _connect () {
+    this._ws = new WebSocket(this._url, this._hash());
+
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
+
+    this._connected = false;
+  }
+
+  _onOpen = (event) => {
+    console.log('ws:onOpen', event);
+    this._connected = true;
+
+    Object.keys(this._messages)
+      .filter((id) => this._messages[id].queued)
+      .forEach(this._send);
+  }
+
+  _onClose = (event) => {
+    console.log('ws:onClose', event);
+    this._connected = false;
+    this._connect();
+  }
+
+  _onError = (event) => {
+    console.error('ws:onError', event);
   }
 
   _onMessage = (event) => {
     const result = JSON.parse(event.data);
-    const { resolve, reject } = this._messages[result.id];
+    const { method, params, json, resolve, reject } = this._messages[result.id];
+
+    Logging.send(method, params, { json, result });
 
     if (result.error) {
       this.error(event.data);
@@ -42,20 +82,32 @@ export default class Ws extends JsonRpcBase {
       return;
     }
 
-    this.log(event.data);
-
     resolve(result.result);
     delete this._messages[result.id];
   }
 
+  _send = (id) => {
+    const message = this._messages[id];
+
+    message.queued = !this._connected;
+
+    if (this._connected) {
+      this._ws.send(message.json);
+    }
+  }
+
   execute (method, ...params) {
     return new Promise((resolve, reject) => {
-      this._messages[this.id] = { resolve: resolve, reject: reject };
+      const id = this.id;
       const json = this.encode(method, params);
 
-      this.log(json);
-
-      this._ws.send(json);
+      this._messages[id] = { id, method, params, json, resolve, reject };
+      this._send(id);
     });
+  }
+
+  updateToken (token) {
+    this._token = token;
+    this._connect();
   }
 }

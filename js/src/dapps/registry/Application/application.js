@@ -10,30 +10,34 @@ import Accounts from '../accounts';
 import Lookup from '../Lookup';
 import Register from '../register';
 import Events from '../events';
-import Status from '../Status';
+
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class Application extends Component {
-  static childContextTypes = { muiTheme: PropTypes.object };
+  static childContextTypes = {
+    muiTheme: PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired
+  };
   getChildContext () {
-    return { muiTheme };
+    return { muiTheme, api: window.parity.api };
   }
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
     accounts: PropTypes.object.isRequired,
-    contract: PropTypes.object.isRequired,
-    owner: PropTypes.string.isRequired,
-    fee: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
+    contract: nullable(PropTypes.object.isRequired),
+    fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
-    events: PropTypes.array.isRequired,
+    events: PropTypes.object.isRequired,
     register: PropTypes.object.isRequired
   };
 
   render () {
     const {
       actions,
-      accounts,
-      contract, owner, fee,
+      accounts, contacts,
+      contract, fee,
       lookup,
       events,
       register
@@ -45,12 +49,14 @@ export default class Application extends Component {
           <h1>RΞgistry</h1>
           <Accounts { ...accounts } actions={ actions.accounts } />
         </div>
-        { contract && fee && owner ? (
+        { contract && fee ? (
           <div>
-            <Lookup { ...lookup } actions={ actions.lookup } />
+            <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Register { ...register } fee={ fee } actions={ actions.register } />
-            <Events { ...events } actions={ actions.events } />
-            <Status address={ contract.address } owner={ owner } />
+            <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
+            <p className={ styles.address }>
+              The Registry is provided by the contract at <code>{ contract.address }.</code>
+            </p>
           </div>
         ) : (
           <CircularProgress size={ 1 } />

@@ -3,7 +3,9 @@ import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
-import { bytesToHex, IdentityIcon } from '../parity.js';
+import { bytesToHex } from '../parity.js';
+import renderHash from '../ui/hash.js';
+import renderAddress from '../ui/address.js';
 import styles from './events.css';
 
 const inlineButton = {
@@ -12,49 +14,36 @@ const inlineButton = {
   marginRight: '1em'
 };
 
-const renderOwner = (owner) => (
-  <span className={ styles.owner }>
-    <IdentityIcon inline center address={ owner } />
-    <code>{ owner }</code>
-  </span>
-);
+const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
+  if (e.state === 'pending') {
+    classNames += ' ' + styles.pending;
+  }
 
-const renderTimestamp = (ts) => {
-  ts = moment(ts);
+  const timestamp = moment(e.timestamp);
+  let status;
+  if (e.state === 'pending') {
+    status = (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
+  } else {
+    status = (
+      <time dateTime={ timestamp.toISOString() }>
+        <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
+      </time>
+    );
+  }
+
   return (
-    <time dateTime={ ts.toISOString() }>
-      <abbr title={ ts.format('MMMM Do YYYY, h:mm:ss a') }>{ ts.fromNow() }</abbr>
-    </time>
+    <div key={ e.key } className={ classNames }>
+      { renderAddress(e.parameters.owner, accounts, contacts) }
+      { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
+      { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      { ' ' }{ status }
+    </div>
   );
 };
 
-const renderReserved = (e) => (
-  <p key={ e.key } className={ styles.reserved }>
-    { renderOwner(e.parameters.owner) }
-    { ' ' }
-    <abbr title={ e.transaction }>reserved</abbr>
-    { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
-    { ' ' }
-    { renderTimestamp(e.timestamp) }
-  </p>
-);
-
-const renderDropped = (e) => (
-  <p key={ e.key } className={ styles.dropped }>
-    { renderOwner(e.parameters.owner) }
-    { ' ' }
-    <abbr title={ e.transaction }>dropped</abbr>
-    { ' ' }
-    <code>{ bytesToHex(e.parameters.name) }</code>
-    { ' ' }
-    { renderTimestamp(e.timestamp) }
-  </p>
-);
-
 const eventTypes = {
-  Reserved: renderReserved,
-  Dropped: renderDropped
+  Reserved: renderEvent(styles.reserved, 'reserved'),
+  Dropped: renderEvent(styles.dropped, 'dropped')
 };
 
 export default class Events extends Component {
@@ -63,14 +52,16 @@ export default class Events extends Component {
     actions: PropTypes.object.isRequired,
     subscriptions: PropTypes.object.isRequired,
     pending: PropTypes.object.isRequired,
-    events: PropTypes.array.isRequired
+    events: PropTypes.array.isRequired,
+    accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired
   }
 
   render () {
-    const { subscriptions, pending } = this.props;
+    const { subscriptions, pending, accounts, contacts } = this.props;
     return (
       <Card className={ styles.events }>
-        <CardHeader title={ 'Stuff Happening' } />
+        <CardHeader title='Event Log' />
         <CardActions className={ styles.options }>
           <Toggle
             label='Reserved'
@@ -90,7 +81,7 @@ export default class Events extends Component {
         <CardText>{
           this.props.events
             .filter((e) => eventTypes[e.type])
-            .map((e) => eventTypes[e.type](e))
+            .map((e) => eventTypes[e.type](e, accounts, contacts))
         }</CardText>
       </Card>
     );

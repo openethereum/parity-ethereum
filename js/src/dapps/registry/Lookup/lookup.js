@@ -3,8 +3,11 @@ import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
+import renderAddress from '../ui/address.js';
 
 import styles from './lookup.css';
+
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class Lookup extends Component {
 
@@ -12,7 +15,9 @@ export default class Lookup extends Component {
     actions: PropTypes.object.isRequired,
     name: PropTypes.string.isRequired,
     entry: PropTypes.string.isRequired,
-    result: PropTypes.string
+    result: nullable(PropTypes.string.isRequired),
+    accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired
   }
 
   state = { name: '', entry: 'A' };
@@ -20,7 +25,7 @@ export default class Lookup extends Component {
   render () {
     const name = this.state.name || this.props.name;
     const entry = this.state.entry || this.props.entry;
-    const result = this.props.result || '';
+    const { result, accounts, contacts } = this.props;
 
     return (
       <Card className={ styles.lookup }>
@@ -47,7 +52,10 @@ export default class Lookup extends Component {
           />
         </div>
         <CardText>
-          <code>{ result }</code>
+          { result
+            ? (<code>{ renderAddress(result, accounts, contacts, false) }</code>)
+            : ''
+          }
         </CardText>
       </Card>
     );

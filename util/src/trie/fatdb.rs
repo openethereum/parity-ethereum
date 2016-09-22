@@ -46,8 +46,8 @@ impl<'db> FatDB<'db> {
 }
 
 impl<'db> Trie for FatDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
-		Box::new(FatDBIterator::new(&self.raw))
+	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+		FatDBIterator::new(&self.raw).map(|iter| Box::new(iter) as Box<_>)
 	}
 
 	fn root(&self) -> &H256 {
@@ -73,22 +73,24 @@ pub struct FatDBIterator<'db> {
 
 impl<'db> FatDBIterator<'db> {
 	/// Creates new iterator.
-	pub fn new(trie: &'db TrieDB) -> Self {
-		FatDBIterator {
-			trie_iterator: TrieDBIterator::new(trie),
+	pub fn new(trie: &'db TrieDB) -> super::Result<Self> {
+		Ok(FatDBIterator {
+			trie_iterator: try!(TrieDBIterator::new(trie)),
 			trie: trie,
-		}
+		})
 	}
 }
 
 impl<'db> Iterator for FatDBIterator<'db> {
-	type Item = (Vec<u8>, &'db [u8]);
+	type Item = TrieItem<'db>;
 
 	fn next(&mut self) -> Option<Self::Item> {
 		self.trie_iterator.next()
-			.map(|(hash, value)| {
-				(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
-			})
+			.map(|res|
+				res.map(|(hash, value)| {
+					(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
+				})
+			)
 	}
 }
 
@@ -105,5 +107,5 @@ fn fatdb_to_trie() {
 	}
 	let t = FatDB::new(&memdb, &root).unwrap();
 	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
-	assert_eq!(t.iter().collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
+	assert_eq!(t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
 }

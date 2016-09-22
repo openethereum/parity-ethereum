@@ -62,13 +62,6 @@
   opacity: .5;
 }
 
-.contract {
-  position: relative;
-  bottom: 15px;
-  text-align: center;
-  width: 123px;
-}
-
 .contractIcon {
   background: #eee;
   width: 50px !important;

@@ -18,6 +18,7 @@ export default class JsonRpcBase {
   constructor () {
     this._id = 1;
     this._debug = false;
+    this._connected = false;
   }
 
   encode (method, params) {
@@ -37,6 +38,10 @@ export default class JsonRpcBase {
 
   get isDebug () {
     return this._debug;
+  }
+
+  get isConnected () {
+    return this._connected;
   }
 
   setDebug (flag) {

@@ -14,20 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import EthApi from '../../src/api/ethApi';
+import Api from '../../src/api';
 
 function createApi (transport) {
   if (process.env.DEBUG) {
     transport.setDebug(true);
   }
 
-  return new EthApi(transport);
+  return new Api(transport);
 }
 
 export function createHttpApi () {
-  return createApi(new EthApi.Transport.Http('http://localhost:8545'));
+  return createApi(new Api.Transport.Http('http://localhost:8545'));
 }
 
 export function createWsApi () {
-  return createApi(new EthApi.Transport.Ws('ws://localhost:8546'));
+  return createApi(new Api.Transport.Ws('ws://localhost:8546'));
 }

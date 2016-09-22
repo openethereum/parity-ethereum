@@ -25,8 +25,8 @@ use ethcore::client::{BlockChainClient, BlockID};
 use util::Mutex;
 use v1::traits::EthFilter;
 use v1::types::{BlockNumber, Index, Filter, Log, H256 as RpcH256, U256 as RpcU256};
-use v1::helpers::{PollFilter, PollManager};
-use v1::helpers::params::expect_no_params;
+use v1::helpers::{PollFilter, PollManager, limit_logs};
+use v1::helpers::params::{expect_no_params, params_len};
 use v1::impls::eth::pending_logs;
 
 /// Eth filter rpc implementation.
@@ -65,8 +65,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 	fn new_filter(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
-		from_params::<(Filter,)>(params)
-			.and_then(|(filter,)| {
+		from_params::<(Filter, )>(params)
+			.and_then(|(filter, )| {
 				let mut polls = self.polls.lock();
 				let block_number = take_weak!(self.client).chain_info().best_block_number;
 				let id = polls.create_poll(PollFilter::Logs(block_number, Default::default(), filter));
@@ -152,7 +152,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							filter.to_block = BlockID::Latest;
 
 							// retrieve logs in range from_block..min(BlockID::Latest..to_block)
-							let mut logs = client.logs(filter.clone(), None)
+							let mut logs = client.logs(filter.clone())
 								.into_iter()
 								.map(From::from)
 								.collect::<Vec<Log>>();
@@ -174,6 +174,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 								logs.extend(new_pending_logs);
 							}
 
+							let logs = limit_logs(logs, filter.limit);
+
 							// save the number of the next block as a first block from which
 							// we want to get logs
 							*block_number = current_number + 1;
@@ -194,7 +196,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 					Some(&PollFilter::Logs(ref _block_number, ref _previous_log, ref filter)) => {
 						let include_pending = filter.to_block == Some(BlockNumber::Pending);
 						let filter: EthcoreFilter = filter.clone().into();
-						let mut logs = take_weak!(self.client).logs(filter.clone(), None)
+						let mut logs = take_weak!(self.client).logs(filter.clone())
 							.into_iter()
 							.map(From::from)
 							.collect::<Vec<Log>>();
@@ -202,6 +204,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 						if include_pending {
 							logs.extend(pending_logs(&*take_weak!(self.miner), &filter));
 						}
+
+						let logs = limit_logs(logs, filter.limit);
 
 						Ok(to_value(&logs))
 					},

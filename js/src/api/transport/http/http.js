@@ -22,6 +22,7 @@ export default class Http extends JsonRpcBase {
   constructor (url) {
     super();
 
+    this._connected = true;
     this._url = url;
   }
 
@@ -45,8 +46,15 @@ export default class Http extends JsonRpcBase {
     const request = this._encodeOptions(method, params);
 
     return fetch(this._url, request)
+      .catch((error) => {
+        this._connected = false;
+        throw error;
+      })
       .then((response) => {
+        this._connected = true;
+
         if (response.status !== 200) {
+          this._connected = false;
           this.error(JSON.stringify({ status: response.status, statusText: response.statusText }));
           throw new Error(`${response.status}: ${response.statusText}`);
         }
