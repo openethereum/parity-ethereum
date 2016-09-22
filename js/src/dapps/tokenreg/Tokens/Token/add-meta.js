@@ -2,7 +2,7 @@ import React, { Component, PropTypes } from 'react';
 import { Dialog, RaisedButton, FlatButton, TextField, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
 
-import { HEX_TYPE, validate } from '../../Actions/validation';
+import { HEX_TYPE, validate } from '../../Inputs/validation';
 
 import styles from './token.css';
 

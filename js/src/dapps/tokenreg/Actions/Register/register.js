@@ -1,20 +1,42 @@
 import React, { Component, PropTypes } from 'react';
 
-import { Dialog, FlatButton, TextField } from 'material-ui';
+import { Dialog, FlatButton } from 'material-ui';
 
 import AccountSelector from '../../Accounts/AccountSelector';
+import InputText from '../../Inputs/Text';
 
-import { ADDRESS_TYPE, TLA_TYPE, UINT_TYPE, STRING_TYPE, validate } from '../validation';
+import { TOKEN_ADDRESS_TYPE, TLA_TYPE, UINT_TYPE, STRING_TYPE } from '../../Inputs/validation';
 
 import styles from '../actions.css';
 
-const defaultField = { error: null, value: '', valid: false };
+const defaultField = { value: '', valid: false };
 const initState = {
+  isFormValid: false,
   fields: {
-    address: { ...defaultField, type: ADDRESS_TYPE },
-    tla: { ...defaultField, type: TLA_TYPE },
-    base: { ...defaultField, type: UINT_TYPE },
-    name: { ...defaultField, type: STRING_TYPE }
+    address: {
+      ...defaultField,
+      type: TOKEN_ADDRESS_TYPE,
+      floatingLabelText: 'Token address',
+      hintText: 'The token address'
+    },
+    tla: {
+      ...defaultField,
+      type: TLA_TYPE,
+      floatingLabelText: 'Token TLA',
+      hintText: 'The token short name (3 characters)'
+    },
+    base: {
+      ...defaultField,
+      type: UINT_TYPE,
+      floatingLabelText: 'Token Base',
+      hintText: 'The token precision'
+    },
+    name: {
+      ...defaultField,
+      type: STRING_TYPE,
+      floatingLabelText: 'Token name',
+      hintText: 'The token name'
+    }
   }
 };
 
@@ -75,7 +97,7 @@ export default class ActionTransfer extends Component {
       );
     }
 
-    const isValid = this.isValid();
+    const isValid = this.state.isFormValid;
 
     return ([
       <FlatButton
@@ -113,64 +135,56 @@ export default class ActionTransfer extends Component {
   }
 
   renderForm () {
-    const { fields } = this.state;
-
-    let onChangeAddress = this.onChange.bind(this, 'address');
-    let onChangeTLA = this.onChange.bind(this, 'tla');
-    let onChangeBase = this.onChange.bind(this, 'base');
-    let onChangeName = this.onChange.bind(this, 'name');
-
     return (
       <div>
         <AccountSelector />
-
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Token address'
-          fullWidth
-          hintText='The token address'
-          errorText={ fields.address.error }
-          onChange={ onChangeAddress } />
-
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Token TLA'
-          fullWidth
-          hintText='The token short name (3 characters)'
-          errorText={ fields.tla.error }
-          onChange={ onChangeTLA } />
-
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Token Base'
-          fullWidth
-          hintText='The token precision'
-          errorText={ fields.base.error }
-          onChange={ onChangeBase } />
-
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Token name'
-          fullWidth
-          hintText='The token name'
-          errorText={ fields.name.error }
-          onChange={ onChangeName } />
+        { this.renderInputs() }
       </div>
     );
   }
 
-  isValid () {
-    const { fields } = this.state;
+  renderInputs () {
+    let { fields } = this.state;
 
-    return Object.keys(fields)
-      .map(key => fields[key].valid)
+    return Object.keys(fields).map((fieldKey, index) => {
+      let onChange = this.onChange.bind(this, fieldKey);
+      let field = fields[fieldKey];
+
+      return (
+        <InputText
+          key={ index }
+
+          floatingLabelText={ field.floatingLabelText }
+          hintText={ field.hintText }
+
+          validationType={ field.type }
+          onChange={ onChange } />
+      );
+    });
+  }
+
+  onChange (fieldKey, valid, value) {
+    const { fields } = this.state;
+    let field = fields[fieldKey];
+
+    let newFields = {
+      ...fields,
+      [ fieldKey ]: {
+        ...field,
+        valid, value
+      }
+    };
+
+    let isFormValid = Object.keys(newFields)
+      .map(key => newFields[key].valid)
       .reduce((current, fieldValid) => {
         return current && fieldValid;
       }, true);
+
+    this.setState({
+      fields: newFields,
+      isFormValid
+    });
   }
 
   onRegister () {
@@ -188,30 +202,6 @@ export default class ActionTransfer extends Component {
   onClose () {
     this.setState(initState);
     this.props.onClose();
-  }
-
-  onChange (fieldKey, event) {
-    const value = event.target.value;
-
-    let fields = this.state.fields;
-    let fieldState = fields[fieldKey];
-    let validation = validate(value, fieldState.type);
-
-    let newFieldState = {
-      ...fieldState,
-      ...validation
-    };
-
-    newFieldState.value = (validation.value !== undefined)
-      ? validation.value
-      : value;
-
-    this.setState({
-      fields: {
-        ...fields,
-        [fieldKey]: newFieldState
-      }
-    });
   }
 
 }

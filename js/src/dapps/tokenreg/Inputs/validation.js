@@ -1,8 +1,15 @@
-const { api } = window.parity;
+import { api } from '../parity';
 
-const { isHex } = api.util;
+import { getTokenTotalSupply } from '../utils';
+
+const {
+  isHex,
+  isAddressValid,
+  toChecksumAddress
+} = api.util;
 
 export const ADDRESS_TYPE = 'ADDRESS_TYPE';
+export const TOKEN_ADDRESS_TYPE = 'TOKEN_ADDRESS_TYPE';
 export const TLA_TYPE = 'TLA_TYPE';
 export const UINT_TYPE = 'UINT_TYPE';
 export const STRING_TYPE = 'STRING_TYPE';
@@ -15,13 +22,14 @@ export const ERRORS = {
   invalidAccount: 'Please select an account to transact with',
   invalidRecipient: 'Please select an account to send to',
   invalidAddress: 'The address is not in the correct format',
+  invalidTokenAddress: 'The address is not a regular token contract address',
   invalidHex: 'Please enter an hexadecimal string (digits and letters from a to z)',
   invalidAmount: 'Please enter a positive amount > 0',
   invalidTotal: 'The amount is greater than the availale balance'
 };
 
 const validateAddress = (address) => {
-  if (!api.until.isAddressValid(address)) {
+  if (!isAddressValid(address)) {
     return {
       error: ERRORS.invalidAddress,
       valid: false
@@ -29,10 +37,25 @@ const validateAddress = (address) => {
   }
 
   return {
-    value: api.util.toChecksumAddress(address),
+    value: toChecksumAddress(address),
     error: null,
     valid: true
   };
+};
+
+const validateTokenAddress = (address) => {
+  let addressValidation = validateAddress(address);
+  if (!addressValidation.valid) return addressValidation;
+
+  return getTokenTotalSupply(address)
+    .then(balance => {
+      if (balance !== null) return addressValidation;
+
+      return {
+        error: ERRORS.invalidTokenAddress,
+        valid: false
+      };
+    });
 };
 
 const validateTLA = (tla) => {
@@ -51,7 +74,7 @@ const validateTLA = (tla) => {
 };
 
 const validateUint = (uint) => {
-  if (isNaN(parseInt(uint)) || parseInt(uint) < 0) {
+  if (!/^\d+$/.test(uint) || parseInt(uint) <= 0) {
     return {
       error: ERRORS.invalidUint,
       valid: false
@@ -97,6 +120,7 @@ const validateHex = (string) => {
 
 export const validate = (value, type) => {
   if (type === ADDRESS_TYPE) return validateAddress(value);
+  if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value);
   if (type === TLA_TYPE) return validateTLA(value);
   if (type === UINT_TYPE) return validateUint(value);
   if (type === STRING_TYPE) return validateString(value);
