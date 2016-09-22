@@ -24,6 +24,7 @@ mod requests;
 mod signer;
 mod signing_queue;
 mod network_settings;
+mod auto_args;
 
 pub use self::poll_manager::PollManager;
 pub use self::poll_filter::{PollFilter, limit_logs};
