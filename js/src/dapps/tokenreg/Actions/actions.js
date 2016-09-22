@@ -71,3 +71,54 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
       dispatch(setRegisterError(e));
     });
 };
+
+export const SET_QUERY_LOADING = 'SET_QUERY_LOADING';
+export const setQueryLoading = (isLoading) => ({
+  type: SET_QUERY_LOADING,
+  isLoading
+});
+
+export const SET_QUERY_RESULT = 'SET_QUERY_RESULT';
+export const setQueryResult = (data) => ({
+  type: SET_QUERY_RESULT,
+  data
+});
+
+export const SET_QUERY_NOT_FOUND = 'SET_QUERY_NOT_FOUND';
+export const setQueryNotFound = () => ({
+  type: SET_QUERY_NOT_FOUND
+});
+
+export const QUERY_RESET = 'QUERY_RESET';
+export const queryReset = () => ({
+  type: QUERY_RESET
+});
+
+export const queryToken = (key, query) => (dispatch, getState) => {
+  let state = getState();
+  let contractInstance = state.status.contract.instance;
+
+  let contractFunc = (key === 'tla') ? 'fromTLA' : 'fromAddress';
+
+  dispatch(setQueryLoading(true));
+
+  contractInstance[contractFunc]
+    .call({}, [ query ])
+    .then((result) => {
+      let data = {
+        id: result[0],
+        address: result[1],
+        base: result[2],
+        name: result[3],
+        owner: result[4]
+      };
+
+      dispatch(setQueryResult(data));
+      dispatch(setQueryLoading(false));
+    }, () => {
+      dispatch(setQueryNotFound());
+      dispatch(setQueryLoading(false));
+    });
+};
+
+

@@ -3,9 +3,7 @@ import { connect } from 'react-redux';
 
 import Actions from './component';
 
-import { registerToken, registerReset } from './actions';
-
-// import { loadTokens, queryTokenMeta } from './actions';
+import { registerToken, registerReset, queryToken, queryReset } from './actions';
 
 class TokensContainer extends Component {
 
@@ -17,9 +15,9 @@ class TokensContainer extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const { register } = state.actions;
+  const { register, query } = state.actions;
 
-  return { register };
+  return { register, query };
 };
 
 const mapDispatchToProps = (dispatch) => {
@@ -29,6 +27,12 @@ const mapDispatchToProps = (dispatch) => {
     },
     handleRegisterClose: () => {
       dispatch(registerReset());
+    },
+    handleQueryToken: (key, query) => {
+      dispatch(queryToken(key, query));
+    },
+    handleQueryClose: () => {
+      dispatch(queryReset());
     }
   };
 };
