@@ -388,7 +388,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	r
 }
 
-pub fn get_good_dummy_block() -> Bytes {
+pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
@@ -399,7 +399,12 @@ pub fn get_good_dummy_block() -> Bytes {
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
 	block_header.set_state_root(test_spec.genesis_header().state_root().clone());
 
-	create_test_block(&block_header)
+	(block_header.hash(), create_test_block(&block_header))
+}
+
+pub fn get_good_dummy_block() -> Bytes {
+	let (_, bytes) = get_good_dummy_block_hash();
+	bytes
 }
 
 pub fn get_bad_state_dummy_block() -> Bytes {
