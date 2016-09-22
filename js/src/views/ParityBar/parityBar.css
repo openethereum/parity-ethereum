@@ -32,11 +32,15 @@
 
 .expanded {
   right: 16px;
-  width: 900px;
+  width: 964px;
   height: 300px;
   border-radius: 4px 4px 0 0;
   background: rgb(48, 48, 48);
   overflow-y: scroll;
+}
+
+.expanded .content {
+  padding: 0 2em;
 }
 
 .corner {

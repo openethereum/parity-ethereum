@@ -16,11 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { CardTitle } from 'material-ui/Card';
-
 import styles from './title.css';
-
-const TITLE_STYLE = { textTransform: 'uppercase', padding: 0 };
 
 export default class Title extends Component {
   static propTypes = {
@@ -37,9 +33,9 @@ export default class Title extends Component {
   render () {
     return (
       <div>
-        <CardTitle
-          style={ TITLE_STYLE }
-          title={ this.props.title } />
+        <h3 className={ styles.title }>
+          { this.props.title }
+        </h3>
         <div className={ styles.byline }>
           { this.props.byline }
         </div>

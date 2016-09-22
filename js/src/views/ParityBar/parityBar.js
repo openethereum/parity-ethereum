@@ -83,7 +83,9 @@ class ParityBar extends Component {
               onClick={ this.toggleDisplay } />
           </div>
         </div>
-        <Signer />
+        <div className={ styles.content }>
+          <Signer />
+        </div>
       </ParityBackground>
     );
   }
