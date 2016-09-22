@@ -6,7 +6,7 @@
   margin: 0 .5em;
 }
 
-.reserved, .dropped {
+.reserved, .dropped, .dataChanged {
   margin: .5em 0;
   display: flex;
   justify-content: space-between;

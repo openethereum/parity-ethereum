@@ -14,21 +14,21 @@ const inlineButton = {
   marginRight: '1em'
 };
 
+const renderStatus = (timestamp, isPending) => {
+  timestamp = moment(timestamp);
+  if (isPending) {
+    return (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
+  }
+  return (
+    <time dateTime={ timestamp.toISOString() }>
+      <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
+    </time>
+  );
+}
+
 const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
-  }
-
-  const timestamp = moment(e.timestamp);
-  let status;
-  if (e.state === 'pending') {
-    status = (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
-  } else {
-    status = (
-      <time dateTime={ timestamp.toISOString() }>
-        <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
-      </time>
-    );
   }
 
   return (
@@ -36,14 +36,31 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
       { renderAddress(e.parameters.owner, accounts, contacts) }
       { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
       { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-      { ' ' }{ status }
+      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
+    </div>
+  );
+};
+
+const renderDataChanged = (e, accounts, contacts) => {
+  if (e.state === 'pending') {
+    classNames += ' ' + styles.pending;
+  }
+
+  return (
+    <div key={ e.key } className={ styles.dataChanged }>
+      { renderAddress(e.parameters.owner, accounts, contacts) }
+      { ' ' }<abbr title={ e.transaction }>updated</abbr>
+      key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code>
+      of <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
     </div>
   );
 };
 
 const eventTypes = {
   Reserved: renderEvent(styles.reserved, 'reserved'),
-  Dropped: renderEvent(styles.dropped, 'dropped')
+  Dropped: renderEvent(styles.dropped, 'dropped'),
+  DataChanged: renderDataChanged
 };
 
 export default class Events extends Component {
@@ -77,6 +94,13 @@ export default class Events extends Component {
             onToggle={ this.onDroppedToggle }
             style={ inlineButton }
           />
+          <Toggle
+            label='DataChanged'
+            toggled={ subscriptions.DataChanged !== null }
+            disabled={ pending.DataChanged }
+            onToggle={ this.onDataChangedToggle }
+            style={ inlineButton }
+          />
         </CardActions>
         <CardText>{
           this.props.events
@@ -104,6 +128,16 @@ export default class Events extends Component {
         actions.subscribe('Dropped');
       } else if (!isToggled && subscriptions.Dropped !== null) {
         actions.unsubscribe('Dropped');
+      }
+    }
+  };
+  onDataChangedToggle = (e, isToggled) => {
+    const { pending, subscriptions, actions } = this.props;
+    if (!pending.DataChanged) {
+      if (isToggled && subscriptions.DataChanged === null) {
+        actions.subscribe('DataChanged');
+      } else if (!isToggled && subscriptions.DataChanged !== null) {
+        actions.unsubscribe('DataChanged');
       }
     }
   };
