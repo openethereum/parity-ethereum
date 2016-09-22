@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 use std::sync::atomic::Ordering;
 use std::thread;
 use nanoipc;
-use util::{H256, U256, FixedHash, H64};
+use util::{H256, U256, FixedHash, H64, clean_0x};
 use ethereum::ethash::Ethash;
 use ethash::SeedHashCompute;
 use util::{Mutex, RwLock};
@@ -69,28 +69,30 @@ impl JobDispatcher for StratumJobDispatcher {
 		if payload.len() != 3 {
 			warn!(target: "stratum", "submit_work: invalid work submit request({:?})", payload);
 		}
+		else {
+			trace!(target: "stratum", "submit_work: {} {} {}", &payload[0], &payload[1], &payload[2]);
+		}
 
-		let nonce = match H64::from_str(&payload[0]) {
+		let nonce = match H64::from_str(clean_0x(&payload[0])) {
 			Ok(nonce) => nonce,
 			Err(e) => {
-				warn!(target: "stratum", "submit_work: invalid nonce ({:?})", e);
+				warn!(target: "stratum", "submit_work ({}): invalid nonce ({:?})", &payload[0], e);
 				return;
 			}
 		};
 
-
-		let pow_hash = match H256::from_str(&payload[1]) {
+		let pow_hash = match H256::from_str(clean_0x(&payload[1])) {
 			Ok(pow_hash) => pow_hash,
 			Err(e) => {
-				warn!(target: "stratum", "submit_work: invalid hash ({:?})", e);
+				warn!(target: "stratum", "submit_work ({}): invalid hash ({:?})", &payload[1], e);
 				return;
 			}
 		};
 
-		let mix_hash = match H256::from_str(&payload[2]) {
+		let mix_hash = match H256::from_str(clean_0x(&payload[2])) {
 			Ok(mix_hash) => mix_hash,
 			Err(e) => {
-				warn!(target: "stratum", "submit_work: invalid mix-hash ({:?})", e);
+				warn!(target: "stratum", "submit_work ({}): invalid mix-hash ({:?})",  &payload[2], e);
 				return;
 			}
 		};
