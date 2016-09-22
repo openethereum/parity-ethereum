@@ -106,7 +106,10 @@ export default class InputText extends Component {
 
     this.setState({ ...validation });
 
-    if (validation.valid) return this.props.onChange(true, value);
+    if (validation.valid) {
+      return this.props.onChange(true, value);
+    }
+
     return this.props.onChange(false, value);
   }
 

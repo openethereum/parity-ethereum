@@ -131,7 +131,6 @@ export const loadToken = (index) => (dispatch, getState) => {
       console.log(`token loaded: #${index}`, data);
       dispatch(setTokenData(index, data));
       dispatch(setTokenLoading(index, false));
-
     })
     .catch((e) => {
       dispatch(setTokenData(index, null));
