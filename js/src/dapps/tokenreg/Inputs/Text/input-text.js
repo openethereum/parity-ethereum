@@ -25,7 +25,9 @@ export default class InputText extends Component {
     onChange: PropTypes.func.isRequired,
 
     floatingLabelText: PropTypes.string,
-    hintText: PropTypes.string
+    hintText: PropTypes.string,
+
+    contract: PropTypes.object.isRequired
   }
 
   state = initState;
@@ -74,9 +76,12 @@ export default class InputText extends Component {
 
   onChange = (event) => {
     const value = event.target.value;
+    // So we can focus on the input after async validation
     event.persist();
 
-    let validation = validate(value, this.props.validationType);
+    const { validationType, contract } = this.props;
+
+    let validation = validate(value, validationType, contract);
 
     if (validation instanceof Promise) {
       this.setState({ disabled: true, loading: true });

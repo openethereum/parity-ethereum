@@ -1,1 +1,1 @@
-export default from './input-text';
+export default from './container';

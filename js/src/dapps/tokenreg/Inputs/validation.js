@@ -25,7 +25,9 @@ export const ERRORS = {
   invalidTokenAddress: 'The address is not a regular token contract address',
   invalidHex: 'Please enter an hexadecimal string (digits and letters from a to z)',
   invalidAmount: 'Please enter a positive amount > 0',
-  invalidTotal: 'The amount is greater than the availale balance'
+  invalidTotal: 'The amount is greater than the availale balance',
+  tlaAlreadyTaken: 'This TLA address is already registered',
+  addressAlreadyTaken: 'This Token address is already registered'
 };
 
 const validateAddress = (address) => {
@@ -43,22 +45,33 @@ const validateAddress = (address) => {
   };
 };
 
-const validateTokenAddress = (address) => {
+const validateTokenAddress = (address, contract) => {
   let addressValidation = validateAddress(address);
   if (!addressValidation.valid) return addressValidation;
 
   return getTokenTotalSupply(address)
     .then(balance => {
-      if (balance !== null) return addressValidation;
+      if (balance === null) {
+        return {
+          error: ERRORS.invalidTokenAddress,
+          valid: false
+        };
+      }
 
-      return {
-        error: ERRORS.invalidTokenAddress,
-        valid: false
-      };
+      return contract.instance
+        .fromAddress.call({}, [ address ])
+        .then(() => ({
+          error: ERRORS.addressAlreadyTaken,
+          valid: false
+        }), () => {});
+    })
+    .then((result) => {
+      if (result) return result;
+      return addressValidation;
     });
 };
 
-const validateTLA = (tla) => {
+const validateTLA = (tla, contract) => {
   if (tla.toString().length !== 3) {
     return {
       error: ERRORS.invalidTLA,
@@ -66,11 +79,20 @@ const validateTLA = (tla) => {
     };
   }
 
-  return {
-    value: tla.toString().toUpperCase(),
-    error: null,
-    valid: true
-  };
+  return contract.instance
+    .fromTLA.call({}, [ tla ])
+    .then(() => ({
+      error: ERRORS.tlaAlreadyTaken,
+      valid: false
+    }), () => {})
+    .then((result) => {
+      if (result) return result;
+      return {
+        value: tla.toString().toUpperCase(),
+        error: null,
+        valid: true
+      };
+    });
 };
 
 const validateUint = (uint) => {
@@ -118,10 +140,10 @@ const validateHex = (string) => {
   };
 };
 
-export const validate = (value, type) => {
+export const validate = (value, type, contract) => {
   if (type === ADDRESS_TYPE) return validateAddress(value);
-  if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value);
-  if (type === TLA_TYPE) return validateTLA(value);
+  if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract);
+  if (type === TLA_TYPE) return validateTLA(value, contract);
   if (type === UINT_TYPE) return validateUint(value);
   if (type === STRING_TYPE) return validateString(value);
   if (type === HEX_TYPE) return validateHex(value);
