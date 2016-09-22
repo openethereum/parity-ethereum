@@ -10,7 +10,7 @@ export const subscribe = (name, from = 0, to = 'pending') =>
   (dispatch, getState) => {
     const { contract } = getState();
     if (!contract) return;
-    const opt = { fromBlock: from, toBlock: to };
+    const opt = { fromBlock: from, toBlock: to, limit: 50 };
 
     dispatch(start(name, from, to));
 
