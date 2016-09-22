@@ -32,6 +32,8 @@ const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
+	use rlp::{RlpStream, Stream};
+
 	let mut stream = RlpStream::new_list(2);
 	stream.append(address);
 	stream.append(nonce);
@@ -191,7 +193,6 @@ impl<'a> Executive<'a> {
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
-				// TODO: move output upstream
 				let mut out = vec![];
 				(self.call(params, &mut substate, BytesRef::Flexible(&mut out), &mut tracer, &mut vm_tracer), out)
 			}
@@ -284,7 +285,7 @@ impl<'a> Executive<'a> {
 				// just drain the whole gas
 				self.state.revert_snapshot();
 
-				tracer.trace_failed_call(trace_info, vec![]);
+				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
 				Err(evm::Error::OutOfGas)
 			}
@@ -318,7 +319,7 @@ impl<'a> Executive<'a> {
 						trace_output,
 						traces
 					),
-					_ => tracer.trace_failed_call(trace_info, traces),
+					Err(e) => tracer.trace_failed_call(trace_info, traces, e.into()),
 				};
 
 				trace!(target: "executive", "substate={:?}; unconfirmed_substate={:?}\n", substate, unconfirmed_substate);
@@ -383,7 +384,7 @@ impl<'a> Executive<'a> {
 				created,
 				subtracer.traces()
 			),
-			_ => tracer.trace_failed_create(trace_info, subtracer.traces())
+			Err(e) => tracer.trace_failed_create(trace_info, subtracer.traces(), e.into())
 		};
 
 		self.enact_result(&res, substate, unconfirmed_substate);

@@ -23,10 +23,10 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use v1::{SignerClient, PersonalSigner};
 use v1::tests::helpers::TestMinerService;
-use v1::helpers::{SigningQueue, ConfirmationsQueue, FilledTransactionRequest, ConfirmationPayload};
+use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
 
 struct PersonalSignerTester {
-	queue: Arc<ConfirmationsQueue>,
+	signer: Arc<SignerService>,
 	accounts: Arc<AccountProvider>,
 	io: IoHandler,
 	miner: Arc<TestMinerService>,
@@ -49,16 +49,16 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> PersonalSignerTester {
-	let queue = Arc::new(ConfirmationsQueue::default());
+	let signer = Arc::new(SignerService::new_test());
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
 
 	let io = IoHandler::new();
-	io.add_delegate(SignerClient::new(&accounts, &client, &miner, &queue).to_delegate());
+	io.add_delegate(SignerClient::new(&accounts, &client, &miner, &signer).to_delegate());
 
 	PersonalSignerTester {
-		queue: queue,
+		signer: signer,
 		accounts: accounts,
 		io: io,
 		miner: miner,
@@ -71,7 +71,7 @@ fn signer_tester() -> PersonalSignerTester {
 fn should_return_list_of_items_to_confirm() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
+	tester.signer.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -79,20 +79,20 @@ fn should_return_list_of_items_to_confirm() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
-	tester.queue.add_request(ConfirmationPayload::Sign(1.into(), 5.into()));
+	})).unwrap();
+	tester.signer.add_request(ConfirmationPayload::Sign(1.into(), 5.into())).unwrap();
 
 	// when
 	let request = r#"{"jsonrpc":"2.0","method":"personal_requestsToConfirm","params":[],"id":1}"#;
 	let response = concat!(
 		r#"{"jsonrpc":"2.0","result":["#,
-		r#"{"id":"0x01","payload":{"transaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x01"}}},"#,
-		r#"{"id":"0x02","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#,
+		r#"{"id":"0x1","payload":{"transaction":{"data":"0x","from":"0x0000000000000000000000000000000000000001","gas":"0x989680","gasPrice":"0x2710","nonce":null,"to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","value":"0x1"}}},"#,
+		r#"{"id":"0x2","payload":{"sign":{"address":"0x0000000000000000000000000000000000000001","hash":"0x0000000000000000000000000000000000000000000000000000000000000005"}}}"#,
 		r#"],"id":1}"#
 	);
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
 }
 
 
@@ -100,7 +100,7 @@ fn should_return_list_of_items_to_confirm() {
 fn should_reject_transaction_from_queue_without_dispatching() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
+	tester.signer.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -108,16 +108,16 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
-	assert_eq!(tester.queue.requests().len(), 1);
+	})).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
-	let request = r#"{"jsonrpc":"2.0","method":"personal_rejectRequest","params":["0x01"],"id":1}"#;
+	let request = r#"{"jsonrpc":"2.0","method":"personal_rejectRequest","params":["0x1"],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 0);
 }
 
@@ -125,7 +125,7 @@ fn should_reject_transaction_from_queue_without_dispatching() {
 fn should_not_remove_transaction_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
+	tester.signer.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: Address::from(1),
 		to: Some(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
 		gas_price: U256::from(10_000),
@@ -133,32 +133,32 @@ fn should_not_remove_transaction_if_password_is_invalid() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
-	assert_eq!(tester.queue.requests().len(), 1);
+	})).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
-	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmRequest","params":["0x01",{},"xxx"],"id":1}"#;
+	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmRequest","params":["0x1",{},"xxx"],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 1);
 }
 
 #[test]
 fn should_not_remove_sign_if_password_is_invalid() {
 	// given
 	let tester = signer_tester();
-	tester.queue.add_request(ConfirmationPayload::Sign(0.into(), 5.into()));
-	assert_eq!(tester.queue.requests().len(), 1);
+	tester.signer.add_request(ConfirmationPayload::Sign(0.into(), 5.into())).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
-	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmRequest","params":["0x01",{},"xxx"],"id":1}"#;
+	let request = r#"{"jsonrpc":"2.0","method":"personal_confirmRequest","params":["0x1",{},"xxx"],"id":1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32021,"message":"Account password is invalid or account does not exist.","data":"SStore(InvalidAccount)"},"id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 1);
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn should_confirm_transaction_and_dispatch() {
 	let tester = signer_tester();
 	let address = tester.accounts.new_account("test").unwrap();
 	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
-	tester.queue.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
+	tester.signer.add_request(ConfirmationPayload::Transaction(FilledTransactionRequest {
 		from: address,
 		to: Some(recipient),
 		gas_price: U256::from(10_000),
@@ -175,7 +175,7 @@ fn should_confirm_transaction_and_dispatch() {
 		value: U256::from(1),
 		data: vec![],
 		nonce: None,
-	}));
+	})).unwrap();
 
 	let t = Transaction {
 		nonce: U256::zero(),
@@ -189,20 +189,37 @@ fn should_confirm_transaction_and_dispatch() {
 	let signature = tester.accounts.sign(address, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.signer.requests().len(), 1);
 
 	// when
 	let request = r#"{
 		"jsonrpc":"2.0",
 		"method":"personal_confirmRequest",
-		"params":["0x01", {"gasPrice":"0x1000"}, "test"],
+		"params":["0x1", {"gasPrice":"0x1000"}, "test"],
 		"id":1
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	// then
-	assert_eq!(tester.io.handle_request(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 1);
 }
 
+#[test]
+fn should_generate_new_token() {
+	// given
+	let tester = signer_tester();
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"personal_generateAuthorizationToken",
+		"params":[],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"new_token","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+}

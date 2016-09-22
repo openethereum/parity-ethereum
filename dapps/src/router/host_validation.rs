@@ -16,19 +16,17 @@
 
 
 use DAPPS_DOMAIN;
-use hyper::{server, header};
+use hyper::{server, header, StatusCode};
 use hyper::net::HttpStream;
 
 use jsonrpc_http_server::{is_host_header_valid};
 use handlers::ContentHandler;
 
-pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpoints: Vec<String>) -> bool {
-	let mut endpoints = endpoints.into_iter()
+pub fn is_valid(request: &server::Request<HttpStream>, allowed_hosts: &[String], endpoints: Vec<String>) -> bool {
+	let mut endpoints = endpoints.iter()
 		.map(|endpoint| format!("{}{}", endpoint, DAPPS_DOMAIN))
 		.collect::<Vec<String>>();
-	// Add localhost domain as valid too if listening on loopback interface.
-	endpoints.push(bind_address.replace("127.0.0.1", "localhost").into());
-	endpoints.push(bind_address.into());
+	endpoints.extend_from_slice(allowed_hosts);
 
 	let header_valid = is_host_header_valid(request, &endpoints);
 
@@ -40,11 +38,9 @@ pub fn is_valid(request: &server::Request<HttpStream>, bind_address: &str, endpo
 }
 
 pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
-	Box::new(ContentHandler::forbidden(
-		r#"
-		<h1>Request with disallowed <code>Host</code> header has been blocked.</h1>
-		<p>Check the URL in your browser address bar.</p>
-		"#.into(),
-		"text/html".into()
+	Box::new(ContentHandler::error(StatusCode::Forbidden,
+		"Current Host Is Disallowed",
+		"You are trying to access your node using incorrect address.",
+		Some("Use allowed URL or specify different <code>hosts</code> CLI options.")
 	))
 }

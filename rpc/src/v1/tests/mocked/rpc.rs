@@ -36,7 +36,7 @@ fn modules() {
 	let request = r#"{"jsonrpc": "2.0", "method": "modules", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"rpc":"1.0","web3":"1.0"},"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
@@ -48,5 +48,5 @@ fn rpc_modules() {
 	let request = r#"{"jsonrpc": "2.0", "method": "rpc_modules", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"ethcore":"1.0","rpc":"1.0","web3":"1.0"},"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

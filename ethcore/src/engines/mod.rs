@@ -45,7 +45,7 @@ pub trait Engine : Sync + Send {
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 
 	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() } 
+	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
 
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;
@@ -71,6 +71,11 @@ pub trait Engine : Sync + Send {
 	/// Block transformation functions, after the transactions.
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
+	/// If Some(true) this author is able to generate seals, generate_seal has to be implemented.
+	/// None indicates that this Engine never seals internally regardless of author (e.g. PoW).
+	fn is_sealer(&self, _author: &Address) -> Option<bool> { None }
+	/// Checks if default address is able to seal.
+	fn is_default_sealer(&self) -> Option<bool> { self.is_sealer(&Default::default()) }
 	/// Attempt to seal the block internally.
 	///
 	/// If `Some` is returned, then you get a valid seal.
@@ -108,9 +113,8 @@ pub trait Engine : Sync + Send {
 	/// Don't forget to call Super::populate_from_parent when subclassing & overriding.
 	// TODO: consider including State in the params.
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, _gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.difficulty = parent.difficulty;
-		header.gas_limit = parent.gas_limit;
-		header.note_dirty();
+		header.set_difficulty(parent.difficulty().clone());
+		header.set_gas_limit(parent.gas_limit().clone());
 	}
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
@@ -122,7 +126,7 @@ pub trait Engine : Sync + Send {
 	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }

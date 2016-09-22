@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use io::IoError;
-use util::rlp::*;
+use rlp::*;
 use util::UtilError;
 use std::fmt;
 use ethkey::Error as KeyError;

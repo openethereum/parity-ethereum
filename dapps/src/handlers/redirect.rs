@@ -20,15 +20,20 @@ use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
+#[derive(Clone)]
 pub struct Redirection {
 	to_url: String
 }
 
 impl Redirection {
-	pub fn new(url: &str) -> Box<Self> {
-		Box::new(Redirection {
+	pub fn new(url: &str) -> Self {
+		Redirection {
 			to_url: url.to_owned()
-		})
+		}
+	}
+
+	pub fn boxed(url: &str) -> Box<Self> {
+		Box::new(Self::new(url))
 	}
 }
 
@@ -42,7 +47,8 @@ impl server::Handler<HttpStream> for Redirection {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		res.set_status(StatusCode::MovedPermanently);
+		// Don't use `MovedPermanently` here to prevent browser from caching the redirections.
+		res.set_status(StatusCode::Found);
 		res.headers_mut().set(header::Location(self.to_url.to_owned()));
 		Next::write()
 	}

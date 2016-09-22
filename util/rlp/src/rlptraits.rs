@@ -15,12 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Common RLP traits
-use rlp::bytes::VecLike;
-use rlp::{DecoderError, UntrustedRlp};
-use rlp::rlpstream::RlpStream;
+use ::{DecoderError, UntrustedRlp};
+use bytes::VecLike;
+use rlpstream::RlpStream;
+
 use elastic_array::ElasticArray1024;
-use hash::H256;
-use sha3::*;
 
 /// Type is able to decode RLP.
 pub trait Decoder: Sized {
@@ -65,8 +64,8 @@ pub trait View<'a, 'view>: Sized {
 	/// The raw data of the RLP as slice.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -89,8 +88,8 @@ pub trait View<'a, 'view>: Sized {
 	/// Returns number of RLP items.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -105,8 +104,8 @@ pub trait View<'a, 'view>: Sized {
 	/// Returns the number of bytes in the data, or zero if it isn't data.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -124,8 +123,8 @@ pub trait View<'a, 'view>: Sized {
 	/// slices is faster.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -138,8 +137,8 @@ pub trait View<'a, 'view>: Sized {
 	/// No value
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![];
@@ -152,8 +151,8 @@ pub trait View<'a, 'view>: Sized {
 	/// Contains a zero-length string or zero-length list.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc0];
@@ -166,8 +165,8 @@ pub trait View<'a, 'view>: Sized {
 	/// List value
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -180,8 +179,8 @@ pub trait View<'a, 'view>: Sized {
 	/// String value
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -194,8 +193,8 @@ pub trait View<'a, 'view>: Sized {
 	/// Int value
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc1, 0x10];
@@ -209,8 +208,8 @@ pub trait View<'a, 'view>: Sized {
 	/// Get iterator over rlp-slices
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -254,9 +253,6 @@ pub trait Encodable {
 		self.rlp_append(&mut s);
 		s.drain()
 	}
-
-	/// Get the hash or RLP encoded representation
-	fn rlp_sha3(&self) -> H256 { (&*self.rlp_bytes()).sha3() }
 }
 
 /// Encodable wrapper trait required to handle special case of encoding a &[u8] as string and not as list
@@ -277,8 +273,8 @@ pub trait Stream: Sized {
 	/// Apends value to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -292,8 +288,8 @@ pub trait Stream: Sized {
 	/// Declare appending the list of given size, chainable.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -308,8 +304,8 @@ pub trait Stream: Sized {
 	/// Apends null to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -326,8 +322,8 @@ pub trait Stream: Sized {
 	/// Clear the output stream so far.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
@@ -342,8 +338,8 @@ pub trait Stream: Sized {
 	/// Returns true if stream doesnt expect any more items.
 	///
 	/// ```rust
-	/// extern crate ethcore_util as util;
-	/// use util::rlp::*;
+	/// extern crate rlp;
+	/// use rlp::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);

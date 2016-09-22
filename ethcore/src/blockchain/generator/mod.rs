@@ -21,6 +21,7 @@ mod block;
 mod complete;
 mod fork;
 pub mod generator;
+mod transaction;
 
 pub use self::complete::BlockFinalizer;
 pub use self::generator::{ChainIterator, ChainGenerator};

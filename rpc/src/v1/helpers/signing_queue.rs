@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::thread;
-use std::time::{Instant, Duration};
+use std::mem;
+use std::cell::RefCell;
 use std::sync::{mpsc, Arc};
 use std::collections::BTreeMap;
 use jsonrpc_core;
@@ -47,14 +47,23 @@ pub enum QueueError {
 	ReceiverError(mpsc::RecvError),
 }
 
+/// Defines possible errors when inserting to queue
+#[derive(Debug, PartialEq)]
+pub enum QueueAddError {
+	LimitReached,
+}
+
 /// Message Receiver type
 pub type QueueEventReceiver = mpsc::Receiver<QueueEvent>;
+
+// TODO [todr] to consider: timeout instead of limit?
+const QUEUE_LIMIT: usize = 50;
 
 /// A queue of transactions awaiting to be confirmed and signed.
 pub trait SigningQueue: Send + Sync {
 	/// Add new request to the queue.
 	/// Returns a `ConfirmationPromise` that can be used to await for resolution of given request.
-	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise;
+	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError>;
 
 	/// Removes a request from the queue.
 	/// Notifies possible token holders that request was rejected.
@@ -88,42 +97,45 @@ pub enum ConfirmationResult {
 	Confirmed(RpcResult),
 }
 
-/// Time you need to confirm the request in UI.
-/// This is the amount of time token holder will wait before
-/// returning `None`.
-/// Unless we have a multi-threaded RPC this will lock
-/// any other incoming call!
-const QUEUE_TIMEOUT_DURATION_SEC : u64 = 20;
+type Listener = Box<FnMut(Option<RpcResult>) + Send>;
 
 /// A handle to submitted request.
 /// Allows to block and wait for a resolution of that request.
 pub struct ConfirmationToken {
 	result: Arc<Mutex<ConfirmationResult>>,
-	handle: thread::Thread,
+	listeners: Arc<Mutex<Vec<Listener>>>,
 	request: ConfirmationRequest,
-	timeout: Duration,
 }
 
 pub struct ConfirmationPromise {
 	id: U256,
 	result: Arc<Mutex<ConfirmationResult>>,
-	timeout: Duration,
+	listeners: Arc<Mutex<Vec<Listener>>>,
 }
 
 impl ConfirmationToken {
 	/// Submit solution to all listeners
 	fn resolve(&self, result: Option<RpcResult>) {
-		let mut res = self.result.lock();
-		*res = result.map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
+		let wrapped = result.clone().map_or(ConfirmationResult::Rejected, |h| ConfirmationResult::Confirmed(h));
+		{
+			let mut res = self.result.lock();
+			*res = wrapped.clone();
+		}
 		// Notify listener
-		self.handle.unpark();
+		let listeners = {
+			let mut listeners = self.listeners.lock();
+			mem::replace(&mut *listeners, Vec::new())
+		};
+		for mut listener in listeners {
+			listener(result.clone());
+		}
 	}
 
 	fn as_promise(&self) -> ConfirmationPromise {
 		ConfirmationPromise {
 			id: self.request.id,
 			result: self.result.clone(),
-			timeout: self.timeout,
+			listeners: self.listeners.clone(),
 		}
 	}
 }
@@ -132,41 +144,24 @@ impl ConfirmationPromise {
 	/// Get the ID for this request.
 	pub fn id(&self) -> U256 { self.id }
 
-	/// Blocks current thread and awaits for
-	/// resolution of the transaction (rejected / confirmed)
-	/// Returns `None` if transaction was rejected or timeout reached.
-	/// Returns `Some(result)` if transaction was confirmed.
-	pub fn wait_with_timeout(&self) -> Option<RpcResult> {
-		let res = self.wait_until(Instant::now() + self.timeout);
-		match res {
-			ConfirmationResult::Confirmed(h) => Some(h),
-			ConfirmationResult::Rejected | ConfirmationResult::Waiting => None,
-		}
+	/// Just get the result, assuming it exists.
+	pub fn result(&self) -> ConfirmationResult {
+		self.result.lock().clone()
 	}
 
-	/// Just get the result, assuming it exists.
-	pub fn result(&self) -> ConfirmationResult { self.wait_until(Instant::now()) }
-
-	/// Blocks current thread and awaits for
-	/// resolution of the request (rejected / confirmed)
-	/// Returns `None` if request was rejected or timeout reached.
-	/// Returns `Some(result)` if request was confirmed.
-	pub fn wait_until(&self, deadline: Instant) -> ConfirmationResult {
+	pub fn wait_for_result<F>(self, callback: F) where F: FnOnce(Option<RpcResult>) + Send + 'static {
 		trace!(target: "own_tx", "Signer: Awaiting confirmation... ({:?}).", self.id);
-		loop {
-			let now = Instant::now();
-			// Check the result...
-			match *self.result.lock() {
-				// Waiting and deadline not yet passed continue looping.
-				ConfirmationResult::Waiting if now < deadline => {}
-				// Anything else - return.
-				ref a => return a.clone(),
-			}
-			// wait a while longer - maybe the solution will arrive.
-			thread::park_timeout(deadline - now);
-		}
+		let _result = self.result.lock();
+		let mut listeners = self.listeners.lock();
+		// TODO [todr] Overcoming FnBox unstability
+		let callback = RefCell::new(Some(callback));
+		listeners.push(Box::new(move |result| {
+			let ref mut f = *callback.borrow_mut();
+			f.take().expect("Callbacks are called only once.")(result)
+		}));
 	}
 }
+
 
 /// Queue for all unconfirmed requests.
 pub struct ConfirmationsQueue {
@@ -174,7 +169,6 @@ pub struct ConfirmationsQueue {
 	queue: RwLock<BTreeMap<U256, ConfirmationToken>>,
 	sender: Mutex<mpsc::Sender<QueueEvent>>,
 	receiver: Mutex<Option<mpsc::Receiver<QueueEvent>>>,
-	timeout: Duration,
 }
 
 impl Default for ConfirmationsQueue {
@@ -186,19 +180,11 @@ impl Default for ConfirmationsQueue {
 			queue: RwLock::new(BTreeMap::new()),
 			sender: Mutex::new(send),
 			receiver: Mutex::new(Some(recv)),
-			timeout: Duration::from_secs(QUEUE_TIMEOUT_DURATION_SEC),
 		}
 	}
 }
 
 impl ConfirmationsQueue {
-	#[cfg(test)]
-	/// Creates new confirmations queue with specified timeout
-	pub fn with_timeout(timeout: Duration) -> Self {
-		let mut queue = Self::default();
-		queue.timeout = timeout;
-		queue
-	}
 
 	/// Blocks the thread and starts listening for notifications regarding all actions in the queue.
 	/// For each event, `listener` callback will be invoked.
@@ -260,7 +246,11 @@ impl Drop for ConfirmationsQueue {
 }
 
 impl SigningQueue for ConfirmationsQueue {
-	fn add_request(&self, request: ConfirmationPayload) -> ConfirmationPromise {
+	fn add_request(&self, request: ConfirmationPayload) -> Result<ConfirmationPromise, QueueAddError> {
+		if self.len() > QUEUE_LIMIT {
+			return Err(QueueAddError::LimitReached);
+		}
+
 		// Increment id
 		let id = {
 			let mut last_id = self.id.lock();
@@ -275,19 +265,17 @@ impl SigningQueue for ConfirmationsQueue {
 			let mut queue = self.queue.write();
 			queue.insert(id, ConfirmationToken {
 				result: Arc::new(Mutex::new(ConfirmationResult::Waiting)),
-				handle: thread::current(),
+				listeners: Default::default(),
 				request: ConfirmationRequest {
 					id: id,
 					payload: request,
 				},
-				timeout: self.timeout,
 			});
 			queue.get(&id).map(|token| token.as_promise()).expect("Token was just inserted.")
 		};
 		// Notify listeners
 		self.notify(QueueEvent::NewRequest(id));
-		res
-
+		Ok(res)
 	}
 
 	fn peek(&self, id: &U256) -> Option<ConfirmationRequest> {
@@ -325,7 +313,7 @@ impl SigningQueue for ConfirmationsQueue {
 mod test {
 	use std::time::Duration;
 	use std::thread;
-	use std::sync::Arc;
+	use std::sync::{mpsc, Arc};
 	use util::{Address, U256, H256, Mutex};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
 	use v1::types::H256 as NH256;
@@ -352,8 +340,12 @@ mod test {
 		// when
 		let q = queue.clone();
 		let handle = thread::spawn(move || {
-			let v = q.add_request(request);
-			v.wait_with_timeout().expect("Should return hash")
+			let v = q.add_request(request).unwrap();
+			let (tx, rx) = mpsc::channel();
+			v.wait_for_result(move |res| {
+				tx.send(res).unwrap();
+			});
+			rx.recv().unwrap().expect("Should return hash")
 		});
 
 		let id = U256::from(1);
@@ -361,10 +353,10 @@ mod test {
 			// Just wait for the other thread to start
 			thread::sleep(Duration::from_millis(100));
 		}
-		queue.request_confirmed(id, to_value(&NH256::from(H256::from(1))));
+		queue.request_confirmed(id, Ok(to_value(&NH256::from(H256::from(1)))));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), to_value(&NH256::from(H256::from(1))));
+		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(to_value(&NH256::from(H256::from(1)))));
 	}
 
 	#[test]
@@ -383,7 +375,7 @@ mod test {
 				*v = Some(notification);
 			}).expect("Should be closed nicely.")
 		});
-		queue.add_request(request);
+		queue.add_request(request).unwrap();
 		queue.finish();
 
 		// then
@@ -399,7 +391,7 @@ mod test {
 		let request = request();
 
 		// when
-		queue.add_request(request.clone());
+		queue.add_request(request.clone()).unwrap();
 		let all = queue.requests();
 
 		// then

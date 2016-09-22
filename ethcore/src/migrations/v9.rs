@@ -17,7 +17,7 @@
 
 //! This migration consolidates all databases into single one using Column Families.
 
-use util::{Rlp, RlpStream, View, Stream};
+use rlp::{Rlp, RlpStream, View, Stream};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, Progress};
 

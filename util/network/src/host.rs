@@ -29,8 +29,8 @@ use mio::*;
 use mio::tcp::*;
 use util::hash::*;
 use util::Hashable;
-use util::rlp::*;
 use util::version;
+use rlp::*;
 use session::{Session, SessionData};
 use error::*;
 use io::*;
@@ -281,6 +281,12 @@ impl<'s> NetworkContext<'s> {
 			return session.lock().info.client_version.clone()
 		}
 		"unknown".to_owned()
+	}
+
+	/// Returns max version for a given protocol.
+	pub fn protocol_version(&self, peer: PeerId, protocol: &str) -> Option<u8> {
+		let session = self.resolve_session(peer);
+		session.and_then(|s| s.lock().capability_version(protocol))
 	}
 }
 
