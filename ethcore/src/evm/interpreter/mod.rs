@@ -471,7 +471,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
-				let len = ext.extcode(&address).len();
+				let len = ext.extcodesize(&address);
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {

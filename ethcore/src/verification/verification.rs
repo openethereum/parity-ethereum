@@ -215,7 +215,7 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
 	let block = UntrustedRlp::new(block);
 	let tx = try!(block.at(1));
-	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
@@ -422,7 +422,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()).collect());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()));
 
 		let mut parent = good.clone();
 		parent.set_number(9);

@@ -211,6 +211,11 @@ impl<'a, T, V, B> Ext for Externalities<'a, T, V, B>
 		self.state.code(address).unwrap_or_else(|| vec![])
 	}
 
+	fn extcodesize(&self, address: &Address) -> usize {
+		self.state.code_size(address).unwrap_or(0)
+	}
+
+
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>
 		where Self: Sized {

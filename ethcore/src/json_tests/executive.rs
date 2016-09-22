@@ -131,6 +131,10 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		self.ext.extcode(address)
 	}
 
+	fn extcodesize(&self, address: &Address) -> usize {
+		self.ext.extcodesize(address)
+	}
+
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.ext.log(topics, data)
 	}
