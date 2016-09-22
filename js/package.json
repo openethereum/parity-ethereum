@@ -23,14 +23,15 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run buildApp",
+    "build": "NODE_ENV=production npm run build:dll && npm run buildApp",
+    "build:dll": "webpack --config vendor.webpack.config.js",
     "buildApp": "NODE_ENV=production webpack",
     "buildLibrary": "rollup --config ./rollup.library.js",
     "clean": "rm -rf ./build",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
     "release": "./scripts/release.sh",
-    "start": "npm install && npm run startApp",
+    "start": "npm install && npm run build:dll && npm run startApp",
     "startApp": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "test": "mocha 'src/**/*.spec.js'",
     "testCoverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",

@@ -18,13 +18,10 @@ var rucksack = require('rucksack-css');
 var webpack = require('webpack');
 var path = require('path');
 
-var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
 var ENV = process.env.NODE_ENV || 'development';
 var isProd = ENV === 'production';
-
-var extractCSS = new ExtractTextPlugin('[name].css', { allChunks: true });
 
 module.exports = {
   debug: !isProd,
@@ -54,7 +51,7 @@ module.exports = {
         exclude: /node_modules/,
         loaders: isProd ? ['babel'] : [
           'react-hot',
-          'babel'
+          'babel?cacheDirectory=true'
         ]
       },
       {
@@ -62,7 +59,7 @@ module.exports = {
         include: /dapps-react-components/,
         loaders: isProd ? ['babel'] : [
           'react-hot',
-          'babel'
+          'babel?cacheDirectory=true'
         ]
       },
       {
@@ -77,10 +74,7 @@ module.exports = {
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: isProd ? extractCSS.extract('style', [
-          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss'
-        ]) : [
+        loaders: [
           'style',
           'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss'
@@ -89,14 +83,11 @@ module.exports = {
       {
         test: /\.css$/,
         exclude: [/src/],
-        loader: isProd ? extractCSS.extract('style', 'css') : 'style!css'
+        loader: 'style!css'
       },
       {
         test: /\.less$/,
-        loaders: isProd ? extractCSS.extract('style', [
-          'css',
-          'less'
-        ]) : [
+        loaders: [
           'style',
           'css',
           'less'
@@ -137,6 +128,11 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
+      new webpack.DllReferencePlugin({
+        context: '.',
+        manifest: require('./build/vendor-manifest.json')
+      }),
+
       new WebpackErrorNotificationPlugin(),
       // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
       // TODO [jacogr] this shit needs to go, e.g. dapp-styles
@@ -162,7 +158,6 @@ module.exports = {
     ];
 
     if (isProd) {
-      plugins.push(extractCSS);
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
@@ -179,7 +174,7 @@ module.exports = {
     return plugins;
   }()),
   devServer: {
-    contentBase: './src',
+    contentBase: './build',
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
