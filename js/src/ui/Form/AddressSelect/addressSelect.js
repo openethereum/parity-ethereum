@@ -35,7 +35,7 @@ export default class AddressSelect extends Component {
   }
 
   render () {
-    const { accounts, contacts, disabled, error, hint, label, value } = this.props;
+    const { disabled, error, hint, label, value } = this.props;
 
     return (
       <Select
@@ -45,31 +45,33 @@ export default class AddressSelect extends Component {
         error={ error }
         value={ value }
         onChange={ this.onChange }>
-        { this.renderSelectEntries(accounts) }
-        { this.renderSelectEntries(contacts) }
+        { this.renderSelectEntries() }
       </Select>
     );
   }
 
-  renderSelectEntries (entries) {
-    if (!entries) {
+  renderSelectEntries () {
+    const { accounts, contacts } = this.props;
+    const entries = Object.values(Object.assign({}, accounts || {}, contacts || {}));
+
+    if (!entries.length) {
       return null;
     }
 
-    return Object.values(entries).map(this.renderSelectEntry);
+    return entries.map(this.renderSelectEntry);
   }
 
-  renderSelectEntry = (account) => {
+  renderSelectEntry = (entry) => {
     const item = (
       <div className={ styles.account }>
         <div className={ styles.image }>
           <IdentityIcon
             inline center
-            address={ account.address } />
+            address={ entry.address } />
         </div>
         <div className={ styles.details }>
           <div className={ styles.name }>
-            { account.name || 'Unnamed' }
+            { entry.name || 'Unnamed' }
           </div>
         </div>
       </div>
@@ -77,8 +79,8 @@ export default class AddressSelect extends Component {
 
     return (
       <MenuItem
-        key={ account.address }
-        value={ account.address }
+        key={ entry.address }
+        value={ entry.address }
         label={ item }>
         { item }
       </MenuItem>
