@@ -48,6 +48,7 @@ class CreateAccount extends Component {
   }
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     onClose: PropTypes.func,
     onUpdate: PropTypes.func,
     onNewError: PropTypes.func
@@ -85,6 +86,7 @@ class CreateAccount extends Component {
 
   renderPage () {
     const { createType, stage } = this.state;
+    const { accounts } = this.props;
 
     switch (stage) {
       case 0:
@@ -102,6 +104,7 @@ class CreateAccount extends Component {
         } else if (createType === 'fromGeth') {
           return (
             <NewGeth
+              accounts={ accounts }
               onChange={ this.onChangeGeth } />
           );
         }
