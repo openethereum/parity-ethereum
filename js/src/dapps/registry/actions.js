@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import registryAbi from './abi/registry.json';
+import { registry as registryAbi } from '../../json';
+
 import { newContract, ethcore } from './parity.js';
 import * as addresses from './addresses/actions.js';
 import * as accounts from './accounts/actions.js';

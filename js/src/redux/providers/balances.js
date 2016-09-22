@@ -16,7 +16,7 @@
 
 import { getBalances, getTokens } from './balancesActions';
 
-import { eip20Abi, registryAbi, tokenRegAbi } from '../../util/abi';
+import * as abis from '../../json';
 
 import imagesEthereum from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
@@ -79,12 +79,12 @@ export default class Balances {
     this._api.ethcore
       .registryAddress()
       .then((registryAddress) => {
-        const registry = this._api.newContract(registryAbi, registryAddress);
+        const registry = this._api.newContract(abis.registry, registryAddress);
 
         return registry.instance.getAddress.call({}, [this._api.util.sha3('tokenreg'), 'A']);
       })
       .then((tokenregAddress) => {
-        const tokenreg = this._api.newContract(tokenRegAbi, tokenregAddress);
+        const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
 
         return tokenreg.instance.tokenCount
           .call()
@@ -109,7 +109,7 @@ export default class Balances {
             tag,
             format: format.toString(),
             image: images[name.toLowerCase()] || imagesUnknown,
-            contract: this._api.newContract(eip20Abi, address)
+            contract: this._api.newContract(abis.eip20, address)
           };
           tokens[address] = token;
 
