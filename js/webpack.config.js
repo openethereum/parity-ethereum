@@ -33,14 +33,13 @@ module.exports = {
   context: path.join(__dirname, './src'),
   entry: {
     // dapps
-    'gavcoin': ['./dapps/gavcoin.js'],
-    'registry': ['./dapps/registry.js'],
-    'tokenreg': ['./dapps/tokenreg.js'],
+    'gavcoin': ['babel-polyfill', './dapps/gavcoin.js'],
+    'registry': ['babel-polyfill', './dapps/registry.js'],
+    'tokenreg': ['babel-polyfill', './dapps/tokenreg.js'],
     // library
-    'parity': ['./parity.js'],
-    // 'web3': ['./web3.js'],
+    'parity': ['babel-polyfill', './parity.js'],
     // app
-    'index': ['./index.js']
+    'index': ['babel-polyfill', './index.js']
   },
   output: {
     path: path.join(__dirname, 'build'),
