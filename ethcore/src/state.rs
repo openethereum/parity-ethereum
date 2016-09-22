@@ -25,6 +25,7 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+use state_db::StateDB;
 
 /// Used to return information about an `State::apply` operation.
 pub struct ApplyOutcome {
@@ -39,12 +40,18 @@ pub type ApplyResult = Result<ApplyOutcome, Error>;
 
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
-	db: Box<JournalDB>,
+	db: StateDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, Option<Account>>>,
 	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
 	account_start_nonce: U256,
 	trie_factory: TrieFactory,
+}
+
+enum RequireCache {
+	None,
+	CodeSize,
+	Code,
 }
 
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
@@ -53,7 +60,7 @@ const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with v
 impl State {
 	/// Creates new state with empty state root
 	#[cfg(test)]
-	pub fn new(mut db: Box<JournalDB>, account_start_nonce: U256, trie_factory: TrieFactory) -> State {
+	pub fn new(mut db: StateDB, account_start_nonce: U256, trie_factory: TrieFactory) -> State {
 		let mut root = H256::new();
 		{
 			// init trie and reset root too null
@@ -71,7 +78,7 @@ impl State {
 	}
 
 	/// Creates new state with existing state root
-	pub fn from_existing(db: Box<JournalDB>, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
+	pub fn from_existing(db: StateDB, root: H256, account_start_nonce: U256, trie_factory: TrieFactory) -> Result<State, TrieError> {
 		if !db.as_hashdb().contains(&root) {
 			return Err(TrieError::InvalidStateRoot(root));
 		}
@@ -115,7 +122,15 @@ impl State {
 						self.cache.borrow_mut().insert(k, v);
 					},
 					None => {
-						self.cache.borrow_mut().remove(&k);
+						//self.cache.borrow_mut().remove(&k);
+						match self.cache.borrow_mut().entry(k) {
+							::std::collections::hash_map::Entry::Occupied(e) => {
+								if e.get().as_ref().map_or(true, |a| a.is_dirty()) {
+									e.remove();
+								}
+							},
+							_ => ()
+						}
 					}
 				}
 			}
@@ -141,7 +156,7 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, Box<JournalDB>) {
+	pub fn drop(self) -> (H256, StateDB) {
 		(self.root, self.db)
 	}
 
@@ -163,31 +178,36 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.ensure_cached(a, false, |a| a.is_some())
+		self.ensure_cached(a, RequireCache::None, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, false,
+		self.ensure_cached(a, RequireCache::None,
 			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, false,
+		self.ensure_cached(a, RequireCache::None,
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.ensure_cached(address, false,
-			|a| a.as_ref().map_or(H256::new(), |a|a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
+		self.ensure_cached(address, RequireCache::None,
+			|a| a.as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
 	}
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
-		self.ensure_cached(a, true,
-			|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
+		self.ensure_cached(a, RequireCache::Code,
+			|a| a.as_ref().map_or(None, |a| a.code().map(|x|x.to_vec())))
+	}
+
+	pub fn code_size(&self, a: &Address) -> Option<u64> {
+		self.ensure_cached(a, RequireCache::CodeSize,
+			|a| a.as_ref().and_then(|a| a.code_size()))
 	}
 
 	/// Add `incr` to the balance of account `a`.
@@ -250,7 +270,7 @@ impl State {
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	pub fn commit_into(
 		trie_factory: &TrieFactory,
-		db: &mut HashDB,
+		db: &mut StateDB,
 		root: &mut H256,
 		accounts: &mut HashMap<Address,
 		Option<Account>>
@@ -260,7 +280,7 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut Some(ref mut account) if account.is_dirty() => {
-					let mut account_db = AccountDBMut::from_hash(db, account.address_hash(address));
+					let mut account_db = AccountDBMut::from_hash(db.as_hashdb_mut(), account.address_hash(address));
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
 				}
@@ -269,7 +289,7 @@ impl State {
 		}
 
 		{
-			let mut trie = trie_factory.from_existing(db, root).unwrap();
+			let mut trie = trie_factory.from_existing(db.as_hashdb_mut(), root).unwrap();
 			for (address, ref mut a) in accounts.iter_mut() {
 				match **a {
 					Some(ref mut account) if account.is_dirty() => {
@@ -285,10 +305,17 @@ impl State {
 		Ok(())
 	}
 
+	pub fn commit_cache(&mut self) {
+		let mut addresses = self.cache.borrow_mut();
+		for (address, a) in addresses.drain() {
+			self.db.cache_account(address, a);
+		}
+	}
+
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
 		assert!(self.snapshots.borrow().is_empty());
-		Self::commit_into(&self.trie_factory, self.db.as_hashdb_mut(), &mut self.root, &mut *self.cache.borrow_mut())
+		Self::commit_into(&self.trie_factory, &mut self.db, &mut self.root, &mut *self.cache.borrow_mut())
 	}
 
 	/// Clear state cache
@@ -321,7 +348,7 @@ impl State {
 
 	fn query_pod(&mut self, query: &PodState) {
 		for (ref address, ref pod_account) in query.get() {
-			self.ensure_cached(address, true, |a| {
+			self.ensure_cached(address, RequireCache::Code, |a| {
 				if a.is_some() {
 					for key in pod_account.storage.keys() {
 						self.storage_at(address, key);
@@ -342,21 +369,35 @@ impl State {
 
 	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
 	/// `require_code` requires that the code be cached, too.
-	fn ensure_cached<'a, F, U>(&'a self, a: &'a Address, require_code: bool, f: F) -> U
+	fn ensure_cached<'a, F, U>(&'a self, a: &'a Address, require: RequireCache, f: F) -> U
 		where F: FnOnce(&Option<Account>) -> U {
 		let have_key = self.cache.borrow().contains_key(a);
 		if !have_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(a) {
-				Ok(acc) => acc.map(Account::from_rlp),
-				Err(e) => panic!("Potential DB corruption encountered: {}", e),
+			let maybe_acc = match self.db.get_cached_account(a) {
+				Some(maybe_acc) => maybe_acc,
+				None => {
+					let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+					match db.get(a) {
+						Ok(acc) => acc.map(Account::from_rlp),
+						Err(e) => panic!("Potential DB corruption encountered: {}", e),
+					}
+				},
 			};
 			self.insert_cache(a, maybe_acc);
 		}
-		if require_code {
-			if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+		match require {
+			RequireCache::None => (),
+			RequireCache::Code => {
+				if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
+					let addr_hash = account.address_hash(a);
+					account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				}
+			}
+			RequireCache::CodeSize => {
+				if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
+					let addr_hash = account.address_hash(a);
+					account.cache_code_size(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+				}
 			}
 		}
 

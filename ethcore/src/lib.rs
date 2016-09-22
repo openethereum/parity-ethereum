@@ -100,6 +100,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate ethcore_devtools as devtools;
 extern crate rand;
 extern crate bit_set;
+extern crate lru_cache;
 
 #[cfg(feature = "jit" )] extern crate evmjit;
 
@@ -130,6 +131,7 @@ mod basic_types;
 mod env_info;
 mod pod_account;
 mod state;
+mod state_db;
 mod account;
 mod account_db;
 mod builtin;

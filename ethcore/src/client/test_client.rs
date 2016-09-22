@@ -40,6 +40,7 @@ use block::{OpenBlock, SealedBlock};
 use executive::Executed;
 use error::CallError;
 use trace::LocalizedTrace;
+use state_db::StateDB;
 
 /// Test client.
 pub struct TestBlockChainClient {
@@ -247,13 +248,14 @@ impl TestBlockChainClient {
 	}
 }
 
-pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
+pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	let temp = RandomTempPath::new();
 	let db = Database::open_default(temp.as_str()).unwrap();
 	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, None);
+	let state_db = StateDB::new(journal_db);
 	GuardedTempResult {
 		_temp: temp,
-		result: Some(journal_db)
+		result: Some(state_db)
 	}
 }
 
@@ -261,9 +263,9 @@ impl MiningBlockChainClient for TestBlockChainClient {
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		self.spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		self.spec.ensure_db_good(&mut db).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(

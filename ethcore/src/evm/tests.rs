@@ -140,6 +140,10 @@ impl Ext for FakeExt {
 		self.codes.get(address).unwrap_or(&Bytes::new()).clone()
 	}
 
+	fn extcode_len(&self, address: &Address) -> u64 {
+		self.codes.get(address).map_or(0, |c| c.len() as u64)
+	}
+
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
 		self.logs.push(FakeLogEntry {
 			topics: topics,
