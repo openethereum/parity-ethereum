@@ -26,6 +26,7 @@ export default class AddressSelect extends Component {
   static propTypes = {
     disabled: PropTypes.bool,
     accounts: PropTypes.object,
+    contacts: PropTypes.object,
     label: PropTypes.string,
     hint: PropTypes.string,
     error: PropTypes.string,
@@ -34,7 +35,7 @@ export default class AddressSelect extends Component {
   }
 
   render () {
-    const { disabled, error, hint, label, value } = this.props;
+    const { accounts, contacts, disabled, error, hint, label, value } = this.props;
 
     return (
       <Select
@@ -44,18 +45,21 @@ export default class AddressSelect extends Component {
         error={ error }
         value={ value }
         onChange={ this.onChange }>
-        { this.renderSelectAccounts() }
+        { this.renderSelectEntries(accounts) }
+        { this.renderSelectEntries(contacts) }
       </Select>
     );
   }
 
-  renderSelectAccounts () {
-    const { accounts } = this.props;
+  renderSelectEntries (entries) {
+    if (!entries) {
+      return null;
+    }
 
-    return Object.values(accounts).map(this.renderAccountItem);
+    return Object.values(entries).map(this.renderSelectEntry);
   }
 
-  renderAccountItem = (account) => {
+  renderSelectEntry = (account) => {
     const item = (
       <div className={ styles.account }>
         <div className={ styles.image }>

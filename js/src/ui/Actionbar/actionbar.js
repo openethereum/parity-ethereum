@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Toolbar, ToolbarGroup, ToolbarTitle } from 'material-ui/Toolbar';
+import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 
 import styles from './actionbar.css';
 
@@ -59,9 +59,9 @@ export default class Actionbar extends Component {
     const { title } = this.props;
 
     return (
-      <ToolbarTitle
-        className={ styles.tooltitle }
-        text={ title } />
+      <h3 className={ styles.tooltitle }>
+        { title }
+      </h3>
     );
   }
 }
