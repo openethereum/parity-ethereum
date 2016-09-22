@@ -67,6 +67,8 @@ pub struct TestBlockChainClient {
 	pub execution_result: RwLock<Option<Result<Executed, CallError>>>,
 	/// Transaction receipts.
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
+	/// Logs
+	pub logs: RwLock<Vec<LocalizedLogEntry>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -114,6 +116,7 @@ impl TestBlockChainClient {
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
+			logs: RwLock::new(Vec::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
@@ -163,6 +166,11 @@ impl TestBlockChainClient {
 	/// Set timestamp assigned to latest sealed block
 	pub fn set_latest_block_timestamp(&self, ts: u64) {
 		*self.latest_block_timestamp.write() = ts;
+	}
+
+	/// Set logs to return for each logs call.
+	pub fn set_logs(&self, logs: Vec<LocalizedLogEntry>) {
+		*self.logs.write() = logs;
 	}
 
 	/// Add blocks to test client.
@@ -390,8 +398,13 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter, _limit: Option<usize>) -> Vec<LocalizedLogEntry> {
-		Vec::new()
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut logs = self.logs.read().clone();
+		let len = logs.len();
+		match filter.limit {
+			Some(limit) if limit <= len => logs.split_off(len - limit),
+			_ => logs,
+		}
 	}
 
 	fn last_hashes(&self) -> LastHashes {

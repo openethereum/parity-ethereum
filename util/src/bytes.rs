@@ -20,6 +20,7 @@
 //! as
 
 use std::fmt;
+use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 
 /// Slice pretty print helper
@@ -71,6 +72,32 @@ pub enum BytesRef<'a> {
 	Fixed(&'a mut [u8])
 }
 
+impl<'a> BytesRef<'a> {
+	/// Writes given `input` to this `BytesRef` starting at `offset`.
+	/// Returns number of bytes written to the ref.
+	/// NOTE can return number greater then `input.len()` in case flexible vector had to be extended.
+	pub fn write(&mut self, offset: usize, input: &[u8]) -> usize {
+		match *self {
+			BytesRef::Flexible(ref mut data) => {
+				let data_len = data.len();
+				let wrote = input.len() + if data_len > offset { 0 } else { offset - data_len };
+
+				data.resize(offset, 0);
+				data.extend_from_slice(input);
+				wrote
+			},
+			BytesRef::Fixed(ref mut data) if offset < data.len() => {
+				let max = min(data.len() - offset, input.len());
+				for i in 0..max {
+					data[offset + i] = input[i];
+				}
+				max
+			},
+			_ => 0
+		}
+	}
+}
+
 impl<'a> Deref for BytesRef<'a> {
 	type Target = [u8];
 
@@ -93,3 +120,60 @@ impl <'a> DerefMut for BytesRef<'a> {
 
 /// Vector of bytes.
 pub type Bytes = Vec<u8>;
+
+#[cfg(test)]
+mod tests {
+	use super::BytesRef;
+
+	#[test]
+	fn should_write_bytes_to_fixed_bytesref() {
+		// given
+		let mut data1 = vec![0, 0, 0];
+		let mut data2 = vec![0, 0, 0];
+		let (res1, res2) = {
+			let mut bytes1 = BytesRef::Fixed(&mut data1[..]);
+			let mut bytes2 = BytesRef::Fixed(&mut data2[1..2]);
+
+			// when
+			let res1 = bytes1.write(1, &[1, 1, 1]);
+			let res2 = bytes2.write(3, &[1, 1, 1]);
+			(res1, res2)
+		};
+
+		// then
+		assert_eq!(&data1, &[0, 1, 1]);
+		assert_eq!(res1, 2);
+
+		assert_eq!(&data2, &[0, 0, 0]);
+		assert_eq!(res2, 0);
+	}
+
+	#[test]
+	fn should_write_bytes_to_flexible_bytesref() {
+		// given
+		let mut data1 = vec![0, 0, 0];
+		let mut data2 = vec![0, 0, 0];
+		let mut data3 = vec![0, 0, 0];
+		let (res1, res2, res3) = {
+			let mut bytes1 = BytesRef::Flexible(&mut data1);
+			let mut bytes2 = BytesRef::Flexible(&mut data2);
+			let mut bytes3 = BytesRef::Flexible(&mut data3);
+
+			// when
+			let res1 = bytes1.write(1, &[1, 1, 1]);
+			let res2 = bytes2.write(3, &[1, 1, 1]);
+			let res3 = bytes3.write(5, &[1, 1, 1]);
+			(res1, res2, res3)
+		};
+
+		// then
+		assert_eq!(&data1, &[0, 1, 1, 1]);
+		assert_eq!(res1, 3);
+
+		assert_eq!(&data2, &[0, 0, 0, 1, 1, 1]);
+		assert_eq!(res2, 3);
+
+		assert_eq!(&data3, &[0, 0, 0, 0, 0, 1, 1, 1]);
+		assert_eq!(res3, 5);
+	}
+}

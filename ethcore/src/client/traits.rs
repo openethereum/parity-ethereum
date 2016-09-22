@@ -156,7 +156,7 @@ pub trait BlockChainClient : Sync + Send {
 	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>>;
 
 	/// Returns logs matching given filter.
-	fn logs(&self, filter: Filter, limit: Option<usize>) -> Vec<LocalizedLogEntry>;
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry>;
 
 	/// Makes a non-persistent transaction call.
 	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError>;
@@ -215,8 +215,11 @@ pub trait BlockChainClient : Sync + Send {
 /// Extended client interface used for mining
 pub trait MiningBlockChainClient : BlockChainClient {
 	/// Returns OpenBlock prepared for closing.
-	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes)
-		-> OpenBlock;
+	fn prepare_open_block(&self,
+		author: Address,
+		gas_range_target: (U256, U256),
+		extra_data: Bytes
+	) -> OpenBlock;
 
 	/// Returns EvmFactory.
 	fn vm_factory(&self) -> &EvmFactory;
