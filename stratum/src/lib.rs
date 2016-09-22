@@ -65,7 +65,11 @@ pub struct Stratum {
 	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
 	/// Secret if any
 	secret: Option<H256>,
+	/// Dispatch notify couinter
+	notify_counter: RwLock<u32>,
 }
+
+const NOTIFY_CONTER_INITIAL: u32 = 16;
 
 impl Stratum {
 	pub fn start(
@@ -83,6 +87,7 @@ impl Stratum {
 			dispatcher: dispatcher,
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
+			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
 		});
 
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
@@ -176,9 +181,17 @@ impl Stratum {
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
 		let workers = self.workers.read();
-		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &payload);
+		let next_request_id = {
+			let mut counter = self.notify_counter.write();
+			if *counter == ::std::u32::MAX { *counter = NOTIFY_CONTER_INITIAL; }
+			else { *counter = *counter + 1 }
+			*counter
+		};
+
+		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}\n", next_request_id, payload);
+		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 		for (ref addr, _) in workers.iter() {
-			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
+			try!(self.rpc_server.push_message(addr, workers_msg.as_bytes()));
 		}
 		Ok(())
 	}

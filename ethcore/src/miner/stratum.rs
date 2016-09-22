@@ -124,7 +124,7 @@ impl StratumJobDispatcher {
 		let seed_hash = &self.seed_compute.lock().get_seedhash(number);
 		let seed_hash = H256::from_slice(&seed_hash[..]);
 		format!(
-			r#"["0x{}","0x{}","0x{}","0x{:x}"]"#,
+			r#"["0x", "0x{}","0x{}","0x{}","0x{:x}"]"#,
 			pow_hash.hex(), seed_hash.hex(), target.hex(), number
 		)
 	}
