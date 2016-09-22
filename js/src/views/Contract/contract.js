@@ -33,6 +33,7 @@ export default class Contract extends Component {
   }
 
   static propTypes = {
+    accounts: PropTypes.object,
     balances: PropTypes.object,
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
@@ -41,21 +42,23 @@ export default class Contract extends Component {
 
   state = {
     contract: null,
-    showDeleteDialog: false
+    showDeleteDialog: false,
+    subscriptionId: -1
   }
 
   componentDidMount () {
     this._attachContract();
+    this.queryContract(this.props);
   }
 
-  componentDidReceiveProps (newProps) {
+  componentWillReceiveProps (newProps) {
     const { contracts } = newProps;
 
-    if (contracts === this.props.contracts) {
+    if (Object.keys(contracts).length === Object.keys(this.props.contracts).length) {
       return;
     }
 
-    this._attachContract();
+    this._attachContract(newProps);
   }
 
   render () {
@@ -197,19 +200,28 @@ export default class Contract extends Component {
 
   queryContract = () => {
     const { contract } = this.state;
-    const queries = contract.functions.filter((fn) => fn.constant).sort(this._sortEntries);
+    const nextTimeout = (delay = 5000) => setTimeout(this.queryContract, delay);
 
-    console.log(queries);
+    if (!contract) {
+      nextTimeout(500);
+      return;
+    }
+
+    const queries = contract.functions
+      .filter((fn) => fn.constant)
+      .filter((fn) => !fn.inputs.length);
 
     Promise
-      .all(
-        queries
-          .filter((query) => !query.inputs.length)
-          .map((query) => query.call())
-        )
+      .all(queries.map((query) => query.call()))
       .then((returns) => {
-        console.log(returns);
-        setTimeout(this.queryContract, 5000);
+        console.log(returns.map((value, index) => {
+          return [queries[index].name, index];
+        }));
+        nextTimeout();
+      })
+      .catch((error) => {
+        console.error('queryContract', error);
+        nextTimeout();
       });
   }
 
@@ -221,28 +233,47 @@ export default class Contract extends Component {
     this.setState({ showDeleteDialog: true });
   }
 
-  _attachContract () {
+  _receiveEvents = (error, logs) => {
+    if (error) {
+      console.error('_receiveEvents', error);
+      return;
+    }
+
+    console.log(logs);
+  }
+
+  _attachContract (props) {
+    if (!props) {
+      return;
+    }
+
     const { api } = this.context;
-    const { contracts, params } = this.props;
+    const { contracts, params } = props;
     const account = contracts[params.address];
 
     if (!account) {
       return;
     }
 
-    const contract = api.newContract(account.meta.abi);
+    const contract = api.newContract(account.meta.abi, params.address);
+    contract
+      .subscribe(null, { limit: 50, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)
+      .then((subscriptionId) => {
+        this.setState({ subscriptionId });
+      });
 
-    this.setState({ contract }, this.queryContract);
+    this.setState({ contract });
   }
 }
 
 function mapStateToProps (state) {
-  const { contracts } = state.personal;
+  const { accounts, contracts } = state.personal;
   const { balances } = state.balances;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
+    accounts,
     contracts,
     balances
   };
