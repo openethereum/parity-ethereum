@@ -29,7 +29,13 @@ use serde::{Serialize, Deserialize};
 /// A wrapper type without an implementation of `Deserialize`
 /// which allows a special implementation of `Wrap` for functions
 /// that take a default block parameter.
-pub struct BlockParam(BlockNumber);
+pub struct BlockParam(pub BlockNumber);
+
+impl Into<::ethcore::ids::BlockID> for BlockParam {
+	fn into(self) -> ::ethcore::ids::BlockID {
+		self.0.into()
+	}
+}
 
 /// Wrapper trait for RPC functions.
 pub trait Wrap<B: Send + Sync + 'static> {
