@@ -252,7 +252,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		try!(self.active());
 		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(address, ciphertext)| {
 			let s = try!(take_weak!(self.accounts).decrypt(address.into(), &[0; 0], &ciphertext.0).map_err(|_| Error::internal_error()));
-			Ok(to_value(&RpcBytes::from(s)))
+			Ok(to_value(RpcBytes::from(s)))
 		})
 	}
 
