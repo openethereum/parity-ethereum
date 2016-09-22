@@ -21,23 +21,16 @@
 #![allow(non_snake_case)]
 
 use super::errors;
-use v1::types::BlockNumber;
 
 use jsonrpc_core::{Error, Params, Value, from_params, to_value};
 use serde::{Serialize, Deserialize};
 
 /// A wrapper type without an implementation of `Deserialize`
 /// which allows a special implementation of `Wrap` for functions
-/// that take a default block parameter.
-pub struct BlockParam(pub BlockNumber);
+/// that take a trailing default parameter.
+pub struct Trailing<T: Default + Deserialize>(pub T);
 
-impl Into<::ethcore::ids::BlockID> for BlockParam {
-	fn into(self) -> ::ethcore::ids::BlockID {
-		self.0.into()
-	}
-}
-
-/// Wrapper trait for RPC functions.
+/// Wrapper trait for synchronous RPC functions.
 pub trait Wrap<B: Send + Sync + 'static> {
 	fn wrap_rpc(&self, base: &B, params: Params) -> Result<Value, Error>;
 }
@@ -72,8 +65,8 @@ macro_rules! wrap {
 }
 
 // special impl for no parameters other than block parameter.
-impl<B, OUT> Wrap<B> for fn(&B, BlockParam) -> Result<OUT, Error>
-	where B: Send + Sync + 'static, OUT: Serialize
+impl<B, OUT, T> Wrap<B> for fn(&B, Trailing<T>) -> Result<OUT, Error>
+	where B: Send + Sync + 'static, OUT: Serialize, T: Default + Deserialize
 {
 	fn wrap_rpc(&self, base: &B, params: Params) -> Result<Value, Error> {
 		let len = match params {
@@ -82,24 +75,25 @@ impl<B, OUT> Wrap<B> for fn(&B, BlockParam) -> Result<OUT, Error>
 		};
 
 		let (id,) = match len {
-			0 => (BlockNumber::Latest,),
-			1 => try!(from_params::<(BlockNumber,)>(params)),
+			0 => (T::default(),),
+			1 => try!(from_params::<(T,)>(params)),
 			_ => return Err(Error::invalid_params()),
 		};
 
-		(self)(base, BlockParam(id)).map(to_value)
+		(self)(base, Trailing(id)).map(to_value)
 	}
 }
 
-// similar to `wrap!`, but handles the Default Block Parameter.
-// accepts an additional argument indicating the number of non-block parameters.
-macro_rules! wrap_with_block_param {
+// similar to `wrap!`, but handles a single default trailing parameter
+// accepts an additional argument indicating the number of non-trailing parameters.
+macro_rules! wrap_with_trailing {
 	($num: expr, $($x: ident),+) => {
 		impl <
 			BASE: Send + Sync + 'static,
 			OUT: Serialize,
 			$($x: Deserialize,)+
-		> Wrap<BASE> for fn(&BASE, $($x,)+ BlockParam) -> Result<OUT, Error> {
+			TRAILING: Default + Deserialize,
+		> Wrap<BASE> for fn(&BASE, $($x,)+ Trailing<TRAILING>) -> Result<OUT, Error> {
 			fn wrap_rpc(&self, base: &BASE, params: Params) -> Result<Value, Error> {
 				let len = match params {
 					Params::Array(ref v) => v.len(),
@@ -108,14 +102,14 @@ macro_rules! wrap_with_block_param {
 
 				let params = match len - $num {
 					0 => from_params::<($($x,)+)>(params)
-						.map(|($($x,)+)| ($($x,)+ BlockNumber::Latest)),
-					1 => from_params::<($($x,)+ BlockNumber)>(params)
+						.map(|($($x,)+)| ($($x,)+ TRAILING::default())),
+					1 => from_params::<($($x,)+ TRAILING)>(params)
 						.map(|($($x,)+ id)| ($($x,)+ id)),
 					_ => Err(Error::invalid_params()),
 				};
 
 				let ($($x,)+ id) = try!(params);
-				(self)(base, $($x,)+ BlockParam(id)).map(to_value)
+				(self)(base, $($x,)+ Trailing(id)).map(to_value)
 			}
 		}
 	}
@@ -127,8 +121,8 @@ wrap!(A, B, C);
 wrap!(A, B);
 wrap!(A);
 
-wrap_with_block_param!(5, A, B, C, D, E);
-wrap_with_block_param!(4, A, B, C, D);
-wrap_with_block_param!(3, A, B, C);
-wrap_with_block_param!(2, A, B);
-wrap_with_block_param!(1, A);
+wrap_with_trailing!(5, A, B, C, D, E);
+wrap_with_trailing!(4, A, B, C, D);
+wrap_with_trailing!(3, A, B, C);
+wrap_with_trailing!(2, A, B);
+wrap_with_trailing!(1, A);
