@@ -111,19 +111,18 @@ mod boot;
 mod stratum;
 
 use std::{process, env};
-use std::io::prelude::*;
+use std::io::BufReader;
 use std::fs::File;
-use util::sha3::Hashable;
+use util::sha3::sha3;
 use cli::Args;
 use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
-		let mut f = try!(File::open(&file).map_err(|_| "Unable to open file".to_owned()));
-		let mut bytes = vec![];
-		try!(f.read_to_end(&mut bytes).map_err(|_| "Unable to read from file".to_owned()));
-		Ok(bytes.sha3().hex())
+		let mut f = BufReader::new(try!(File::open(&file).map_err(|_| "Unable to open file".to_owned())));
+		let hash = try!(sha3(&mut f).map_err(|_| "Unable to read from file".to_owned()));
+		Ok(hash.hex())
 	} else {
 		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
 	}
