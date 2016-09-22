@@ -193,7 +193,7 @@ Sealing/Mining Options:
   --stratum                Run Stratum server for miners to connect (default: {flag_stratum})
   --stratum-interface IP   Address to for stratum server to listen on (default: {flag_stratum_interface})
   --stratum-port PORT      Port to for stratum server to listen on (default: {flag_stratum_port})
-  --stratum-secret STRING  Secret for authorizing at stratum server for peers (default: {flag_stratum_secret})
+  --stratum-secret STRING  Secret for authorizing at stratum server for peers (default: {flag_stratum_secret:?})
 
 Footprint Options:
   --tracing BOOL           Indicates if full transaction tracing should be
