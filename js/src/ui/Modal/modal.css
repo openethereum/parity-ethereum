@@ -14,9 +14,23 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+.actions, .body {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.dialog {
+}
+
+.content {
+  transform: translate(0px, 0px) !important;
+}
+
+.content>div {
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
 .title {
   padding: 1em;
-  background: rgba(0, 0, 0, 0.175);
 }
 
 .title h3 {
