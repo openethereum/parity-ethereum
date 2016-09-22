@@ -43,7 +43,10 @@ export default class Contract extends Component {
   state = {
     contract: null,
     showDeleteDialog: false,
-    subscriptionId: -1
+    subscriptionId: -1,
+    allEvents: [],
+    minedEvents: [],
+    pendingEvents: []
   }
 
   componentDidMount () {
@@ -109,28 +112,48 @@ export default class Contract extends Component {
   }
 
   renderEvents () {
-    const { contract } = this.state;
+    const { isTest } = this.props;
+    const { allEvents, contract } = this.state;
 
-    if (!contract) {
+    if (!contract || !allEvents || !allEvents.length) {
       return null;
     }
 
-    const events = contract.events
-      .sort(this._sortEntries)
-      .map((fn) => {
-        return (
-          <div key={ fn.signature } className={ styles.method }>
-            { fn.name }
-          </div>
-        );
+    const rows = allEvents.map((event) => {
+      const classes = `${styles.event} ${styles[event.state]}`;
+      const url = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${event.transactionHash}`;
+      const keys = Object.keys(event.params).map((key, index) => {
+        return <div className={ styles.key } key={ `${event.key}_key_${index}` }>{ key }</div>;
       });
+      const values = Object.values(event.params).map((value, index) => {
+        return <div className={ styles.value } key={ `${event.key}_val_${index}` }>{ value.toString() }</div>;
+      });
+
+      return (
+        <tr className={ classes } key={ event.key }>
+          <td>{ event.state === 'pending' ? 'pending' : event.blockNumber.toFormat(0) }</td>
+          <td className={ styles.txhash }>
+            <div>{ event.address }</div>
+            <a href={ url } target='_blank'>{ event.transactionHash }</a>
+          </td>
+          <td>
+            <div>{ event.type } =></div>
+            { keys }
+          </td>
+          <td>
+            <div>&nbsp;</div>
+            { values }
+          </td>
+        </tr>
+      );
+    });
 
     return (
       <Container>
         <ContainerTitle title='events' />
-        <div className={ styles.methods }>
-          { events }
-        </div>
+        <table className={ styles.events }>
+          <tbody>{ rows }</tbody>
+        </table>
       </Container>
     );
   }
@@ -233,13 +256,59 @@ export default class Contract extends Component {
     this.setState({ showDeleteDialog: true });
   }
 
+  _sortEvents = (a, b) => {
+    return b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
+  }
+
+  _logToEvent = (log) => {
+    const { api } = this.context;
+    const key = api.util.sha3(JSON.stringify(log));
+    const { address, blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
+
+    return {
+      type: log.event,
+      state: type,
+      address,
+      blockNumber,
+      logIndex,
+      transactionHash,
+      transactionIndex,
+      params,
+      key
+    };
+  }
+
   _receiveEvents = (error, logs) => {
     if (error) {
       console.error('_receiveEvents', error);
       return;
     }
 
-    console.log(logs);
+    const events = logs.map(this._logToEvent);
+    const minedEvents = events
+      .filter((event) => event.state === 'mined')
+      .reverse()
+      .concat(this.state.minedEvents)
+      .sort(this._sortEvents);
+    const pendingEvents = events
+      .filter((event) => event.state === 'pending')
+      .reverse()
+      .concat(this.state.pendingEvents.filter((pending) => {
+        return !events.find((event) => {
+          const isMined = (event.state === 'mined') && (event.transactionHash === pending.transactionHash);
+          const isPending = (event.state === 'pending') && (event.key === pending.key);
+
+          return isMined || isPending;
+        });
+      }))
+      .sort(this._sortEvents);
+    const allEvents = pendingEvents.concat(minedEvents);
+
+    this.setState({
+      allEvents,
+      minedEvents,
+      pendingEvents
+    });
   }
 
   _attachContract (props) {
