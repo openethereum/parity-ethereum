@@ -37,7 +37,7 @@ pub use self::block_number::BlockNumber;
 pub use self::call_request::CallRequest;
 pub use self::confirmations::{ConfirmationPayload, ConfirmationRequest, TransactionModification};
 pub use self::filter::Filter;
-pub use self::hash::{H64, H160, H256, H520, H2048};
+pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::index::Index;
 pub use self::log::Log;
 pub use self::sync::{SyncStatus, SyncInfo, Peers};

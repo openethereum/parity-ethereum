@@ -45,7 +45,7 @@ use v1::traits::Eth;
 use v1::types::{Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo, Transaction, CallRequest, Index, Filter, Log, Receipt, H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256};
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
-use v1::helpers::params::{expect_no_params, params_len, from_params_default_second, from_params_default_third};
+use v1::helpers::params::{expect_no_params, from_params_default_second, from_params_default_third};
 
 /// Eth RPC options
 pub struct EthClientOptions {

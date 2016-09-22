@@ -16,7 +16,7 @@
 
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
-use crypto::Keccak256;
+use crypto::{Keccak256};
 use random::Random;
 use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 
@@ -168,6 +168,11 @@ impl SafeAccount {
 	pub fn sign(&self, password: &str, message: &Message) -> Result<Signature, Error> {
 		let secret = try!(self.crypto.secret(password));
 		sign(&secret, message).map_err(From::from)
+	}
+
+	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let secret = try!(self.crypto.secret(password));
+		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
 	}
 
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {
