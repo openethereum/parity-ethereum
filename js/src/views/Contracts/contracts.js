@@ -51,7 +51,7 @@ class Contracts extends Component {
         { this.renderDeployContract() }
         <Page>
           <List
-            contact
+            link='contract'
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts } />

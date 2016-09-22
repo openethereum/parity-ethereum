@@ -19,11 +19,11 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 
-import { newError } from '../../redux/actions';
-import { Actionbar, Button, ConfirmDialog, IdentityIcon, Page } from '../../ui';
+import { Actionbar, Button, Page } from '../../ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
+import Delete from './Delete';
 
 import styles from './address.css';
 
@@ -47,6 +47,7 @@ class Address extends Component {
   render () {
     const { contacts, balances, isTest } = this.props;
     const { address } = this.props.params;
+    const { showDeleteDialog } = this.state;
 
     const contact = (contacts || {})[address];
     const balance = (balances || {})[address];
@@ -58,7 +59,11 @@ class Address extends Component {
     return (
       <div className={ styles.address }>
         { this.renderActionbar(contact) }
-        { this.renderDeleteConfirm() }
+        <Delete
+          account={ contact }
+          visible={ showDeleteDialog }
+          route='/addresses'
+          onClose={ this.closeDeleteDialog } />
         <Page>
           <Header
             isTest={ isTest }
@@ -83,67 +88,8 @@ class Address extends Component {
     return (
       <Actionbar
         title='Address Information'
-        buttons={ contact.meta.deleted ? [] : buttons } />
+        buttons={ !contact || contact.meta.deleted ? [] : buttons } />
     );
-  }
-
-  renderDeleteConfirm () {
-    const { contacts } = this.props;
-    const { showDeleteDialog } = this.state;
-
-    if (!showDeleteDialog) {
-      return;
-    }
-
-    const { address } = this.props.params;
-    const contact = contacts[address];
-
-    return (
-      <ConfirmDialog
-        className={ styles.delete }
-        title='confirm removal'
-        visible
-        onDeny={ this.closeDeleteDialog }
-        onConfirm={ this.onDeleteConfirmed }>
-        <div className={ styles.hero }>
-          Are you sure you want to remove the following address from your addressbook?
-        </div>
-        <div className={ styles.info }>
-          <IdentityIcon
-            className={ styles.icon }
-            address={ address } />
-          <div className={ styles.nameinfo }>
-            <div className={ styles.header }>
-              { contact.name || 'Unnamed' }
-            </div>
-            <div className={ styles.address }>
-              { address }
-            </div>
-          </div>
-        </div>
-        <div className={ styles.description }>
-          { contact.meta.description }
-        </div>
-      </ConfirmDialog>
-    );
-  }
-
-  onDeleteConfirmed = () => {
-    const { api, router } = this.context;
-    const { contacts } = this.props;
-    const { address } = this.props.params;
-    const contact = (contacts || {})[address];
-
-    this.closeDeleteDialog();
-    contact.meta.deleted = true;
-
-    api.personal
-      .setAccountMeta(address, contact.meta)
-      .then(() => router.push('/addresses'))
-      .catch((error) => {
-        console.error('onDeleteConfirmed', error);
-        newError(new Error(`Deletion failed: ${error.message}`));
-      });
   }
 
   closeDeleteDialog = () => {
@@ -168,7 +114,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
+  return bindActionCreators({}, dispatch);
 }
 
 export default connect(

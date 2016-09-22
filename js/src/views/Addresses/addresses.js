@@ -49,7 +49,7 @@ class Addresses extends Component {
         { this.renderAddAddress() }
         <Page>
           <List
-            contact
+            link='address'
             accounts={ contacts }
             balances={ balances }
             empty={ !hasContacts } />

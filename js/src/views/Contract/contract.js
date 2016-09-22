@@ -15,55 +15,116 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 
-import Container from '../../ui/Container';
+import { newError } from '../../redux/actions';
+import { Actionbar, Button, Container, ContainerTitle, Page } from '../../ui';
+
+import Header from '../Account/Header';
+import Delete from '../Address/Delete';
 
 import styles from './contract.css';
 
-function nicename (name) {
-  return name.split(/(?=[A-Z])/).join(' ');
-}
-
 export default class Contract extends Component {
   static contextTypes = {
-    api: React.PropTypes.object.isRequired,
-    contracts: PropTypes.array.isRequired
+    api: React.PropTypes.object.isRequired
   }
 
   static propTypes = {
+    balances: PropTypes.object,
+    contracts: PropTypes.object,
+    isTest: PropTypes.bool,
     params: PropTypes.object
   }
 
+  state = {
+    contract: null,
+    showDeleteDialog: false
+  }
+
   componentDidMount () {
-    this.queryContract();
+    this._attachContract();
+  }
+
+  componentDidReceiveProps (newProps) {
+    const { contracts } = newProps;
+
+    if (contracts === this.props.contracts) {
+      return;
+    }
+
+    this._attachContract();
   }
 
   render () {
-    const contract = this._findContract();
+    const { balances, contracts, params, isTest } = this.props;
+    const { showDeleteDialog } = this.state;
+    const contract = contracts[params.address];
+    const balance = balances[params.address];
 
     if (!contract) {
       return null;
     }
 
     return (
-      <div>
-        { this.renderQueries(contract) }
-        { this.renderFunctions(contract) }
-        { this.renderEvents(contract) }
+      <div className={ styles.contract }>
+        { this.renderActionbar(contract) }
+        <Delete
+          account={ contract }
+          visible={ showDeleteDialog }
+          route='/contracts'
+          onClose={ this.closeDeleteDialog } />
+        <Page>
+          <Header
+            isTest={ isTest }
+            account={ contract }
+            balance={ balance } />
+          { this.renderQueries() }
+          { this.renderFunctions() }
+          { this.renderEvents() }
+        </Page>
       </div>
     );
   }
 
-  renderEvents (contract) {
-    const events = this._findEvents(contract).map((fn) => {
-      return (
-        <div key={ fn.signature } className={ styles.method }>{ nicename(fn.name) }</div>
-      );
-    });
+  renderActionbar (contract) {
+    const buttons = [
+      <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete contract'
+        onClick={ this.showDeleteDialog } />
+    ];
+
+    return (
+      <Actionbar
+        title='Contract Information'
+        buttons={ !contract || contract.meta.deleted ? [] : buttons } />
+    );
+  }
+
+  renderEvents () {
+    const { contract } = this.state;
+
+    if (!contract) {
+      return null;
+    }
+
+    const events = contract.events
+      .sort(this._sortEntries)
+      .map((fn) => {
+        return (
+          <div key={ fn.signature } className={ styles.method }>
+            { fn.name }
+          </div>
+        );
+      });
 
     return (
       <Container>
-        <h2>events</h2>
+        <ContainerTitle title='events' />
         <div className={ styles.methods }>
           { events }
         </div>
@@ -71,20 +132,28 @@ export default class Contract extends Component {
     );
   }
 
-  renderFunctions (contract) {
-    const functions = this._findFunctions(contract).map((fn) => {
-      return (
-        <div
-          key={ fn.signature }
-          className={ styles.method }>
-          { nicename(fn.name) }
-        </div>
-      );
-    });
+  renderFunctions () {
+    const { contract } = this.state;
+
+    if (!contract) {
+      return null;
+    }
+
+    const functions = contract.functions
+      .filter((fn) => !fn.constant)
+      .sort(this._sortEntries).map((fn) => {
+        return (
+          <div
+            key={ fn.signature }
+            className={ styles.method }>
+            { fn.name }
+          </div>
+        );
+      });
 
     return (
       <Container>
-        <h2>functions</h2>
+        <ContainerTitle title='functions' />
         <div className={ styles.methods }>
           { functions }
         </div>
@@ -92,20 +161,29 @@ export default class Contract extends Component {
     );
   }
 
-  renderQueries (contract) {
-    const queries = this._findQueries(contract).map((fn) => {
-      return (
-        <div
-          key={ fn.signature }
-          className={ styles.method }>
-          { nicename(fn.name) }
-        </div>
-      );
-    });
+  renderQueries () {
+    const { contract } = this.state;
+
+    if (!contract) {
+      return null;
+    }
+
+    const queries = contract.functions
+      .filter((fn) => fn.constant)
+      .sort(this._sortEntries)
+      .map((fn) => {
+        return (
+          <div
+            key={ fn.signature }
+            className={ styles.method }>
+            { fn.name }
+          </div>
+        );
+      });
 
     return (
       <Container>
-        <h2>queries</h2>
+        <ContainerTitle title='queries' />
         <div className={ styles.methods }>
           { queries }
         </div>
@@ -113,63 +191,68 @@ export default class Contract extends Component {
     );
   }
 
-  _sortContracts (a, b) {
+  _sortEntries (a, b) {
     return a.name.localeCompare(b.name);
   }
 
-  _findContract () {
-    if (!this.props.params.address || !this.context.contracts) {
-      return null;
-    }
-
-    const address = this.props.params.address.toLowerCase();
-    const contract = this.context.contracts.find((c) => c.address.toLowerCase() === address);
-
-    return !contract
-      ? null
-      : contract.contract;
-  }
-
-  _findEvents (contract) {
-    return !contract
-      ? null
-      : contract.events.sort(this._sortContracts);
-  }
-
-  _findQueries (contract) {
-    return !contract
-      ? null
-      : contract.functions.filter((fn) => fn.constant).sort(this._sortContracts);
-  }
-
-  _findFunctions (contract) {
-    return !contract
-      ? null
-      : contract.functions.filter((fn) => !fn.constant).sort(this._sortContracts);
-  }
-
   queryContract = () => {
-    const contract = this._findContract();
-    const queries = this._findQueries(contract);
+    const { contract } = this.state;
+    const queries = contract.functions.filter((fn) => fn.constant).sort(this._sortEntries);
 
-    if (!queries) {
-      setTimeout(this.queryContract, 5000);
-      return;
-    }
-
-    const promises = [];
-
-    queries.forEach((query) => {
-      if (!query.inputs.length) {
-        promises.push(query.call());
-      }
-    });
+    console.log(queries);
 
     Promise
-      .all(promises)
+      .all(
+        queries
+          .filter((query) => !query.inputs.length)
+          .map((query) => query.call())
+        )
       .then((returns) => {
         console.log(returns);
         setTimeout(this.queryContract, 5000);
       });
   }
+
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
+
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
+  }
+
+  _attachContract () {
+    const { api } = this.context;
+    const { contracts, params } = this.props;
+    const account = contracts[params.address];
+
+    if (!account) {
+      return;
+    }
+
+    const contract = api.newContract(account.meta.abi);
+
+    this.setState({ contract }, this.queryContract);
+  }
 }
+
+function mapStateToProps (state) {
+  const { contracts } = state.personal;
+  const { balances } = state.balances;
+  const { isTest } = state.nodeStatus;
+
+  return {
+    isTest,
+    contracts,
+    balances
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({ newError }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Contract);

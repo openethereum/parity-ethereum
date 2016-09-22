@@ -25,7 +25,7 @@ export default class List extends Component {
   static propTypes = {
     accounts: PropTypes.object,
     balances: PropTypes.object,
-    contact: PropTypes.bool,
+    link: PropTypes.string,
     empty: PropTypes.bool
   };
 
@@ -38,7 +38,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, contact, empty } = this.props;
+    const { accounts, balances, link, empty } = this.props;
 
     if (empty) {
       return (
@@ -59,7 +59,7 @@ export default class List extends Component {
           className={ styles.account }
           key={ address }>
           <Summary
-            contact={ contact }
+            link={ link }
             account={ account }
             balance={ balance } />
         </div>
