@@ -199,13 +199,13 @@ usage! {
 			or |c: &Config| otry!(c.mining).notify_work.clone().map(|vec| Some(vec.join(","))),
 
 		flag_stratum: bool = false,
-			or |c: &Config| c.stratum.is_some(),
+			or |c: &Config| Some(c.stratum.is_some()),
 		flag_stratum_interface: String = "local",
 			or |c: &Config| otry!(c.stratum).interface.clone(),
-		flag_stratum_port: u16 = 8008,
+		flag_stratum_port: u16 = 8008u16,
 			or |c: &Config| otry!(c.stratum).port.clone(),
 		flag_stratum_secret: Option<String> = None,
-			or |c: &Config| otry!(c.stratum).secret.clone(),
+			or |c: &Config| otry!(c.stratum).secret.clone().map(|secret| Some(secret)),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
@@ -538,6 +538,11 @@ mod tests {
 			flag_tx_queue_size: 1024usize,
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
+
+			flag_stratum: false,
+			flag_stratum_inteface: "local",
+			flag_stratum_port: 8008u16,
+			flag_stratum_secret: None,
 
 			// -- Footprint Options
 			flag_tracing: "auto".into(),

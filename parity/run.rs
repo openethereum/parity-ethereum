@@ -144,7 +144,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
+	let mut hypervisor = modules::hypervisor(::std::path::Path::new(&cmd.dirs.ipc_path()));
 	modules::stratum(&mut hypervisor, &cmd.stratum);
 
 	// create miner
