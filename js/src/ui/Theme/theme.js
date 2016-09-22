@@ -52,6 +52,4 @@ muiTheme.parity = {
   }
 };
 
-console.log(muiTheme);
-
 export default muiTheme;
