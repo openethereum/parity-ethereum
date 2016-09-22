@@ -17,3 +17,9 @@
 .byline {
   color: #aaa;
 }
+
+.title {
+  text-transform: uppercase;
+  margin: 0;
+  line-height: 34px;
+}

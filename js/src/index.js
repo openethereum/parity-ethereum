@@ -47,6 +47,8 @@ const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host :
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
 
+muiTheme.parity.setBackgroundSeed(api.util.sha3(initToken + Date.now()));
+
 // signer
 function tokenSetter (token, cb) {
   window.localStorage.setItem('sysuiToken', token);

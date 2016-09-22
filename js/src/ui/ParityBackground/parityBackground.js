@@ -16,29 +16,23 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './title.css';
-
-export default class Title extends Component {
-  static propTypes = {
-    title: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ]),
-    byline: PropTypes.string
+export default class ParityBackground extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
   }
 
-  state = {
-    name: 'Unnamed'
+  static propTypes = {
+    children: PropTypes.node,
+    className: PropTypes.string
   }
 
   render () {
+    const { children, className } = this.props;
+    const { muiTheme } = this.context;
+
     return (
-      <div>
-        <h3 className={ styles.title }>
-          { this.props.title }
-        </h3>
-        <div className={ styles.byline }>
-          { this.props.byline }
-        </div>
+      <div className={ className } style={ muiTheme.parity.getBackgroundStyle() }>
+        { children }
       </div>
     );
   }

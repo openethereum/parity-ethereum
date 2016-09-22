@@ -111,7 +111,8 @@ export const subscribeEvents = () => (dispatch, getState) => {
   contract
     .subscribe(null, {
       fromBlock: 'latest',
-      toBlock: 'pending'
+      toBlock: 'pending',
+      limit: 50
     }, (error, logs) => {
       if (error) {
         console.error('setupFilters', error);

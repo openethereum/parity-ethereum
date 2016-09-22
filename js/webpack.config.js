@@ -38,9 +38,10 @@ module.exports = {
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],
-    // 'web3': ['./web3.js'],
     // app
-    'index': ['./index.js']
+    'index': ['./index.js'],
+    // common + polyfills
+    'commons': ['babel-polyfill']
   },
   output: {
     path: path.join(__dirname, 'build'),

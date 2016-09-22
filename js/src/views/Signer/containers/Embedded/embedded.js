@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { Container } from '../../../../ui';
+
 import { RequestPendingWeb3 } from '../../components';
 import * as RequestsActions from '../../actions/requests';
 
@@ -37,9 +39,11 @@ class Embedded extends Component {
 
   render () {
     return (
-      <div className={ styles.signer }>
-        { this.renderPendingRequests() }
-      </div>
+      <Container>
+        <div className={ styles.signer }>
+          { this.renderPendingRequests() }
+        </div>
+      </Container>
     );
   }
 

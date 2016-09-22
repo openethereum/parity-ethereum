@@ -247,7 +247,7 @@ class DeployContract extends Component {
         return;
 
       case 'checkRequest':
-        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer' });
+        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer', showSigner: true });
         return;
 
       case 'getTransactionReceipt':

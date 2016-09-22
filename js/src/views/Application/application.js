@@ -28,7 +28,8 @@ const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 class Application extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    background: PropTypes.string
   }
 
   static propTypes = {

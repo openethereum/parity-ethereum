@@ -14,32 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
-
-import styles from './title.css';
-
-export default class Title extends Component {
-  static propTypes = {
-    title: PropTypes.oneOfType([
-      PropTypes.string, PropTypes.node
-    ]),
-    byline: PropTypes.string
-  }
-
-  state = {
-    name: 'Unnamed'
-  }
-
-  render () {
-    return (
-      <div>
-        <h3 className={ styles.title }>
-          { this.props.title }
-        </h3>
-        <div className={ styles.byline }>
-          { this.props.byline }
-        </div>
-      </div>
-    );
-  }
-}
+export default from './parityBackground';

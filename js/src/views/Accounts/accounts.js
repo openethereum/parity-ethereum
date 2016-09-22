@@ -84,6 +84,7 @@ class Accounts extends Component {
   }
 
   renderNewDialog () {
+    const { accounts } = this.props;
     const { newDialog } = this.state;
 
     if (!newDialog) {
@@ -92,6 +93,7 @@ class Accounts extends Component {
 
     return (
       <CreateAccount
+        accounts={ accounts }
         onClose={ this.onNewAccountClose }
         onUpdate={ this.onNewAccountUpdate } />
     );

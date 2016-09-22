@@ -458,6 +458,7 @@ dependencies = [
  "ethcore-io 1.4.0",
  "ethcore-ipc 1.4.0",
  "ethcore-util 1.4.0",
+ "ethcrypto 0.1.0",
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",

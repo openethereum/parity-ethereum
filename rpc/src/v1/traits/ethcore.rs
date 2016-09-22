@@ -76,6 +76,10 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns the value of the registrar for this network.
 	fn registry_address(&self, _: Params) -> Result<Value, Error>;
 
+	/// Encrypt some data with a public key under ECIES.
+	/// First parameter is the 512-byte destination public key, second is the message.
+	fn encrypt_message(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -98,6 +102,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_generateSecretPhrase", Ethcore::generate_secret_phrase);
 		delegate.add_method("ethcore_phraseToAddress", Ethcore::phrase_to_address);
 		delegate.add_method("ethcore_registryAddress", Ethcore::registry_address);
+		delegate.add_method("ethcore_encryptMessage", Ethcore::encrypt_message);
 
 		delegate
 	}

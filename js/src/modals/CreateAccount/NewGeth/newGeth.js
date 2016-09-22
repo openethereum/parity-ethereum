@@ -24,11 +24,11 @@ import styles from './newGeth.css';
 
 export default class NewGeth extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    accounts: PropTypes.array.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     onChange: PropTypes.func.isRequired
   }
 
@@ -100,28 +100,25 @@ export default class NewGeth extends Component {
   }
 
   loadAvailable = () => {
-    const { accounts, api } = this.context;
+    const { api } = this.context;
+    const { accounts } = this.props;
 
     api.personal
       .listGethAccounts()
-      .then((addresses) => {
+      .then((_addresses) => {
+        const addresses = (addresses || []).filter((address) => !accounts[address]);
+
         return Promise
-          .all((addresses || []).map((address) => {
-            return api.eth.getBalance(address);
-          }))
+          .all(addresses.map((address) => api.eth.getBalance(address)))
           .then((balances) => {
             this.setState({
-              available: addresses
-                .filter((address) => {
-                  return !accounts.find((account) => account.address === address);
-                })
-                .map((address, idx) => {
-                  return {
-                    address,
-                    balance: api.util.fromWei(balances[idx]).toFormat(5),
-                    checked: false
-                  };
-                })
+              available: addresses.map((address, idx) => {
+                return {
+                  address,
+                  balance: api.util.fromWei(balances[idx]).toFormat(5),
+                  checked: false
+                };
+              })
             });
           });
       })

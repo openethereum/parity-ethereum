@@ -1,11 +1,13 @@
 const initialState = {
   subscriptions: {
     Reserved: null,
-    Dropped: null
+    Dropped: null,
+    DataChanged: null
   },
   pending: {
     Reserved: false,
-    Dropped: false
+    Dropped: false,
+    DataChanged: false
   },
   events: []
 };

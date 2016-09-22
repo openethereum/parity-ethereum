@@ -769,6 +769,11 @@ export default {
           type: Array,
           desc: 'Array of 32 Bytes `DATA` topics. Topics are order-dependent. Each topic can also be an array of DATA with \'or\' options.',
           optional: true
+        },
+        limit: {
+          type: Number,
+          desc: 'The maximum number of entries to retrieve (latest first)',
+          optional: true
         }
       }
     }],
