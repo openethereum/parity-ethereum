@@ -50,6 +50,15 @@
   color: gray;
 }
 
+.meta-image {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.meta-image img {
+  width: 100%;
+}
+
 .meta-form {
   width: 100%;
 }

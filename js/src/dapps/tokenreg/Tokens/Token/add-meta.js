@@ -94,6 +94,14 @@ export default class AddMeta extends Component {
   }
 
   renderComplete () {
+    if (metaDataKeys[this.state.metaKeyIndex].value === 'IMG') {
+      return (<div>
+        <p>
+        Your transactions has been posted.
+        Two transactions are needed to add an Image.
+        Please visit the Parity Signer to authenticate the transfer.</p>
+      </div>);
+    }
     return (<div>
       <p>Your transaction has been posted. Please visit the Parity Signer to authenticate the transfer.</p>
     </div>);

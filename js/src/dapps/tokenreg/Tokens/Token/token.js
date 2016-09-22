@@ -13,6 +13,8 @@ import styles from './token.css';
 
 import { metaDataKeys } from '../../constants';
 
+import { api } from '../../parity';
+
 export default class Token extends Component {
   static propTypes = {
     handleAddMeta: PropTypes.func,
@@ -202,6 +204,36 @@ export default class Token extends Component {
           No <span className={ styles['meta-key'] }>
             { metaData.label.toLowerCase() }
           </span> meta-data...
+        </p>
+      </div>);
+    }
+
+    if (meta.query === 'IMG') {
+      let imageHash = meta.value.replace(/^0x/, '');
+
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          <span className={ styles['meta-key'] }>
+            { metaData.label }
+          </span> meta-data:
+        </p>
+        <div className={ styles['meta-image'] }>
+          <img src={ `/api/content/${imageHash}/` } />
+        </div>
+      </div>);
+    }
+
+    if (meta.query === 'A') {
+      let address = meta.value.slice(0, 42);
+
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          <span className={ styles['meta-key'] }>
+            { metaData.label }
+          </span> meta-data:
+        </p>
+        <p className={ styles['meta-value'] }>
+          { api.util.toChecksumAddress(address) }
         </p>
       </div>);
     }
