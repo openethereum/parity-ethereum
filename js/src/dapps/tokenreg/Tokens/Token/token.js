@@ -38,7 +38,9 @@ export default class Token extends Component {
       meta: PropTypes.object
     }),
     metaPending: PropTypes.bool,
-    metaMined: PropTypes.bool
+    metaMined: PropTypes.bool,
+
+    fullWidth: PropTypes.bool
   };
 
   state = {
@@ -46,7 +48,7 @@ export default class Token extends Component {
   };
 
   render () {
-    const { isLoading, address, tla, base, name, meta, owner, totalSupply } = this.props;
+    const { isLoading, fullWidth } = this.props;
 
     if (isLoading) {
       return (
@@ -56,43 +58,57 @@ export default class Token extends Component {
       );
     }
 
+    if (fullWidth) {
+      return (<div>
+        { this.renderContent() }
+      </div>);
+    }
+
     return (<div>
       <Paper zDepth={ 2 } className={ styles.token }>
-        { this.renderIsPending() }
-        <div className={ styles.title }>{ tla }</div>
-        <div className={ styles.name }>"{ name }"</div>
-
-        { this.renderBase(base) }
-        { this.renderTotalSupply(totalSupply, base, tla) }
-        { this.renderAddress(address) }
-        { this.renderOwner(owner) }
-
-        <div className={ styles['meta-form'] }>
-          <SelectField
-            floatingLabelText='Choose the meta-data to look-up'
-            fullWidth
-            value={ this.state.metaKeyIndex }
-            onChange={ this.onMetaKeyChange }>
-
-            { this.renderMetaKeyItems() }
-
-          </SelectField>
-
-          <RaisedButton
-            label='Lookup'
-            icon={ <FindIcon /> }
-            primary
-            fullWidth
-            onTouchTap={ this.onMetaLookup } />
-        </div>
-
-        { this.renderMeta(meta) }
-        { this.renderAddMeta() }
-        { this.renderUnregister() }
-
-        { this.renderMetaPending() }
-        { this.renderMetaMined() }
+        { this.renderContent() }
       </Paper>
+    </div>);
+  }
+
+  renderContent () {
+    const { address, tla, base, name, meta, owner, totalSupply } = this.props;
+
+    return (<div className={ styles['token-container'] }>
+      { this.renderIsPending() }
+      <div className={ styles.title }>{ tla }</div>
+      <div className={ styles.name }>"{ name }"</div>
+
+      { this.renderBase(base) }
+      { this.renderTotalSupply(totalSupply, base, tla) }
+      { this.renderAddress(address) }
+      { this.renderOwner(owner) }
+
+      <div className={ styles['meta-form'] }>
+        <SelectField
+          floatingLabelText='Choose the meta-data to look-up'
+          fullWidth
+          value={ this.state.metaKeyIndex }
+          onChange={ this.onMetaKeyChange }>
+
+          { this.renderMetaKeyItems() }
+
+        </SelectField>
+
+        <RaisedButton
+          label='Lookup'
+          icon={ <FindIcon /> }
+          primary
+          fullWidth
+          onTouchTap={ this.onMetaLookup } />
+      </div>
+
+      { this.renderMeta(meta) }
+      { this.renderAddMeta() }
+      { this.renderUnregister() }
+
+      { this.renderMetaPending() }
+      { this.renderMetaMined() }
     </div>);
   }
 

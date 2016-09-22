@@ -4,6 +4,7 @@ import { Dialog, FlatButton, SelectField, MenuItem } from 'material-ui';
 
 import InputText from '../../Inputs/Text';
 import Loading from '../../Loading';
+import Token from '../../Tokens/Token';
 
 import { SIMPLE_TOKEN_ADDRESS_TYPE, SIMPLE_TLA_TYPE } from '../../Inputs/validation';
 
@@ -108,7 +109,10 @@ export default class QueryAction extends Component {
     let { data } = this.props;
 
     return (
-      <pre>{ JSON.stringify(data, null, 4) }</pre>
+      <Token
+        fullWidth
+        { ...data }
+        />
     );
   }
 

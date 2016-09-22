@@ -1,3 +1,5 @@
+import { getTokenTotalSupply } from '../utils';
+
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
@@ -106,13 +108,40 @@ export const queryToken = (key, query) => (dispatch, getState) => {
     .call({}, [ query ])
     .then((result) => {
       let data = {
-        id: result[0],
-        address: result[1],
-        base: result[2],
+        id: result[0].toNumber(),
+        base: result[2].toNumber(),
         name: result[3],
         owner: result[4]
       };
 
+      if (key === 'tla') {
+        data.tla = query;
+        data.address = result[1];
+      }
+
+      if (key === 'address') {
+        data.address = query;
+        data.tla = result[1];
+      }
+
+      return data;
+    })
+    .then(data => {
+      return getTokenTotalSupply(data.address)
+        .then(totalSupply => {
+          data.totalSupply = totalSupply;
+          return data;
+        });
+    })
+    .then(data => {
+      if (data.totalSupply === null) {
+        dispatch(setQueryNotFound());
+        dispatch(setQueryLoading(false));
+
+        return false;
+      }
+
+      data.totalSupply = data.totalSupply.toNumber();
       dispatch(setQueryResult(data));
       dispatch(setQueryLoading(false));
     }, () => {
