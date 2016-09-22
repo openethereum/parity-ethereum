@@ -74,31 +74,13 @@ module.exports = {
         loader: 'file?name=[name].[ext]'
       },
 
-      // {
-      //   test: /\.css$/,
-      //   include: [/src/],
-      //   loader: extractCSS.extract('style', [
-      //     'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-      //     'postcss'
-      //   ])
-      // },
-      // {
-      //   test: /\.css$/,
-      //   exclude: [/src/],
-      //   loader: extractCSS.extract('style', 'css')
-      // },
-      // {
-      //   test: /\.less$/,
-      //   loader: extractCSS.extract('style', [
-      //     'css',
-      //     'less'
-      //   ])
-      // },
-
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: [
+        loaders: isProd ? extractCSS.extract('style', [
+          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss'
+        ]) : [
           'style',
           'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
           'postcss'
@@ -107,11 +89,14 @@ module.exports = {
       {
         test: /\.css$/,
         exclude: [/src/],
-        loader: 'style!css'
+        loader: isProd ? extractCSS.extract('style', 'css') : 'style!css'
       },
       {
         test: /\.less$/,
-        loaders: [
+        loaders: isProd ? extractCSS.extract('style', [
+          'css',
+          'less'
+        ]) : [
           'style',
           'css',
           'less'
@@ -152,8 +137,6 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
-      // extractCSS,
-
       new WebpackErrorNotificationPlugin(),
       // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
       // TODO [jacogr] this shit needs to go, e.g. dapp-styles
@@ -179,6 +162,7 @@ module.exports = {
     ];
 
     if (isProd) {
+      plugins.push(extractCSS);
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
