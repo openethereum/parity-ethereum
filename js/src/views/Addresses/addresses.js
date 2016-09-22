@@ -96,21 +96,8 @@ class Addresses extends Component {
     });
   }
 
-  onCloseAdd = (address, name, description) => {
-    const { api } = this.context;
-
-    this.setState({
-      showAdd: false
-    });
-
-    if (address) {
-      Promise.all([
-        api.personal.setAccountName(address, name),
-        api.personal.setAccountMeta(address, { description })
-      ]).catch((error) => {
-        console.error('updateDetails', error);
-      });
-    }
+  onCloseAdd = () => {
+    this.setState({ showAdd: false });
   }
 }
 
