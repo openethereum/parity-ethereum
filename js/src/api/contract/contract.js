@@ -217,7 +217,7 @@ export default class Contract {
   }
 
   _bindFunction = (func) => {
-    func.call = (options, values) => {
+    func.call = (options, values = []) => {
       return this._api.eth
         .call(this._encodeOptions(func, this._addOptionsTo(options), values))
         .then((encoded) => func.decodeOutput(encoded))
@@ -226,12 +226,12 @@ export default class Contract {
     };
 
     if (!func.constant) {
-      func.postTransaction = (options, values) => {
+      func.postTransaction = (options, values = []) => {
         return this._api.eth
           .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
 
-      func.estimateGas = (options, values) => {
+      func.estimateGas = (options, values = []) => {
         return this._api.eth
           .estimateGas(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
