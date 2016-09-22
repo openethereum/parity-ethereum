@@ -14,12 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ABI_EIP20 from './eip20.json';
-import ABI_REGISTRY from './registry.json';
-import ABI_TOKENREG from './tokenreg.json';
+import eip20 from './eip20.json';
+import gavcoin from './gavcoin.json';
+import registry from './registry.json';
+import tokenreg from './tokenreg.json';
 
-const eip20Abi = ABI_EIP20;
-const registryAbi = ABI_REGISTRY;
-const tokenRegAbi = ABI_TOKENREG;
-
-export { eip20Abi, registryAbi, tokenRegAbi };
+export {
+  eip20,
+  gavcoin,
+  registry,
+  tokenreg
+};
