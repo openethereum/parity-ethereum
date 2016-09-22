@@ -36,6 +36,8 @@ pub struct Account {
 	storage_overlay: RefCell<HashMap<H256, (Filth, H256)>>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
+	// Size of the accoun code.
+	code_size: Option<usize>,
 	// Code cache of the account.
 	code_cache: Bytes,
 	// Account is new or has been modified
@@ -54,6 +56,7 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: Some(code.sha3()),
+			code_size: Some(code.len()),
 			code_cache: code,
 			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
@@ -68,7 +71,8 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
 			code_hash: pod.code.as_ref().map(|c| c.sha3()),
-			code_cache: pod.code.as_ref().map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c.clone()),
+			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
+			code_cache: pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c),
 			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
@@ -83,6 +87,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
+			code_size: Some(0),
 			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
@@ -98,6 +103,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
+			code_size: None,
 			filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
@@ -113,6 +119,7 @@ impl Account {
 			storage_overlay: RefCell::new(HashMap::new()),
 			code_hash: None,
 			code_cache: vec![],
+			code_size: None,
 			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
@@ -123,12 +130,14 @@ impl Account {
 	pub fn init_code(&mut self, code: Bytes) {
 		assert!(self.code_hash.is_none());
 		self.code_cache = code;
+		self.code_size = Some(self.code_cache.len());
 		self.filth = Filth::Dirty;
 	}
 
 	/// Reset this account's code to the given code.
 	pub fn reset_code(&mut self, code: Bytes) {
 		self.code_hash = None;
+		self.code_size = Some(0);
 		self.init_code(code);
 	}
 
@@ -196,6 +205,12 @@ impl Account {
 		}
 	}
 
+	/// returns the account's code size. If `None` then the code cache or code size cache isn't available -
+	/// get someone who knows to call `note_code`.
+	pub fn code_size(&self) -> Option<usize> {
+		self.code_size.clone()
+	}
+
 	#[cfg(test)]
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
@@ -203,6 +218,7 @@ impl Account {
 		match self.code_hash {
 			Some(ref i) if h == *i => {
 				self.code_cache = code;
+				self.code_size = Some(self.code_cache.len());
 				Ok(())
 			},
 			_ => Err(h)
@@ -231,7 +247,29 @@ impl Account {
 		self.is_cached() ||
 			match self.code_hash {
 				Some(ref h) => match db.get(h) {
-					Some(x) => { self.code_cache = x.to_vec(); true },
+					Some(x) => {
+						self.code_cache = x.to_vec();
+						self.code_size = Some(x.len());
+						true },
+					_ => {
+						warn!("Failed reverse get of {}", h);
+						false
+					},
+				},
+				_ => false,
+			}
+	}
+
+	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
+	pub fn cache_code_size(&mut self, db: &HashDB) -> bool {
+		// TODO: fill out self.code_cache;
+		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
+		self.code_size.is_some() ||
+			match self.code_hash {
+				Some(ref h) if h != &SHA3_EMPTY => match db.get(h) {
+					Some(x) => {
+						self.code_size = Some(x.len());
+						true },
 					_ => {
 						warn!("Failed reverse get of {}", h);
 						false
@@ -303,9 +341,13 @@ impl Account {
 	pub fn commit_code(&mut self, db: &mut HashDB) {
 		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_hash.is_none(), self.code_cache.is_empty());
 		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
-			(true, true) => self.code_hash = Some(SHA3_EMPTY),
+			(true, true) => {
+				self.code_hash = Some(SHA3_EMPTY);
+				self.code_size = Some(0);
+			}
 			(true, false) => {
 				self.code_hash = Some(db.insert(&self.code_cache));
+				self.code_size = Some(self.code_cache.len());
 			},
 			(false, _) => {},
 		}
@@ -317,7 +359,7 @@ impl Account {
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
 		stream.append(&self.storage_root);
-		stream.append(self.code_hash.as_ref().expect("Cannot form RLP of contract account without code."));
+		stream.append(self.code_hash.as_ref().unwrap_or(&SHA3_EMPTY));
 		stream.out()
 	}
 }
@@ -416,6 +458,7 @@ mod tests {
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
 		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		assert_eq!(a.code_size(), Some(3));
 		a.commit_code(&mut db);
 		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
 	}
