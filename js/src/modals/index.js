@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import AddAddress from './AddAddress';
+import AddContract from './AddContract';
 import CreateAccount from './CreateAccount';
 import DeployContract from './DeployContract';
 import FirstRun from './FirstRun';
@@ -23,6 +24,7 @@ import Transfer from './Transfer';
 
 export {
   AddAddress,
+  AddContract,
   CreateAccount,
   DeployContract,
   FirstRun,
