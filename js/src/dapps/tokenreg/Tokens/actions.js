@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import { getTokenTotalSupply } from '../utils';
 
 const { sha3, bytesToHex } = window.parity.api.util;
@@ -53,8 +69,8 @@ export const deleteToken = (index) => ({
 export const loadTokens = () => (dispatch, getState) => {
   console.log('loading tokens...');
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
   dispatch(setTokensLoading(true));
 
@@ -62,7 +78,7 @@ export const loadTokens = () => (dispatch, getState) => {
     .tokenCount
     .call()
     .then((count) => {
-      let tokenCount = parseInt(count);
+      const tokenCount = parseInt(count);
       console.log(`token count: ${tokenCount}`);
       dispatch(setTokenCount(tokenCount));
 
@@ -80,11 +96,11 @@ export const loadTokens = () => (dispatch, getState) => {
 export const loadToken = (index) => (dispatch, getState) => {
   console.log('loading token', index);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let userAccounts = state.accounts.list;
-  let accountsInfo = state.accounts.accountsInfo;
+  const userAccounts = state.accounts.list;
+  const accountsInfo = state.accounts.accountsInfo;
 
   dispatch(setTokenLoading(index, true));
 
@@ -92,13 +108,13 @@ export const loadToken = (index) => (dispatch, getState) => {
     .token
     .call({}, [ parseInt(index) ])
     .then((result) => {
-      let tokenOwner = result[4];
+      const tokenOwner = result[4];
 
-      let isTokenOwner = userAccounts
+      const isTokenOwner = userAccounts
         .filter(a => a.address === tokenOwner)
         .length > 0;
 
-      let data = {
+      const data = {
         index: parseInt(index),
         address: result[0],
         tla: result[1],
@@ -145,19 +161,19 @@ export const loadToken = (index) => (dispatch, getState) => {
 export const queryTokenMeta = (index, query) => (dispatch, getState) => {
   console.log('loading token meta', index, query);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let key = sha3(query);
+  const key = sha3(query);
 
-  let startDate = Date.now();
+  const startDate = Date.now();
   dispatch(setTokenMetaLoading(index, true));
 
   contractInstance
     .meta
     .call({}, [ index, key ])
     .then((value) => {
-      let meta = {
+      const meta = {
         key, query,
         value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };
@@ -177,20 +193,20 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
 export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
   console.log('add token meta', index, key, value);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let token = state.tokens.tokens.find(t => t.index === index);
-  let keyHash = sha3(key);
+  const token = state.tokens.tokens.find(t => t.index === index);
+  const keyHash = sha3(key);
 
-  let options = {
+  const options = {
     from: token.owner
   };
 
   let values;
 
   if (key === 'IMG') {
-    let valueHash = sha3(value);
+    const valueHash = sha3(value);
     dispatch(addGithubhintURL(token.owner, valueHash, value));
     values = [ index, keyHash, valueHash ];
   } else {
@@ -214,12 +230,12 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
 export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
   console.log('add githubhint url', key, url);
 
-  let state = getState();
-  let contractInstance = state.status.githubhint.instance;
+  const state = getState();
+  const contractInstance = state.status.githubhint.instance;
 
-  let options = { from };
+  const options = { from };
 
-  let values = [ key, url ];
+  const values = [ key, url ];
 
   contractInstance
     .hintURL
@@ -238,11 +254,11 @@ export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
 export const unregisterToken = (index) => (dispatch, getState) => {
   console.log('unregistering token', index);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let values = [ index ];
-  let options = {
+  const values = [ index ];
+  const options = {
     from: state.accounts.selected.address
   };
 

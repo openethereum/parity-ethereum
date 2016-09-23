@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
@@ -27,14 +43,6 @@ export default class AddMeta extends Component {
   };
 
   state = initState;
-
-  constructor (...args) {
-    super(...args);
-
-    this.onShowDialog = this.onShowDialog.bind(this);
-    this.onClose = this.onClose.bind(this);
-    this.onAdd = this.onAdd.bind(this, this.props.index);
-  }
 
   render () {
     if (!this.props.isTokenOwner) return null;
@@ -87,7 +95,7 @@ export default class AddMeta extends Component {
   }
 
   renderContent () {
-    let { complete } = this.state;
+    const { complete } = this.state;
 
     if (complete) return this.renderComplete();
     return this.renderForm();
@@ -108,7 +116,7 @@ export default class AddMeta extends Component {
   }
 
   renderForm () {
-    let selectedMeta = metaDataKeys[this.state.metaKeyIndex];
+    const selectedMeta = metaDataKeys[this.state.metaKeyIndex];
 
     return (
       <div>
@@ -142,17 +150,19 @@ export default class AddMeta extends Component {
     ));
   }
 
-  onShowDialog () {
+  onShowDialog = () => {
     this.setState({ showDialog: true });
   }
 
-  onClose () {
+  onClose = () => {
     this.setState(initState);
   }
 
-  onAdd (index) {
-    let keyIndex = this.state.metaKeyIndex;
-    let key = metaDataKeys[keyIndex].value;
+  onAdd = () => {
+    const { index } = this.props;
+
+    const keyIndex = this.state.metaKeyIndex;
+    const key = metaDataKeys[keyIndex].value;
 
     this.props.handleAddMeta(
       index,

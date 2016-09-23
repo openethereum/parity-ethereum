@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 
 import { TextField } from 'material-ui';
@@ -23,6 +39,7 @@ export default class InputText extends Component {
   static propTypes = {
     validationType: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
+    onEnter: PropTypes.func,
 
     floatingLabelText: PropTypes.string,
     hintText: PropTypes.string,
@@ -46,7 +63,8 @@ export default class InputText extends Component {
           fullWidth
           disabled={ disabled }
           errorText={ error }
-          onChange={ this.onChange } />
+          onChange={ this.onChange }
+          onKeyDown={ this.onKeyDown } />
 
         { this.renderLoading() }
         { this.renderIsValid() }
@@ -81,7 +99,7 @@ export default class InputText extends Component {
 
     const { validationType, contract } = this.props;
 
-    let validation = validate(value, validationType, contract);
+    const validation = validate(value, validationType, contract);
 
     if (validation instanceof Promise) {
       this.setState({ disabled: true, loading: true });
@@ -99,6 +117,13 @@ export default class InputText extends Component {
     }
 
     this.setValidation(validation);
+  }
+
+  onKeyDown = (event) => {
+    if (!this.props.onEnter) return;
+    if (event.keyCode !== 13) return;
+
+    this.props.onEnter();
   }
 
   setValidation = (validation) => {

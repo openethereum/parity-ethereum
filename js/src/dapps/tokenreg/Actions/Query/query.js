@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton, SelectField, MenuItem } from 'material-ui';
@@ -22,11 +38,12 @@ export default class QueryAction extends Component {
 
   static propTypes = {
     show: PropTypes.bool.isRequired,
+    loading: PropTypes.bool.isRequired,
+
     onClose: PropTypes.func.isRequired,
     handleQueryToken: PropTypes.func.isRequired,
     handleQueryMetaLookup: PropTypes.func.isRequired,
 
-    loading: PropTypes.bool.isRequired,
     data: PropTypes.object,
     notFound: PropTypes.bool,
     metaLoading: PropTypes.bool,
@@ -49,7 +66,7 @@ export default class QueryAction extends Component {
   }
 
   renderActions () {
-    let { loading, data, notFound } = this.props;
+    const { loading, data, notFound } = this.props;
 
     if (loading) {
       return (
@@ -60,7 +77,7 @@ export default class QueryAction extends Component {
       );
     }
 
-    let complete = data || notFound;
+    const complete = data || notFound;
 
     if (complete) {
       return ([
@@ -87,7 +104,7 @@ export default class QueryAction extends Component {
   }
 
   renderContent () {
-    let { loading, notFound, data } = this.props;
+    const { loading, notFound, data } = this.props;
 
     if (loading) {
       return (
@@ -109,7 +126,7 @@ export default class QueryAction extends Component {
   }
 
   renderData () {
-    let { data } = this.props;
+    const { data } = this.props;
 
     return (
       <Token
@@ -143,7 +160,8 @@ export default class QueryAction extends Component {
             hintText='0xdeadbeef...'
 
             validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
-            onChange={ this.onChange } />)
+            onChange={ this.onChange }
+            onEnter={ this.onQuery } />)
           : (<InputText
             key={ 1 }
 
@@ -151,7 +169,8 @@ export default class QueryAction extends Component {
             hintText='GAV'
 
             validationType={ SIMPLE_TLA_TYPE }
-            onChange={ this.onChange } />)
+            onChange={ this.onChange }
+            onEnter={ this.onQuery } />)
         }
       </div>
     );
@@ -173,7 +192,9 @@ export default class QueryAction extends Component {
   }
 
   onQuery = () => {
-    let { queryKey, form } = this.state;
+    if (!this.state.form.valid) return;
+
+    const { queryKey, form } = this.state;
 
     this.props.handleQueryToken(queryKey, form.value);
   }

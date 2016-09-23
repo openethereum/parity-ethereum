@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import { getTokenTotalSupply } from '../utils';
 
 const { sha3, bytesToHex } = window.parity.api.util;
@@ -27,16 +43,16 @@ export const registerCompleted = () => ({
 export const registerToken = (tokenData) => (dispatch, getState) => {
   console.log('registering token', tokenData);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
-  let fee = state.status.contract.fee;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
+  const fee = state.status.contract.fee;
 
   const { address, base, name, tla } = tokenData;
 
   dispatch(setRegisterSending(true));
 
-  let values = [ address, tla, base, name ];
-  let options = {
+  const values = [ address, tla, base, name ];
+  const options = {
     from: state.accounts.selected.address,
     value: fee
   };
@@ -111,17 +127,17 @@ export const setQueryMeta = (data) => ({
 });
 
 export const queryToken = (key, query) => (dispatch, getState) => {
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let contractFunc = (key === 'tla') ? 'fromTLA' : 'fromAddress';
+  const contractFunc = (key === 'tla') ? 'fromTLA' : 'fromAddress';
 
   dispatch(setQueryLoading(true));
 
   contractInstance[contractFunc]
     .call({}, [ query ])
     .then((result) => {
-      let data = {
+      const data = {
         index: result[0].toNumber(),
         base: result[2].toNumber(),
         name: result[3],
@@ -167,19 +183,19 @@ export const queryToken = (key, query) => (dispatch, getState) => {
 export const queryTokenMeta = (id, query) => (dispatch, getState) => {
   console.log('loading token meta', query);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
 
-  let key = sha3(query);
+  const key = sha3(query);
 
-  let startDate = Date.now();
+  const startDate = Date.now();
   dispatch(setQueryMetaLoading(true));
 
   contractInstance
     .meta
     .call({}, [ id, key ])
     .then((value) => {
-      let meta = {
+      const meta = {
         key, query,
         value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };

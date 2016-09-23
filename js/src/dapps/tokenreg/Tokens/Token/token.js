@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import Paper from 'material-ui/Paper';
 import { RaisedButton, SelectField, MenuItem } from 'material-ui';
@@ -17,28 +33,30 @@ import { api } from '../../parity';
 
 export default class Token extends Component {
   static propTypes = {
+    handleMetaLookup: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    index: PropTypes.number.isRequired,
+    owner: PropTypes.string.isRequired,
+
     handleAddMeta: PropTypes.func,
     handleUnregister: PropTypes.func,
-    handleMetaLookup: PropTypes.func,
-    isLoading: PropTypes.bool,
-    isMetaLoading: PropTypes.bool,
-    isPending: PropTypes.bool,
-    isOwner: PropTypes.bool,
-    isTokenOwner: PropTypes.bool,
-    address: PropTypes.string,
+
     tla: PropTypes.string,
-    name: PropTypes.string,
     base: PropTypes.number,
-    index: PropTypes.number,
-    totalSupply: PropTypes.number.isRequired,
+    totalSupply: PropTypes.number,
     meta: PropTypes.object,
-    owner: PropTypes.string,
+    isMetaLoading: PropTypes.bool,
     ownerAccountInfo: PropTypes.shape({
       name: PropTypes.string,
       meta: PropTypes.object
     }),
     metaPending: PropTypes.bool,
     metaMined: PropTypes.bool,
+    isLoading: PropTypes.bool,
+    isPending: PropTypes.bool,
+    isOwner: PropTypes.bool,
+    isTokenOwner: PropTypes.bool,
 
     fullWidth: PropTypes.bool
   };
@@ -149,7 +167,7 @@ export default class Token extends Component {
   }
 
   renderTotalSupply (totalSupply, base, tla) {
-    let balance = Math.round((totalSupply / base) * 100) / 100;
+    const balance = Math.round((totalSupply / base) * 100) / 100;
 
     return (
       <Chip
@@ -161,9 +179,9 @@ export default class Token extends Component {
   renderOwner (owner) {
     if (!owner) return null;
 
-    let ownerInfo = this.props.ownerAccountInfo;
+    const ownerInfo = this.props.ownerAccountInfo;
 
-    let displayValue = (ownerInfo && ownerInfo.name)
+    const displayValue = (ownerInfo && ownerInfo.name)
       ? ownerInfo.name
       : owner;
 
@@ -210,7 +228,7 @@ export default class Token extends Component {
   }
 
   renderMeta (meta) {
-    let isMetaLoading = this.props.isMetaLoading;
+    const isMetaLoading = this.props.isMetaLoading;
 
     if (isMetaLoading) {
       return (<div>
@@ -220,7 +238,7 @@ export default class Token extends Component {
 
     if (!meta) return;
 
-    let metaData = metaDataKeys.find(m => m.value === meta.query);
+    const metaData = metaDataKeys.find(m => m.value === meta.query);
 
     if (!meta.value) {
       return (<div>
@@ -233,7 +251,7 @@ export default class Token extends Component {
     }
 
     if (meta.query === 'IMG') {
-      let imageHash = meta.value.replace(/^0x/, '');
+      const imageHash = meta.value.replace(/^0x/, '');
 
       return (<div>
         <p className={ styles['meta-query'] }>
@@ -248,7 +266,7 @@ export default class Token extends Component {
     }
 
     if (meta.query === 'A') {
-      let address = meta.value.slice(0, 42);
+      const address = meta.value.slice(0, 42);
 
       return (<div>
         <p className={ styles['meta-query'] }>
@@ -273,7 +291,7 @@ export default class Token extends Component {
   }
 
   renderMetaPending () {
-    let isMetaPending = this.props.metaPending;
+    const isMetaPending = this.props.metaPending;
     if (!isMetaPending) return;
 
     return (<div>
@@ -284,7 +302,7 @@ export default class Token extends Component {
   }
 
   renderMetaMined () {
-    let isMetaMined = this.props.metaMined;
+    const isMetaMined = this.props.metaMined;
     if (!isMetaMined) return;
 
     return (<div>
@@ -295,14 +313,14 @@ export default class Token extends Component {
   }
 
   onUnregister = () => {
-    let index = this.props.index;
+    const index = this.props.index;
     this.props.handleUnregister(index);
   }
 
   onMetaLookup = () => {
-    let keyIndex = this.state.metaKeyIndex;
-    let key = metaDataKeys[keyIndex].value;
-    let index = this.props.index;
+    const keyIndex = this.state.metaKeyIndex;
+    const key = metaDataKeys[keyIndex].value;
+    const index = this.props.index;
 
     this.props.handleMetaLookup(index, key);
   }

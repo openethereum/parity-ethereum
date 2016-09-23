@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 
 import { Dialog, FlatButton } from 'material-ui';
@@ -43,22 +59,16 @@ const initState = {
 export default class RegisterAction extends Component {
 
   static propTypes = {
-    show: PropTypes.bool,
-    sending: PropTypes.bool,
-    complete: PropTypes.bool,
-    error: PropTypes.object,
-    onClose: PropTypes.func,
-    handleRegisterToken: PropTypes.func
+    show: PropTypes.bool.isRequired,
+    sending: PropTypes.bool.isRequired,
+    complete: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired,
+    handleRegisterToken: PropTypes.func.isRequired,
+
+    error: PropTypes.object
   }
 
   state = initState;
-
-  constructor () {
-    super();
-
-    this.onClose = this.onClose.bind(this);
-    this.onRegister = this.onRegister.bind(this);
-  }
 
   render () {
     const { sending, error, complete } = this.props;
@@ -113,7 +123,7 @@ export default class RegisterAction extends Component {
   }
 
   renderContent () {
-    let { error, complete } = this.props;
+    const { error, complete } = this.props;
 
     if (error) return this.renderError();
     if (complete) return this.renderComplete();
@@ -121,7 +131,7 @@ export default class RegisterAction extends Component {
   }
 
   renderError () {
-    let { error } = this.props;
+    const { error } = this.props;
 
     return (<div>
       <p className={ styles.error }>{ error.toString() }</p>
@@ -144,11 +154,11 @@ export default class RegisterAction extends Component {
   }
 
   renderInputs () {
-    let { fields } = this.state;
+    const { fields } = this.state;
 
     return Object.keys(fields).map((fieldKey, index) => {
-      let onChange = this.onChange.bind(this, fieldKey);
-      let field = fields[fieldKey];
+      const onChange = this.onChange.bind(this, fieldKey);
+      const field = fields[fieldKey];
 
       return (
         <InputText
@@ -165,9 +175,9 @@ export default class RegisterAction extends Component {
 
   onChange (fieldKey, valid, value) {
     const { fields } = this.state;
-    let field = fields[fieldKey];
+    const field = fields[fieldKey];
 
-    let newFields = {
+    const newFields = {
       ...fields,
       [ fieldKey ]: {
         ...field,
@@ -175,7 +185,7 @@ export default class RegisterAction extends Component {
       }
     };
 
-    let isFormValid = Object.keys(newFields)
+    const isFormValid = Object.keys(newFields)
       .map(key => newFields[key].valid)
       .reduce((current, fieldValid) => {
         return current && fieldValid;
@@ -187,10 +197,10 @@ export default class RegisterAction extends Component {
     });
   }
 
-  onRegister () {
-    let { fields } = this.state;
+  onRegister = () => {
+    const { fields } = this.state;
 
-    let data = Object.keys(fields)
+    const data = Object.keys(fields)
       .reduce((dataObject, fieldKey) => {
         dataObject[fieldKey] = fields[fieldKey].value;
         return dataObject;
@@ -199,7 +209,7 @@ export default class RegisterAction extends Component {
     this.props.handleRegisterToken(data);
   }
 
-  onClose () {
+  onClose = () => {
     this.setState(initState);
     this.props.onClose();
   }

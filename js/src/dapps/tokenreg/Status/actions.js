@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import {
   registry as registryAbi,
   tokenreg as tokenregAbi,
@@ -60,9 +76,9 @@ export const loadContract = () => (dispatch) => {
 
 export const LOAD_CONTRACT_DETAILS = 'LOAD_CONTRACT_DETAILS';
 export const loadContractDetails = () => (dispatch, getState) => {
-  let state = getState();
+  const state = getState();
 
-  let instance = state.status.contract.instance;
+  const instance = state.status.contract.instance;
 
   Promise
     .all([
@@ -101,10 +117,10 @@ export const setGithubhintDetails = (details) => ({
 });
 
 export const subscribeEvents = () => (dispatch, getState) => {
-  let state = getState();
+  const state = getState();
 
-  let contract = state.status.contract.raw;
-  let previousSubscriptionId = state.status.subscriptionId;
+  const contract = state.status.contract.raw;
+  const previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
     contract.unsubscribe(previousSubscriptionId);

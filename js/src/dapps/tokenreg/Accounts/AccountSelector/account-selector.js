@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import { List, ListItem } from 'material-ui/List';
 import Subheader from 'material-ui/Subheader';
@@ -10,29 +26,23 @@ import styles from './account-selector.css';
 class AccountSelectorItem extends Component {
 
   static propTypes = {
-    onSelectAccount: PropTypes.func,
-    account: PropTypes.object
+    onSelectAccount: PropTypes.func.isRequired,
+    account: PropTypes.object.isRequired
   };
 
-  constructor () {
-    super();
-
-    this.onSelectAccount = this.onSelectAccount.bind(this);
-  }
-
   render () {
-    let account = this.props.account;
+    const account = this.props.account;
 
-    let props = Object.assign({}, this.props);
+    const props = Object.assign({}, this.props);
     delete props.account;
     delete props.onSelectAccount;
 
-    let icon = (<IdentityIcon
+    const icon = (<IdentityIcon
       inline center
       address={ account.address } />
     );
 
-    let avatar = (<Avatar
+    const avatar = (<Avatar
       className={ styles.avatar }
       backgroundColor='none'
       icon={ icon } />
@@ -49,7 +59,7 @@ class AccountSelectorItem extends Component {
     );
   }
 
-  onSelectAccount () {
+  onSelectAccount = () => {
     this.props.onSelectAccount(this.props.account.address);
   }
 
@@ -58,25 +68,18 @@ class AccountSelectorItem extends Component {
 export default class AccountSelector extends Component {
 
   static propTypes = {
-    list: PropTypes.array,
-    selected: PropTypes.object,
-    handleSetSelected: PropTypes.func
+    list: PropTypes.array.isRequired,
+    selected: PropTypes.object.isRequired,
+    handleSetSelected: PropTypes.func.isRequired
   };
 
   state = {
     open: false
   };
 
-  constructor () {
-    super();
-
-    this.onToggleOpen = this.onToggleOpen.bind(this);
-    this.onSelectAccount = this.onSelectAccount.bind(this);
-  }
-
   render () {
-    let nestedAccounts = this.renderAccounts(this.props.list);
-    let selectedAccount = (
+    const nestedAccounts = this.renderAccounts(this.props.list);
+    const selectedAccount = (
       <AccountSelectorItem
         account={ this.props.selected }
         nestedItems={ nestedAccounts }
@@ -105,11 +108,11 @@ export default class AccountSelector extends Component {
       ));
   }
 
-  onToggleOpen () {
+  onToggleOpen = () => {
     this.setState({ open: !this.state.open });
   }
 
-  onSelectAccount (address) {
+  onSelectAccount = (address) => {
     this.props.handleSetSelected(address);
     this.onToggleOpen();
   }

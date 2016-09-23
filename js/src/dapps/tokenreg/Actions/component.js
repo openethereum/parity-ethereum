@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 
 import { RaisedButton } from 'material-ui';
@@ -15,14 +31,14 @@ const QUERY_ACTION = 'QUERY_ACTION';
 export default class Actions extends Component {
 
   static propTypes = {
-    handleRegisterToken: PropTypes.func,
-    handleRegisterClose: PropTypes.func,
-    register: PropTypes.object,
+    handleRegisterToken: PropTypes.func.isRequired,
+    handleRegisterClose: PropTypes.func.isRequired,
+    register: PropTypes.object.isRequired,
 
-    handleQueryToken: PropTypes.func,
-    handleQueryClose: PropTypes.func,
-    handleQueryMetaLookup: PropTypes.func,
-    query: PropTypes.object
+    handleQueryToken: PropTypes.func.isRequired,
+    handleQueryClose: PropTypes.func.isRequired,
+    handleQueryMetaLookup: PropTypes.func.isRequired,
+    query: PropTypes.object.isRequired
   };
 
   state = {
