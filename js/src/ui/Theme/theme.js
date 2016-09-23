@@ -36,6 +36,8 @@ muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'transparent';
 
+const imageCache = {};
+
 muiTheme.parity = {
   backgroundSeed: '0x0',
 
@@ -43,8 +45,20 @@ muiTheme.parity = {
     muiTheme.parity.backgroundSeed = seed;
   },
 
-  getBackgroundStyle: (gradient = 'rgba(255, 255, 255, 0.25)') => {
-    const url = GeoPattern.generate(muiTheme.parity.backgroundSeed).toDataUrl();
+  getBackgroundStyle: (_gradient, _seed) => {
+    const gradient = _gradient || 'rgba(255, 255, 255, 0.25)';
+    const seed = _seed || muiTheme.parity.backgroundSeed;
+    let url;
+
+    if (_seed) {
+      url = GeoPattern.generate(_seed).toDataUrl();
+    } else if (imageCache[seed] && imageCache[seed][gradient]) {
+      url = imageCache[seed][gradient];
+    } else {
+      url = GeoPattern.generate(seed).toDataUrl();
+      imageCache[seed] = imageCache[seed] || {};
+      imageCache[seed][gradient] = url;
+    }
 
     return {
       background: `linear-gradient(${gradient}, ${gradient}), ${url}`
