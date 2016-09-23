@@ -156,11 +156,7 @@ impl TransactionOrder {
 	}
 
 	fn penalize(mut self) -> Self {
-		let current = self.penalties;
-		self.penalties = match self.penalties.saturating_add(1) {
-			(_, true) => current,
-			(val, false) => val,
-		};
+		self.penalties = self.penalties.saturating_add(1);
 		self
 	}
 }
@@ -404,7 +400,7 @@ pub struct AccountDetails {
 }
 
 /// Transactions with `gas > (gas_limit + gas_limit * Factor(in percents))` are not imported to the queue.
-const GAS_LIMIT_HYSTERESIS: usize = 10; // %
+const GAS_LIMIT_HYSTERESIS: usize = 10; // (100/GAS_LIMIT_HYSTERESIS) %
 
 /// `TransactionQueue` implementation
 pub struct TransactionQueue {
