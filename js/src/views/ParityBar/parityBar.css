@@ -33,14 +33,14 @@
 .expanded {
   right: 16px;
   width: 964px;
-  height: 300px;
+  height: 292px;
   border-radius: 4px 4px 0 0;
-  background: rgb(48, 48, 48);
   overflow-y: scroll;
 }
 
 .expanded .content {
-  padding: 0 2em;
+  padding: 0;
+  margin: 0 -1em;
 }
 
 .corner {
@@ -48,6 +48,10 @@
   bottom: 0;
   right: 16px;
   border-radius: 4px 4px 0 0;
+}
+
+.cornercolor {
+  background: rgba(0, 0, 0, 0.5);
   padding: 0.5em 1em;
 }
 
@@ -92,11 +96,23 @@
 
 .header {
   height: 36px;
-  padding: 1em;
+  padding: 0.5em 1em;
+  background: rgba(0, 0, 0, 0.25);
+  margin-bottom: 0;
 }
 
 .header:after {
   clear: both;
+}
+
+.header button,
+.corner button {
+  color: white !important;
+}
+
+.header svg ,
+.coner svg {
+  fill: white !important;
 }
 
 .body {
