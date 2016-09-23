@@ -1,7 +1,6 @@
 stages:
   - build
   - test
-  - deploy
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true" 
