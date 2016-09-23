@@ -17,14 +17,12 @@
 var rucksack = require('rucksack-css');
 var webpack = require('webpack');
 var path = require('path');
+var HappyPack = require('happypack');
 
-var ExtractTextPlugin = require('extract-text-webpack-plugin');
 var WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
 var ENV = process.env.NODE_ENV || 'development';
 var isProd = ENV === 'production';
-
-var extractCSS = new ExtractTextPlugin('[name].css', { allChunks: true });
 
 module.exports = {
   debug: !isProd,
@@ -39,9 +37,7 @@ module.exports = {
     // library
     'parity': ['./parity.js'],
     // app
-    'index': ['./index.js'],
-    // common + polyfills
-    'commons': ['babel-polyfill']
+    'index': ['./index.js']
   },
   output: {
     path: path.join(__dirname, 'build'),
@@ -52,18 +48,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel'
-        ]
+        loaders: [ 'happypack/loader?id=js' ]
       },
       {
         test: /\.js$/,
         include: /dapps-react-components/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel'
-        ]
+        loaders: [ 'happypack/loader?id=js' ]
       },
       {
         test: /\.json$/,
@@ -74,35 +64,10 @@ module.exports = {
         loader: 'file?name=[name].[ext]'
       },
 
-      // {
-      //   test: /\.css$/,
-      //   include: [/src/],
-      //   loader: extractCSS.extract('style', [
-      //     'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-      //     'postcss'
-      //   ])
-      // },
-      // {
-      //   test: /\.css$/,
-      //   exclude: [/src/],
-      //   loader: extractCSS.extract('style', 'css')
-      // },
-      // {
-      //   test: /\.less$/,
-      //   loader: extractCSS.extract('style', [
-      //     'css',
-      //     'less'
-      //   ])
-      // },
-
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: [
-          'style',
-          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss'
-        ]
+        loaders: [ 'happypack/loader?id=css' ]
       },
       {
         test: /\.css$/,
@@ -152,33 +117,61 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
-      // extractCSS,
+      new HappyPack({
+        id: 'css',
+        threads: 4,
+        loaders: [
+          'style',
+          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss'
+        ]
+      }),
+      new HappyPack({
+        id: 'js',
+        threads: 4,
+        loaders: isProd ? ['babel'] : [
+          'react-hot',
+          'babel?cacheDirectory=true'
+        ]
+      }),
+      new webpack.DllReferencePlugin({
+        context: '.',
+        manifest: require('./build/vendor-manifest.json')
+      }),
 
       new WebpackErrorNotificationPlugin(),
-      // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
-      // TODO [jacogr] this shit needs to go, e.g. dapp-styles
-      new webpack.NormalModuleReplacementPlugin(
-        /ethereum_dapp-styles/,
-        function (a) {
-          a.request = a.request.replace('./packages/ethereum_dapp-styles', '.');
-          a.request = a.request.replace('./lib/packages/ethereum_dapp-styles', '.');
-          return a;
-        }
-      ),
       new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify(ENV),
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           LOGGING: JSON.stringify(!isProd)
         }
-      }),
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.js',
-        name: 'commons'
       })
     ];
 
+    if (!isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          filename: 'commons.js',
+          name: 'commons'
+        })
+      );
+    }
+
     if (isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'index' ],
+          name: 'commons'
+        })
+      );
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'parity' ],
+          name: 'parity'
+        })
+      );
+
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
@@ -195,7 +188,7 @@ module.exports = {
     return plugins;
   }()),
   devServer: {
-    contentBase: './src',
+    contentBase: './build',
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
