@@ -1,3 +1,5 @@
+import { getTokenTotalSupply } from '../utils';
+
 const { sha3, bytesToHex } = window.parity.api.util;
 
 export const SET_TOKENS_LOADING = 'SET_TOKENS_LOADING';
@@ -28,6 +30,12 @@ export const SET_TOKEN_LOADING = 'SET_TOKEN_LOADING';
 export const setTokenLoading = (index, isLoading) => ({
   type: SET_TOKEN_LOADING,
   index, isLoading
+});
+
+export const SET_TOKEN_META_LOADING = 'SET_TOKEN_META_LOADING';
+export const setTokenMetaLoading = (index, isMetaLoading) => ({
+  type: SET_TOKEN_META_LOADING,
+  index, isMetaLoading
 });
 
 export const SET_TOKEN_PENDING = 'SET_TOKEN_PENDING';
@@ -76,6 +84,7 @@ export const loadToken = (index) => (dispatch, getState) => {
   let contractInstance = state.status.contract.instance;
 
   let userAccounts = state.accounts.list;
+  let accountsInfo = state.accounts.accountsInfo;
 
   dispatch(setTokenLoading(index, true));
 
@@ -83,8 +92,6 @@ export const loadToken = (index) => (dispatch, getState) => {
     .token
     .call({}, [ parseInt(index) ])
     .then((result) => {
-      console.log(`token #${index} loaded with data`, result);
-
       let tokenOwner = result[4];
 
       let isTokenOwner = userAccounts
@@ -98,10 +105,29 @@ export const loadToken = (index) => (dispatch, getState) => {
         base: result[2].toNumber(),
         name: result[3],
         owner: tokenOwner,
+        ownerAccountInfo: accountsInfo[tokenOwner],
         isPending: false,
         isTokenOwner
       };
 
+      return data;
+    })
+    .then(data => {
+      return getTokenTotalSupply(data.address)
+        .then(totalSupply => {
+          data.totalSupply = totalSupply;
+          return data;
+        });
+    })
+    .then(data => {
+      // If no total supply, must not be a proper token
+      if (data.totalSupply === null) {
+        dispatch(setTokenData(index, null));
+        dispatch(setTokenLoading(index, false));
+        return;
+      }
+
+      data.totalSupply = data.totalSupply.toNumber();
       console.log(`token loaded: #${index}`, data);
       dispatch(setTokenData(index, data));
       dispatch(setTokenLoading(index, false));
@@ -124,7 +150,8 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
 
   let key = sha3(query);
 
-  dispatch(setTokenLoading(index, true));
+  let startDate = Date.now();
+  dispatch(setTokenMetaLoading(index, true));
 
   contractInstance
     .meta
@@ -132,12 +159,15 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
     .then((value) => {
       let meta = {
         key, query,
-        value: bytesToHex(value)
+        value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };
 
       console.log(`token meta loaded: #${index}`, value);
       dispatch(setTokenMeta(index, meta));
-      dispatch(setTokenLoading(index, false));
+
+      setTimeout(() => {
+        dispatch(setTokenMetaLoading(index, false));
+      }, 500 - (Date.now() - startDate));
     })
     .catch((e) => {
       console.error(`loadToken #${index} error`, e);
@@ -157,7 +187,15 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
     from: token.owner
   };
 
-  let values = [ index, keyHash, value ];
+  let values;
+
+  if (key === 'IMG') {
+    let valueHash = sha3(value);
+    dispatch(addGithubhintURL(token.owner, valueHash, value));
+    values = [ index, keyHash, valueHash ];
+  } else {
+    values = [ index, keyHash, value ];
+  }
 
   contractInstance
     .setMeta
@@ -170,6 +208,30 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
     })
     .catch((e) => {
       console.error(`addTokenMeta #${index} error`, e);
+    });
+};
+
+export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
+  console.log('add githubhint url', key, url);
+
+  let state = getState();
+  let contractInstance = state.status.githubhint.instance;
+
+  let options = { from };
+
+  let values = [ key, url ];
+
+  contractInstance
+    .hintURL
+    .estimateGas(options, values)
+    .then((gasEstimate) => {
+      options.gas = gasEstimate.mul(1.2).toFixed(0);
+      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
+
+      return contractInstance.hintURL.postTransaction(options, values);
+    })
+    .catch((e) => {
+      console.error('addGithubhintURL error', e);
     });
 };
 

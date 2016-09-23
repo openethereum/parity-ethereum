@@ -200,6 +200,13 @@ module.exports = {
     quiet: false,
     hot: !isProd,
     proxy: {
+      '/api/content/*': {
+        target: 'http://localhost:8080/',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/api/content': ''
+        }
+      },
       '/rpc/*': {
         target: 'http://localhost:8080',
         changeOrigin: true

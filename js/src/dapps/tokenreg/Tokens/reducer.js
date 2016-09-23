@@ -4,6 +4,7 @@ import {
   SET_TOKEN_DATA,
   SET_TOKEN_META,
   SET_TOKEN_LOADING,
+  SET_TOKEN_META_LOADING,
   SET_TOKEN_PENDING,
   DELETE_TOKEN
 } from './actions';
@@ -53,6 +54,18 @@ export default (state = initialState, action) => {
       tokens[index] = {
         ...tokens[index],
         isLoading: action.isLoading
+      };
+
+      return { ...state, tokens: tokens };
+    }
+
+    case SET_TOKEN_META_LOADING: {
+      let index = action.index;
+      let tokens = [].concat(state.tokens);
+
+      tokens[index] = {
+        ...tokens[index],
+        isMetaLoading: action.isMetaLoading
       };
 
       return { ...state, tokens: tokens };

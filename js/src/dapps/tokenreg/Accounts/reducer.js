@@ -1,10 +1,12 @@
 import {
   SET_ACCOUNTS,
-  SET_SELECTED_ACCOUNT
+  SET_SELECTED_ACCOUNT,
+  SET_ACCOUNTS_INFO
 } from './actions';
 
 const initialState = {
   list: [],
+  accountsInfo: {},
   selected: null
 };
 
@@ -14,6 +16,12 @@ export default (state = initialState, action) => {
       return {
         ...state,
         list: [].concat(action.accounts)
+      };
+
+    case SET_ACCOUNTS_INFO:
+      return {
+        ...state,
+        accountsInfo: { ...action.accountsInfo }
       };
 
     case SET_SELECTED_ACCOUNT: {

@@ -1,4 +1,8 @@
-import { registry as registryAbi, tokenreg as tokenregAbi } from '../../../json';
+import {
+  registry as registryAbi,
+  tokenreg as tokenregAbi,
+  githubhint as githubhintAbi
+} from '../../../json';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
@@ -20,15 +24,32 @@ export const loadContract = () => (dispatch) => {
       console.log(`registry found at ${registryAddress}`);
       const registry = api.newContract(registryAbi, registryAddress).instance;
 
-      return registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']);
+      return Promise.all([
+        registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
+        registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A'])
+      ]);
     })
-    .then((address) => {
-      console.log(`tokenreg was found at ${address}`);
-      const contract = api.newContract(tokenregAbi, address);
+    .then(([ tokenregAddress, githubhintAddress ]) => {
+      console.log(`tokenreg was found at ${tokenregAddress}`);
 
-      const { instance } = contract;
+      const tokenregContract = api
+        .newContract(tokenregAbi, tokenregAddress);
 
-      dispatch(setContractDetails({ address, instance, raw: contract }));
+      const githubhintContract = api
+        .newContract(githubhintAbi, githubhintAddress);
+
+      dispatch(setContractDetails({
+        address: tokenregAddress,
+        instance: tokenregContract.instance,
+        raw: tokenregContract
+      }));
+
+      dispatch(setGithubhintDetails({
+        address: githubhintAddress,
+        instance: githubhintContract.instance,
+        raw: githubhintContract
+      }));
+
       dispatch(loadContractDetails());
       dispatch(subscribeEvents());
     })
@@ -70,6 +91,12 @@ export const loadContractDetails = () => (dispatch, getState) => {
 export const SET_CONTRACT_DETAILS = 'SET_CONTRACT_DETAILS';
 export const setContractDetails = (details) => ({
   type: SET_CONTRACT_DETAILS,
+  details
+});
+
+export const SET_GITHUBHINT_CONTRACT = 'SET_GITHUBHINT_CONTRACT';
+export const setGithubhintDetails = (details) => ({
+  type: SET_GITHUBHINT_CONTRACT,
   details
 });
 

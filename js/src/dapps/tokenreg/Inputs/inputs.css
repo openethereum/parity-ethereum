@@ -1,0 +1,16 @@
+.input-container {
+  width: 100%;
+  position: relative;
+}
+
+.input-loading {
+  position: absolute;
+  right: -5px;
+  top: 20px;
+}
+
+.input-icon {
+  position: absolute;
+  right: 5px;
+  bottom: 10px;
+}

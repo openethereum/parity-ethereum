@@ -10,24 +10,27 @@ export default class CustomChip extends Component {
   static propTypes = {
     isAddress: PropTypes.bool,
     value: PropTypes.string,
-    label: PropTypes.string
+    label: PropTypes.string,
+    displayValue: PropTypes.string
   };
 
   render () {
     const { isAddress, value, label } = this.props;
+
+    const displayValue = this.props.displayValue || value;
 
     return (
       <Chip
         className={ styles.chip }
         style={ {
           margin: '0.5em',
-          background: 'rgb(50, 100, 150)',
+          background: '#27ae60',
           display: 'flex',
           flexDirection: 'column'
         } }>
         { this.renderIcon(isAddress, value) }
         <span className={ styles.value } title={ value }>
-          { value }
+          { displayValue }
         </span>
         <span className={ styles.label }>
           { label }

@@ -1,6 +1,7 @@
 import React, { Component, PropTypes } from 'react';
 import Paper from 'material-ui/Paper';
-import { RaisedButton, TextField } from 'material-ui';
+import { RaisedButton, SelectField, MenuItem } from 'material-ui';
+
 import FindIcon from 'material-ui/svg-icons/action/find-in-page';
 import DeleteIcon from 'material-ui/svg-icons/action/delete';
 
@@ -10,12 +11,17 @@ import AddMeta from './add-meta';
 
 import styles from './token.css';
 
+import { metaDataKeys } from '../../constants';
+
+import { api } from '../../parity';
+
 export default class Token extends Component {
   static propTypes = {
     handleAddMeta: PropTypes.func,
     handleUnregister: PropTypes.func,
     handleMetaLookup: PropTypes.func,
     isLoading: PropTypes.bool,
+    isMetaLoading: PropTypes.bool,
     isPending: PropTypes.bool,
     isOwner: PropTypes.bool,
     isTokenOwner: PropTypes.bool,
@@ -24,46 +30,53 @@ export default class Token extends Component {
     name: PropTypes.string,
     base: PropTypes.number,
     index: PropTypes.number,
+    totalSupply: PropTypes.number.isRequired,
     meta: PropTypes.object,
     owner: PropTypes.string,
+    ownerAccountInfo: PropTypes.shape({
+      name: PropTypes.string,
+      meta: PropTypes.object
+    }),
     metaPending: PropTypes.bool,
     metaMined: PropTypes.bool
   };
 
   state = {
-    metaQuery: ''
+    metaKeyIndex: 0
   };
 
   render () {
-    const { isLoading, address, tla, base, name, meta, owner } = this.props;
+    const { isLoading, address, tla, base, name, meta, owner, totalSupply } = this.props;
 
     if (isLoading) {
       return (
-        <div className={ styles.token }>
+        <div className={ [ styles.token, styles.loading ].join(' ') }>
           <Loading size={ 1 } />
         </div>
       );
     }
 
-    return (
+    return (<div>
       <Paper zDepth={ 2 } className={ styles.token }>
         { this.renderIsPending() }
         <div className={ styles.title }>{ tla }</div>
         <div className={ styles.name }>"{ name }"</div>
 
         { this.renderBase(base) }
+        { this.renderTotalSupply(totalSupply, base, tla) }
         { this.renderAddress(address) }
         { this.renderOwner(owner) }
 
-        <div className={ styles.metaForm }>
-          <TextField
-            autoComplete='off'
-            floatingLabelFixed
+        <div className={ styles['meta-form'] }>
+          <SelectField
+            floatingLabelText='Choose the meta-data to look-up'
             fullWidth
-            floatingLabelText='Meta Key'
-            hintText='The key of the meta-data to lookup'
-            value={ this.state.metaQuery }
-            onChange={ this.onMetaQueryChange } />
+            value={ this.state.metaKeyIndex }
+            onChange={ this.onMetaKeyChange }>
+
+            { this.renderMetaKeyItems() }
+
+          </SelectField>
 
           <RaisedButton
             label='Lookup'
@@ -80,7 +93,16 @@ export default class Token extends Component {
         { this.renderMetaPending() }
         { this.renderMetaMined() }
       </Paper>
-    );
+    </div>);
+  }
+
+  renderMetaKeyItems () {
+    return metaDataKeys.map((key, index) => (
+      <MenuItem
+        value={ index }
+        key={ index }
+        label={ key.label } primaryText={ key.label } />
+    ));
   }
 
   renderBase (base) {
@@ -102,11 +124,29 @@ export default class Token extends Component {
     );
   }
 
+  renderTotalSupply (totalSupply, base, tla) {
+    let balance = Math.round((totalSupply / base) * 100) / 100;
+
+    return (
+      <Chip
+        value={ `${balance.toString()} ${tla}` }
+        label='Balance' />
+    );
+  }
+
   renderOwner (owner) {
     if (!owner) return null;
+
+    let ownerInfo = this.props.ownerAccountInfo;
+
+    let displayValue = (ownerInfo && ownerInfo.name)
+      ? ownerInfo.name
+      : owner;
+
     return (
       <Chip
         isAddress
+        displayValue={ displayValue }
         value={ owner }
         label='Owner' />
     );
@@ -146,12 +186,63 @@ export default class Token extends Component {
   }
 
   renderMeta (meta) {
+    let isMetaLoading = this.props.isMetaLoading;
+
+    if (isMetaLoading) {
+      return (<div>
+        <Loading size={ 0.5 } />
+      </div>);
+    }
+
     if (!meta) return;
+
+    let metaData = metaDataKeys.find(m => m.value === meta.query);
+
+    if (!meta.value) {
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          No <span className={ styles['meta-key'] }>
+            { metaData.label.toLowerCase() }
+          </span> meta-data...
+        </p>
+      </div>);
+    }
+
+    if (meta.query === 'IMG') {
+      let imageHash = meta.value.replace(/^0x/, '');
+
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          <span className={ styles['meta-key'] }>
+            { metaData.label }
+          </span> meta-data:
+        </p>
+        <div className={ styles['meta-image'] }>
+          <img src={ `/api/content/${imageHash}/` } />
+        </div>
+      </div>);
+    }
+
+    if (meta.query === 'A') {
+      let address = meta.value.slice(0, 42);
+
+      return (<div>
+        <p className={ styles['meta-query'] }>
+          <span className={ styles['meta-key'] }>
+            { metaData.label }
+          </span> meta-data:
+        </p>
+        <p className={ styles['meta-value'] }>
+          { api.util.toChecksumAddress(address) }
+        </p>
+      </div>);
+    }
 
     return (<div>
       <p className={ styles['meta-query'] }>
-        Meta for key
-        <span className={ styles['meta-key'] }>{ meta.query }</span>:
+        <span className={ styles['meta-key'] }>
+          { metaData.label }
+        </span> meta-data:
       </p>
       <p className={ styles['meta-value'] }>{ meta.value }</p>
     </div>);
@@ -185,13 +276,14 @@ export default class Token extends Component {
   }
 
   onMetaLookup = () => {
-    let query = this.state.metaQuery;
+    let keyIndex = this.state.metaKeyIndex;
+    let key = metaDataKeys[keyIndex].value;
     let index = this.props.index;
 
-    this.props.handleMetaLookup(index, query);
+    this.props.handleMetaLookup(index, key);
   }
 
-  onMetaQueryChange = (event, metaQuery) => {
-    this.setState({ metaQuery });
+  onMetaKeyChange = (event, metaKeyIndex) => {
+    this.setState({ metaKeyIndex });
   }
 }

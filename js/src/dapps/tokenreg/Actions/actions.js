@@ -47,7 +47,7 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     })
     .then(() => {
       return contractInstance
-        .fromAddress.call({}, [ tla ])
+        .fromAddress.call({}, [ address ])
         .then((result) => {
           throw new Error(`A Token has already been registered with the Address ${address}`);
         }, () => {});

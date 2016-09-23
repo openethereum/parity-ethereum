@@ -6,6 +6,12 @@ export const setAccounts = (accounts) => ({
   accounts
 });
 
+export const SET_ACCOUNTS_INFO = 'SET_ACCOUNTS_INFO';
+export const setAccountsInfo = (accountsInfo) => ({
+  type: SET_ACCOUNTS_INFO,
+  accountsInfo
+});
+
 export const SET_SELECTED_ACCOUNT = 'SET_SELECTED_ACCOUNT';
 export const setSelectedAccount = (address) => ({
   type: SET_SELECTED_ACCOUNT,
@@ -30,6 +36,7 @@ export const loadAccounts = () => (dispatch) => {
       console.log('accounts', accountsList);
 
       dispatch(setAccounts(accountsList));
+      dispatch(setAccountsInfo(accountsInfo));
       dispatch(setSelectedAccount(accountsList[0].address));
     })
     .catch(e => {

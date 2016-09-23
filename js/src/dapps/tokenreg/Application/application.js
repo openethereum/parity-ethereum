@@ -1,7 +1,6 @@
 import React, { Component, PropTypes } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
-import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 
 import Loading from '../Loading';
 import Status from '../Status';
@@ -10,7 +9,11 @@ import Actions from '../Actions';
 
 import styles from './application.css';
 
-const muiTheme = getMuiTheme(lightBaseTheme);
+const muiTheme = getMuiTheme({
+  palette: {
+    primary1Color: '#27ae60'
+  }
+});
 
 export default class Application extends Component {
   static childContextTypes = {
@@ -35,8 +38,7 @@ export default class Application extends Component {
       <div className={ styles.application }>
         <Status
           address={ contract.address }
-          fee={ contract.fee }
-          owner={ contract.owner } />
+          fee={ contract.fee } />
 
         <Actions />
 

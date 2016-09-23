@@ -18,10 +18,12 @@ import eip20 from './eip20.json';
 import gavcoin from './gavcoin.json';
 import registry from './registry.json';
 import tokenreg from './tokenreg.json';
+import githubhint from './githubhint.json';
 
 export {
   eip20,
   gavcoin,
   registry,
-  tokenreg
+  tokenreg,
+  githubhint
 };
