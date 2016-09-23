@@ -15,13 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '../../ui';
-import { newError } from '../../redux/actions';
 import initShapeshift from '../../3rdparty/shapeshift';
 import shapeshiftLogo from '../../images/shapeshift-logo.png';
 
@@ -37,10 +34,9 @@ const shapeshift = initShapeshift();
 
 const STAGE_NAMES = ['details', 'awaiting deposit', 'awaiting exchange', 'completed'];
 
-class FundAccount extends Component {
+export default class FundAccount extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
-    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
 
@@ -191,7 +187,8 @@ class FundAccount extends Component {
   }
 
   onShift = () => {
-    const { address, newError } = this.props;
+    const { store } = this.context;
+    const { address } = this.props;
     const { coinPair, refundAddress } = this.state;
 
     this.setState({
@@ -212,7 +209,7 @@ class FundAccount extends Component {
         console.error('onShift', error);
         const message = `Failed to start exchange: ${error.message}`;
 
-        newError(new Error(message));
+        store.dispatch({ type: 'newError', error: new Error(message) });
         this.setFatalError(message);
       });
   }
@@ -241,7 +238,7 @@ class FundAccount extends Component {
   }
 
   onExchangeInfo = (error, result) => {
-    const { newError } = this.props;
+    const { store } = this.context;
 
     if (error) {
       console.error('onExchangeInfo', error);
@@ -250,7 +247,7 @@ class FundAccount extends Component {
         this.setFatalError(error.message);
       }
 
-      newError(error);
+      store.dispatch({ type: 'newError', error });
       return;
     }
 
@@ -281,7 +278,7 @@ class FundAccount extends Component {
   }
 
   retrieveCoins () {
-    const { newError } = this.props;
+    const { store } = this.context;
     const { coinPair } = this.state;
 
     shapeshift
@@ -296,21 +293,8 @@ class FundAccount extends Component {
         console.error('retrieveCoins', error);
         const message = `Failed to retrieve available coins from ShapeShift.io: ${error.message}`;
 
-        newError(new Error(message));
+        store.dispatch({ type: 'newError', error: new Error(message) });
         this.setFatalError(message);
       });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(FundAccount);

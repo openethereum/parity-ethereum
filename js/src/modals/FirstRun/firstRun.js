@@ -15,13 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { newError } from '../../ui/Errors';
 import { Button, Modal } from '../../ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
@@ -31,15 +28,15 @@ import Welcome from './Welcome';
 
 const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
 
-class FirstRun extends Component {
+export default class FirstRun extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
     visible: PropTypes.bool,
-    onClose: PropTypes.func.isRequired,
-    onNewError: PropTypes.func
+    onClose: PropTypes.func.isRequired
   }
 
   state = {
@@ -181,21 +178,8 @@ class FirstRun extends Component {
   }
 
   newError = (error) => {
-    this.props.onNewError(error);
+    const { store } = this.context;
+
+    store.dispatch({ type: 'newError', error });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    onNewError: newError
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(FirstRun);

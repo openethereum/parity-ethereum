@@ -15,13 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
-import { newError } from '../../../ui/Errors';
 import Form, { Input } from '../../../ui/Form';
 import IdentityIcon from '../../../ui/IdentityIcon';
 
@@ -33,14 +30,14 @@ const ERRORS = {
   noMatchPassword: 'the supplied passwords does not match'
 };
 
-class CreateAccount extends Component {
+export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    onChange: PropTypes.func.isRequired,
-    onNewError: PropTypes.func
+    onChange: PropTypes.func.isRequired
   }
 
   state = {
@@ -290,21 +287,8 @@ class CreateAccount extends Component {
   }
 
   newError = (error) => {
-    this.props.onNewError(error);
+    const { store } = this.context;
+
+    store.dispatch({ type: 'newError', error });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    onNewError: newError
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(CreateAccount);

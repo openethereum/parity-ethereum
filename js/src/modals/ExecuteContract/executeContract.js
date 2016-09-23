@@ -15,10 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-
-import { newError } from '../../redux/actions';
 
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -30,9 +26,10 @@ import DetailsStep from './DetailsStep';
 
 const steps = ['function execute', 'completed'];
 
-class ExecuteContract extends Component {
+export default class ExecuteContract extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -40,8 +37,7 @@ class ExecuteContract extends Component {
     accounts: PropTypes.object,
     contract: PropTypes.object,
     onClose: PropTypes.func.isRequired,
-    onFromAddressChange: PropTypes.func.isRequired,
-    newError: PropTypes.func
+    onFromAddressChange: PropTypes.func.isRequired
   }
 
   state = {
@@ -154,8 +150,6 @@ class ExecuteContract extends Component {
       }
     });
 
-    console.log('onFuncChange', func, values);
-
     this.setState({
       func,
       values
@@ -185,8 +179,8 @@ class ExecuteContract extends Component {
   }
 
   postTransaction = () => {
-    const { api } = this.context;
-    const { fromAddress, newError } = this.props;
+    const { api, store } = this.context;
+    const { fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       from: fromAddress,
@@ -206,20 +200,7 @@ class ExecuteContract extends Component {
       })
       .catch((error) => {
         console.error('postTransaction', error);
-        newError(error);
+        store.dispatch({ type: 'newError', error });
       });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(ExecuteContract);
