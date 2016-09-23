@@ -30,7 +30,7 @@ import Delete from '../Address/Delete';
 
 import styles from './contract.css';
 
-export default class Contract extends Component {
+class Contract extends Component {
   static contextTypes = {
     api: React.PropTypes.object.isRequired
   }
