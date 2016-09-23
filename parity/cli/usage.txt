@@ -14,6 +14,7 @@ Usage:
   parity signer new-token [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
+  parity tools hash <file>
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -283,4 +284,3 @@ Miscellaneous Options:
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.
   -h --help                Show this screen.
-
