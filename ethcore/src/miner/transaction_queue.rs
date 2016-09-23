@@ -135,6 +135,8 @@ struct TransactionOrder {
 	hash: H256,
 	/// Origin of the transaction
 	origin: TransactionOrigin,
+	/// Penalties
+	penalties: usize,
 }
 
 
@@ -145,11 +147,21 @@ impl TransactionOrder {
 			gas_price: tx.transaction.gas_price,
 			hash: tx.hash(),
 			origin: tx.origin,
+			penalties: 0,
 		}
 	}
 
 	fn update_height(mut self, nonce: U256, base_nonce: U256) -> Self {
 		self.nonce_height = nonce - base_nonce;
+		self
+	}
+
+	fn penalize(mut self) -> Self {
+		let current = self.penalties;
+		self.penalties = match self.penalties.overflowing_add(1) {
+			(_, true) => current,
+			(val, false) => val,
+		};
 		self
 	}
 }
@@ -168,6 +180,11 @@ impl PartialOrd for TransactionOrder {
 
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
+		// First check number of penalties
+		if self.penalties != b.penalties {
+			return self.penalties.cmp(&b.penalties);
+		}
+
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
@@ -502,6 +519,37 @@ impl TransactionQueue {
 		// that should be placed in current. It should also update last_nonces.
 		self.move_matching_future_to_current(sender, client_nonce, client_nonce);
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
+	}
+
+	/// Penalize transactions from sender of transaction with given hash.
+	/// I.e. it should change the priority of the transaction in the queue.
+	pub fn penalize(&mut self, transaction_hash: &H256) {
+		let transaction = self.by_hash.get(transaction_hash);
+		if transaction.is_none() {
+			return;
+		}
+
+		let transaction = transaction.expect("Early-exit for None is above.");
+		let sender = transaction.sender();
+
+		// Penalize all transactions from this sender
+		let nonces_from_sender = match self.current.by_address.row(&sender) {
+			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
+			None => vec![],
+		};
+		for k in nonces_from_sender {
+			let order = self.current.drop(&sender, &k).unwrap();
+			self.current.insert(sender, k, order.penalize());
+		}
+		// Same thing for future
+		let nonces_from_sender = match self.future.by_address.row(&sender) {
+			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
+			None => vec![],
+		};
+		for k in nonces_from_sender {
+			let order = self.future.drop(&sender, &k).unwrap();
+			self.current.insert(sender, k, order.penalize());
+		}
 	}
 
 	/// Removes invalid transaction identified by hash from queue.
@@ -858,6 +906,18 @@ mod test {
 		new_txs_with_gas_price_diff(second_nonce, U256::zero())
 	}
 
+	fn new_txs_with_higher_gas_price(gas_price: U256) -> (SignedTransaction, SignedTransaction) {
+		let keypair = KeyPair::create().unwrap();
+		let secret = &keypair.secret();
+		let nonce = U256::from(123);
+		let mut tx = new_unsigned_tx(nonce);
+		tx.gas_price = tx.gas_price + gas_price;
+		let mut tx2 = new_unsigned_tx(nonce + 1.into());
+		tx2.gas_price = tx2.gas_price + gas_price;
+
+		(tx.sign(secret), tx2.sign(secret))
+	}
+
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
 		let keypair = KeyPair::create().unwrap();
 		let secret = &keypair.secret();
@@ -1164,6 +1224,39 @@ mod test {
 		assert_eq!(top[0], tx);
 		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_penalize_transactions_from_sender() {
+		// given
+		let mut txq = TransactionQueue::new();
+		// txa, txb - slightly bigger gas price to have consistent ordering
+		let (txa, txb) = new_txs(U256::from(1));
+		let (tx1, tx2) = new_txs_with_higher_gas_price(U256::from(3));
+
+		// insert everything
+		txq.add(txa.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		txq.add(txb.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx1.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx1);
+		assert_eq!(top[1], txa);
+		assert_eq!(top[2], tx2);
+		assert_eq!(top[3], txb);
+		assert_eq!(top.len(), 4);
+
+		// when
+		txq.penalize(&tx1.hash());
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], txa);
+		assert_eq!(top[1], txb);
+		assert_eq!(top[2], tx1);
+		assert_eq!(top[3], tx2);
+		assert_eq!(top.len(), 4);
 	}
 
 	#[test]
