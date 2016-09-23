@@ -610,6 +610,10 @@ impl TransactionQueue {
 
 	/// Penalize transactions from sender of transaction with given hash.
 	/// I.e. it should change the priority of the transaction in the queue.
+	///
+	/// NOTE: We need to penalize all transactions from particular sender
+	/// to avoid breaking invariants in queue (ordered by nonces).
+	/// Consecutive transactions from this sender would fail otherwise (because of invalid nonce).
 	pub fn penalize(&mut self, transaction_hash: &H256) {
 		let transaction = self.by_hash.get(transaction_hash);
 		if transaction.is_none() {
