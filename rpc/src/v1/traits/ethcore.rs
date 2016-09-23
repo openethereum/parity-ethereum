@@ -70,6 +70,9 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// Returns the value of the registrar for this network.
 	fn registry_address(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns all transactions in transaction queue.
+	fn pending_transactions(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -90,6 +93,7 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_gasPriceStatistics", Ethcore::gas_price_statistics);
 		delegate.add_method("ethcore_unsignedTransactionsCount", Ethcore::unsigned_transactions_count);
 		delegate.add_method("ethcore_registryAddress", Ethcore::registry_address);
+		delegate.add_method("ethcore_pendingTransactions", Ethcore::pending_transactions);
 		delegate
 	}
 }

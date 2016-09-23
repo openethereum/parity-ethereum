@@ -26,7 +26,7 @@ use ethcore::client::{MiningBlockChainClient};
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, Peers, H160};
+use v1::types::{Bytes, U256, Peers, H160, Transaction};
 use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
@@ -199,5 +199,12 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 			None => Err(errors::signer_disabled()),
 			Some(ref queue) => to_value(&queue.len()),
 		}
+	}
+
+	fn pending_transactions(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>())
 	}
 }
