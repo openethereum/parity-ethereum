@@ -91,7 +91,6 @@ export default class Contract extends Component {
             account={ contract }
             balance={ balance } />
           { this.renderQueries() }
-          { this.renderFunctions() }
           { this.renderEvents() }
         </Page>
       </div>
