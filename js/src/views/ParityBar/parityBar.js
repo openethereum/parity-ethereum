@@ -23,7 +23,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Badge, Button, ContainerTitle, ParityBackground, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../images/ethcore-block-blue.png';
+import imagesEthcoreBlock from '../../images/ethcore-block.png';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
@@ -53,17 +53,19 @@ class ParityBar extends Component {
     return (
       <div className={ styles.bar }>
         <ParityBackground className={ styles.corner }>
-          <Link to='/apps'>
+          <div className={ styles.cornercolor }>
+            <Link to='/apps'>
+              <Button
+                className={ styles.button }
+                icon={ parityIcon }
+                label={ this.renderLabel('Parity') } />
+            </Link>
             <Button
               className={ styles.button }
-              icon={ parityIcon }
-              label={ this.renderLabel('Parity') } />
-          </Link>
-          <Button
-            className={ styles.button }
-            icon={ <SignerIcon className={ styles.signerIcon } /> }
-            label={ this.renderSignerLabel() }
-            onClick={ this.toggleDisplay } />
+              icon={ <SignerIcon className={ styles.signerIcon } /> }
+              label={ this.renderSignerLabel() }
+              onClick={ this.toggleDisplay } />
+          </div>
         </ParityBackground>
       </div>
     );

@@ -23,15 +23,16 @@ export default class ParityBackground extends Component {
 
   static propTypes = {
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    gradient: PropTypes.string
   }
 
   render () {
-    const { children, className } = this.props;
+    const { children, className, gradient } = this.props;
     const { muiTheme } = this.context;
 
     return (
-      <div className={ className } style={ muiTheme.parity.getBackgroundStyle() }>
+      <div className={ className } style={ muiTheme.parity.getBackgroundStyle(gradient) }>
         { children }
       </div>
     );
