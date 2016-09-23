@@ -56,7 +56,7 @@ export default class List extends Component {
 
       return (
         <div
-          className={ styles.account }
+          className={ styles.item }
           key={ address }>
           <Summary
             link={ link }

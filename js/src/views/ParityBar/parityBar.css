@@ -33,14 +33,12 @@
 .expanded {
   right: 16px;
   width: 964px;
-  height: 292px;
+  height: 296px;
   border-radius: 4px 4px 0 0;
   overflow-y: scroll;
 }
 
 .expanded .content {
-  padding: 0;
-  margin: 0 -1em;
 }
 
 .corner {
@@ -98,7 +96,7 @@
   height: 36px;
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
-  margin-bottom: 0;
+  margin-bottom: 0.25em;
 }
 
 .header:after {

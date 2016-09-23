@@ -26,9 +26,9 @@
 }
 
 .contract:nth-child(odd)>div {
-  padding-right: 0.5em !important;
+  padding-right: 0.125em !important;
 }
 
 .contract:nth-child(even)>div {
-  padding-left: 0.5em !important;
+  padding-left: 0.125em !important;
 }
