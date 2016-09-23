@@ -38,7 +38,9 @@ export default class Token extends Component {
       meta: PropTypes.object
     }),
     metaPending: PropTypes.bool,
-    metaMined: PropTypes.bool
+    metaMined: PropTypes.bool,
+
+    fullWidth: PropTypes.bool
   };
 
   state = {
@@ -46,7 +48,7 @@ export default class Token extends Component {
   };
 
   render () {
-    const { isLoading, address, tla, base, name, meta, owner, totalSupply } = this.props;
+    const { isLoading, fullWidth } = this.props;
 
     if (isLoading) {
       return (
@@ -56,9 +58,29 @@ export default class Token extends Component {
       );
     }
 
+    if (fullWidth) {
+      return (<div className={ styles['full-width'] }>
+        { this.renderContent() }
+      </div>);
+    }
+
     return (<div>
-      <Paper zDepth={ 2 } className={ styles.token }>
-        { this.renderIsPending() }
+      <Paper zDepth={ 1 } className={ styles.token } style={ {
+        backgroundColor: 'none'
+      } }>
+        <div className={ styles['token-bg'] } />
+        { this.renderContent() }
+      </Paper>
+    </div>);
+  }
+
+  renderContent () {
+    const { address, tla, base, name, meta, owner, totalSupply } = this.props;
+
+    return (<div className={ styles['token-container'] }>
+      { this.renderIsPending() }
+
+      <div className={ styles['token-content'] }>
         <div className={ styles.title }>{ tla }</div>
         <div className={ styles.name }>"{ name }"</div>
 
@@ -66,7 +88,9 @@ export default class Token extends Component {
         { this.renderTotalSupply(totalSupply, base, tla) }
         { this.renderAddress(address) }
         { this.renderOwner(owner) }
+      </div>
 
+      <div className={ styles['token-meta'] }>
         <div className={ styles['meta-form'] }>
           <SelectField
             floatingLabelText='Choose the meta-data to look-up'
@@ -89,10 +113,10 @@ export default class Token extends Component {
         { this.renderMeta(meta) }
         { this.renderAddMeta() }
         { this.renderUnregister() }
+      </div>
 
-        { this.renderMetaPending() }
-        { this.renderMetaMined() }
-      </Paper>
+      { this.renderMetaPending() }
+      { this.renderMetaMined() }
     </div>);
   }
 
@@ -130,7 +154,7 @@ export default class Token extends Component {
     return (
       <Chip
         value={ `${balance.toString()} ${tla}` }
-        label='Balance' />
+        label='Total' />
     );
   }
 

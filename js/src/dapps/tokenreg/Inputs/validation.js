@@ -12,7 +12,9 @@ const {
 
 export const ADDRESS_TYPE = 'ADDRESS_TYPE';
 export const TOKEN_ADDRESS_TYPE = 'TOKEN_ADDRESS_TYPE';
+export const SIMPLE_TOKEN_ADDRESS_TYPE = 'SIMPLE_TOKEN_ADDRESS_TYPE';
 export const TLA_TYPE = 'TLA_TYPE';
+export const SIMPLE_TLA_TYPE = 'SIMPLE_TLA_TYPE';
 export const UINT_TYPE = 'UINT_TYPE';
 export const STRING_TYPE = 'STRING_TYPE';
 export const HEX_TYPE = 'HEX_TYPE';
@@ -49,9 +51,11 @@ const validateAddress = (address) => {
   };
 };
 
-const validateTokenAddress = (address, contract) => {
+const validateTokenAddress = (address, contract, simple) => {
   let addressValidation = validateAddress(address);
   if (!addressValidation.valid) return addressValidation;
+
+  if (simple) return addressValidation;
 
   return getTokenTotalSupply(address)
     .then(balance => {
@@ -75,11 +79,19 @@ const validateTokenAddress = (address, contract) => {
     });
 };
 
-const validateTLA = (tla, contract) => {
+const validateTLA = (tla, contract, simple) => {
   if (tla.toString().length !== 3) {
     return {
       error: ERRORS.invalidTLA,
       valid: false
+    };
+  }
+
+  if (simple) {
+    return {
+      value: tla.toString().toUpperCase(),
+      error: null,
+      valid: true
     };
   }
 
@@ -162,7 +174,9 @@ const validateURL = (string) => {
 export const validate = (value, type, contract) => {
   if (type === ADDRESS_TYPE) return validateAddress(value);
   if (type === TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract);
+  if (type === SIMPLE_TOKEN_ADDRESS_TYPE) return validateTokenAddress(value, contract, true);
   if (type === TLA_TYPE) return validateTLA(value, contract);
+  if (type === SIMPLE_TLA_TYPE) return validateTLA(value, contract, true);
   if (type === UINT_TYPE) return validateUint(value);
   if (type === STRING_TYPE) return validateString(value);
   if (type === HEX_TYPE) return validateHex(value);

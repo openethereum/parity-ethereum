@@ -5,9 +5,48 @@
   width: 20rem;
   margin: 1rem;
   padding: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.token-container, .token-content, .token-meta {
+  width: 100%;
+
+  display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 1.5rem;
+}
+
+.token-content, .token-meta {
+  z-index: 50;
+}
+
+.token-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  -webkit-filter: blur(5px);
+  filter: blur(5px);
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.token-container {
+  flex: 1;
+}
+
+.full-width .token-container {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.full-width .token-content {
+  width: 20rem;
+  margin-right: 1rem;
+}
+
+.token-content > div {
+  max-width: 100%;
 }
 
 .loading {
@@ -16,10 +55,6 @@
 
 .name {
   padding-bottom: 0.75rem;
-}
-
-.token > div {
-  max-width: 100%;
 }
 
 .title {

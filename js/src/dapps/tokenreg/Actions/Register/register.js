@@ -40,7 +40,7 @@ const initState = {
   }
 };
 
-export default class ActionTransfer extends Component {
+export default class RegisterAction extends Component {
 
   static propTypes = {
     show: PropTypes.bool,
