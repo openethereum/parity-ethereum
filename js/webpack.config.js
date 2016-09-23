@@ -140,16 +140,6 @@ module.exports = {
       }),
 
       new WebpackErrorNotificationPlugin(),
-      // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
-      // TODO [jacogr] this shit needs to go, e.g. dapp-styles
-      new webpack.NormalModuleReplacementPlugin(
-        /ethereum_dapp-styles/,
-        function (a) {
-          a.request = a.request.replace('./packages/ethereum_dapp-styles', '.');
-          a.request = a.request.replace('./lib/packages/ethereum_dapp-styles', '.');
-          return a;
-        }
-      ),
       new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify(ENV),
