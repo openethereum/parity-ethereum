@@ -15,9 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
+pub mod auto_args;
+
+#[macro_use]
 pub mod errors;
+
 pub mod dispatch;
 pub mod params;
+
 mod poll_manager;
 mod poll_filter;
 mod requests;

@@ -91,7 +91,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
 				self.fetch.to_async_handler(path.clone(), control)
 			},
-			// Redirection to main page (maybe 404 instead?)
+			// 404 for non-existent content
 			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
 				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
 				Box::new(ContentHandler::error(
@@ -143,7 +143,7 @@ impl<A: Authorization> Router<A> {
 		allowed_hosts: Option<Vec<String>>,
 		) -> Self {
 
-		let handler = special.get(&SpecialEndpoint::Api).unwrap().to_handler(EndpointPath::default());
+		let handler = special.get(&SpecialEndpoint::Utils).unwrap().to_handler(EndpointPath::default());
 		Router {
 			control: Some(control),
 			main_page: main_page,

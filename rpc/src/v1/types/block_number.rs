@@ -31,6 +31,12 @@ pub enum BlockNumber {
 	Pending,
 }
 
+impl Default for BlockNumber {
+	fn default() -> Self {
+		BlockNumber::Latest
+	}
+}
+
 impl Deserialize for BlockNumber {
 	fn deserialize<D>(deserializer: &mut D) -> Result<BlockNumber, D::Error>
 	where D: Deserializer {
