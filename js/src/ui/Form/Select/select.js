@@ -40,9 +40,7 @@ export default class Select extends Component {
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,
     type: PropTypes.string,
-    value: PropTypes.oneOfType([
-      PropTypes.number, PropTypes.string
-    ])
+    value: PropTypes.any
   }
 
   render () {

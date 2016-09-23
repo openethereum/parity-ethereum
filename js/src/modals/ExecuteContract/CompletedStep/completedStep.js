@@ -14,22 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import AddAddress from './AddAddress';
-import AddContract from './AddContract';
-import CreateAccount from './CreateAccount';
-import DeployContract from './DeployContract';
-import ExecuteContract from './ExecuteContract';
-import FirstRun from './FirstRun';
-import Shapeshift from './Shapeshift';
-import Transfer from './Transfer';
+import React, { Component } from 'react';
 
-export {
-  AddAddress,
-  AddContract,
-  CreateAccount,
-  DeployContract,
-  ExecuteContract,
-  FirstRun,
-  Shapeshift,
-  Transfer
-};
+import styles from '../executeContract.css';
+
+export default class CompletedStep extends Component {
+  render () {
+    return (
+      <div className={ styles.modalcenter }>
+        Your contract execution call has been submitted. Please visit the <a href='/#/signer'>Parity Signer</a> for authentication. Once executed, any events created by the transaction will be visible in the logs.
+      </div>
+    );
+  }
+}

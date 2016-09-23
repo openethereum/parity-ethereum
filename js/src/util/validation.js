@@ -20,8 +20,32 @@ export const ERRORS = {
   invalidAddress: 'address is an invalid network address',
   duplicateAddress: 'the address is already in your address book',
   invalidChecksum: 'address has failed the checksum formatting',
-  invalidName: 'name should not be blank and longer than 2'
+  invalidName: 'name should not be blank and longer than 2',
+  invalidAbi: 'abi should be a valid JSON array',
+  invalidCode: 'code should be the compiled hex string'
 };
+
+export function validateAbi (abi, api) {
+  let abiError = null;
+  let abiParsed = null;
+
+  try {
+    abiParsed = JSON.parse(abi);
+
+    if (!api.util.isArray(abiParsed) || !abiParsed.length) {
+      abiError = ERRORS.inavlidAbi;
+    }
+  } catch (error) {
+    console.error(error);
+    abiError = ERRORS.invalidAbi;
+  }
+
+  return {
+    abi,
+    abiError,
+    abiParsed
+  };
+}
 
 export function validateAddress (address) {
   let addressError = null;
@@ -37,6 +61,21 @@ export function validateAddress (address) {
   return {
     address,
     addressError
+  };
+}
+
+export function validateCode (code, api) {
+  let codeError = null;
+
+  if (!code.length) {
+    codeError = ERRORS.invalidCode;
+  } else if (!api.util.isHex(code)) {
+    codeError = ERRORS.invalidCode;
+  }
+
+  return {
+    code,
+    codeError
   };
 }
 

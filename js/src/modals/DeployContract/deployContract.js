@@ -22,6 +22,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { newError } from '../../redux/actions';
 import { Button, IdentityIcon, Modal } from '../../ui';
+import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import BusyStep from './BusyStep';
 import CompletedStep from './CompletedStep';
@@ -43,16 +44,16 @@ class DeployContract extends Component {
 
   state = {
     abi: '',
-    abiError: 'Invalid or empty ABI',
+    abiError: ERRORS.invalidAbi,
     code: '',
-    codeError: 'Invalid or empty contract code',
+    codeError: ERRORS.invalidCode,
     deployState: '',
     description: '',
     descriptionError: null,
     fromAddress: Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
-    nameError: 'Contract name needs to be >2 charaters',
+    nameError: ERRORS.invalidName,
     step: 0,
     deployError: null
   }
@@ -163,37 +164,19 @@ class DeployContract extends Component {
   }
 
   onNameChange = (name) => {
-    const nameError = name && name.length > 2
-      ? null
-      : 'specify a valid name, >2 characters';
-
-    this.setState({ name, nameError });
+    this.setState(validateName(name));
   }
 
   onAbiChange = (abi) => {
     const { api } = this.context;
 
-    try {
-      const parsedAbi = JSON.parse(abi);
-
-      if (!api.util.isArray(parsedAbi) || !parsedAbi.length) {
-        throw new Error();
-      }
-
-      this.setState({ parsedAbi, abi, abiError: null });
-    } catch (error) {
-      console.error(error);
-      this.setState({ abi, abiError: 'ABI needs to be a valid JSON array' });
-    }
+    this.setState(validateAbi(abi, api));
   }
 
   onCodeChange = (code) => {
     const { api } = this.context;
-    const codeError = api.util.isHex(code) && code.length
-      ? null
-      : 'provide the valid compiled hex string of the contract code';
 
-    this.setState({ code, codeError });
+    this.setState(validateCode(code, api));
   }
 
   onDeployStart = () => {

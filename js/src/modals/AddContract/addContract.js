@@ -19,19 +19,22 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Button, Modal, Form, Input, InputAddress } from '../../ui';
-import { ERRORS, validateAddress, validateName } from '../../util/validation';
+import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
 
-export default class AddAddress extends Component {
+export default class AddContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    contacts: PropTypes.object.isRequired,
+    contracts: PropTypes.object.isRequired,
     onClose: PropTypes.func
   };
 
   state = {
+    abi: '',
+    abiError: ERRORS.invalidAbi,
+    abiParsed: null,
     address: '',
     addressError: ERRORS.invalidAddress,
     name: '',
@@ -44,7 +47,7 @@ export default class AddAddress extends Component {
       <Modal
         visible
         actions={ this.renderDialogActions() }
-        title='add saved address'>
+        title='watch contract'>
         { this.renderFields() }
       </Modal>
     );
@@ -61,48 +64,60 @@ export default class AddAddress extends Component {
         onClick={ this.onClose } />,
       <Button
         icon={ <ContentAdd /> }
-        label='Save Address'
+        label='Add Contract'
         disabled={ hasError }
         onClick={ this.onAdd } />
     ]);
   }
 
   renderFields () {
-    const { address, addressError, description, name, nameError } = this.state;
+    const { abi, abiError, address, addressError, description, name, nameError } = this.state;
 
     return (
       <Form>
         <InputAddress
           label='network address'
-          hint='the network address for the entry'
+          hint='the network address for the contract'
           error={ addressError }
           value={ address }
-          onChange={ this.onEditAddress } />
+          onSubmit={ this.onEditAddress } />
         <Input
-          label='address name'
-          hint='a descriptive name for the entry'
+          label='contract name'
+          hint='a descriptive name for the contract'
           error={ nameError }
           value={ name }
-          onChange={ this.onEditName } />
+          onSubmit={ this.onEditName } />
         <Input
           multiLine
           rows={ 1 }
-          label='(optional) address description'
+          label='(optional) contract description'
           hint='an expanded description for the entry'
           value={ description }
-          onChange={ this.onEditDescription } />
+          onSubmit={ this.onEditDescription } />
+        <Input
+          label='contract abi'
+          hint='the abi for the contract'
+          error={ abiError }
+          value={ abi }
+          onSubmit={ this.onEditAbi } />
       </Form>
     );
   }
 
-  onEditAddress = (event, _address) => {
-    const { contacts } = this.props;
+  onEditAbi = (abi) => {
+    const { api } = this.context;
+
+    this.setState(validateAbi(abi, api));
+  }
+
+  onEditAddress = (_address) => {
+    const { contracts } = this.props;
     let { address, addressError } = validateAddress(_address);
 
     if (!addressError) {
-      const contact = contacts[address];
+      const contract = contracts[address];
 
-      if (contact && !contact.meta.deleted) {
+      if (contract && !contract.meta.deleted) {
         addressError = ERRORS.duplicateAddress;
       }
     }
@@ -113,30 +128,25 @@ export default class AddAddress extends Component {
     });
   }
 
-  onEditDescription = (event, description) => {
-    this.setState({
-      description
-    });
+  onEditDescription = (description) => {
+    this.setState({ description });
   }
 
-  onEditName = (event, _name) => {
-    const { name, nameError } = validateName(_name);
-
-    this.setState({
-      name,
-      nameError
-    });
+  onEditName = (name) => {
+    this.setState(validateName(name));
   }
 
   onAdd = () => {
     const { api } = this.context;
-    const { address, name, description } = this.state;
+    const { abiParsed, address, name, description } = this.state;
 
     Promise.all([
       api.personal.setAccountName(address, name),
       api.personal.setAccountMeta(address, {
-        description,
-        deleted: false
+        contract: true,
+        deleted: false,
+        abi: abiParsed,
+        description
       })
     ]).catch((error) => {
       console.error('onAdd', error);

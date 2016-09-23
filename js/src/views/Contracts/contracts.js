@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import { Actionbar, Button, Page } from '../../ui';
-import { DeployContract } from '../../modals';
+import { AddContract, DeployContract } from '../../modals';
 
 import List from '../Accounts/List';
 
@@ -39,6 +39,7 @@ class Contracts extends Component {
   }
 
   state = {
+    addContract: false,
     deployContract: false
   }
 
@@ -48,10 +49,12 @@ class Contracts extends Component {
     return (
       <div className={ styles.contracts }>
         { this.renderActionbar() }
+        { this.renderAddContract() }
+        { this.renderAddContract() }
         { this.renderDeployContract() }
         <Page>
           <List
-            contact
+            link='contract'
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts } />
@@ -62,6 +65,11 @@ class Contracts extends Component {
 
   renderActionbar () {
     const buttons = [
+      <Button
+        key='addContract'
+        icon={ <ContentAdd /> }
+        label='watch contract'
+        onClick={ this.onAddContract } />,
       <Button
         key='deployContract'
         icon={ <ContentAdd /> }
@@ -74,6 +82,21 @@ class Contracts extends Component {
         className={ styles.toolbar }
         title='Contracts'
         buttons={ buttons } />
+    );
+  }
+
+  renderAddContract () {
+    const { contracts } = this.props;
+    const { addContract } = this.state;
+
+    if (!addContract) {
+      return null;
+    }
+
+    return (
+      <AddContract
+        contracts={ contracts }
+        onClose={ this.onAddContractClose } />
     );
   }
 
@@ -98,6 +121,14 @@ class Contracts extends Component {
 
   onDeployContract = () => {
     this.setState({ deployContract: true });
+  }
+
+  onAddContractClose = () => {
+    this.setState({ addContract: false });
+  }
+
+  onAddContract = () => {
+    this.setState({ addContract: true });
   }
 }
 

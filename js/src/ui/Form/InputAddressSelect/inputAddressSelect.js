@@ -29,6 +29,7 @@ class InputAddressSelect extends Component {
     accounts: PropTypes.object,
     contacts: PropTypes.object,
     disabled: PropTypes.bool,
+    editing: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -37,7 +38,7 @@ class InputAddressSelect extends Component {
   };
 
   state = {
-    editing: false,
+    editing: this.props.editing || false,
     entries: []
   }
 
