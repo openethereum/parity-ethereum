@@ -17,9 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import { Shapeshift, Transfer } from '../../modals';
+import { EditMeta, Shapeshift, Transfer } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../images/shapeshift-btn.png';
@@ -40,6 +41,7 @@ class Account extends Component {
   propName = null
 
   state = {
+    editDialog: false,
     fundDialog: false,
     transferDialog: false
   }
@@ -57,6 +59,7 @@ class Account extends Component {
 
     return (
       <div className={ styles.account }>
+        { this.renderEditDialog() }
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
         { this.renderActionbar() }
@@ -84,13 +87,34 @@ class Account extends Component {
         key='shapeshift'
         icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
         label='shapeshift'
-        onClick={ this.onShapeshiftAccountClick } />
+        onClick={ this.onShapeshiftAccountClick } />,
+      <Button
+        key='editmeta'
+        icon={ <ContentCreate /> }
+        label='edit'
+        onClick={ this.onEditClick } />
     ];
 
     return (
       <Actionbar
         title='Account Management'
         buttons={ buttons } />
+    );
+  }
+
+  renderEditDialog () {
+    const { accounts, params } = this.props;
+    const { editDialog } = this.state;
+
+    if (!editDialog) {
+      return null;
+    }
+
+    return (
+      <EditMeta
+        account={ accounts[params.address] }
+        keys={ ['description', 'passwordHint'] }
+        onClose={ this.onEditClick } />
     );
   }
 
@@ -129,6 +153,12 @@ class Account extends Component {
         balances={ balances }
         onClose={ this.onTransferClose } />
     );
+  }
+
+  onEditClick = () => {
+    this.setState({
+      editDialog: !this.state.editDialog
+    });
   }
 
   onShapeshiftAccountClick = () => {
