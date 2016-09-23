@@ -3,7 +3,7 @@ import { connect } from 'react-redux';
 
 import Actions from './component';
 
-import { registerToken, registerReset, queryToken, queryReset } from './actions';
+import { registerToken, registerReset, queryToken, queryReset, queryTokenMeta } from './actions';
 
 class TokensContainer extends Component {
 
@@ -33,6 +33,9 @@ const mapDispatchToProps = (dispatch) => {
     },
     handleQueryClose: () => {
       dispatch(queryReset());
+    },
+    handleQueryMetaLookup: (id, query) => {
+      dispatch(queryTokenMeta(id, query));
     }
   };
 };

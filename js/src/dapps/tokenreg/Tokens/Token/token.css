@@ -8,13 +8,30 @@
   padding-bottom: 1.5rem;
 }
 
-.token-container {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
+.token-container, .token-content, .token-meta {
   width: 100%;
+
+  display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+.token-container {
+  flex: 1;
+}
+
+.full-width .token-container {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.full-width .token-content {
+  width: 20rem;
+  margin-right: 1rem;
+}
+
+.token-content > div {
+  max-width: 100%;
 }
 
 .loading {
@@ -23,10 +40,6 @@
 
 .name {
   padding-bottom: 0.75rem;
-}
-
-.token-container > div {
-  max-width: 100%;
 }
 
 .title {

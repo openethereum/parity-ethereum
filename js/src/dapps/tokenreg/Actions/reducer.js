@@ -7,6 +7,8 @@ import {
   SET_QUERY_LOADING,
   SET_QUERY_RESULT,
   SET_QUERY_NOT_FOUND,
+  SET_QUERY_META_LOADING,
+  SET_QUERY_META,
   QUERY_RESET
 } from './actions';
 
@@ -19,7 +21,9 @@ const initialState = {
   query: {
     loading: false,
     data: null,
-    notFound: false
+    notFound: false,
+    metaLoading: false,
+    metaData: null
   }
 };
 
@@ -96,6 +100,26 @@ export default (state = initialState, action) => {
         query: {
           ...state.query,
           notFound: true
+        }
+      };
+    }
+
+    case SET_QUERY_META_LOADING: {
+      return {
+        ...state,
+        query: {
+          ...state.query,
+          metaLoading: action.isLoading
+        }
+      };
+    }
+
+    case SET_QUERY_META: {
+      return {
+        ...state,
+        query: {
+          ...state.query,
+          metaData: action.data
         }
       };
     }

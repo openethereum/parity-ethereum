@@ -59,7 +59,7 @@ export default class Token extends Component {
     }
 
     if (fullWidth) {
-      return (<div>
+      return (<div className={ styles['full-width'] }>
         { this.renderContent() }
       </div>);
     }
@@ -76,36 +76,41 @@ export default class Token extends Component {
 
     return (<div className={ styles['token-container'] }>
       { this.renderIsPending() }
-      <div className={ styles.title }>{ tla }</div>
-      <div className={ styles.name }>"{ name }"</div>
 
-      { this.renderBase(base) }
-      { this.renderTotalSupply(totalSupply, base, tla) }
-      { this.renderAddress(address) }
-      { this.renderOwner(owner) }
+      <div className={ styles['token-content'] }>
+        <div className={ styles.title }>{ tla }</div>
+        <div className={ styles.name }>"{ name }"</div>
 
-      <div className={ styles['meta-form'] }>
-        <SelectField
-          floatingLabelText='Choose the meta-data to look-up'
-          fullWidth
-          value={ this.state.metaKeyIndex }
-          onChange={ this.onMetaKeyChange }>
-
-          { this.renderMetaKeyItems() }
-
-        </SelectField>
-
-        <RaisedButton
-          label='Lookup'
-          icon={ <FindIcon /> }
-          primary
-          fullWidth
-          onTouchTap={ this.onMetaLookup } />
+        { this.renderBase(base) }
+        { this.renderTotalSupply(totalSupply, base, tla) }
+        { this.renderAddress(address) }
+        { this.renderOwner(owner) }
       </div>
 
-      { this.renderMeta(meta) }
-      { this.renderAddMeta() }
-      { this.renderUnregister() }
+      <div className={ styles['token-meta'] }>
+        <div className={ styles['meta-form'] }>
+          <SelectField
+            floatingLabelText='Choose the meta-data to look-up'
+            fullWidth
+            value={ this.state.metaKeyIndex }
+            onChange={ this.onMetaKeyChange }>
+
+            { this.renderMetaKeyItems() }
+
+          </SelectField>
+
+          <RaisedButton
+            label='Lookup'
+            icon={ <FindIcon /> }
+            primary
+            fullWidth
+            onTouchTap={ this.onMetaLookup } />
+        </div>
+
+        { this.renderMeta(meta) }
+        { this.renderAddMeta() }
+        { this.renderUnregister() }
+      </div>
 
       { this.renderMetaPending() }
       { this.renderMetaMined() }

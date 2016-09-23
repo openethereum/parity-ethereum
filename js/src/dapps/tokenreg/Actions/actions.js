@@ -1,5 +1,7 @@
 import { getTokenTotalSupply } from '../utils';
 
+const { sha3, bytesToHex } = window.parity.api.util;
+
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
@@ -96,6 +98,18 @@ export const queryReset = () => ({
   type: QUERY_RESET
 });
 
+export const SET_QUERY_META_LOADING = 'SET_QUERY_META_LOADING';
+export const setQueryMetaLoading = (isLoading) => ({
+  type: SET_QUERY_META_LOADING,
+  isLoading
+});
+
+export const SET_QUERY_META = 'SET_QUERY_META';
+export const setQueryMeta = (data) => ({
+  type: SET_QUERY_META,
+  data
+});
+
 export const queryToken = (key, query) => (dispatch, getState) => {
   let state = getState();
   let contractInstance = state.status.contract.instance;
@@ -108,7 +122,7 @@ export const queryToken = (key, query) => (dispatch, getState) => {
     .call({}, [ query ])
     .then((result) => {
       let data = {
-        id: result[0].toNumber(),
+        index: result[0].toNumber(),
         base: result[2].toNumber(),
         name: result[3],
         owner: result[4]
@@ -147,5 +161,36 @@ export const queryToken = (key, query) => (dispatch, getState) => {
     }, () => {
       dispatch(setQueryNotFound());
       dispatch(setQueryLoading(false));
+    });
+};
+
+export const queryTokenMeta = (id, query) => (dispatch, getState) => {
+  console.log('loading token meta', query);
+
+  let state = getState();
+  let contractInstance = state.status.contract.instance;
+
+  let key = sha3(query);
+
+  let startDate = Date.now();
+  dispatch(setQueryMetaLoading(true));
+
+  contractInstance
+    .meta
+    .call({}, [ id, key ])
+    .then((value) => {
+      let meta = {
+        key, query,
+        value: value.find(v => v !== 0) ? bytesToHex(value) : null
+      };
+
+      dispatch(setQueryMeta(meta));
+
+      setTimeout(() => {
+        dispatch(setQueryMetaLoading(false));
+      }, 500 - (Date.now() - startDate));
+    })
+    .catch((e) => {
+      console.error('load meta query error', e);
     });
 };

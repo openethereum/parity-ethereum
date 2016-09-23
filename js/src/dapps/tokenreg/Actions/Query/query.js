@@ -24,10 +24,13 @@ export default class QueryAction extends Component {
     show: PropTypes.bool.isRequired,
     onClose: PropTypes.func.isRequired,
     handleQueryToken: PropTypes.func.isRequired,
+    handleQueryMetaLookup: PropTypes.func.isRequired,
 
     loading: PropTypes.bool.isRequired,
     data: PropTypes.object,
-    notFound: PropTypes.bool
+    notFound: PropTypes.bool,
+    metaLoading: PropTypes.bool,
+    metaData: PropTypes.object
   }
 
   state = initState;
@@ -111,6 +114,9 @@ export default class QueryAction extends Component {
     return (
       <Token
         fullWidth
+        handleMetaLookup={ this.props.handleQueryMetaLookup }
+        isMetaLoading={ this.props.metaLoading }
+        meta={ this.props.metaData }
         { ...data }
         />
     );
