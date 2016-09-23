@@ -117,10 +117,6 @@ describe('api/subscriptions/personal', () => {
       it('calls personal_listAccounts', () => {
         expect(api._calls.listAccounts.length).to.be.ok;
       });
-
-      it('does not updates subscribers', () => {
-        expect(cb).to.not.been.called;
-      });
     });
   });
 });
