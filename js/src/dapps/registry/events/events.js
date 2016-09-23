@@ -43,12 +43,11 @@ const renderStatus = (timestamp, isPending) => {
 }
 
 const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
-  if (e.state === 'pending') {
-    classNames += ' ' + styles.pending;
-  }
+  const classes = e.state === 'pending'
+    ? classNames + ' ' + styles.pending : classNames;
 
   return (
-    <div key={ e.key } className={ classNames }>
+    <div key={ e.key } className={ classes }>
       { renderAddress(e.parameters.owner, accounts, contacts) }
       { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
       { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
