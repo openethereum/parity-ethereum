@@ -506,8 +506,6 @@ impl TransactionQueue {
 	pub fn add<T>(&mut self, tx: SignedTransaction, fetch_account: &T, origin: TransactionOrigin) -> Result<TransactionImportResult, Error>
 	where T: Fn(&Address) -> AccountDetails {
 
-		trace!(target: "txqueue", "Importing: {:?}", tx.hash());
-
 		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {
 			trace!(target: "txqueue",
 				"Dropping transaction below minimal gas price threshold: {:?} (gp: {} < {})",
@@ -764,6 +762,7 @@ impl TransactionQueue {
 
 		let address = tx.sender();
 		let nonce = tx.nonce();
+		let hash = tx.hash();
 
 		let next_nonce = self.last_nonces
 			.get(&address)
@@ -785,6 +784,9 @@ impl TransactionQueue {
 			try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.future, &mut self.by_hash)));
 			// Return an error if this transaction is not imported because of limit.
 			try!(check_if_removed(&address, &nonce, self.future.enforce_limit(&mut self.by_hash)));
+
+			debug!(target: "txqueue", "Importing transaction to future: {:?}", hash);
+			debug!(target: "txqueue", "status: {:?}", self.status());
 			return Ok(TransactionImportResult::Future);
 		}
 		try!(check_too_cheap(Self::replace_transaction(tx, state_nonce, &mut self.current, &mut self.by_hash)));
@@ -811,7 +813,8 @@ impl TransactionQueue {
 		// Trigger error if the transaction we are importing was removed.
 		try!(check_if_removed(&address, &nonce, removed));
 
-		trace!(target: "txqueue", "status: {:?}", self.status());
+		debug!(target: "txqueue", "Imported transaction to current: {:?}", hash);
+		debug!(target: "txqueue", "status: {:?}", self.status());
 		Ok(TransactionImportResult::Current)
 	}
 
