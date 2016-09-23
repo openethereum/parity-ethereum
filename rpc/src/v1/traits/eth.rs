@@ -27,9 +27,9 @@ use v1::helpers::auto_args::{Trailing, Wrap};
 build_rpc_trait! {
 	/// Eth rpc interface.
 	pub trait Eth {
-		/// Returns protocol version.
+		/// Returns protocol version encoded as a string (quotes are necessary).
 		#[name("eth_protocolVersion")]
-		fn protocol_version(&self) -> Result<u8, Error>;
+		fn protocol_version(&self) -> Result<String, Error>;
 
 		/// Returns an object with data about the sync status or false. (wtf?)
 		#[name("eth_syncing")]
@@ -40,7 +40,7 @@ build_rpc_trait! {
 		fn hashrate(&self) -> Result<U256, Error>;
 
 		/// Returns block author.
-		#[name("eth_getAuthor")]
+		#[name("eth_coinbase")]
 		fn author(&self) -> Result<H160, Error>;
 
 		/// Returns true if client is actively mining new blocks.

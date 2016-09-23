@@ -112,6 +112,7 @@ impl<B, OUT, T> Wrap<B> for fn(&B, Trailing<T>) -> Result<OUT, Error>
 	fn wrap_rpc(&self, base: &B, params: Params) -> Result<Value, Error> {
 		let len = match params {
 			Params::Array(ref v) => v.len(),
+			Params::None => 0,
 			_ => return Err(errors::invalid_params("not an array", "")),
 		};
 
@@ -138,6 +139,7 @@ macro_rules! wrap_with_trailing {
 			fn wrap_rpc(&self, base: &BASE, params: Params) -> Result<Value, Error> {
 				let len = match params {
 					Params::Array(ref v) => v.len(),
+					Params::None => 0,
 					_ => return Err(errors::invalid_params("not an array", "")),
 				};
 
