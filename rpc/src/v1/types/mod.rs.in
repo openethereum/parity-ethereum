@@ -30,6 +30,7 @@ mod receipt;
 mod trace;
 mod trace_filter;
 mod uint;
+mod work;
 
 pub use self::bytes::Bytes;
 pub use self::block::{Block, BlockTransactions};
@@ -47,3 +48,4 @@ pub use self::receipt::Receipt;
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;
 pub use self::uint::U256;
+pub use self::work::Work;

@@ -25,6 +25,47 @@ use super::errors;
 use jsonrpc_core::{Error, Params, Value, from_params, to_value};
 use serde::{Serialize, Deserialize};
 
+/// Auto-generates an RPC trait from trait definition.
+///
+/// This just copies out all the methods, docs, and adds another
+/// function `to_delegate` which will automatically wrap each strongly-typed
+/// function in a wrapper which handles parameter and output type serialization.
+///
+/// Every function must have a `#[name("rpc_nameHere")]` attribute after
+/// its documentation, and no other attributes. All function names are
+/// allowed except for `to_delegate`, which is auto-generated.
+macro_rules! build_rpc_trait {
+	(
+		$(#[$t_attr: meta])*
+		pub trait $name: ident {
+			$(
+				$(#[doc=$m_doc: expr])* #[name($rpc_name: expr)]
+				fn $method: ident (&self $(, $param: ty)*) -> $out: ty;
+			)*
+		}
+	) => {
+		$(#[$t_attr])*
+		pub trait $name: Sized + Send + Sync + 'static {
+			$(
+				$(#[doc=$m_doc])*
+				fn $method(&self $(, $param)*) -> $out;
+			)*
+
+			/// Transform this into an `IoDelegate`, automatically wrapping
+			/// the parameters.
+			fn to_delegate(self) -> ::jsonrpc_core::IoDelegate<Self> {
+				let mut del = ::jsonrpc_core::IoDelegate::new(self.into());
+				$(
+					del.add_method($rpc_name, move |base, params| {
+						($name::$method as fn(&_ $(, $param)*) -> $out).wrap_rpc(base, params)
+					});
+				)*
+				del
+			}
+		}
+	}
+}
+
 /// A wrapper type without an implementation of `Deserialize`
 /// which allows a special implementation of `Wrap` for functions
 /// that take a trailing default parameter.
