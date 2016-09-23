@@ -29,7 +29,7 @@ muiTheme.raisedButton.primaryTextColor = 'white';
 muiTheme.snackbar.backgroundColor = 'rgba(255, 30, 30, 0.9)';
 muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.9)';
 muiTheme.tabs = lightTheme.tabs;
-muiTheme.tabs.backgroundColor = 'transaprent';
+muiTheme.tabs.backgroundColor = 'transparent';
 muiTheme.tabs.selectedTextColor = 'rgb(255, 255, 255)';
 muiTheme.tabs.textColor = 'rgb(0, 151, 167)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
@@ -43,11 +43,11 @@ muiTheme.parity = {
     muiTheme.parity.backgroundSeed = seed;
   },
 
-  getBackgroundStyle: () => {
+  getBackgroundStyle: (gradient = 'rgba(255, 255, 255, 0.25)') => {
     const url = GeoPattern.generate(muiTheme.parity.backgroundSeed).toDataUrl();
 
     return {
-      background: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), ${url}`
+      background: `linear-gradient(${gradient}, ${gradient}), ${url}`
     };
   }
 };
