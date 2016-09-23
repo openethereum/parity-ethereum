@@ -136,7 +136,7 @@ linux-armv7:
     - rust-arm
   artifacts:
     paths:
-    - target/release/parity
+    - target/armv7-unknown-linux-gnueabihf/release/parity
     name: "armv7_unknown_linux_gnueabihf_parity"
   allow_failure: true
 linux-arm:
@@ -157,13 +157,13 @@ linux-arm:
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
   tags:
     - rust
     - rust-arm
   artifacts:
     paths:
-    - target/release/parity
+    - target/arm-unknown-linux-gnueabihf/release/parity
     name: "arm-unknown-linux-gnueabihf_parity"
   allow_failure: true
 linux-armv6:
@@ -184,13 +184,13 @@ linux-armv6:
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
   tags:
     - rust
     - rust-arm
   artifacts:
     paths:
-    - target/release/parity
+    - target/arm-unknown-linux-gnueabi/release/parity
     name: "arm-unknown-linux-gnueabi_parity"
   allow_failure: true
 linux-aarch64:
@@ -211,13 +211,13 @@ linux-aarch64:
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
   tags:
     - rust
     - rust-arm
   artifacts:
     paths:
-    - target/release/parity
+    - target/aarch64-unknown-linux-gnu/release/parity
     name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
 darwin:
