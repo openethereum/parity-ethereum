@@ -16,8 +16,8 @@
 */
 .status {
   clear: both;
-  padding: 1em;
-  margin: 1em 0;
+  padding: 0 1.5em;
+  margin: 0 0 1.5em 0;
   text-align: right;
   opacity: 0.75;
 }
