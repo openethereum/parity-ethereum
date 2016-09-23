@@ -24,8 +24,8 @@
   ],
   "scripts": {
     "build": "NODE_ENV=production npm run build:dll && npm run buildApp",
-    "build:dll": "webpack --config vendor.webpack.config.js",
-    "buildApp": "NODE_ENV=production webpack",
+    "build:dll": "webpack --config vendor.webpack.config.js --progress",
+    "buildApp": "NODE_ENV=production webpack --progress",
     "buildLibrary": "rollup --config ./rollup.library.js",
     "clean": "rm -rf ./build",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
@@ -72,6 +72,7 @@
     "eslint-plugin-standard": "^2.0.0",
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.8.5",
+    "happypack": "^2.2.1",
     "history": "^2.0.0",
     "html-loader": "^0.4.3",
     "ignore-styles": "2.0.0",

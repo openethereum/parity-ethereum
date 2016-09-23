@@ -17,6 +17,7 @@
 var rucksack = require('rucksack-css');
 var webpack = require('webpack');
 var path = require('path');
+var HappyPack = require('happypack');
 
 var WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
@@ -36,9 +37,7 @@ module.exports = {
     // library
     'parity': ['./parity.js'],
     // app
-    'index': ['./index.js'],
-    // common + polyfills
-    'commons': ['babel-polyfill']
+    'index': ['./index.js']
   },
   output: {
     path: path.join(__dirname, 'build'),
@@ -49,18 +48,12 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel?cacheDirectory=true'
-        ]
+        loaders: [ 'happypack/loader?id=js' ]
       },
       {
         test: /\.js$/,
         include: /dapps-react-components/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel?cacheDirectory=true'
-        ]
+        loaders: [ 'happypack/loader?id=js' ]
       },
       {
         test: /\.json$/,
@@ -74,11 +67,7 @@ module.exports = {
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: [
-          'style',
-          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss'
-        ]
+        loaders: [ 'happypack/loader?id=css' ]
       },
       {
         test: /\.css$/,
@@ -128,6 +117,23 @@ module.exports = {
   ],
   plugins: (function () {
     var plugins = [
+      new HappyPack({
+        id: 'css',
+        threads: 4,
+        loaders: [
+          'style',
+          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss'
+        ]
+      }),
+      new HappyPack({
+        id: 'js',
+        threads: 4,
+        loaders: isProd ? ['babel'] : [
+          'react-hot',
+          'babel?cacheDirectory=true'
+        ]
+      }),
       new webpack.DllReferencePlugin({
         context: '.',
         manifest: require('./build/vendor-manifest.json')
@@ -150,14 +156,32 @@ module.exports = {
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           LOGGING: JSON.stringify(!isProd)
         }
-      }),
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.js',
-        name: 'commons'
       })
     ];
 
+    if (!isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          filename: 'commons.js',
+          name: 'commons'
+        })
+      );
+    }
+
     if (isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'index' ],
+          name: 'commons'
+        })
+      );
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'parity' ],
+          name: 'parity'
+        })
+      );
+
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
