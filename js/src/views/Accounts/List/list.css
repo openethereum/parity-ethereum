@@ -23,15 +23,15 @@
   flex: 0 1 50%;
   width: 50%;
   position: relative;
-  margin: 0 0 1em 0;
+  margin: 0;
 }
 
 .item:nth-child(odd)>div {
-  padding-right: 0.75em;
+  padding-right: 0.125em;
 }
 
 .item:nth-child(even)>div {
-  padding-left: 0.75em;
+  padding-left: 0.125em;
 }
 
 .empty {
