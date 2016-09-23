@@ -615,12 +615,10 @@ impl TransactionQueue {
 	/// to avoid breaking invariants in queue (ordered by nonces).
 	/// Consecutive transactions from this sender would fail otherwise (because of invalid nonce).
 	pub fn penalize(&mut self, transaction_hash: &H256) {
-		let transaction = self.by_hash.get(transaction_hash);
-		if transaction.is_none() {
-			return;
-		}
-
-		let transaction = transaction.expect("Early-exit for None is above.");
+		let transaction = match self.by_hash.get(transaction_hash) {
+			None => return,
+			Some(t) => t,
+		};
 		let sender = transaction.sender();
 
 		// Penalize all transactions from this sender
