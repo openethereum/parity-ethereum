@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .status {
-  background: #2ecc71;
+  background: rgba(46, 204, 113, 0.75);
   color: rgba(255, 255, 255, 1);
   padding: 4em 0 2em 0;
 

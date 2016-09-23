@@ -65,7 +65,10 @@ export default class Token extends Component {
     }
 
     return (<div>
-      <Paper zDepth={ 2 } className={ styles.token }>
+      <Paper zDepth={ 1 } className={ styles.token } style={ {
+        backgroundColor: 'none'
+      } }>
+        <div className={ styles['token-bg'] } />
         { this.renderContent() }
       </Paper>
     </div>);
@@ -151,7 +154,7 @@ export default class Token extends Component {
     return (
       <Chip
         value={ `${balance.toString()} ${tla}` }
-        label='Balance' />
+        label='Total' />
     );
   }
 
