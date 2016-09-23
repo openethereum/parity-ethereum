@@ -34,7 +34,11 @@ const shapeshift = initShapeshift();
 
 const STAGE_NAMES = ['details', 'awaiting deposit', 'awaiting exchange', 'completed'];
 
-export default class FundAccount extends Component {
+export default class Shapeshift extends Component {
+  static contextTypes = {
+    store: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     address: PropTypes.string.isRequired,
     onClose: PropTypes.func
@@ -187,7 +191,6 @@ export default class FundAccount extends Component {
   }
 
   onShift = () => {
-    const { store } = this.context;
     const { address } = this.props;
     const { coinPair, refundAddress } = this.state;
 
@@ -209,7 +212,7 @@ export default class FundAccount extends Component {
         console.error('onShift', error);
         const message = `Failed to start exchange: ${error.message}`;
 
-        store.dispatch({ type: 'newError', error: new Error(message) });
+        this.newError(new Error(message));
         this.setFatalError(message);
       });
   }
@@ -238,8 +241,6 @@ export default class FundAccount extends Component {
   }
 
   onExchangeInfo = (error, result) => {
-    const { store } = this.context;
-
     if (error) {
       console.error('onExchangeInfo', error);
 
@@ -247,7 +248,7 @@ export default class FundAccount extends Component {
         this.setFatalError(error.message);
       }
 
-      store.dispatch({ type: 'newError', error });
+      this.newError(error);
       return;
     }
 
@@ -278,7 +279,6 @@ export default class FundAccount extends Component {
   }
 
   retrieveCoins () {
-    const { store } = this.context;
     const { coinPair } = this.state;
 
     shapeshift
@@ -293,8 +293,14 @@ export default class FundAccount extends Component {
         console.error('retrieveCoins', error);
         const message = `Failed to retrieve available coins from ShapeShift.io: ${error.message}`;
 
-        store.dispatch({ type: 'newError', error: new Error(message) });
+        this.newError(new Error(message));
         this.setFatalError(message);
       });
+  }
+
+  newError (error) {
+    const { store } = this.context;
+
+    store.dispatch({ type: 'newError', error });
   }
 }
