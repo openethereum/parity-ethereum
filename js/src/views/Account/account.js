@@ -59,7 +59,7 @@ class Account extends Component {
 
     return (
       <div className={ styles.account }>
-        { this.renderEditDialog() }
+        { this.renderEditDialog(account) }
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
         { this.renderActionbar() }
@@ -102,8 +102,7 @@ class Account extends Component {
     );
   }
 
-  renderEditDialog () {
-    const { accounts, params } = this.props;
+  renderEditDialog (account) {
     const { showEditDialog } = this.state;
 
     if (!showEditDialog) {
@@ -112,7 +111,7 @@ class Account extends Component {
 
     return (
       <EditMeta
-        account={ accounts[params.address] }
+        account={ account }
         keys={ ['description', 'passwordHint'] }
         onClose={ this.onEditClick } />
     );

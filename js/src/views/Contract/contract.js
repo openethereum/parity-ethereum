@@ -19,9 +19,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
+import ContentCreate from 'material-ui/svg-icons/content/create';
 
 import { newError } from '../../redux/actions';
-import { ExecuteContract } from '../../modals';
+import { EditMeta, ExecuteContract } from '../../modals';
 import { Actionbar, Button, Container, ContainerTitle, Page } from '../../ui';
 
 import Header from '../Account/Header';
@@ -46,6 +47,7 @@ export default class Contract extends Component {
     contract: null,
     fromAddress: '',
     showDeleteDialog: false,
+    showEditDialog: false,
     showExecuteDialog: false,
     subscriptionId: -1,
     allEvents: [],
@@ -84,6 +86,7 @@ export default class Contract extends Component {
       <div className={ styles.contract }>
         { this.renderActionbar(contract) }
         { this.renderDeleteDialog() }
+        { this.renderEditDialog(contract) }
         { this.renderExecuteDialog() }
         <Page>
           <Header
@@ -104,6 +107,11 @@ export default class Contract extends Component {
         icon={ <AvPlayArrow /> }
         label='execute'
         onClick={ this.showExecuteDialog } />,
+      <Button
+        key='editmeta'
+        icon={ <ContentCreate /> }
+        label='edit'
+        onClick={ this.onEditClick } />,
       <Button
         key='delete'
         icon={ <ActionDelete /> }
@@ -129,6 +137,21 @@ export default class Contract extends Component {
         visible={ showDeleteDialog }
         route='/contracts'
         onClose={ this.closeDeleteDialog } />
+    );
+  }
+
+  renderEditDialog (contract) {
+    const { showEditDialog } = this.state;
+
+    if (!showEditDialog) {
+      return null;
+    }
+
+    return (
+      <EditMeta
+        account={ contract }
+        keys={ ['description'] }
+        onClose={ this.onEditClick } />
     );
   }
 
@@ -285,6 +308,12 @@ export default class Contract extends Component {
         console.error('queryContract', error);
         nextTimeout();
       });
+  }
+
+  onEditClick = () => {
+    this.setState({
+      showEditDialog: !this.state.showEditDialog
+    });
   }
 
   closeDeleteDialog = () => {
