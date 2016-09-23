@@ -88,7 +88,7 @@ button.tabactive:hover {
 }
 
 .settings svg {
-  fill: rgb(0, 151, 167) !important;
+  fill: rgba(255, 255, 255, 0.5) !important;
 }
 
 svg.optionSelected {
