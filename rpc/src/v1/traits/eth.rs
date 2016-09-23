@@ -18,7 +18,7 @@
 use std::sync::Arc;
 use jsonrpc_core::*;
 
-use v1::types::{Block, BlockNumber, Bytes, CallRequest, Filter, Index};
+use v1::types::{Block, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
 
@@ -169,37 +169,34 @@ build_rpc_trait! {
 	}
 }
 
-/// Eth filters rpc api (polling).
-// TODO: do filters api properly
-pub trait EthFilter: Sized + Send + Sync + 'static {
-	/// Returns id of new filter.
-	fn new_filter(&self, _: Params) -> Result<Value, Error>;
+build_rpc_trait! {
 
-	/// Returns id of new block filter.
-	fn new_block_filter(&self, _: Params) -> Result<Value, Error>;
+	/// Eth filters rpc api (polling).
+	// TODO: do filters api properly
+	pub trait EthFilter {
+		/// Returns id of new filter.
+		#[name("eth_newFilter")]
+		fn new_filter(&self, Filter) -> Result<U256, Error>;
 
-	/// Returns id of new block filter.
-	fn new_pending_transaction_filter(&self, _: Params) -> Result<Value, Error>;
+		/// Returns id of new block filter.
+		#[name("eth_newBlockFilter")]
+		fn new_block_filter(&self) -> Result<U256, Error>;
 
-	/// Returns filter changes since last poll.
-	fn filter_changes(&self, _: Params) -> Result<Value, Error>;
+		/// Returns id of new block filter.
+		#[name("eth_newPendingTransactionFilter")]
+		fn new_pending_transaction_filter(&self) -> Result<U256, Error>;
 
-	/// Returns all logs matching given filter (in a range 'from' - 'to').
-	fn filter_logs(&self, _: Params) -> Result<Value, Error>;
+		/// Returns filter changes since last poll.
+		#[name("eth_getFilterChanges")]
+		fn filter_changes(&self, Index) -> Result<FilterChanges, Error>;
 
-	/// Uninstalls filter.
-	fn uninstall_filter(&self, _: Params) -> Result<Value, Error>;
+		/// Returns all logs matching given filter (in a range 'from' - 'to').
+		#[name("eth_getFilterLogs")]
+		fn filter_logs(&self, Index) -> Result<Vec<Log>, Error>;
 
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("eth_newFilter", EthFilter::new_filter);
-		delegate.add_method("eth_newBlockFilter", EthFilter::new_block_filter);
-		delegate.add_method("eth_newPendingTransactionFilter", EthFilter::new_pending_transaction_filter);
-		delegate.add_method("eth_getFilterChanges", EthFilter::filter_changes);
-		delegate.add_method("eth_getFilterLogs", EthFilter::filter_logs);
-		delegate.add_method("eth_uninstallFilter", EthFilter::uninstall_filter);
-		delegate
+		/// Uninstalls filter.
+		#[name("eth_uninstallFilter")]
+		fn uninstall_filter(&self, Index) -> Result<bool, Error>;
 	}
 }
 

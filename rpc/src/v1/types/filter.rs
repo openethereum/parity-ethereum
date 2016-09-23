@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Error};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockID;
-use v1::types::{BlockNumber, H160, H256};
+use v1::types::{BlockNumber, H160, H256, Log};
 
 /// Variadic value
 #[derive(Debug, PartialEq, Clone)]
@@ -89,6 +89,27 @@ impl Into<EthFilter> for Filter {
 				vec![iter.next(), iter.next(), iter.next(), iter.next()]
 			},
 			limit: self.limit,
+		}
+	}
+}
+
+/// Results of the filter_changes RPC.
+#[derive(Debug, PartialEq)]
+pub enum FilterChanges {
+	/// New logs.
+	Logs(Vec<Log>),
+	/// New hashes (block or transactions)
+	Hashes(Vec<H256>),
+	/// Empty result,
+	Empty,
+}
+
+impl Serialize for FilterChanges {
+	fn serialize<S>(&self, s: &mut S) -> Result<(), S::Error> where S: Serializer {
+		match *self {
+			FilterChanges::Logs(ref logs) => logs.serialize(s),
+			FilterChanges::Hashes(ref hashes) => hashes.serialize(s),
+			FilterChanges::Empty => (&[] as &[Value]).serialize(s),
 		}
 	}
 }
