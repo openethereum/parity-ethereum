@@ -134,6 +134,8 @@ struct TransactionOrder {
 	hash: H256,
 	/// Origin of the transaction
 	origin: TransactionOrigin,
+	/// Penalties
+	penalties: usize,
 }
 
 
@@ -144,11 +146,21 @@ impl TransactionOrder {
 			gas_price: tx.transaction.gas_price,
 			hash: tx.hash(),
 			origin: tx.origin,
+			penalties: 0,
 		}
 	}
 
 	fn update_height(mut self, nonce: U256, base_nonce: U256) -> Self {
 		self.nonce_height = nonce - base_nonce;
+		self
+	}
+
+	fn penalize(mut self) -> Self {
+		let current = self.penalties;
+		self.penalties = match self.penalties.overflowing_add(1) {
+			(_, true) => current,
+			(val, false) => val,
+		};
 		self
 	}
 }
@@ -167,6 +179,11 @@ impl PartialOrd for TransactionOrder {
 
 impl Ord for TransactionOrder {
 	fn cmp(&self, b: &TransactionOrder) -> Ordering {
+		// First check number of penalties
+		if self.penalties != b.penalties {
+			return self.penalties.cmp(&b.penalties);
+		}
+
 		// First check nonce_height
 		if self.nonce_height != b.nonce_height {
 			return self.nonce_height.cmp(&b.nonce_height);
@@ -591,6 +608,37 @@ impl TransactionQueue {
 		assert_eq!(self.future.by_priority.len() + self.current.by_priority.len(), self.by_hash.len());
 	}
 
+	/// Penalize transactions from sender of transaction with given hash.
+	/// I.e. it should change the priority of the transaction in the queue.
+	pub fn penalize(&mut self, transaction_hash: &H256) {
+		let transaction = self.by_hash.get(transaction_hash);
+		if transaction.is_none() {
+			return;
+		}
+
+		let transaction = transaction.expect("Early-exit for None is above.");
+		let sender = transaction.sender();
+
+		// Penalize all transactions from this sender
+		let nonces_from_sender = match self.current.by_address.row(&sender) {
+			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
+			None => vec![],
+		};
+		for k in nonces_from_sender {
+			let order = self.current.drop(&sender, &k).unwrap();
+			self.current.insert(sender, k, order.penalize());
+		}
+		// Same thing for future
+		let nonces_from_sender = match self.future.by_address.row(&sender) {
+			Some(row_map) => row_map.keys().cloned().collect::<Vec<U256>>(),
+			None => vec![],
+		};
+		for k in nonces_from_sender {
+			let order = self.future.drop(&sender, &k).unwrap();
+			self.current.insert(sender, k, order.penalize());
+		}
+	}
+
 	/// Removes invalid transaction identified by hash from queue.
 	/// Assumption is that this transaction nonce is not related to client nonce,
 	/// so transactions left in queue are processed according to client nonce.
@@ -942,6 +990,17 @@ mod test {
 	fn new_tx_pair(nonce: U256, gas_price: U256, nonce_increment: U256, gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
 		let tx1 = new_unsigned_tx(nonce, gas_price);
 		let tx2 = new_unsigned_tx(nonce + nonce_increment, gas_price + gas_price_increment);
+
+		let keypair = Random.generate().unwrap();
+		let secret = &keypair.secret();
+		(tx1.sign(secret), tx2.sign(secret))
+	}
+
+	/// Returns two consecutive transactions, both with increased gas price
+	fn new_tx_pair_with_gas_price_increment(gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
+		let gas = default_gas_price() + gas_price_increment;
+		let tx1 = new_unsigned_tx(default_nonce(), gas);
+		let tx2 = new_unsigned_tx(default_nonce() + 1.into(), gas);
 
 		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
@@ -1333,6 +1392,39 @@ mod test {
 		assert_eq!(top[0], tx);
 		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_penalize_transactions_from_sender() {
+		// given
+		let mut txq = TransactionQueue::new();
+		// txa, txb - slightly bigger gas price to have consistent ordering
+		let (txa, txb) = new_tx_pair_default(1.into(), 0.into());
+		let (tx1, tx2) = new_tx_pair_with_gas_price_increment(3.into());
+
+		// insert everything
+		txq.add(txa.clone(), &default_account_details, TransactionOrigin::External).unwrap();
+		txq.add(txb.clone(), &default_account_details, TransactionOrigin::External).unwrap();
+		txq.add(tx1.clone(), &default_account_details, TransactionOrigin::External).unwrap();
+		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::External).unwrap();
+
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx1);
+		assert_eq!(top[1], txa);
+		assert_eq!(top[2], tx2);
+		assert_eq!(top[3], txb);
+		assert_eq!(top.len(), 4);
+
+		// when
+		txq.penalize(&tx1.hash());
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], txa);
+		assert_eq!(top[1], txb);
+		assert_eq!(top[2], tx1);
+		assert_eq!(top[3], tx2);
+		assert_eq!(top.len(), 4);
 	}
 
 	#[test]

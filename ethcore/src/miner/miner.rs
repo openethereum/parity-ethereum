@@ -292,6 +292,7 @@ impl Miner {
 		};
 
 		let mut invalid_transactions = HashSet::new();
+		let mut too_big_transactions = HashSet::new();
 		let block_number = open_block.block().fields().header.number();
 		// TODO: push new uncles, too.
 		for tx in transactions {
@@ -299,6 +300,8 @@ impl Miner {
 			match open_block.push_transaction(tx, None) {
 				Err(Error::Execution(ExecutionError::BlockGasLimitReached { gas_limit, gas_used, gas })) => {
 					debug!(target: "miner", "Skipping adding transaction to block because of gas limit: {:?} (limit: {:?}, used: {:?}, gas: {:?})", hash, gas_limit, gas_used, gas);
+					too_big_transactions.insert(hash);
+
 					// Exit early if gas left is smaller then min_tx_gas
 					let min_tx_gas: U256 = 21000.into();	// TODO: figure this out properly.
 					if gas_limit - gas_used < min_tx_gas {
@@ -333,6 +336,9 @@ impl Miner {
 			let mut queue = self.transaction_queue.lock();
 			for hash in invalid_transactions.into_iter() {
 				queue.remove_invalid(&hash, &fetch_account);
+			}
+			for hash in too_big_transactions {
+				queue.penalize(&hash);
 			}
 		}
 		(block, original_work_hash)
