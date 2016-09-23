@@ -1,6 +1,8 @@
-import registryAbi from '../abi/registry.json';
-import tokenregAbi from '../abi/tokenreg.json';
-import githubhintAbi from '../abi/githubhint.json';
+import {
+  registry as registryAbi,
+  tokenreg as tokenregAbi,
+  githubhint as githubhintAbi
+} from '../../../json';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
