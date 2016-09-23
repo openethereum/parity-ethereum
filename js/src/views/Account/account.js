@@ -41,9 +41,9 @@ class Account extends Component {
   propName = null
 
   state = {
-    editDialog: false,
-    fundDialog: false,
-    transferDialog: false
+    showEditDialog: false,
+    showFundDialog: false,
+    showTransferDialog: false
   }
 
   render () {
@@ -104,9 +104,9 @@ class Account extends Component {
 
   renderEditDialog () {
     const { accounts, params } = this.props;
-    const { editDialog } = this.state;
+    const { showEditDialog } = this.state;
 
-    if (!editDialog) {
+    if (!showEditDialog) {
       return null;
     }
 
@@ -119,9 +119,9 @@ class Account extends Component {
   }
 
   renderFundDialog () {
-    const { fundDialog } = this.state;
+    const { showFundDialog } = this.state;
 
-    if (!fundDialog) {
+    if (!showFundDialog) {
       return null;
     }
 
@@ -135,9 +135,9 @@ class Account extends Component {
   }
 
   renderTransferDialog () {
-    const { transferDialog } = this.state;
+    const { showTransferDialog } = this.state;
 
-    if (!transferDialog) {
+    if (!showTransferDialog) {
       return null;
     }
 
@@ -157,13 +157,13 @@ class Account extends Component {
 
   onEditClick = () => {
     this.setState({
-      editDialog: !this.state.editDialog
+      showEditDialog: !this.state.showEditDialog
     });
   }
 
   onShapeshiftAccountClick = () => {
     this.setState({
-      fundDialog: !this.state.fundDialog
+      showFundDialog: !this.state.showFundDialog
     });
   }
 
@@ -173,7 +173,7 @@ class Account extends Component {
 
   onTransferClick = () => {
     this.setState({
-      transferDialog: !this.state.transferDialog
+      showTransferDialog: !this.state.showTransferDialog
     });
   }
 
