@@ -131,6 +131,9 @@ struct TransactionOrder {
 	/// Gas Price of the transaction.
 	/// Low gas price = Low priority (processed later)
 	gas_price: U256,
+	/// Gas (limit) of the transaction.
+	/// Low gas limit = High priority (processed earlier)
+	gas: U256,
 	/// Hash to identify associated transaction
 	hash: H256,
 	/// Origin of the transaction
@@ -145,6 +148,7 @@ impl TransactionOrder {
 		TransactionOrder {
 			nonce_height: tx.nonce() - base_nonce,
 			gas_price: tx.transaction.gas_price,
+			gas: tx.transaction.gas,
 			hash: tx.hash(),
 			origin: tx.origin,
 			penalties: 0,
@@ -158,7 +162,7 @@ impl TransactionOrder {
 
 	fn penalize(mut self) -> Self {
 		let current = self.penalties;
-		self.penalties = match self.penalties.saturating_add(1) {
+		self.penalties = match self.penalties.overflowing_add(1) {
 			(_, true) => current,
 			(val, false) => val,
 		};
@@ -197,10 +201,17 @@ impl Ord for TransactionOrder {
 		}
 
 		// Then compare gas_prices
-		let a_gas = self.gas_price;
-		let b_gas = b.gas_price;
+		let a_gas_price = self.gas_price;
+		let b_gas_price = b.gas_price;
+		if a_gas_price != b_gas_price {
+			return b_gas_price.cmp(&a_gas_price);
+		}
+
+		// Then compare gas usage
+		let a_gas = self.gas;
+		let b_gas = b.gas;
 		if a_gas != b_gas {
-			return b_gas.cmp(&a_gas);
+			return a_gas.cmp(&b_gas);
 		}
 
 		// Compare hashes
@@ -864,25 +875,36 @@ mod test {
 		}
 	}
 
-	fn new_unsigned_tx(nonce: U256) -> Transaction {
+	fn default_nonce_val() -> U256 {
+		U256::from(123)
+	}
+
+	fn default_gas_val() -> U256 {
+		U256::from(100_000)
+	}
+
+	fn new_unsigned_tx_with_gas(nonce: U256, gas: U256) -> Transaction {
 		Transaction {
 			action: Action::Create,
 			value: U256::from(100),
 			data: "3331600055".from_hex().unwrap(),
-			gas: U256::from(100_000),
+			gas: gas,
 			gas_price: U256::one(),
 			nonce: nonce
 		}
 	}
 
-	fn new_tx() -> SignedTransaction {
-		let keypair = KeyPair::create().unwrap();
-		new_unsigned_tx(U256::from(123)).sign(keypair.secret())
+	fn new_unsigned_tx(nonce: U256) -> Transaction {
+		new_unsigned_tx_with_gas(nonce, default_gas_val())
 	}
 
+	fn new_tx_with_gas(gas: U256) -> SignedTransaction {
+		let keypair = KeyPair::create().unwrap();
+		new_unsigned_tx_with_gas(U256::from(123), gas).sign(keypair.secret())
+	}
 
-	fn default_nonce_val() -> U256 {
-		U256::from(123)
+	fn new_tx() -> SignedTransaction {
+		new_tx_with_gas(default_gas_val())
 	}
 
 	fn default_nonce(_address: &Address) -> AccountDetails {
@@ -1034,7 +1056,6 @@ mod test {
 		assert_eq!(txq.top_transactions()[0], tx2);
 	}
 
-
 	#[test]
 	fn should_import_tx() {
 		// given
@@ -1048,6 +1069,30 @@ mod test {
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_order_by_gas() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx1 = new_tx_with_gas(40000.into());
+		let tx2 = new_tx_with_gas(30000.into());
+		let tx3 = new_tx_with_gas(50000.into());
+
+		// when
+		let res1 = txq.add(tx1, &default_nonce, TransactionOrigin::External);
+		let res2 = txq.add(tx2, &default_nonce, TransactionOrigin::External);
+		let res3 = txq.add(tx3, &default_nonce, TransactionOrigin::External);
+
+		// then
+		assert_eq!(res1.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res2.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res3.unwrap(), TransactionImportResult::Current);
+		let stats = txq.status();
+		assert_eq!(stats.pending, 3);
+		assert_eq!(txq.top_transactions()[0].gas, 30000.into());
+		assert_eq!(txq.top_transactions()[1].gas, 40000.into());
+		assert_eq!(txq.top_transactions()[2].gas, 50000.into());
 	}
 
 	#[test]
@@ -1085,7 +1130,6 @@ mod test {
 		assert_eq!(stats.pending, 0);
 		assert_eq!(stats.future, 0);
 	}
-
 
 	#[test]
 	fn should_drop_transactions_from_senders_without_balance() {
