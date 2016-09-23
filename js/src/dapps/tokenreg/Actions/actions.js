@@ -149,5 +149,3 @@ export const queryToken = (key, query) => (dispatch, getState) => {
       dispatch(setQueryLoading(false));
     });
 };
-
-

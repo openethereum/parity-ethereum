@@ -243,7 +243,7 @@ class DeployContract extends Component {
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
-        this.setState({ deployState: 'Preparing transaction for network transmission' });
+        this.setState({ deployState: 'Preparing transaction for network transmission', showSigner: false });
         return;
 
       case 'checkRequest':
@@ -251,16 +251,16 @@ class DeployContract extends Component {
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for contract to be deployed/mined' });
+        this.setState({ deployState: 'Waiting for contract to be deployed/mined', showSigner: false });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating contract deployment' });
+        this.setState({ deployState: 'Validating contract deployment', showSigner: false });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'Contract deployment completed' });
+        this.setState({ deployState: 'Contract deployment completed', showSigner: false });
         return;
 
       default:

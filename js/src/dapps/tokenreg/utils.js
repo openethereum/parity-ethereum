@@ -1,6 +1,6 @@
 import { api } from './parity';
 
-import basicTokenAbi from './abi/basictoken.json';
+import { eip20 as eip20Abi } from '../../json/';
 
 export const getTokenTotalSupply = (tokenAddress) => {
   return api
@@ -11,7 +11,7 @@ export const getTokenTotalSupply = (tokenAddress) => {
         return null;
       }
 
-      const contract = api.newContract(basicTokenAbi, tokenAddress);
+      const contract = api.newContract(eip20Abi, tokenAddress);
 
       return contract
         .instance
