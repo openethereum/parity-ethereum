@@ -300,6 +300,9 @@ export default class Contract {
       .uninstallFilter(this._subscriptions[subscriptionId].filterId)
       .then(() => {
         delete this._subscriptions[subscriptionId];
+      })
+      .catch((error) => {
+        console.error('unsubscribe', error);
       });
   }
 
@@ -315,10 +318,14 @@ export default class Contract {
       )
       .then((logsArray) => {
         logsArray.forEach((logs, idx) => {
+          if (!logs || !logs.length) {
+            return;
+          }
+
           try {
             subscriptions[idx].callback(null, this.parseEventLogs(logs));
           } catch (error) {
-            subscriptions[idx].callback(error);
+            this.unsubscribe(idx);
             console.error('_sendSubscriptionChanges', error);
           }
         });
