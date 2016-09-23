@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .container {
-  padding: 0em 1em 1em 1em;
+  padding: 0em 0.25em 0.25em 0.25em;
 }
 
 .padded {
