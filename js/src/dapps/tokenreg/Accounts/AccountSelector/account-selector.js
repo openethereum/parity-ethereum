@@ -30,12 +30,6 @@ class AccountSelectorItem extends Component {
     account: PropTypes.object.isRequired
   };
 
-  constructor () {
-    super();
-
-    this.onSelectAccount = this.onSelectAccount.bind(this);
-  }
-
   render () {
     const account = this.props.account;
 
@@ -65,7 +59,7 @@ class AccountSelectorItem extends Component {
     );
   }
 
-  onSelectAccount () {
+  onSelectAccount = () => {
     this.props.onSelectAccount(this.props.account.address);
   }
 
@@ -74,21 +68,14 @@ class AccountSelectorItem extends Component {
 export default class AccountSelector extends Component {
 
   static propTypes = {
-    list: PropTypes.array,
-    selected: PropTypes.object,
-    handleSetSelected: PropTypes.func
+    list: PropTypes.array.isRequired,
+    selected: PropTypes.object.isRequired,
+    handleSetSelected: PropTypes.func.isRequired
   };
 
   state = {
     open: false
   };
-
-  constructor () {
-    super();
-
-    this.onToggleOpen = this.onToggleOpen.bind(this);
-    this.onSelectAccount = this.onSelectAccount.bind(this);
-  }
 
   render () {
     const nestedAccounts = this.renderAccounts(this.props.list);
@@ -121,11 +108,11 @@ export default class AccountSelector extends Component {
       ));
   }
 
-  onToggleOpen () {
+  onToggleOpen = () => {
     this.setState({ open: !this.state.open });
   }
 
-  onSelectAccount (address) {
+  onSelectAccount = (address) => {
     this.props.handleSetSelected(address);
     this.onToggleOpen();
   }

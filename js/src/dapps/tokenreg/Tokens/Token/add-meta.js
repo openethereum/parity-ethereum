@@ -44,14 +44,6 @@ export default class AddMeta extends Component {
 
   state = initState;
 
-  constructor (...args) {
-    super(...args);
-
-    this.onShowDialog = this.onShowDialog.bind(this);
-    this.onClose = this.onClose.bind(this);
-    this.onAdd = this.onAdd.bind(this, this.props.index);
-  }
-
   render () {
     if (!this.props.isTokenOwner) return null;
 
@@ -158,15 +150,17 @@ export default class AddMeta extends Component {
     ));
   }
 
-  onShowDialog () {
+  onShowDialog = () => {
     this.setState({ showDialog: true });
   }
 
-  onClose () {
+  onClose = () => {
     this.setState(initState);
   }
 
-  onAdd (index) {
+  onAdd = () => {
+    const { index } = this.props;
+
     const keyIndex = this.state.metaKeyIndex;
     const key = metaDataKeys[keyIndex].value;
 

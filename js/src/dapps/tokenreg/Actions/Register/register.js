@@ -70,13 +70,6 @@ export default class RegisterAction extends Component {
 
   state = initState;
 
-  constructor () {
-    super();
-
-    this.onClose = this.onClose.bind(this);
-    this.onRegister = this.onRegister.bind(this);
-  }
-
   render () {
     const { sending, error, complete } = this.props;
 
@@ -204,7 +197,7 @@ export default class RegisterAction extends Component {
     });
   }
 
-  onRegister () {
+  onRegister = () => {
     const { fields } = this.state;
 
     const data = Object.keys(fields)
@@ -216,7 +209,7 @@ export default class RegisterAction extends Component {
     this.props.handleRegisterToken(data);
   }
 
-  onClose () {
+  onClose = () => {
     this.setState(initState);
     this.props.onClose();
   }

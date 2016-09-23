@@ -103,16 +103,18 @@ const validateTLA = (tla, contract, simple) => {
     };
   }
 
+  const fTLA = tla.toString().toUpperCase();
+
   if (simple) {
     return {
-      value: tla.toString().toUpperCase(),
+      value: fTLA,
       error: null,
       valid: true
     };
   }
 
   return contract.instance
-    .fromTLA.call({}, [ tla ])
+    .fromTLA.call({}, [ fTLA ])
     .then(() => ({
       error: ERRORS.tlaAlreadyTaken,
       valid: false
@@ -120,7 +122,7 @@ const validateTLA = (tla, contract, simple) => {
     .then((result) => {
       if (result) return result;
       return {
-        value: tla.toString().toUpperCase(),
+        value: fTLA,
         error: null,
         valid: true
       };
