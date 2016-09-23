@@ -76,9 +76,9 @@ export const loadContract = () => (dispatch) => {
 
 export const LOAD_CONTRACT_DETAILS = 'LOAD_CONTRACT_DETAILS';
 export const loadContractDetails = () => (dispatch, getState) => {
-  let state = getState();
+  const state = getState();
 
-  let instance = state.status.contract.instance;
+  const instance = state.status.contract.instance;
 
   Promise
     .all([
@@ -117,10 +117,10 @@ export const setGithubhintDetails = (details) => ({
 });
 
 export const subscribeEvents = () => (dispatch, getState) => {
-  let state = getState();
+  const state = getState();
 
-  let contract = state.status.contract.raw;
-  let previousSubscriptionId = state.status.subscriptionId;
+  const contract = state.status.contract.raw;
+  const previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
     contract.unsubscribe(previousSubscriptionId);

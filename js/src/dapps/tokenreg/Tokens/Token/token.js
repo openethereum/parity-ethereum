@@ -165,7 +165,7 @@ export default class Token extends Component {
   }
 
   renderTotalSupply (totalSupply, base, tla) {
-    let balance = Math.round((totalSupply / base) * 100) / 100;
+    const balance = Math.round((totalSupply / base) * 100) / 100;
 
     return (
       <Chip
@@ -177,9 +177,9 @@ export default class Token extends Component {
   renderOwner (owner) {
     if (!owner) return null;
 
-    let ownerInfo = this.props.ownerAccountInfo;
+    const ownerInfo = this.props.ownerAccountInfo;
 
-    let displayValue = (ownerInfo && ownerInfo.name)
+    const displayValue = (ownerInfo && ownerInfo.name)
       ? ownerInfo.name
       : owner;
 
@@ -226,7 +226,7 @@ export default class Token extends Component {
   }
 
   renderMeta (meta) {
-    let isMetaLoading = this.props.isMetaLoading;
+    const isMetaLoading = this.props.isMetaLoading;
 
     if (isMetaLoading) {
       return (<div>
@@ -236,7 +236,7 @@ export default class Token extends Component {
 
     if (!meta) return;
 
-    let metaData = metaDataKeys.find(m => m.value === meta.query);
+    const metaData = metaDataKeys.find(m => m.value === meta.query);
 
     if (!meta.value) {
       return (<div>
@@ -249,7 +249,7 @@ export default class Token extends Component {
     }
 
     if (meta.query === 'IMG') {
-      let imageHash = meta.value.replace(/^0x/, '');
+      const imageHash = meta.value.replace(/^0x/, '');
 
       return (<div>
         <p className={ styles['meta-query'] }>
@@ -264,7 +264,7 @@ export default class Token extends Component {
     }
 
     if (meta.query === 'A') {
-      let address = meta.value.slice(0, 42);
+      const address = meta.value.slice(0, 42);
 
       return (<div>
         <p className={ styles['meta-query'] }>
@@ -289,7 +289,7 @@ export default class Token extends Component {
   }
 
   renderMetaPending () {
-    let isMetaPending = this.props.metaPending;
+    const isMetaPending = this.props.metaPending;
     if (!isMetaPending) return;
 
     return (<div>
@@ -300,7 +300,7 @@ export default class Token extends Component {
   }
 
   renderMetaMined () {
-    let isMetaMined = this.props.metaMined;
+    const isMetaMined = this.props.metaMined;
     if (!isMetaMined) return;
 
     return (<div>
@@ -311,14 +311,14 @@ export default class Token extends Component {
   }
 
   onUnregister = () => {
-    let index = this.props.index;
+    const index = this.props.index;
     this.props.handleUnregister(index);
   }
 
   onMetaLookup = () => {
-    let keyIndex = this.state.metaKeyIndex;
-    let key = metaDataKeys[keyIndex].value;
-    let index = this.props.index;
+    const keyIndex = this.state.metaKeyIndex;
+    const key = metaDataKeys[keyIndex].value;
+    const index = this.props.index;
 
     this.props.handleMetaLookup(index, key);
   }

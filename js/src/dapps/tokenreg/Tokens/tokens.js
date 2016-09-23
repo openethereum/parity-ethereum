@@ -34,7 +34,7 @@ export default class Tokens extends Component {
   render () {
     const { isLoading, tokens } = this.props;
 
-    let loading = isLoading ? (<Loading size={ 2 } />) : null;
+    const loading = isLoading ? (<Loading size={ 2 } />) : null;
 
     return (
       <div className={ styles.tokens }>

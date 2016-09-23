@@ -103,7 +103,7 @@ export default class AddMeta extends Component {
   }
 
   renderContent () {
-    let { complete } = this.state;
+    const { complete } = this.state;
 
     if (complete) return this.renderComplete();
     return this.renderForm();
@@ -124,7 +124,7 @@ export default class AddMeta extends Component {
   }
 
   renderForm () {
-    let selectedMeta = metaDataKeys[this.state.metaKeyIndex];
+    const selectedMeta = metaDataKeys[this.state.metaKeyIndex];
 
     return (
       <div>
@@ -167,8 +167,8 @@ export default class AddMeta extends Component {
   }
 
   onAdd (index) {
-    let keyIndex = this.state.metaKeyIndex;
-    let key = metaDataKeys[keyIndex].value;
+    const keyIndex = this.state.metaKeyIndex;
+    const key = metaDataKeys[keyIndex].value;
 
     this.props.handleAddMeta(
       index,

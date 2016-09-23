@@ -37,18 +37,18 @@ class AccountSelectorItem extends Component {
   }
 
   render () {
-    let account = this.props.account;
+    const account = this.props.account;
 
-    let props = Object.assign({}, this.props);
+    const props = Object.assign({}, this.props);
     delete props.account;
     delete props.onSelectAccount;
 
-    let icon = (<IdentityIcon
+    const icon = (<IdentityIcon
       inline center
       address={ account.address } />
     );
 
-    let avatar = (<Avatar
+    const avatar = (<Avatar
       className={ styles.avatar }
       backgroundColor='none'
       icon={ icon } />
@@ -91,8 +91,8 @@ export default class AccountSelector extends Component {
   }
 
   render () {
-    let nestedAccounts = this.renderAccounts(this.props.list);
-    let selectedAccount = (
+    const nestedAccounts = this.renderAccounts(this.props.list);
+    const selectedAccount = (
       <AccountSelectorItem
         account={ this.props.selected }
         nestedItems={ nestedAccounts }

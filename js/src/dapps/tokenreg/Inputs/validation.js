@@ -68,7 +68,7 @@ const validateAddress = (address) => {
 };
 
 const validateTokenAddress = (address, contract, simple) => {
-  let addressValidation = validateAddress(address);
+  const addressValidation = validateAddress(address);
   if (!addressValidation.valid) return addressValidation;
 
   if (simple) return addressValidation;

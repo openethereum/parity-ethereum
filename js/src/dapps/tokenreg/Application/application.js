@@ -65,7 +65,7 @@ export default class Application extends Component {
   }
 
   getBackgroundStyle () {
-    let seed = this.props.contract ? this.props.contract.address : '0x0';
+    const seed = this.props.contract ? this.props.contract.address : '0x0';
     const url = GeoPattern.generate(seed).toDataUrl();
 
     return {

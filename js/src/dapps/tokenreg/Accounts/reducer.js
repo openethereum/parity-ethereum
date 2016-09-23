@@ -41,8 +41,8 @@ export default (state = initialState, action) => {
       };
 
     case SET_SELECTED_ACCOUNT: {
-      let address = action.address;
-      let account = state.list.find(a => a.address === address);
+      const address = action.address;
+      const account = state.list.find(a => a.address === address);
 
       return {
         ...state,

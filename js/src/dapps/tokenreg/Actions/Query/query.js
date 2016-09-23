@@ -65,7 +65,7 @@ export default class QueryAction extends Component {
   }
 
   renderActions () {
-    let { loading, data, notFound } = this.props;
+    const { loading, data, notFound } = this.props;
 
     if (loading) {
       return (
@@ -76,7 +76,7 @@ export default class QueryAction extends Component {
       );
     }
 
-    let complete = data || notFound;
+    const complete = data || notFound;
 
     if (complete) {
       return ([
@@ -103,7 +103,7 @@ export default class QueryAction extends Component {
   }
 
   renderContent () {
-    let { loading, notFound, data } = this.props;
+    const { loading, notFound, data } = this.props;
 
     if (loading) {
       return (
@@ -125,7 +125,7 @@ export default class QueryAction extends Component {
   }
 
   renderData () {
-    let { data } = this.props;
+    const { data } = this.props;
 
     return (
       <Token
@@ -189,7 +189,7 @@ export default class QueryAction extends Component {
   }
 
   onQuery = () => {
-    let { queryKey, form } = this.state;
+    const { queryKey, form } = this.state;
 
     this.props.handleQueryToken(queryKey, form.value);
   }

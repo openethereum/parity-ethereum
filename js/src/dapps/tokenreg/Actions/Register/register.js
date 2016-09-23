@@ -129,7 +129,7 @@ export default class RegisterAction extends Component {
   }
 
   renderContent () {
-    let { error, complete } = this.props;
+    const { error, complete } = this.props;
 
     if (error) return this.renderError();
     if (complete) return this.renderComplete();
@@ -137,7 +137,7 @@ export default class RegisterAction extends Component {
   }
 
   renderError () {
-    let { error } = this.props;
+    const { error } = this.props;
 
     return (<div>
       <p className={ styles.error }>{ error.toString() }</p>
@@ -160,11 +160,11 @@ export default class RegisterAction extends Component {
   }
 
   renderInputs () {
-    let { fields } = this.state;
+    const { fields } = this.state;
 
     return Object.keys(fields).map((fieldKey, index) => {
-      let onChange = this.onChange.bind(this, fieldKey);
-      let field = fields[fieldKey];
+      const onChange = this.onChange.bind(this, fieldKey);
+      const field = fields[fieldKey];
 
       return (
         <InputText
@@ -181,9 +181,9 @@ export default class RegisterAction extends Component {
 
   onChange (fieldKey, valid, value) {
     const { fields } = this.state;
-    let field = fields[fieldKey];
+    const field = fields[fieldKey];
 
-    let newFields = {
+    const newFields = {
       ...fields,
       [ fieldKey ]: {
         ...field,
@@ -191,7 +191,7 @@ export default class RegisterAction extends Component {
       }
     };
 
-    let isFormValid = Object.keys(newFields)
+    const isFormValid = Object.keys(newFields)
       .map(key => newFields[key].valid)
       .reduce((current, fieldValid) => {
         return current && fieldValid;
@@ -204,9 +204,9 @@ export default class RegisterAction extends Component {
   }
 
   onRegister () {
-    let { fields } = this.state;
+    const { fields } = this.state;
 
-    let data = Object.keys(fields)
+    const data = Object.keys(fields)
       .reduce((dataObject, fieldKey) => {
         dataObject[fieldKey] = fields[fieldKey].value;
         return dataObject;

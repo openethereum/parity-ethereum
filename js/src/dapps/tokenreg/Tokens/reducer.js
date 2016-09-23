@@ -40,8 +40,8 @@ export default (state = initialState, action) => {
       return { ...state, tokenCount: action.tokenCount };
 
     case SET_TOKEN_DATA: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       tokens[index] = {
         ...tokens[index],
@@ -52,8 +52,8 @@ export default (state = initialState, action) => {
     }
 
     case SET_TOKEN_META: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       tokens[index] = {
         ...tokens[index],
@@ -64,8 +64,8 @@ export default (state = initialState, action) => {
     }
 
     case SET_TOKEN_LOADING: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       tokens[index] = {
         ...tokens[index],
@@ -76,8 +76,8 @@ export default (state = initialState, action) => {
     }
 
     case SET_TOKEN_META_LOADING: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       tokens[index] = {
         ...tokens[index],
@@ -88,8 +88,8 @@ export default (state = initialState, action) => {
     }
 
     case SET_TOKEN_PENDING: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       tokens[index] = {
         ...tokens[index],
@@ -100,8 +100,8 @@ export default (state = initialState, action) => {
     }
 
     case DELETE_TOKEN: {
-      let index = action.index;
-      let tokens = [].concat(state.tokens);
+      const index = action.index;
+      const tokens = [].concat(state.tokens);
 
       delete tokens[index];
 

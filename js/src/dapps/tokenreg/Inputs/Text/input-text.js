@@ -97,7 +97,7 @@ export default class InputText extends Component {
 
     const { validationType, contract } = this.props;
 
-    let validation = validate(value, validationType, contract);
+    const validation = validate(value, validationType, contract);
 
     if (validation instanceof Promise) {
       this.setState({ disabled: true, loading: true });

@@ -41,9 +41,9 @@ export const loadAccounts = () => (dispatch) => {
       api.personal.accountsInfo()
     ])
     .then(results => {
-      let [ accounts, accountsInfo ] = results;
+      const [ accounts, accountsInfo ] = results;
 
-      let accountsList = accounts
+      const accountsList = accounts
         .map(address => ({
           ...accountsInfo[address],
           address

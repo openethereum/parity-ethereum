@@ -46,7 +46,7 @@ const initialState = {
 export default (state = initialState, action) => {
   switch (action.type) {
     case SET_REGISTER_SENDING: {
-      let registerState = state.register;
+      const registerState = state.register;
 
       return {
         ...state,
@@ -58,7 +58,7 @@ export default (state = initialState, action) => {
     }
 
     case REGISTER_COMPLETED: {
-      let registerState = state.register;
+      const registerState = state.register;
 
       return {
         ...state,
@@ -71,7 +71,7 @@ export default (state = initialState, action) => {
     }
 
     case SET_REGISTER_ERROR: {
-      let registerState = state.register;
+      const registerState = state.register;
 
       return {
         ...state,
