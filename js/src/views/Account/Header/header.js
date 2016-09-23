@@ -47,7 +47,7 @@ export default class Header extends Component {
 
   render () {
     const { account, balance } = this.props;
-    const { address } = account;
+    const { address, meta } = account;
     const { name } = this.state;
 
     if (!account) {
@@ -61,8 +61,11 @@ export default class Header extends Component {
         <Form>
           <div className={ styles.floatleft }>
             <ContainerTitle title={ name || DEFAULT_NAME } />
-            <div className={ styles.infoline }>
+            <div className={ styles.addressline }>
               { address }
+            </div>
+            <div className={ styles.infoline }>
+              { meta.description }
             </div>
             { this.renderTxCount() }
           </div>
