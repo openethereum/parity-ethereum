@@ -157,7 +157,7 @@ impl TransactionOrder {
 
 	fn penalize(mut self) -> Self {
 		let current = self.penalties;
-		self.penalties = match self.penalties.overflowing_add(1) {
+		self.penalties = match self.penalties.saturating_add(1) {
 			(_, true) => current,
 			(val, false) => val,
 		};
