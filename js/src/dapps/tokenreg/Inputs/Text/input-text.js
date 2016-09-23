@@ -39,6 +39,7 @@ export default class InputText extends Component {
   static propTypes = {
     validationType: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
+    onEnter: PropTypes.func,
 
     floatingLabelText: PropTypes.string,
     hintText: PropTypes.string,
@@ -62,7 +63,8 @@ export default class InputText extends Component {
           fullWidth
           disabled={ disabled }
           errorText={ error }
-          onChange={ this.onChange } />
+          onChange={ this.onChange }
+          onKeyDown={ this.onKeyDown } />
 
         { this.renderLoading() }
         { this.renderIsValid() }
@@ -115,6 +117,13 @@ export default class InputText extends Component {
     }
 
     this.setValidation(validation);
+  }
+
+  onKeyDown = (event) => {
+    if (!this.props.onEnter) return;
+    if (event.keyCode !== 13) return;
+
+    this.props.onEnter();
   }
 
   setValidation = (validation) => {

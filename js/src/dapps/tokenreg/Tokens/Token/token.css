@@ -62,7 +62,7 @@
   margin-right: 1rem;
 }
 
-.token-content > div {
+.token-content > div, .token-meta > div {
   max-width: 100%;
 }
 

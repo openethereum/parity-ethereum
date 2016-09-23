@@ -159,7 +159,8 @@ export default class QueryAction extends Component {
             hintText='0xdeadbeef...'
 
             validationType={ SIMPLE_TOKEN_ADDRESS_TYPE }
-            onChange={ this.onChange } />)
+            onChange={ this.onChange }
+            onEnter={ this.onQuery } />)
           : (<InputText
             key={ 1 }
 
@@ -167,7 +168,8 @@ export default class QueryAction extends Component {
             hintText='GAV'
 
             validationType={ SIMPLE_TLA_TYPE }
-            onChange={ this.onChange } />)
+            onChange={ this.onChange }
+            onEnter={ this.onQuery } />)
         }
       </div>
     );
@@ -189,6 +191,8 @@ export default class QueryAction extends Component {
   }
 
   onQuery = () => {
+    if (!this.state.form.valid) return;
+
     const { queryKey, form } = this.state;
 
     this.props.handleQueryToken(queryKey, form.value);
