@@ -18,8 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
+import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 
 import { newError } from '../../redux/actions';
+import { ExecuteContract } from '../../modals';
 import { Actionbar, Button, Container, ContainerTitle, Page } from '../../ui';
 
 import Header from '../Account/Header';
@@ -42,7 +44,9 @@ export default class Contract extends Component {
 
   state = {
     contract: null,
+    fromAddress: '',
     showDeleteDialog: false,
+    showExecuteDialog: false,
     subscriptionId: -1,
     allEvents: [],
     minedEvents: [],
@@ -50,23 +54,25 @@ export default class Contract extends Component {
   }
 
   componentDidMount () {
-    this._attachContract();
+    this.attachContract(this.props);
+    this.setBaseAccount(this.props);
     this.queryContract(this.props);
   }
 
   componentWillReceiveProps (newProps) {
-    const { contracts } = newProps;
+    const { accounts, contracts } = newProps;
 
-    if (Object.keys(contracts).length === Object.keys(this.props.contracts).length) {
-      return;
+    if (Object.keys(contracts).length !== Object.keys(this.props.contracts).length) {
+      this.attachContract(newProps);
     }
 
-    this._attachContract(newProps);
+    if (Object.keys(accounts).length !== Object.keys(this.props.accounts).length) {
+      this.setBaseAccount(newProps);
+    }
   }
 
   render () {
     const { balances, contracts, params, isTest } = this.props;
-    const { showDeleteDialog } = this.state;
     const contract = contracts[params.address];
     const balance = balances[params.address];
 
@@ -77,11 +83,8 @@ export default class Contract extends Component {
     return (
       <div className={ styles.contract }>
         { this.renderActionbar(contract) }
-        <Delete
-          account={ contract }
-          visible={ showDeleteDialog }
-          route='/contracts'
-          onClose={ this.closeDeleteDialog } />
+        { this.renderDeleteDialog() }
+        { this.renderExecuteDialog() }
         <Page>
           <Header
             isTest={ isTest }
@@ -98,6 +101,11 @@ export default class Contract extends Component {
   renderActionbar (contract) {
     const buttons = [
       <Button
+        key='execute'
+        icon={ <AvPlayArrow /> }
+        label='execute'
+        onClick={ this.showExecuteDialog } />,
+      <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete contract'
@@ -108,6 +116,38 @@ export default class Contract extends Component {
       <Actionbar
         title='Contract Information'
         buttons={ !contract || contract.meta.deleted ? [] : buttons } />
+    );
+  }
+
+  renderDeleteDialog () {
+    const { contracts, params } = this.props;
+    const { showDeleteDialog } = this.state;
+    const contract = contracts[params.address];
+
+    return (
+      <Delete
+        account={ contract }
+        visible={ showDeleteDialog }
+        route='/contracts'
+        onClose={ this.closeDeleteDialog } />
+    );
+  }
+
+  renderExecuteDialog () {
+    const { contract, fromAddress, showExecuteDialog } = this.state;
+    const { accounts } = this.props;
+
+    if (!showExecuteDialog) {
+      return null;
+    }
+
+    return (
+      <ExecuteContract
+        accounts={ accounts }
+        contract={ contract }
+        fromAddress={ fromAddress }
+        onClose={ this.closeExecuteDialog }
+        onFromAddressChange={ this.onFromAddressChange } />
     );
   }
 
@@ -237,9 +277,9 @@ export default class Contract extends Component {
     Promise
       .all(queries.map((query) => query.call()))
       .then((returns) => {
-        console.log(returns.map((value, index) => {
-          return [queries[index].name, index];
-        }));
+        // console.log(returns.map((value, index) => {
+        //   return [queries[index].name, index];
+        // }));
         nextTimeout();
       })
       .catch((error) => {
@@ -254,6 +294,14 @@ export default class Contract extends Component {
 
   showDeleteDialog = () => {
     this.setState({ showDeleteDialog: true });
+  }
+
+  closeExecuteDialog = () => {
+    this.setState({ showExecuteDialog: false });
+  }
+
+  showExecuteDialog = () => {
+    this.setState({ showExecuteDialog: true });
   }
 
   _sortEvents = (a, b) => {
@@ -311,7 +359,7 @@ export default class Contract extends Component {
     });
   }
 
-  _attachContract (props) {
+  attachContract (props) {
     if (!props) {
       return;
     }
@@ -332,6 +380,26 @@ export default class Contract extends Component {
       });
 
     this.setState({ contract });
+  }
+
+  setBaseAccount (props) {
+    const { fromAccount } = this.state;
+
+    if (!props || fromAccount) {
+      return;
+    }
+
+    const { accounts } = props;
+
+    this.setState({
+      fromAddress: Object.keys(accounts)[0]
+    });
+  }
+
+  onFromAddressChange = (event, fromAddress) => {
+    this.setState({
+      fromAddress
+    });
   }
 }
 
