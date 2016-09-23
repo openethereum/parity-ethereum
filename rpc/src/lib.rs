@@ -28,6 +28,7 @@ extern crate jsonrpc_http_server;
 extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate ethkey;
+extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
 extern crate transient_hashmap;

@@ -22,6 +22,7 @@ extern crate crypto as rcrypto;
 extern crate secp256k1;
 extern crate ethkey;
 
+use std::fmt;
 use tiny_keccak::Keccak;
 use rcrypto::pbkdf2::pbkdf2;
 use rcrypto::scrypt::{scrypt, ScryptParams};
@@ -37,6 +38,17 @@ pub const KEY_LENGTH_AES: usize = KEY_LENGTH / 2;
 pub enum Error {
 	Secp(SecpError),
 	InvalidMessage,
+}
+
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		let s = match *self {
+			Error::Secp(ref err) => err.to_string(),
+			Error::InvalidMessage => "Invalid message".into(),
+		};
+
+		write!(f, "{}", s)
+	}
 }
 
 impl From<SecpError> for Error {
