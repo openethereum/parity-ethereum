@@ -24,9 +24,10 @@ import styles from './chip.css';
 
 export default class CustomChip extends Component {
   static propTypes = {
+    value: PropTypes.string.isRequired,
+    label: PropTypes.string.isRequired,
+
     isAddress: PropTypes.bool,
-    value: PropTypes.string,
-    label: PropTypes.string,
     displayValue: PropTypes.string
   };
 

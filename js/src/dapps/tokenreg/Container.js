@@ -24,9 +24,9 @@ import { loadAccounts } from './Accounts/actions';
 
 class Container extends Component {
   static propTypes = {
-    isLoading: PropTypes.bool,
-    contract: PropTypes.object,
-    onLoad: PropTypes.func
+    isLoading: PropTypes.bool.isRequired,
+    contract: PropTypes.object.isRequired,
+    onLoad: PropTypes.func.isRequired
   };
 
   componentDidMount () {

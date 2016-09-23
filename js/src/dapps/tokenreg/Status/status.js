@@ -24,8 +24,8 @@ const { api } = window.parity;
 
 export default class Status extends Component {
   static propTypes = {
-    address: PropTypes.string,
-    fee: PropTypes.object
+    address: PropTypes.string.isRequired,
+    fee: PropTypes.object.isRequired
   };
 
   render () {

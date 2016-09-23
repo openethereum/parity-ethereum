@@ -31,14 +31,14 @@ const QUERY_ACTION = 'QUERY_ACTION';
 export default class Actions extends Component {
 
   static propTypes = {
-    handleRegisterToken: PropTypes.func,
-    handleRegisterClose: PropTypes.func,
-    register: PropTypes.object,
+    handleRegisterToken: PropTypes.func.isRequired,
+    handleRegisterClose: PropTypes.func.isRequired,
+    register: PropTypes.object.isRequired,
 
-    handleQueryToken: PropTypes.func,
-    handleQueryClose: PropTypes.func,
-    handleQueryMetaLookup: PropTypes.func,
-    query: PropTypes.object
+    handleQueryToken: PropTypes.func.isRequired,
+    handleQueryClose: PropTypes.func.isRequired,
+    handleQueryMetaLookup: PropTypes.func.isRequired,
+    query: PropTypes.object.isRequired
   };
 
   state = {

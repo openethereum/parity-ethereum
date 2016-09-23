@@ -38,7 +38,8 @@ export default class Application extends Component {
   }
 
   static propTypes = {
-    isLoading: PropTypes.bool,
+    isLoading: PropTypes.bool.isRequired,
+
     contract: PropTypes.object
   };
 

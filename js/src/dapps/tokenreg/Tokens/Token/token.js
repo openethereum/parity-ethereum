@@ -33,28 +33,30 @@ import { api } from '../../parity';
 
 export default class Token extends Component {
   static propTypes = {
+    handleMetaLookup: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    index: PropTypes.number.isRequired,
+    owner: PropTypes.string.isRequired,
+
     handleAddMeta: PropTypes.func,
     handleUnregister: PropTypes.func,
-    handleMetaLookup: PropTypes.func,
-    isLoading: PropTypes.bool,
-    isMetaLoading: PropTypes.bool,
-    isPending: PropTypes.bool,
-    isOwner: PropTypes.bool,
-    isTokenOwner: PropTypes.bool,
-    address: PropTypes.string,
+
     tla: PropTypes.string,
-    name: PropTypes.string,
     base: PropTypes.number,
-    index: PropTypes.number,
-    totalSupply: PropTypes.number.isRequired,
+    totalSupply: PropTypes.number,
     meta: PropTypes.object,
-    owner: PropTypes.string,
+    isMetaLoading: PropTypes.bool,
     ownerAccountInfo: PropTypes.shape({
       name: PropTypes.string,
       meta: PropTypes.object
     }),
     metaPending: PropTypes.bool,
     metaMined: PropTypes.bool,
+    isLoading: PropTypes.bool,
+    isPending: PropTypes.bool,
+    isOwner: PropTypes.bool,
+    isTokenOwner: PropTypes.bool,
 
     fullWidth: PropTypes.bool
   };

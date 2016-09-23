@@ -23,11 +23,11 @@ import styles from './tokens.css';
 
 export default class Tokens extends Component {
   static propTypes = {
-    handleAddMeta: PropTypes.func,
-    handleUnregister: PropTypes.func,
-    handleMetaLookup: PropTypes.func,
-    isOwner: PropTypes.bool,
-    isLoading: PropTypes.bool,
+    handleAddMeta: PropTypes.func.isRequired,
+    handleUnregister: PropTypes.func.isRequired,
+    handleMetaLookup: PropTypes.func.isRequired,
+    isOwner: PropTypes.bool.isRequired,
+    isLoading: PropTypes.bool.isRequired,
     tokens: PropTypes.array
   };
 

@@ -26,8 +26,8 @@ import styles from './account-selector.css';
 class AccountSelectorItem extends Component {
 
   static propTypes = {
-    onSelectAccount: PropTypes.func,
-    account: PropTypes.object
+    onSelectAccount: PropTypes.func.isRequired,
+    account: PropTypes.object.isRequired
   };
 
   constructor () {

@@ -59,12 +59,13 @@ const initState = {
 export default class RegisterAction extends Component {
 
   static propTypes = {
-    show: PropTypes.bool,
-    sending: PropTypes.bool,
-    complete: PropTypes.bool,
-    error: PropTypes.object,
-    onClose: PropTypes.func,
-    handleRegisterToken: PropTypes.func
+    show: PropTypes.bool.isRequired,
+    sending: PropTypes.bool.isRequired,
+    complete: PropTypes.bool.isRequired,
+    onClose: PropTypes.func.isRequired,
+    handleRegisterToken: PropTypes.func.isRequired,
+
+    error: PropTypes.object
   }
 
   state = initState;

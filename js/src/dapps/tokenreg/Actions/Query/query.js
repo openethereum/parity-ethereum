@@ -38,11 +38,12 @@ export default class QueryAction extends Component {
 
   static propTypes = {
     show: PropTypes.bool.isRequired,
+    loading: PropTypes.bool.isRequired,
+
     onClose: PropTypes.func.isRequired,
     handleQueryToken: PropTypes.func.isRequired,
     handleQueryMetaLookup: PropTypes.func.isRequired,
 
-    loading: PropTypes.bool.isRequired,
     data: PropTypes.object,
     notFound: PropTypes.bool,
     metaLoading: PropTypes.bool,

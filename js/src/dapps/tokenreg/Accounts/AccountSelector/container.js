@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
 import { connect } from 'react-redux';
 
 import AccountSelector from './account-selector';
@@ -22,10 +22,6 @@ import AccountSelector from './account-selector';
 import { setSelectedAccount } from '../actions';
 
 class AccountSelectorContainer extends Component {
-  static propTypes = {
-    accounts: PropTypes.object
-  };
-
   render () {
     return (<AccountSelector
       { ...this.props }
