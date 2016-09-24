@@ -25,7 +25,10 @@ export default class Func {
     this._constant = !!abi.constant;
     this._inputs = Param.toParams(abi.inputs || []);
     this._outputs = Param.toParams(abi.outputs || []);
-    this._signature = methodSignature(this._name, this.inputParamTypes());
+
+    const { id, signature } = methodSignature(this._name, this.inputParamTypes());
+    this._id = id;
+    this._signature = signature;
   }
 
   get constant () {
@@ -34,6 +37,10 @@ export default class Func {
 
   get name () {
     return this._name;
+  }
+
+  get id () {
+    return this.id;
   }
 
   get inputs () {

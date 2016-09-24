@@ -14,18 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
-import { fromParamType } from '../spec/paramType/format';
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-export function eventSignature (name, params) {
-  const types = (params || []).map(fromParamType).join(',');
-  const id = `${name || ''}(${types})`;
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-  return { id, signature: keccak_256(id) };
-}
+import Application from './signaturereg/Application';
 
-export function methodSignature (name, params) {
-  const { id, signature } = eventSignature(name, params);
+import './style.css';
+import './signaturereg.html';
 
-  return { id, signature: signature.substr(0, 8) };
-}
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);
