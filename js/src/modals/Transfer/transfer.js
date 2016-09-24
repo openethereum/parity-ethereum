@@ -87,6 +87,7 @@ export default class Transfer extends Component {
         actions={ this.renderDialogActions() }
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
+        waiting={ extras ? [2] : [1] }
         visible>
         { this.renderPage() }
       </Modal>
