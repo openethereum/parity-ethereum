@@ -23,20 +23,17 @@
     "Promise"
   ],
   "scripts": {
-    "build": "NODE_ENV=production npm run build:dll && npm run buildApp",
-    "build:dll": "webpack --config vendor.webpack.config.js --progress",
-    "buildApp": "NODE_ENV=production webpack --progress",
-    "buildLibrary": "rollup --config ./rollup.library.js",
-    "clean": "rm -rf ./build",
+    "build": "NODE_ENV=production npm run build:dll && npm run build:app",
+    "build:app": "NODE_ENV=production webpack --progress",
+    "build:dll": "webpack --config webpack.vendor.js --progress",
+    "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
-    "release": "./scripts/release.sh",
-    "start": "npm install && npm run build:dll && npm run startApp",
-    "startApp": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
+    "start": "npm install && npm run build:dll && npm run start:app",
+    "start:app": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "test": "mocha 'src/**/*.spec.js'",
-    "testCoverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
-    "testE2E": "mocha 'src/**/*.e2e.js'",
-    "watch": "npm run test -- -w"
+    "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
+    "test:e2e": "mocha 'src/**/*.e2e.js'"
   },
   "devDependencies": {
     "axios": "^0.14.0",

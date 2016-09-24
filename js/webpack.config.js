@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-var rucksack = require('rucksack-css');
-var webpack = require('webpack');
-var path = require('path');
-var HappyPack = require('happypack');
+const rucksack = require('rucksack-css');
+const webpack = require('webpack');
+const path = require('path');
+const HappyPack = require('happypack');
 
-var WebpackErrorNotificationPlugin = require('webpack-error-notification');
+const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
-var ENV = process.env.NODE_ENV || 'development';
-var isProd = ENV === 'production';
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 
 module.exports = {
   debug: !isProd,
@@ -116,7 +116,7 @@ module.exports = {
     })
   ],
   plugins: (function () {
-    var plugins = [
+    const plugins = [
       new HappyPack({
         id: 'css',
         threads: 4,
