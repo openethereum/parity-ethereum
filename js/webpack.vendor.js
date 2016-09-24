@@ -23,14 +23,14 @@ let modules = [
   'babel-polyfill',
   'react', 'react-dom', 'react-redux', 'react-router',
   'redux', 'redux-thunk', 'react-router-redux',
-  'lodash', 'material-ui', 'blockies'
+  'lodash', 'material-ui', 'moment', 'blockies'
 ];
 
 if (!isProd) {
   modules = modules.concat([
     'webpack-dev-server/client?http://localhost:3000',
     'react-hot-loader', 'core-js', 'core-js/library',
-    'moment', 'web3'
+    'web3'
   ]);
 }
 
