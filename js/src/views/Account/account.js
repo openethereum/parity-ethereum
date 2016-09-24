@@ -17,9 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import { Shapeshift, Transfer } from '../../modals';
+import { EditMeta, Shapeshift, Transfer } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../images/shapeshift-btn.png';
@@ -40,8 +41,9 @@ class Account extends Component {
   propName = null
 
   state = {
-    fundDialog: false,
-    transferDialog: false
+    showEditDialog: false,
+    showFundDialog: false,
+    showTransferDialog: false
   }
 
   render () {
@@ -57,6 +59,7 @@ class Account extends Component {
 
     return (
       <div className={ styles.account }>
+        { this.renderEditDialog(account) }
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
         { this.renderActionbar() }
@@ -84,7 +87,12 @@ class Account extends Component {
         key='shapeshift'
         icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
         label='shapeshift'
-        onClick={ this.onShapeshiftAccountClick } />
+        onClick={ this.onShapeshiftAccountClick } />,
+      <Button
+        key='editmeta'
+        icon={ <ContentCreate /> }
+        label='edit'
+        onClick={ this.onEditClick } />
     ];
 
     return (
@@ -94,10 +102,25 @@ class Account extends Component {
     );
   }
 
-  renderFundDialog () {
-    const { fundDialog } = this.state;
+  renderEditDialog (account) {
+    const { showEditDialog } = this.state;
 
-    if (!fundDialog) {
+    if (!showEditDialog) {
+      return null;
+    }
+
+    return (
+      <EditMeta
+        account={ account }
+        keys={ ['description', 'passwordHint'] }
+        onClose={ this.onEditClick } />
+    );
+  }
+
+  renderFundDialog () {
+    const { showFundDialog } = this.state;
+
+    if (!showFundDialog) {
       return null;
     }
 
@@ -111,9 +134,9 @@ class Account extends Component {
   }
 
   renderTransferDialog () {
-    const { transferDialog } = this.state;
+    const { showTransferDialog } = this.state;
 
-    if (!transferDialog) {
+    if (!showTransferDialog) {
       return null;
     }
 
@@ -131,9 +154,15 @@ class Account extends Component {
     );
   }
 
+  onEditClick = () => {
+    this.setState({
+      showEditDialog: !this.state.showEditDialog
+    });
+  }
+
   onShapeshiftAccountClick = () => {
     this.setState({
-      fundDialog: !this.state.fundDialog
+      showFundDialog: !this.state.showFundDialog
     });
   }
 
@@ -143,7 +172,7 @@ class Account extends Component {
 
   onTransferClick = () => {
     this.setState({
-      transferDialog: !this.state.transferDialog
+      showTransferDialog: !this.state.showTransferDialog
     });
   }
 

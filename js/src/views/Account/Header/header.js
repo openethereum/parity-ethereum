@@ -15,9 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { Balance, Container, ContainerTitle, Form, InputInline, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, Form, IdentityIcon } from '../../../ui';
 
 import styles from './header.css';
 
@@ -48,7 +47,7 @@ export default class Header extends Component {
 
   render () {
     const { account, balance } = this.props;
-    const { address } = account;
+    const { address, meta } = account;
     const { name } = this.state;
 
     if (!account) {
@@ -61,14 +60,12 @@ export default class Header extends Component {
           address={ address } />
         <Form>
           <div className={ styles.floatleft }>
-            <InputInline
-              label='account name'
-              hint='a descriptive name for the account'
-              value={ name }
-              static={ this.renderTitle(name) }
-              onSubmit={ this.onSubmitName } />
-            <div className={ styles.infoline }>
+            <ContainerTitle title={ name || DEFAULT_NAME } />
+            <div className={ styles.addressline }>
               { address }
+            </div>
+            <div className={ styles.infoline }>
+              { meta.description }
             </div>
             { this.renderTxCount() }
           </div>
@@ -79,19 +76,6 @@ export default class Header extends Component {
           </div>
         </Form>
       </Container>
-    );
-  }
-
-  renderTitle (name) {
-    return (
-      <ContainerTitle title={
-        <span>
-          <span>{ name || DEFAULT_NAME }</span>
-          <ContentCreate
-            className={ styles.editicon }
-            color='rgb(0, 151, 167)' />
-        </span>
-      } />
     );
   }
 

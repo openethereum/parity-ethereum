@@ -15,6 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .form {
+  margin-top: -1em;
 }
 
 .autofill {

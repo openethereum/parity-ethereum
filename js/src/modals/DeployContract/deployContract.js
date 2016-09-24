@@ -15,12 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { newError } from '../../redux/actions';
 import { Button, IdentityIcon, Modal } from '../../ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
@@ -31,9 +28,10 @@ import ErrorStep from './ErrorStep';
 
 const steps = ['contract details', 'deployment', 'completed'];
 
-class DeployContract extends Component {
+export default class DeployContract extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -180,8 +178,7 @@ class DeployContract extends Component {
   }
 
   onDeployStart = () => {
-    const { api } = this.context;
-    const { newError } = this.props;
+    const { api, store } = this.context;
     const { parsedAbi, code, description, name, fromAddress } = this.state;
     const options = {
       data: code,
@@ -208,10 +205,10 @@ class DeployContract extends Component {
           this.setState({ step: 2, address });
         });
       })
-      .catch((deployError) => {
-        console.error('error deploying contract', deployError);
-        this.setState({ deployError });
-        newError(deployError);
+      .catch((error) => {
+        console.error('error deploying contract', error);
+        this.setState({ deployError: error });
+        store.dispatch({ type: 'newError', error });
       });
   }
 
@@ -256,16 +253,3 @@ class DeployContract extends Component {
     this.props.onClose();
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(DeployContract);

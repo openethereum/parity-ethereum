@@ -16,14 +16,11 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { newError } from '../../ui/Errors';
 import { Button, IdentityIcon, Modal } from '../../ui';
 
 import Complete from './Complete';
@@ -42,17 +39,17 @@ const TITLES = {
 const STAGES_BASIC = [TITLES.transfer, TITLES.complete];
 const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
 
-class Transfer extends Component {
+export default class Transfer extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object,
     balance: PropTypes.object,
     balances: PropTypes.object,
-    onClose: PropTypes.func,
-    onNewError: PropTypes.func
+    onClose: PropTypes.func
   }
 
   state = {
@@ -557,21 +554,8 @@ class Transfer extends Component {
   }
 
   newError = (error) => {
-    this.props.onNewError(error);
+    const { store } = this.context;
+
+    store.dispatch({ type: 'newError', error });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    onNewError: newError
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Transfer);

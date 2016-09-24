@@ -18,7 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
+import ContentCreate from 'material-ui/svg-icons/content/create';
 
+import { EditMeta } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import Header from '../Account/Header';
@@ -41,7 +43,8 @@ class Address extends Component {
   }
 
   state = {
-    showDeleteDialog: false
+    showDeleteDialog: false,
+    showEditDialog: false
   }
 
   render () {
@@ -58,6 +61,7 @@ class Address extends Component {
 
     return (
       <div className={ styles.address }>
+        { this.renderEditDialog(contact) }
         { this.renderActionbar(contact) }
         <Delete
           account={ contact }
@@ -79,6 +83,11 @@ class Address extends Component {
   renderActionbar (contact) {
     const buttons = [
       <Button
+        key='editmeta'
+        icon={ <ContentCreate /> }
+        label='edit'
+        onClick={ this.onEditClick } />,
+      <Button
         key='delete'
         icon={ <ActionDelete /> }
         label='delete address'
@@ -90,6 +99,27 @@ class Address extends Component {
         title='Address Information'
         buttons={ !contact || contact.meta.deleted ? [] : buttons } />
     );
+  }
+
+  renderEditDialog (contact) {
+    const { showEditDialog } = this.state;
+
+    if (!showEditDialog) {
+      return null;
+    }
+
+    return (
+      <EditMeta
+        account={ contact }
+        keys={ ['description'] }
+        onClose={ this.onEditClick } />
+    );
+  }
+
+  onEditClick = () => {
+    this.setState({
+      showEditDialog: !this.state.showEditDialog
+    });
   }
 
   closeDeleteDialog = () => {
