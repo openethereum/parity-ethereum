@@ -14,15 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-var rucksack = require('rucksack-css');
-var webpack = require('webpack');
-var path = require('path');
-var HappyPack = require('happypack');
+const rucksack = require('rucksack-css');
+const webpack = require('webpack');
+const path = require('path');
+const HappyPack = require('happypack');
 
-var WebpackErrorNotificationPlugin = require('webpack-error-notification');
+const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
-var ENV = process.env.NODE_ENV || 'development';
-var isProd = ENV === 'production';
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 
 module.exports = {
   debug: !isProd,
@@ -48,11 +48,6 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loaders: [ 'happypack/loader?id=js' ]
-      },
-      {
-        test: /\.js$/,
-        include: /dapps-react-components/,
         loaders: [ 'happypack/loader?id=js' ]
       },
       {
@@ -116,7 +111,7 @@ module.exports = {
     })
   ],
   plugins: (function () {
-    var plugins = [
+    const plugins = [
       new HappyPack({
         id: 'css',
         threads: 4,
@@ -193,19 +188,12 @@ module.exports = {
     quiet: false,
     hot: !isProd,
     proxy: {
-      '/api/content/*': {
-        target: 'http://localhost:8080/',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api/content': ''
-        }
+      '/api/*': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
       },
       '/rpc/*': {
         target: 'http://localhost:8080',
-        changeOrigin: true
-      },
-      '/api*': {
-        target: 'http://127.0.0.1:8080',
         changeOrigin: true
       }
     }
