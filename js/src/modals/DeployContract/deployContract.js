@@ -184,8 +184,6 @@ export default class DeployContract extends Component {
       from: fromAddress
     };
 
-    console.log(this.state);
-
     this.setState({ step: 1 });
 
     api
