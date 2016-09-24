@@ -23,8 +23,8 @@
     "Promise"
   ],
   "scripts": {
-    "build": "NODE_ENV=production npm run build:dll && npm run build:app",
-    "build:app": "NODE_ENV=production webpack --progress",
+    "build": "npm run build:dll && npm run build:app",
+    "build:app": "webpack --progress",
     "build:dll": "webpack --config webpack.vendor.js --progress",
     "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
