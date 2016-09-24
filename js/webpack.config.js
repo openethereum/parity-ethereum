@@ -195,10 +195,7 @@ module.exports = {
     proxy: {
       '/api/content/*': {
         target: 'http://localhost:8080/',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/api/content': ''
-        }
+        changeOrigin: true
       },
       '/rpc/*': {
         target: 'http://localhost:8080',
