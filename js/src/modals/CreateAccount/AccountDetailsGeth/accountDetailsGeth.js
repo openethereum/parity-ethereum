@@ -32,7 +32,7 @@ export default class AccountDetailsGeth extends Component {
     }).join('');
 
     return (
-      <div className={ styles.details }>
+      <div>
         <div>You have imported { addresses.length } addresses from the Geth keystore:</div>
         <div className={ styles.address }>{ formatted }</div>
       </div>

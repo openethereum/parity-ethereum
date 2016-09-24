@@ -22,8 +22,7 @@ import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
 import { newError } from '../../../ui/Errors';
-import Form, { Input } from '../../../ui/Form';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { Form, Input, IdentityIcon } from '../../../ui';
 
 import styles from '../createAccount.css';
 

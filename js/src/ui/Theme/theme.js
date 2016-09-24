@@ -27,14 +27,18 @@ muiTheme.stepper.disabledTextColor = '#777';
 muiTheme.inkBar.backgroundColor = 'transparent';
 muiTheme.raisedButton.primaryTextColor = 'white';
 muiTheme.snackbar.backgroundColor = 'rgba(255, 30, 30, 0.9)';
-muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.9)';
+muiTheme.snackbar.textColor = 'rgba(255, 255, 255, 0.75)';
 muiTheme.tabs = lightTheme.tabs;
 muiTheme.tabs.backgroundColor = 'transparent';
-muiTheme.tabs.selectedTextColor = 'rgb(255, 255, 255)';
+muiTheme.tabs.selectedTextColor = 'white';
 muiTheme.tabs.textColor = 'rgba(255, 255, 255, 0.5)'; // 'rgb(0, 151, 167)';
+muiTheme.textField.floatingLabelColor = 'rgba(255, 255, 255, 0.5)';
+muiTheme.textField.hintColor = 'rgba(255, 255, 255, 0.5)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'transparent';
+
+console.log(muiTheme.textField);
 
 const imageCache = {};
 

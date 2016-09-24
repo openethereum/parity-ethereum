@@ -22,3 +22,7 @@
   padding: 1.5em;
   background: rgba(0, 0, 0, 0.7) !important;
 }
+
+.light .padded {
+  background: rgba(0, 0, 0, 0.5) !important;
+}
