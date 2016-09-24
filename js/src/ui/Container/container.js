@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
 import { Card } from 'material-ui/Card';
 
 import styles from './container.css';
@@ -23,12 +22,13 @@ import styles from './container.css';
 export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node,
-    className: PropTypes.string
+    className: PropTypes.string,
+    light: PropTypes.bool
   }
 
   render () {
-    const { children, className } = this.props;
-    const classes = `${styles.container} ${className}`;
+    const { children, className, light } = this.props;
+    const classes = `${styles.container} ${light ? styles.light : ''} ${className}`;
 
     return (
       <div className={ classes }>

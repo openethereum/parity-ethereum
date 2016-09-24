@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
 import { Dialog } from 'material-ui';
 
+import Container from '../Container';
 import Title from './Title';
 
 const ACTIONS_STYLE = { borderStyle: 'none' };
@@ -74,7 +74,9 @@ export default class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        { children }
+        <Container light>
+          { children }
+        </Container>
       </Dialog>
     );
   }
