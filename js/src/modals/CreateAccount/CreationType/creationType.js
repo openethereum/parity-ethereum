@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
 import styles from '../createAccount.css';
@@ -31,7 +30,7 @@ export default class CreationType extends Component {
 
   render () {
     return (
-      <div className={ styles.paddedtop }>
+      <div className={ styles.spaced }>
         <RadioButtonGroup
           defaultSelected='fromNew'
           name='creationType'

@@ -15,10 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
 import { Checkbox } from 'material-ui';
 
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { IdentityIcon } from '../../../ui';
 
 import styles from './newGeth.css';
 

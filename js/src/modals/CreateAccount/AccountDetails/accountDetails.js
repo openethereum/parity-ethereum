@@ -16,8 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import Form, { Input } from '../../../ui/Form';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { Form, Input, IdentityIcon } from '../../../ui';
 
 import styles from './accountDetails.css';
 
