@@ -51,11 +51,6 @@ module.exports = {
         loaders: [ 'happypack/loader?id=js' ]
       },
       {
-        test: /\.js$/,
-        include: /dapps-react-components/,
-        loaders: [ 'happypack/loader?id=js' ]
-      },
-      {
         test: /\.json$/,
         loaders: ['json']
       },
