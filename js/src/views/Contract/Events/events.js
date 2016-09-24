@@ -31,14 +31,28 @@ export default class Events extends Component {
     isTest: PropTypes.bool
   }
 
+  state = {
+    transactions: {}
+  }
+
+  componentDidMount () {
+    this.componentWillReceiveProps(this.props);
+  }
+
+  componentWillReceiveProps (newProps) {
+    this.retrieveTransactions(newProps.events);
+  }
+
   render () {
     const { events, isTest } = this.props;
+    const { transactions } = this.state;
 
     if (!events || !events.length) {
       return null;
     }
 
     const rows = events.map((event) => {
+      const transaction = transactions[event.transactionHash] || {};
       const classes = `${styles.event} ${styles[event.state]}`;
       const url = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${event.transactionHash}`;
       const keys = Object.keys(event.params).map((key, index) => {
@@ -56,7 +70,7 @@ export default class Events extends Component {
         <tr className={ classes } key={ event.key }>
           <td>{ event.state === 'pending' ? 'pending' : event.blockNumber.toFormat(0) }</td>
           <td className={ styles.txhash }>
-            <div>{ event.address }</div>
+            <div>{ transaction.from }</div>
             <a href={ url } target='_blank'>{ event.transactionHash }</a>
           </td>
           <td>
@@ -91,5 +105,32 @@ export default class Events extends Component {
     }
 
     return value.toString();
+  }
+
+  retrieveTransactions (events) {
+    const { api } = this.context;
+    const { transactions } = this.state;
+    const hashes = {};
+
+    events.forEach((event) => {
+      if (!hashes[event.transactionHash] && !transactions[event.transactionHash]) {
+        hashes[event.transactionHash] = true;
+      }
+    });
+
+    Promise
+      .all(Object.keys(hashes).map((hash) => api.eth.getTransactionByHash(hash)))
+      .then((newTransactions) => {
+        console.log(newTransactions.reduce((store, transaction) => {
+          transactions[transaction.hash] = transaction;
+          return transactions;
+        }, transactions));
+        this.setState({
+          transactions: newTransactions.reduce((store, transaction) => {
+            transactions[transaction.hash] = transaction;
+            return transactions;
+          }, transactions)
+        });
+      });
   }
 }
