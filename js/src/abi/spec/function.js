@@ -40,7 +40,7 @@ export default class Func {
   }
 
   get id () {
-    return this.id;
+    return this._id;
   }
 
   get inputs () {
