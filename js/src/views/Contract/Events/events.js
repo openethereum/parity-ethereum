@@ -121,10 +121,6 @@ export default class Events extends Component {
     Promise
       .all(Object.keys(hashes).map((hash) => api.eth.getTransactionByHash(hash)))
       .then((newTransactions) => {
-        console.log(newTransactions.reduce((store, transaction) => {
-          transactions[transaction.hash] = transaction;
-          return transactions;
-        }, transactions));
         this.setState({
           transactions: newTransactions.reduce((store, transaction) => {
             transactions[transaction.hash] = transaction;
