@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Balance, Container, ContainerTitle, Form, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon } from '../../../ui';
 
 import styles from './header.css';
 
@@ -58,23 +58,21 @@ export default class Header extends Component {
       <Container>
         <IdentityIcon
           address={ address } />
-        <Form>
-          <div className={ styles.floatleft }>
-            <ContainerTitle title={ name || DEFAULT_NAME } />
-            <div className={ styles.addressline }>
-              { address }
-            </div>
-            <div className={ styles.infoline }>
-              { meta.description }
-            </div>
-            { this.renderTxCount() }
+        <div className={ styles.floatleft }>
+          <ContainerTitle title={ name || DEFAULT_NAME } />
+          <div className={ styles.addressline }>
+            { address }
           </div>
-          <div className={ styles.balances }>
-            <Balance
-              account={ account }
-              balance={ balance } />
+          <div className={ styles.infoline }>
+            { meta.description }
           </div>
-        </Form>
+          { this.renderTxCount() }
+        </div>
+        <div className={ styles.balances }>
+          <Balance
+            account={ account }
+            balance={ balance } />
+        </div>
       </Container>
     );
   }
