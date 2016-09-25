@@ -68,8 +68,8 @@ describe('abi/decoder/Decoder', () => {
       expect(() => Decoder.peek(slices, 4)).to.throw(/Invalid/);
     });
 
-    it('throws an error on invalid slices', () => {
-      expect(() => Decoder.peek(null, 4)).to.throw(/Invalid/);
+    it('returns empty on invalid slices', () => {
+      expect(Decoder.peek(null, 4)).to.equal('0000000000000000000000000000000000000000000000000000000000000000');
     });
   });
 
