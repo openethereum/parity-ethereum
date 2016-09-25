@@ -62,10 +62,10 @@ export default class Events extends Component {
     return events.map((event) => {
       return (
         <tr className={ styles[event.state] } key={ event.key }>
-          <td className={ styles.right }>{ formatBlockNumber(event.blockNumber) }</td>
           <td className={ styles.right }>{ formatBlockTimestamp(event.block) }</td>
-          <td>{ event.params.owner }</td>
-          <td>{ formatSignature(event.params.signature) }</td>
+          <td className={ styles.center }>{ formatBlockNumber(event.blockNumber) }</td>
+          <td className={ styles.ellipsis }>{ event.params.owner }</td>
+          <td className={ styles.right }>{ formatSignature(event.params.signature) }</td>
           <td className={ styles.highlight }>{ event.params.method }</td>
         </tr>
       );

@@ -17,6 +17,7 @@
 
 .events {
   padding: 3em;
+  text-align: center;
 }
 
 .header {
@@ -29,12 +30,15 @@
 }
 
 .events table {
-  width: 100%;
   border: none;
+  margin: 0 auto;
+  border-collapse: collapse;
 }
 
 .events td {
-  padding: 0.25em;
+  padding: 0 0.5em 0.618em 0.5em;
+  white-space: nowrap;
+  text-align: left;
 }
 
 .pending {
@@ -48,6 +52,18 @@
   color: #f80;
 }
 
+.left {
+  text-align: left;
+}
+
 .right {
   text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+td.ellipsis {
+  text-overflow: ellipsis;
 }

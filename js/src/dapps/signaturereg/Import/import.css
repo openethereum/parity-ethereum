@@ -30,15 +30,15 @@
   bottom: 0;
   left: 0;
   background: rgba(55, 55, 55, 0.75);
+  text-align: center;
 }
 
 .dialog {
-  position: absolute;
-  top: 1.5em;
-  right: 1.5em;
+  margin-top: 1.5em;
   border-radius: 5px;
-  width: 650px;
+  width: 750px;
   background: rgba(0, 0, 0, 0.9);
+  display: inline-block;
 }
 
 .close {
@@ -109,10 +109,6 @@
   padding: 4px 0;
 }
 
-.keys div {
-  font-size: 0.75em;
-}
-
 .fnconstant,
 .fnexists,
 .fnunknown,
@@ -123,27 +119,25 @@
   border-radius: 2px;
   color: white;
   line-height: 1em;
-}
-
-.fnconstant,
-.fnexists {
-  opacity: 0.5;
+  font-size: 0.8em;
 }
 
 .fnconstant {
-  background: #aaa;
+  color: #888;
+  background: #333;
 }
 
 .fnexists {
-  background: #964;
+  color: #f80;
+  background: #333;
 }
 
 .fnunknown {
-  background: #000;
+  color: #eee;
 }
 
 .fntodo {
-  background: #494;
+  background: #f80;
 }
 
 .hide {

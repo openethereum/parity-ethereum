@@ -34,7 +34,7 @@ export default class Import extends Component {
     abi: null,
     abiParsed: null,
     abiError: 'Please add a valid ABI definition',
-    abiMapped: null,
+    functions: null,
     fnstate: {}
   }
 
@@ -50,18 +50,19 @@ export default class Import extends Component {
 
     return (
       <div className={ styles.modal }>
-        <div className={ styles.overlay } />
-        <div className={ styles.dialog }>
-          <div className={ styles.header }>
-            <div>abi import</div>
-            <Button className={ styles.close } onClick={ onClose }>&times;</Button>
-          </div>
-          { abiError ? this.renderCapture() : this.renderRegister() }
-          <div className={ styles.buttonrow }>
-            <div className={ styles.keys + ' ' + (abiError ? styles.hide : '') }>
-              <div className={ styles.fntodo }>to register</div><div className={ styles.fnexists }>already registered</div><div className={ styles.fnconstant }>constant, skip</div>
+        <div className={ styles.overlay }>
+          <div className={ styles.dialog }>
+            <div className={ styles.header }>
+              <div>abi import</div>
+              <Button className={ styles.close } onClick={ onClose }>&times;</Button>
             </div>
-            <Button disabled={ !!abiError || count === 0 } onClick={ this.onRegister }>register functions</Button>
+            { abiError ? this.renderCapture() : this.renderRegister() }
+            <div className={ styles.buttonrow }>
+              <div className={ styles.keys + ' ' + (abiError ? styles.hide : '') }>
+                <div className={ styles.fntodo }>to register</div><div className={ styles.fnexists }>already registered</div><div className={ styles.fnconstant }>constant, skip</div>
+              </div>
+              <Button disabled={ !!abiError || count === 0 } onClick={ this.onRegister }>register functions</Button>
+            </div>
           </div>
         </div>
       </div>
@@ -97,14 +98,21 @@ export default class Import extends Component {
             { this.renderFunctions() }
           </div>
         </div>
+        <div className={ styles.info }>
+          { this.countFunctions() || 'no' } functions available for registration
+        </div>
       </div>
     );
   }
 
   renderFunctions () {
-    const { abiMapped, fnstate } = this.state;
+    const { functions, fnstate } = this.state;
 
-    return abiMapped.functions.map((fn) => {
+    if (!functions) {
+      return null;
+    }
+
+    return functions.map((fn) => {
       if (fn.constant) {
         fnstate[fn.signature] = 'fnconstant';
       } else if (!fnstate[fn.signature]) {
@@ -119,13 +127,28 @@ export default class Import extends Component {
     });
   }
 
+  sortFunctions = (a, b) => {
+    return a.name.localeCompare(b.name);
+  }
+
+  countFunctions () {
+    const { functions, fnstate } = this.state;
+
+    if (!functions) {
+      return 0;
+    }
+
+    return functions.reduce((count, fn) => {
+      return count + (fnstate[fn.signature] === 'fntodo' ? 1 : 0);
+    }, 0);
+  }
+
   testFunction (fn) {
     const { instance } = this.props;
     const { fnstate } = this.state;
 
     callRegister(instance, fn.id)
       .then((result) => {
-        console.log(fn.id, result);
         fnstate[fn.signature] = result ? 'fntodo' : 'fnexists';
         this.setState(fnstate);
       })
@@ -135,22 +158,24 @@ export default class Import extends Component {
   }
 
   onAbiEdit = (event) => {
-    let abiMapped = null;
+    let functions = null;
     let abiError = null;
     let abiParsed = null;
     let abi = null;
 
     try {
       abiParsed = JSON.parse(event.target.value);
-      abiMapped = api.newContract(abiParsed);
+      functions = api.newContract(abiParsed).functions.sort(this.sortFunctions);
       abi = JSON.stringify(abiParsed);
     } catch (error) {
       console.error('onAbiEdit', error);
       abiError = error.message;
     }
 
+    console.log(functions);
+
     this.setState({
-      abiMapped,
+      functions,
       abiError,
       abiParsed,
       abi
@@ -159,12 +184,12 @@ export default class Import extends Component {
 
   onRegister = () => {
     const { accounts, instance, onClose } = this.props;
-    const { abiMapped, fnstate } = this.state;
+    const { functions, fnstate } = this.state;
     const address = Object.keys(accounts)[0];
 
     Promise
       .all(
-        abiMapped.functions
+        functions
           .filter((fn) => !fn.constant)
           .filter((fn) => fnstate[fn.signature] === 'fntodo')
           .filter((fn, index) => index === 0)

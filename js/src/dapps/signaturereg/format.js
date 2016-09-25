@@ -24,7 +24,7 @@ const ZERO = new BigNumber(0);
 export function formatBlockNumber (blockNumber) {
   return ZERO.eq(blockNumber || 0)
     ? 'Pending'
-    : `#${blockNumber.toFormat()}`;
+    : `${blockNumber.toFormat()}`;
 }
 
 export function formatSignature (signature) {
