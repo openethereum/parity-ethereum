@@ -363,7 +363,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
+			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
 
@@ -488,7 +488,7 @@ impl State {
 
 		match self.cache.borrow_mut().get_mut(a).unwrap() {
 			&mut AccountEntry::Cached(ref mut acc) => not_default(acc),
-			slot @ _ => *slot = AccountEntry::Cached(default()),
+			slot => *slot = AccountEntry::Cached(default()),
 		}
 
 		RefMut::map(self.cache.borrow_mut(), |c| {
