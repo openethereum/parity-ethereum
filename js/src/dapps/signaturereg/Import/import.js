@@ -26,9 +26,11 @@ import styles from './import.css';
 export default class Import extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
+    fromAddress: PropTypes.string.isRequired,
     instance: PropTypes.object.isRequired,
     visible: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired
+    onClose: PropTypes.func.isRequired,
+    onSetFromAddress: PropTypes.func.isRequired
   }
 
   state = {
@@ -81,9 +83,9 @@ export default class Import extends Component {
   }
 
   renderRegister () {
-    const { accounts } = this.props;
+    const { accounts, fromAddress } = this.props;
 
-    const account = accounts[Object.keys(accounts)[0]];
+    const account = accounts[fromAddress];
     const count = this.countFunctions();
     let buttons = null;
 
@@ -91,7 +93,7 @@ export default class Import extends Component {
       buttons = (
         <div className={ styles.buttonrow }>
           <div className={ styles.addressSelect }>
-            <Button invert>
+            <Button invert onClick={ this.onSelectFromAddress }>
               <IdentityIcon address={ account.address } />
               <div>{ account.name || account.address }</div>
             </Button>
@@ -195,17 +197,15 @@ export default class Import extends Component {
   }
 
   onRegister = () => {
-    const { accounts, instance, onClose } = this.props;
+    const { instance, fromAddress, onClose } = this.props;
     const { functions, fnstate } = this.state;
-    const address = Object.keys(accounts)[0];
 
     Promise
       .all(
         functions
           .filter((fn) => !fn.constant)
           .filter((fn) => fnstate[fn.signature] === 'fntodo')
-          .filter((fn, index) => index === 0)
-          .map((fn) => postRegister(instance, fn.id, { from: address }))
+          .map((fn) => postRegister(instance, fn.id, { from: fromAddress }))
       )
       .then(() => {
         onClose();
@@ -213,5 +213,24 @@ export default class Import extends Component {
       .catch((error) => {
         console.error('onRegister', error);
       });
+  }
+
+  onSelectFromAddress = () => {
+    const { accounts, fromAddress, onSetFromAddress } = this.props;
+    const addresses = Object.keys(accounts);
+    let index = 0;
+
+    addresses.forEach((address, _index) => {
+      if (address === fromAddress) {
+        index = _index;
+      }
+    });
+
+    index++;
+    if (index >= addresses.length) {
+      index = 0;
+    }
+
+    onSetFromAddress(addresses[index]);
   }
 }

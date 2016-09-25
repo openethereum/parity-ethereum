@@ -30,6 +30,7 @@ export default class Application extends Component {
   state = {
     accounts: {},
     address: null,
+    fromAddress: null,
     accountsInfo: {},
     blockNumber: new BigNumber(0),
     contract: null,
@@ -84,15 +85,17 @@ export default class Application extends Component {
   }
 
   renderImport () {
-    const { accounts, instance, showImport } = this.state;
+    const { accounts, fromAddress, instance, showImport } = this.state;
 
     if (showImport) {
       return (
         <Import
           accounts={ accounts }
+          fromAddress={ fromAddress }
           instance={ instance }
           visible={ showImport }
-          onClose={ this.toggleImport } />
+          onClose={ this.toggleImport }
+          onSetFromAddress={ this.setFromAddress } />
       );
     }
 
@@ -116,6 +119,12 @@ export default class Application extends Component {
   toggleImport = () => {
     this.setState({
       showImport: !this.state.showImport
+    });
+  }
+
+  setFromAddress = (fromAddress) => {
+    this.setState({
+      fromAddress
     });
   }
 }
