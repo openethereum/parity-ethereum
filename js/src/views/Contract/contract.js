@@ -23,10 +23,13 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 
 import { newError } from '../../redux/actions';
 import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Container, ContainerTitle, Page } from '../../ui';
+import { Actionbar, Button, Page } from '../../ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
+
+import Events from './Events';
+import Queries from './Queries';
 
 import styles from './contract.css';
 
@@ -56,9 +59,12 @@ class Contract extends Component {
   }
 
   componentDidMount () {
+    const { api } = this.context;
+
     this.attachContract(this.props);
     this.setBaseAccount(this.props);
-    this.queryContract(this.props);
+
+    api.subscribe('eth_blockNumber', this.queryContract);
   }
 
   componentWillReceiveProps (newProps) {
@@ -75,32 +81,36 @@ class Contract extends Component {
 
   render () {
     const { balances, contracts, params, isTest } = this.props;
-    const contract = contracts[params.address];
+    const { allEvents, contract } = this.state;
+    const account = contracts[params.address];
     const balance = balances[params.address];
 
-    if (!contract) {
+    if (!account) {
       return null;
     }
 
     return (
       <div className={ styles.contract }>
-        { this.renderActionbar(contract) }
-        { this.renderDeleteDialog() }
-        { this.renderEditDialog(contract) }
+        { this.renderActionbar(account) }
+        { this.renderDeleteDialog(account) }
+        { this.renderEditDialog(account) }
         { this.renderExecuteDialog() }
         <Page>
           <Header
             isTest={ isTest }
-            account={ contract }
+            account={ account }
             balance={ balance } />
-          { this.renderQueries() }
-          { this.renderEvents() }
+          <Queries
+            contract={ contract } />
+          <Events
+            isTest={ isTest }
+            events={ allEvents } />
         </Page>
       </div>
     );
   }
 
-  renderActionbar (contract) {
+  renderActionbar (account) {
     const buttons = [
       <Button
         key='execute'
@@ -122,25 +132,23 @@ class Contract extends Component {
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !contract || contract.meta.deleted ? [] : buttons } />
+        buttons={ !account || account.meta.deleted ? [] : buttons } />
     );
   }
 
-  renderDeleteDialog () {
-    const { contracts, params } = this.props;
+  renderDeleteDialog (account) {
     const { showDeleteDialog } = this.state;
-    const contract = contracts[params.address];
 
     return (
       <Delete
-        account={ contract }
+        account={ account }
         visible={ showDeleteDialog }
         route='/contracts'
         onClose={ this.closeDeleteDialog } />
     );
   }
 
-  renderEditDialog (contract) {
+  renderEditDialog (account) {
     const { showEditDialog } = this.state;
 
     if (!showEditDialog) {
@@ -149,7 +157,7 @@ class Contract extends Component {
 
     return (
       <EditMeta
-        account={ contract }
+        account={ account }
         keys={ ['description'] }
         onClose={ this.onEditClick } />
     );
@@ -173,122 +181,10 @@ class Contract extends Component {
     );
   }
 
-  renderEvents () {
-    const { isTest } = this.props;
-    const { allEvents, contract } = this.state;
-
-    if (!contract || !allEvents || !allEvents.length) {
-      return null;
-    }
-
-    const rows = allEvents.map((event) => {
-      const classes = `${styles.event} ${styles[event.state]}`;
-      const url = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${event.transactionHash}`;
-      const keys = Object.keys(event.params).map((key, index) => {
-        return <div className={ styles.key } key={ `${event.key}_key_${index}` }>{ key }</div>;
-      });
-      const values = Object.values(event.params).map((value, index) => {
-        return <div className={ styles.value } key={ `${event.key}_val_${index}` }>{ value.toString() }</div>;
-      });
-
-      return (
-        <tr className={ classes } key={ event.key }>
-          <td>{ event.state === 'pending' ? 'pending' : event.blockNumber.toFormat(0) }</td>
-          <td className={ styles.txhash }>
-            <div>{ event.address }</div>
-            <a href={ url } target='_blank'>{ event.transactionHash }</a>
-          </td>
-          <td>
-            <div>{ event.type } =></div>
-            { keys }
-          </td>
-          <td>
-            <div>&nbsp;</div>
-            { values }
-          </td>
-        </tr>
-      );
-    });
-
-    return (
-      <Container>
-        <ContainerTitle title='events' />
-        <table className={ styles.events }>
-          <tbody>{ rows }</tbody>
-        </table>
-      </Container>
-    );
-  }
-
-  renderFunctions () {
-    const { contract } = this.state;
-
-    if (!contract) {
-      return null;
-    }
-
-    const functions = contract.functions
-      .filter((fn) => !fn.constant)
-      .sort(this._sortEntries).map((fn) => {
-        return (
-          <div
-            key={ fn.signature }
-            className={ styles.method }>
-            { fn.name }
-          </div>
-        );
-      });
-
-    return (
-      <Container>
-        <ContainerTitle title='functions' />
-        <div className={ styles.methods }>
-          { functions }
-        </div>
-      </Container>
-    );
-  }
-
-  renderQueries () {
-    const { contract } = this.state;
-
-    if (!contract) {
-      return null;
-    }
-
-    const queries = contract.functions
-      .filter((fn) => fn.constant)
-      .sort(this._sortEntries)
-      .map((fn) => {
-        return (
-          <div
-            key={ fn.signature }
-            className={ styles.method }>
-            { fn.name }
-          </div>
-        );
-      });
-
-    return (
-      <Container>
-        <ContainerTitle title='queries' />
-        <div className={ styles.methods }>
-          { queries }
-        </div>
-      </Container>
-    );
-  }
-
-  _sortEntries (a, b) {
-    return a.name.localeCompare(b.name);
-  }
-
   queryContract = () => {
     const { contract } = this.state;
-    const nextTimeout = (delay = 5000) => setTimeout(this.queryContract, delay);
 
     if (!contract) {
-      nextTimeout(500);
       return;
     }
 
@@ -298,15 +194,8 @@ class Contract extends Component {
 
     Promise
       .all(queries.map((query) => query.call()))
-      .then((returns) => {
-        // console.log(returns.map((value, index) => {
-        //   return [queries[index].name, index];
-        // }));
-        nextTimeout();
-      })
       .catch((error) => {
         console.error('queryContract', error);
-        nextTimeout();
       });
   }
 
@@ -407,7 +296,7 @@ class Contract extends Component {
         this.setState({ subscriptionId });
       });
 
-    this.setState({ contract });
+    this.setState({ contract }, this.queryContract);
   }
 
   setBaseAccount (props) {

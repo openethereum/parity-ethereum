@@ -23,6 +23,7 @@ export default class Func {
   constructor (abi) {
     this._name = abi.name;
     this._constant = !!abi.constant;
+    this._payable = abi.payable;
     this._inputs = Param.toParams(abi.inputs || []);
     this._outputs = Param.toParams(abi.outputs || []);
 
@@ -39,8 +40,13 @@ export default class Func {
     return this._name;
   }
 
+<<<<<<< HEAD
   get id () {
     return this._id;
+=======
+  get payable () {
+    return this._payable;
+>>>>>>> js
   }
 
   get inputs () {
