@@ -38,7 +38,7 @@ export function decodeCallData (data) {
   const signature = data.substr(0, 8);
   const paramdata = data.substr(8);
 
-  if ((signature !== CREATE_METHOD) && length % 64 !== 0) {
+  if ((signature !== CREATE_METHOD) && paramdata.length % 64 !== 0) {
     throw new Error(`Parameter length in decodeCallData not a multiple of 64 characters, ${paramdata.length}`);
   }
 
