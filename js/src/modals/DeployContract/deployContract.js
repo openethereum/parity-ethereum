@@ -36,7 +36,6 @@ export default class DeployContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -179,7 +178,7 @@ export default class DeployContract extends Component {
 
   onDeployStart = () => {
     const { api, store } = this.context;
-    const { parsedAbi, code, description, name, fromAddress } = this.state;
+    const { abiParsed, code, description, name, fromAddress } = this.state;
     const options = {
       data: code,
       from: fromAddress
@@ -188,13 +187,13 @@ export default class DeployContract extends Component {
     this.setState({ step: 1 });
 
     api
-      .newContract(parsedAbi)
+      .newContract(abiParsed)
       .deploy(options, null, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
           api.personal.setAccountName(address, name),
           api.personal.setAccountMeta(address, {
-            abi: parsedAbi,
+            abi: abiParsed,
             contract: true,
             deleted: false,
             description
@@ -231,16 +230,16 @@ export default class DeployContract extends Component {
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for contract to be deployed/mined', showSigner: false });
+        this.setState({ deployState: 'Waiting for the contract to be deployed/mined', showSigner: false });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating contract deployment', showSigner: false });
+        this.setState({ deployState: 'Validating the contract deployment', showSigner: false });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'Contract deployment completed', showSigner: false });
+        this.setState({ deployState: 'Contract deployment has been completed', showSigner: false });
         return;
 
       default:
