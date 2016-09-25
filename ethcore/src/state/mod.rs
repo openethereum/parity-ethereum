@@ -439,7 +439,8 @@ impl State {
 		// check global cache
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
-				Self::update_account_cache(require, account, self.db.as_hashdb());
+				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
+				Self::update_account_cache(require, account, accountdb.as_hashdb());
 			}
 			f(acc.map(|a| &*a))
 		});
