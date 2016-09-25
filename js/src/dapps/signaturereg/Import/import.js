@@ -46,8 +46,6 @@ export default class Import extends Component {
       return null;
     }
 
-    const count = Object.values(fnstate).filter((style) => style === 'fntodo').length;
-
     return (
       <div className={ styles.modal }>
         <div className={ styles.overlay }>
@@ -57,12 +55,6 @@ export default class Import extends Component {
               <Button className={ styles.close } onClick={ onClose }>&times;</Button>
             </div>
             { abiError ? this.renderCapture() : this.renderRegister() }
-            <div className={ styles.buttonrow }>
-              <div className={ styles.keys + ' ' + (abiError ? styles.hide : '') }>
-                <div className={ styles.fntodo }>to register</div><div className={ styles.fnexists }>already registered</div><div className={ styles.fnconstant }>constant, skip</div>
-              </div>
-              <Button disabled={ !!abiError || count === 0 } onClick={ this.onRegister }>register functions</Button>
-            </div>
           </div>
         </div>
       </div>
@@ -88,6 +80,12 @@ export default class Import extends Component {
   }
 
   renderRegister () {
+    const { fnstate } = this.state;
+
+    const buttons = Object.values(fnstate).filter((style) => style === 'fntodo').length
+      ? <div className={ styles.buttonrow }><Button onClick={ this.onRegister }>register functions</Button></div>
+      : null;
+
     return (
       <div className={ styles.body }>
         <div className={ styles.info }>
@@ -101,6 +99,7 @@ export default class Import extends Component {
         <div className={ styles.info }>
           { this.countFunctions() || 'no' } functions available for registration
         </div>
+        { buttons }
       </div>
     );
   }

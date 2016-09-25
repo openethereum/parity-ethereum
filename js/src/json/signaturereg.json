@@ -121,7 +121,7 @@
         "type": "address"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "name": "signature",
         "type": "bytes4"
       },

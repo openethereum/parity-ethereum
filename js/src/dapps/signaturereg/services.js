@@ -50,26 +50,29 @@ export function attachInterface (callback) {
           api.personal.accountsInfo()
         ]);
     })
-    .then(([address, addresses, infos]) => {
+    .then(([address, addresses, accountsInfo]) => {
       console.log(`signaturereg was found at ${address}`);
-      address = '0x2b7E4db4AD1B3D550Ac6111C122EE9cf65c14AcB';
+      address = '0xD1888764222dbE5BBa54F0cf9d493e43aba667Fb';
 
       const contract = api.newContract(abis.signaturereg, address);
+      const accounts = addresses.reduce((obj, address) => {
+        const info = accountsInfo[address];
 
-      return {
-        address,
-        contract,
-        instance: contract.instance,
-        accounts: addresses.reduce((accounts, address) => {
-          const info = infos[address];
-
-          accounts[address] = {
+        return Object.assign(obj, {
+          [address]: {
             address,
             name: info.name || 'Unnamed',
             uuid: info.uuid
-          };
-          return accounts;
-        }, {})
+          }
+        });
+      }, {});
+
+      return {
+        accounts,
+        address,
+        accountsInfo,
+        contract,
+        instance: contract.instance
       };
     })
     .catch((error) => {

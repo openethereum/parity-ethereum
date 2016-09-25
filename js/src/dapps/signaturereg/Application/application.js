@@ -30,6 +30,7 @@ export default class Application extends Component {
   state = {
     accounts: {},
     address: null,
+    accountsInfo: {},
     blockNumber: new BigNumber(0),
     contract: null,
     instance: null,
@@ -103,10 +104,11 @@ export default class Application extends Component {
   }
 
   renderEvents () {
-    const { contract } = this.state;
+    const { accountsInfo, contract } = this.state;
 
     return (
       <Events
+        accountsInfo={ accountsInfo }
         contract={ contract } />
     );
   }

@@ -18,11 +18,13 @@ import React, { Component, PropTypes } from 'react';
 
 import { formatBlockNumber, formatBlockTimestamp, formatSignature } from '../format';
 import { attachEvents } from '../services';
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './events.css';
 
 export default class Events extends Component {
   static propTypes = {
+    accountsInfo: PropTypes.object.isRequired,
     contract: PropTypes.object.isRequired
   }
 
@@ -57,16 +59,24 @@ export default class Events extends Component {
   }
 
   renderEvents () {
+    const { accountsInfo } = this.props;
     const { events } = this.state;
 
     return events.map((event) => {
+      const name = accountsInfo[event.params.owner]
+        ? accountsInfo[event.params.owner].name
+        : event.params.owver;
+
       return (
         <tr className={ styles[event.state] } key={ event.key }>
-          <td className={ styles.right }>{ formatBlockTimestamp(event.block) }</td>
-          <td className={ styles.center }>{ formatBlockNumber(event.blockNumber) }</td>
-          <td className={ styles.ellipsis }>{ event.params.owner }</td>
-          <td className={ styles.right }>{ formatSignature(event.params.signature) }</td>
-          <td className={ styles.highlight }>{ event.params.method }</td>
+          <td className={ styles.timestamp }>{ formatBlockTimestamp(event.block) }</td>
+          <td className={ styles.blockNumber }>{ formatBlockNumber(event.blockNumber) }</td>
+          <td className={ styles.owner }>
+            <IdentityIcon address={ event.params.owner } />
+            <div>{ name }</div>
+          </td>
+          <td className={ styles.signature }>{ formatSignature(event.params.signature) }</td>
+          <td className={ styles.methodName }>{ event.params.method }</td>
         </tr>
       );
     });

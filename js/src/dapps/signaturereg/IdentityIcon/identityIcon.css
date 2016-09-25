@@ -15,62 +15,9 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.events {
-  padding: 3em;
-  text-align: center;
-}
-
-.header {
-  font-size: 1.3em;
-  line-height: 1.3em;
-  vertical-align: middle;
-  text-align: center;
-  padding-bottom: 24px;
-  color: #f80;
-}
-
-.events table {
-  border: none;
-  margin: 0 auto;
-  border-collapse: collapse;
-}
-
-.events td {
-  padding: 0 0.5em 0.5em 0.5em;
-  white-space: nowrap;
-  text-align: left;
-  line-height: 24px;
-}
-
-.events td * {
-  display: inline-block;
-  vertical-align: top;
-}
-
-.pending {
-  opacity: 0.5;
-}
-
-.mined {
-}
-
-td.methodName {
-  color: #f80;
-}
-
-td.signature {
-  color: #888;
-  text-align: right;
-}
-
-td.timestamp {
-  text-align: right;
-}
-
-td.blockNumber {
-  text-align: center;
-}
-
-td.owner {
-  text-overflow: ellipsis;
+.icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  margin-right: 0.5em;
 }

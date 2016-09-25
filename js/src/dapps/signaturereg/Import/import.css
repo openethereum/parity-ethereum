@@ -97,9 +97,9 @@
 
 .buttonrow {
   position: relative;
-  padding: 16px 24px;
-  border-top: 4px solid #f80;
-  text-align: right;
+  padding: 24px 0;
+  margin: 0;
+  text-align: right !important;
 }
 
 .keys {
