@@ -119,42 +119,37 @@ export function attachEvents (contract, callback) {
       return;
     }
 
-    if (_logs.length) {
-      const logs = _logs.map(logToEvent);
+    const logs = _logs.map(logToEvent);
 
-      mined = logs
-        .filter((log) => log.state === 'mined')
-        .map((log) => {
-          const blockNumber = log.blockNumber.toString();
+    mined = logs
+      .filter((log) => log.state === 'mined')
+      .map((log) => {
+        const blockNumber = log.blockNumber.toString();
 
-          if (!blocks[blockNumber]) {
-            blocks[blockNumber] = {};
-            getBlock(blockNumber).then((block) => {
-              Object.assign(blocks[blockNumber], block);
-            });
-          }
-
-          return Object.assign(log, { block: blocks[blockNumber] });
-        })
-        .reverse()
-        .concat(mined)
-        .sort(sortEvents);
-
-      pending = logs
-        .filter((log) => log.state === 'pending')
-        .reverse()
-        .concat(pending.filter((event) => {
-          return !logs.find((log) => {
-            const isMined = (log.state === 'mined') && (log.transactionHash === event.transactionHash);
-            const isPending = (log.state === 'pending') && (log.key === event.key);
-
-            return isMined || isPending;
+        if (!blocks[blockNumber]) {
+          blocks[blockNumber] = {};
+          getBlock(blockNumber).then((block) => {
+            Object.assign(blocks[blockNumber], block);
           });
-        }))
-        .sort(sortEvents);
+        }
 
-      events = pending.concat(mined);
-    }
+        return Object.assign(log, { block: blocks[blockNumber] });
+      })
+      .reverse()
+      .concat(mined)
+      .sort(sortEvents);
+
+    pending = logs
+      .filter((log) => log.state === 'pending')
+      .reverse()
+      .filter((event) => !pending.find((log) => log.key === event.key))
+      .concat(pending)
+      .filter((event) => !mined.find((log) => log.transactionHash === event.transactionHash))
+      .sort(sortEvents);
+
+    console.log(pending.filter((event) => mined.find((log) => log.transactionHash === event.transactionHash)));
+
+    events = pending.concat(mined);
 
     callback({ events });
   });
