@@ -18,7 +18,13 @@ import { isHex } from './types';
 
 import Func from '../../abi/spec/function';
 
+const CREATE_METHOD = '60606040';
+
 export function decodeCallData (data) {
+  if (!data || !data.length) {
+    return {};
+  }
+
   if (!isHex(data)) {
     throw new Error('Input to decodeCallData should be a hex value');
   }
@@ -32,8 +38,8 @@ export function decodeCallData (data) {
   const signature = data.substr(0, 8);
   const paramdata = data.substr(8);
 
-  if (paramdata.length % 64 !== 0) {
-    throw new Error('Parameter length in decodeCallData not a multiple of 64 characters');
+  if ((signature !== CREATE_METHOD) && length % 64 !== 0) {
+    throw new Error(`Parameter length in decodeCallData not a multiple of 64 characters, ${paramdata.length}`);
   }
 
   return {
