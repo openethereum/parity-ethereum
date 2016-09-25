@@ -38,7 +38,7 @@ pub struct ApplyOutcome {
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<ApplyOutcome, Error>;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 enum AccountEntry {
 	/// Contains account data.
 	Cached(Account),
@@ -56,9 +56,36 @@ impl AccountEntry {
 			AccountEntry::Missing => false,
 		}
 	}
+
+	/// Clone dirty data into new `AccountEntry`.
+	/// Returns None if clean.
+	fn clone_dirty(&self) -> Option<AccountEntry> {
+		match *self {
+			AccountEntry::Cached(ref acc) if acc.is_dirty() => Some(AccountEntry::Cached(acc.clone_dirty())),
+			AccountEntry::Killed => Some(AccountEntry::Killed),
+			_ => None,
+		}
+	}
+
+	/// Clone account entry data that needs to be saved in the snapshot.
+	/// This includes basic account information and dirty storage keys
+	fn clone_for_snapshot(&self) -> AccountEntry {
+		match *self {
+			AccountEntry::Cached(ref acc) => AccountEntry::Cached(acc.clone_all()),
+			AccountEntry::Killed => AccountEntry::Killed,
+			AccountEntry::Missing => AccountEntry::Missing,
+		}
+	}
 }
 
 /// Representation of the entire state of all accounts in the system.
+///
+/// `State` can work together with `StateDB` to share account cache.
+/// All read-only state queries check local cache/modifications first,
+/// then global state cache. If data is not found in any of the caches
+/// it is loaded from the DB to the local cache.
+/// Upon destruction all the local cache data merged into the global cache.
+/// The merge might be rejected if current state is non-canonical.
 pub struct State {
 	db: StateDB,
 	root: H256,
@@ -143,7 +170,6 @@ impl State {
 						self.cache.borrow_mut().insert(k, v);
 					},
 					None => {
-						//self.cache.borrow_mut().remove(&k);
 						match self.cache.borrow_mut().entry(k) {
 							::std::collections::hash_map::Entry::Occupied(e) => {
 								if e.get().is_dirty() {
@@ -171,7 +197,7 @@ impl State {
 	fn note_cache(&self, address: &Address) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
 			if !snapshot.contains_key(address) {
-				snapshot.insert(address.clone(), self.cache.borrow().get(address).cloned());
+				snapshot.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_for_snapshot));
 			}
 		}
 	}
@@ -217,16 +243,60 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
-		self.ensure_cached(address, RequireCache::None,
-			|a| a.as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key)))
+		// Storage key search and update works like this:
+		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
+		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
+		// 3. If account is missing in the global cache load it into the local cache and cache the key there.
+
+		// check local cache first without updating
+		let local_cache = self.cache.borrow_mut();
+		let mut local_account = None;
+		if let Some(maybe_acc) = local_cache.get(address) {
+			match *maybe_acc {
+				AccountEntry::Cached(ref account) => {
+					if let Some(value) = account.cached_storage_at(key) {
+						return value;
+					} else {
+						local_account = Some(maybe_acc);
+					}
+				},
+				_ => return H256::new(),
+			}
+		}
+		// check the global cache and and cache storage key there if found,
+		// otherwise cache the account localy and cache storage key there.
+		if let Some(result) = self.db.get_cached(address, |acc| acc.map_or(H256::new(), |a| a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key))) {
+			return result;
+		}
+		if let Some(ref mut acc) = local_account {
+			if let AccountEntry::Cached(ref account) = **acc {
+				account.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), account.address_hash(address)), key)
+			} else {
+				H256::new()
+			}
+		} else {
+			// account is not found in the global cache, get from the DB and insert into local
+			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+			let maybe_acc = match db.get(address) {
+				Ok(acc) => acc.map(Account::from_rlp),
+				Err(e) => panic!("Potential DB corruption encountered: {}", e),
+			};
+			let r = maybe_acc.as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key));
+			match maybe_acc {
+				Some(account) => self.insert_cache(address, AccountEntry::Cached(account)),
+				None => self.insert_cache(address, AccountEntry::Missing),
+			}
+			r
+		}
 	}
 
-	/// Mutate storage of account `a` so that it is `value` for `key`.
+	/// Get accounts' code.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
 		self.ensure_cached(a, RequireCache::Code,
 			|a| a.as_ref().map_or(None, |a| a.code().map(|x|x.to_vec())))
 	}
 
+	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> Option<u64> {
 		self.ensure_cached(a, RequireCache::CodeSize,
 			|a| a.as_ref().and_then(|a| a.code_size()))
@@ -363,7 +433,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.cache.borrow_mut().insert(add, Some(Account::from_pod(acc)));
+			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
 
@@ -415,8 +485,9 @@ impl State {
 		}
 	}
 
-	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
-	/// `require_code` requires that the code be cached, too.
+	/// Check caches for required data
+	/// First searches for account in the local, then the shared cache.
+	/// Populates local cache if nothing found.
 	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, f: F) -> U
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
@@ -427,7 +498,6 @@ impl State {
 			}
 			return f(None);
 		}
-
 		// check global cache
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
@@ -438,7 +508,7 @@ impl State {
 		match result {
 			Some(r) => r,
 			None => {
-				// not found in the global cache, get from DB and insert into local
+				// not found in the global cache, get from the DB and insert into local
 				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
 					Ok(acc) => acc.map(Account::from_rlp),
@@ -488,7 +558,7 @@ impl State {
 
 		match self.cache.borrow_mut().get_mut(a).unwrap() {
 			&mut AccountEntry::Cached(ref mut acc) => not_default(acc),
-			slot @ _ => *slot = AccountEntry::Cached(default()),
+			slot => *slot = AccountEntry::Cached(default()),
 		}
 
 		RefMut::map(self.cache.borrow_mut(), |c| {
@@ -515,17 +585,10 @@ impl fmt::Debug for State {
 impl Clone for State {
 	fn clone(&self) -> State {
 		let cache = {
-			let mut cache = HashMap::new();
+			let mut cache: HashMap<Address, AccountEntry> = HashMap::new();
 			for (key, val) in self.cache.borrow().iter() {
-				let key = key.clone();
-				match *val {
-					AccountEntry::Cached(ref acc) if acc.is_dirty() => {
-						cache.insert(key, AccountEntry::Cached(acc.clone()));
-					},
-					AccountEntry::Killed => {
-						cache.insert(key, AccountEntry::Killed);
-					},
-					_ => {},
+				if let Some(entry) = val.clone_dirty() {
+					cache.insert(key.clone(), entry);
 				}
 			}
 			cache
@@ -535,7 +598,7 @@ impl Clone for State {
 			db: self.db.boxed_clone(),
 			root: self.root.clone(),
 			cache: RefCell::new(cache),
-			snapshots: RefCell::new(self.snapshots.borrow().clone()),
+			snapshots: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			trie_factory: self.trie_factory.clone(),
 		}

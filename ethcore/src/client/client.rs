@@ -303,7 +303,7 @@ impl Client {
 		let parent = chain_has_parent.unwrap();
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let is_canon = header.parent_hash == self.chain.best_block_hash();
-		let db = if is_canon { self.state_db.lock().canon_clone() } else { self.state_db.lock().boxed_clone() };
+		let db = if is_canon { self.state_db.lock().boxed_clone_canon() } else { self.state_db.lock().boxed_clone() };
 
 		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
@@ -459,14 +459,6 @@ impl Client {
 		// Final commit to the DB
 		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();
-
-		if route.enacted.len() == 1 && route.retracted.len() == 0 && route.omitted.len() == 0 {
-			// cache canon block
-			state.commit_cache();
-		} else {
-			state.clear_cache();
-		}
-
 		self.update_last_hashes(&parent, hash);
 		route
 	}
