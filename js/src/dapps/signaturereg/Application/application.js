@@ -98,7 +98,7 @@ export default class Application extends Component {
 
     return (
       <div className={ styles.actions }>
-        <Button className={ styles.buttoninversse } onClick={ this.toggleImport }>import abi</Button>
+        <Button invert onClick={ this.toggleImport }>import abi</Button>
       </div>
     );
   }

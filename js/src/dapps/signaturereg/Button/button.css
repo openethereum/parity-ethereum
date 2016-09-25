@@ -20,14 +20,24 @@
   color: white;
   border-radius: 5px;
   font-size: 1em;
-  line-height: 1em;
+  line-height: 24px;
+  height: 24px;
   padding: 0.75em 1.5em;
   cursor: pointer;
   display: inline-block;
 }
 
 .button.disabled {
-  background: #888;
-  color: #bbb;
+  opacity: 0.25;
   cursor: default;
+}
+
+.button.inverse {
+  color: #f80;
+  background: white;
+}
+
+.button * {
+  display: inline-block;
+  vertical-align: top;
 }

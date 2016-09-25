@@ -23,12 +23,13 @@ export default class Button extends Component {
     children: PropTypes.node.isRequired,
     className: PropTypes.string,
     disabled: PropTypes.bool,
+    invert: PropTypes.bool,
     onClick: PropTypes.func.isRequired
   }
 
   render () {
-    const { children, className, disabled } = this.props;
-    const classes = `${styles.button} ${disabled ? styles.disabled : ''} ${className}`;
+    const { children, className, disabled, invert } = this.props;
+    const classes = `${styles.button} ${disabled ? styles.disabled : ''} ${invert ? styles.inverse : ''} ${className}`;
 
     return (
       <div className={ classes } onTouchTap={ this.onClick }>
