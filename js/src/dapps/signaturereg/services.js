@@ -66,13 +66,15 @@ export function attachInterface (callback) {
           }
         });
       }, {});
+      const fromAddress = Object.keys(accounts)[0];
 
       return {
         accounts,
         address,
         accountsInfo,
         contract,
-        instance: contract.instance
+        instance: contract.instance,
+        fromAddress
       };
     })
     .catch((error) => {
