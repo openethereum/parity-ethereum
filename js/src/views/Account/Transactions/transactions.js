@@ -54,6 +54,11 @@ function formatEther (value) {
 }
 
 class Transactions extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired,
+    contracts: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
@@ -64,7 +69,8 @@ class Transactions extends Component {
 
   state = {
     transactions: [],
-    loading: true
+    loading: true,
+    callInfo: {}
   }
 
   componentDidMount () {
@@ -103,9 +109,21 @@ class Transactions extends Component {
     );
   }
 
+  renderValue (value) {
+    const { api } = this.context;
+
+    if (api.util.isInstanceOf(value, BigNumber)) {
+      return value.toFormat(0);
+    } else if (api.util.isArray(value)) {
+      return api.util.bytesToHex(value);
+    }
+
+    return value.toString();
+  }
+
   renderTransactions () {
     const { isTest } = this.props;
-    const { loading, transactions } = this.state;
+    const { loading, transactions, callInfo } = this.state;
 
     if (loading) {
       return (
@@ -120,19 +138,47 @@ class Transactions extends Component {
     }
 
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    const rows = (transactions || []).map((tx) => {
+    const rows = (transactions || []).map((tx, index) => {
       const hashLink = `${prefix}tx/${tx.hash}`;
       const value = formatEther(tx.value);
       const token = value ? 'ΞTH' : null;
       const tosection = (tx.to && tx.to.length)
         ? this.renderAddress(prefix, tx.to)
         : (<td className={ `${styles.center}` }></td>);
+      const info = callInfo[tx.hash] || {};
+      const executetypes = (info.abi ? info.abi.inputs : []).map((input, index) => {
+        return (
+          <div className={ styles.executekey } key={ index }>
+            { input.type }
+          </div>
+        );
+      });
+      const executevalues = (info.values ? info.values : []).map((value, index) => {
+        return (
+          <div className={ styles.executevalue } key={ index }>
+            { this.renderValue(value) }
+          </div>
+        );
+      });
+      const executename = info.abi
+        ? `${info.abi.name} =>`
+        : '';
+
+      this.lookupTransaction(tx.hash);
 
       return (
         <tr key={ tx.hash }>
           <td className={ styles.center }></td>
           { this.renderAddress(prefix, tx.from) }
           { tosection }
+          <td>
+            <div>{ executename }</div>
+            { executetypes }
+          </td>
+          <td>
+            <div>&nbsp;</div>
+            { executevalues }
+          </td>
           <td className={ styles.center }>
             <a href={ hashLink } target='_blank' className={ styles.link }>
               { formatHash(tx.hash) }
@@ -159,6 +205,7 @@ class Transactions extends Component {
               <th>&nbsp;</th>
               <th className={ styles.left }>from</th>
               <th className={ styles.left }>to</th>
+              <th className={ styles.left } colSpan='2'>execute</th>
               <th className={ styles.center }>transaction</th>
               <th className={ styles.right }>block</th>
               <th className={ styles.right }>age</th>
@@ -174,6 +221,52 @@ class Transactions extends Component {
         </div>
       </div>
     );
+  }
+
+  lookupTransaction (txHash) {
+    const { api, contracts } = this.context;
+    const { callInfo } = this.state;
+
+    if (callInfo[txHash]) {
+      return;
+    }
+
+    api.eth
+      .getTransactionByHash(txHash)
+      .then((transaction) => {
+        const { signature, paramdata } = api.util.decodeCallData(transaction.input);
+
+        if (!signature || signature === '0x60606040') {
+          this.setState(Object.assign(this.state.callInfo, {
+            [txHash]: {
+              transaction,
+              signature
+            }
+          }));
+          return;
+        }
+
+        return contracts.signatureReg
+          .lookup(signature)
+          .then(([method, owner]) => {
+            let abi = null;
+            let values = null;
+
+            if (method.length) {
+              abi = api.util.methodToAbi(method);
+              values = api.util.decodeMethodInput(abi, paramdata);
+            }
+
+            this.setState(Object.assign(this.state.callInfo, {
+              [txHash]: {
+                transaction,
+                signature,
+                abi,
+                values
+              }
+            }));
+          });
+      });
   }
 
   getTransactions = () => {

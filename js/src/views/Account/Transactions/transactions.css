@@ -46,6 +46,10 @@
   vertical-align: top;
 }
 
+.transactions tr td div {
+  white-space: nowrap;
+}
+
 .transactions .link {
   vertical-align: top;
 }
@@ -62,5 +66,16 @@
   text-align: right;
   padding-top: 1em;
   font-size: 0.75em;
+  color: #aaa;
+}
+
+.executevalue,
+.executekey {
+  font-size: 0.75em;
+  line-height: 1.5em;
+}
+
+.executekey {
+  text-align: right;
   color: #aaa;
 }

@@ -36,7 +36,7 @@ export default class Registry {
         .registryAddress()
         .then((address) => {
           this._instance = this._api.newContract(abis.registry, address).instance;
-          resolve(this.address);
+          resolve(this._instance);
         })
         .catch(reject);
     });
@@ -46,8 +46,8 @@ export default class Registry {
     const name = _name.toLowerCase();
 
     return new Promise((resolve, reject) => {
-      if (this._services[name]) {
-        resolve(this._services[name]);
+      if (this._contracts[name]) {
+        resolve(this._contracts[name]);
         return;
       }
 
@@ -65,6 +65,9 @@ export default class Registry {
     const name = _name.toLowerCase();
 
     return this.getInstance().then((instance) => {
+      if (name === 'signaturereg') {
+        return '0xD1888764222dbE5BBa54F0cf9d493e43aba667Fb';
+      }
       return instance.getAddress.call({}, [this._api.util.sha3(name), 'A']);
     });
   }

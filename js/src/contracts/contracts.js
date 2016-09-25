@@ -42,6 +42,10 @@ export default class Contracts {
     return this._tokenreg;
   }
 
+  static create (api) {
+    return new Contracts(api);
+  }
+
   static get () {
     return instance;
   }
