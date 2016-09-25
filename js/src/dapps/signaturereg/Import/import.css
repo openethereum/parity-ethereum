@@ -102,6 +102,12 @@
   text-align: right !important;
 }
 
+.addressSelect {
+  position: absolute;
+  top: 24px;
+  left: 0;
+}
+
 .keys {
   position: absolute;
   left: 24px;

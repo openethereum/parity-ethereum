@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { api } from '../parity';
 import { callRegister, postRegister } from '../services';
 import Button from '../Button';
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './import.css';
 
@@ -40,7 +41,7 @@ export default class Import extends Component {
 
   render () {
     const { visible, onClose } = this.props;
-    const { abiError, fnstate } = this.state;
+    const { abiError } = this.state;
 
     if (!visible) {
       return null;
@@ -80,11 +81,27 @@ export default class Import extends Component {
   }
 
   renderRegister () {
-    const { fnstate } = this.state;
+    const { accounts } = this.props;
 
-    const buttons = Object.values(fnstate).filter((style) => style === 'fntodo').length
-      ? <div className={ styles.buttonrow }><Button onClick={ this.onRegister }>register functions</Button></div>
-      : null;
+    const account = accounts[Object.keys(accounts)[0]];
+    const count = this.countFunctions();
+    let buttons = null;
+
+    if (count) {
+      buttons = (
+        <div className={ styles.buttonrow }>
+          <div className={ styles.addressSelect }>
+            <Button invert>
+              <IdentityIcon address={ account.address } />
+              <div>{ account.name || account.address }</div>
+            </Button>
+          </div>
+          <Button onClick={ this.onRegister }>
+            register functions
+          </Button>
+        </div>
+      );
+    }
 
     return (
       <div className={ styles.body }>
@@ -97,7 +114,7 @@ export default class Import extends Component {
           </div>
         </div>
         <div className={ styles.info }>
-          { this.countFunctions() || 'no' } functions available for registration
+          { count || 'no' } functions available for registration
         </div>
         { buttons }
       </div>
@@ -137,9 +154,7 @@ export default class Import extends Component {
       return 0;
     }
 
-    return functions.reduce((count, fn) => {
-      return count + (fnstate[fn.signature] === 'fntodo' ? 1 : 0);
-    }, 0);
+    return functions.filter((fn) => fnstate[fn.signature] === 'fntodo').length;
   }
 
   testFunction (fn) {
