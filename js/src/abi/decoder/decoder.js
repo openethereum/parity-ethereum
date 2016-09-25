@@ -24,6 +24,8 @@ import { sliceData } from '../util/slice';
 import { asAddress, asBool, asI32, asU32 } from '../util/sliceAs';
 import { isArray, isInstanceOf } from '../util/types';
 
+const NULL = '0000000000000000000000000000000000000000000000000000000000000000';
+
 export default class Decoder {
   static decode (params, data) {
     if (!isArray(params)) {
@@ -42,7 +44,7 @@ export default class Decoder {
 
   static peek (slices, position) {
     if (!slices || !slices[position]) {
-      throw new Error(`Invalid position ${position} in slices peek`);
+      return NULL;
     }
 
     return slices[position];
@@ -56,7 +58,7 @@ export default class Decoder {
       bytesStr = `${bytesStr}${Decoder.peek(slices, position + idx)}`;
     }
 
-    const bytes = bytesStr.substr(0, length * 2).match(/.{1,2}/g).map((code) => parseInt(code, 16));
+    const bytes = (bytesStr.substr(0, length * 2).match(/.{1,2}/g) || []).map((code) => parseInt(code, 16));
 
     return new BytesTaken(bytes, position + slicesLength);
   }
