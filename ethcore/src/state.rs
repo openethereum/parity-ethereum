@@ -38,16 +38,37 @@ pub struct ApplyOutcome {
 /// Result type for the execution ("application") of a transaction.
 pub type ApplyResult = Result<ApplyOutcome, Error>;
 
+#[derive(Clone, Debug)]
+enum AccountEntry {
+	/// Contains account data.
+	Cached(Account),
+	/// Account has been deleted.
+	Killed,
+	/// Account does not exist.
+	Missing,
+}
+
+impl AccountEntry {
+	fn is_dirty(&self) -> bool {
+		match *self {
+			AccountEntry::Cached(ref a) => a.is_dirty(),
+			AccountEntry::Killed => true,
+			AccountEntry::Missing => false,
+		}
+	}
+}
+
 /// Representation of the entire state of all accounts in the system.
 pub struct State {
 	db: StateDB,
 	root: H256,
-	cache: RefCell<HashMap<Address, Option<Account>>>,
-	snapshots: RefCell<Vec<HashMap<Address, Option<Option<Account>>>>>,
+	cache: RefCell<HashMap<Address, AccountEntry>>,
+	snapshots: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	trie_factory: TrieFactory,
 }
 
+#[derive(Copy, Clone)]
 enum RequireCache {
 	None,
 	CodeSize,
@@ -125,11 +146,11 @@ impl State {
 						//self.cache.borrow_mut().remove(&k);
 						match self.cache.borrow_mut().entry(k) {
 							::std::collections::hash_map::Entry::Occupied(e) => {
-								if e.get().as_ref().map_or(true, |a| a.is_dirty()) {
+								if e.get().is_dirty() {
 									e.remove();
 								}
 							},
-							_ => ()
+							_ => {}
 						}
 					}
 				}
@@ -137,7 +158,7 @@ impl State {
 		}
 	}
 
-	fn insert_cache(&self, address: &Address, account: Option<Account>) {
+	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
 			if !snapshot.contains_key(address) {
 				snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
@@ -156,7 +177,8 @@ impl State {
 	}
 
 	/// Destroy the current object and return root and database.
-	pub fn drop(self) -> (H256, StateDB) {
+	pub fn drop(mut self) -> (H256, StateDB) {
+		self.commit_cache();
 		(self.root, self.db)
 	}
 
@@ -168,12 +190,12 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(contract, Some(Account::new_contract(balance, self.account_start_nonce)));
+		self.insert_cache(contract, AccountEntry::Cached(Account::new_contract(balance, self.account_start_nonce)));
 	}
 
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
-		self.insert_cache(account, None);
+		self.insert_cache(account, AccountEntry::Killed);
 	}
 
 	/// Determine whether an account exists.
@@ -268,18 +290,17 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
-	pub fn commit_into(
+	fn commit_into(
 		trie_factory: &TrieFactory,
 		db: &mut StateDB,
 		root: &mut H256,
-		accounts: &mut HashMap<Address,
-		Option<Account>>
+		accounts: &mut HashMap<Address, AccountEntry>
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		// TODO: is this necessary or can we dispense with the `ref mut a` for just `a`?
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
-				&mut&mut Some(ref mut account) if account.is_dirty() => {
+				&mut&mut AccountEntry::Cached(ref mut account) if account.is_dirty() => {
 					let mut account_db = AccountDBMut::from_hash(db.as_hashdb_mut(), account.address_hash(address));
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
@@ -292,12 +313,15 @@ impl State {
 			let mut trie = trie_factory.from_existing(db.as_hashdb_mut(), root).unwrap();
 			for (address, ref mut a) in accounts.iter_mut() {
 				match **a {
-					Some(ref mut account) if account.is_dirty() => {
+					AccountEntry::Cached(ref mut account) if account.is_dirty() => {
 						account.set_clean();
-						try!(trie.insert(address, &account.rlp()))
+						try!(trie.insert(address, &account.rlp()));
 					},
-					None => try!(trie.remove(address)),
-					_ => (),
+					AccountEntry::Killed => {
+						try!(trie.remove(address));
+						**a = AccountEntry::Missing;
+					},
+					_ => {},
 				}
 			}
 		}
@@ -305,10 +329,20 @@ impl State {
 		Ok(())
 	}
 
-	pub fn commit_cache(&mut self) {
+	fn commit_cache(&mut self) {
 		let mut addresses = self.cache.borrow_mut();
 		for (address, a) in addresses.drain() {
-			self.db.cache_account(address, a);
+			match a {
+				AccountEntry::Cached(account) => {
+					if !account.is_dirty() {
+						self.db.cache_account(address, Some(account));
+					}
+				},
+				AccountEntry::Missing => {
+					self.db.cache_account(address, None);
+				}
+				_ => {},
+			}
 		}
 	}
 
@@ -339,7 +373,7 @@ impl State {
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
-			if let Some(ref acc) = *opt {
+			if let AccountEntry::Cached(ref acc) = *opt {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
@@ -367,41 +401,60 @@ impl State {
 		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
-	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
-	/// `require_code` requires that the code be cached, too.
-	fn ensure_cached<'a, F, U>(&'a self, a: &'a Address, require: RequireCache, f: F) -> U
-		where F: FnOnce(&Option<Account>) -> U {
-		let have_key = self.cache.borrow().contains_key(a);
-		if !have_key {
-			let maybe_acc = match self.db.get_cached_account(a) {
-				Some(maybe_acc) => maybe_acc,
-				None => {
-					let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-					match db.get(a) {
-						Ok(acc) => acc.map(Account::from_rlp),
-						Err(e) => panic!("Potential DB corruption encountered: {}", e),
-					}
-				},
-			};
-			self.insert_cache(a, maybe_acc);
-		}
+	fn update_account_cache(require: RequireCache, account: &mut Account, address: &Address, db: &HashDB) {
 		match require {
 			RequireCache::None => (),
 			RequireCache::Code => {
-				if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-					let addr_hash = account.address_hash(a);
-					account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
-				}
+				let address_hash = account.address_hash(address);
+				account.cache_code(&AccountDB::from_hash(db, address_hash));
 			}
 			RequireCache::CodeSize => {
-				if let Some(ref mut account) = self.cache.borrow_mut().get_mut(a).unwrap().as_mut() {
-					let addr_hash = account.address_hash(a);
-					account.cache_code_size(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
-				}
+				let address_hash = account.address_hash(address);
+				account.cache_code_size(&AccountDB::from_hash(db, address_hash));
 			}
 		}
+	}
 
-		f(self.cache.borrow().get(a).unwrap())
+	/// Ensure account `a` is in our cache of the trie DB and return a handle for getting it.
+	/// `require_code` requires that the code be cached, too.
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, f: F) -> U
+		where F: Fn(Option<&Account>) -> U {
+		// check local cache first
+		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
+			if let AccountEntry::Cached(ref mut account) = **maybe_acc {
+				Self::update_account_cache(require, account, a, self.db.as_hashdb());
+				return f(Some(account));
+			}
+			return f(None);
+		}
+
+		// check global cache
+		let result = self.db.get_cached(a, |mut acc| {
+			if let Some(ref mut account) = acc {
+				Self::update_account_cache(require, account, a, self.db.as_hashdb());
+			}
+			f(acc.map(|a| &*a))
+		});
+		match result {
+			Some(r) => r,
+			None => {
+				// not found in the global cache, get from DB and insert into local
+				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+				let mut maybe_acc = match db.get(a) {
+					Ok(acc) => acc.map(Account::from_rlp),
+					Err(e) => panic!("Potential DB corruption encountered: {}", e),
+				};
+				if let Some(ref mut account) = maybe_acc.as_mut() {
+					Self::update_account_cache(require, account, a, self.db.as_hashdb());
+				}
+				let r = f(maybe_acc.as_ref());
+				match maybe_acc {
+					Some(account) => self.insert_cache(a, AccountEntry::Cached(account)),
+					None => self.insert_cache(a, AccountEntry::Missing),
+				}
+				r
+			}
+		}
 	}
 
 	/// Pull account `a` in our cache from the trie DB. `require_code` requires that the code be cached, too.
@@ -416,29 +469,39 @@ impl State {
 	{
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
-			let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-			let maybe_acc = match db.get(a) {
-				Ok(acc) => acc.map(Account::from_rlp),
-				Err(e) => panic!("Potential DB corruption encountered: {}", e),
-			};
-
-			self.insert_cache(a, maybe_acc);
+			match self.db.get_cached_account(a) {
+				Some(Some(acc)) => self.insert_cache(a, AccountEntry::Cached(acc)),
+				Some(None) => self.insert_cache(a, AccountEntry::Missing),
+				None => {
+					let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+					let maybe_acc = match db.get(a) {
+						Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
+						Ok(None) => AccountEntry::Missing,
+						Err(e) => panic!("Potential DB corruption encountered: {}", e),
+					};
+					self.insert_cache(a, maybe_acc);
+				}
+			}
 		} else {
 			self.note_cache(a);
 		}
 
 		match self.cache.borrow_mut().get_mut(a).unwrap() {
-			&mut Some(ref mut acc) => not_default(acc),
-			slot @ &mut None => *slot = Some(default()),
+			&mut AccountEntry::Cached(ref mut acc) => not_default(acc),
+			slot @ _ => *slot = AccountEntry::Cached(default()),
 		}
 
 		RefMut::map(self.cache.borrow_mut(), |c| {
-			let account = c.get_mut(a).unwrap().as_mut().unwrap();
-			if require_code {
-				let addr_hash = account.address_hash(a);
-				account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+			match c.get_mut(a).unwrap() {
+				&mut AccountEntry::Cached(ref mut account) => {
+					if require_code {
+						let addr_hash = account.address_hash(a);
+						account.cache_code(&AccountDB::from_hash(self.db.as_hashdb(), addr_hash));
+					}
+					account
+				},
+				_ => panic!("Required account must always exist; qed"),
 			}
-			account
 		})
 	}
 }
@@ -456,11 +519,11 @@ impl Clone for State {
 			for (key, val) in self.cache.borrow().iter() {
 				let key = key.clone();
 				match *val {
-					Some(ref acc) if acc.is_dirty() => {
-						cache.insert(key, Some(acc.clone()));
+					AccountEntry::Cached(ref acc) if acc.is_dirty() => {
+						cache.insert(key, AccountEntry::Cached(acc.clone()));
 					},
-					None => {
-						cache.insert(key, None);
+					AccountEntry::Killed => {
+						cache.insert(key, AccountEntry::Killed);
 					},
 					_ => {},
 				}

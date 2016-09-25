@@ -96,18 +96,15 @@ impl StateDB {
 	}
 
 	pub fn cache_account(&mut self, addr: Address, data: Option<Account>) {
-		trace!("CACHING {}", addr.hex());
 		self.cache_overlay.push((addr, data));
 	}
 
 	pub fn commit_cache(&mut self) {
-		trace!("COMMIT_CACHE {} items", self.cache_overlay.len());
 		let mut cache = self.account_cache.lock();
 		cache.accounts.extend(self.cache_overlay.drain(..));
 	}
 
 	pub fn clear_cache(&self) {
-		trace!("CLEAR CACHE");
 		let mut cache = self.account_cache.lock();
 		cache.accounts.clear();
 	}
@@ -117,12 +114,16 @@ impl StateDB {
 			return None;
 		}
 		let mut cache = self.account_cache.lock();
-		let r = cache.accounts.get_mut(&addr).map(|a| a.clone());
-		match r {
-			Some(_) => { trace!("CACHE HIT {}", addr.hex()); },
-			None => { trace!("CACHE MISS {}", addr.hex()); },
+		cache.accounts.get_mut(&addr).map(|a| a.clone())
+	}
+
+	pub fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
+		where F: FnOnce(Option<&mut Account>) -> U {
+		if !self.is_canon {
+			return None;
 		}
-		r
+		let mut cache = self.account_cache.lock();
+		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
 	}
 }
 

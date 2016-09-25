@@ -250,7 +250,8 @@ impl Account {
 					Some(x) => {
 						self.code_cache = x.to_vec();
 						self.code_size = Some(x.len() as u64);
-						true },
+						true
+					},
 					_ => {
 						warn!("Failed reverse get of {}", h);
 						false
@@ -269,7 +270,8 @@ impl Account {
 				Some(ref h) if h != &SHA3_EMPTY => match db.get(h) {
 					Some(x) => {
 						self.code_size = Some(x.len() as u64);
-						true },
+						true
+					},
 					_ => {
 						warn!("Failed reverse get of {}", h);
 						false
@@ -344,7 +346,7 @@ impl Account {
 			(true, true) => {
 				self.code_hash = Some(SHA3_EMPTY);
 				self.code_size = Some(0);
-			}
+			},
 			(true, false) => {
 				self.code_hash = Some(db.insert(&self.code_cache));
 				self.code_size = Some(self.code_cache.len() as u64);
