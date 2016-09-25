@@ -281,6 +281,7 @@ dependencies = [
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",
+ "evmjit 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -620,6 +621,13 @@ dependencies = [
  "rlp 0.1.0",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "evmjit"
+version = "1.4.0"
+dependencies = [
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
