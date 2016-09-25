@@ -19,6 +19,15 @@
   padding: 3em;
 }
 
+.header {
+  font-size: 1.3em;
+  line-height: 1.3em;
+  vertical-align: middle;
+  text-align: center;
+  padding-bottom: 24px;
+  color: #f80;
+}
+
 .events table {
   width: 100%;
   border: none;

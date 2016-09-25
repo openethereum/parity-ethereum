@@ -53,7 +53,7 @@ export default class Import extends Component {
         <div className={ styles.overlay } />
         <div className={ styles.dialog }>
           <div className={ styles.header }>
-            <div>ABI Import</div>
+            <div>abi import</div>
             <Button className={ styles.close } onClick={ onClose }>&times;</Button>
           </div>
           { abiError ? this.renderCapture() : this.renderRegister() }
@@ -61,7 +61,7 @@ export default class Import extends Component {
             <div className={ styles.keys + ' ' + (abiError ? styles.hide : '') }>
               <div className={ styles.fntodo }>to register</div><div className={ styles.fnexists }>already registered</div><div className={ styles.fnconstant }>constant, skip</div>
             </div>
-            <Button disabled={ !!abiError || count === 0 } onClick={ this.onRegister }>Register Functions</Button>
+            <Button disabled={ !!abiError || count === 0 } onClick={ this.onRegister }>register functions</Button>
           </div>
         </div>
       </div>

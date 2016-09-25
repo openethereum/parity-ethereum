@@ -18,9 +18,21 @@
 .header {
   position: relative;
   height: 13.69em;
-  color: #eee;
-  border-bottom: 4px solid #f80;
+  color: white;
+  border-bottom: 4px solid white;
   overflow: hidden;
+}
+
+.banner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  font-size: 1.3em;
+  line-height: 1.3em;
+  padding: 24px;
+  background: #f80;
 }
 
 .header img,
@@ -33,14 +45,13 @@
 }
 
 .header img {
-  opacity: 0.15;
+  opacity: 0.25;
   width: 100%;
 }
 
 .content {
   text-align: center;
   padding: 3em;
-  color: #f80;
 }
 
 .hero {
@@ -53,5 +64,4 @@
   font-size: 1.3em;
   line-height: 1.3em;
   vertical-align: middle;
-  opacity: 0.5;
 }

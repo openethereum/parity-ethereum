@@ -30,6 +30,9 @@ export default class Header extends Component {
 
     return (
       <div className={ styles.header }>
+        <div className={ styles.banner }>
+          contract signature registry
+        </div>
         <img src={ blocks } />
         <div className={ styles.content }>
           <div className={ styles.hero }>
