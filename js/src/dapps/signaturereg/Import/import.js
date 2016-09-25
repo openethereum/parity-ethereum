@@ -171,8 +171,6 @@ export default class Import extends Component {
       abiError = error.message;
     }
 
-    console.log(functions);
-
     this.setState({
       functions,
       abiError,
