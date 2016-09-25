@@ -142,12 +142,10 @@ export function attachEvents (contract, callback) {
     pending = logs
       .filter((log) => log.state === 'pending')
       .reverse()
-      .filter((event) => !pending.find((log) => log.key === event.key))
+      .filter((event) => !pending.find((log) => log.params.method === event.params.method))
       .concat(pending)
-      .filter((event) => !mined.find((log) => log.transactionHash === event.transactionHash))
+      .filter((event) => !mined.find((log) => log.params.method === event.params.method))
       .sort(sortEvents);
-
-    console.log(pending.filter((event) => mined.find((log) => log.transactionHash === event.transactionHash)));
 
     events = pending.concat(mined);
 
