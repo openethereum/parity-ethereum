@@ -40,13 +40,12 @@ export default class Func {
     return this._name;
   }
 
-<<<<<<< HEAD
   get id () {
     return this._id;
-=======
+  }
+
   get payable () {
     return this._payable;
->>>>>>> js
   }
 
   get inputs () {
