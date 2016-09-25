@@ -18,22 +18,22 @@ import { isHex } from './types';
 
 import Func from '../../abi/spec/function';
 
-export function decodeInputData (data) {
+export function decodeCallData (data) {
   if (!isHex(data)) {
-    throw new Error('Input to decodeInputData should be a hex value');
+    throw new Error('Input to decodeCallData should be a hex value');
   }
 
   if (data.substr(0, 2) === '0x') {
-    return decodeInputData(data.slice(2));
+    return decodeCallData(data.slice(2));
   } else if (data.length < 8) {
-    throw new Error('Input to decodeInputData should be method signature + data');
+    throw new Error('Input to decodeCallData should be method signature + data');
   }
 
   const signature = data.substr(0, 8);
   const paramdata = data.substr(8);
 
   if (paramdata.length % 64 !== 0) {
-    throw new Error('Parameter length in decodeInputData not a multiple of 64 characters');
+    throw new Error('Parameter length in decodeCallData not a multiple of 64 characters');
   }
 
   return {

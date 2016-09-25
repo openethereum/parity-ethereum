@@ -15,28 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { decodeInputData, decodeMethodInput, methodToAbi } from './decode';
+import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 
 describe('api/util/decode', () => {
   const METH = '0x70a08231';
   const ENCO = '0x70a082310000000000000000000000005A5eFF38DA95b0D58b6C616f2699168B480953C9';
   const DATA = '0x0000000000000000000000005A5eFF38DA95b0D58b6C616f2699168B480953C9';
 
-  describe('decodeInputData', () => {
+  describe('decodeCallData', () => {
     it('throws on non-hex inputs', () => {
-      expect(() => decodeInputData('invalid')).to.throw(/should be a hex value/);
+      expect(() => decodeCallData('invalid')).to.throw(/should be a hex value/);
     });
 
     it('throws when invalid signature length', () => {
-      expect(() => decodeInputData(METH.slice(-6))).to.throw(/should be method signature/);
+      expect(() => decodeCallData(METH.slice(-6))).to.throw(/should be method signature/);
     });
 
     it('throws when invalid data length', () => {
-      expect(() => decodeInputData(`${ENCO.slice(-32)}`)).to.throw(/not a multiple of/);
+      expect(() => decodeCallData(`${ENCO.slice(-32)}`)).to.throw(/not a multiple of/);
     });
 
     it('splits valid inputs properly', () => {
-      expect(decodeInputData(ENCO)).to.deep.equal({
+      expect(decodeCallData(ENCO)).to.deep.equal({
         signature: METH,
         paramdata: DATA
       });

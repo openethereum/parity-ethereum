@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
-import { decodeInputData, decodeMethodInput, methodToAbi } from './decode';
+import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
 import { bytesToHex } from './format';
 import { fromWei, toWei } from './wei';
 import { sha3 } from './sha3';
@@ -31,7 +31,7 @@ export default {
   isString,
   bytesToHex,
   createIdentityImg,
-  decodeInputData,
+  decodeCallData,
   decodeMethodInput,
   methodToAbi,
   fromWei,
