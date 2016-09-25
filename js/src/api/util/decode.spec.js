@@ -35,6 +35,14 @@ describe('api/util/decode', () => {
       expect(() => decodeCallData(`${ENCO.slice(-32)}`)).to.throw(/not a multiple of/);
     });
 
+    it('returns an empty object for ""', () => {
+      expect(decodeCallData('')).to.deep.equal({});
+    });
+
+    it('returns an empty object for "0x"', () => {
+      expect(decodeCallData('0x')).to.deep.equal({});
+    });
+
     it('splits valid inputs properly', () => {
       expect(decodeCallData(ENCO)).to.deep.equal({
         signature: METH,
