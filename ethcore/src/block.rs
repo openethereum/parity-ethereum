@@ -475,8 +475,7 @@ impl LockedBlock {
 
 impl Drain for LockedBlock {
 	/// Drop this object and return the underlieing database.
-	fn drain(mut self) -> StateDB {
-		self.block.state.commit_cache();
+	fn drain(self) -> StateDB {
 		self.block.state.drop().1
 	}
 }
@@ -494,8 +493,7 @@ impl SealedBlock {
 
 impl Drain for SealedBlock {
 	/// Drop this object and return the underlieing database.
-	fn drain(mut self) -> StateDB {
-		self.block.state.commit_cache();
+	fn drain(self) -> StateDB {
 		self.block.state.drop().1
 	}
 }
