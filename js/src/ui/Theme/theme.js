@@ -38,8 +38,6 @@ muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'transparent';
 
-console.log(muiTheme.textField);
-
 const imageCache = {};
 
 muiTheme.parity = {
