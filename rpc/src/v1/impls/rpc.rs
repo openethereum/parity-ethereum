@@ -16,9 +16,8 @@
 
 //! RPC generic methods implementation.
 use std::collections::BTreeMap;
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
 use v1::traits::Rpc;
-use v1::helpers::params::expect_no_params;
 
 /// RPC generic methods implementation.
 pub struct RpcClient {
@@ -40,26 +39,26 @@ impl RpcClient {
 }
 
 impl Rpc for RpcClient {
-	fn rpc_modules(&self, params: Params) -> Result<Value, Error> {
-		try!(expect_no_params(params));
+	fn rpc_modules(&self) -> Result<BTreeMap<String, String>, Error> {
 		let modules = self.modules.iter()
 			.fold(BTreeMap::new(), |mut map, (k, v)| {
-				map.insert(k.to_owned(), Value::String(v.to_owned()));
+				map.insert(k.to_owned(), v.to_owned());
 				map
 			});
-		Ok(Value::Object(modules))
+
+		Ok(modules)
 	}
 
-	fn modules(&self, params: Params) -> Result<Value, Error> {
-		try!(expect_no_params(params));
+	fn modules(&self) -> Result<BTreeMap<String, String>, Error> {
 		let modules = self.modules.iter()
 			.filter(|&(k, _v)| {
 				self.valid_apis.contains(k)
 			})
 			.fold(BTreeMap::new(), |mut map, (k, v)| {
-				map.insert(k.to_owned(), Value::String(v.to_owned()));
+				map.insert(k.to_owned(), v.to_owned());
 				map
 			});
-		Ok(Value::Object(modules))
+
+		Ok(modules)
 	}
 }
