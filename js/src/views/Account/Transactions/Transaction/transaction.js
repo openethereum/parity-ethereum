@@ -36,7 +36,8 @@ export default class Transaction extends Component {
   }
 
   state = {
-    info: null
+    info: null,
+    isContract: false
   }
 
   componentDidMount () {
@@ -68,7 +69,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { info } = this.state;
+    const { info, isContract } = this.state;
 
     if (!info) {
       return null;
@@ -77,6 +78,7 @@ export default class Transaction extends Component {
     return (
       <MethodDecoding
         historic
+        isContract={ isContract }
         transaction={ info } />
     );
   }
@@ -195,7 +197,7 @@ export default class Transaction extends Component {
         return api.eth
           .getCode(transaction.to)
           .then((code) => {
-            this.setState({ block, info, isContract: !!code });
+            this.setState({ block, info, isContract: code !== '0x' });
           });
       })
       .catch((error) => {

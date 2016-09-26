@@ -69,13 +69,11 @@ export default class Method extends Component {
   }
 
   renderValueTransfer () {
-    const { historic } = this.props;
-
-    return null;
+    const { historic, transaction, isContract } = this.props;
 
     return (
       <div className={ styles.details }>
-        This transaction { historic ? 'transferred' : 'will transfer' }
+        This transaction { historic ? 'transferred' : 'will transfer' } { this.renderEther(transaction.value) } { isContract ? 'to the contract.' : 'to the recipient address.' }
       </div>
     );
   }
@@ -136,6 +134,17 @@ export default class Method extends Component {
     }
 
     return value.toString();
+  }
+
+  renderEther (value) {
+    const { api } = this.context;
+    const ether = api.util.fromWei(value);
+
+    return (
+      <span className={ styles.ether }>
+        { ether.toFormat(5) }<small>ΞTH</small>
+      </span>
+    );
   }
 
   lookup (input) {
