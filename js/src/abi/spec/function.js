@@ -65,6 +65,10 @@ export default class Func {
     return `${this._signature}${Encoder.encode(tokens)}`;
   }
 
+  decodeInput (data) {
+    return Decoder.decode(this.inputParamTypes(), data);
+  }
+
   decodeOutput (data) {
     return Decoder.decode(this.outputParamTypes(), data);
   }
