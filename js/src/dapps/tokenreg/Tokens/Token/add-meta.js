@@ -1,18 +1,37 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
-import { Dialog, RaisedButton, FlatButton, TextField } from 'material-ui';
+import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'material-ui';
 import AddIcon from 'material-ui/svg-icons/content/add';
 
-import { STRING_TYPE, HEX_TYPE, validate } from '../../Actions/validation';
+import InputText from '../../Inputs/Text';
 
 import styles from './token.css';
 
-const defaultField = { error: null, value: '', valid: false };
+import { metaDataKeys } from '../../constants';
+
 const initState = {
   showDialog: false,
   complete: false,
-  fields: {
-    key: { ...defaultField, type: STRING_TYPE },
-    value: { ...defaultField, type: HEX_TYPE }
+  metaKeyIndex: 0,
+
+  form: {
+    valid: false,
+    value: ''
   }
 };
 
@@ -25,20 +44,12 @@ export default class AddMeta extends Component {
 
   state = initState;
 
-  constructor (...args) {
-    super(...args);
-
-    this.onShowDialog = this.onShowDialog.bind(this);
-    this.onClose = this.onClose.bind(this);
-    this.onAdd = this.onAdd.bind(this, this.props.index);
-  }
-
   render () {
     if (!this.props.isTokenOwner) return null;
 
     return (<div className={ styles['add-meta'] }>
       <RaisedButton
-        label='Add Meta'
+        label='Add Meta-Data'
         icon={ <AddIcon /> }
         primary
         fullWidth
@@ -47,7 +58,7 @@ export default class AddMeta extends Component {
       <Dialog
         title='add meta data'
         open={ this.state.showDialog }
-        modal
+        modal={ this.state.complete }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
         actions={ this.renderActions() } >
@@ -68,7 +79,7 @@ export default class AddMeta extends Component {
       );
     }
 
-    const isValid = this.isValid();
+    const isValid = this.state.form.valid;
 
     return ([
       <FlatButton
@@ -84,96 +95,98 @@ export default class AddMeta extends Component {
   }
 
   renderContent () {
-    let { complete } = this.state;
+    const { complete } = this.state;
 
     if (complete) return this.renderComplete();
     return this.renderForm();
   }
 
   renderComplete () {
+    if (metaDataKeys[this.state.metaKeyIndex].value === 'IMG') {
+      return (<div>
+        <p>
+        Your transactions has been posted.
+        Two transactions are needed to add an Image.
+        Please visit the Parity Signer to authenticate the transfer.</p>
+      </div>);
+    }
     return (<div>
       <p>Your transaction has been posted. Please visit the Parity Signer to authenticate the transfer.</p>
     </div>);
   }
 
   renderForm () {
-    const { fields } = this.state;
-
-    let onChangeKey = this.onChange.bind(this, 'key');
-    let onChangeValue = this.onChange.bind(this, 'value');
+    const selectedMeta = metaDataKeys[this.state.metaKeyIndex];
 
     return (
       <div>
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Meta Key'
+        <SelectField
+          floatingLabelText='Choose the meta-data to add'
           fullWidth
-          hintText='The key of the meta-data'
-          errorText={ fields.key.error }
-          onChange={ onChangeKey } />
-        <TextField
-          autoComplete='off'
-          floatingLabelFixed
-          floatingLabelText='Meta Value'
-          fullWidth
-          hintText='The value of the meta-data'
-          errorText={ fields.value.error }
-          onChange={ onChangeValue } />
+          value={ this.state.metaKeyIndex }
+          onChange={ this.onMetaKeyChange }>
+
+          { this.renderMetaKeyItems() }
+
+        </SelectField>
+
+        <InputText
+          key={ selectedMeta.value }
+          floatingLabelText={ `${selectedMeta.label} value` }
+          hintText={ `The value of the ${selectedMeta.label.toLowerCase()} meta-data` }
+
+          validationType={ selectedMeta.validation }
+          onChange={ this.onChange } />
       </div>
     );
   }
 
-  isValid () {
-    const { fields } = this.state;
-
-    return Object.keys(fields)
-      .map(key => fields[key].valid)
-      .reduce((current, fieldValid) => {
-        return current && fieldValid;
-      }, true);
+  renderMetaKeyItems () {
+    return metaDataKeys.map((key, index) => (
+      <MenuItem
+        value={ index }
+        key={ index }
+        label={ key.label } primaryText={ key.label } />
+    ));
   }
 
-  onShowDialog () {
+  onShowDialog = () => {
     this.setState({ showDialog: true });
   }
 
-  onClose () {
+  onClose = () => {
     this.setState(initState);
   }
 
-  onAdd (index) {
+  onAdd = () => {
+    const { index } = this.props;
+
+    const keyIndex = this.state.metaKeyIndex;
+    const key = metaDataKeys[keyIndex].value;
+
     this.props.handleAddMeta(
       index,
-      this.state.fields.key.value,
-      this.state.fields.value.value
+      key,
+      this.state.form.value
     );
 
     this.setState({ complete: true });
   }
 
-  onChange (fieldKey, event) {
-    const value = event.target.value;
-
-    let fields = this.state.fields;
-    let fieldState = fields[fieldKey];
-    let validation = validate(value, fieldState.type);
-
-    let newFieldState = {
-      ...fieldState,
-      ...validation
-    };
-
-    newFieldState.value = (validation.value !== undefined)
-      ? validation.value
-      : value;
-
+  onChange = (valid, value) => {
     this.setState({
-      fields: {
-        ...fields,
-        [fieldKey]: newFieldState
+      form: {
+        valid, value
       }
     });
+  }
+
+  onMetaKeyChange = (event, metaKeyIndex) => {
+    this.setState({ metaKeyIndex, form: {
+      ...[this.state.form],
+      valid: false,
+      value: ''
+    } });
   }
 
 }

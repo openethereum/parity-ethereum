@@ -191,10 +191,16 @@ impl State {
 		}))
 	}
 
-	/// Mutate storage of account `a` so that it is `value` for `key`.
+	/// Get the code of account `a`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
 		self.ensure_cached(a, true,
-			|a| a.as_ref().map_or(None, |a|a.code().map(|x|x.to_vec())))
+			|a| a.as_ref().map_or(None, |a| a.code().map(|x| x.to_vec())))
+	}
+
+	/// Get the code size of account `a`.
+	pub fn code_size(&self, a: &Address) -> Option<usize> {
+		self.ensure_cached(a, true,
+			|a| a.as_ref().map_or(None, |a| a.code().map(|x| x.len())))
 	}
 
 	/// Add `incr` to the balance of account `a`.

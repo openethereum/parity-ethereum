@@ -1,3 +1,19 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
@@ -14,36 +30,52 @@ const inlineButton = {
   marginRight: '1em'
 };
 
+const renderStatus = (timestamp, isPending) => {
+  timestamp = moment(timestamp);
+  if (isPending) {
+    return (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
+  }
+  return (
+    <time dateTime={ timestamp.toISOString() }>
+      <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
+    </time>
+  );
+}
+
 const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
+  const classes = e.state === 'pending'
+    ? classNames + ' ' + styles.pending : classNames;
+
+  return (
+    <div key={ e.key } className={ classes }>
+      { renderAddress(e.parameters.owner, accounts, contacts) }
+      { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
+      { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
+    </div>
+  );
+};
+
+const renderDataChanged = (e, accounts, contacts) => {
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
   }
 
-  const timestamp = moment(e.timestamp);
-  let status;
-  if (e.state === 'pending') {
-    status = (<abbr title='This transaction has not been synced with the network yet.'>pending</abbr>);
-  } else {
-    status = (
-      <time dateTime={ timestamp.toISOString() }>
-        <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
-      </time>
-    );
-  }
-
   return (
-    <div key={ e.key } className={ classNames }>
+    <div key={ e.key } className={ styles.dataChanged }>
       { renderAddress(e.parameters.owner, accounts, contacts) }
-      { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
-      { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-      { ' ' }{ status }
+      { ' ' }<abbr title={ e.transaction }>updated</abbr>
+      key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code>
+      of <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
     </div>
   );
 };
 
 const eventTypes = {
   Reserved: renderEvent(styles.reserved, 'reserved'),
-  Dropped: renderEvent(styles.dropped, 'dropped')
+  Dropped: renderEvent(styles.dropped, 'dropped'),
+  DataChanged: renderDataChanged
 };
 
 export default class Events extends Component {
@@ -77,6 +109,13 @@ export default class Events extends Component {
             onToggle={ this.onDroppedToggle }
             style={ inlineButton }
           />
+          <Toggle
+            label='DataChanged'
+            toggled={ subscriptions.DataChanged !== null }
+            disabled={ pending.DataChanged }
+            onToggle={ this.onDataChangedToggle }
+            style={ inlineButton }
+          />
         </CardActions>
         <CardText>{
           this.props.events
@@ -104,6 +143,16 @@ export default class Events extends Component {
         actions.subscribe('Dropped');
       } else if (!isToggled && subscriptions.Dropped !== null) {
         actions.unsubscribe('Dropped');
+      }
+    }
+  };
+  onDataChangedToggle = (e, isToggled) => {
+    const { pending, subscriptions, actions } = this.props;
+    if (!pending.DataChanged) {
+      if (isToggled && subscriptions.DataChanged === null) {
+        actions.subscribe('DataChanged');
+      } else if (!isToggled && subscriptions.DataChanged !== null) {
+        actions.unsubscribe('DataChanged');
       }
     }
   };

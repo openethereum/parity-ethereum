@@ -14,17 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-var rucksack = require('rucksack-css');
-var webpack = require('webpack');
-var path = require('path');
+const rucksack = require('rucksack-css');
+const webpack = require('webpack');
+const path = require('path');
+const HappyPack = require('happypack');
 
-var ExtractTextPlugin = require('extract-text-webpack-plugin');
-var WebpackErrorNotificationPlugin = require('webpack-error-notification');
+const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
-var ENV = process.env.NODE_ENV || 'development';
-var isProd = ENV === 'production';
-
-var extractCSS = new ExtractTextPlugin('[name].css', { allChunks: true });
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 
 module.exports = {
   debug: !isProd,
@@ -38,7 +36,6 @@ module.exports = {
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],
-    // 'web3': ['./web3.js'],
     // app
     'index': ['./index.js']
   },
@@ -51,18 +48,7 @@ module.exports = {
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel'
-        ]
-      },
-      {
-        test: /\.js$/,
-        include: /dapps-react-components/,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel'
-        ]
+        loaders: [ 'happypack/loader?id=js' ]
       },
       {
         test: /\.json$/,
@@ -73,35 +59,10 @@ module.exports = {
         loader: 'file?name=[name].[ext]'
       },
 
-      // {
-      //   test: /\.css$/,
-      //   include: [/src/],
-      //   loader: extractCSS.extract('style', [
-      //     'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-      //     'postcss'
-      //   ])
-      // },
-      // {
-      //   test: /\.css$/,
-      //   exclude: [/src/],
-      //   loader: extractCSS.extract('style', 'css')
-      // },
-      // {
-      //   test: /\.less$/,
-      //   loader: extractCSS.extract('style', [
-      //     'css',
-      //     'less'
-      //   ])
-      // },
-
       {
         test: /\.css$/,
         include: [/src/],
-        loaders: [
-          'style',
-          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss'
-        ]
+        loaders: [ 'happypack/loader?id=css' ]
       },
       {
         test: /\.css$/,
@@ -150,34 +111,62 @@ module.exports = {
     })
   ],
   plugins: (function () {
-    var plugins = [
-      // extractCSS,
+    const plugins = [
+      new HappyPack({
+        id: 'css',
+        threads: 4,
+        loaders: [
+          'style',
+          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss'
+        ]
+      }),
+      new HappyPack({
+        id: 'js',
+        threads: 4,
+        loaders: isProd ? ['babel'] : [
+          'react-hot',
+          'babel?cacheDirectory=true'
+        ]
+      }),
+      new webpack.DllReferencePlugin({
+        context: '.',
+        manifest: require('./build/vendor-manifest.json')
+      }),
 
       new WebpackErrorNotificationPlugin(),
-      // TODO [todr] paths in dapp-styles is hardcoded for meteor, we need to rewrite it here
-      // TODO [jacogr] this shit needs to go, e.g. dapp-styles
-      new webpack.NormalModuleReplacementPlugin(
-        /ethereum_dapp-styles/,
-        function (a) {
-          a.request = a.request.replace('./packages/ethereum_dapp-styles', '.');
-          a.request = a.request.replace('./lib/packages/ethereum_dapp-styles', '.');
-          return a;
-        }
-      ),
       new webpack.DefinePlugin({
         'process.env': {
           NODE_ENV: JSON.stringify(ENV),
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
           LOGGING: JSON.stringify(!isProd)
         }
-      }),
-      new webpack.optimize.CommonsChunkPlugin({
-        filename: 'commons.js',
-        name: 'commons'
       })
     ];
 
+    if (!isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          filename: 'commons.js',
+          name: 'commons'
+        })
+      );
+    }
+
     if (isProd) {
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'index' ],
+          name: 'commons'
+        })
+      );
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: [ 'parity' ],
+          name: 'parity'
+        })
+      );
+
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
@@ -194,17 +183,17 @@ module.exports = {
     return plugins;
   }()),
   devServer: {
-    contentBase: './src',
+    contentBase: './build',
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
     proxy: {
-      '/rpc/*': {
-        target: 'http://localhost:8080',
+      '/api/*': {
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true
       },
-      '/api*': {
-        target: 'http://127.0.0.1:8080',
+      '/rpc/*': {
+        target: 'http://localhost:8080',
         changeOrigin: true
       }
     }

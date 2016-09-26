@@ -27,7 +27,11 @@
   margin-bottom: 0.5em;
 }
 
+.addressline,
+.infoline {
+  line-height: 1.618em;
+}
+
 .infoline {
   color: #aaa;
-  line-height: 1.618em;
 }

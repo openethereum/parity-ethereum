@@ -1,5 +1,24 @@
-import registryAbi from '../abi/registry.json';
-import tokenregAbi from '../abi/tokenreg.json';
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+import {
+  registry as registryAbi,
+  tokenreg as tokenregAbi,
+  githubhint as githubhintAbi
+} from '../../../json';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
@@ -21,15 +40,32 @@ export const loadContract = () => (dispatch) => {
       console.log(`registry found at ${registryAddress}`);
       const registry = api.newContract(registryAbi, registryAddress).instance;
 
-      return registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']);
+      return Promise.all([
+        registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
+        registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A'])
+      ]);
     })
-    .then((address) => {
-      console.log(`tokenreg was found at ${address}`);
-      const contract = api.newContract(tokenregAbi, address);
+    .then(([ tokenregAddress, githubhintAddress ]) => {
+      console.log(`tokenreg was found at ${tokenregAddress}`);
 
-      const { instance } = contract;
+      const tokenregContract = api
+        .newContract(tokenregAbi, tokenregAddress);
 
-      dispatch(setContractDetails({ address, instance, raw: contract }));
+      const githubhintContract = api
+        .newContract(githubhintAbi, githubhintAddress);
+
+      dispatch(setContractDetails({
+        address: tokenregAddress,
+        instance: tokenregContract.instance,
+        raw: tokenregContract
+      }));
+
+      dispatch(setGithubhintDetails({
+        address: githubhintAddress,
+        instance: githubhintContract.instance,
+        raw: githubhintContract
+      }));
+
       dispatch(loadContractDetails());
       dispatch(subscribeEvents());
     })
@@ -40,9 +76,9 @@ export const loadContract = () => (dispatch) => {
 
 export const LOAD_CONTRACT_DETAILS = 'LOAD_CONTRACT_DETAILS';
 export const loadContractDetails = () => (dispatch, getState) => {
-  let state = getState();
+  const state = getState();
 
-  let instance = state.status.contract.instance;
+  const instance = state.status.contract.instance;
 
   Promise
     .all([
@@ -74,11 +110,17 @@ export const setContractDetails = (details) => ({
   details
 });
 
-export const subscribeEvents = () => (dispatch, getState) => {
-  let state = getState();
+export const SET_GITHUBHINT_CONTRACT = 'SET_GITHUBHINT_CONTRACT';
+export const setGithubhintDetails = (details) => ({
+  type: SET_GITHUBHINT_CONTRACT,
+  details
+});
 
-  let contract = state.status.contract.raw;
-  let previousSubscriptionId = state.status.subscriptionId;
+export const subscribeEvents = () => (dispatch, getState) => {
+  const state = getState();
+
+  const contract = state.status.contract.raw;
+  const previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
     contract.unsubscribe(previousSubscriptionId);
@@ -87,7 +129,8 @@ export const subscribeEvents = () => (dispatch, getState) => {
   contract
     .subscribe(null, {
       fromBlock: 'latest',
-      toBlock: 'pending'
+      toBlock: 'pending',
+      limit: 50
     }, (error, logs) => {
       if (error) {
         console.error('setupFilters', error);

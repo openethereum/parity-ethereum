@@ -1,3 +1,20 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 .token{
   position: relative;
   display: flex;
@@ -5,17 +22,56 @@
   width: 20rem;
   margin: 1rem;
   padding: 1rem;
+  padding-bottom: 1.5rem;
+}
+
+.token-container, .token-content, .token-meta {
+  width: 100%;
+
+  display: flex;
   flex-direction: column;
   align-items: center;
-  padding-bottom: 1.5rem;
+}
+
+.token-content, .token-meta {
+  z-index: 50;
+}
+
+.token-bg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  left: 0;
+  -webkit-filter: blur(5px);
+  filter: blur(5px);
+  background-color: rgba(255, 255, 255, 0.85);
+}
+
+.token-container {
+  flex: 1;
+}
+
+.full-width .token-container {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.full-width .token-content {
+  width: 20rem;
+  margin-right: 1rem;
+}
+
+.token-content > div, .token-meta > div {
+  max-width: 100%;
+}
+
+.loading {
+  margin: 1rem 0;
 }
 
 .name {
   padding-bottom: 0.75rem;
-}
-
-.token > div {
-  max-width: 100%;
 }
 
 .title {
@@ -27,12 +83,10 @@
   font-size: 0.9rem;
   margin-top: 1.5rem;
   margin-bottom: 0;
-  font-weight: bold;
 }
 
 .meta-key {
-  margin: 0 0.3rem;
-  font-family: monospace;
+  font-weight: bold;
 }
 
 .meta-value {
@@ -46,6 +100,19 @@
   margin-bottom: -0.5rem;
   font-size: 0.9rem;
   color: gray;
+}
+
+.meta-image {
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.meta-image img {
+  width: 100%;
+}
+
+.meta-form {
+  width: 100%;
 }
 
 .unregister {

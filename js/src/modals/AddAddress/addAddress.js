@@ -22,6 +22,10 @@ import { Button, Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
 export default class AddAddress extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     contacts: PropTypes.object.isRequired,
     onClose: PropTypes.func
@@ -125,9 +129,20 @@ export default class AddAddress extends Component {
   }
 
   onAdd = () => {
+    const { api } = this.context;
     const { address, name, description } = this.state;
 
-    this.props.onClose(address, name, description);
+    Promise.all([
+      api.personal.setAccountName(address, name),
+      api.personal.setAccountMeta(address, {
+        description,
+        deleted: false
+      })
+    ]).catch((error) => {
+      console.error('onAdd', error);
+    });
+
+    this.props.onClose();
   }
 
   onClose = () => {

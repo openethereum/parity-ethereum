@@ -17,13 +17,13 @@
 import React, { Component, PropTypes } from 'react';
 
 import { FirstRun } from '../../../modals';
-import { Errors, Tooltips } from '../../../ui';
+import { Errors, ParityBackground, Tooltips } from '../../../ui';
 
 import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {
-    children: PropTypes.node,
+    children: PropTypes.node.isRequired,
     showFirstRun: PropTypes.bool,
     onCloseFirstRun: PropTypes.func
   };
@@ -32,14 +32,14 @@ export default class Container extends Component {
     const { children, showFirstRun, onCloseFirstRun } = this.props;
 
     return (
-      <div className={ styles.container }>
+      <ParityBackground className={ styles.container }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
         <Tooltips />
         <Errors />
         { children }
-      </div>
+      </ParityBackground>
     );
   }
 }

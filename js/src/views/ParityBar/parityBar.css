@@ -32,20 +32,24 @@
 
 .expanded {
   right: 16px;
-  width: 860px;
-  height: 250px;
+  width: 964px;
+  height: 296px;
   border-radius: 4px 4px 0 0;
-  background: rgb(48, 48, 48);
-  padding: 1em;
   overflow-y: scroll;
 }
 
+.expanded .content {
+}
+
 .corner {
-  background: rgb(48, 48, 48);
   position: absolute;
   bottom: 0;
   right: 16px;
   border-radius: 4px 4px 0 0;
+}
+
+.cornercolor {
+  background: rgba(0, 0, 0, 0.5);
   padding: 0.5em 1em;
 }
 
@@ -90,11 +94,27 @@
 
 .header {
   height: 36px;
-  padding-bottom: 1em;
+  padding: 0.5em 1em;
+  background: rgba(0, 0, 0, 0.25);
+  margin-bottom: 0.25em;
 }
 
 .header:after {
   clear: both;
+}
+
+.header button,
+.corner button {
+  color: white !important;
+}
+
+.header svg ,
+.coner svg {
+  fill: white !important;
+}
+
+.body {
+  padding: 1em;
 }
 
 .title {

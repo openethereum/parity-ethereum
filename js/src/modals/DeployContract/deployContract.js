@@ -15,13 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { newError } from '../../redux/actions';
 import { Button, IdentityIcon, Modal } from '../../ui';
+import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import BusyStep from './BusyStep';
 import CompletedStep from './CompletedStep';
@@ -30,29 +28,29 @@ import ErrorStep from './ErrorStep';
 
 const steps = ['contract details', 'deployment', 'completed'];
 
-class DeployContract extends Component {
+export default class DeployContract extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    newError: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
   state = {
     abi: '',
-    abiError: 'Invalid or empty ABI',
+    abiError: ERRORS.invalidAbi,
     code: '',
-    codeError: 'Invalid or empty contract code',
+    codeError: ERRORS.invalidCode,
     deployState: '',
     description: '',
     descriptionError: null,
     fromAddress: Object.keys(this.props.accounts)[0],
     fromAddressError: null,
     name: '',
-    nameError: 'Contract name needs to be >2 charaters',
+    nameError: ERRORS.invalidName,
     step: 0,
     deployError: null
   }
@@ -163,43 +161,24 @@ class DeployContract extends Component {
   }
 
   onNameChange = (name) => {
-    const nameError = name && name.length > 2
-      ? null
-      : 'specify a valid name, >2 characters';
-
-    this.setState({ name, nameError });
+    this.setState(validateName(name));
   }
 
   onAbiChange = (abi) => {
     const { api } = this.context;
 
-    try {
-      const parsedAbi = JSON.parse(abi);
-
-      if (!api.util.isArray(parsedAbi) || !parsedAbi.length) {
-        throw new Error();
-      }
-
-      this.setState({ parsedAbi, abi, abiError: null });
-    } catch (error) {
-      console.error(error);
-      this.setState({ abi, abiError: 'ABI needs to be a valid JSON array' });
-    }
+    this.setState(validateAbi(abi, api));
   }
 
   onCodeChange = (code) => {
     const { api } = this.context;
-    const codeError = api.util.isHex(code) && code.length
-      ? null
-      : 'provide the valid compiled hex string of the contract code';
 
-    this.setState({ code, codeError });
+    this.setState(validateCode(code, api));
   }
 
   onDeployStart = () => {
-    const { api } = this.context;
-    const { newError } = this.props;
-    const { parsedAbi, code, description, name, fromAddress } = this.state;
+    const { api, store } = this.context;
+    const { abiParsed, code, description, name, fromAddress } = this.state;
     const options = {
       data: code,
       from: fromAddress
@@ -208,13 +187,13 @@ class DeployContract extends Component {
     this.setState({ step: 1 });
 
     api
-      .newContract(parsedAbi)
+      .newContract(abiParsed)
       .deploy(options, null, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
           api.personal.setAccountName(address, name),
           api.personal.setAccountMeta(address, {
-            abi: parsedAbi,
+            abi: abiParsed,
             contract: true,
             deleted: false,
             description
@@ -225,10 +204,10 @@ class DeployContract extends Component {
           this.setState({ step: 2, address });
         });
       })
-      .catch((deployError) => {
-        console.error('error deploying contract', deployError);
-        this.setState({ deployError });
-        newError(deployError);
+      .catch((error) => {
+        console.error('error deploying contract', error);
+        this.setState({ deployError: error });
+        store.dispatch({ type: 'newError', error });
       });
   }
 
@@ -243,24 +222,24 @@ class DeployContract extends Component {
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
-        this.setState({ deployState: 'Preparing transaction for network transmission' });
+        this.setState({ deployState: 'Preparing transaction for network transmission', showSigner: false });
         return;
 
       case 'checkRequest':
-        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer' });
+        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer', showSigner: true });
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for contract to be deployed/mined' });
+        this.setState({ deployState: 'Waiting for the contract to be deployed/mined', showSigner: false });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating contract deployment' });
+        this.setState({ deployState: 'Validating the contract deployment', showSigner: false });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'Contract deployment completed' });
+        this.setState({ deployState: 'Contract deployment has been completed', showSigner: false });
         return;
 
       default:
@@ -273,16 +252,3 @@ class DeployContract extends Component {
     this.props.onClose();
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(DeployContract);

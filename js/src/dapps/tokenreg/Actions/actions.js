@@ -1,3 +1,23 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+import { getTokenTotalSupply } from '../utils';
+
+const { sha3, bytesToHex } = window.parity.api.util;
+
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
@@ -23,16 +43,16 @@ export const registerCompleted = () => ({
 export const registerToken = (tokenData) => (dispatch, getState) => {
   console.log('registering token', tokenData);
 
-  let state = getState();
-  let contractInstance = state.status.contract.instance;
-  let fee = state.status.contract.fee;
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
+  const fee = state.status.contract.fee;
 
   const { address, base, name, tla } = tokenData;
 
   dispatch(setRegisterSending(true));
 
-  let values = [ address, tla, base, name ];
-  let options = {
+  const values = [ address, tla, base, name ];
+  const options = {
     from: state.accounts.selected.address,
     value: fee
   };
@@ -47,7 +67,7 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     })
     .then(() => {
       return contractInstance
-        .fromAddress.call({}, [ tla ])
+        .fromAddress.call({}, [ address ])
         .then((result) => {
           throw new Error(`A Token has already been registered with the Address ${address}`);
         }, () => {});
@@ -69,5 +89,124 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     .catch((e) => {
       console.error('registerToken error', e);
       dispatch(setRegisterError(e));
+    });
+};
+
+export const SET_QUERY_LOADING = 'SET_QUERY_LOADING';
+export const setQueryLoading = (isLoading) => ({
+  type: SET_QUERY_LOADING,
+  isLoading
+});
+
+export const SET_QUERY_RESULT = 'SET_QUERY_RESULT';
+export const setQueryResult = (data) => ({
+  type: SET_QUERY_RESULT,
+  data
+});
+
+export const SET_QUERY_NOT_FOUND = 'SET_QUERY_NOT_FOUND';
+export const setQueryNotFound = () => ({
+  type: SET_QUERY_NOT_FOUND
+});
+
+export const QUERY_RESET = 'QUERY_RESET';
+export const queryReset = () => ({
+  type: QUERY_RESET
+});
+
+export const SET_QUERY_META_LOADING = 'SET_QUERY_META_LOADING';
+export const setQueryMetaLoading = (isLoading) => ({
+  type: SET_QUERY_META_LOADING,
+  isLoading
+});
+
+export const SET_QUERY_META = 'SET_QUERY_META';
+export const setQueryMeta = (data) => ({
+  type: SET_QUERY_META,
+  data
+});
+
+export const queryToken = (key, query) => (dispatch, getState) => {
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
+
+  const contractFunc = (key === 'tla') ? 'fromTLA' : 'fromAddress';
+
+  dispatch(setQueryLoading(true));
+
+  contractInstance[contractFunc]
+    .call({}, [ query ])
+    .then((result) => {
+      const data = {
+        index: result[0].toNumber(),
+        base: result[2].toNumber(),
+        name: result[3],
+        owner: result[4]
+      };
+
+      if (key === 'tla') {
+        data.tla = query;
+        data.address = result[1];
+      }
+
+      if (key === 'address') {
+        data.address = query;
+        data.tla = result[1];
+      }
+
+      return data;
+    })
+    .then(data => {
+      return getTokenTotalSupply(data.address)
+        .then(totalSupply => {
+          data.totalSupply = totalSupply;
+          return data;
+        });
+    })
+    .then(data => {
+      if (data.totalSupply === null) {
+        dispatch(setQueryNotFound());
+        dispatch(setQueryLoading(false));
+
+        return false;
+      }
+
+      data.totalSupply = data.totalSupply.toNumber();
+      dispatch(setQueryResult(data));
+      dispatch(setQueryLoading(false));
+    }, () => {
+      dispatch(setQueryNotFound());
+      dispatch(setQueryLoading(false));
+    });
+};
+
+export const queryTokenMeta = (id, query) => (dispatch, getState) => {
+  console.log('loading token meta', query);
+
+  const state = getState();
+  const contractInstance = state.status.contract.instance;
+
+  const key = sha3(query);
+
+  const startDate = Date.now();
+  dispatch(setQueryMetaLoading(true));
+
+  contractInstance
+    .meta
+    .call({}, [ id, key ])
+    .then((value) => {
+      const meta = {
+        key, query,
+        value: value.find(v => v !== 0) ? bytesToHex(value) : null
+      };
+
+      dispatch(setQueryMeta(meta));
+
+      setTimeout(() => {
+        dispatch(setQueryMetaLoading(false));
+      }, 500 - (Date.now() - startDate));
+    })
+    .catch((e) => {
+      console.error('load meta query error', e);
     });
 };

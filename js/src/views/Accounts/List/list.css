@@ -19,18 +19,19 @@
   flex-wrap: wrap;
 }
 
-.account {
+.item {
   flex: 0 1 50%;
   width: 50%;
   position: relative;
+  margin: 0;
 }
 
-.account:nth-child(odd)>div {
-  padding-right: 0.5em !important;
+.item:nth-child(odd)>div {
+  padding-right: 0.125em;
 }
 
-.account:nth-child(even)>div {
-  padding-left: 0.5em !important;
+.item:nth-child(even)>div {
+  padding-left: 0.125em;
 }
 
 .empty {

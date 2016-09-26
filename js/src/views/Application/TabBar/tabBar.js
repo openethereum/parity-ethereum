@@ -26,7 +26,7 @@ import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
-import { Badge, SignerIcon, Tooltip } from '../../../ui';
+import { Badge, ParityBackground, SignerIcon, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
@@ -65,12 +65,14 @@ export default class TabBar extends Component {
 
   render () {
     return (
-      <Toolbar
-        className={ styles.toolbar }>
-        { this.renderLogo() }
-        { this.renderTabs() }
-        { this.renderSettingsMenu() }
-      </Toolbar>
+      <ParityBackground>
+        <Toolbar
+          className={ styles.toolbar }>
+          { this.renderLogo() }
+          { this.renderTabs() }
+          { this.renderSettingsMenu() }
+        </Toolbar>
+      </ParityBackground>
     );
   }
 

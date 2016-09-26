@@ -258,7 +258,7 @@ describe('api/contract/Contract', () => {
           { method: 'eth_getCode', reply: { result: '0x456' } }
         ]);
 
-        return contract.deploy('0x123', []);
+        return contract.deploy({ data: '0x123' }, []);
       });
 
       it('calls estimateGas, postTransaction, checkRequest, getTransactionReceipt & getCode in order', () => {
@@ -286,7 +286,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy('0x123', [])
+          .deploy({ data: '0x123' }, [])
           .catch((error) => {
             expect(error.message).to.match(/not deployed, gasUsed/);
           });
@@ -302,7 +302,7 @@ describe('api/contract/Contract', () => {
         ]);
 
         return contract
-          .deploy('0x123', [])
+          .deploy({ data: '0x123' }, [])
           .catch((error) => {
             expect(error.message).to.match(/not deployed, getCode/);
           });

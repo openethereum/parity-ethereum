@@ -1,9 +1,26 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SearchIcon from 'material-ui/svg-icons/action/search';
 import renderAddress from '../ui/address.js';
+import renderImage from '../ui/image.js';
 
 import recordTypeSelect from '../ui/record-type-select.js';
 import styles from './lookup.css';
@@ -32,6 +49,13 @@ export default class Lookup extends Component {
     if (result) {
       if (type === 'A') {
         output = (<code>{ renderAddress(result, accounts, contacts, false) }</code>);
+      } else if (type === 'IMG') {
+        output = renderImage(result);
+      } else if (type === 'CONTENT') {
+        output = (<div>
+          <code>{ result }</code>
+          <p>This is most likely just the hash of the content you are looking for</p>
+        </div>);
       } else {
         output = (<code>{ result }</code>);
       }

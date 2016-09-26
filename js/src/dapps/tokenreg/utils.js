@@ -14,12 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ABI_EIP20 from './eip20.json';
-import ABI_REGISTRY from './registry.json';
-import ABI_TOKENREG from './tokenreg.json';
+import { api } from './parity';
 
-const eip20Abi = ABI_EIP20;
-const registryAbi = ABI_REGISTRY;
-const tokenRegAbi = ABI_TOKENREG;
+import { eip20 as eip20Abi } from '../../json/';
 
-export { eip20Abi, registryAbi, tokenRegAbi };
+export const getTokenTotalSupply = (tokenAddress) => {
+  return api
+    .eth
+    .getCode(tokenAddress)
+    .then(code => {
+      if (!code || /^(0x)?0?$/.test(code)) {
+        return null;
+      }
+
+      const contract = api.newContract(eip20Abi, tokenAddress);
+
+      return contract
+        .instance
+        .totalSupply
+        .call({}, []);
+    });
+};

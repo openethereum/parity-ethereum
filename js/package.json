@@ -23,19 +23,17 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run buildApp",
-    "buildApp": "NODE_ENV=production webpack",
-    "buildLibrary": "rollup --config ./rollup.library.js",
-    "clean": "rm -rf ./build",
+    "build": "npm run build:dll && npm run build:app",
+    "build:app": "webpack --progress",
+    "build:dll": "webpack --config webpack.vendor.js --progress",
+    "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
-    "release": "./scripts/release.sh",
-    "start": "npm install && npm run startApp",
-    "startApp": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
+    "start": "npm install && npm run build:dll && npm run start:app",
+    "start:app": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "test": "mocha 'src/**/*.spec.js'",
-    "testCoverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
-    "testE2E": "mocha 'src/**/*.e2e.js'",
-    "watch": "npm run test -- -w"
+    "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
+    "test:e2e": "mocha 'src/**/*.e2e.js'"
   },
   "devDependencies": {
     "axios": "^0.14.0",
@@ -47,6 +45,7 @@
     "babel-plugin-transform-class-properties": "^6.11.5",
     "babel-plugin-transform-decorators-legacy": "^1.3.4",
     "babel-plugin-transform-runtime": "^6.9.0",
+    "babel-polyfill": "^6.13.0",
     "babel-preset-es2015": "^6.9.0",
     "babel-preset-es2015-rollup": "^1.1.1",
     "babel-preset-es2016": "^6.11.3",
@@ -70,6 +69,7 @@
     "eslint-plugin-standard": "^2.0.0",
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.8.5",
+    "happypack": "^2.2.1",
     "history": "^2.0.0",
     "html-loader": "^0.4.3",
     "ignore-styles": "2.0.0",
@@ -115,6 +115,7 @@
     "es6-promise": "^3.2.1",
     "format-json": "^1.0.3",
     "format-number": "^2.0.1",
+    "geopattern": "^1.2.3",
     "isomorphic-fetch": "^2.2.1",
     "js-sha3": "^0.5.2",
     "lodash": "^4.11.1",
@@ -135,6 +136,7 @@
     "rlp": "^2.0.0",
     "store": "^1.3.20",
     "utf8": "^2.1.1",
+    "validator": "^5.7.0",
     "web3": "^0.17.0-alpha"
   }
 }

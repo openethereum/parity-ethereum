@@ -14,6 +14,9 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+.contract {
+}
+
 .methods {
   display: flex;
   flex-wrap: wrap;
@@ -24,4 +27,43 @@
   width: 20%;
   position: relative;
   margin-top: 0.5em;
+}
+
+.events {
+  width: 100%;
+  border: none;
+  border-spacing: 0;
+}
+
+.event {
+  vertical-align: top;
+  line-height: 26px;
+}
+
+.event td {
+  vertical-align: top;
+  padding: 1em 0.5em;
+}
+
+.txhash {
+  text-overflow: ellipsis;
+}
+
+.key {
+  text-align: right;
+  color: #aaa;
+}
+
+.value {
+}
+
+.event td div {
+  white-space: nowrap;
+}
+
+.mined {
+}
+
+.pending {
+  opacity: 0.5;
 }

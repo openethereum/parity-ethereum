@@ -16,10 +16,9 @@
 */
 .status {
   clear: both;
-  padding: 1em;
-  margin: 1em 0;
+  padding: 0.25em 0.5em 1.5em 0.5em;
   text-align: right;
-  opacity: 0.75;
+  color: #ddd;
 }
 
 .title {

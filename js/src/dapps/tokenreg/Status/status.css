@@ -14,8 +14,9 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .status {
-  background: rgba(25, 75, 125, 1);
+  background: rgba(46, 204, 113, 0.75);
   color: rgba(255, 255, 255, 1);
   padding: 4em 0 2em 0;
 

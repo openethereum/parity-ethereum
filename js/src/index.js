@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import 'babel-polyfill';
 import 'isomorphic-fetch';
+
+import es6Promise from 'es6-promise';
+es6Promise.polyfill();
+
 import React from 'react';
 import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import es6Promise from 'es6-promise';
 import { createHashHistory } from 'history';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 
@@ -39,13 +43,14 @@ import './environment';
 import styles from './reset.css';
 import './index.html';
 
-es6Promise.polyfill();
 injectTapEventPlugin();
 
 const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
+
+muiTheme.parity.setBackgroundSeed(api.util.sha3(initToken + Date.now()));
 
 // signer
 function tokenSetter (token, cb) {

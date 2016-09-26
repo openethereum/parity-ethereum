@@ -133,13 +133,15 @@ describe('api/format/input', () => {
           address: address,
           fromBlock: 'latest',
           toBlock: 0x101,
-          extraData: 'someExtraStuffInHere'
+          extraData: 'someExtraStuffInHere',
+          limit: 0x32
         })
       ).to.deep.equal({
         address: address,
         fromBlock: 'latest',
         toBlock: '0x101',
-        extraData: 'someExtraStuffInHere'
+        extraData: 'someExtraStuffInHere',
+        limit: 50
       });
     });
   });

@@ -24,8 +24,7 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import { api } from '../parity';
 
-import registryAbi from '../abi/registry.json';
-import gavcoinAbi from '../abi/gavcoin.json';
+import * as abis from '../../../json';
 
 import Accounts from '../Accounts';
 import Actions, { ActionBuyIn, ActionRefund, ActionTransfer } from '../Actions';
@@ -200,7 +199,7 @@ export default class Application extends Component {
       .then((registryAddress) => {
         console.log(`the registry was found at ${registryAddress}`);
 
-        const registry = api.newContract(registryAbi, registryAddress).instance;
+        const registry = api.newContract(abis.registry, registryAddress).instance;
 
         return Promise
           .all([
@@ -212,7 +211,7 @@ export default class Application extends Component {
       .then(([address, addresses, infos]) => {
         console.log(`gavcoin was found at ${address}`);
 
-        const contract = api.newContract(gavcoinAbi, address);
+        const contract = api.newContract(abis.gavcoin, address);
 
         this.setState({
           loading: false,

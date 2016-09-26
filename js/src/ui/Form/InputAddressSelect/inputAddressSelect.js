@@ -27,7 +27,9 @@ import styles from './inputAddressSelect.css';
 class InputAddressSelect extends Component {
   static propTypes = {
     accounts: PropTypes.object,
+    contacts: PropTypes.object,
     disabled: PropTypes.bool,
+    editing: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -36,7 +38,7 @@ class InputAddressSelect extends Component {
   };
 
   state = {
-    editing: false,
+    editing: this.props.editing || false,
     entries: []
   }
 
@@ -71,11 +73,12 @@ class InputAddressSelect extends Component {
   }
 
   renderSelect () {
-    const { accounts, disabled, error, hint, label, value } = this.props;
+    const { accounts, contacts, disabled, error, hint, label, value } = this.props;
 
     return (
       <AddressSelect
         accounts={ accounts }
+        contacts={ contacts }
         disabled={ disabled }
         label={ label }
         hint={ hint }
@@ -106,7 +109,8 @@ function mapStateToProps (state) {
   const { accounts, contacts } = state.personal;
 
   return {
-    entries: Object.values(accounts).concat(Object.values(contacts))
+    accounts,
+    contacts
   };
 }
 

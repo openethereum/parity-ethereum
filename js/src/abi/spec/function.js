@@ -23,6 +23,7 @@ export default class Func {
   constructor (abi) {
     this._name = abi.name;
     this._constant = !!abi.constant;
+    this._payable = abi.payable;
     this._inputs = Param.toParams(abi.inputs || []);
     this._outputs = Param.toParams(abi.outputs || []);
     this._signature = methodSignature(this._name, this.inputParamTypes());
@@ -34,6 +35,10 @@ export default class Func {
 
   get name () {
     return this._name;
+  }
+
+  get payable () {
+    return this._payable;
   }
 
   get inputs () {
@@ -58,6 +63,10 @@ export default class Func {
 
   encodeCall (tokens) {
     return `${this._signature}${Encoder.encode(tokens)}`;
+  }
+
+  decodeInput (data) {
+    return Decoder.decode(this.inputParamTypes(), data);
   }
 
   decodeOutput (data) {

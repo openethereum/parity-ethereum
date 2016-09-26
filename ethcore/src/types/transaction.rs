@@ -21,7 +21,7 @@ use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
 use util::{H256, Address, U256, Bytes};
-use ethkey::{Signature, sign, Secret, recover, public_to_address, Error as EthkeyError};
+use ethkey::{Signature, sign, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
@@ -305,11 +305,16 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = public_to_address(&try!(recover(&self.signature(), &self.unsigned.hash())));
+				let s = public_to_address(&try!(self.public_key()));
 				self.sender.set(Some(s));
 				Ok(s)
 			}
 		}
+	}
+
+	/// Returns the public key of the sender.
+	pub fn public_key(&self) -> Result<Public, Error> {
+		Ok(try!(recover(&self.signature(), &self.unsigned.hash())))
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,

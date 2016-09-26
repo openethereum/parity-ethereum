@@ -22,7 +22,7 @@ import styles from '../application.css';
 
 export default class DappContainer extends Component {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node.isRequired
   };
 
   render () {

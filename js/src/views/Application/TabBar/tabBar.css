@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .toolbar {
-  background: rgb(65, 65, 65) !important;
+  background: none !important;
   height: 72px !important;
   position: relative;
 }
@@ -25,13 +25,19 @@
   position: relative;
 }
 
+.tabs button,
+.settings,
+.logo {
+  background: rgba(0, 0, 0, 0.5) !important; /* rgba(0, 0, 0, 0.25) !important; */
+}
+
 .tabs button:hover {
-  background: rgb(72, 72, 72) !important;
+  background: rgba(0, 0, 0, 0.4) !important;
 }
 
 button.tabactive,
 button.tabactive:hover {
-  background: rgb(80, 80, 80) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
   border-radius: 4px 4px 0 0;
 }
 
@@ -51,7 +57,8 @@ button.tabactive:hover {
 }
 
 .logo {
-  margin: 22px 3em 0 0;
+  margin: 0 0 0 -24px;
+  padding: 22px 24px 0 24px;
   white-space: nowrap;
 }
 
@@ -76,12 +83,12 @@ button.tabactive:hover {
 }
 
 .settings {
-  padding-left: 24px;
-  margin: 12px -12px;
+  margin: 0 -24px 0 0;
+  padding: 12px 24px;
 }
 
 .settings svg {
-  fill: rgb(0, 151, 167) !important;
+  fill: rgba(255, 255, 255, 0.5) !important;
 }
 
 svg.optionSelected {

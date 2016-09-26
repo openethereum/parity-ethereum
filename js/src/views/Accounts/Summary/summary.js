@@ -27,7 +27,7 @@ export default class Summary extends Component {
   static propTypes = {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object.isRequired,
-    contact: PropTypes.bool,
+    link: PropTypes.string,
     children: PropTypes.node
   }
 
@@ -36,13 +36,13 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, balance, children, contact } = this.props;
+    const { account, balance, children, link } = this.props;
 
     if (!account) {
       return null;
     }
 
-    const viewLink = `/${contact ? 'address' : 'account'}/${account.address}`;
+    const viewLink = `/${link || 'account'}/${account.address}`;
 
     return (
       <Container>

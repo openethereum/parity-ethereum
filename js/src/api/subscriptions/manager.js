@@ -110,6 +110,7 @@ export default class Manager {
       callback(error, data);
     } catch (error) {
       console.error(`Unable to update callback for ${subscriptionName}, subscriptionId ${subscriptionId}`, error);
+      this.unsubscribe(subscriptionName, subscriptionId);
     }
   }
 

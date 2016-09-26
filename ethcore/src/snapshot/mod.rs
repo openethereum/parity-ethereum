@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snapshot creation, restoration, and network service.
+//!
+//! Documentation of the format can be found at
+//! https://github.com/ethcore/parity/wiki/%22PV64%22-Snapshot-Format
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -34,7 +37,7 @@ use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
-use rlp::{RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
+use rlp::{RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -366,8 +369,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
 		let fat_rlp = try!(account.to_fat_rlp(&account_db, &mut used_code));
-		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
-		try!(chunker.push(account_key, compressed_rlp));
+		try!(chunker.push(account_key, fat_rlp));
 	}
 
 	if chunker.cur_size != 0 {
@@ -508,8 +510,7 @@ fn rebuild_accounts(
 		let account_rlp = UntrustedRlp::new(account_pair);
 
 		let hash: H256 = try!(account_rlp.val_at(0));
-		let decompressed = try!(account_rlp.at(1)).decompress(RlpType::Snapshot);
-		let fat_rlp = UntrustedRlp::new(&decompressed[..]);
+		let fat_rlp = try!(account_rlp.at(1));
 
 		let thin_rlp = {
 			let mut acct_db = AccountDBMut::from_hash(db, hash);
@@ -570,6 +571,7 @@ impl BlockRebuilder {
 	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, ::error::Error> {
 		use basic_types::Seal::With;
 		use util::U256;
+		use util::triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
@@ -586,7 +588,11 @@ impl BlockRebuilder {
 			let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
 			let receipts: Vec<::receipt::Receipt> = try!(pair.val_at(1));
-			let block = try!(abridged_block.to_block(parent_hash, cur_number));
+			let receipts_root = ordered_trie_root(
+				try!(pair.at(1)).iter().map(|r| r.as_raw().to_owned())
+			);
+
+			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
 
 			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {

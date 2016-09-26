@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -24,7 +22,6 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { Button, Modal } from '../../ui';
-import { newError } from '../../ui/Errors';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -42,15 +39,16 @@ const TITLES = {
 const STAGE_NAMES = [TITLES.type, TITLES.create, TITLES.info];
 const STAGE_IMPORT = [TITLES.type, TITLES.import, TITLES.info];
 
-class CreateAccount extends Component {
+export default class CreateAccount extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     onClose: PropTypes.func,
-    onUpdate: PropTypes.func,
-    onNewError: PropTypes.func
+    onUpdate: PropTypes.func
   }
 
   state = {
@@ -85,6 +83,7 @@ class CreateAccount extends Component {
 
   renderPage () {
     const { createType, stage } = this.state;
+    const { accounts } = this.props;
 
     switch (stage) {
       case 0:
@@ -102,6 +101,7 @@ class CreateAccount extends Component {
         } else if (createType === 'fromGeth') {
           return (
             <NewGeth
+              accounts={ accounts }
               onChange={ this.onChangeGeth } />
           );
         }
@@ -310,21 +310,8 @@ class CreateAccount extends Component {
   }
 
   newError = (error) => {
-    this.props.onNewError(error);
+    const { store } = this.context;
+
+    store.dispatch({ type: 'newError', error });
   }
 }
-
-function mapStateToProps (state) {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    onNewError: newError
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(CreateAccount);

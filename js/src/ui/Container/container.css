@@ -15,9 +15,14 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .container {
-  padding: 0em 1em 1em 1em;
+  padding: 0em 0.25em 0.25em 0.25em;
 }
 
 .padded {
-  padding: 1em;
+  padding: 1.5em;
+  background: rgba(0, 0, 0, 0.7) !important;
+}
+
+.light .padded {
+  background: rgba(0, 0, 0, 0.5) !important;
 }

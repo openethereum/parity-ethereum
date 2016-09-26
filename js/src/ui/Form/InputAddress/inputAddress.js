@@ -28,11 +28,12 @@ export default class InputAddress extends Component {
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
-    onChange: PropTypes.func
+    onChange: PropTypes.func,
+    onSubmit: PropTypes.func
   };
 
   render () {
-    const { disabled, error, label, hint, value, onChange } = this.props;
+    const { disabled, error, label, hint, value, onChange, onSubmit } = this.props;
 
     return (
       <div className={ styles.container }>
@@ -43,7 +44,8 @@ export default class InputAddress extends Component {
           hint={ hint }
           error={ error }
           value={ value }
-          onChange={ onChange } />
+          onChange={ onChange }
+          onSubmit={ onSubmit } />
         { this.renderIcon() }
       </div>
     );

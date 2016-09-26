@@ -113,7 +113,8 @@ export default class Events extends Component {
 
     const options = {
       fromBlock: 0,
-      toBlock: 'pending'
+      toBlock: 'pending',
+      limit: 50
     };
 
     contract.subscribe(null, options, (error, _logs) => {
