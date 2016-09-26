@@ -117,12 +117,12 @@ impl JobDispatcher for StratumJobDispatcher {
 
 impl StratumJobDispatcher {
 	/// New stratum job dispatcher given the miner and client
-	fn new(miner: &Arc<Miner>, client: &Arc<Client>) -> StratumJobDispatcher {
+	fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			last_work: RwLock::new(None),
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			client: client,
+			miner: miner,
 		}
 	}
 
@@ -180,7 +180,7 @@ impl super::work_notify::NotifyWork for Stratum {
 
 impl Stratum {
 	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn new(base_dir: &str, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Stratum, Error> {
+	pub fn new(base_dir: &str, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
 		Ok(Stratum {
 			dispatcher: Arc::new(StratumJobDispatcher::new(miner, client)),
 			base_dir: base_dir.to_owned(),

@@ -26,6 +26,7 @@ use miner::{Miner, StratumOptions};
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
+use std::sync::Weak;
 
 #[cfg(feature="ipc")]
 use nanoipc;
@@ -150,7 +151,7 @@ impl ClientService {
 
 	#[cfg(feature="stratum")]
 	/// Runs stratum if feature is on
-	pub fn stratum_notifier(cfg: &StratumOptions, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Box<miner::NotifyWork>, ()> {
+	pub fn stratum_notifier(cfg: &StratumOptions, miner: Weak<Miner>, client: Weak<Client>) -> Result<Box<miner::NotifyWork>, ()> {
 		use miner::Stratum;
 		use miner::NotifyWork;
 

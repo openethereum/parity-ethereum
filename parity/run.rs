@@ -200,7 +200,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// start stratum
 	if let Some(ref stratum_config) = cmd.stratum {
-		let _ = ClientService::stratum_notifier(stratum_config, &miner, &client).map(|stratum_notifier| {
+		let _ = ClientService::stratum_notifier(stratum_config, Arc::downgrade(&miner), Arc::downgrade(&client)).map(|stratum_notifier| {
 			miner.push_notifier(stratum_notifier)
 		});
 	}
