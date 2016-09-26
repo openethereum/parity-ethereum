@@ -96,7 +96,7 @@ impl str::FromStr for UUID {
 
 impl From<&'static str> for UUID {
 	fn from(s: &'static str) -> Self {
-		s.parse().unwrap()
+		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 	}
 }
 

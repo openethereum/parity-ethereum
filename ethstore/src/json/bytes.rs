@@ -40,7 +40,7 @@ impl str::FromStr for Bytes {
 
 impl From<&'static str> for Bytes {
 	fn from(s: &'static str) -> Self {
-		s.parse().unwrap()
+		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 	}
 }
 
