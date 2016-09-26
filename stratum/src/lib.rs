@@ -45,7 +45,7 @@ pub use traits::{
 };
 
 use json_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
+use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params, Value};
 use std::sync::Arc;
 
 use std::net::SocketAddr;
@@ -104,12 +104,15 @@ impl Stratum {
 	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		Ok(match params {
 			Params::Array(vals) => {
-				self.dispatcher.submit(vals.iter().map(|val| format!("{}", val)).collect::<Vec<String>>());
-				to_value(&true)
+				// first two elements are service messages (worker_id & job_id)
+				self.dispatcher.submit(vals.iter().skip(2)
+					.filter_map(|val| match val { &Value::String(ref str) => Some(str.to_owned()), _ => None })
+					.collect::<Vec<String>>());
+				to_value(true)
 			},
 			_ => {
 				trace!(target: "stratum", "Invalid submit work format {:?}", params);
-				to_value(&false)
+				to_value(false)
 			}
 		})
 	}
@@ -145,11 +148,11 @@ impl Stratum {
 			}
 			if let Some(context) = self.rpc_server.request_context() {
 				self.workers.write().insert(context.socket_addr, worker_id);
-				to_value(&true)
+				to_value(true)
 			}
 			else {
 				warn!(target: "stratum", "Authorize without valid context received!");
-				to_value(&false)
+				to_value(false)
 			}
 		})
 	}
