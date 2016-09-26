@@ -28,7 +28,7 @@ export default class SignatureReg {
 
   lookup (signature) {
     return this.getInstance().then((instance) => {
-      return instance.get.call({}, [signature]);
+      return instance.entries.call({}, [signature]);
     });
   }
 }

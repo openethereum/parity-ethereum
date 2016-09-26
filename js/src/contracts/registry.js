@@ -66,7 +66,7 @@ export default class Registry {
 
     return this.getInstance().then((instance) => {
       if (name === 'signaturereg') {
-        return '0xD1888764222dbE5BBa54F0cf9d493e43aba667Fb';
+        return '0x15fF40Ceb6092b8EBeD4046E2d4c54e5e4cae458';
       }
       return instance.getAddress.call({}, [this._api.util.sha3(name), 'A']);
     });

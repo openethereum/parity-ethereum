@@ -27,28 +27,6 @@
   },
   {
     "constant": true,
-    "inputs": [
-      {
-        "name": "_signature",
-        "type": "bytes4"
-      }
-    ],
-    "name": "get",
-    "outputs": [
-      {
-        "name": "method",
-        "type": "string"
-      },
-      {
-        "name": "owner",
-        "type": "address"
-      }
-    ],
-    "payable": false,
-    "type": "function"
-  },
-  {
-    "constant": true,
     "inputs": [],
     "name": "owner",
     "outputs": [
@@ -79,12 +57,8 @@
     "name": "entries",
     "outputs": [
       {
-        "name": "method",
+        "name": "",
         "type": "string"
-      },
-      {
-        "name": "owner",
-        "type": "address"
       }
     ],
     "payable": false,
@@ -117,7 +91,7 @@
     "inputs": [
       {
         "indexed": true,
-        "name": "owner",
+        "name": "creator",
         "type": "address"
       },
       {
