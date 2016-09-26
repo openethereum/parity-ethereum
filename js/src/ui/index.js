@@ -24,6 +24,7 @@ import ContextProvider from './ContextProvider';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
+import MethodDecoding from './MethodDecoding';
 import Modal from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
@@ -50,6 +51,7 @@ export {
   InputInline,
   Select,
   IdentityIcon,
+  MethodDecoding,
   Modal,
   muiTheme,
   Page,
