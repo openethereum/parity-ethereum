@@ -16,6 +16,9 @@
 
 import { sha3, toWei } from '../parity.js';
 
+const alreadyQueued = (queue, action, name) =>
+  !!queue.find((entry) => entry.action === action && entry.name === name)
+
 export const reserveStart = (name) => ({ type: 'names reserve start', name });
 
 export const reserveSuccess = (name) => ({ type: 'names reserve success', name });
@@ -27,7 +30,7 @@ export const reserve = (name) => (dispatch, getState) => {
   const account = state.accounts.selected;
   const contract = state.contract;
   if (!contract || !account) return;
-  if (state.names.reserved.includes(name)) return;
+  if (alreadyQueued(state.names.queue, 'reserve', name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   name = name.toLowerCase();
@@ -63,7 +66,7 @@ export const drop = (name) => (dispatch, getState) => {
   const account = state.accounts.selected;
   const contract = state.contract;
   if (!contract || !account) return;
-  if (state.names.dropped.includes(name)) return;
+  if (alreadyQueued(state.names.queue, 'drop', name)) return;
   const drop = contract.functions.find((f) => f.name === 'drop');
 
   name = name.toLowerCase();

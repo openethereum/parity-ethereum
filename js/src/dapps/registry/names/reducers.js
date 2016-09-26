@@ -17,8 +17,7 @@
 const initialState = {
   hasAccount: false,
   pending: false,
-  reserved: [],
-  dropped: []
+  queue: []
 };
 
 export default (state = initialState, action) => {
@@ -32,7 +31,7 @@ export default (state = initialState, action) => {
   if (action.type === 'names reserve success') {
     return {
       ...state, pending: false,
-      reserved: state.reserved.concat(action.name)
+      queue: state.queue.concat({action: 'reserve', name: action.name})
     };
   }
   if (action.type === 'names reserve fail') {
@@ -45,7 +44,7 @@ export default (state = initialState, action) => {
   if (action.type === 'names drop success') {
     return {
       ...state, pending: false,
-      dropped: state.dropped.concat(action.name)
+      queue: state.queue.concat({action: 'drop', name: action.name})
     };
   }
   if (action.type === 'names drop fail') {

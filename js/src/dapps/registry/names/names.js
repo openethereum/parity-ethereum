@@ -26,6 +26,45 @@ import { fromWei } from '../parity.js';
 
 import styles from './names.css';
 
+const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>)
+
+const renderNames = (names) => {
+  const out = []
+  for (let name of names) {
+    out.push((<code>{ name }</code>), ', ')
+  }
+  out.pop()
+  return out
+}
+
+const renderQueue = (queue) => {
+  if (queue.length === 0) {
+    return null;
+  }
+
+  const grouped = queue.reduce((grouped, change) => {
+    const last = grouped[grouped.length - 1]
+    if (last && last.action === change.action) {
+      last.names.push(change.name)
+    } else {
+      grouped.push({action: change.action, names: [change.name]})
+    }
+    return grouped
+  }, []);
+
+  return (
+    <ul>
+      { grouped.map(({action, names}) => (
+        <li key={ action + '-' + names.join('-') }>
+          { renderNames(names) }
+          { ' will be ' }
+          { action === 'reserve' ? 'reserved' : 'dropped' }
+        </li>
+      )) }
+    </ul>
+  );
+}
+
 export default class Names extends Component {
 
   static propTypes = {
@@ -33,8 +72,7 @@ export default class Names extends Component {
     fee: PropTypes.object.isRequired,
     hasAccount: PropTypes.bool.isRequired,
     pending: PropTypes.bool.isRequired,
-    reserved: PropTypes.array.isRequired,
-    dropped: PropTypes.array.isRequired
+    queue: PropTypes.array.isRequired
   }
 
   state = {
@@ -44,7 +82,7 @@ export default class Names extends Component {
 
   render () {
     const { action, name } = this.state;
-    const { fee, hasAccount, pending, reserved, dropped } = this.props;
+    const { fee, hasAccount, pending, queue } = this.props;
 
     return (
       <Card className={ styles.names }>
@@ -52,10 +90,12 @@ export default class Names extends Component {
         <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (<p className={ styles.noSpacing }>
-                The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
-                To drop a name, you have to be the owner.
-              </p>)
+            : (action === 'reserve'
+                ? (<p className={ styles.noSpacing }>
+                    The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
+                  </p>)
+                : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
+              )
           }
           <TextField
             hintText='name'
@@ -78,16 +118,10 @@ export default class Names extends Component {
             icon={ <CheckIcon /> }
             onClick={ this.onSubmitClick }
           />
-          { reserved.map((name) => (
-            <p key={ name }>
-              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate reserving <code>{ name }</code>.
-            </p>
-          )) }
-          { dropped.map((name) => (
-            <p key={ name }>
-              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate dropping <code>{ name }</code>.
-            </p>
-          )) }
+          { queue.length > 0
+            ? (<div>{ useSignerText }{ renderQueue(queue) }</div>)
+            : null
+          }
         </CardText>
       </Card>
     );
