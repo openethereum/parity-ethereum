@@ -25,43 +25,21 @@ export default (state = initialState, action) => {
     return { ...state, hasAccount: !!action.address };
   }
 
-  if (action.type === 'names reserve start') {
+  const [ ns, fn, status ] = action.type.split(' ')
+  if (ns !== 'names') return state;
+
+  if (status === 'start') {
     return { ...state, pending: true };
   }
-  if (action.type === 'names reserve success') {
-    return {
-      ...state, pending: false,
-      queue: state.queue.concat({action: 'reserve', name: action.name})
-    };
-  }
-  if (action.type === 'names reserve fail') {
+  if (status === 'fail') {
     return { ...state, pending: false };
   }
 
-  if (action.type === 'names drop start') {
-    return { ...state, pending: true };
-  }
-  if (action.type === 'names drop success') {
+  if (status === 'success') {
     return {
       ...state, pending: false,
-      queue: state.queue.concat({action: 'drop', name: action.name})
+      queue: state.queue.concat({ action: fn, name: action.name })
     };
-  }
-  if (action.type === 'names drop fail') {
-    return { ...state, pending: false };
-  }
-
-  if (action.type === 'names transfer start') {
-    return { ...state, pending: true };
-  }
-  if (action.type === 'names transfer success') {
-    return {
-      ...state, pending: false,
-      queue: state.queue.concat({action: 'transfer', name: action.name})
-    };
-  }
-  if (action.type === 'names transfer fail') {
-    return { ...state, pending: false };
   }
 
   return state;
