@@ -196,8 +196,11 @@ impl Server {
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
-			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(format!("{}", addr), endpoints.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
+			special.insert(
+				router::SpecialEndpoint::Api,
+				api::RestApi::new(format!("{}", addr), endpoints.clone(), content_fetcher.clone())
+			);
 			special
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));

@@ -23,13 +23,13 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use v1::traits::PersonalSigner;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
-use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, ConfirmationPayload};
+use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::{unlock_sign_and_dispatch, signature_with_password};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-	queue: Weak<ConfirmationsQueue>,
+	signer: Weak<SignerService>,
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
@@ -38,9 +38,14 @@ pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	/// Create new instance of signer client.
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, queue: &Arc<ConfirmationsQueue>) -> Self {
+	pub fn new(
+		store: &Arc<AccountProvider>,
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		signer: &Arc<SignerService>,
+	) -> Self {
 		SignerClient {
-			queue: Arc::downgrade(queue),
+			signer: Arc::downgrade(signer),
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -59,8 +64,8 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 	fn requests_to_confirm(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		try!(expect_no_params(params));
-		let queue = take_weak!(self.queue);
-		Ok(to_value(&queue.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>()))
+		let signer = take_weak!(self.signer);
+		Ok(to_value(&signer.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>()))
 	}
 
 	fn confirm_request(&self, params: Params) -> Result<Value, Error> {
@@ -71,11 +76,11 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 			|(id, modification, pass)| {
 				let id = id.into();
 				let accounts = take_weak!(self.accounts);
-				let queue = take_weak!(self.queue);
+				let signer = take_weak!(self.signer);
 				let client = take_weak!(self.client);
 				let miner = take_weak!(self.miner);
 
-				queue.peek(&id).map(|confirmation| {
+				signer.peek(&id).map(|confirmation| {
 					let result = match confirmation.payload {
 						ConfirmationPayload::Transaction(mut request) => {
 							// apply modification
@@ -90,7 +95,7 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						}
 					};
 					if let Ok(ref response) = result {
-						queue.request_confirmed(id, Ok(response.clone()));
+						signer.request_confirmed(id, Ok(response.clone()));
 					}
 					result
 				}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
@@ -102,11 +107,20 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 		try!(self.active());
 		from_params::<(U256, )>(params).and_then(
 			|(id, )| {
-				let queue = take_weak!(self.queue);
-				let res = queue.request_rejected(id.into());
+				let signer = take_weak!(self.signer);
+				let res = signer.request_rejected(id.into());
 				Ok(to_value(&res.is_some()))
 			}
 		)
+	}
+
+	fn generate_token(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+		let signer = take_weak!(self.signer);
+		signer.generate_token()
+			.map(|token| to_value(&token))
+			.map_err(|e| errors::token(e))
 	}
 }
 

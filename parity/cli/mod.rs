@@ -32,6 +32,8 @@ usage! {
 		cmd_snapshot: bool,
 		cmd_restore: bool,
 		cmd_ui: bool,
+		cmd_tools: bool,
+		cmd_hash: bool,
 
 		// Arguments
 		arg_pid_file: String,
@@ -458,6 +460,8 @@ mod tests {
 			cmd_snapshot: false,
 			cmd_restore: false,
 			cmd_ui: false,
+			cmd_tools: false,
+			cmd_hash: false,
 
 			// Arguments
 			arg_pid_file: "".into(),

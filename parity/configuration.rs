@@ -51,6 +51,7 @@ pub enum Cmd {
 	Blockchain(BlockchainCmd),
 	SignerToken(String),
 	Snapshot(SnapshotCommand),
+	Hash(Option<String>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -94,8 +95,10 @@ impl Configuration {
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
-		} else if self.args.cmd_signer {
+		} else if self.args.cmd_signer && self.args.cmd_new_token {
 			Cmd::SignerToken(dirs.signer)
+		} else if self.args.cmd_tools && self.args.cmd_hash {
+			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {
 			let account_cmd = if self.args.cmd_new {
 				let new_acc = NewAccount {

@@ -83,6 +83,9 @@ pub trait Ext {
 	/// Returns code at given address
 	fn extcode(&self, address: &Address) -> Bytes;
 
+	/// Returns code size at given address
+	fn extcodesize(&self, address: &Address) -> usize;
+
 	/// Creates log entry with given topics and data
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]);
 
