@@ -16,10 +16,9 @@
 
 //! Net rpc implementation.
 use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
 use ethsync::SyncProvider;
 use v1::traits::Net;
-use v1::helpers::params::expect_no_params;
 
 /// Net rpc implementation.
 pub struct NetClient<S: ?Sized> where S: SyncProvider {
@@ -36,20 +35,19 @@ impl<S: ?Sized> NetClient<S> where S: SyncProvider {
 }
 
 impl<S: ?Sized> Net for NetClient<S> where S: SyncProvider + 'static {
-	fn version(&self, params: Params) -> Result<Value, Error> {
-		try!(expect_no_params(params));
-		Ok(Value::String(format!("{}", take_weak!(self.sync).status().network_id).to_owned()))
+	fn version(&self) -> Result<String, Error> {
+		Ok(format!("{}", take_weak!(self.sync).status().network_id).to_owned())
 	}
 
-	fn peer_count(&self, params: Params) -> Result<Value, Error> {
-		try!(expect_no_params(params));
-		Ok(Value::String(format!("0x{:x}", take_weak!(self.sync).status().num_peers as u64).to_owned()))
+	fn peer_count(&self) -> Result<String, Error> {
+		Ok(format!("0x{:x}", take_weak!(self.sync).status().num_peers as u64).to_owned())
 	}
 
-	fn is_listening(&self, params: Params) -> Result<Value, Error> {
-		try!(expect_no_params(params));
+	fn is_listening(&self) -> Result<bool, Error> {
 		// right now (11 march 2016), we are always listening for incoming connections
-		Ok(Value::Bool(true))
+		//
+		// (this may not be true now -- 26 september 2016)
+		Ok(true)
 	}
 
 }
