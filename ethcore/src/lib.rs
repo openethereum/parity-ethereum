@@ -102,7 +102,8 @@ extern crate rand;
 extern crate bit_set;
 extern crate lru_cache;
 
-#[cfg(feature = "jit" )] extern crate evmjit;
+#[cfg(feature = "jit" )]
+extern crate evmjit;
 
 pub mod account_provider;
 pub mod engines;
