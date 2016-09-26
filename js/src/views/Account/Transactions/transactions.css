@@ -82,6 +82,7 @@
 
 .transaction div {
   line-height: 1.25em;
+  min-height: 1.25em;
 }
 
 .icon {

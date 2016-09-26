@@ -84,14 +84,7 @@ export default class Transaction extends Component {
 
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
     const hashLink = `${prefix}tx/${transaction.hash}`;
-
-    let token = ' ';
-    let value = ' ';
-
-    if (transaction.value && transaction.value.gt(0)) {
-      token = <small>ΞTH</small>;
-      value = this.formatEther(transaction.value);
-    }
+    const { value, token } = this.formatEther(transaction.value);
 
     return (
       <td className={ styles.transaction }>
@@ -168,7 +161,14 @@ export default class Transaction extends Component {
     const { api } = this.context;
     const ether = api.util.fromWei(value);
 
-    return `${ether.toFormat(5)}`;
+    if (ether.eq(0)) {
+      return { value: null, token: null };
+    }
+
+    return {
+      value: `${ether.toFormat(5)}`,
+      token: <small>ΞTH</small>
+    };
   }
 
   lookup (transaction) {
