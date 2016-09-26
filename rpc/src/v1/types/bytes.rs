@@ -73,9 +73,9 @@ impl Visitor for BytesVisitor {
 		if value.is_empty() {
 			Ok(Bytes::new(Vec::new()))
 		} else if value.len() >= 2 && &value[0..2] == "0x" {
-			Ok(Bytes::new(FromHex::from_hex(&value[2..]).unwrap_or_else(|_| vec![])))
+			Ok(Bytes::new(try!(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex")))))
 		} else {
-			Err(Error::custom("invalid hex"))
+			Err(Error::custom("invalid format"))
 		}
 	}
 
@@ -102,9 +102,11 @@ mod tests {
 	fn test_bytes_deserialize() {
 		let deserialized: Bytes = serde_json::from_str(r#""0x""#).unwrap();
 		let deserialized2: Bytes = serde_json::from_str(r#""0x0123456789abcdef""#).unwrap();
+		let deserialized3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
 
 		assert_eq!(deserialized, Bytes(Vec::new()));
 		assert_eq!(deserialized2, "0123456789abcdef".from_hex().unwrap().into());
+		assert!(deserialized3.is_err());
 	}
 
 	#[test]
