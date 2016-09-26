@@ -51,13 +51,6 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		{
-			let last_work = self.last_work.write();
-			if let Some((pow_hash, difficulty, number)) = *last_work {
-				return Some(self.payload(pow_hash, difficulty, number));
-			}
-		}
-
 		self.with_core(|client, miner| {
 			if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
 				let pow_hash = b.hash();
