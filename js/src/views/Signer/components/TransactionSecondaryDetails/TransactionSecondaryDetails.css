@@ -1,0 +1,70 @@
+.iconsContainer {
+  display: block;
+  text-align: center;
+  font-size: .8em;
+  opacity: 0.5;
+  padding: 1em 0 0 0;
+}
+
+.iconsContainer > * {
+  margin-right: 3px;
+  display: inline-block;
+}
+
+.iconsContainer:after {
+  clear: both;
+}
+
+.hasInfoIcon svg,
+.miningTime svg,
+.gasPrice svg,
+.data svg,
+.date svg {
+  width: 16px !important;
+  height: 16px !important;
+  position: relative;
+  bottom: -3px;
+  margin: 0 0.25rem 0 0.75rem;
+}
+
+/* TODO [ToDr] composes was handling weird errors when linking from other app */
+.miningTime {
+  /* composes: hasInfoIcon; */
+}
+
+.gasPrice {
+  /* composes: hasInfoIcon; */
+}
+
+.data  {
+  /* composes: hasInfoIcon; */
+  cursor: pointer;
+}
+
+.data.noData {
+  cursor: text;
+}
+
+
+.dataTooltip {
+  word-wrap: break-word;
+  max-width: 400px;
+}
+
+.expandedData {
+  display: block;
+  padding: 15px;
+  background: gray;
+  word-wrap: break-word;
+  color: #fff;
+}
+
+.expandedContainer {
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.expandedContainer:empty {
+  padding: 0;
+}
+
