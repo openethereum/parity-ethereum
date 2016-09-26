@@ -82,6 +82,9 @@ impl StateDB {
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		let transaction = DBTransaction::new(self.db.backing());
+		try!(transaction.put(None, b"accounts_bloom", &self.account_bloom.lock()));
+		try!(self.db.backing().write(transaction));
 		self.db.commit(batch, now, id, end)
 	}
 
