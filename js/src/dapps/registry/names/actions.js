@@ -19,104 +19,61 @@ import { sha3, toWei } from '../parity.js';
 const alreadyQueued = (queue, action, name) =>
   !!queue.find((entry) => entry.action === action && entry.name === name)
 
-export const reserveStart = (name) => ({ type: 'names reserve start', name });
+const contractCall = (fn, computeValues, computeOptions, computeAction) => (...args) =>
+  (dispatch, getState) => {
+    const name = args[0]
 
-export const reserveSuccess = (name) => ({ type: 'names reserve success', name });
+    const state = getState();
+    const account = state.accounts.selected;
+    const contract = state.contract;
+    if (!contract || !account) return;
+    if (alreadyQueued(state.names.queue, fn.name, name)) return;
+    fn = contract.functions.find((f) => f.name === fn);
 
-export const reserveFail = (name) => ({ type: 'names reserve fail', name });
+    const options = computeOptions(account)
+    const values = computeValues(...args)
 
-export const reserve = (name) => (dispatch, getState) => {
-  const state = getState();
-  const account = state.accounts.selected;
-  const contract = state.contract;
-  if (!contract || !account) return;
-  if (alreadyQueued(state.names.queue, 'reserve', name)) return;
-  const reserve = contract.functions.find((f) => f.name === 'reserve');
+    dispatch(computeAction('start', ...args));
+    fn.estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas.mul(1.2).toFixed(0);
+        return fn.postTransaction(options, values);
+      })
+      .then(() => {
+        dispatch(computeAction('success', ...args));
+      }).catch((err) => {
+        console.error(`could not ${fn.name} ${name}`);
+        if (err) console.error(err.stack);
+        dispatch(computeAction('fail', ...args));
+      });
+  }
 
-  name = name.toLowerCase();
-  const options = {
-    from: account.address,
-    value: toWei(1).toString()
-  };
-  const values = [ sha3(name) ];
+export const reserve = contractCall(
+  'reserve',
+  // compute values
+  (name) => [ sha3(name) ],
+  // compute options
+  (account) => ({ from: account.address, value: toWei(1).toString() }),
+  // compute action
+  (status, name) => ({ type: 'names reserve ' + status, name })
+)
 
-  dispatch(reserveStart(name));
-  reserve.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return reserve.postTransaction(options, values);
-    })
-    .then((data) => {
-      dispatch(reserveSuccess(name));
-    }).catch((err) => {
-      console.error(`could not reserve ${name}`);
-      if (err) console.error(err.stack);
-      dispatch(reserveFail(name));
-    });
-};
+export const drop = contractCall(
+  'drop',
+  // compute values
+  (name) => [ sha3(name) ],
+  // compute options
+  (account) => ({ from: account.address }),
+  // compute action
+  (status, name) => ({ type: 'names drop ' + status, name })
+)
 
-export const dropStart = (name) => ({ type: 'names drop start', name });
-
-export const dropSuccess = (name) => ({ type: 'names drop success', name });
-
-export const dropFail = (name) => ({ type: 'names drop fail', name });
-
-export const drop = (name) => (dispatch, getState) => {
-  const state = getState();
-  const account = state.accounts.selected;
-  const contract = state.contract;
-  if (!contract || !account) return;
-  if (alreadyQueued(state.names.queue, 'drop', name)) return;
-  const drop = contract.functions.find((f) => f.name === 'drop');
-
-  name = name.toLowerCase();
-  const options = { from: account.address };
-  const values = [ sha3(name) ];
-
-  dispatch(dropStart(name));
-  drop.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return drop.postTransaction(options, values);
-    })
-    .then((data) => {
-      dispatch(dropSuccess(name));
-    }).catch((err) => {
-      console.error(`could not drop ${name}`);
-      if (err) console.error(err.stack);
-      dispatch(reserveFail(name));
-    });
-};
-
-export const transferStart = (name) => ({ type: 'names transfer start', name });
-
-export const transferSuccess = (name) => ({ type: 'names transfer success', name });
-
-export const transferFail = (name) => ({ type: 'names transfer fail', name });
-
-export const transfer = (name, receiver) => (dispatch, getState) => {
-  const state = getState();
-  const account = state.accounts.selected;
-  const contract = state.contract;
-  if (!contract || !account) return;
-  if (alreadyQueued(state.names.queue, 'transfer', name)) return;
-  const transfer = contract.functions.find((f) => f.name === 'transfer');
-
-  name = name.toLowerCase();
-  const options = { from: account.address };
-  const values = [ sha3(name), receiver ];
-
-  dispatch(transferStart(name));
-  transfer.estimateGas(options, values)
-    .then((gas) => {
-      options.gas = gas.mul(1.2).toFixed(0);
-      return transfer.postTransaction(options, values);
-    })
-    .then((data) => {
-      dispatch(transferSuccess(name));
-    }).catch((err) => {
-      console.error(`could not transfer ${name}`);
-      if (err) console.error(err.stack);
-      dispatch(reserveFail(name));
-    });
-};
+export const transfer = contractCall(
+  'transfer',
+  // compute values
+  (name, receiver) => [ sha3(name), receiver ],
+  // compute options
+  (account) => ({ from: account.address }),
+  // compute action
+  (status, name) => ({ type: 'names transfer ' + status, name })
+)
