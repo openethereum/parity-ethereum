@@ -426,9 +426,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		let hash: H256 = hash.into();
 		let miner = take_weak!(self.miner);
-		let client = take_weak!(self.client);
-		Ok(client.transaction(TransactionID::Hash(hash)).map(Transaction::from)
-			.or_else(|| miner.transaction(&hash).map(Transaction::from)))
+		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(&hash).map(Into::into)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
