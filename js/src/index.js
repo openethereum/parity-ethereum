@@ -46,7 +46,12 @@ import './index.html';
 injectTapEventPlugin();
 
 const initToken = window.localStorage.getItem('sysuiToken');
-const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
+const parityUrl = process.env.PARITY_URL ||
+  (
+    process.env.NODE_ENV === 'production'
+    ? window.location.host
+    : '127.0.0.1:8180'
+  );
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
 
