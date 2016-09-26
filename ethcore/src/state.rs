@@ -236,6 +236,7 @@ impl State {
 
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
+		if !self.db.check_account_bloom(address) { return H256::zero(); }
 		// check local cache first
 		if let Some(value) = self.cache.borrow().get(address).and_then(|a|
 			match *a {
@@ -250,11 +251,13 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn code(&self, a: &Address) -> Option<Bytes> {
+		if !self.db.check_account_bloom(a) { return None; }
 		self.ensure_cached(a, RequireCache::Code,
 			|a| a.as_ref().map_or(None, |a| a.code().map(|x|x.to_vec())))
 	}
 
 	pub fn code_size(&self, a: &Address) -> Option<u64> {
+		if !self.db.check_account_bloom(a) { return None; }
 		self.ensure_cached(a, RequireCache::CodeSize,
 			|a| a.as_ref().and_then(|a| a.code_size()))
 	}
@@ -269,6 +272,7 @@ impl State {
 	/// Subtract `decr` from the balance of account `a`.
 	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
 		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
+		self.db.note_account_bloom(a);
 		self.require(a, false).sub_balance(decr);
 	}
 
@@ -280,6 +284,7 @@ impl State {
 
 	/// Increment the nonce of account `a` by 1.
 	pub fn inc_nonce(&mut self, a: &Address) {
+		self.db.note_account_bloom(a);
 		self.require(a, false).inc_nonce()
 	}
 
@@ -394,6 +399,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
+			self.db.note_account_bloom(acc);
 			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
@@ -415,6 +421,7 @@ impl State {
 		for (ref address, ref pod_account) in query.get() {
 			self.ensure_cached(address, RequireCache::Code, |a| {
 				if a.is_some() {
+					self.db.note_account_bloom(address);
 					for key in pod_account.storage.keys() {
 						self.storage_at(address, key);
 					}

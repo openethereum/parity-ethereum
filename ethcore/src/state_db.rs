@@ -45,11 +45,13 @@ impl StateDB {
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
+		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
 		bloom.contains_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3())
 	}
 
 	pub fn note_account_bloom(&self, address: &Address) {
+		trace!(target: "state_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
 		bloom.shift_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3());
 	}
