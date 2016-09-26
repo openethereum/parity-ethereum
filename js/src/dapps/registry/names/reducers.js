@@ -17,7 +17,8 @@
 const initialState = {
   hasAccount: false,
   pending: false,
-  reserved: []
+  reserved: [],
+  dropped: []
 };
 
 export default (state = initialState, action) => {
@@ -35,6 +36,19 @@ export default (state = initialState, action) => {
     };
   }
   if (action.type === 'names reserve fail') {
+    return { ...state, pending: false };
+  }
+
+  if (action.type === 'names drop start') {
+    return { ...state, pending: true };
+  }
+  if (action.type === 'names drop success') {
+    return {
+      ...state, pending: false,
+      dropped: state.dropped.concat(action.name)
+    };
+  }
+  if (action.type === 'names drop fail') {
     return { ...state, pending: false };
   }
 

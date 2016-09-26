@@ -51,3 +51,36 @@ export const reserve = (name) => (dispatch, getState) => {
       dispatch(reserveFail(name));
     });
 };
+
+export const dropStart = (name) => ({ type: 'names drop start', name });
+
+export const dropSuccess = (name) => ({ type: 'names drop success', name });
+
+export const dropFail = (name) => ({ type: 'names drop fail', name });
+
+export const drop = (name) => (dispatch, getState) => {
+  const state = getState();
+  const account = state.accounts.selected;
+  const contract = state.contract;
+  if (!contract || !account) return;
+  if (state.names.dropped.includes(name)) return;
+  const drop = contract.functions.find((f) => f.name === 'drop');
+
+  name = name.toLowerCase();
+  const options = { from: account.address };
+  const values = [ sha3(name) ];
+
+  dispatch(dropStart(name));
+  drop.estimateGas(options, values)
+    .then((gas) => {
+      options.gas = gas.mul(1.2).toFixed(0);
+      return drop.postTransaction(options, values);
+    })
+    .then((data) => {
+      dispatch(dropSuccess(name));
+    }).catch((err) => {
+      console.error(`could not drop ${name}`);
+      if (err) console.error(err.stack);
+      dispatch(reserveFail(name));
+    });
+};
