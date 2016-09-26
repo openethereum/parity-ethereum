@@ -16,15 +16,16 @@
 
 //! Single account in the system.
 
+use std::mem::replace;
 use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
 use account_db::*;
+use lru_cache::LruCache;
 
-use std::cell::{Ref, RefCell, Cell};
+use std::cell::{RefCell, Cell};
 
 /// Single account in the system.
-#[derive(Clone)]
 pub struct Account {
 	// Balance of the account.
 	balance: U256,
@@ -32,8 +33,10 @@ pub struct Account {
 	nonce: U256,
 	// Trie-backed storage.
 	storage_root: H256,
-	// Overlay on trie-backed storage - tuple is (<clean>, <value>).
-	storage_overlay: RefCell<HashMap<H256, (Filth, H256)>>,
+	// Cache of trie-backed storage
+	storage_cache: RefCell<LruCache<H256, H256>>,
+	// Modified storage
+	storage_changes: HashMap<H256, H256>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
 	// Size of the accoun code.
@@ -54,7 +57,8 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: storage,
 			code_hash: Some(code.sha3()),
 			code_size: Some(code.len() as u64),
 			code_cache: code,
@@ -63,13 +67,18 @@ impl Account {
 		}
 	}
 
+	fn empty_storage_cache() -> RefCell<LruCache<H256, H256>> {
+		RefCell::new(LruCache::new(4096))
+	}
+
 	/// General constructor.
 	pub fn from_pod(pod: PodAccount) -> Account {
 		Account {
 			balance: pod.balance,
 			nonce: pod.nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(pod.storage.into_iter().map(|(k, v)| (k, (Filth::Dirty, v))).collect()),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: pod.storage.into_iter().collect(),
 			code_hash: pod.code.as_ref().map(|c| c.sha3()),
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len() as u64)),
 			code_cache: pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c),
@@ -84,7 +93,8 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(HashMap::new()),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
 			code_hash: Some(SHA3_EMPTY),
 			code_cache: vec![],
 			code_size: Some(0),
@@ -100,7 +110,8 @@ impl Account {
 			nonce: r.val_at(0),
 			balance: r.val_at(1),
 			storage_root: r.val_at(2),
-			storage_overlay: RefCell::new(HashMap::new()),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
 			code_hash: Some(r.val_at(3)),
 			code_cache: vec![],
 			code_size: None,
@@ -116,7 +127,8 @@ impl Account {
 			balance: balance,
 			nonce: nonce,
 			storage_root: SHA3_NULL_RLP,
-			storage_overlay: RefCell::new(HashMap::new()),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
 			code_hash: None,
 			code_cache: vec![],
 			code_size: None,
@@ -143,13 +155,13 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		match self.storage_overlay.borrow_mut().entry(key) {
-			Entry::Occupied(ref mut entry) if entry.get().1 != value => {
-				entry.insert((Filth::Dirty, value));
+		match self.storage_changes.entry(key) {
+			Entry::Occupied(ref mut entry) if entry.get() != &value => {
+				entry.insert(value);
 				self.filth = Filth::Dirty;
 			},
 			Entry::Vacant(entry) => {
-				entry.insert((Filth::Dirty, value));
+				entry.insert(value);
 				self.filth = Filth::Dirty;
 			},
 			_ => (),
@@ -158,18 +170,29 @@ impl Account {
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
-		self.storage_overlay.borrow_mut().entry(key.clone()).or_insert_with(||{
-			let db = SecTrieDB::new(db, &self.storage_root)
-				.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-				using it will not fail.");
+		if let Some(value) = self.storage_changes.get(key) {
+			return value.clone()
+		}
+		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
+			return value.clone()
+		}
+		let db = SecTrieDB::new(db, &self.storage_root)
+			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
+			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
+			using it will not fail.");
 
-			let item: U256 = match db.get(key){
-				Ok(x) => x.map_or_else(U256::zero, decode),
-				Err(e) => panic!("Encountered potential DB corruption: {}", e),
-			};
-			(Filth::Clean, item.into())
-		}).1.clone()
+		let item: U256 = match db.get(key){
+			Ok(x) => x.map_or_else(U256::zero, decode),
+			Err(e) => panic!("Encountered potential DB corruption: {}", e),
+		};
+		let value: H256 = item.into();
+		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
+		value
+	}
+
+	/// Get cahnged storage value if any.
+	pub fn modified_storage_at(&self, key: &H256) -> Option<H256> {
+		self.storage_changes.get(key).cloned()
 	}
 
 	/// return the balance associated with this account.
@@ -281,16 +304,15 @@ impl Account {
 			}
 	}
 
-	#[cfg(test)]
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
-	pub fn storage_is_clean(&self) -> bool { self.storage_overlay.borrow().iter().find(|&(_, &(f, _))| f == Filth::Dirty).is_none() }
+	pub fn storage_is_clean(&self) -> bool { self.storage_changes.is_empty() }
 
 	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 
 	/// return the storage overlay.
-	pub fn storage_overlay(&self) -> Ref<HashMap<H256, (Filth, H256)>> { self.storage_overlay.borrow() }
+	pub fn storage_changes(&self) -> &HashMap<H256, H256> { &self.storage_changes }
 
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
@@ -316,26 +338,24 @@ impl Account {
 		}
 	}
 
-	/// Commit the `storage_overlay` to the backing DB and update `storage_root`.
+	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
 	pub fn commit_storage(&mut self, trie_factory: &TrieFactory, db: &mut AccountDBMut) {
 		let mut t = trie_factory.from_existing(db, &mut self.storage_root)
 			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
 				SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
 				using it will not fail.");
-		for (k, &mut (ref mut f, ref mut v)) in self.storage_overlay.borrow_mut().iter_mut() {
-			if f == &Filth::Dirty {
-				// cast key and value to trait type,
-				// so we can call overloaded `to_bytes` method
-				let res = match v.is_zero() {
-					true => t.remove(k),
-					false => t.insert(k, &encode(&U256::from(v.as_slice()))),
-				};
+		for (k, v) in self.storage_changes.drain() {
+			// cast key and value to trait type,
+			// so we can call overloaded `to_bytes` method
+			let res = match v.is_zero() {
+				true => t.remove(k.as_slice()),
+				false => t.insert(k.as_slice(), &encode(&U256::from(v.as_slice()))),
+			};
 
-				if let Err(e) = res {
-					warn!("Encountered potential DB corruption: {}", e);
-				}
-				*f = Filth::Clean;
+			if let Err(e) = res {
+				warn!("Encountered potential DB corruption: {}", e);
 			}
+			self.storage_cache.borrow_mut().insert(k, v);
 		}
 	}
 
@@ -363,6 +383,42 @@ impl Account {
 		stream.append(&self.storage_root);
 		stream.append(self.code_hash.as_ref().unwrap_or(&SHA3_EMPTY));
 		stream.out()
+	}
+
+	/// Clone basic account data
+	pub fn clone_basic(&self) -> Account {
+		Account {
+			balance: self.balance.clone(),
+			nonce: self.nonce.clone(),
+			storage_root: self.storage_root.clone(),
+			storage_cache: Self::empty_storage_cache(),
+			storage_changes: HashMap::new(),
+			code_hash: self.code_hash.clone(),
+			code_size: self.code_size.clone(),
+			code_cache: Bytes::new(),
+			filth: self.filth,
+			address_hash: self.address_hash.clone(),
+		}
+	}
+
+	/// Clone account data and dirty storage keys
+	pub fn clone_dirty(&self) -> Account {
+		let mut account = self.clone_basic();
+		account.storage_changes = self.storage_changes.clone();
+		account
+	}
+
+	/// Replace self with the data from other account merging storage cache
+	pub fn merge_with(&mut self, mut other: Account) {
+		assert!(self.storage_is_clean());
+		assert!(other.storage_is_clean());
+		let mut our_cache = replace(&mut self.storage_cache, Self::empty_storage_cache()).into_inner();
+		let updated_cache = replace(&mut other.storage_cache, Self::empty_storage_cache()).into_inner();
+		for (k, v) in updated_cache.into_iter() {
+			our_cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
+		}
+		*self = other;
+		self.storage_cache = RefCell::new(our_cache);
 	}
 }
 

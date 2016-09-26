@@ -101,7 +101,15 @@ impl StateDB {
 
 	pub fn commit_cache(&mut self) {
 		let mut cache = self.account_cache.lock();
-		cache.accounts.extend(self.cache_overlay.drain(..));
+		for (address, account) in self.cache_overlay.drain(..) {
+			if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&address) {
+				if let Some(new) = account {
+					existing.merge_with(new);
+					continue;
+				}
+			}
+			cache.accounts.insert(address, account);
+		}
 	}
 
 	pub fn clear_cache(&self) {
@@ -114,7 +122,7 @@ impl StateDB {
 			return None;
 		}
 		let mut cache = self.account_cache.lock();
-		cache.accounts.get_mut(&addr).map(|a| a.clone())
+		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
 	pub fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
