@@ -35,14 +35,6 @@ describe('api/util/decode', () => {
       expect(() => decodeCallData(`${ENCO.slice(-32)}`)).to.throw(/not a multiple of/);
     });
 
-    it('returns an empty object for ""', () => {
-      expect(decodeCallData('')).to.deep.equal({});
-    });
-
-    it('returns an empty object for "0x"', () => {
-      expect(decodeCallData('0x')).to.deep.equal({});
-    });
-
     it('splits valid inputs properly', () => {
       expect(decodeCallData(ENCO)).to.deep.equal({
         signature: METH,
@@ -95,12 +87,16 @@ describe('api/util/decode', () => {
       expect(() => methodToAbi('invalid)uint,bool(')).to.throw(/End \) is before start \(/);
     });
 
+    it('throws when invalid types are present', () => {
+      expect(() => methodToAbi('method(invalidType,bool,uint)')).to.throw(/Cannot convert invalidType/);
+    });
+
     it('returns a valid methodabi for a valid method', () => {
       expect(methodToAbi('valid(uint,bool)')).to.deep.equals({
         type: 'function',
         name: 'valid',
         inputs: [
-          { type: 'uint' },
+          { type: 'uint256' },
           { type: 'bool' }
         ]
       });

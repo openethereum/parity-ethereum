@@ -17,14 +17,11 @@
 import { isHex } from './types';
 
 import Func from '../../abi/spec/function';
+import { fromParamType, toParamType } from '../../abi/spec/paramType/format';
 
 const CREATE_METHOD = '60606040';
 
 export function decodeCallData (data) {
-  if (!data || !data.length) {
-    return {};
-  }
-
   if (!isHex(data)) {
     throw new Error('Input to decodeCallData should be a hex value');
   }
@@ -64,7 +61,7 @@ export function decodeMethodInput (methodAbi, paramdata) {
   return new Func(methodAbi).decodeInput(paramdata).map((decoded) => decoded.value);
 }
 
-// takes a method in form name(..., types) and returns the interred abi definition
+// takes a method in form name(...,types) and returns the inferred abi definition
 export function methodToAbi (method) {
   const length = method.length;
   const typesStart = method.indexOf('(');
@@ -82,7 +79,9 @@ export function methodToAbi (method) {
 
   const name = method.substr(0, typesStart);
   const types = method.substr(typesStart + 1, length - (typesStart + 1) - 1).split(',');
-  const inputs = types.map((type) => {
+  const inputs = types.map((_type) => {
+    const type = fromParamType(toParamType(_type));
+
     return { type };
   });
 
