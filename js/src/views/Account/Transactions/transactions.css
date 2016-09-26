@@ -44,10 +44,7 @@
 
 .transactions tr td {
   vertical-align: top;
-}
-
-.transactions tr td div {
-  white-space: nowrap;
+  padding: 0.75em 0.5em;
 }
 
 .transactions .link {
@@ -69,13 +66,6 @@
   color: #aaa;
 }
 
-.executevalue,
-.executekey {
-  font-size: 0.75em;
-  line-height: 1.5em;
-}
-
-.executekey {
-  text-align: right;
-  color: #aaa;
+.method {
+  opacity: 0.75;
 }

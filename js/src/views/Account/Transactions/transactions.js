@@ -14,49 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import util from '../../../api/util';
 import etherscan from '../../../3rdparty/etherscan';
-import { Container, IdentityIcon } from '../../../ui';
+import { Container } from '../../../ui';
+
+import Transaction from './Transaction';
 
 import styles from './transactions.css';
 
-function formatHash (hash) {
-  if (!hash || hash.length <= 21) {
-    return hash;
-  }
-
-  return `${hash.substr(2, 9)}...${hash.slice(-9)}`;
-}
-
-function formatNumber (number) {
-  return new BigNumber(number).toFormat();
-}
-
-function formatTime (time) {
-  return moment(parseInt(time, 10) * 1000).fromNow(true);
-}
-
-function formatEther (value) {
-  const ether = util.fromWei(value);
-
-  if (ether.gt(0)) {
-    return `${ether.toFormat(5)}`;
-  }
-
-  return null;
-}
-
 class Transactions extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    contracts: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -85,45 +57,8 @@ class Transactions extends Component {
     );
   }
 
-  renderAddress (prefix, address) {
-    const { accounts, contacts, tokens } = this.props;
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
-    const link = `${prefix}address/${address}`;
-    const name = account
-      ? account.name.toUpperCase()
-      : formatHash(address);
-
-    return (
-      <td className={ styles.left }>
-        <IdentityIcon
-          inline center
-          tokens={ tokens }
-          address={ address } />
-        <a
-          href={ link }
-          target='_blank'
-          className={ styles.link }>
-          { name }
-        </a>
-      </td>
-    );
-  }
-
-  renderValue (value) {
-    const { api } = this.context;
-
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
-      return api.util.bytesToHex(value);
-    }
-
-    return value.toString();
-  }
-
   renderTransactions () {
-    const { isTest } = this.props;
-    const { loading, transactions, callInfo } = this.state;
+    const { loading, transactions } = this.state;
 
     if (loading) {
       return (
@@ -137,83 +72,11 @@ class Transactions extends Component {
       );
     }
 
-    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    const rows = (transactions || []).map((tx, index) => {
-      const hashLink = `${prefix}tx/${tx.hash}`;
-      const value = formatEther(tx.value);
-      const token = value ? 'ΞTH' : null;
-      const tosection = (tx.to && tx.to.length)
-        ? this.renderAddress(prefix, tx.to)
-        : (<td className={ `${styles.center}` }></td>);
-      const info = callInfo[tx.hash] || {};
-      const executetypes = (info.abi ? info.abi.inputs : []).map((input, index) => {
-        return (
-          <div className={ styles.executekey } key={ index }>
-            { input.type }
-          </div>
-        );
-      });
-      const executevalues = (info.values ? info.values : []).map((value, index) => {
-        return (
-          <div className={ styles.executevalue } key={ index }>
-            { this.renderValue(value) }
-          </div>
-        );
-      });
-      const executename = info.abi
-        ? `${info.abi.name} =>`
-        : '';
-
-      this.lookupTransaction(tx.hash);
-
-      return (
-        <tr key={ tx.hash }>
-          <td className={ styles.center }></td>
-          { this.renderAddress(prefix, tx.from) }
-          { tosection }
-          <td>
-            <div>{ executename }</div>
-            { executetypes }
-          </td>
-          <td>
-            <div>&nbsp;</div>
-            { executevalues }
-          </td>
-          <td className={ styles.center }>
-            <a href={ hashLink } target='_blank' className={ styles.link }>
-              { formatHash(tx.hash) }
-            </a>
-          </td>
-          <td className={ styles.right }>
-            { formatNumber(tx.blockNumber) }
-          </td>
-          <td className={ styles.right }>
-            { formatTime(tx.timeStamp) }
-          </td>
-          <td className={ styles.value }>
-            { formatEther(tx.value) }<small> { token }</small>
-          </td>
-        </tr>
-      );
-    });
-
     return (
       <div className={ styles.transactions }>
         <table>
-          <thead>
-            <tr className={ styles.info }>
-              <th>&nbsp;</th>
-              <th className={ styles.left }>from</th>
-              <th className={ styles.left }>to</th>
-              <th className={ styles.left } colSpan='2'>execute</th>
-              <th className={ styles.center }>transaction</th>
-              <th className={ styles.right }>block</th>
-              <th className={ styles.right }>age</th>
-              <th className={ styles.right }>value</th>
-            </tr>
-          </thead>
           <tbody>
-            { rows }
+            { this.renderRows() }
           </tbody>
         </table>
         <div className={ styles.etherscan }>
@@ -223,50 +86,21 @@ class Transactions extends Component {
     );
   }
 
-  lookupTransaction (txHash) {
-    const { api, contracts } = this.context;
-    const { callInfo } = this.state;
+  renderRows () {
+    const { accounts, contacts, tokens, isTest } = this.props;
+    const { transactions } = this.state;
 
-    if (callInfo[txHash]) {
-      return;
-    }
-
-    api.eth
-      .getTransactionByHash(txHash)
-      .then((transaction) => {
-        const { signature, paramdata } = api.util.decodeCallData(transaction.input);
-
-        if (!signature || signature === '0x60606040') {
-          this.setState(Object.assign(this.state.callInfo, {
-            [txHash]: {
-              transaction,
-              signature
-            }
-          }));
-          return;
-        }
-
-        return contracts.signatureReg
-          .lookup(signature)
-          .then(([method, owner]) => {
-            let abi = null;
-            let values = null;
-
-            if (method.length) {
-              abi = api.util.methodToAbi(method);
-              values = api.util.decodeMethodInput(abi, paramdata);
-            }
-
-            this.setState(Object.assign(this.state.callInfo, {
-              [txHash]: {
-                transaction,
-                signature,
-                abi,
-                values
-              }
-            }));
-          });
-      });
+    return (transactions || []).map((transaction, index) => {
+      return (
+        <Transaction
+          key={ index }
+          transaction={ transaction }
+          accounts={ accounts }
+          contacts={ contacts }
+          tokens={ tokens }
+          isTest={ isTest } />
+      );
+    });
   }
 
   getTransactions = () => {
