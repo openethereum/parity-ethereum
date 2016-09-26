@@ -25,7 +25,7 @@
 
 .name,
 .highlight {
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 4px;
   padding: 0 0.25em;
 }
@@ -50,5 +50,6 @@
   top: -16px;
 }
 
-.ether {
+.etherValue,
+.tokenValue {
 }

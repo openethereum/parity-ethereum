@@ -17,39 +17,47 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
+import Contracts from '../../contracts';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
 
 const CONTRACT_CREATE = '0x60606040';
+const TOKEN_METHODS = {
+  '0xa9059cbb': 'transfer(to,value)'
+};
 
 export default class Method extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    contracts: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     tokens: PropTypes.object,
     transaction: PropTypes.object,
-    historic: PropTypes.bool,
-    isContract: PropTypes.bool,
-    isReceived: PropTypes.bool
+    historic: PropTypes.bool
   }
 
   state = {
-    signature: null,
-    paramdata: null,
-    name: null,
-    inputs: null
+    method: null,
+    methodName: null,
+    methodInputs: null,
+    methodParams: null,
+    methodSignature: null,
+    token: null,
+    isContract: false,
+    isDeploy: false,
+    isReceived: false
   }
 
   componentDidMount () {
     const { transaction } = this.props;
 
-    this.lookup(transaction.input);
+    this.lookup(transaction);
   }
 
   componentWillReceiveProps (newProps) {
@@ -59,49 +67,97 @@ export default class Method extends Component {
       return;
     }
 
-    this.lookup(transaction.input);
+    this.lookup(transaction);
   }
 
   render () {
-    const { isReceived } = this.props;
-    const { name } = this.state;
+    const { methodName, methodInputs, methodSignature, token, isDeploy, isReceived } = this.state;
 
-    if (!name) {
-      return isReceived
-        ? this.renderValueReceipt()
-        : this.renderValueTransfer();
+    if (isDeploy) {
+      return this.renderDeploy();
     }
 
-    return this.renderUnknown();
+    if (methodSignature) {
+      if (token && TOKEN_METHODS[methodSignature] && methodInputs) {
+        return this.renderTokenAction();
+      }
+
+      return methodName
+        ? this.renderSignatureMethod()
+        : this.renderUnknownMethod();
+    }
+
+    return isReceived
+      ? this.renderValueReceipt()
+      : this.renderValueTransfer();
   }
 
-  renderValueReceipt () {
-    const { historic, transaction, isContract } = this.props;
+  renderTokenAction () {
+    const { historic } = this.props;
+    const { methodSignature, methodInputs } = this.state;
+    const [to, value] = methodInputs;
+    const address = to.value;
+    const account = this.getAccount(address);
+    const name = account ? account.name.toUpperCase() : null;
+
+    switch (TOKEN_METHODS[methodSignature]) {
+      case 'transfer(to,value)':
+      default:
+        return (
+          <div className={ styles.details }>
+            { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderTokenValue(value.value) }</span> to <span className={ styles.highlight }>{ name || address }</span>.
+          </div>
+        );
+    }
+  }
+
+  renderDeploy () {
+    const { historic, transaction } = this.props;
+
+    if (!historic) {
+      return (
+        <div className={ styles.details }>
+          Will deploy a contract.
+        </div>
+      );
+    }
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEther(transaction.value) }</span> { isContract ? 'from the contract.' : 'from the sender.' }
+        Deployed a contract at address <span className={ styles.highlight }>{ transaction.creates }</span>.
+      </div>
+    );
+  }
+
+  renderValueReceipt () {
+    const { historic, transaction } = this.props;
+    const { isContract } = this.state;
+
+    return (
+      <div className={ styles.details }>
+        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'from the contract.' : 'from the sender.' }
       </div>
     );
   }
 
   renderValueTransfer () {
-    const { historic, transaction, isContract } = this.props;
+    const { historic, transaction } = this.props;
+    const { isContract } = this.state;
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEther(transaction.value) }</span> { isContract ? 'to the contract.' : 'to the recipient.' }
+        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'to the contract.' : 'to the recipient.' }
       </div>
     );
   }
 
   renderSimple () {
-    const { name } = this.state;
+    const { methodName } = this.state;
 
     return (
       <div className={ styles.details }>
         <div className={ styles.name }>
-          { name }
+          { methodName }
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -110,31 +166,40 @@ export default class Method extends Component {
     );
   }
 
-  renderUnknown () {
-    const { historic } = this.props;
-    const { name } = this.state;
+  renderSignatureMethod () {
+    const { historic, transaction } = this.props;
+    const { methodName } = this.state;
 
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ name }</span> function on the contract, passing the following values as part of the transaction:
+          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> and passing the following values as part of the transaction:
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
         </div>
+      </div>
+    );
+  }
+
+  renderUnknownMethod () {
+    const { historic, transaction } = this.props;
+
+    return (
+      <div className={ styles.details }>
+        { historic ? 'Executed' : 'Will execute' } <span className={ styles.name }>an unknown/unregistered</span> method on the contract, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>.
       </div>
     );
   }
 
   renderInputs () {
-    const { accounts, contacts, tokens } = this.props;
-    const { inputs } = this.state;
+    const { methodInputs } = this.state;
 
-    return inputs.map((input, index) => {
+    return methodInputs.map((input, index) => {
       switch (input.type) {
         case 'address':
           const address = input.value;
-          const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
+          const account = this.getAccount(address);
           const name = account ? account.name.toUpperCase() : null;
 
           return (
@@ -172,43 +237,73 @@ export default class Method extends Component {
     return value.toString();
   }
 
-  renderEther (value) {
+  renderTokenValue (value) {
+    const { token } = this.state;
+
+    return (
+      <span className={ styles.tokenValue }>
+        { value.div(token.format).toFormat(5) }<small>{ token.tag }</small>
+      </span>
+    );
+  }
+
+  renderEtherValue (value) {
     const { api } = this.context;
     const ether = api.util.fromWei(value);
 
     return (
-      <span className={ styles.ether }>
+      <span className={ styles.etherValue }>
         { ether.toFormat(5) }<small>ΞTH</small>
       </span>
     );
   }
 
-  lookup (input) {
-    const { api, contracts } = this.context;
+  getAccount (address) {
+    const { accounts, contacts, contracts, tokens } = this.props;
 
-    if (!input) {
+    return (accounts || {})[address] ||
+      (contacts || {})[address] ||
+      (tokens || {})[address] ||
+      (contracts || {})[address];
+  }
+
+  lookup (transaction) {
+    const { api } = this.context;
+    const { address, tokens } = this.props;
+
+    if (!transaction || !transaction.input) {
       return;
     }
 
-    const { signature, paramdata } = api.util.decodeCallData(input);
+    const isReceived = transaction.to === address;
+    const token = (tokens || {})[isReceived ? transaction.from : transaction.to];
+    this.setState({ token, isReceived });
+
+    const { signature, paramdata } = api.util.decodeCallData(transaction.input);
+    this.setState({ methodSignature: signature, methodParams: paramdata });
 
     if (!signature || signature === CONTRACT_CREATE) {
+      this.setState({ isDeploy: true });
       return;
     }
 
-    this.setState({ signature, paramdata });
+    api.eth
+      .getCode(isReceived ? transaction.from : transaction.to)
+      .then((code) => {
+        if (code && code !== '0x') {
+          this.setState({ isContract: true });
+        }
 
-    contracts.signatureReg
-      .lookup(signature)
-      .then(([method, owner]) => {
-        let inputs = null;
-        let name = null;
+        return Contracts.get().signatureReg.lookup(signature);
+      }).then((method) => {
+        let methodInputs = null;
+        let methodName = null;
 
         if (method && method.length) {
           const abi = api.util.methodToAbi(method);
 
-          name = abi.name;
-          inputs = api.util
+          methodName = abi.name;
+          methodInputs = api.util
             .decodeMethodInput(abi, paramdata)
             .map((value, index) => {
               const type = abi.inputs[index].type;
@@ -217,7 +312,7 @@ export default class Method extends Component {
             });
         }
 
-        this.setState({ method, name, inputs });
+        this.setState({ method, methodName, methodInputs });
       })
       .catch((error) => {
         console.error('lookup', error);

@@ -32,6 +32,7 @@ export default class Transaction extends Component {
     address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool.isRequired
   }
@@ -71,8 +72,8 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { accounts, contacts, tokens } = this.props;
-    const { info, isContract, isReceived } = this.state;
+    const { address, accounts, contacts, contracts, tokens } = this.props;
+    const { info } = this.state;
 
     if (!info) {
       return null;
@@ -81,11 +82,11 @@ export default class Transaction extends Component {
     return (
       <MethodDecoding
         historic
+        address={ address }
         accounts={ accounts }
         contacts={ contacts }
+        contracts={ contracts }
         tokens={ tokens }
-        isContract={ isContract }
-        isReceived={ isReceived }
         transaction={ info } />
     );
   }
@@ -110,7 +111,7 @@ export default class Transaction extends Component {
   }
 
   renderAddress (prefix, address) {
-    const { accounts, contacts, tokens } = this.props;
+    const { accounts, contacts, contracts, tokens } = this.props;
 
     if (!address && !address.length) {
       return (
@@ -119,7 +120,7 @@ export default class Transaction extends Component {
     }
 
     const link = `${prefix}address/${address}`;
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
+    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address] || (contracts || {})[address];
     const name = account
       ? account.name.toUpperCase()
       : this.formatHash(address);
@@ -203,15 +204,6 @@ export default class Transaction extends Component {
       ])
       .then(([block, info]) => {
         this.setState({ block, info });
-
-        if (!transaction.to) {
-          return null;
-        }
-
-        return api.eth.getCode(transaction.to);
-      })
-      .then((code) => {
-        this.setState({ isContract: code && code !== '0x' });
       })
       .catch((error) => {
         console.error('lookup', error);

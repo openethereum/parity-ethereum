@@ -35,6 +35,7 @@ class Transactions extends Component {
     address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool
   }
@@ -87,7 +88,7 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, tokens, isTest } = this.props;
+    const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
     const { transactions } = this.state;
 
     return (transactions || []).map((transaction, index) => {
@@ -98,6 +99,7 @@ class Transactions extends Component {
           address={ address }
           accounts={ accounts }
           contacts={ contacts }
+          contracts={ contracts }
           tokens={ tokens }
           isTest={ isTest } />
       );
@@ -123,13 +125,14 @@ class Transactions extends Component {
 
 function mapStateToProps (state) {
   const { isTest } = state.nodeStatus;
-  const { accounts, contacts } = state.personal;
+  const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
 
   return {
     isTest,
     accounts,
     contacts,
+    contracts,
     tokens
   };
 }

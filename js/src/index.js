@@ -51,7 +51,7 @@ const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.NODE_ENV === 'production' ? window.location.host : '127.0.0.1:8180';
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
-const contracts = ContractInstances.create(api);
+ContractInstances.create(api);
 
 muiTheme.parity.setBackgroundSeed(api.util.sha3(initToken + Date.now()));
 
@@ -74,7 +74,7 @@ ws.init(initToken);
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
-  <ContextProvider api={ api } contracts={ contracts } muiTheme={ muiTheme } store={ store }>
+  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
     <SignerWeb3Provider web3={ web3ws }>
       <Router className={ styles.reset } history={ routerHistory }>
         <Redirect from='/' to='/accounts' />
