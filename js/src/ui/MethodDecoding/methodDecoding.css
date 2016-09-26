@@ -15,11 +15,23 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.method {
-  font-family: 'Roboto Mono' !important;
+.details {
+}
+
+.description {
+  line-height: 1.5em;
+  padding-bottom: 0.5em;
+}
+
+.name,
+.inputs {
+  font-family: 'Roboto Mono';
 }
 
 .name {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 4px;
+  padding: 0 0.25em;
 }
 
 .inputs {

@@ -75,7 +75,9 @@ export default class Transaction extends Component {
     }
 
     return (
-      <MethodDecoding input={ info.input } />
+      <MethodDecoding
+        historic
+        transaction={ info } />
     );
   }
 
@@ -185,7 +187,16 @@ export default class Transaction extends Component {
         api.eth.getTransactionByHash(transaction.hash)
       ])
       .then(([block, info]) => {
-        this.setState({ block, info });
+        if (!transaction.to) {
+          this.setState({ block, info });
+          return;
+        }
+
+        return api.eth
+          .getCode(transaction.to)
+          .then((code) => {
+            this.setState({ block, info, isContract: !!code });
+          });
       })
       .catch((error) => {
         console.error('lookup', error);

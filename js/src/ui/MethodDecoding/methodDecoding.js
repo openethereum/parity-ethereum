@@ -30,7 +30,9 @@ export default class Method extends Component {
   }
 
   static propTypes = {
-    input: PropTypes.string
+    transaction: PropTypes.object,
+    historic: PropTypes.bool,
+    isContract: PropTypes.bool
   }
 
   state = {
@@ -41,32 +43,66 @@ export default class Method extends Component {
   }
 
   componentDidMount () {
-    const { input } = this.props;
+    const { transaction } = this.props;
 
-    this.lookup(input);
+    this.lookup(transaction.input);
   }
 
   componentWillReceiveProps (newProps) {
-    const { input } = this.props;
+    const { transaction } = this.props;
 
-    if (newProps.input === input) {
+    if (newProps.transaction === transaction) {
       return;
     }
 
-    this.lookup(input);
+    this.lookup(transaction.input);
   }
 
   render () {
     const { name } = this.state;
 
     if (!name) {
-      return null;
+      return this.renderValueTransfer();
     }
 
+    return this.renderUnknown();
+  }
+
+  renderValueTransfer () {
+    const { historic } = this.props;
+
+    return null;
+
     return (
-      <div className={ styles.method }>
+      <div className={ styles.details }>
+        This transaction { historic ? 'transferred' : 'will transfer' }
+      </div>
+    );
+  }
+
+  renderSimple () {
+    const { name } = this.state;
+
+    return (
+      <div className={ styles.details }>
         <div className={ styles.name }>
           { name }
+        </div>
+        <div className={ styles.inputs }>
+          { this.renderInputs() }
+        </div>
+      </div>
+    );
+  }
+
+  renderUnknown () {
+    const { historic } = this.props;
+    const { name } = this.state;
+
+    return (
+      <div className={ styles.details }>
+        <div className={ styles.description }>
+          This transaction { historic ? 'executed' : 'will execute' } the <span className={ styles.name }>{ name }</span> function on the contract, passing the following values as part of the transaction:
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }

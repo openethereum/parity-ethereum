@@ -91,6 +91,7 @@
 
 .method {
   opacity: 0.75;
+  width: 40%;
 }
 
 .transactions td.timestamp {
