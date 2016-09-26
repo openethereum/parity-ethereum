@@ -170,7 +170,6 @@ build_rpc_trait! {
 }
 
 build_rpc_trait! {
-
 	/// Eth filters rpc api (polling).
 	// TODO: do filters api properly
 	pub trait EthFilter {
