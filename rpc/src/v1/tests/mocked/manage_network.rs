@@ -16,7 +16,7 @@
 
 use ethsync::{ManageNetwork, NetworkConfiguration};
 
-pub struct TestManageNetwork;
+pub struct TestManageNetwork(bool);
 
 // TODO: rob, gavin (originally introduced this functions) - proper tests and test state
 impl ManageNetwork for TestManageNetwork {
