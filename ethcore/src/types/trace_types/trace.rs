@@ -158,7 +158,7 @@ impl Call {
 	/// The bloom contains from and to addresses.
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.from.sha3())
-			.with_bloomed(&self.to.sha3())
+			.with_bloomed(3, &self.to.sha3())
 	}
 }
 
@@ -233,7 +233,7 @@ impl Suicide {
 	/// Return suicide action bloom.
 	pub fn bloom(&self) -> LogBloom {
 		LogBloom::from_bloomed(&self.address.sha3())
-			.with_bloomed(&self.refund_address.sha3())
+			.with_bloomed(3, &self.refund_address.sha3())
 	}
 }
 
