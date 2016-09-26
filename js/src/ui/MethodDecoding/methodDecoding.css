@@ -16,6 +16,7 @@
 */
 
 .method {
+  font-family: 'Roboto Mono' !important;
 }
 
 .name {
@@ -27,4 +28,5 @@
 
 .input {
   margin-top: -14px;
+  font-family: inherit !important;
 }
