@@ -205,6 +205,7 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
+		self.db.note_account_bloom(contract);
 		self.insert_cache(contract, AccountEntry::Cached(Account::new_contract(balance, self.account_start_nonce)));
 	}
 
@@ -215,17 +216,20 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.ensure_cached(a, RequireCache::None, |a| a.is_some())
+		self.db.check_account_bloom(a)
+			&& self.ensure_cached(a, RequireCache::None, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
+		if !self.db.check_account_bloom(a) { return U256::zero() }
 		self.ensure_cached(a, RequireCache::None,
 			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
+		if !self.db.check_account_bloom(a) { return self.account_start_nonce }
 		self.ensure_cached(a, RequireCache::None,
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
@@ -258,6 +262,7 @@ impl State {
 	/// Add `incr` to the balance of account `a`.
 	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
+		self.db.note_account_bloom(contract);
 		self.require(a, false).add_balance(incr);
 	}
 
@@ -280,17 +285,20 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
+		self.db.note_account_bloom(a);
 		self.require(a, false).set_storage(key, value)
 	}
 
 	/// Initialise the code of account `a` so that it is `code`.
 	/// NOTE: Account should have been created with `new_contract`.
 	pub fn init_code(&mut self, a: &Address, code: Bytes) {
+		self.db.note_account_bloom(a);
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).init_code(code);
 	}
 
 	/// Reset the code of account `a` so that it is `code`.
 	pub fn reset_code(&mut self, a: &Address, code: Bytes) {
+		self.db.note_account_bloom(a);
 		self.require_or_from(a, true, || Account::new_contract(0.into(), self.account_start_nonce), |_|{}).reset_code(code);
 	}
 

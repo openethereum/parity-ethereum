@@ -36,7 +36,7 @@ pub struct StateDB {
 }
 
 pub const ACCOUNT_BLOOM_SPACE: usize = 16384;
-pub const ACCOUNT_BLOOM_HASHCOUNT: usize = 32;
+pub const ACCOUNT_BLOOM_HASHCOUNT: usize = 8;
 
 impl StateDB {
 
