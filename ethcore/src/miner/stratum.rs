@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Client-side stratum job dispatcher and mining notifier handler
+
 use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::Ordering;
@@ -28,6 +30,11 @@ use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
 use rlp::encode;
+
+/// IPC socket dedicated to stratum
+pub const STRATUM_SOCKET_NAME: &'static str = "parity-stratum.ipc";
+/// IPC socket for job dispatcher
+pub const JOB_DISPATCHER_SOCKET_NAME: &'static str = "parity-mining-jobs.ipc";
 
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
@@ -141,7 +148,10 @@ pub struct Stratum {
 	stop: ::devtools::StopGuard,
 }
 
+#[derive(Debug)]
+/// Stratum error
 pub enum Error {
+	/// IPC sockets error
 	Nano(nanoipc::SocketError),
 }
 
@@ -152,7 +162,7 @@ impl From<nanoipc::SocketError> for Error {
 impl super::work_notify::NotifyWork for Stratum {
 	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
+		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/{}", self.base_dir, STRATUM_SOCKET_NAME))
 			.and_then(|client| {
 				client.push_work_all(
 					self.dispatcher.payload(pow_hash, difficulty, number)
@@ -178,7 +188,7 @@ impl Stratum {
 
 	/// Run stratum job dispatcher in separate thread
 	pub fn run_async(&self) {
-		let socket_url = format!("ipc://{}/ipc/parity-mining-jobs.ipc", &self.base_dir);
+		let socket_url = format!("ipc://{}/ipc/{}", &self.base_dir, JOB_DISPATCHER_SOCKET_NAME);
 		let stop = self.stop.share();
 		let service = self.dispatcher.clone() as Arc<JobDispatcher>;
 		thread::spawn(move || {

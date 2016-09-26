@@ -150,27 +150,28 @@ impl ClientService {
 
 	#[cfg(feature="stratum")]
 	/// Runs stratum if feature is on
-	pub fn stratum_probably(cfg: &Option<StratumOptions>, miner: &Arc<Miner>, client: &Arc<Client>) -> Option<Box<miner::NotifyWork>> {
+	pub fn stratum_notifier(cfg: &StratumOptions, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Box<miner::NotifyWork>, ()> {
 		use miner::Stratum;
 		use miner::NotifyWork;
 
-		cfg.as_ref().and_then(|opts| {
-			Stratum::new(&opts.io_path, miner, client).or_else(|e|
-			{
-				warn!(target: "stratum", "Cannot start stratum server");
-				Err(e)
-			})
-			.ok().map(|stratum|
-			{
-				stratum.run_async();
-				Box::new(stratum) as Box<NotifyWork>
-			})
+		Stratum::new(&cfg.io_path, miner, client).or_else(|e|
+		{
+			warn!(target: "stratum", "Cannot start stratum server: {:?}", e);
+			Err(e)
 		})
+		.map(|stratum|
+		{
+			stratum.run_async();
+			Box::new(stratum) as Box<NotifyWork>
+		})
+		// Warnings produced upstream, this is just conditional compilation workaround
+		.map_err(|_|())
 	}
 
 	#[cfg(not(feature="stratum"))]
-	pub fn stratum_probably(cfg: &Option<StratumOptions>, _miner: &Arc<Miner>, _client: &Arc<Client>) -> Option<Box<NotifyWork>> {
-		None
+	pub fn stratum_notifier(_cfg: &StratumOptions, _miner: &Arc<Miner>, _client: &Arc<Client>) -> Result<Box<NotifyWork>, ()> {
+		// Option is not compiled, but error should have been reported already
+		Err(())
 	}
 }
 

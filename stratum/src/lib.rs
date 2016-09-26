@@ -160,20 +160,11 @@ impl Stratum {
 
 	pub fn maintain(&self) {
 		let mut job_que = self.job_que.write();
-		let workers = self.workers.read();
 		for socket_addr in job_que.drain() {
-			if let Some(worker_id) = workers.get(&socket_addr) {
-				let job_payload = self.dispatcher.job();
-				job_payload.map(
-					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
-				);
-			}
-			else {
-				trace!(
-					target: "stratum",
-					"Job queued for worker that is still not authorized, skipping ('{:?}')", socket_addr
-				);
-			}
+			let job_payload = self.dispatcher.job();
+			job_payload.map(
+				|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
+			);
 		}
 	}
 }

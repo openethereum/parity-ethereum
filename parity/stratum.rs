@@ -27,6 +27,7 @@ use std::net::{SocketAddr, IpAddr};
 use std::str::FromStr;
 use nanoipc;
 use std::thread;
+use ethcore::miner::stratum::{STRATUM_SOCKET_NAME, JOB_DISPATCHER_SOCKET_NAME};
 
 pub const MODULE_ID: IpcModuleId = 8000;
 
@@ -51,7 +52,7 @@ pub fn main() {
 
 	let job_dispatcher = dependency!(
 		RemoteJobDispatcher,
-		&service_urls::with_base(&service_config.io_path, service_urls::MINING_JOB_DISPATCHER)
+		&service_urls::with_base(&service_config.io_path, JOB_DISPATCHER_SOCKET_NAME)
 	);
 
 	let _ = boot::main_thread();
@@ -73,7 +74,7 @@ pub fn main() {
 		);
 
 	boot::host_service(
-		&service_urls::with_base(&service_config.io_path, service_urls::STRATUM),
+		&service_urls::with_base(&service_config.io_path, STRATUM_SOCKET_NAME),
 		service_stop.clone(),
 		server.clone() as Arc<PushWorkHandler>
 	);
@@ -88,7 +89,8 @@ pub fn main() {
 	let timer_stop = service_stop.clone();
 	thread::spawn(move || {
 		while !timer_stop.load(Ordering::SeqCst) {
-			thread::park_timeout_ms(5000);
+			thread::park_timeout(::std::time::Duration::from_millis(2000));
+			// It almost always not doing anything, only greets new peers with a job
 			timer_svc.maintain();
 		}
 	});

@@ -205,7 +205,7 @@ usage! {
 		flag_stratum_port: u16 = 8008u16,
 			or |c: &Config| otry!(c.stratum).port.clone(),
 		flag_stratum_secret: Option<String> = None,
-			or |c: &Config| otry!(c.stratum).secret.clone().map(|secret| Some(secret)),
+			or |c: &Config| otry!(c.stratum).secret.clone().map(Some),
 
 		// -- Footprint Options
 		flag_tracing: String = "auto",
