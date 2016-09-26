@@ -544,7 +544,7 @@ mod tests {
 			flag_notify_work: Some("http://localhost:3001".into()),
 
 			flag_stratum: false,
-			flag_stratum_inteface: "local",
+			flag_stratum_interface: "local".to_owned(),
 			flag_stratum_port: 8008u16,
 			flag_stratum_secret: None,
 
@@ -721,7 +721,8 @@ mod tests {
 				logging: Some("own_tx=trace".into()),
 				log_file: Some("/var/log/parity.log".into()),
 				color: Some(true),
-			})
+			}),
+			stratum: None,
 		});
 	}
 }

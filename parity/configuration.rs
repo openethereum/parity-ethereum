@@ -829,6 +829,7 @@ mod tests {
 			name: "".into(),
 			custom_bootnodes: false,
 			no_periodic_snapshot: false,
+			stratum: None,
 		}));
 	}
 
