@@ -139,6 +139,13 @@ pub fn no_author() -> Error {
 	}
 }
 
+pub fn token(e: String) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
+		message: "There was an error when saving your authorization tokens.".into(),
+		data: Some(Value::String(e)),
+	}
+}
 
 pub fn signer_disabled() -> Error {
 	Error {

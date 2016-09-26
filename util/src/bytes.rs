@@ -14,26 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Unified interfaces for bytes operations on basic types
+//! General bytes-related utilities.
 //!
-//! # Examples
-//! ```rust
-//! extern crate ethcore_util as util;
-//!
-//! fn bytes_convertable() {
-//! 	use util::bytes::BytesConvertable;
-//!
-//! 	let arr = [0; 5];
-//! 	let slice: &[u8] = arr.as_slice();
-//! }
-//!
-//! fn main() {
-//! 	bytes_convertable();
-//! }
-//! ```
+//! Includes a pretty-printer for bytes, in the form of `ToPretty` and `PrettySlice`
+//! as
 
 use std::fmt;
-use std::slice;
+use std::cmp::min;
 use std::ops::{Deref, DerefMut};
 
 /// Slice pretty print helper
@@ -71,20 +58,9 @@ pub trait ToPretty {
 	}
 }
 
-impl<'a> ToPretty for &'a [u8] {
+impl<T: AsRef<[u8]>> ToPretty for T {
 	fn pretty(&self) -> PrettySlice {
-		PrettySlice(self)
-	}
-}
-
-impl<'a> ToPretty for &'a Bytes {
-	fn pretty(&self) -> PrettySlice {
-		PrettySlice(self.as_slice())
-	}
-}
-impl ToPretty for Bytes {
-	fn pretty(&self) -> PrettySlice {
-		PrettySlice(self.as_slice())
+		PrettySlice(self.as_ref())
 	}
 }
 
@@ -94,6 +70,32 @@ pub enum BytesRef<'a> {
 	Flexible(&'a mut Bytes),
 	/// This is a reference to a slice
 	Fixed(&'a mut [u8])
+}
+
+impl<'a> BytesRef<'a> {
+	/// Writes given `input` to this `BytesRef` starting at `offset`.
+	/// Returns number of bytes written to the ref.
+	/// NOTE can return number greater then `input.len()` in case flexible vector had to be extended.
+	pub fn write(&mut self, offset: usize, input: &[u8]) -> usize {
+		match *self {
+			BytesRef::Flexible(ref mut data) => {
+				let data_len = data.len();
+				let wrote = input.len() + if data_len > offset { 0 } else { offset - data_len };
+
+				data.resize(offset, 0);
+				data.extend_from_slice(input);
+				wrote
+			},
+			BytesRef::Fixed(ref mut data) if offset < data.len() => {
+				let max = min(data.len() - offset, input.len());
+				for i in 0..max {
+					data[offset + i] = input[i];
+				}
+				max
+			},
+			_ => 0
+		}
+	}
 }
 
 impl<'a> Deref for BytesRef<'a> {
@@ -116,128 +118,62 @@ impl <'a> DerefMut for BytesRef<'a> {
 	}
 }
 
-/// Vector of bytes
+/// Vector of bytes.
 pub type Bytes = Vec<u8>;
 
-/// Slice of bytes to underlying memory
-pub trait BytesConvertable {
-	/// Get the underlying byte-wise representation of the value.
-	fn as_slice(&self) -> &[u8];
-	/// Get a copy of the underlying byte-wise representation.
-	fn to_bytes(&self) -> Bytes { self.as_slice().to_vec() }
-}
+#[cfg(test)]
+mod tests {
+	use super::BytesRef;
 
-impl<T> BytesConvertable for T where T: AsRef<[u8]> {
-	fn as_slice(&self) -> &[u8] { self.as_ref() }
-}
+	#[test]
+	fn should_write_bytes_to_fixed_bytesref() {
+		// given
+		let mut data1 = vec![0, 0, 0];
+		let mut data2 = vec![0, 0, 0];
+		let (res1, res2) = {
+			let mut bytes1 = BytesRef::Fixed(&mut data1[..]);
+			let mut bytes2 = BytesRef::Fixed(&mut data2[1..2]);
 
-#[test]
-fn bytes_convertable() {
-	assert_eq!(vec![0x12u8, 0x34].as_slice(), &[0x12u8, 0x34]);
-	assert!([0u8; 0].as_slice().is_empty());
-}
+			// when
+			let res1 = bytes1.write(1, &[1, 1, 1]);
+			let res2 = bytes2.write(3, &[1, 1, 1]);
+			(res1, res2)
+		};
 
-/// Simple trait to allow for raw population of a Sized object from a byte slice.
-pub trait Populatable {
-	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
-	///
-	/// If `d` is smaller, zero-out the remaining bytes.
-	fn populate_raw(&mut self, d: &[u8]) {
-		let mut s = self.as_slice_mut();
-		for i in 0..s.len() {
-			s[i] = if i < d.len() {d[i]} else {0};
-		}
+		// then
+		assert_eq!(&data1, &[0, 1, 1]);
+		assert_eq!(res1, 2);
+
+		assert_eq!(&data2, &[0, 0, 0]);
+		assert_eq!(res2, 0);
 	}
 
-	/// Copies a bunch of bytes `d` to `self`, overwriting as necessary.
-	///
-	/// If `d` is smaller, will leave some bytes untouched.
-	fn copy_raw(&mut self, d: &[u8]) {
-		use std::io::Write;
-		self.as_slice_mut().write(d).unwrap();
+	#[test]
+	fn should_write_bytes_to_flexible_bytesref() {
+		// given
+		let mut data1 = vec![0, 0, 0];
+		let mut data2 = vec![0, 0, 0];
+		let mut data3 = vec![0, 0, 0];
+		let (res1, res2, res3) = {
+			let mut bytes1 = BytesRef::Flexible(&mut data1);
+			let mut bytes2 = BytesRef::Flexible(&mut data2);
+			let mut bytes3 = BytesRef::Flexible(&mut data3);
+
+			// when
+			let res1 = bytes1.write(1, &[1, 1, 1]);
+			let res2 = bytes2.write(3, &[1, 1, 1]);
+			let res3 = bytes3.write(5, &[1, 1, 1]);
+			(res1, res2, res3)
+		};
+
+		// then
+		assert_eq!(&data1, &[0, 1, 1, 1]);
+		assert_eq!(res1, 3);
+
+		assert_eq!(&data2, &[0, 0, 0, 1, 1, 1]);
+		assert_eq!(res2, 3);
+
+		assert_eq!(&data3, &[0, 0, 0, 0, 0, 1, 1, 1]);
+		assert_eq!(res3, 5);
 	}
-
-	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
-	///
-	/// If `d` is smaller, zero-out the remaining bytes.
-	fn populate_raw_from(&mut self, d: &BytesConvertable) { self.populate_raw(d.as_slice()); }
-
-	/// Copies the raw representation of an object `d` to `self`, overwriting as necessary.
-	///
-	/// If `d` is smaller, will leave some bytes untouched.
-	fn copy_raw_from(&mut self, d: &BytesConvertable) { self.copy_raw(d.as_slice()); }
-
-	/// Get the raw slice for this object.
-	fn as_slice_mut(&mut self) -> &mut [u8];
-}
-
-impl<T> Populatable for T where T: Sized {
-	fn as_slice_mut(&mut self) -> &mut [u8] {
-		use std::mem;
-		unsafe {
-			slice::from_raw_parts_mut(self as *mut T as *mut u8, mem::size_of::<T>())
-		}
-	}
-}
-
-impl<T> Populatable for [T] where T: Sized {
-	fn as_slice_mut(&mut self) -> &mut [u8] {
-		use std::mem;
-		unsafe {
-			slice::from_raw_parts_mut(self.as_mut_ptr() as *mut u8, mem::size_of::<T>() * self.len())
-		}
-	}
-}
-
-#[test]
-fn fax_raw() {
-	let mut x = [255u8; 4];
-	x.copy_raw(&[1u8; 2][..]);
-	assert_eq!(x, [1u8, 1, 255, 255]);
-	let mut x = [255u8; 4];
-	x.copy_raw(&[1u8; 6][..]);
-	assert_eq!(x, [1u8, 1, 1, 1]);
-}
-
-#[test]
-fn populate_raw() {
-	let mut x = [255u8; 4];
-	x.populate_raw(&[1u8; 2][..]);
-	assert_eq!(x, [1u8, 1, 0, 0]);
-	let mut x = [255u8; 4];
-	x.populate_raw(&[1u8; 6][..]);
-	assert_eq!(x, [1u8, 1, 1, 1]);
-}
-
-#[test]
-fn populate_raw_dyn() {
-	let mut x = [255u8; 4];
-	x.populate_raw(&[1u8; 2][..]);
-	assert_eq!(&x[..], [1u8, 1, 0, 0]);
-	let mut x = [255u8; 4];
-	x.populate_raw(&[1u8; 6][..]);
-	assert_eq!(&x[..], [1u8, 1, 1, 1]);
-}
-
-#[test]
-fn fax_raw_dyn() {
-	let mut x = [255u8; 4];
-	x.copy_raw(&[1u8; 2][..]);
-	assert_eq!(&x[..], [1u8, 1, 255, 255]);
-	let mut x = [255u8; 4];
-	x.copy_raw(&[1u8; 6][..]);
-	assert_eq!(&x[..], [1u8, 1, 1, 1]);
-}
-
-#[test]
-fn populate_big_types() {
-	use hash::*;
-	let a: H160 = "ffffffffffffffffffffffffffffffffffffffff".into();
-	let mut h: H256 = 0x69.into();
-	h.populate_raw_from(&a);
-	assert_eq!(h, "ffffffffffffffffffffffffffffffffffffffff000000000000000000000000".into());
-
-	let mut h: H256 = 0x69.into();
-	h.copy_raw_from(&a);
-	assert_eq!(h, "ffffffffffffffffffffffffffffffffffffffff000000000000000000000069".into());
 }

@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Snapshot creation, restoration, and network service.
+//!
+//! Documentation of the format can be found at
+//! https://github.com/ethcore/parity/wiki/%22PV64%22-Snapshot-Format
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -32,9 +35,9 @@ use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
 use util::kvdb::Database;
-use util::rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View, Compressible, RlpType};
-use util::rlp::SHA3_NULL_RLP;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
+use util::sha3::SHA3_NULL_RLP;
+use rlp::{RlpStream, Stream, UntrustedRlp, View};
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -44,7 +47,12 @@ use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
-pub use self::service::{RestorationStatus, Service, SnapshotService};
+
+pub use self::service::{Service, DatabaseRestore};
+pub use self::traits::{SnapshotService, RemoteSnapshotService};
+pub use self::watcher::Watcher;
+pub use types::snapshot_manifest::ManifestData;
+pub use types::restoration_status::RestorationStatus;
 
 pub mod io;
 pub mod service;
@@ -52,9 +60,15 @@ pub mod service;
 mod account;
 mod block;
 mod error;
+mod watcher;
 
 #[cfg(test)]
 mod tests;
+
+mod traits {
+	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
+	include!(concat!(env!("OUT_DIR"), "/snapshot_service_trait.rs"));
+}
 
 // Try to have chunks be around 4MB (before compression)
 const PREFERRED_CHUNK_SIZE: usize = 4 * 1024 * 1024;
@@ -72,17 +86,28 @@ pub struct Progress {
 }
 
 impl Progress {
+	/// Reset the progress.
+	pub fn reset(&self) {
+		self.accounts.store(0, Ordering::Release);
+		self.blocks.store(0, Ordering::Release);
+		self.size.store(0, Ordering::Release);
+
+		// atomic fence here to ensure the others are written first?
+		// logs might very rarely get polluted if not.
+		self.done.store(false, Ordering::Release);
+	}
+
 	/// Get the number of accounts snapshotted thus far.
-	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Relaxed) }
+	pub fn accounts(&self) -> usize { self.accounts.load(Ordering::Acquire) }
 
 	/// Get the number of blocks snapshotted thus far.
-	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Relaxed) }
+	pub fn blocks(&self) -> usize { self.blocks.load(Ordering::Acquire) }
 
 	/// Get the written size of the snapshot in bytes.
-	pub fn size(&self) -> usize { self.size.load(Ordering::Relaxed) }
+	pub fn size(&self) -> usize { self.size.load(Ordering::Acquire) }
 
 	/// Whether the snapshot is complete.
-	pub fn done(&self) -> bool  { self.done.load(Ordering::SeqCst) }
+	pub fn done(&self) -> bool  { self.done.load(Ordering::Acquire) }
 
 }
 /// Take a snapshot using the given blockchain, starting block hash, and database, writing into the given writer.
@@ -336,15 +361,15 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	let mut used_code = HashSet::new();
 
 	// account_key here is the address' hash.
-	for (account_key, account_data) in account_trie.iter() {
+	for item in try!(account_trie.iter()) {
+		let (account_key, account_data) = try!(item);
 		let account = Account::from_thin_rlp(account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
 
 		let fat_rlp = try!(account.to_fat_rlp(&account_db, &mut used_code));
-		let compressed_rlp = UntrustedRlp::new(&fat_rlp).compress(RlpType::Snapshot).to_vec();
-		try!(chunker.push(account_key, compressed_rlp));
+		try!(chunker.push(account_key, fat_rlp));
 	}
 
 	if chunker.cur_size != 0 {
@@ -352,54 +377,6 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	}
 
 	Ok(chunker.hashes)
-}
-
-/// Manifest data.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ManifestData {
-	/// List of state chunk hashes.
-	pub state_hashes: Vec<H256>,
-	/// List of block chunk hashes.
-	pub block_hashes: Vec<H256>,
-	/// The final, expected state root.
-	pub state_root: H256,
-	/// Block number this snapshot was taken at.
-	pub block_number: u64,
-	/// Block hash this snapshot was taken at.
-	pub block_hash: H256,
-}
-
-impl ManifestData {
-	/// Encode the manifest data to rlp.
-	pub fn into_rlp(self) -> Bytes {
-		let mut stream = RlpStream::new_list(5);
-		stream.append(&self.state_hashes);
-		stream.append(&self.block_hashes);
-		stream.append(&self.state_root);
-		stream.append(&self.block_number);
-		stream.append(&self.block_hash);
-
-		stream.out()
-	}
-
-	/// Try to restore manifest data from raw bytes, interpreted as RLP.
-	pub fn from_rlp(raw: &[u8]) -> Result<Self, DecoderError> {
-		let decoder = UntrustedRlp::new(raw);
-
-		let state_hashes: Vec<H256> = try!(decoder.val_at(0));
-		let block_hashes: Vec<H256> = try!(decoder.val_at(1));
-		let state_root: H256 = try!(decoder.val_at(2));
-		let block_number: u64 = try!(decoder.val_at(3));
-		let block_hash: H256 = try!(decoder.val_at(4));
-
-		Ok(ManifestData {
-			state_hashes: state_hashes,
-			block_hashes: block_hashes,
-			state_root: state_root,
-			block_number: block_number,
-			block_hash: block_hash,
-		})
-	}
 }
 
 /// Used to rebuild the state trie piece by piece.
@@ -533,8 +510,7 @@ fn rebuild_accounts(
 		let account_rlp = UntrustedRlp::new(account_pair);
 
 		let hash: H256 = try!(account_rlp.val_at(0));
-		let decompressed = try!(account_rlp.at(1)).decompress(RlpType::Snapshot);
-		let fat_rlp = UntrustedRlp::new(&decompressed[..]);
+		let fat_rlp = try!(account_rlp.at(1));
 
 		let thin_rlp = {
 			let mut acct_db = AccountDBMut::from_hash(db, hash);
@@ -595,6 +571,7 @@ impl BlockRebuilder {
 	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, ::error::Error> {
 		use basic_types::Seal::With;
 		use util::U256;
+		use util::triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
@@ -611,7 +588,11 @@ impl BlockRebuilder {
 			let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
 			let receipts: Vec<::receipt::Receipt> = try!(pair.val_at(1));
-			let block = try!(abridged_block.to_block(parent_hash, cur_number));
+			let receipts_root = ordered_trie_root(
+				try!(pair.at(1)).iter().map(|r| r.as_raw().to_owned())
+			);
+
+			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
 
 			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {

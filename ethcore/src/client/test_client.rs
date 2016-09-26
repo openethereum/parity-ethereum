@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrder};
 use util::*;
+use rlp::*;
 use ethkey::{Generator, Random};
 use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
@@ -33,7 +34,7 @@ use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
 use evm::{Factory as EvmFactory, VMType};
-use miner::{Miner, MinerService};
+use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 
 use block_queue::BlockQueueInfo;
@@ -66,6 +67,8 @@ pub struct TestBlockChainClient {
 	pub execution_result: RwLock<Option<Result<Executed, CallError>>>,
 	/// Transaction receipts.
 	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
+	/// Logs
+	pub logs: RwLock<Vec<LocalizedLogEntry>>,
 	/// Block queue size.
 	pub queue_size: AtomicUsize,
 	/// Miner
@@ -113,6 +116,7 @@ impl TestBlockChainClient {
 			code: RwLock::new(HashMap::new()),
 			execution_result: RwLock::new(None),
 			receipts: RwLock::new(HashMap::new()),
+			logs: RwLock::new(Vec::new()),
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
@@ -164,6 +168,11 @@ impl TestBlockChainClient {
 		*self.latest_block_timestamp.write() = ts;
 	}
 
+	/// Set logs to return for each logs call.
+	pub fn set_logs(&self, logs: Vec<LocalizedLogEntry>) {
+		*self.logs.write() = logs;
+	}
+
 	/// Add blocks to test client.
 	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
 		let len = self.numbers.read().len();
@@ -204,7 +213,7 @@ impl TestBlockChainClient {
 					txs.append(&signed_tx);
 					txs.out()
 				},
-				_ => rlp::EMPTY_LIST_RLP.to_vec()
+				_ => ::rlp::EMPTY_LIST_RLP.to_vec()
 			};
 
 			let mut rlp = RlpStream::new_list(3);
@@ -222,8 +231,8 @@ impl TestBlockChainClient {
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -234,8 +243,8 @@ impl TestBlockChainClient {
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
-		rlp.append_raw(&rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
+		rlp.append_raw(&::rlp::NULL_RLP, 1);
 		self.blocks.write().insert(hash, rlp.out());
 	}
 
@@ -253,6 +262,24 @@ impl TestBlockChainClient {
 			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
 			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
+	}
+
+	/// Inserts a transaction to miners transactions queue.
+	pub fn insert_transaction_to_queue(&self) {
+		let keypair = Random.generate().unwrap();
+		let tx = Transaction {
+			action: Action::Create,
+			value: U256::from(100),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::one(),
+			nonce: U256::zero()
+		};
+		let signed_tx = tx.sign(keypair.secret());
+		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
+		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
+		let res = res.into_iter().next().unwrap().expect("Successful import");
+		assert_eq!(res, TransactionImportResult::Current);
 	}
 }
 
@@ -371,8 +398,13 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn logs(&self, _filter: Filter) -> Vec<LocalizedLogEntry> {
-		unimplemented!();
+	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
+		let mut logs = self.logs.read().clone();
+		let len = logs.len();
+		match filter.limit {
+			Some(limit) if limit <= len => logs.split_off(len - limit),
+			_ => logs,
+		}
 	}
 
 	fn last_hashes(&self) -> LastHashes {

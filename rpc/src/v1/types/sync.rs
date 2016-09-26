@@ -70,7 +70,7 @@ mod tests {
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x00","currentBlock":"0x00","highestBlock":"0x00"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
 	}
 
 	#[test]
@@ -88,6 +88,6 @@ mod tests {
 
 		let t = SyncStatus::Info(SyncInfo::default());
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x00","currentBlock":"0x00","highestBlock":"0x00"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
 	}
 }

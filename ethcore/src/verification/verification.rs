@@ -24,6 +24,7 @@
 use common::*;
 use engines::Engine;
 use blockchain::*;
+use rlp::{UntrustedRlp, View};
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -214,7 +215,7 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
 	let block = UntrustedRlp::new(block);
 	let tx = try!(block.at(1));
-	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
@@ -240,6 +241,8 @@ mod tests {
 	use spec::*;
 	use transaction::*;
 	use tests::helpers::*;
+	use types::log_entry::{LogEntry, LocalizedLogEntry};
+	use rlp::View;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -331,6 +334,12 @@ mod tests {
 		fn block_receipts(&self, _hash: &H256) -> Option<BlockReceipts> {
 			unimplemented!()
 		}
+
+
+		fn logs<F>(&self, _blocks: Vec<BlockNumber>, _matches: F, _limit: Option<usize>) -> Vec<LocalizedLogEntry>
+			where F: Fn(&LogEntry) -> bool, Self: Sized {
+			unimplemented!()
+		}
 	}
 
 	fn basic_test(bytes: &[u8], engine: &Engine) -> Result<(), Error> {
@@ -346,6 +355,8 @@ mod tests {
 	#[test]
 	#[cfg_attr(feature="dev", allow(similar_names))]
 	fn test_verify_block() {
+		use rlp::{RlpStream, Stream};
+
 		// Test against morden
 		let mut good = Header::new();
 		let spec = Spec::new_test();
@@ -411,7 +422,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| encode::<SignedTransaction>(t).to_vec()).collect());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()));
 
 		let mut parent = good.clone();
 		parent.set_number(9);

@@ -21,6 +21,7 @@ use spec::CommonParams;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
+use rlp::{self, UntrustedRlp, View};
 
 /// Ethash params.
 #[derive(Debug, PartialEq)]
@@ -159,16 +160,14 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(&fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
 			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
-		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
+
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -328,17 +327,17 @@ impl Ethash {
 impl Header {
 	/// Get the none field of the header.
 	pub fn nonce(&self) -> H64 {
-		decode(&self.seal()[1])
+		rlp::decode(&self.seal()[1])
 	}
 
 	/// Get the mix hash field of the header.
 	pub fn mix_hash(&self) -> H256 {
-		decode(&self.seal()[0])
+		rlp::decode(&self.seal()[0])
 	}
 
 	/// Set the nonce and mix hash fields of the header.
 	pub fn set_nonce_and_mix_hash(&mut self, nonce: &H64, mix_hash: &H256) {
-		self.set_seal(vec![encode(mix_hash).to_vec(), encode(nonce).to_vec()]);
+		self.set_seal(vec![rlp::encode(mix_hash).to_vec(), rlp::encode(nonce).to_vec()]);
 	}
 }
 
@@ -349,6 +348,7 @@ mod tests {
 	use tests::helpers::*;
 	use super::super::new_morden;
 	use super::Ethash;
+	use rlp;
 
 	#[test]
 	fn on_close_block() {

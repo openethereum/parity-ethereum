@@ -54,9 +54,6 @@
 //! }
 //! ```
 
-
-#[macro_use]
-extern crate log;
 extern crate ethcore_io as io;
 extern crate ethcore_util as util;
 extern crate parking_lot;
@@ -72,6 +69,11 @@ extern crate libc;
 extern crate slab;
 extern crate ethkey;
 extern crate ethcrypto as crypto;
+extern crate rlp;
+
+#[macro_use]
+extern crate log;
+
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 

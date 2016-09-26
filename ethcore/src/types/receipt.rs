@@ -17,8 +17,9 @@
 //! Receipt
 
 use util::{H256, U256, Address};
-use util::rlp::*;
 use util::HeapSizeOf;
+use rlp::*;
+
 use basic_types::LogBloom;
 use header::BlockNumber;
 use log_entry::{LogEntry, LocalizedLogEntry};

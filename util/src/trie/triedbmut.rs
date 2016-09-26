@@ -19,10 +19,11 @@
 use super::{TrieError, TrieMut};
 use super::node::Node as RlpNode;
 
-use ::{Bytes, HashDB, H256, SHA3_NULL_RLP};
+use ::{Bytes, HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream, View, Stream};
+use ::sha3::SHA3_NULL_RLP;
 
 use elastic_array::ElasticArray1024;
 
@@ -261,18 +262,18 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 /// # Example
 /// ```
 /// extern crate ethcore_util as util;
+///
 /// use util::trie::*;
 /// use util::hashdb::*;
 /// use util::memorydb::*;
 /// use util::hash::*;
-/// use util::rlp::*;
 ///
 /// fn main() {
 ///   let mut memdb = MemoryDB::new();
 ///   let mut root = H256::new();
 ///   let mut t = TrieDBMut::new(&mut memdb, &mut root);
 ///   assert!(t.is_empty());
-///   assert_eq!(*t.root(), SHA3_NULL_RLP);
+///   assert_eq!(*t.root(), ::util::sha3::SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
 ///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar");
@@ -951,8 +952,8 @@ mod tests {
 	use hashdb::*;
 	use memorydb::*;
 	use super::*;
-	use rlp::*;
 	use bytes::ToPretty;
+	use sha3::SHA3_NULL_RLP;
 	use super::super::TrieMut;
 	use super::super::standardmap::*;
 

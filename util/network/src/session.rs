@@ -19,8 +19,8 @@ use std::io;
 use std::sync::*;
 use mio::*;
 use mio::tcp::*;
-use util::rlp::*;
 use util::hash::*;
+use rlp::*;
 use connection::{EncryptedConnection, Packet, Connection};
 use handshake::Handshake;
 use io::{IoContext, StreamToken};
@@ -241,6 +241,11 @@ impl Session {
 	/// Checks if peer supports given capability
 	pub fn have_capability(&self, protocol: &str) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
+	}
+
+	/// Checks if peer supports given capability
+	pub fn capability_version(&self, protocol: &str) -> Option<u8> {
+		self.info.capabilities.iter().filter_map(|c| if c.protocol == protocol { Some(c.version) } else { None }).max()
 	}
 
 	/// Register the session socket with the event loop

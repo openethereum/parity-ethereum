@@ -420,7 +420,7 @@ mod tests {
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
 	use trace::{Config, Switch, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
-	use trace::{Filter, LocalizedTrace, AddressesFilter};
+	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
 	use trace::trace::{Call, Action, Res};
 	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
 	use types::executed::CallType;
@@ -560,7 +560,7 @@ mod tests {
 					input: vec![],
 					call_type: CallType::Call,
 				}),
-				result: Res::FailedCall,
+				result: Res::FailedCall(TraceError::OutOfGas),
 			}])]),
 			block_hash: block_hash.clone(),
 			block_number: block_number,
@@ -579,7 +579,7 @@ mod tests {
 				input: vec![],
 				call_type: CallType::Call,
 			}),
-			result: Res::FailedCall,
+			result: Res::FailedCall(TraceError::OutOfGas),
 			trace_address: vec![],
 			subtraces: 0,
 			transaction_number: 0,
