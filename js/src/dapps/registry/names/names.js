@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
+import DropDownMenu from 'material-ui/DropDownMenu';
+import MenuItem from 'material-ui/MenuItem';
 import RaisedButton from 'material-ui/RaisedButton';
 import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
@@ -31,14 +33,18 @@ export default class Names extends Component {
     fee: PropTypes.object.isRequired,
     hasAccount: PropTypes.bool.isRequired,
     pending: PropTypes.bool.isRequired,
-    reserved: PropTypes.array.isRequired
+    reserved: PropTypes.array.isRequired,
+    dropped: PropTypes.array.isRequired
   }
 
-  state = { name: '' };
+  state = {
+    action: 'reserve',
+    name: ''
+  };
 
   render () {
-    const { name } = this.state;
-    const { fee, hasAccount, pending, reserved } = this.props;
+    const { action, name } = this.state;
+    const { fee, hasAccount, pending, reserved, dropped } = this.props;
 
     return (
       <Card className={ styles.names }>
@@ -46,13 +52,24 @@ export default class Names extends Component {
         <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (<p className={ styles.noSpacing }>The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.</p>)
+            : (<p className={ styles.noSpacing }>
+                The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
+                To drop a name, you have to be the owner.
+              </p>)
           }
           <TextField
             hintText='name'
             value={ name }
             onChange={ this.onNameChange }
           />
+          <DropDownMenu
+            disabled={ !hasAccount || pending }
+            value={ action }
+            onChange={ this.onActionChange }
+          >
+            <MenuItem value='reserve' primaryText='reserve this name' />
+            <MenuItem value='drop' primaryText='drop this name' />
+          </DropDownMenu>
           <RaisedButton
             disabled={ !hasAccount || pending }
             className={ styles.spacing }
@@ -63,7 +80,12 @@ export default class Names extends Component {
           />
           { reserved.map((name) => (
             <p key={ name }>
-              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the registration of <code>{ name }</code>.
+              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate reserving <code>{ name }</code>.
+            </p>
+          )) }
+          { dropped.map((name) => (
+            <p key={ name }>
+              Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate dropping <code>{ name }</code>.
             </p>
           )) }
         </CardText>
@@ -74,7 +96,15 @@ export default class Names extends Component {
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
+  onActionChange = (e, i, action) => {
+    this.setState({ action });
+  };
   onSubmitClick = () => {
-    this.props.actions.reserve(this.state.name);
+    const { action, name } = this.state;
+    if (action === 'reserve') {
+      this.props.actions.reserve(name);
+    } else if (action === 'drop') {
+      this.props.actions.drop(name);
+    }
   };
 }
