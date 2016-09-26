@@ -18,6 +18,7 @@ use std::sync::Arc;
 use io::PanicHandler;
 use rpc_apis;
 use ethcore::client::Client;
+use ethsync::SyncProvider;
 use helpers::replace_home;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -49,6 +50,7 @@ pub struct Dependencies {
 	pub panic_handler: Arc<PanicHandler>,
 	pub apis: Arc<rpc_apis::Dependencies>,
 	pub client: Arc<Client>,
+	pub sync: Arc<SyncProvider>,
 }
 
 pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<WebappServer>, String> {
@@ -117,9 +119,12 @@ mod server {
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
-		let server = dapps::ServerBuilder::new(dapps_path, Arc::new(Registrar {
-			client: deps.client.clone(),
-		}));
+		let mut server = dapps::ServerBuilder::new(
+			dapps_path,
+			Arc::new(Registrar { client: deps.client.clone() })
+		);
+		let sync = deps.sync.clone();
+		server.with_sync_status(Arc::new(move || sync.status().is_major_syncing()));
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {
 			None => {

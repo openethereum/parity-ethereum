@@ -92,7 +92,8 @@ impl Account {
 
 		let mut pairs = Vec::new();
 
-		for (k, v) in db.iter() {
+		for item in try!(db.iter()) {
+			let (k, v) = try!(item);
 			pairs.push((k, v));
 		}
 

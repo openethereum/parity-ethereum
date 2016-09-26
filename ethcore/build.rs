@@ -19,5 +19,6 @@ extern crate ethcore_ipc_codegen;
 fn main() {
 	ethcore_ipc_codegen::derive_binary("src/types/mod.rs.in").unwrap();
 	ethcore_ipc_codegen::derive_ipc("src/client/traits.rs").unwrap();
+	ethcore_ipc_codegen::derive_ipc("src/snapshot/snapshot_service_trait.rs").unwrap();
 	ethcore_ipc_codegen::derive_ipc("src/client/chain_notify.rs").unwrap();
 }

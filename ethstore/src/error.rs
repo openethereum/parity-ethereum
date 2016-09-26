@@ -17,6 +17,7 @@
 use std::fmt;
 use std::io::Error as IoError;
 use ethkey::Error as EthKeyError;
+use crypto::Error as EthCryptoError;
 
 #[derive(Debug)]
 pub enum Error {
@@ -28,6 +29,7 @@ pub enum Error {
 	InvalidKeyFile(String),
 	CreationFailed,
 	EthKey(EthKeyError),
+	EthCrypto(EthCryptoError),
 	Custom(String),
 }
 
@@ -42,6 +44,7 @@ impl fmt::Display for Error {
 			Error::InvalidKeyFile(ref reason) => format!("Invalid key file: {}", reason),
 			Error::CreationFailed => "Account creation failed".into(),
 			Error::EthKey(ref err) => err.to_string(),
+			Error::EthCrypto(ref err) => err.to_string(),
 			Error::Custom(ref s) => s.clone(),
 		};
 
@@ -58,5 +61,11 @@ impl From<IoError> for Error {
 impl From<EthKeyError> for Error {
 	fn from(err: EthKeyError) -> Self {
 		Error::EthKey(err)
+	}
+}
+
+impl From<EthCryptoError> for Error {
+	fn from(err: EthCryptoError) -> Self {
+		Error::EthCrypto(err)
 	}
 }

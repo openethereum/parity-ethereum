@@ -17,22 +17,22 @@
 use std::str::{FromStr, from_utf8};
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
-use std::time::Duration;
+use std::time::{Instant, Duration};
 use std::thread::sleep;
-use std::path::Path;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
-use util::ToPretty;
+use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use informant::Informant;
 use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
+use informant::{Informant, MillisecondDuration};
+use io_handler::ImportIoHandler;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -109,6 +109,8 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+	let timer = Instant::now();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
@@ -141,8 +143,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
@@ -154,8 +157,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -185,6 +189,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
 
+	try!(service.register_io_handler(Arc::new(ImportIoHandler {
+		info: Arc::new(informant),
+	})).map_err(|_| "Unable to register informant handler".to_owned()));
+
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
@@ -196,7 +204,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 			},
 			Ok(_) => {},
 		}
-		informant.tick();
 		Ok(())
 	};
 
@@ -235,7 +242,18 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	user_defaults.tracing = tracing;
 	try!(user_defaults.save(&user_defaults_path));
 
-	Ok("Import completed.".into())
+	let report = client.report();
+
+	let ms = timer.elapsed().as_milliseconds();
+	Ok(format!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
+		ms / 1000,
+		report.blocks_imported,
+		(report.blocks_imported * 1000) as u64 / ms,
+		report.transactions_applied,
+		(report.transactions_applied * 1000) as u64 / ms,
+		report.gas_processed / From::from(1_000_000),
+		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+	).into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
@@ -247,6 +265,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
+
+	let format = cmd.format.unwrap_or_default();
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -266,15 +286,14 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
-	let format = cmd.format.unwrap_or_else(Default::default);
-
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
@@ -285,8 +304,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -299,10 +319,10 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	};
 
 	let from = try!(client.block_number(cmd.from_block).ok_or("From block could not be found"));
-	let to = try!(client.block_number(cmd.to_block).ok_or("From block could not be found"));
+	let to = try!(client.block_number(cmd.to_block).ok_or("To block could not be found"));
 
 	for i in from..(to + 1) {
-		let b = client.block(BlockID::Number(i)).unwrap();
+		let b = try!(client.block(BlockID::Number(i)).ok_or("Error exporting incomplete chain"));
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }

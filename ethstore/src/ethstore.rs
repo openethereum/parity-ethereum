@@ -144,6 +144,11 @@ impl SecretStore for EthStore {
 		account.sign(password, message)
 	}
 
+	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let account = try!(self.get(account));
+		account.decrypt(password, shared_mac, message)
+	}
+
 	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
 		let account = try!(self.get(address));
 		Ok(account.id.into())

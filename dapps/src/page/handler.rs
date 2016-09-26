@@ -22,6 +22,7 @@ use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 use hyper::{Decoder, Encoder, Next};
 use endpoint::EndpointPath;
+use handlers::ContentHandler;
 
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
@@ -48,6 +49,25 @@ pub trait Dapp: Send + 'static {
 	fn file(&self, path: &str) -> Option<Self::DappFile>;
 }
 
+/// Currently served by `PageHandler` file
+pub enum ServedFile<T: Dapp> {
+	/// File from dapp
+	File(T::DappFile),
+	/// Error (404)
+	Error(ContentHandler),
+}
+
+impl<T: Dapp> Default for ServedFile<T> {
+	fn default() -> Self {
+		ServedFile::Error(ContentHandler::error(
+			StatusCode::NotFound,
+			"404 Not Found",
+			"Requested dapp resource was not found.",
+			None
+		))
+	}
+}
+
 /// A handler for a single webapp.
 /// Resolves correct paths and serves as a plumbing code between
 /// hyper server and dapp.
@@ -55,7 +75,7 @@ pub struct PageHandler<T: Dapp> {
 	/// A Dapp.
 	pub app: T,
 	/// File currently being served (or `None` if file does not exist).
-	pub file: Option<T::DappFile>,
+	pub file: ServedFile<T>,
 	/// Optional prefix to strip from path.
 	pub prefix: Option<String>,
 	/// Requested path.
@@ -95,7 +115,7 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 				self.app.file(&self.extract_path(url.path()))
 			},
 			_ => None,
-		};
+		}.map_or_else(|| ServedFile::default(), |f| ServedFile::File(f));
 		Next::write()
 	}
 
@@ -104,24 +124,26 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		if let Some(ref f) = self.file {
-			res.set_status(StatusCode::Ok);
-			res.headers_mut().set(header::ContentType(f.content_type().parse().unwrap()));
-			if !self.safe_to_embed {
-				res.headers_mut().set_raw("X-Frame-Options", vec![b"SAMEORIGIN".to_vec()]);
+		match self.file {
+			ServedFile::File(ref f) => {
+				res.set_status(StatusCode::Ok);
+				res.headers_mut().set(header::ContentType(f.content_type().parse().unwrap()));
+				if !self.safe_to_embed {
+					res.headers_mut().set_raw("X-Frame-Options", vec![b"SAMEORIGIN".to_vec()]);
+				}
+				Next::write()
+			},
+			ServedFile::Error(ref mut handler) => {
+				handler.on_response(res)
 			}
-			Next::write()
-		} else {
-			res.set_status(StatusCode::NotFound);
-			Next::write()
 		}
 	}
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
 		match self.file {
-			None => Next::end(),
-			Some(ref f) if f.is_drained() => Next::end(),
-			Some(ref mut f) => match encoder.write(f.next_chunk()) {
+			ServedFile::Error(ref mut handler) => handler.on_response_writable(encoder),
+			ServedFile::File(ref f) if f.is_drained() => Next::end(),
+			ServedFile::File(ref mut f) => match encoder.write(f.next_chunk()) {
 				Ok(bytes) => {
 					f.bytes_written(bytes);
 					Next::write()
@@ -190,7 +212,7 @@ fn should_extract_path_with_appid() {
 			port: 8080,
 			using_dapps_domains: true,
 		},
-		file: None,
+		file: Default::default(),
 		safe_to_embed: true,
 	};
 

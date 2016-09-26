@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::path::Path;
 use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
@@ -28,7 +27,8 @@ use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
-use ethsync::SyncConfig;
+use ethcore::snapshot;
+use ethsync::{SyncConfig, SyncProvider};
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
@@ -46,6 +46,12 @@ use modules;
 use rpc_apis;
 use rpc;
 use url;
+
+// how often to take periodic snapshots.
+const SNAPSHOT_PERIOD: u64 = 10000;
+
+// how many blocks to wait before starting a periodic snapshot.
+const SNAPSHOT_HISTORY: u64 = 500;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -78,6 +84,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub no_periodic_snapshot: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -114,8 +121,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
-	// prepare client_path
+	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
@@ -172,14 +180,15 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// create supervisor
-	let mut hypervisor = modules::hypervisor(Path::new(&cmd.dirs.ipc_path()));
+	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = try!(ClientService::start(
 		client_config,
 		&spec,
-		Path::new(&client_path),
-		Path::new(&cmd.dirs.ipc_path()),
+		&client_path,
+		&snapshot_path,
+		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
@@ -188,13 +197,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// take handle to client
 	let client = service.client();
+	let snapshot_service = service.snapshot_service();
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -205,9 +215,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// set up dependencies for rpc servers
+	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
-		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -233,6 +244,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		panic_handler: panic_handler.clone(),
 		apis: deps_for_rpc_apis.clone(),
 		client: client.clone(),
+		sync: sync_provider.clone(),
 	};
 
 	// start dapps server
@@ -255,8 +267,27 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
 		accounts: account_provider.clone(),
+		shutdown: Default::default(),
 	});
-	service.register_io_handler(io_handler).expect("Error registering IO handler");
+	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
+
+	// the watcher must be kept alive.
+	let _watcher = match cmd.no_periodic_snapshot {
+		true => None,
+		false => {
+			let sync = sync_provider.clone();
+			let watcher = Arc::new(snapshot::Watcher::new(
+				service.client(),
+				move || sync.status().is_major_syncing(),
+				service.io().channel(),
+				SNAPSHOT_PERIOD,
+				SNAPSHOT_HISTORY,
+			));
+
+			service.add_notify(watcher.clone());
+			Some(watcher)
+		},
+	};
 
 	// start ui
 	if cmd.ui {
@@ -273,6 +304,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
+
+	// to make sure timer does not spawn requests while shutdown is in progress
+	io_handler.shutdown.store(true, ::std::sync::atomic::Ordering::SeqCst);
+	// just Arc is dropping here, to allow other reference release in its default time
+	drop(io_handler);
 
 	// hypervisor should be shutdown first while everything still works and can be
 	// terminated gracefully
