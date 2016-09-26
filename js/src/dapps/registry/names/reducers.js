@@ -14,4 +14,29 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './register.js';
+const initialState = {
+  hasAccount: false,
+  pending: false,
+  posted: []
+};
+
+export default (state = initialState, action) => {
+  if (action.type === 'accounts select') {
+    return { ...state, hasAccount: !!action.address };
+  }
+
+  if (action.type === 'reserve start') {
+    return { ...state, pending: true };
+  }
+  if (action.type === 'reserve success') {
+    return {
+      ...state, pending: false,
+      posted: state.posted.concat(action.name)
+    };
+  }
+  if (action.type === 'reserve fail') {
+    return { ...state, pending: false };
+  }
+
+  return state;
+};

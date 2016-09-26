@@ -21,9 +21,9 @@ import * as addresses from './addresses/actions.js';
 import * as accounts from './accounts/actions.js';
 import * as lookup from './Lookup/actions.js';
 import * as events from './events/actions.js';
-import * as register from './register/actions.js';
+import * as names from './names/actions.js';
 
-export { addresses, accounts, lookup, events, register };
+export { addresses, accounts, lookup, events, names };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 

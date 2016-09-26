@@ -16,18 +16,18 @@
 
 import { sha3, toWei } from '../parity.js';
 
-export const start = (name) => ({ type: 'register start', name });
+export const start = (name) => ({ type: 'reserve start', name });
 
-export const success = (name) => ({ type: 'register success', name });
+export const success = (name) => ({ type: 'reserve success', name });
 
-export const fail = (name) => ({ type: 'register fail', name });
+export const fail = (name) => ({ type: 'reserve fail', name });
 
-export const register = (name) => (dispatch, getState) => {
+export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
   if (!contract || !account) return;
-  if (state.register.posted.includes(name)) return;
+  if (state.names.posted.includes(name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   name = name.toLowerCase();

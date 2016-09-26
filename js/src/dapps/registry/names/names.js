@@ -22,9 +22,9 @@ import CheckIcon from 'material-ui/svg-icons/navigation/check';
 
 import { fromWei } from '../parity.js';
 
-import styles from './register.css';
+import styles from './names.css';
 
-export default class Register extends Component {
+export default class Names extends Component {
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
@@ -41,12 +41,12 @@ export default class Register extends Component {
     const { fee, hasAccount, pending, posted } = this.props;
 
     return (
-      <Card className={ styles.register }>
-        <CardHeader title={ 'Register a Name' } />
+      <Card className={ styles.names }>
+        <CardHeader title={ 'Reserve Names' } />
         <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (<p className={ styles.noSpacing }>The registration fee is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.</p>)
+            : (<p className={ styles.noSpacing }>The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.</p>)
           }
           <TextField
             hintText='name'
@@ -56,10 +56,10 @@ export default class Register extends Component {
           <RaisedButton
             disabled={ !hasAccount || pending }
             className={ styles.spacing }
-            label='Register'
+            label='Reserve'
             primary
             icon={ <CheckIcon /> }
-            onClick={ this.onRegisterClick }
+            onClick={ this.onReserveClick }
           />
           { posted.map((name) => (
             <p key={ name }>
@@ -74,7 +74,7 @@ export default class Register extends Component {
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
-  onRegisterClick = () => {
-    this.props.actions.register(this.state.name);
+  onReserveClick = () => {
+    this.props.actions.reserve(this.state.name);
   };
 }
