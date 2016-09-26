@@ -140,6 +140,7 @@ module.exports = {
         'process.env': {
           NODE_ENV: JSON.stringify(ENV),
           RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
+          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
           LOGGING: JSON.stringify(!isProd)
         }
       })
