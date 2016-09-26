@@ -23,7 +23,7 @@ use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 #[derive(Debug, PartialEq, Clone)]
 pub struct Crypto {
 	pub cipher: Cipher,
-	pub ciphertext: [u8; 32],
+	pub ciphertext: Vec<u8>,
 	pub kdf: Kdf,
 	pub mac: [u8; 32],
 }
@@ -95,7 +95,7 @@ impl Crypto {
 			cipher: Cipher::Aes128Ctr(Aes128Ctr {
 				iv: iv,
 			}),
-			ciphertext: ciphertext,
+			ciphertext: ciphertext.to_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
 				dklen: crypto::KEY_LENGTH as u32,
 				salt: salt,
