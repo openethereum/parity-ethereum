@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Client-side stratum job dispatcher and mining notifier handler
+
 use ethcore_stratum::{JobDispatcher, RemoteWorkHandler, PushWorkHandler};
 use std::sync::{Arc, Weak};
 use std::sync::atomic::Ordering;
@@ -28,6 +30,11 @@ use client::Client;
 use block::IsBlock;
 use std::str::FromStr;
 use rlp::encode;
+
+/// IPC socket dedicated to stratum
+pub const STRATUM_SOCKET_NAME: &'static str = "parity-stratum.ipc";
+/// IPC socket for job dispatcher
+pub const JOB_DISPATCHER_SOCKET_NAME: &'static str = "parity-mining-jobs.ipc";
 
 /// Job dispatcher for stratum service
 pub struct StratumJobDispatcher {
@@ -44,13 +51,6 @@ impl JobDispatcher for StratumJobDispatcher {
 	}
 
 	fn job(&self) -> Option<String> {
-		{
-			let last_work = self.last_work.write();
-			if let Some((pow_hash, difficulty, number)) = *last_work {
-				return Some(self.payload(pow_hash, difficulty, number));
-			}
-		}
-
 		self.with_core(|client, miner| {
 			if let Some((pow_hash, difficulty, number)) = miner.map_sealing_work(&*client, |b| {
 				let pow_hash = b.hash();
@@ -110,12 +110,12 @@ impl JobDispatcher for StratumJobDispatcher {
 
 impl StratumJobDispatcher {
 	/// New stratum job dispatcher given the miner and client
-	fn new(miner: &Arc<Miner>, client: &Arc<Client>) -> StratumJobDispatcher {
+	fn new(miner: Weak<Miner>, client: Weak<Client>) -> StratumJobDispatcher {
 		StratumJobDispatcher {
 			seed_compute: Mutex::new(SeedHashCompute::new()),
 			last_work: RwLock::new(None),
-			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
+			client: client,
+			miner: miner,
 		}
 	}
 
@@ -143,7 +143,10 @@ pub struct Stratum {
 	stop: ::devtools::StopGuard,
 }
 
+#[derive(Debug)]
+/// Stratum error
 pub enum Error {
+	/// IPC sockets error
 	Nano(nanoipc::SocketError),
 }
 
@@ -154,7 +157,7 @@ impl From<nanoipc::SocketError> for Error {
 impl super::work_notify::NotifyWork for Stratum {
 	#[allow(unused_must_use)]
 	fn notify(&self, pow_hash: H256, difficulty: U256, number: u64) {
-		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/parity-stratum.ipc", self.base_dir))
+		nanoipc::generic_client::<RemoteWorkHandler<_>>(&format!("ipc://{}/ipc/{}", self.base_dir, STRATUM_SOCKET_NAME))
 			.and_then(|client| {
 				client.push_work_all(
 					self.dispatcher.payload(pow_hash, difficulty, number)
@@ -170,7 +173,7 @@ impl super::work_notify::NotifyWork for Stratum {
 
 impl Stratum {
 	/// New stratum job dispatcher, given the miner, client and dedicated stratum service
-	pub fn new(base_dir: &str, miner: &Arc<Miner>, client: &Arc<Client>) -> Result<Stratum, Error> {
+	pub fn new(base_dir: &str, miner: Weak<Miner>, client: Weak<Client>) -> Result<Stratum, Error> {
 		Ok(Stratum {
 			dispatcher: Arc::new(StratumJobDispatcher::new(miner, client)),
 			base_dir: base_dir.to_owned(),
@@ -180,7 +183,7 @@ impl Stratum {
 
 	/// Run stratum job dispatcher in separate thread
 	pub fn run_async(&self) {
-		let socket_url = format!("ipc://{}/ipc/parity-mining-jobs.ipc", &self.base_dir);
+		let socket_url = format!("ipc://{}/ipc/{}", &self.base_dir, JOB_DISPATCHER_SOCKET_NAME);
 		let stop = self.stop.share();
 		let service = self.dispatcher.clone() as Arc<JobDispatcher>;
 		thread::spawn(move || {

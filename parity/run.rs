@@ -145,7 +145,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(::std::path::Path::new(&cmd.dirs.ipc_path()));
-	modules::stratum(&mut hypervisor, &cmd.stratum);
+	if let Some(ref stratum_cfg) = cmd.stratum {
+		modules::stratum(&mut hypervisor, stratum_cfg);
+	}
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
@@ -197,9 +199,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let external_miner = Arc::new(ExternalMiner::default());
 
 	// start stratum
-	ClientService::stratum_probably(&cmd.stratum, &miner, &client).map(|stratum_notifier| {
-		miner.push_notifier(stratum_notifier)
-	});
+	if let Some(ref stratum_config) = cmd.stratum {
+		let _ = ClientService::stratum_notifier(stratum_config, Arc::downgrade(&miner), Arc::downgrade(&client)).map(|stratum_notifier| {
+			miner.push_notifier(stratum_notifier)
+		});
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
