@@ -433,11 +433,14 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		from_params::<(RpcH256,)>(params)
 			.and_then(|(hash,)| {
-				let miner = take_weak!(self.miner);
 				let hash: H256 = hash.into();
-				match miner.transaction(&hash) {
-					Some(pending_tx) => to_value(&Transaction::from(pending_tx)),
-					None => self.transaction(TransactionID::Hash(hash))
+				let miner = take_weak!(self.miner);
+				let client = take_weak!(self.client);
+				let maybe_tx = client.transaction(TransactionID::Hash(hash)).map(Transaction::from)
+					.or_else(|| miner.transaction(&hash).map(Transaction::from));
+				match maybe_tx {
+					Some(t) => to_value(&t),
+					None => Ok(Value::Null),
 				}
 			})
 	}
