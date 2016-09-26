@@ -85,10 +85,18 @@ export default class Transaction extends Component {
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
     const hashLink = `${prefix}tx/${transaction.hash}`;
 
+    let token = ' ';
+    let value = ' ';
+
+    if (transaction.value && transaction.value.gt(0)) {
+      token = <small>ΞTH</small>;
+      value = this.formatEther(transaction.value);
+    }
+
     return (
       <td className={ styles.transaction }>
         <div className={ styles.value }>
-          { this.formatEther(transaction.value) }<small>ΞTH</small>
+          { value }{ token }
         </div>
         <div>⇒</div>
         <div>

@@ -31,11 +31,16 @@
 
 .transactions table {
   width: 100%;
+  border-collapse: collapse;
 }
 
 .transactions tr {
   line-height: 32px;
   vertical-align: top;
+}
+
+.transactions tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .transactions th {
