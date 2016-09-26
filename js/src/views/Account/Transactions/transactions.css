@@ -40,18 +40,16 @@
 
 .transactions th {
   color: #aaa;
+  text-align: center;
 }
 
-.transactions tr td {
+.transactions td {
   vertical-align: top;
-  padding: 0.75em 0.5em;
+  padding: 0.75em 0.75em;
 }
 
 .transactions .link {
   vertical-align: top;
-}
-
-.value {
 }
 
 .infonone {
@@ -73,10 +71,24 @@
   text-align: center;
 }
 
+.transactions td.transaction {
+  padding-top: 1.5em;
+}
+
 .transaction div {
-  line-height: 1em;
+  line-height: 1.25em;
+}
+
+.icon {
+  margin: 0;
 }
 
 .method {
   opacity: 0.75;
+}
+
+.transactions td.timestamp {
+  padding-top: 1.5em;
+  text-align: right;
+  line-height: 1.5em;
 }

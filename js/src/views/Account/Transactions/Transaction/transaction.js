@@ -53,16 +53,12 @@ export default class Transaction extends Component {
 
     return (
       <tr>
-        <td className={ styles.right }>
-          { this.formatBlockTimestamp(block) }
-        </td>
-        <td className={ styles.right }>
-          { this.formatNumber(transaction.blockNumber) }
+        <td className={ styles.timestamp }>
+          <div>{ this.formatBlockTimestamp(block) }</div>
+          <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         { this.renderAddress(prefix, transaction.from) }
-        <td className={ styles.center }>
-          { this.renderTransaction() }
-        </td>
+        { this.renderTransaction() }
         { this.renderAddress(prefix, transaction.to) }
         <td className={ styles.method }>
           { this.renderMethod() }
@@ -123,7 +119,8 @@ export default class Transaction extends Component {
       <td className={ styles.address }>
         <div className={ styles.center }>
           <IdentityIcon
-            inline center
+            center
+            className={ styles.icon }
             tokens={ tokens }
             address={ address } />
         </div>
