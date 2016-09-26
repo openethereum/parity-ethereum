@@ -51,5 +51,18 @@ export default (state = initialState, action) => {
     return { ...state, pending: false };
   }
 
+  if (action.type === 'names transfer start') {
+    return { ...state, pending: true };
+  }
+  if (action.type === 'names transfer success') {
+    return {
+      ...state, pending: false,
+      queue: state.queue.concat({action: 'transfer', name: action.name})
+    };
+  }
+  if (action.type === 'names transfer fail') {
+    return { ...state, pending: false };
+  }
+
   return state;
 };

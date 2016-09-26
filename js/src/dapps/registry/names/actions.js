@@ -87,3 +87,36 @@ export const drop = (name) => (dispatch, getState) => {
       dispatch(reserveFail(name));
     });
 };
+
+export const transferStart = (name) => ({ type: 'names transfer start', name });
+
+export const transferSuccess = (name) => ({ type: 'names transfer success', name });
+
+export const transferFail = (name) => ({ type: 'names transfer fail', name });
+
+export const transfer = (name, receiver) => (dispatch, getState) => {
+  const state = getState();
+  const account = state.accounts.selected;
+  const contract = state.contract;
+  if (!contract || !account) return;
+  if (alreadyQueued(state.names.queue, 'transfer', name)) return;
+  const transfer = contract.functions.find((f) => f.name === 'transfer');
+
+  name = name.toLowerCase();
+  const options = { from: account.address };
+  const values = [ sha3(name), receiver ];
+
+  dispatch(transferStart(name));
+  transfer.estimateGas(options, values)
+    .then((gas) => {
+      options.gas = gas.mul(1.2).toFixed(0);
+      return transfer.postTransaction(options, values);
+    })
+    .then((data) => {
+      dispatch(transferSuccess(name));
+    }).catch((err) => {
+      console.error(`could not transfer ${name}`);
+      if (err) console.error(err.stack);
+      dispatch(reserveFail(name));
+    });
+};
