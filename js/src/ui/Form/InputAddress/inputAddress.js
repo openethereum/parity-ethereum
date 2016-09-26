@@ -23,27 +23,30 @@ import styles from './inputAddress.css';
 
 export default class InputAddress extends Component {
   static propTypes = {
+    className: PropTypes.string,
     disabled: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
+    nameValue: PropTypes.string,
     onChange: PropTypes.func,
     onSubmit: PropTypes.func
   };
 
   render () {
-    const { disabled, error, label, hint, value, onChange, onSubmit } = this.props;
+    const { className, disabled, error, label, hint, value, nameValue, onChange, onSubmit } = this.props;
+    const classes = `${styles.input} ${className}`;
 
     return (
       <div className={ styles.container }>
         <Input
-          className={ styles.input }
+          className={ classes }
           disabled={ disabled }
           label={ label }
           hint={ hint }
           error={ error }
-          value={ value }
+          value={ nameValue || value }
           onChange={ onChange }
           onSubmit={ onSubmit } />
         { this.renderIcon() }

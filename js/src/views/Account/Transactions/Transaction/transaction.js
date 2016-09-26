@@ -39,13 +39,13 @@ export default class Transaction extends Component {
   state = {
     info: null,
     isContract: false,
-    isReceived: this.props.address === this.props.transaction.to
+    isReceived: false
   }
 
   componentDidMount () {
-    const { transaction } = this.props;
+    const { address, transaction } = this.props;
 
-    this.lookup(transaction);
+    this.lookup(address, transaction);
   }
 
   render () {
@@ -71,6 +71,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
+    const { accounts, contacts, tokens } = this.props;
     const { info, isContract, isReceived } = this.state;
 
     if (!info) {
@@ -80,6 +81,9 @@ export default class Transaction extends Component {
     return (
       <MethodDecoding
         historic
+        accounts={ accounts }
+        contacts={ contacts }
+        tokens={ tokens }
         isContract={ isContract }
         isReceived={ isReceived }
         transaction={ info } />
@@ -91,13 +95,10 @@ export default class Transaction extends Component {
 
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
     const hashLink = `${prefix}tx/${transaction.hash}`;
-    const { value, token } = this.formatEther(transaction.value);
 
     return (
       <td className={ styles.transaction }>
-        <div className={ styles.value }>
-          { value }{ token }
-        </div>
+        { this.renderEtherValue() }
         <div>⇒</div>
         <div>
           <a href={ hashLink } target='_blank' className={ styles.link }>
@@ -117,8 +118,8 @@ export default class Transaction extends Component {
       );
     }
 
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
     const link = `${prefix}address/${address}`;
+    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
     const name = account
       ? account.name.toUpperCase()
       : this.formatHash(address);
@@ -144,6 +145,27 @@ export default class Transaction extends Component {
     );
   }
 
+  renderEtherValue () {
+    const { api } = this.context;
+    const { info } = this.state;
+
+    if (!info) {
+      return null;
+    }
+
+    const value = api.util.fromWei(info.value);
+
+    if (value.eq(0)) {
+      return <div className={ styles.value }>{ ' ' }</div>;
+    }
+
+    return (
+      <div className={ styles.value }>
+        { value.toFormat(5) }<small>ΞTH</small>
+      </div>
+    );
+  }
+
   formatHash (hash) {
     if (!hash || hash.length <= 16) {
       return hash;
@@ -164,27 +186,15 @@ export default class Transaction extends Component {
     return moment(block.timestamp).fromNow();
   }
 
-  formatEther (value) {
-    const { api } = this.context;
-    const ether = api.util.fromWei(value);
-
-    if (ether.eq(0)) {
-      return { value: null, token: null };
-    }
-
-    return {
-      value: `${ether.toFormat(5)}`,
-      token: <small>ΞTH</small>
-    };
-  }
-
-  lookup (transaction) {
+  lookup (address, transaction) {
     const { api } = this.context;
     const { info } = this.state;
 
     if (info) {
       return;
     }
+
+    this.setState({ isReceived: address === transaction.to });
 
     Promise
       .all([
@@ -195,14 +205,13 @@ export default class Transaction extends Component {
         this.setState({ block, info });
 
         if (!transaction.to) {
-          return;
+          return null;
         }
 
-        return api.eth
-          .getCode(transaction.to)
-          .then((code) => {
-            this.setState({ block, info, isContract: code !== '0x' });
-          });
+        return api.eth.getCode(transaction.to);
+      })
+      .then((code) => {
+        this.setState({ isContract: code && code !== '0x' });
       })
       .catch((error) => {
         console.error('lookup', error);

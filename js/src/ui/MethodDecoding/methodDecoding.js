@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import Input from '../Form/Input';
+import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
 
@@ -30,6 +30,9 @@ export default class Method extends Component {
   }
 
   static propTypes = {
+    accounts: PropTypes.object,
+    contacts: PropTypes.object,
+    tokens: PropTypes.object,
     transaction: PropTypes.object,
     historic: PropTypes.bool,
     isContract: PropTypes.bool,
@@ -77,7 +80,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        This account { historic ? 'received' : 'will receive' } { this.renderEther(transaction.value) } { isContract ? 'from the contract.' : 'from the sending address.' }
+        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEther(transaction.value) }</span> { isContract ? 'from the contract.' : 'from the sender.' }
       </div>
     );
   }
@@ -87,7 +90,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        This transaction { historic ? 'transferred' : 'will transfer' } a value of { this.renderEther(transaction.value) } { isContract ? 'to the contract.' : 'to the recipient address.' }
+        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEther(transaction.value) }</span> { isContract ? 'to the contract.' : 'to the recipient.' }
       </div>
     );
   }
@@ -114,7 +117,7 @@ export default class Method extends Component {
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          This transaction { historic ? 'executed' : 'will execute' } the <span className={ styles.name }>{ name }</span> function on the contract, passing the following values as part of the transaction:
+          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ name }</span> function on the contract, passing the following values as part of the transaction:
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -124,17 +127,36 @@ export default class Method extends Component {
   }
 
   renderInputs () {
+    const { accounts, contacts, tokens } = this.props;
     const { inputs } = this.state;
 
     return inputs.map((input, index) => {
-      return (
-        <Input
-          disabled
-          key={ index }
-          className={ styles.input }
-          value={ this.renderValue(input.value) }
-          label={ input.type } />
-      );
+      switch (input.type) {
+        case 'address':
+          const address = input.value;
+          const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
+          const name = account ? account.name.toUpperCase() : null;
+
+          return (
+            <InputAddress
+              disabled
+              key={ index }
+              className={ styles.input }
+              value={ input.value }
+              nameValue={ name }
+              label={ input.type } />
+          );
+
+        default:
+          return (
+            <Input
+              disabled
+              key={ index }
+              className={ styles.input }
+              value={ this.renderValue(input.value) }
+              label={ input.type } />
+          );
+      }
     });
   }
 
