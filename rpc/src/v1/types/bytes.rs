@@ -71,6 +71,10 @@ impl Visitor for BytesVisitor {
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 		if value.is_empty() {
+			warn!(
+				target: "deprecated",
+				"Deserializing empty string as empty bytes. This is a non-standard behaviour that will be removed in future versions. Please update your code to send `0x` instead!"
+			);
 			Ok(Bytes::new(Vec::new()))
 		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
 			Ok(Bytes::new(FromHex::from_hex(&value[2..]).unwrap_or_else(|_| vec![])))
