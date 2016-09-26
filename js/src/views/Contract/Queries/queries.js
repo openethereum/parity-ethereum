@@ -17,6 +17,8 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
+import TextField from 'material-ui/TextField';
+import RaisedButton from 'material-ui/RaisedButton';
 
 import { Container, ContainerTitle } from '../../../ui';
 
@@ -32,6 +34,10 @@ export default class Queries extends Component {
     values: PropTypes.object
   }
 
+  state = {
+    forms: {}
+  }
+
   render () {
     const { contract } = this.props;
 
@@ -41,16 +47,95 @@ export default class Queries extends Component {
 
     const queries = contract.functions
       .filter((fn) => fn.constant)
-      .sort(this._sortEntries)
+      .sort(this._sortEntries);
+
+    const noInputQueries = queries
+      .slice()
+      .filter((fn) => fn.inputs.length === 0)
       .map((fn) => this.renderQuery(fn));
+
+    const withInputQueries = queries
+      .slice()
+      .filter((fn) => fn.inputs.length > 0)
+      .map((fn) => this.renderInputQuery(fn));
 
     return (
       <Container>
         <ContainerTitle title='queries' />
         <div className={ styles.methods }>
-          { queries }
+          { noInputQueries }
+          { withInputQueries }
         </div>
       </Container>
+    );
+  }
+
+  renderInputQuery (fn) {
+    const { inputs } = fn;
+
+    const inputsFields = inputs
+      .map(input => this.renderInput(fn.name, input));
+
+    const onClick = () => {
+      const form = this.state.forms[fn.name];
+      const inputsValue = inputs.map(input => {
+        if (!form) return null;
+        return form[input.name];
+      });
+
+      this.props
+        .contract.instance[fn.name]
+        .call({}, inputsValue)
+        .then(results => {
+          console.log(results);
+        })
+        .catch(e => {
+          console.error(`sending ${fn.name} with params`, inputsValue, e);
+        });
+    };
+
+    return (
+      <div
+        key={ fn.signature }
+        >
+        { fn.name }
+        { inputsFields }
+        <RaisedButton
+          label='Execute'
+          primary
+          onClick={ onClick }
+        />
+      </div>
+    );
+  }
+
+  renderInput (fnName, input) {
+    const { name, kind } = input;
+    const onChange = (event) => {
+      const value = event.target.value;
+      const { forms } = this.state;
+
+      this.setState({
+        forms: {
+          ...forms,
+          [fnName]: {
+            ...forms[fnName],
+            [ name ]: value
+          }
+        }
+      });
+    };
+
+    return (
+      <div key={ name }>
+        <TextField
+          hintText={ kind.type }
+          floatingLabelText={ name }
+          floatingLabelFixed
+          required
+          onChange={ onChange }
+        />
+      </div>
     );
   }
 
