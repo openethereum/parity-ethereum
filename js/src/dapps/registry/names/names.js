@@ -86,7 +86,7 @@ export default class Names extends Component {
 
     return (
       <Card className={ styles.names }>
-        <CardHeader title={ 'Reserve Names' } />
+        <CardHeader title={ 'Manage Names' } />
         <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
@@ -113,7 +113,7 @@ export default class Names extends Component {
           <RaisedButton
             disabled={ !hasAccount || pending }
             className={ styles.spacing }
-            label='Reserve'
+            label={ action === 'reserve' ? 'Reserve' : 'Drop' }
             primary
             icon={ <CheckIcon /> }
             onClick={ this.onSubmitClick }
