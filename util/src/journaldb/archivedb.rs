@@ -35,8 +35,8 @@ const AUX_FLAG: u8 = 255;
 ///
 /// Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
-/// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
-/// the removals actually take effect.
+/// immediately. As this is an "archive" database, nothing is ever removed. This means
+/// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -156,7 +156,7 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -182,6 +182,11 @@ impl JournalDB for ArchiveDB {
 			self.latest_era = Some(now);
 		}
 		Ok((inserts + deletes) as u32)
+	}
+
+	fn mark_canonical(&mut self, _batch: &mut DBTransaction, _end_era: u64, _canon_id: &H256) -> Result<u32, UtilError> {
+		// keep everything! it's an archive, after all.
+		Ok(0)
 	}
 
 	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
