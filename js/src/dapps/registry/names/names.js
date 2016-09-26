@@ -31,14 +31,14 @@ export default class Names extends Component {
     fee: PropTypes.object.isRequired,
     hasAccount: PropTypes.bool.isRequired,
     pending: PropTypes.bool.isRequired,
-    posted: PropTypes.array.isRequired
+    reserved: PropTypes.array.isRequired
   }
 
   state = { name: '' };
 
   render () {
     const { name } = this.state;
-    const { fee, hasAccount, pending, posted } = this.props;
+    const { fee, hasAccount, pending, reserved } = this.props;
 
     return (
       <Card className={ styles.names }>
@@ -59,9 +59,9 @@ export default class Names extends Component {
             label='Reserve'
             primary
             icon={ <CheckIcon /> }
-            onClick={ this.onReserveClick }
+            onClick={ this.onSubmitClick }
           />
-          { posted.map((name) => (
+          { reserved.map((name) => (
             <p key={ name }>
               Please use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the registration of <code>{ name }</code>.
             </p>
@@ -74,7 +74,7 @@ export default class Names extends Component {
   onNameChange = (e) => {
     this.setState({ name: e.target.value });
   };
-  onReserveClick = () => {
+  onSubmitClick = () => {
     this.props.actions.reserve(this.state.name);
   };
 }

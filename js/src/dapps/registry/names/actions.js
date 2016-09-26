@@ -16,18 +16,18 @@
 
 import { sha3, toWei } from '../parity.js';
 
-export const start = (name) => ({ type: 'reserve start', name });
+export const reserveStart = (name) => ({ type: 'names reserve start', name });
 
-export const success = (name) => ({ type: 'reserve success', name });
+export const reserveSuccess = (name) => ({ type: 'names reserve success', name });
 
-export const fail = (name) => ({ type: 'reserve fail', name });
+export const reserveFail = (name) => ({ type: 'names reserve fail', name });
 
 export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
   if (!contract || !account) return;
-  if (state.names.posted.includes(name)) return;
+  if (state.names.reserved.includes(name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
 
   name = name.toLowerCase();
@@ -37,17 +37,17 @@ export const reserve = (name) => (dispatch, getState) => {
   };
   const values = [ sha3(name) ];
 
-  dispatch(start(name));
+  dispatch(reserveStart(name));
   reserve.estimateGas(options, values)
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
       return reserve.postTransaction(options, values);
     })
     .then((data) => {
-      dispatch(success(name));
+      dispatch(reserveSuccess(name));
     }).catch((err) => {
       console.error(`could not reserve ${name}`);
       if (err) console.error(err.stack);
-      dispatch(fail(name));
+      dispatch(reserveFail(name));
     });
 };

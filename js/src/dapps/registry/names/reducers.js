@@ -17,7 +17,7 @@
 const initialState = {
   hasAccount: false,
   pending: false,
-  posted: []
+  reserved: []
 };
 
 export default (state = initialState, action) => {
@@ -25,16 +25,16 @@ export default (state = initialState, action) => {
     return { ...state, hasAccount: !!action.address };
   }
 
-  if (action.type === 'reserve start') {
+  if (action.type === 'names reserve start') {
     return { ...state, pending: true };
   }
-  if (action.type === 'reserve success') {
+  if (action.type === 'names reserve success') {
     return {
       ...state, pending: false,
-      posted: state.posted.concat(action.name)
+      reserved: state.reserved.concat(action.name)
     };
   }
-  if (action.type === 'reserve fail') {
+  if (action.type === 'names reserve fail') {
     return { ...state, pending: false };
   }
 
