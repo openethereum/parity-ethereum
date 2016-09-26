@@ -175,7 +175,7 @@ impl Client {
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
 			let mut batch = DBTransaction::new(&db);
-			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
+			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
@@ -421,13 +421,6 @@ impl Client {
 		let number = block.header().number();
 		let parent = block.header().parent_hash().clone();
 		let chain = self.chain.read();
-		// Are we committing an era?
-		let ancient = if number >= HISTORY {
-			let n = number - HISTORY;
-			Some((n, chain.block_hash(n).unwrap()))
-		} else {
-			None
-		};
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
@@ -442,7 +435,14 @@ impl Client {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
+		let mut db = block.drain();
+
+		db.journal_under(&mut batch, number, hash).expect("DB commit failed");
+
+		if number >= HISTORY {
+			let n = number - HISTORY;
+			db.mark_canonical(&mut batch, n, &chain.block_hash(n).unwrap()).expect("DB commit failed");
+		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts);
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
