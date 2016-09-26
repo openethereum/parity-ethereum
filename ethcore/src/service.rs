@@ -170,7 +170,7 @@ impl ClientService {
 	}
 
 	#[cfg(not(feature="stratum"))]
-	pub fn stratum_notifier(_cfg: &StratumOptions, _miner: &Arc<Miner>, _client: &Arc<Client>) -> Result<Box<NotifyWork>, ()> {
+	pub fn stratum_notifier(_cfg: &StratumOptions, _miner: Weak<Miner>, _client: Weak<Client>) -> Result<Box<miner::NotifyWork>, ()> {
 		// Option is not compiled, but error should have been reported already
 		Err(())
 	}
