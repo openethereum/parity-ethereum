@@ -19,7 +19,7 @@
 }
 
 .description {
-  line-height: 1.5em;
+  line-height: 2em;
   padding-bottom: 0.5em;
 }
 
@@ -27,7 +27,7 @@
 .highlight {
   background: rgba(255, 255, 255, 0.25);
   border-radius: 4px;
-  padding: 0 0.25em;
+  padding: 0.25em 0.5em;
   margin: 0 0.25em;
 }
 
@@ -38,7 +38,7 @@
 }
 
 .inputs {
-  padding-left: 1.5em;
+  padding-left: 2em;
 }
 
 .input {
@@ -61,6 +61,6 @@
 }
 
 .identityicon {
-  margin-bottom: -8px;
+  margin-bottom: -9px;
   margin-right: 0.5em;
 }

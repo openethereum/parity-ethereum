@@ -134,7 +134,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'from the contract.' : 'from the sender.' }
+        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'from the contract' : 'from the sender' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.from) }</span>
       </div>
     );
   }
@@ -145,7 +145,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'to the contract.' : 'to the recipient.' }
+        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'to the contract' : 'to the recipient' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>
       </div>
     );
   }
@@ -172,7 +172,7 @@ export default class Method extends Component {
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> and passing the following values as part of the transaction:
+          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> and passing the following values as part of the transaction:
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -186,7 +186,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Executed' : 'Will execute' } <span className={ styles.name }>an unknown/unregistered</span> method on the contract, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>.
+        { historic ? 'Executed' : 'Will execute' } <span className={ styles.name }>an unknown/unregistered</span> method on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>.
       </div>
     );
   }
@@ -258,12 +258,13 @@ export default class Method extends Component {
   }
 
   renderAddressName (address, withName = true) {
+    const { tokens } = this.props;
     const account = this.getAccount(address);
     const name = account ? account.name.toUpperCase() : null;
 
     return (
       <span className={ styles.address }>
-        <IdentityIcon center inline address={ address } className={ styles.identityicon } />
+        <IdentityIcon center inline address={ address } tokens={ tokens } className={ styles.identityicon } />
         { withName ? (name || address) : address }
       </span>
     );

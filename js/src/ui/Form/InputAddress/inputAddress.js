@@ -30,6 +30,7 @@ export default class InputAddress extends Component {
     hint: PropTypes.string,
     value: PropTypes.string,
     nameValue: PropTypes.string,
+    tokens: PropTypes.object,
     onChange: PropTypes.func,
     onSubmit: PropTypes.func
   };
@@ -55,7 +56,7 @@ export default class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value } = this.props;
+    const { value, tokens } = this.props;
 
     if (!value || !value.length) {
       return null;
@@ -65,6 +66,7 @@ export default class InputAddress extends Component {
       <div className={ styles.icon }>
         <IdentityIcon
           inline center
+          tokens={ tokens }
           address={ value } />
       </div>
     );
