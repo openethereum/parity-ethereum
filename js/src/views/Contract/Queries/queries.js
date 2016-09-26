@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import Chip from 'material-ui/Chip';
 
 import { Container, ContainerTitle } from '../../../ui';
 
@@ -22,7 +23,8 @@ import styles from '../contract.css';
 
 export default class Queries extends Component {
   static propTypes = {
-    contract: PropTypes.object
+    contract: PropTypes.object,
+    values: PropTypes.object
   }
 
   render () {
@@ -35,15 +37,7 @@ export default class Queries extends Component {
     const queries = contract.functions
       .filter((fn) => fn.constant)
       .sort(this._sortEntries)
-      .map((fn) => {
-        return (
-          <div
-            key={ fn.signature }
-            className={ styles.method }>
-            { fn.name }
-          </div>
-        );
-      });
+      .map((fn) => this.renderQuery(fn));
 
     return (
       <Container>
@@ -52,6 +46,23 @@ export default class Queries extends Component {
           { queries }
         </div>
       </Container>
+    );
+  }
+
+  renderQuery (fn) {
+    const { values } = this.props;
+
+    const value = values[fn.name]
+      ? (<Chip>{ values[fn.name].toString() }</Chip>)
+      : null;
+
+    return (
+      <div
+        key={ fn.signature }
+        className={ styles.method }>
+        <p>{ fn.name }</p>
+        { value }
+      </div>
     );
   }
 

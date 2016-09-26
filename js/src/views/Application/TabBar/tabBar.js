@@ -204,7 +204,7 @@ export default class TabBar extends Component {
     const { router } = this.context;
 
     router.push(activeRoute);
-    this.setState(activeRoute);
+    this.setState({ activeRoute });
   }
 
   toggleMenu = (event, menu) => {
