@@ -231,6 +231,6 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		try!(expect_no_params(params));
 
-		to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>())
+		Ok(to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>()))
 	}
 }

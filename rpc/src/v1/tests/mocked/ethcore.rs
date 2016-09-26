@@ -299,5 +299,5 @@ fn rpc_ethcore_pending_transactions() {
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_pendingTransactions", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
-	assert_eq!(io.handle_request(request), Some(response.to_owned()));
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
