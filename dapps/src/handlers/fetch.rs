@@ -22,13 +22,13 @@ use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
 use util::Mutex;
+use fetch::{Client, FetchResult};
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
 use handlers::{ContentHandler, Redirection};
-use handlers::client::{Client, FetchResult};
 use apps::redirection_address;
 use page::LocalPageEndpoint;
 

@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Hyper Client Handlers
-
-pub mod fetch_file;
+//! Fetching
 
 use std::env;
 use std::sync::{mpsc, Arc};
@@ -26,8 +24,7 @@ use std::path::PathBuf;
 use hyper;
 use https_fetch as https;
 
-use random_filename;
-use self::fetch_file::{Fetch, Error as HttpFetchError};
+use fetch_file::{Fetch, Error as HttpFetchError};
 
 pub type FetchResult = Result<PathBuf, FetchError>;
 
@@ -66,12 +63,12 @@ impl Client {
 	pub fn request(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
 		let is_https = url.starts_with("https://");
 		let url = try!(url.parse().map_err(|_| FetchError::InvalidUrl));
-		trace!(target: "dapps", "Fetching from: {:?}", url);
+		let temp_path = Self::temp_path();
+		trace!(target: "fetch", "Fetching from: {:?}", url);
 		if is_https {
 			let url = try!(Self::convert_url(url));
 
 			let (tx, rx) = mpsc::channel();
-			let temp_path = Self::temp_path();
 			let res = self.https_client.fetch_to_file(url, temp_path.clone(), abort, move |result| {
 				let res = tx.send(
 					result.map(|_| temp_path).map_err(FetchError::Https)
@@ -88,7 +85,7 @@ impl Client {
 			}
 		} else {
 			let (tx, rx) = mpsc::channel();
-			let res = self.http_client.request(url, Fetch::new(tx, abort, on_done));
+			let res = self.http_client.request(url, Fetch::new(temp_path, tx, abort, on_done));
 
 			match res {
 				Ok(_) => Ok(rx),
@@ -110,4 +107,10 @@ impl Client {
 	}
 }
 
+/// Random filename
+pub fn random_filename() -> String {
+	use ::rand::Rng;
+	let mut rng = ::rand::OsRng::new().unwrap();
+	rng.gen_ascii_chars().take(12).collect()
+}
 

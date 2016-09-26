@@ -16,12 +16,11 @@
 
 //! Hyper Client Handler to Fetch File
 
-use std::{env, io, fs, fmt};
+use std::{io, fs, fmt};
 use std::path::PathBuf;
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use random_filename;
 
 use hyper::status::StatusCode;
 use hyper::client::{Request, Response, DefaultTransport as HttpStream};
@@ -77,12 +76,9 @@ impl Drop for Fetch {
 }
 
 impl Fetch {
-	pub fn new(sender: mpsc::Sender<FetchResult>, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
-		let mut dir = env::temp_dir();
-		dir.push(random_filename());
-
+	pub fn new(path: PathBuf, sender: mpsc::Sender<FetchResult>, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
 		Fetch {
-			path: dir,
+			path: path,
 			abort: abort,
 			file: None,
 			result: None,

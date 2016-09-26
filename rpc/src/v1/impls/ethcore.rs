@@ -226,4 +226,11 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 			Ok(to_value(&Bytes::from(s)))
 		})
 	}
+
+	fn hash_content(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		unimplemented!()
+		// from_params::<(String,)>(params).and_then(|(url,)| {
+		// });
+	}
 }
