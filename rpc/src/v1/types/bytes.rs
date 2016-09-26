@@ -72,7 +72,7 @@ impl Visitor for BytesVisitor {
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: Error {
 		if value.is_empty() {
 			Ok(Bytes::new(Vec::new()))
-		} else if value.len() >= 2 && &value[0..2] == "0x" {
+		} else if value.len() >= 2 && &value[0..2] == "0x" && value.len() & 1 == 0 {
 			Ok(Bytes::new(try!(FromHex::from_hex(&value[2..]).map_err(|_| Error::custom("invalid hex")))))
 		} else {
 			Err(Error::custom("invalid format"))
@@ -100,13 +100,23 @@ mod tests {
 
 	#[test]
 	fn test_bytes_deserialize() {
-		let deserialized: Bytes = serde_json::from_str(r#""0x""#).unwrap();
-		let deserialized2: Bytes = serde_json::from_str(r#""0x0123456789abcdef""#).unwrap();
-		let deserialized3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
+		// TODO [ToDr] Uncomment when Mist starts sending correct data
+		// let bytes1: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""""#);
+		let bytes2: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0x123""#);
+		let bytes3: Result<Bytes, serde_json::Error> = serde_json::from_str(r#""0xgg""#);
 
-		assert_eq!(deserialized, Bytes(Vec::new()));
-		assert_eq!(deserialized2, "0123456789abcdef".from_hex().unwrap().into());
-		assert!(deserialized3.is_err());
+		let bytes4: Bytes = serde_json::from_str(r#""0x""#).unwrap();
+		let bytes5: Bytes = serde_json::from_str(r#""0x12""#).unwrap();
+		let bytes6: Bytes = serde_json::from_str(r#""0x0123""#).unwrap();
+		let bytes7: Bytes = serde_json::from_str(r#""0x0123456789abcdef""#).unwrap();
+
+		// assert!(bytes1.is_err());
+		assert!(bytes2.is_err());
+		assert!(bytes3.is_err());
+		assert_eq!(bytes4, Bytes(vec![]));
+		assert_eq!(bytes5, Bytes(vec![0x12]));
+		assert_eq!(bytes6, Bytes(vec![0x1, 0x23]));
+		assert_eq!(bytes7, Bytes(vec![0x1, 0x23, 0x45,0x67,0x89, 0xab, 0xcd, 0xef]));
 	}
 
 	#[test]
