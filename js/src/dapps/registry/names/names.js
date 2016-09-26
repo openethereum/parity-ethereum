@@ -56,9 +56,9 @@ const renderQueue = (queue) => {
     <ul>
       { grouped.map(({action, names}) => (
         <li key={ action + '-' + names.join('-') }>
+          { <code>{ action }</code> }
+          { ' ' }
           { renderNames(names) }
-          { ' will be ' }
-          { action === 'reserve' ? 'reserved' : 'dropped' }
         </li>
       )) }
     </ul>
@@ -77,12 +77,31 @@ export default class Names extends Component {
 
   state = {
     action: 'reserve',
-    name: ''
+    name: '',
+    receiver: ''
   };
 
   render () {
-    const { action, name } = this.state;
+    const { action, name, receiver } = this.state;
     const { fee, hasAccount, pending, queue } = this.props;
+
+    const notes = {
+      reserve: (
+        <p className={ styles.noSpacing }>
+          The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
+        </p>
+      ),
+      drop: (
+        <p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>
+      ),
+      transfer: (
+        <p className={ styles.noSpacing }>
+          To transfer a name, you have to be the owner.
+          { ' ' }
+          <strong>If the new owner is not a valid address, the name will be lost!</strong>
+        </p>
+      )
+    }[action] || null;
 
     return (
       <Card className={ styles.names }>
@@ -90,14 +109,10 @@ export default class Names extends Component {
         <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (action === 'reserve'
-                ? (<p className={ styles.noSpacing }>
-                    The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
-                  </p>)
-                : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
-              )
+            : notes
           }
           <TextField
+            disabled={ !hasAccount || pending }
             hintText='name'
             value={ name }
             onChange={ this.onNameChange }
@@ -109,11 +124,19 @@ export default class Names extends Component {
           >
             <MenuItem value='reserve' primaryText='reserve this name' />
             <MenuItem value='drop' primaryText='drop this name' />
+            <MenuItem value='transfer' primaryText='transfer this name' />
           </DropDownMenu>
+          <TextField
+            disabled={ !hasAccount || pending }
+            style={ action === 'transfer' ? {} : { display: 'none' } }
+            hintText='new owner'
+            value={ receiver }
+            onChange={ this.onReceiverChange }
+          />
           <RaisedButton
             disabled={ !hasAccount || pending }
             className={ styles.spacing }
-            label={ action === 'reserve' ? 'Reserve' : 'Drop' }
+            label={ action }
             primary
             icon={ <CheckIcon /> }
             onClick={ this.onSubmitClick }
@@ -133,12 +156,20 @@ export default class Names extends Component {
   onActionChange = (e, i, action) => {
     this.setState({ action });
   };
+  onReceiverChange = (e) => {
+    this.setState({ receiver: e.target.value });
+  };
   onSubmitClick = () => {
-    const { action, name } = this.state;
+    const { action, name, receiver } = this.state;
     if (action === 'reserve') {
       this.props.actions.reserve(name);
+      this.setState({ name: '' });
     } else if (action === 'drop') {
       this.props.actions.drop(name);
+      this.setState({ name: '' });
+    } else if (action === 'transfer') {
+      this.props.actions.transfer(name, receiver);
+      this.setState({ name: '', receiver: '' });
     }
   };
 }
