@@ -1,3 +1,9 @@
+/**
+ * Run `PARITY_URL="127.0.0.1:8180" NODE_ENV="production" npm run build`
+ * to build the project ; use this server to test that the minifed
+ * version is working (this is a simple proxy server)
+ */
+
 var express = require('express');
 var proxy = require('http-proxy-middleware');
 
@@ -11,7 +17,7 @@ app.use('/api/*', proxy({
 }));
 
 app.use('/rpc/*', proxy({
-  target: 'http://localhost:8080',
+  target: 'http://127.0.0.1:8080',
   changeOrigin: true
 }));
 
