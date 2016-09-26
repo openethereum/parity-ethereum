@@ -111,9 +111,22 @@ mod boot;
 mod stratum;
 
 use std::{process, env};
+use std::io::BufReader;
+use std::fs::File;
+use util::sha3::sha3;
 use cli::Args;
 use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
+
+fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
+	if let Some(file) = maybe_file {
+		let mut f = BufReader::new(try!(File::open(&file).map_err(|_| "Unable to open file".to_owned())));
+		let hash = try!(sha3(&mut f).map_err(|_| "Unable to read from file".to_owned()));
+		Ok(hash.hex())
+	} else {
+		Err("Streaming from standard input not yet supported. Specify a file.".to_owned())
+	}
+}
 
 fn execute(command: Cmd) -> Result<String, String> {
 	match command {
@@ -122,6 +135,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 			Ok("".into())
 		},
 		Cmd::Version => Ok(Args::print_version()),
+		Cmd::Hash(maybe_file) => print_hash_of(maybe_file),
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
