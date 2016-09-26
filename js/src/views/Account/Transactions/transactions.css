@@ -52,7 +52,6 @@
 }
 
 .value {
-  text-align: right;
 }
 
 .infonone {
@@ -64,6 +63,18 @@
   padding-top: 1em;
   font-size: 0.75em;
   color: #aaa;
+}
+
+.address {
+  text-align: center;
+}
+
+.transaction {
+  text-align: center;
+}
+
+.transaction div {
+  line-height: 1em;
 }
 
 .method {

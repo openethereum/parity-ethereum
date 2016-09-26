@@ -50,9 +50,6 @@ export default class Transaction extends Component {
     const { block } = this.state;
 
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    const hashLink = `${prefix}tx/${transaction.hash}`;
-    const value = this.formatEther(transaction.value);
-    const token = value ? 'ΞTH' : null;
 
     return (
       <tr>
@@ -63,15 +60,10 @@ export default class Transaction extends Component {
           { this.formatNumber(transaction.blockNumber) }
         </td>
         { this.renderAddress(prefix, transaction.from) }
-        { this.renderAddress(prefix, transaction.to) }
         <td className={ styles.center }>
-          <a href={ hashLink } target='_blank' className={ styles.link }>
-            { this.formatHash(transaction.hash) }
-          </a>
+          { this.renderTransaction() }
         </td>
-        <td className={ styles.value }>
-          { this.formatEther(transaction.value) }<small> { token }</small>
-        </td>
+        { this.renderAddress(prefix, transaction.to) }
         <td className={ styles.method }>
           { this.renderMethod() }
         </td>
@@ -91,6 +83,27 @@ export default class Transaction extends Component {
     );
   }
 
+  renderTransaction () {
+    const { transaction, isTest } = this.props;
+
+    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
+    const hashLink = `${prefix}tx/${transaction.hash}`;
+
+    return (
+      <td className={ styles.transaction }>
+        <div className={ styles.value }>
+          { this.formatEther(transaction.value) }<small>ΞTH</small>
+        </div>
+        <div>⇒</div>
+        <div>
+          <a href={ hashLink } target='_blank' className={ styles.link }>
+            { this.formatHash(transaction.hash) }
+          </a>
+        </div>
+      </td>
+    );
+  }
+
   renderAddress (prefix, address) {
     const { accounts, contacts, tokens } = this.props;
 
@@ -107,17 +120,21 @@ export default class Transaction extends Component {
       : this.formatHash(address);
 
     return (
-      <td className={ styles.left }>
-        <IdentityIcon
-          inline center
-          tokens={ tokens }
-          address={ address } />
-        <a
-          href={ link }
-          target='_blank'
-          className={ styles.link }>
-          { name }
-        </a>
+      <td className={ styles.address }>
+        <div className={ styles.center }>
+          <IdentityIcon
+            inline center
+            tokens={ tokens }
+            address={ address } />
+        </div>
+        <div className={ styles.center }>
+          <a
+            href={ link }
+            target='_blank'
+            className={ styles.link }>
+            { name }
+          </a>
+        </div>
       </td>
     );
   }
@@ -146,11 +163,7 @@ export default class Transaction extends Component {
     const { api } = this.context;
     const ether = api.util.fromWei(value);
 
-    if (ether.gt(0)) {
-      return `${ether.toFormat(5)}`;
-    }
-
-    return null;
+    return `${ether.toFormat(5)}`;
   }
 
   lookup (transaction) {
