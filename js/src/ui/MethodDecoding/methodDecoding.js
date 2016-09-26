@@ -32,7 +32,8 @@ export default class Method extends Component {
   static propTypes = {
     transaction: PropTypes.object,
     historic: PropTypes.bool,
-    isContract: PropTypes.bool
+    isContract: PropTypes.bool,
+    isReceived: PropTypes.bool
   }
 
   state = {
@@ -59,13 +60,26 @@ export default class Method extends Component {
   }
 
   render () {
+    const { isReceived } = this.props;
     const { name } = this.state;
 
     if (!name) {
-      return this.renderValueTransfer();
+      return isReceived
+        ? this.renderValueReceipt()
+        : this.renderValueTransfer();
     }
 
     return this.renderUnknown();
+  }
+
+  renderValueReceipt () {
+    const { historic, transaction, isContract } = this.props;
+
+    return (
+      <div className={ styles.details }>
+        This account { historic ? 'received' : 'will receive' } { this.renderEther(transaction.value) } { isContract ? 'from the contract.' : 'from the sending address.' }
+      </div>
+    );
   }
 
   renderValueTransfer () {
@@ -73,7 +87,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        This transaction { historic ? 'transferred' : 'will transfer' } { this.renderEther(transaction.value) } { isContract ? 'to the contract.' : 'to the recipient address.' }
+        This transaction { historic ? 'transferred' : 'will transfer' } a value of { this.renderEther(transaction.value) } { isContract ? 'to the contract.' : 'to the recipient address.' }
       </div>
     );
   }

@@ -29,6 +29,7 @@ export default class Transaction extends Component {
 
   static propTypes = {
     transaction: PropTypes.object.isRequired,
+    address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
     tokens: PropTypes.object,
@@ -37,7 +38,8 @@ export default class Transaction extends Component {
 
   state = {
     info: null,
-    isContract: false
+    isContract: false,
+    isReceived: this.props.address === this.props.transaction.to
   }
 
   componentDidMount () {
@@ -69,7 +71,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { info, isContract } = this.state;
+    const { info, isContract, isReceived } = this.state;
 
     if (!info) {
       return null;
@@ -79,6 +81,7 @@ export default class Transaction extends Component {
       <MethodDecoding
         historic
         isContract={ isContract }
+        isReceived={ isReceived }
         transaction={ info } />
     );
   }
@@ -189,8 +192,9 @@ export default class Transaction extends Component {
         api.eth.getTransactionByHash(transaction.hash)
       ])
       .then(([block, info]) => {
+        this.setState({ block, info });
+
         if (!transaction.to) {
-          this.setState({ block, info });
           return;
         }
 

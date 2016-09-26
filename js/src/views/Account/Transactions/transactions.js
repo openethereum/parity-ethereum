@@ -87,7 +87,7 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { accounts, contacts, tokens, isTest } = this.props;
+    const { address, accounts, contacts, tokens, isTest } = this.props;
     const { transactions } = this.state;
 
     return (transactions || []).map((transaction, index) => {
@@ -95,6 +95,7 @@ class Transactions extends Component {
         <Transaction
           key={ index }
           transaction={ transaction }
+          address={ address }
           accounts={ accounts }
           contacts={ contacts }
           tokens={ tokens }
