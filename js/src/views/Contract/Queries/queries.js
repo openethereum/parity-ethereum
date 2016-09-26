@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
 
@@ -22,6 +23,10 @@ import { Container, ContainerTitle } from '../../../ui';
 import styles from '../contract.css';
 
 export default class Queries extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  }
+
   static propTypes = {
     contract: PropTypes.object,
     values: PropTypes.object
@@ -52,18 +57,29 @@ export default class Queries extends Component {
   renderQuery (fn) {
     const { values } = this.props;
 
-    const value = values[fn.name]
-      ? (<Chip>{ values[fn.name].toString() }</Chip>)
-      : null;
-
     return (
       <div
         key={ fn.signature }
         className={ styles.method }>
         <p>{ fn.name }</p>
-        { value }
+        { this.renderValue(values[fn.name]) }
       </div>
     );
+  }
+
+  renderValue (value) {
+    if (!value) return null;
+
+    const { api } = this.context;
+    let valueToDisplay = value.toString();
+
+    if (api.util.isInstanceOf(value, BigNumber)) {
+      valueToDisplay = value.toFormat(0);
+    } else if (api.util.isArray(value)) {
+      valueToDisplay = api.util.bytesToHex(value);
+    }
+
+    return (<Chip>{ valueToDisplay }</Chip>);
   }
 
   _sortEntries (a, b) {
