@@ -16,10 +16,11 @@
 
 use lru_cache::LruCache;
 use util::journaldb::JournalDB;
-use util::hash::{H256};
+use util::hash::{H256, H128k, FixedHash};
 use util::hashdb::HashDB;
 use util::{Arc, Address, DBTransaction, UtilError, Mutex};
 use account::Account;
+use util::Hashable;
 
 struct AccountCache {
 	accounts: LruCache<Address, Option<Account>>,
@@ -30,17 +31,51 @@ pub struct StateDB {
 	db: Box<JournalDB>,
 	account_cache: Arc<Mutex<AccountCache>>,
 	cache_overlay: Vec<(Address, Option<Account>)>,
+	account_bloom: Arc<Mutex<H128k>>,
 	is_canon: bool,
 }
 
+pub const ACCOUNT_BLOOM_SPACE: usize = 16384;
+pub const ACCOUNT_BLOOM_HASHCOUNT: usize = 32;
+
 impl StateDB {
+
+	fn new_account_bloom() -> H128k {
+		H128k::zero()
+	}
+
+	pub fn check_account_bloom(&self, address: &Address) -> bool {
+		let bloom = self.account_bloom.lock();
+		bloom.contains_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3())
+	}
+
+	pub fn note_account_bloom(&self, address: &Address) {
+		let mut bloom = self.account_bloom.lock();
+		bloom.shift_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3());
+	}
+
 	/// Create a new instance wrapping `JournalDB`
 	pub fn new(db: Box<JournalDB>) -> StateDB {
+		let bloom = match db.backing().get(None, b"accounts_bloom").expect("Low-level database error") {
+			Some(val) => {
+				if val.len() != ACCOUNT_BLOOM_SPACE {
+					Self::new_account_bloom()
+				}
+				else {
+					H128k::from_slice(&val)
+				}
+			}
+			None => Self::new_account_bloom(),
+		};
+
 		StateDB {
 			db: db,
-			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(65536) })),
-			cache_overlay: Vec::new(),
+			account_cache: Arc::new(Mutex::new(AccountCache {
+				accounts: LruCache::new(65536),
+			})),
 			is_canon: false,
+			account_bloom: Arc::new(Mutex::new(bloom)),
+			cache_overlay: Vec::new(),
 		}
 	}
 
@@ -67,6 +102,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: false,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
@@ -77,6 +113,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: true,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
