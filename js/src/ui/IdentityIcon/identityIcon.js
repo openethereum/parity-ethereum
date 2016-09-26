@@ -30,6 +30,7 @@ export default class IdentityIcon extends Component {
     center: PropTypes.bool,
     padded: PropTypes.bool,
     inline: PropTypes.bool,
+    tiny: PropTypes.bool,
     tokens: PropTypes.object
   }
 
@@ -55,7 +56,7 @@ export default class IdentityIcon extends Component {
 
   updateIcon (_address) {
     const { api } = this.context;
-    const { button, tokens, inline } = this.props;
+    const { button, tokens, inline, tiny } = this.props;
     const token = (tokens || {})[_address];
 
     if (token && token.image) {
@@ -67,7 +68,9 @@ export default class IdentityIcon extends Component {
     }
 
     let scale = 7;
-    if (button) {
+    if (tiny) {
+      scale = 2;
+    } else if (button) {
       scale = 3;
     } else if (inline) {
       scale = 4;
@@ -79,10 +82,11 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const { button, className, center, inline, padded } = this.props;
+    const { button, className, center, inline, padded, tiny } = this.props;
     const { iconsrc } = this.state;
     const classes = [
       styles.icon,
+      tiny ? styles.tiny : '',
       button ? styles.button : '',
       center ? styles.center : styles.left,
       inline ? styles.inline : '',
@@ -91,7 +95,9 @@ export default class IdentityIcon extends Component {
     ].join(' ');
 
     let size = '56px';
-    if (button) {
+    if (tiny) {
+      size = '16px';
+    } else if (button) {
       size = '24px';
     } else if (inline) {
       size = '32px';

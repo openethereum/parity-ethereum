@@ -18,6 +18,7 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import Contracts from '../../contracts';
+import IdentityIcon from '../IdentityIcon';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
@@ -97,15 +98,13 @@ export default class Method extends Component {
     const { methodSignature, methodInputs } = this.state;
     const [to, value] = methodInputs;
     const address = to.value;
-    const account = this.getAccount(address);
-    const name = account ? account.name.toUpperCase() : null;
 
     switch (TOKEN_METHODS[methodSignature]) {
       case 'transfer(to,value)':
       default:
         return (
           <div className={ styles.details }>
-            { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderTokenValue(value.value) }</span> to <span className={ styles.highlight }>{ name || address }</span>.
+            { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderTokenValue(value.value) }</span> to <span className={ styles.highlight }>{ this.renderAddressName(address) }</span>.
           </div>
         );
     }
@@ -124,7 +123,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        Deployed a contract at address <span className={ styles.highlight }>{ transaction.creates }</span>.
+        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>.
       </div>
     );
   }
@@ -254,6 +253,18 @@ export default class Method extends Component {
     return (
       <span className={ styles.etherValue }>
         { ether.toFormat(5) }<small>ΞTH</small>
+      </span>
+    );
+  }
+
+  renderAddressName (address, withName = true) {
+    const account = this.getAccount(address);
+    const name = account ? account.name.toUpperCase() : null;
+
+    return (
+      <span className={ styles.address }>
+        <IdentityIcon center inline address={ address } className={ styles.identityicon } />
+        { withName ? (name || address) : address }
       </span>
     );
   }

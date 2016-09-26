@@ -28,6 +28,7 @@
   background: rgba(255, 255, 255, 0.25);
   border-radius: 4px;
   padding: 0 0.25em;
+  margin: 0 0.25em;
 }
 
 .name,
@@ -52,4 +53,14 @@
 
 .etherValue,
 .tokenValue {
+}
+
+.address {
+  display: inline-block;
+  position: relative;
+}
+
+.identityicon {
+  margin-bottom: -8px;
+  margin-right: 0.5em;
 }
