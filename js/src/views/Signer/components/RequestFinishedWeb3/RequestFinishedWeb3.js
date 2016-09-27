@@ -29,6 +29,7 @@ class RequestFinishedWeb3 extends Component {
   static propTypes = {
     id: PropTypes.string.isRequired,
     result: PropTypes.any.isRequired,
+    date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
       PropTypes.shape({ transaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
@@ -40,7 +41,7 @@ class RequestFinishedWeb3 extends Component {
   }
 
   render () {
-    const { payload, id, result, msg, status, error, className } = this.props;
+    const { payload, id, result, msg, status, error, date, className } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -72,6 +73,7 @@ class RequestFinishedWeb3 extends Component {
           to={ transaction.to }
           value={ transaction.value }
           msg={ msg }
+          date={ date }
           status={ status }
           error={ error }
         />

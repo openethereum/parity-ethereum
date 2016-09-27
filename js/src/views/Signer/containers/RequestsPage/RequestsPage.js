@@ -97,7 +97,7 @@ class RequestsPage extends Component {
 
   renderPending = (data) => {
     const { actions } = this.props;
-    const { payload, id, isSending } = data;
+    const { payload, id, isSending, date } = data;
 
     return (
       <RequestPendingWeb3
@@ -108,12 +108,13 @@ class RequestsPage extends Component {
         key={ id }
         id={ id }
         payload={ payload }
+        date={ date }
       />
     );
   }
 
   renderFinished = (data) => {
-    const { payload, id, result, msg, status, error } = data;
+    const { payload, id, result, msg, status, error, date } = data;
 
     return (
       <RequestFinishedWeb3
@@ -125,6 +126,7 @@ class RequestsPage extends Component {
         status={ status }
         error={ error }
         payload={ payload }
+        date={ date }
         />
     );
   }

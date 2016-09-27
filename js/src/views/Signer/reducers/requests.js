@@ -35,7 +35,7 @@ export default handleActions({
   'update pendingRequests' (state, action) {
     return {
       ...state,
-      pending: action.payload
+      pending: action.payload.map(r => addTimestamp(r))
     };
   },
 
@@ -107,4 +107,9 @@ function setIsSending (pending, id, isSending) {
     }
     return p;
   }).slice();
+}
+
+function addTimestamp (request) {
+  request.date = new Date();
+  return request;
 }
