@@ -463,6 +463,7 @@ dependencies = [
  "ethkey 0.2.0",
  "ethstore 0.1.0",
  "ethsync 1.4.0",
+ "fetch 0.1.0",
  "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",

@@ -18,7 +18,7 @@
 
 use std::{io, fs, fmt};
 use std::path::PathBuf;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -39,14 +39,13 @@ pub enum Error {
 }
 
 pub type FetchResult = Result<PathBuf, FetchError>;
-pub type OnDone = Box<Fn() + Send>;
+pub type OnDone = Box<Fn(FetchResult) + Send>;
 
 pub struct Fetch {
 	path: PathBuf,
 	abort: Arc<AtomicBool>,
 	file: Option<fs::File>,
 	result: Option<FetchResult>,
-	sender: mpsc::Sender<FetchResult>,
 	on_done: Option<OnDone>,
 }
 
@@ -68,21 +67,19 @@ impl Drop for Fetch {
 			}
 		}
 		// send result
-		let _ = self.sender.send(res);
 		if let Some(f) = self.on_done.take() {
-			f();
+			f(res);
 		}
     }
 }
 
 impl Fetch {
-	pub fn new(path: PathBuf, sender: mpsc::Sender<FetchResult>, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
+	pub fn new(path: PathBuf, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
 		Fetch {
 			path: path,
 			abort: abort,
 			file: None,
 			result: None,
-			sender: sender,
 			on_done: Some(on_done),
 		}
 	}

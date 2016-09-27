@@ -296,8 +296,8 @@ fn rpc_ethcore_hash_content() {
 	let io = IoHandler::new();
 	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_hashContent", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0xdd8a116cfbbd69eb0d21c34b8c137c725140ffc5f230e2a53fae9b1037f694df","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

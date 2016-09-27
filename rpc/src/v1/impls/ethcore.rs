@@ -15,22 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use std::sync::{Arc, Weak};
+use std::{fs, io};
+use std::sync::{mpsc, Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap};
-use util::{RotatingLogger, Address};
+use util::{RotatingLogger, Address, Mutex, sha3};
 use util::misc::version_data;
 
 use crypto::ecies;
+use fetch::Client as FetchClient;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 
-use jsonrpc_core::*;
+use jsonrpc_core::{from_params, to_value, Value, Error, Params, Ready};
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H512, Peers};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
@@ -47,6 +49,7 @@ pub struct EthcoreClient<C, M, S: ?Sized> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
+	fetch: Mutex<FetchClient>
 }
 
 impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
@@ -68,6 +71,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 			logger: logger,
 			settings: settings,
 			signer: signer,
+			fetch: Mutex::new(FetchClient::new()),
 		}
 	}
 
@@ -227,10 +231,41 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		})
 	}
 
-	fn hash_content(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		unimplemented!()
-		// from_params::<(String,)>(params).and_then(|(url,)| {
-		// });
+	fn hash_content(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| from_params::<(String,)>(params));
+
+		let hash_content = |result| {
+			let path = try!(result);
+			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
+			// Try to hash
+			let result = sha3(&mut file);
+			// Remove file (always)
+			try!(fs::remove_file(&path));
+			// Return the result
+			Ok(try!(result))
+		};
+
+		match res {
+			Err(e) => ready.ready(Err(e)),
+			Ok((url, )) => {
+				let (tx, rx) = mpsc::channel();
+				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
+					let result = hash_content(result)
+							.map_err(errors::from_fetch_error)
+							.map(|hash| to_value(H256::from(hash)));
+
+					// Receive ready and invoke with result.
+					let ready: Ready = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
+					ready.ready(result);
+				}));
+
+				// Either invoke ready right away or transfer it to the closure.
+				if let Err(e) = res {
+					ready.ready(Err(errors::from_fetch_error(e)));
+				} else {
+					tx.send(ready).expect("Rx end is sent to on_done closure.");
+				}
+			}
+		}
 	}
 }

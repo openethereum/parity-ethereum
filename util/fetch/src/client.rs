@@ -16,7 +16,7 @@
 
 //! Fetching
 
-use std::env;
+use std::{env, io};
 use std::sync::{mpsc, Arc};
 use std::sync::atomic::AtomicBool;
 use std::path::PathBuf;
@@ -33,12 +33,19 @@ pub enum FetchError {
 	InvalidUrl,
 	Http(HttpFetchError),
 	Https(https::FetchError),
+	Io(io::Error),
 	Other(String),
 }
 
 impl From<HttpFetchError> for FetchError {
 	fn from(e: HttpFetchError) -> Self {
 		FetchError::Http(e)
+	}
+}
+
+impl From<io::Error> for FetchError {
+	fn from(e: io::Error) -> Self {
+		FetchError::Io(e)
 	}
 }
 
@@ -60,38 +67,41 @@ impl Client {
 		self.https_client.close();
 	}
 
-	pub fn request(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
+	pub fn request_async(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError> {
 		let is_https = url.starts_with("https://");
 		let url = try!(url.parse().map_err(|_| FetchError::InvalidUrl));
 		let temp_path = Self::temp_path();
+
 		trace!(target: "fetch", "Fetching from: {:?}", url);
+
 		if is_https {
 			let url = try!(Self::convert_url(url));
-
-			let (tx, rx) = mpsc::channel();
-			let res = self.https_client.fetch_to_file(url, temp_path.clone(), abort, move |result| {
-				let res = tx.send(
-					result.map(|_| temp_path).map_err(FetchError::Https)
-				);
-				if let Err(_) = res {
-					warn!("Fetch finished, but no one was listening");
-				}
-				on_done();
-			});
-
-			match res {
-				Ok(_) => Ok(rx),
-				Err(e) => Err(FetchError::Other(format!("{:?}", e))),
-			}
+			try!(self.https_client.fetch_to_file(
+				url,
+				temp_path.clone(),
+				abort,
+				move |result| on_done(result.map(|_| temp_path).map_err(FetchError::Https)),
+			).map_err(|e| FetchError::Other(format!("{:?}", e))));
 		} else {
-			let (tx, rx) = mpsc::channel();
-			let res = self.http_client.request(url, Fetch::new(temp_path, tx, abort, on_done));
-
-			match res {
-				Ok(_) => Ok(rx),
-				Err(e) => Err(FetchError::Other(format!("{:?}", e))),
-			}
+			try!(self.http_client.request(
+				url,
+				Fetch::new(temp_path, abort, Box::new(move |result| on_done(result))),
+			).map_err(|e| FetchError::Other(format!("{:?}", e))));
 		}
+
+		Ok(())
+	}
+
+	pub fn request(&mut self, url: &str, abort: Arc<AtomicBool>, on_done: Box<Fn() + Send>) -> Result<mpsc::Receiver<FetchResult>, FetchError> {
+		let (tx, rx) = mpsc::channel();
+		try!(self.request_async(url, abort, Box::new(move |result| {
+			let res = tx.send(result);
+			if let Err(_) = res {
+				warn!("Fetch finished, but no one was listening");
+			}
+			on_done();
+		})));
+		Ok(rx)
 	}
 
 	fn convert_url(url: hyper::Url) -> Result<https::Url, FetchError> {
