@@ -247,10 +247,7 @@ impl Database {
 			opts.set_target_file_size_base(config.compaction.initial_file_size);
 			opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
 
-			let col_opt = match col {
-				0 => None,
-				x => Some(x - 1),
-			};
+			let col_opt = config.columns.map(|_| col);
 
 			{
 				let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
@@ -259,6 +256,7 @@ impl Database {
 				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 				opts.set_block_based_table_factory(&block_opts);
 			}
+
 			cf_options.push(opts);
 		}
 
