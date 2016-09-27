@@ -21,6 +21,7 @@ use std::collections::{BTreeMap};
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
 
+use crypto::ecies;
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -29,8 +30,8 @@ use ethcore::client::{MiningBlockChainClient};
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, Peers};
-use v1::helpers::{errors, SigningQueue, ConfirmationsQueue, NetworkSettings};
+use v1::types::{Bytes, U256, H160, H512, Peers, Transaction};
+use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
@@ -45,7 +46,7 @@ pub struct EthcoreClient<C, M, S: ?Sized> where
 	net: Weak<ManageNetwork>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
-	confirmations_queue: Option<Arc<ConfirmationsQueue>>,
+	signer: Option<Arc<SignerService>>,
 }
 
 impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
@@ -57,7 +58,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 		net: &Arc<ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		queue: Option<Arc<ConfirmationsQueue>>
+		signer: Option<Arc<SignerService>>
 	) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
@@ -66,7 +67,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 			net: Arc::downgrade(net),
 			logger: logger,
 			settings: settings,
-			confirmations_queue: queue,
+			signer: signer,
 		}
 	}
 
@@ -198,9 +199,9 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		try!(self.active());
 		try!(expect_no_params(params));
 
-		match self.confirmations_queue {
+		match self.signer {
 			None => Err(errors::signer_disabled()),
-			Some(ref queue) => Ok(to_value(&queue.len())),
+			Some(ref signer) => Ok(to_value(&signer.len())),
 		}
 	}
 
@@ -216,5 +217,20 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		from_params::<(String,)>(params).map(|(phrase,)|
 			to_value(&H160::from(Brain::new(phrase).generate().unwrap().address()))
 		)
+	}
+
+	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
+			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(|_| Error::internal_error()));
+			Ok(to_value(&Bytes::from(s)))
+		})
+	}
+
+	fn pending_transactions(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		Ok(to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>()))
 	}
 }

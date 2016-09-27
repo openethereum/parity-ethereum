@@ -37,6 +37,8 @@ dependencies = [
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "toml 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -281,6 +283,7 @@ dependencies = [
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",
+ "evmjit 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -458,6 +461,7 @@ dependencies = [
  "ethcore-io 1.4.0",
  "ethcore-ipc 1.4.0",
  "ethcore-util 1.4.0",
+ "ethcrypto 0.1.0",
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",
@@ -619,6 +623,13 @@ dependencies = [
  "rlp 0.1.0",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "evmjit"
+version = "1.4.0"
+dependencies = [
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

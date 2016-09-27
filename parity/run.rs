@@ -23,7 +23,7 @@ use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -35,10 +35,11 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch, tracing_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -87,34 +88,45 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// increase max number of open files
-	raise_fd_limit();
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
 
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// increase max number of open files
+	raise_fd_limit();
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
-	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -152,16 +164,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
 		cmd.mode,
-		cmd.tracing,
-		cmd.pruning,
+		tracing,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
 	);
 
 	// set up bootnodes
@@ -206,9 +215,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	}
 
 	// set up dependencies for rpc servers
+	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
-		signer_queue: Arc::new(rpc_apis::ConfirmationsQueue::default()),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -286,6 +296,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
+
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
