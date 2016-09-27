@@ -141,7 +141,7 @@ impl Ext for FakeExt {
 	}
 
 	fn extcodesize(&self, address: &Address) -> usize {
-		self.codes.get(address).map(|v| v.len()).unwrap_or(0)
+		self.codes.get(address).map_or(0, |c| c.len())
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {

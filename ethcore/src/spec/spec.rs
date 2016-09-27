@@ -20,6 +20,7 @@ use common::*;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
 use pod_state::*;
 use account_db::*;
+use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
@@ -226,19 +227,19 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut HashDB) -> Result<bool, Box<TrieError>> {
-		if !db.contains(&self.state_root()) {
+	pub fn ensure_db_good(&self, db: &mut StateDB) -> Result<bool, Box<TrieError>> {
+		if !db.as_hashdb().contains(&self.state_root()) {
 			let mut root = H256::new();
 			{
-				let mut t = SecTrieDBMut::new(db, &mut root);
+				let mut t = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
 					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
-				account.insert_additional(&mut AccountDBMut::new(db, address));
+				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
-			assert!(db.contains(&self.state_root()));
+			assert!(db.as_hashdb().contains(&self.state_root()));
 			Ok(true)
 		} else { Ok(false) }
 	}

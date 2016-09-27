@@ -209,7 +209,6 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		self.state.code_size(address).unwrap_or(0)
 	}
 
-
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>
 		where Self: Sized {
