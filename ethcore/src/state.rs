@@ -68,7 +68,7 @@ impl AccountEntry {
 	}
 
 	/// Clone account entry data that needs to be saved in the snapshot.
-	/// This includes basic account information and dirty storage keys
+	/// This includes basic account information and all locally cached storage keys
 	fn clone_for_snapshot(&self) -> AccountEntry {
 		match *self {
 			AccountEntry::Cached(ref acc) => AccountEntry::Cached(acc.clone_all()),
@@ -81,9 +81,24 @@ impl AccountEntry {
 /// Representation of the entire state of all accounts in the system.
 ///
 /// `State` can work together with `StateDB` to share account cache.
+///
+/// Local cache contains changes made locally and changes accumulated
+/// locally from previous commits. Global cache reflects the database
+/// state and never contains any changes.
+///
+/// Account data can be in the following cache states:
+/// * In global but not local - something that was queried from the database,
+/// but never modified
+/// * In local but not global - something that was just added (e.g. new account)
+/// * In both with the same value - something that was changed to a new value,
+/// but changed back to a previous block in the same block (same State instance)
+/// * In both with different values - something that was overwritten with a
+/// new value.
+///
 /// All read-only state queries check local cache/modifications first,
 /// then global state cache. If data is not found in any of the caches
 /// it is loaded from the DB to the local cache.
+///
 /// Upon destruction all the local cache data merged into the global cache.
 /// The merge might be rejected if current state is non-canonical.
 pub struct State {
@@ -411,7 +426,7 @@ impl State {
 				},
 				AccountEntry::Missing => {
 					self.db.cache_account(address, None);
-				}
+				},
 				_ => {},
 			}
 		}
@@ -474,7 +489,7 @@ impl State {
 
 	fn update_account_cache(require: RequireCache, account: &mut Account, address: &Address, db: &HashDB) {
 		match require {
-			RequireCache::None => (),
+			RequireCache::None => {},
 			RequireCache::Code => {
 				let address_hash = account.address_hash(address);
 				account.cache_code(&AccountDB::from_hash(db, address_hash));

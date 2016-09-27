@@ -167,18 +167,15 @@ impl Account {
 				entry.insert(value);
 				self.filth = Filth::Dirty;
 			},
-			_ => (),
+			_ => {},
 		}
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
 	/// Takes modifed storage into account.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
-		if let Some(value) = self.storage_changes.get(key) {
-			return value.clone()
-		}
-		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
-			return value.clone()
+		if let Some(value) = self.cached_storage_at(key) {
+			return value;
 		}
 		let db = SecTrieDB::new(db, &self.storage_root)
 			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \

@@ -24,6 +24,7 @@ use account::Account;
 const STATE_CACHE_ITEMS: usize = 65536;
 
 struct AccountCache {
+	/// DB Account cache. `None` indicates that account is known to be missing.
 	accounts: LruCache<Address, Option<Account>>,
 }
 
