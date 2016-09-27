@@ -115,7 +115,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bloomfilter"
 version = "0.0.10"
-source = "git+https://github.com/ethcore/rust-bloom-filter#a362584dbfe81e907a932827484e69a8a8d8d2ab"
+source = "git+https://github.com/ethcore/rust-bloom-filter#bcb164771423b7e11a35d0bba38b22627fd06c8f"
 dependencies = [
  "bit-vec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
