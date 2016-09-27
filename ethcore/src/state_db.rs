@@ -23,7 +23,7 @@ use account::Account;
 use bloomfilter::{Bloom, BloomJournal};
 use util::Database;
 use client::DB_COL_ACCOUNT_BLOOM;
-use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
+use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt, ByteOrder};
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -71,7 +71,7 @@ impl StateDB {
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
 			key.write_u64::<LittleEndian>(i as u64);
 			bloom_parts[i] = db.get(DB_COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
-				.and_then(|val| Some(val.as_slice().read_u64::<LittleEndian>().expect("fatal: invalid bloom data in bloom ")))
+				.and_then(|val| Some(LittleEndian::read_u64(&val[..])))
 				.unwrap_or(0u64);
 		}
 
@@ -109,14 +109,12 @@ impl StateDB {
 	pub fn commit_bloom(batch: &DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
 		try!(batch.put(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![journal.hash_functions as u8]));
-		let mut key = vec![0u8; 8];
-		let mut val = vec![0u8; 8];
-
-		println!("putting {} bloom entries", journal.entries.len());
+		let mut key = [0u8; 8];
+		let mut val = [0u8; 8];
 
 		for (bloom_part_index, bloom_part_value) in journal.entries {
-			key.write_u64::<LittleEndian>(bloom_part_index as u64).expect("size allocated on stack is enough, therefore this cannot fail");
-			val.write_u64::<LittleEndian>(bloom_part_value).expect("size allocated on stack is enough, therefore this cannot fail");
+			LittleEndian::write_u64(&mut key, bloom_part_index as u64);
+			LittleEndian::write_u64(&mut val, bloom_part_value);
 			try!(batch.put(DB_COL_ACCOUNT_BLOOM, &key, &val));
 		}
 		Ok(())
