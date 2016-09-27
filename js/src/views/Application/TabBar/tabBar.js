@@ -17,14 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
-import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
-import ActionSettings from 'material-ui/svg-icons/action/settings';
-import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
-import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
-import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import { Badge, ParityBackground, SignerIcon, Tooltip } from '../../../ui';
+import { defaultViews } from '../../Settings';
+import { Badge, ParityBackground, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
@@ -35,7 +30,6 @@ const TABMAP = {
   apps: 'app',
   contracts: 'contract'
 };
-const LS_VIEWS = 'views';
 
 export default class TabBar extends Component {
   static contextTypes = {
@@ -55,6 +49,14 @@ export default class TabBar extends Component {
     statusVisible: true,
     signerVisible: true,
     activeRoute: '/accounts'
+  }
+
+  constructor () {
+    super();
+
+    defaultViews.accounts.body = <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />;
+    defaultViews.signer.renderLabel = this.renderSignerLabel;
+    defaultViews.status.renderLabel = this.renderStatusLabel;
   }
 
   componentDidMount () {
@@ -99,16 +101,16 @@ export default class TabBar extends Component {
     const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
 
-    const items = Object.keys(this.tabs)
+    const items = Object.keys(defaultViews)
       .filter((id) => {
-        const tab = this.tabs[id];
+        const tab = defaultViews[id];
         const isFixed = tab.fixed;
         const isVisible = this.state[this.visibleId(id)];
 
         return isFixed || isVisible;
       })
       .map((id) => {
-        const tab = this.tabs[id];
+        const tab = defaultViews[id];
         const onActivate = () => this.onActivate(tab.route);
 
         return (
@@ -186,7 +188,7 @@ export default class TabBar extends Component {
     const toggle = this.visibleId(id);
     const isActive = this.state[toggle];
 
-    if (this.tabs[id].fixed) {
+    if (defaultViews[id].fixed) {
       return;
     }
 
@@ -195,105 +197,24 @@ export default class TabBar extends Component {
     }, this.saveViews);
   }
 
-  getDefaultViews () {
-    const views = {};
-
-    Object.keys(this.tabs).forEach((id) => {
-      const tab = this.tabs[id];
-
-      views[id] = {
-        active: tab.active || false
-      };
-    });
-
-    return views;
-  }
-
   loadViews () {
-    const defaults = this.getDefaultViews();
     const state = {};
-    let lsdata;
+    const data = defaultViews.load();
 
-    try {
-      const json = window.localStorage.getItem(LS_VIEWS) || {};
-
-      lsdata = Object.assign(defaults, JSON.parse(json));
-    } catch (e) {
-      lsdata = defaults;
-    }
-
-    Object.keys(lsdata).forEach((id) => {
-      state[this.visibleId(id)] = lsdata[id].active;
+    Object.keys(data).forEach((id) => {
+      state[this.visibleId(id)] = data[id].active;
     });
 
     this.setState(state, this.saveViews);
   }
 
   saveViews = () => {
-    const lsdata = this.getDefaultViews();
+    const data = {};
 
-    Object.keys(lsdata).forEach((id) => {
-      lsdata[id].active = this.state[this.visibleId(id)];
+    Object.keys(data).forEach((id) => {
+      data[id] = { active: this.state[this.visibleId(id)] };
     });
 
-    window.localStorage.setItem(LS_VIEWS, JSON.stringify(lsdata));
-  }
-
-  tabs = {
-    accounts: {
-      active: true,
-      fixed: true,
-      icon: <ActionAccountBalanceWallet />,
-      label: 'Accounts',
-      route: '/accounts',
-      value: 'account',
-      body: <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
-    },
-    addresses: {
-      active: true,
-      icon: <CommunicationContacts />,
-      label: 'Addressbook',
-      route: '/addresses',
-      value: 'address'
-    },
-    apps: {
-      active: true,
-      icon: <NavigationApps />,
-      label: 'Applications',
-      route: '/apps',
-      value: 'app'
-    },
-    contracts: {
-      active: false,
-      icon: <ImageGridOn />,
-      label: 'Contracts',
-      route: '/contracts',
-      value: 'contract'
-    },
-    status: {
-      active: true,
-      icon: <ActionTrackChanges />,
-      label: 'Status',
-      renderLabel: this.renderStatusLabel,
-      route: '/status',
-      value: 'status'
-    },
-    signer: {
-      active: true,
-      fixed: true,
-      icon: <SignerIcon className={ styles.signerIcon } />,
-      label: 'Signer',
-      renderLabel: this.renderSignerLabel,
-      route: '/signer',
-      value: 'signer'
-    },
-    settings: {
-      active: true,
-      fixed: true,
-      icon: <ActionSettings />,
-      label: 'Settings',
-      route: '/settings',
-      value: 'settings'
-    }
+    defaultViews.save(data);
   }
 }

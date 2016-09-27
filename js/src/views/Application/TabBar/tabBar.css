@@ -82,9 +82,3 @@ button.tabactive:hover {
   padding: 22px 12px 0 12px;
   white-space: nowrap;
 }
-
-.signerIcon {
-  width: 24px;
-  height: 24px;
-  margin-bottom: 5px;
-}
