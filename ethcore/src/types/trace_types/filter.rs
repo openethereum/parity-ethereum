@@ -69,7 +69,7 @@ impl AddressesFilter {
 			false => blooms
 				.into_iter()
 				.flat_map(|bloom| self.list.iter()
-					.map(|address| bloom.with_bloomed(&address.sha3()))
+					.map(|address| bloom.with_bloomed(3, &address.sha3()))
 					.collect::<Vec<_>>())
 				.collect(),
 		}
@@ -168,9 +168,9 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(2).sha3()));
+		assert!(!blooms[0].contains_bloomed(3, &Address::from(3).sha3()));
 	}
 
 	#[test]
@@ -184,8 +184,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(!blooms[0].contains_bloomed(3, &Address::from(2).sha3()));
 	}
 
 	#[test]
@@ -199,8 +199,8 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 1);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(!blooms[0].contains_bloomed(3, &Address::from(2).sha3()));
 	}
 
 	#[test]
@@ -214,25 +214,25 @@ mod tests {
 		let blooms = filter.bloom_possibilities();
 		assert_eq!(blooms.len(), 4);
 
-		assert!(blooms[0].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[0].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[0].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(blooms[0].contains_bloomed(3, &Address::from(2).sha3()));
+		assert!(!blooms[0].contains_bloomed(3, &Address::from(3).sha3()));
+		assert!(!blooms[0].contains_bloomed(3, &Address::from(4).sha3()));
 
-		assert!(blooms[1].contains_bloomed(&Address::from(1).sha3()));
-		assert!(blooms[1].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(2).sha3()));
-		assert!(!blooms[1].contains_bloomed(&Address::from(3).sha3()));
+		assert!(blooms[1].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(blooms[1].contains_bloomed(3, &Address::from(4).sha3()));
+		assert!(!blooms[1].contains_bloomed(3, &Address::from(2).sha3()));
+		assert!(!blooms[1].contains_bloomed(3, &Address::from(3).sha3()));
 
-		assert!(blooms[2].contains_bloomed(&Address::from(2).sha3()));
-		assert!(blooms[2].contains_bloomed(&Address::from(3).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[2].contains_bloomed(&Address::from(4).sha3()));
+		assert!(blooms[2].contains_bloomed(3, &Address::from(2).sha3()));
+		assert!(blooms[2].contains_bloomed(3, &Address::from(3).sha3()));
+		assert!(!blooms[2].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(!blooms[2].contains_bloomed(3, &Address::from(4).sha3()));
 
-		assert!(blooms[3].contains_bloomed(&Address::from(3).sha3()));
-		assert!(blooms[3].contains_bloomed(&Address::from(4).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(1).sha3()));
-		assert!(!blooms[3].contains_bloomed(&Address::from(2).sha3()));
+		assert!(blooms[3].contains_bloomed(3, &Address::from(3).sha3()));
+		assert!(blooms[3].contains_bloomed(3, &Address::from(4).sha3()));
+		assert!(!blooms[3].contains_bloomed(3, &Address::from(1).sha3()));
+		assert!(!blooms[3].contains_bloomed(3, &Address::from(2).sha3()));
 	}
 
 	#[test]

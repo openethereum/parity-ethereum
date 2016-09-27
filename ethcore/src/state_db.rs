@@ -16,10 +16,11 @@
 
 use lru_cache::LruCache;
 use util::journaldb::JournalDB;
-use util::hash::{H256};
+use util::hash::{H256, H128k, FixedHash};
 use util::hashdb::HashDB;
 use util::{Arc, Address, DBTransaction, UtilError, Mutex};
 use account::Account;
+use util::Hashable;
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -37,23 +38,63 @@ pub struct StateDB {
 	db: Box<JournalDB>,
 	account_cache: Arc<Mutex<AccountCache>>,
 	cache_overlay: Vec<(Address, Option<Account>)>,
+	account_bloom: Arc<Mutex<H128k>>,
 	is_canon: bool,
 }
 
+pub const ACCOUNT_BLOOM_SPACE: usize = 16384;
+pub const ACCOUNT_BLOOM_HASHCOUNT: usize = 8;
+
 impl StateDB {
+
+	fn new_account_bloom() -> H128k {
+		H128k::zero()
+	}
+
+	pub fn check_account_bloom(&self, address: &Address) -> bool {
+		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
+		let bloom = self.account_bloom.lock();
+		bloom.contains_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3())
+	}
+
+	pub fn note_account_bloom(&self, address: &Address) {
+		trace!(target: "state_bloom", "Note account bloom: {:?}", address);
+		let mut bloom = self.account_bloom.lock();
+		bloom.shift_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3());
+	}
+
 	/// Create a new instance wrapping `JournalDB`
 	pub fn new(db: Box<JournalDB>) -> StateDB {
+		let bloom = match db.backing().get(None, b"accounts_bloom").expect("Low-level database error") {
+			Some(val) => {
+				if val.len() != ACCOUNT_BLOOM_SPACE {
+					Self::new_account_bloom()
+				}
+				else {
+					H128k::from_slice(&val)
+				}
+			}
+			None => Self::new_account_bloom(),
+		};
+
 		StateDB {
 			db: db,
 			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
 			cache_overlay: Vec::new(),
 			is_canon: false,
+			account_bloom: Arc::new(Mutex::new(bloom)),
 		}
 	}
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		// commit bloom
+		let transaction = DBTransaction::new(self.db.backing());
+		try!(transaction.put(None, b"accounts_bloom", &self.account_bloom.lock()));
+		try!(self.db.backing().write(transaction));
+
+		// commit cache
 		let records = try!(self.db.commit(batch, now, id, end));
 		if self.is_canon {
 			self.commit_cache();
@@ -80,6 +121,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: false,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
@@ -90,6 +132,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: true,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 

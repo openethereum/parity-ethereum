@@ -30,6 +30,48 @@ use rand::os::OsRng;
 use bytes::{BytesConvertable,Populatable};
 use bigint::uint::{Uint, U256};
 
+#[inline(always)]
+fn bloom_mask(m : usize) -> (usize, usize) {
+	let bloom_bits = m << 3;
+	let mask = bloom_bits - 1;
+	let bloom_bytes = (log2(bloom_bits) + 7) / 8;
+
+	(bloom_bytes as usize, mask)
+}
+
+fn set_bloom(filter: &mut [u8], p: usize, val: &[u8]) {
+	let m = filter.len();
+	let (bloom_bytes, mask) = bloom_mask(m);
+	let mut ptr = 0;
+	for _ in 0..p {
+		let mut index = 0 as usize;
+		for _ in 0..bloom_bytes {
+			index = (index << 8) | val[ptr] as usize;
+			ptr += 1;
+		}
+		index &= mask;
+		filter[m - 1 - index / 8] |= 1 << (index % 8);
+	}
+}
+
+fn contains_bloom(filter: &[u8], p: usize, val: &[u8]) -> bool {
+	let m = filter.len();
+	let (bloom_bytes, mask) = bloom_mask(m);
+	let mut ptr = 0;
+	for _ in 0..p {
+		let mut index = 0 as usize;
+		for _ in 0..bloom_bytes {
+			index = (index << 8) | val[ptr] as usize;
+			ptr += 1;
+		}
+		index &= mask;
+		if filter[m - 1 - index / 8] & (1 << (index % 8)) == 0 {
+			return false;
+		}
+	}
+	return true;
+}
+
 /// Trait for a fixed-size byte array to be used as the output of hash functions.
 ///
 /// Note: types implementing `FixedHash` must be also `BytesConvertable`.
@@ -50,20 +92,20 @@ pub trait FixedHash: Sized + BytesConvertable + Populatable + FromStr + Default 
 	fn clone_from_slice(&mut self, src: &[u8]) -> usize;
 	/// Copy the data of this object into some mutable slice of length `len()`.
 	fn copy_to(&self, dest: &mut [u8]);
-	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`.
-	fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash;
+	/// When interpreting self as a bloom output, augment (bit-wise OR) with the a bloomed version of `b`, using `p` number of hash functions.
+	fn shift_bloomed<'a, T>(&'a mut self, p: usize, b: &T) -> &'a mut Self where T: FixedHash;
 	/// Same as `shift_bloomed` except that `self` is consumed and a new value returned.
-	fn with_bloomed<T>(mut self, b: &T) -> Self where T: FixedHash { self.shift_bloomed(b); self }
-	/// Bloom the current value using the bloom parameter `m`.
-	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
-	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed.
-	fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash;
+	fn with_bloomed<T>(mut self, p: usize, b: &T) -> Self where T: FixedHash { self.shift_bloomed(p, b); self }
+	/// Check to see whether this hash, interpreted as a bloom, contains the value `b` when bloomed using `p` number of hash functions.
+	fn contains_bloomed<T>(&self, p: usize, b: &T) -> bool where T: FixedHash;
 	/// Returns `true` if all bits set in `b` are also set in `self`.
 	fn contains<'a>(&'a self, b: &'a Self) -> bool;
 	/// Returns `true` if no bits are set.
 	fn is_zero(&self) -> bool;
 	/// Returns the lowest 8 bytes interpreted as a BigEndian integer.
 	fn low_u64(&self) -> u64;
+	/// Bloom the current value using the bloom parameter `m` and using number of hash functions p=3
+	fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash;
 }
 
 /// Return `s` without the `0x` at the beginning of it, if any.
@@ -153,12 +195,15 @@ macro_rules! impl_hash {
 				dest[..min].copy_from_slice(&self.0[..min]);
 			}
 
-			fn shift_bloomed<'a, T>(&'a mut self, b: &T) -> &'a mut Self where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				let new_self = &bp | self;
-
-				self.0 = new_self.0;
+			fn shift_bloomed<'a, T>(&'a mut self, p: usize, b: &T) -> &'a mut Self where T: FixedHash {
+				// set bloom bits with default number of hash functions
+				set_bloom(&mut self.0, p, &b.as_slice()[..]);
 				self
+			}
+
+			fn contains_bloomed<T>(&self, p: usize, b: &T) -> bool where T: FixedHash {
+				// bloom with with configured number of hash functions
+				contains_bloom(&self.0, p, &b.as_slice()[..])
 			}
 
 			fn bloom_part<T>(&self, m: usize) -> T where T: FixedHash {
@@ -194,11 +239,6 @@ macro_rules! impl_hash {
 				}
 
 				ret
-			}
-
-			fn contains_bloomed<T>(&self, b: &T) -> bool where T: FixedHash {
-				let bp: Self = b.bloom_part($size);
-				self.contains(&bp)
 			}
 
 			fn contains<'a>(&'a self, b: &'a Self) -> bool {
@@ -539,6 +579,7 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
+impl_hash!(H128k, 16384);
 
 // Specialized HashMap and HashSet
 
@@ -629,17 +670,17 @@ mod tests {
 		let topic = H256::from_str("02c69be41d0b7e40352fc85be1cd65eb03d40ef8427a0ca4596b1ead9a00e9fc").unwrap();
 
 		let mut my_bloom = H2048::new();
-		assert!(!my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
+		assert!(!my_bloom.contains_bloomed(3, &address.sha3()));
+		assert!(!my_bloom.contains_bloomed(3, &topic.sha3()));
 
-		my_bloom.shift_bloomed(&address.sha3());
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(!my_bloom.contains_bloomed(&topic.sha3()));
+		my_bloom.shift_bloomed(3, &address.sha3());
+		assert!(my_bloom.contains_bloomed(3, &address.sha3()));
+		assert!(!my_bloom.contains_bloomed(3, &topic.sha3()));
 
-		my_bloom.shift_bloomed(&topic.sha3());
+		my_bloom.shift_bloomed(3, &topic.sha3());
 		assert_eq!(my_bloom, bloom);
-		assert!(my_bloom.contains_bloomed(&address.sha3()));
-		assert!(my_bloom.contains_bloomed(&topic.sha3()));
+		assert!(my_bloom.contains_bloomed(3, &address.sha3()));
+		assert!(my_bloom.contains_bloomed(3, &topic.sha3()));
 	}
 
 	#[test]

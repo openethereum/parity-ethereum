@@ -74,7 +74,7 @@ impl Filter {
 			Some(ref addresses) if !addresses.is_empty() =>
 				addresses.iter().map(|ref address| {
 					let mut bloom = H2048::new();
-					bloom.shift_bloomed(&address.sha3());
+					bloom.shift_bloomed(3, &address.sha3());
 					bloom
 				}).collect(),
 			_ => vec![H2048::new()]
@@ -85,7 +85,7 @@ impl Filter {
 			Some(ref topics) => bs.into_iter().flat_map(|bloom| {
 				topics.into_iter().map(|topic| {
 					let mut b = bloom.clone();
-					b.shift_bloomed(&topic.sha3());
+					b.shift_bloomed(3, &topic.sha3());
 					b
 				}).collect::<Vec<H2048>>()
 			}).collect()
