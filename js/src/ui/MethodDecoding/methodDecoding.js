@@ -72,6 +72,33 @@ export default class Method extends Component {
   }
 
   render () {
+    const { transaction } = this.props;
+
+    if (!transaction) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.container }>
+        { this.renderAction() }
+        { this.renderGas() }
+      </div>
+    );
+  }
+
+  renderGas () {
+    const { historic, transaction } = this.props;
+    const { gas, gasPrice } = transaction;
+    const gasValue = gas.mul(gasPrice);
+
+    return (
+      <div className={ styles.gasDetails }>
+        { historic ? 'Used' : 'Will use' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ΞTH</small>)</span> for a total transaction cost of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+      </div>
+    );
+  }
+
+  renderAction () {
     const { methodName, methodInputs, methodSignature, token, isDeploy, isReceived } = this.state;
 
     if (isDeploy) {
@@ -134,7 +161,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'from the contract' : 'from the sender' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.from) }</span>
+        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> from { isContract ? 'the contract' : '' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.from) }</span>
       </div>
     );
   }
@@ -145,7 +172,7 @@ export default class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Transferred' : 'Will transfer' } a value of <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> { isContract ? 'to the contract' : 'to the recipient' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>
+        { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> to { isContract ? 'the contract' : '' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>
       </div>
     );
   }
@@ -157,7 +184,7 @@ export default class Method extends Component {
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> and passing the following values as part of the transaction:
+          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>, passing the following parameters:
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -268,13 +295,17 @@ export default class Method extends Component {
     const { api } = this.context;
     const { address, tokens } = this.props;
 
-    if (!transaction || !transaction.input) {
+    if (!transaction) {
       return;
     }
 
     const isReceived = transaction.to === address;
     const token = (tokens || {})[isReceived ? transaction.from : transaction.to];
     this.setState({ token, isReceived });
+
+    if (!transaction.input) {
+      return;
+    }
 
     const { signature, paramdata } = api.util.decodeCallData(transaction.input);
     this.setState({ methodSignature: signature, methodParams: paramdata });
