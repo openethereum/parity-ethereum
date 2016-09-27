@@ -140,6 +140,9 @@ impl SnapshotCommand {
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
+		// Setup logging
+		let _logger = setup_log(&self.logger_config);
+
 		fdlimit::raise_fd_limit();
 
 		// select pruning algorithm
@@ -150,11 +153,6 @@ impl SnapshotCommand {
 
 		// check if fatdb is on
 		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
-
-		// Setup logging
-		let _logger = setup_log(&self.logger_config);
-
-		fdlimit::raise_fd_limit();
 
 		// prepare client and snapshot paths.
 		let client_path = db_dirs.client_path(algorithm);

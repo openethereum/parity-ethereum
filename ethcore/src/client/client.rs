@@ -171,6 +171,7 @@ impl Client {
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
+
 		let trie_spec = match config.fat_db {
 			true => TrieSpec::Fat,
 			false => TrieSpec::Secure,
