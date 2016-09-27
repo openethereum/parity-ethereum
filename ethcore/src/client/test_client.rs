@@ -383,11 +383,11 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {
-		unimplemented!();
+		None	// Simple default.
 	}
 
 	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
-		unimplemented!();
+		None	// Simple default.
 	}
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
