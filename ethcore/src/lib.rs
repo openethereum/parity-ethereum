@@ -110,6 +110,7 @@ extern crate lazy_static;
 extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
+extern crate lru_cache;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
@@ -142,6 +143,7 @@ mod basic_types;
 mod env_info;
 mod pod_account;
 mod state;
+mod state_db;
 mod account_db;
 mod builtin;
 mod executive;

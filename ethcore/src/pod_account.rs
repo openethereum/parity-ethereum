@@ -48,7 +48,7 @@ impl PodAccount {
 		PodAccount {
 			balance: *acc.balance(),
 			nonce: *acc.nonce(),
-			storage: acc.storage_overlay().iter().fold(BTreeMap::new(), |mut m, (k, &(_, ref v))| {m.insert(k.clone(), v.clone()); m}),
+			storage: acc.storage_changes().iter().fold(BTreeMap::new(), |mut m, (k, v)| {m.insert(k.clone(), v.clone()); m}),
 			code: acc.code().map(|x| x.to_vec()),
 		}
 	}

@@ -288,6 +288,7 @@ dependencies = [
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lru-cache 0.0.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rayon 0.4.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -865,6 +866,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "linked-hash-map"
+version = "0.0.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "linked-hash-map"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
@@ -872,6 +878,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "log"
 version = "0.3.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "lru-cache"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "linked-hash-map 0.0.9 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "matches"
