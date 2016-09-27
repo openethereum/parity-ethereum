@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { IconButton, IconMenu, MenuItem } from 'material-ui';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
@@ -24,7 +23,6 @@ import ActionSettings from 'material-ui/svg-icons/action/settings';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
-import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Badge, ParityBackground, SignerIcon, Tooltip } from '../../../ui';
 
@@ -70,7 +68,7 @@ export default class TabBar extends Component {
           className={ styles.toolbar }>
           { this.renderLogo() }
           { this.renderTabs() }
-          { this.renderSettingsMenu() }
+          { this.renderLast() }
         </Toolbar>
       </ParityBackground>
     );
@@ -87,36 +85,12 @@ export default class TabBar extends Component {
     );
   }
 
-  renderSettingsMenu () {
-    const items = Object.keys(this.tabs).map((id) => {
-      const tab = this.tabs[id];
-      const isActive = this.state[this.visibleId(id)];
-      const icon = (
-        <RemoveRedEye className={ isActive ? styles.optionSelected : styles.optionUnselected } />
-      );
-
-      return (
-        <MenuItem
-          className={ tab.fixed ? styles.menuDisabled : styles.menuEnabled }
-          leftIcon={ icon }
-          key={ id }
-          data-id={ id }
-          disabled={ tab.fixed }
-          primaryText={ tab.label } />
-      );
-    });
-
+  renderLast () {
     return (
       <ToolbarGroup>
-        <IconMenu
-          className={ styles.settings }
-          iconButtonElement={ <IconButton><ActionSettings /></IconButton> }
-          anchorOrigin={ { horizontal: 'right', vertical: 'bottom' } }
-          targetOrigin={ { horizontal: 'right', vertical: 'bottom' } }
-          touchTapCloseDelay={ 0 }
-          onItemTouchTap={ this.toggleMenu }>
-          { items }
-        </IconMenu>
+        <div className={ styles.last }>
+          <div></div>
+        </div>
       </ToolbarGroup>
     );
   }
@@ -312,6 +286,14 @@ export default class TabBar extends Component {
       renderLabel: this.renderSignerLabel,
       route: '/signer',
       value: 'signer'
+    },
+    settings: {
+      active: true,
+      fixed: true,
+      icon: <ActionSettings />,
+      label: 'Settings',
+      route: '/settings',
+      value: 'settings'
     }
   }
 }

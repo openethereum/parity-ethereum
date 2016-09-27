@@ -14,4 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import SettingsBackground from './Background';
+import SettingsViews from './Views';
+
 export default from './settings';
+
+export {
+  SettingsBackground,
+  SettingsViews
+};

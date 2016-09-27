@@ -14,20 +14,58 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+// 0xecf69634885f27a8f78161e530f15a8d3b57d39e755c222c92cf297b6e25aaaa
+
 import React, { Component, PropTypes } from 'react';
+import { Tab, Tabs } from 'material-ui';
+import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
+
+import { Actionbar, Page } from '../../ui';
 
 import styles from './settings.css';
 
 export default class Settings extends Component {
   static propTypes = {
-  }
-
-  state = {
+    children: PropTypes.object.isRequired
   }
 
   render () {
+    const { children } = this.props;
+
     return (
-      <div className={ styles.body }>hello</div>
+      <div className={ styles.layout }>
+        <Page>
+          <Actionbar title='settings' className={ styles.bar }>
+            { this.renderTabs() }
+          </Actionbar>
+          { children }
+        </Page>
+      </div>
     );
+  }
+
+  renderTabs () {
+    return (
+      <Tabs className={ styles.tabs }>
+        <Tab
+          className={ styles.tab }
+          value='views'
+          key='views'
+          icon={ <RemoveRedEye /> }
+          label={ <div className={ styles.menu }>views</div> } />
+        <Tab
+          className={ styles.tab }
+          value='background'
+          key='background'
+          icon={ <RemoveRedEye /> }
+          label={ <div className={ styles.menu }>views</div> } />
+      </Tabs>
+    );
+  }
+
+  menuClick = (section) => {
+    const { router } = this.context;
+
+    return (event) => router.push(`/settings/${section}`);
   }
 }

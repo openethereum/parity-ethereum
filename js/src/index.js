@@ -31,7 +31,7 @@ import Web3 from 'web3';
 import Api from './api';
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Signer, Status } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsViews, Signer, Status } from './views';
 
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
@@ -80,6 +80,7 @@ ReactDOM.render(
     <SignerWeb3Provider web3={ web3ws }>
       <Router className={ styles.reset } history={ routerHistory }>
         <Redirect from='/' to='/accounts' />
+        <Redirect from='/settings' to='/settings/views' />
         <Route path='/' component={ Application }>
           <Route path='accounts' component={ Accounts } />
           <Route path='account/:address' component={ Account } />
@@ -89,6 +90,10 @@ ReactDOM.render(
           <Route path='app/:name' component={ Dapp } />
           <Route path='contracts' component={ Contracts } />
           <Route path='contract/:address' component={ Contract } />
+          <Route path='settings' component={ Settings }>
+            <Route path='background' component={ SettingsBackground } />
+            <Route path='views' component={ SettingsViews } />
+          </Route>
           <Route path='signer' component={ Signer } />
           <Route path='status' component={ Status } />
           <Route path='status/:subpage' component={ Status } />
