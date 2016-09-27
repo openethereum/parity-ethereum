@@ -83,7 +83,7 @@ pub mod blocks {
 			match verify_block_basic(&input.header, &input.bytes, engine) {
 				Ok(()) => Ok(input),
 				Err(e) => {
-					warn!(target: "client", "Stage 1 block verification failed for {:?}", input.hash());
+					warn!(target: "client", "Stage 1 block verification failed for {}: {:?}", input.hash(), e);
 					Err(e)
 				}
 			}
@@ -94,7 +94,7 @@ pub mod blocks {
 			match verify_block_unordered(un.header, un.bytes, engine) {
 				Ok(verified) => Ok(verified),
 				Err(e) => {
-					warn!(target: "client", "Stage 2 block verification failed for {}\n Error: {:?}", hash, e);
+					warn!(target: "client", "Stage 2 block verification failed for {}: {:?}", hash, e);
 					Err(e)
 				}
 			}
