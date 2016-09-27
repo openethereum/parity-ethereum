@@ -64,6 +64,9 @@ pub struct EthashParams {
 	#[serde(rename="difficultyHardforkBoundDivisor")]
 	pub difficulty_hardfork_bound_divisor: Option<Uint>,
 	/// See main EthashParams docs.
+	#[serde(rename="difficultyHardforkIncrementDivisor")]
+	pub difficulty_hardfork_increment_divisor: Option<Uint>,
+	/// See main EthashParams docs.
 	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
 }

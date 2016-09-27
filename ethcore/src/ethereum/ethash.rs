@@ -52,6 +52,8 @@ pub struct EthashParams {
 	pub difficulty_hardfork_transition: u64,
 	/// Difficulty param after the difficulty transition.
 	pub difficulty_hardfork_bound_divisor: U256,
+	/// Difficulty param after the difficulty transition.
+	pub difficulty_hardfork_increment_divisor: u64,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
 }
@@ -72,6 +74,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
+			difficulty_hardfork_increment_divisor: p.difficulty_hardfork_increment_divisor.map_or(p.difficulty_increment_divisor.map_or(10, Into::into), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
 		}
 	}
@@ -297,7 +300,11 @@ impl Ethash {
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp() - parent.timestamp()) / self.ethash_params.difficulty_increment_divisor;
+			let difficulty_increment_divisor = match difficulty_hardfork {
+				true => self.ethash_params.difficulty_hardfork_increment_divisor,
+				false => self.ethash_params.difficulty_increment_divisor,
+			};
+			let diff_inc = (header.timestamp() - parent.timestamp()) / difficulty_increment_divisor;
 			if diff_inc <= 1 {
 				parent.difficulty().clone() + parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(1 - diff_inc)
 			} else {
