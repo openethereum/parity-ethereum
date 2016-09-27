@@ -22,6 +22,8 @@ import LinearProgress from 'material-ui/LinearProgress';
 import FlatButton from 'material-ui/FlatButton';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
+import styles from '../contract.css';
+
 export default class InputQueries extends Component {
   static contextTypes = {
     api: PropTypes.object
@@ -31,7 +33,8 @@ export default class InputQueries extends Component {
     contract: PropTypes.object.isRequired,
     inputs: PropTypes.array.isRequired,
     outputs: PropTypes.array.isRequired,
-    name: PropTypes.string.isRequired
+    name: PropTypes.string.isRequired,
+    className: PropTypes.string
   }
 
   state = {
@@ -41,20 +44,24 @@ export default class InputQueries extends Component {
   }
 
   render () {
-    const { inputs, name } = this.props;
+    const { inputs, name, className } = this.props;
     const { isValid } = this.state;
 
     const inputsFields = inputs
       .map(input => this.renderInput(input));
 
     return (
-      <Card style={ {
-        backgroundColor: 'rgba(48, 48, 48, 0.5)',
-        margin: '1rem'
-      } }>
-        <CardTitle title={ name } />
-        <CardText>
-          { this.renderResults() }
+      <Card className={ className }>
+        <CardTitle
+          className={ styles.methodTitle }
+          title={ name }
+        />
+        <CardText
+          className={ styles.methodContent }
+        >
+          <div className={ styles.methodResults }>
+            { this.renderResults() }
+          </div>
           { inputsFields }
         </CardText>
         <CardActions>
@@ -81,14 +88,14 @@ export default class InputQueries extends Component {
     return outputs
       .map((out, index) => ({
         name: out.name,
-        value: results[index]
+        value: results[index],
+        display: this.renderValue(results[index])
       }))
+      .sort((outA, outB) => outA.display.length - outB.display.length)
       .map((out, index) => (<div key={ index }>
-        <div>{ out.name }</div>
-        <Chip labelStyle={ {
-          userSelect: 'text'
-        } }>
-          { this.renderValue(out.value) }
+        <div className={ styles.queryResultName }>{ out.name }</div>
+        <Chip className={ styles.queryValue }>
+          { out.display }
         </Chip>
         <br />
       </div>));

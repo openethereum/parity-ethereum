@@ -63,8 +63,12 @@ export default class Queries extends Component {
       <Container>
         <ContainerTitle title='queries' />
         <div className={ styles.methods }>
-          { noInputQueries }
-          { withInputQueries }
+          <div className={ styles.vMethods }>
+            { noInputQueries }
+          </div>
+          <div className={ styles.hMethods }>
+            { withInputQueries }
+          </div>
         </div>
       </Container>
     );
@@ -75,14 +79,14 @@ export default class Queries extends Component {
     const { contract } = this.props;
 
     return (
-      <div key={ fn.signature }>
-        <InputQueries
-          inputs={ inputs }
-          outputs={ outputs }
-          name={ fn.name }
-          contract={ contract }
-        />
-      </div>
+      <InputQueries
+        key={ fn.signature }
+        className={ styles.method }
+        inputs={ inputs }
+        outputs={ outputs }
+        name={ fn.name }
+        contract={ contract }
+      />
     );
   }
 
@@ -90,18 +94,19 @@ export default class Queries extends Component {
     const { values } = this.props;
 
     return (
-      <div
+      <Card
+        className={ styles.method }
         key={ fn.signature }>
-        <Card style={ {
-          backgroundColor: 'rgba(48, 48, 48, 0.5)',
-          margin: '1rem'
-        } }>
-          <CardTitle title={ fn.name } />
-          <CardText>
-            { this.renderValue(values[fn.name]) }
-          </CardText>
-        </Card>
-      </div>
+        <CardTitle
+          className={ styles.methodTitle }
+          title={ fn.name }
+        />
+        <CardText
+          className={ styles.methodContent }
+        >
+          { this.renderValue(values[fn.name]) }
+        </CardText>
+      </Card>
     );
   }
 
@@ -117,7 +122,11 @@ export default class Queries extends Component {
       valueToDisplay = api.util.bytesToHex(value);
     }
 
-    return (<Chip>{ valueToDisplay }</Chip>);
+    return (
+      <Chip className={ styles.queryValue }>
+        { valueToDisplay }
+      </Chip>
+    );
   }
 
   _sortEntries (a, b) {
