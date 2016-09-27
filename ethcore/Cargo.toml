@@ -37,6 +37,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 rand = "0.3"
 lru-cache = "0.0.7"
 bloomfilter = { git = "https://github.com/ethcore/rust-bloom-filter" }
+byteorder = "0.5"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

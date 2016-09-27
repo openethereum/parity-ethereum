@@ -115,11 +115,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bloomfilter"
 version = "0.0.10"
-source = "git+https://github.com/ethcore/rust-bloom-filter#9f84c3842cd288583db477129e3845df455587ae"
+source = "git+https://github.com/ethcore/rust-bloom-filter#a362584dbfe81e907a932827484e69a8a8d8d2ab"
 dependencies = [
  "bit-vec 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
+
+[[package]]
+name = "byteorder"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "bytes"
@@ -254,6 +259,7 @@ dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomfilter 0.0.10 (git+https://github.com/ethcore/rust-bloom-filter)",
+ "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",

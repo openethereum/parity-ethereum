@@ -20,7 +20,10 @@ use util::hash::{H256};
 use util::hashdb::HashDB;
 use util::{Arc, Address, DBTransaction, UtilError, Mutex, Hashable, BytesConvertable};
 use account::Account;
-use bloomfilter::Bloom;
+use bloomfilter::{Bloom, BloomJournal};
+use util::Database;
+use client::DB_COL_ACCOUNT_BLOOM;
+use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt};
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -50,27 +53,34 @@ pub const ACCOUNT_BLOOM_SPACE_COLUMN: &'static[u8] = b"accounts_bloom";
 pub const ACCOUNT_BLOOM_HASHCOUNT_COLUMN: &'static[u8] = b"account_hash_count";
 
 impl StateDB {
+
+	pub fn load_bloom(db: &Database) -> Bloom {
+		let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_COLUMN)
+			.expect("Low-level database error");
+
+		if hash_count_entry.is_none() {
+			return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
+		}
+		let hash_count_bytes = hash_count_entry.unwrap();
+		assert_eq!(hash_count_bytes.len(), 1);
+		let hash_count = hash_count_bytes[0];
+
+		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
+		let mut key = vec![0u8; 8];
+		let empty = vec![0u8; 8];
+		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
+			key.write_u64::<LittleEndian>(i as u64);
+			bloom_parts[i] = db.get(DB_COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
+				.and_then(|val| Some(val.as_slice().read_u64::<LittleEndian>().expect("fatal: invalid bloom data in bloom ")))
+				.unwrap_or(0u64);
+		}
+
+		Bloom::from_parts(&bloom_parts, hash_count as u32)
+	}
+
 	/// Create a new instance wrapping `JournalDB`
 	pub fn new(db: Box<JournalDB>) -> StateDB {
-		let bloom = match db.backing().get(None, ACCOUNT_BLOOM_SPACE_COLUMN).expect("Low-level database error") {
-			Some(val) => {
-				if val.len() != ACCOUNT_BLOOM_SPACE {
-					Self::new_account_bloom()
-				}
-				else {
-					let hash_count_bytes  =
-						db.backing()
-							.get(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN)
-							.expect("Low-level database error")
-							.expect("account_bloom present but account_hash_count is not");
-					assert_eq!(hash_count_bytes.len(), 1);
-					let hash_count = hash_count_bytes[0];
-					Bloom::from_bytes(&val, hash_count as u32)
-				}
-			}
-			None => Self::new_account_bloom(),
-		};
-
+		let bloom = Self::load_bloom(db.backing());
 		StateDB {
 			db: db,
 			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
@@ -96,14 +106,27 @@ impl StateDB {
 		bloom.set(address.sha3().as_slice());
 	}
 
+	pub fn commit_bloom(batch: &DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
+		assert!(journal.hash_functions <= 255);
+		try!(batch.put(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![journal.hash_functions as u8]));
+		let mut key = vec![0u8; 8];
+		let mut val = vec![0u8; 8];
+
+		for (bloom_part_index, bloom_part_value) in journal.entries {
+			key.write_u64::<LittleEndian>(bloom_part_index as u64).expect("size allocated on stack is enough, therefore this cannot fail");
+			val.write_u64::<LittleEndian>(bloom_part_value).expect("size allocated on stack is enough, therefore this cannot fail");
+			try!(batch.put(DB_COL_ACCOUNT_BLOOM, &key, &val));
+		}
+		Ok(())
+	}
+
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// commit bloom (does not matter if canonical or not)
-		let (bloom_bytes, hash_count) = self.account_bloom.lock().to_bytes();
-		try!(batch.put(None, ACCOUNT_BLOOM_SPACE_COLUMN, &bloom_bytes));
-		assert!(hash_count <= 255);
-		try!(batch.put(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![hash_count as u8]));
+		{
+			let mut bloom_lock = self.account_bloom.lock();
+			Self::commit_bloom(batch, bloom_lock.drain_journal());
+		}
 
 		let records = try!(self.db.commit(batch, now, id, end));
 		if self.is_canon {

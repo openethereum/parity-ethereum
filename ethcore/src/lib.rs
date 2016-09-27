@@ -102,6 +102,7 @@ extern crate rand;
 extern crate bit_set;
 extern crate lru_cache;
 extern crate bloomfilter;
+extern crate byteorder;
 
 #[cfg(feature = "jit" )] extern crate evmjit;
 
