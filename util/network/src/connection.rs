@@ -110,8 +110,8 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		}
 		if !self.interest.is_writable() {
 			self.interest.insert(EventSet::writable());
-			io.update_registration(self.token).ok();
 		}
+		io.update_registration(self.token).ok();
 	}
 
 	/// Check if this connection has data to be sent.
