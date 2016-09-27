@@ -49,8 +49,8 @@ impl<'db> SecTrieDB<'db> {
 }
 
 impl<'db> Trie for SecTrieDB<'db> {
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
-		Box::new(TrieDB::iter(&self.raw))
+	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+		TrieDB::iter(&self.raw)
 	}
 
 	fn root(&self) -> &H256 { self.raw.root() }

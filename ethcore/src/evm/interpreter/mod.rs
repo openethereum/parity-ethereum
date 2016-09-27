@@ -53,6 +53,17 @@ fn color(instruction: Instruction, name: &'static str) -> String {
 type CodePosition = usize;
 type ProgramCounter = usize;
 
+const ONE: U256 = U256([1, 0, 0, 0]);
+const TWO: U256 = U256([2, 0, 0, 0]);
+const TWO_POW_5: U256 = U256([0x20, 0, 0, 0]);
+const TWO_POW_8: U256 = U256([0x100, 0, 0, 0]);
+const TWO_POW_16: U256 = U256([0x10000, 0, 0, 0]);
+const TWO_POW_24: U256 = U256([0x1000000, 0, 0, 0]);
+const TWO_POW_64: U256 = U256([0, 0x1, 0, 0]); // 0x1 00000000 00000000
+const TWO_POW_96: U256 = U256([0, 0x100000000, 0, 0]); //0x1 00000000 00000000 00000000
+const TWO_POW_224: U256 = U256([0, 0, 0, 0x100000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000
+const TWO_POW_248: U256 = U256([0, 0, 0, 0x100000000000000]); //0x1 00000000 00000000 00000000 00000000 00000000 00000000 00000000 000000
+
 /// Abstraction over raw vector of Bytes. Easier state management of PC.
 struct CodeReader<'a> {
 	position: ProgramCounter,
@@ -126,7 +137,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
 			evm_debug!({
-				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
+				println!("[0x{:x}][{}(0x{:x}) Gas: {:?}\n  Gas Before: {:?}",
 					reader.position,
 					color(instruction, info.name),
 					instruction,
@@ -471,7 +482,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::EXTCODESIZE => {
 				let address = u256_to_address(&stack.pop_back());
-				let len = ext.extcode(&address).len();
+				let len = ext.extcodesize(&address);
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
@@ -599,7 +610,19 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let a = stack.pop_back();
 				let b = stack.pop_back();
 				stack.push(if !self.is_zero(&b) {
-					a.overflowing_div(b).0
+					match b {
+						ONE => a,
+						TWO => a >> 1,
+						TWO_POW_5 => a >> 5,
+						TWO_POW_8 => a >> 8,
+						TWO_POW_16 => a >> 16,
+						TWO_POW_24 => a >> 24,
+						TWO_POW_64 => a >> 64,
+						TWO_POW_96 => a >> 96,
+						TWO_POW_224 => a >> 224,
+						TWO_POW_248 => a >> 248,
+						_ => a.overflowing_div(b).0,
+					}
 				} else {
 					U256::zero()
 				});

@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use serde::{Deserialize, Deserializer, Error};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde_json::value;
 use jsonrpc_core::Value;
 use ethcore::filter::Filter as EthFilter;
 use ethcore::client::BlockID;
-use v1::types::{BlockNumber, H160, H256};
+use v1::types::{BlockNumber, H160, H256, Log};
 
 /// Variadic value
 #[derive(Debug, PartialEq, Clone)]
@@ -66,6 +66,8 @@ pub struct Filter {
 	pub address: Option<FilterAddress>,
 	/// Topics
 	pub topics: Option<Vec<Topic>>,
+	/// Limit
+	pub limit: Option<usize>,
 }
 
 impl Into<EthFilter> for Filter {
@@ -85,7 +87,29 @@ impl Into<EthFilter> for Filter {
 					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
 				}).filter_map(|m| m).collect()).into_iter();
 				vec![iter.next(), iter.next(), iter.next(), iter.next()]
-			}
+			},
+			limit: self.limit,
+		}
+	}
+}
+
+/// Results of the filter_changes RPC.
+#[derive(Debug, PartialEq)]
+pub enum FilterChanges {
+	/// New logs.
+	Logs(Vec<Log>),
+	/// New hashes (block or transactions)
+	Hashes(Vec<H256>),
+	/// Empty result,
+	Empty,
+}
+
+impl Serialize for FilterChanges {
+	fn serialize<S>(&self, s: &mut S) -> Result<(), S::Error> where S: Serializer {
+		match *self {
+			FilterChanges::Logs(ref logs) => logs.serialize(s),
+			FilterChanges::Hashes(ref hashes) => hashes.serialize(s),
+			FilterChanges::Empty => (&[] as &[Value]).serialize(s),
 		}
 	}
 }
@@ -120,7 +144,8 @@ mod tests {
 			from_block: Some(BlockNumber::Earliest),
 			to_block: Some(BlockNumber::Latest),
 			address: None,
-			topics: None
+			topics: None,
+			limit: None,
 		});
 	}
 }

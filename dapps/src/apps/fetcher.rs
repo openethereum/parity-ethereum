@@ -23,7 +23,6 @@ use std::{fs, env, fmt};
 use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool};
 use rustc_serialize::hex::FromHex;
 
 use hyper;
@@ -38,65 +37,67 @@ use handlers::{ContentHandler, ContentFetcherHandler, ContentValidator};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::cache::{ContentCache, ContentStatus};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
-use apps::urlhint::{URLHintContract, URLHint};
+use apps::urlhint::{URLHintContract, URLHint, URLHintResult};
 
 const MAX_CACHED_DAPPS: usize = 10;
 
-pub struct AppFetcher<R: URLHint = URLHintContract> {
+pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	dapps_path: PathBuf,
 	resolver: R,
+	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
-	dapps: Arc<Mutex<ContentCache>>,
 }
 
-impl<R: URLHint> Drop for AppFetcher<R> {
+impl<R: URLHint> Drop for ContentFetcher<R> {
 	fn drop(&mut self) {
 		// Clear cache path
 		let _ = fs::remove_dir_all(&self.dapps_path);
 	}
 }
 
-impl<R: URLHint> AppFetcher<R> {
+impl<R: URLHint> ContentFetcher<R> {
 
 	pub fn new(resolver: R, sync_status: Arc<SyncStatus>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
-		AppFetcher {
+		ContentFetcher {
 			dapps_path: dapps_path,
 			resolver: resolver,
 			sync: sync_status,
-			dapps: Arc::new(Mutex::new(ContentCache::default())),
+			cache: Arc::new(Mutex::new(ContentCache::default())),
 		}
 	}
 
 	#[cfg(test)]
-	fn set_status(&self, app_id: &str, status: ContentStatus) {
-		self.dapps.lock().insert(app_id.to_owned(), status);
+	fn set_status(&self, content_id: &str, status: ContentStatus) {
+		self.cache.lock().insert(content_id.to_owned(), status);
 	}
 
-	pub fn contains(&self, app_id: &str) -> bool {
-		let mut dapps = self.dapps.lock();
-		// Check if we already have the app
-		if dapps.get(app_id).is_some() {
-			return true;
+	pub fn contains(&self, content_id: &str) -> bool {
+		{
+			let mut cache = self.cache.lock();
+			// Check if we already have the app
+			if cache.get(content_id).is_some() {
+				return true;
+			}
 		}
 		// fallback to resolver
-		if let Ok(app_id) = app_id.from_hex() {
+		if let Ok(content_id) = content_id.from_hex() {
 			// if app_id is valid, but we are syncing always return true.
 			if self.sync.is_major_syncing() {
 				return true;
 			}
 			// else try to resolve the app_id
-			self.resolver.resolve(app_id).is_some()
+			self.resolver.resolve(content_id).is_some()
 		} else {
 			false
 		}
 	}
 
 	pub fn to_async_handler(&self, path: EndpointPath, control: hyper::Control) -> Box<Handler> {
-		let mut dapps = self.dapps.lock();
-		let app_id = path.app_id.clone();
+		let mut cache = self.cache.lock();
+		let content_id = path.app_id.clone();
 
 		if self.sync.is_major_syncing() {
 			return Box::new(ContentHandler::error(
@@ -108,57 +109,85 @@ impl<R: URLHint> AppFetcher<R> {
 		}
 
 		let (new_status, handler) = {
-			let status = dapps.get(&app_id);
+			let status = cache.get(&content_id);
 			match status {
 				// Just server dapp
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
 					(None, endpoint.to_async_handler(path, control))
 				},
 				// App is already being fetched
-				Some(&mut ContentStatus::Fetching(_)) => {
-					(None, Box::new(ContentHandler::error_with_refresh(
-						StatusCode::ServiceUnavailable,
-						"Download In Progress",
-						"This dapp is already being downloaded. Please wait...",
-						None,
-					)) as Box<Handler>)
+				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
+					trace!(target: "dapps", "Content fetching in progress. Waiting...");
+					(None, fetch_control.to_handler(control))
 				},
 				// We need to start fetching app
 				None => {
-					let app_hex = app_id.from_hex().expect("to_handler is called only when `contains` returns true.");
-					let app = self.resolver.resolve(app_hex);
+					trace!(target: "dapps", "Content unavailable. Fetching...");
+					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
+					let content = self.resolver.resolve(content_hex);
 
-					if let Some(app) = app {
-						let abort = Arc::new(AtomicBool::new(false));
+					let cache = self.cache.clone();
+					let on_done = move |id: String, result: Option<LocalPageEndpoint>| {
+						let mut cache = cache.lock();
+						match result {
+							Some(endpoint) => {
+								cache.insert(id, ContentStatus::Ready(endpoint));
+							},
+							// In case of error
+							None => {
+								cache.remove(&id);
+							},
+						}
+					};
 
-						(Some(ContentStatus::Fetching(abort.clone())), Box::new(ContentFetcherHandler::new(
-							app,
-							abort,
-							control,
-							path.using_dapps_domains,
-							DappInstaller {
-								dapp_id: app_id.clone(),
-								dapps_path: self.dapps_path.clone(),
-								dapps: self.dapps.clone(),
-							}
-						)) as Box<Handler>)
-					} else {
-						// This may happen when sync status changes in between
-						// `contains` and `to_handler`
-						(None, Box::new(ContentHandler::error(
-							StatusCode::NotFound,
-							"Resource Not Found",
-							"Requested resource was not found.",
-							None
-						)) as Box<Handler>)
+					match content {
+						Some(URLHintResult::Dapp(dapp)) => {
+							let (handler, fetch_control) = ContentFetcherHandler::new(
+								dapp.url(),
+								control,
+								path.using_dapps_domains,
+								DappInstaller {
+									id: content_id.clone(),
+									dapps_path: self.dapps_path.clone(),
+									on_done: Box::new(on_done),
+								}
+							);
+
+							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+						},
+						Some(URLHintResult::Content(content)) => {
+							let (handler, fetch_control) = ContentFetcherHandler::new(
+								content.url,
+								control,
+								path.using_dapps_domains,
+								ContentInstaller {
+									id: content_id.clone(),
+									mime: content.mime,
+									content_path: self.dapps_path.clone(),
+									on_done: Box::new(on_done),
+								}
+							);
+
+							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+						},
+						None => {
+							// This may happen when sync status changes in between
+							// `contains` and `to_handler`
+							(None, Box::new(ContentHandler::error(
+								StatusCode::NotFound,
+								"Resource Not Found",
+								"Requested resource was not found.",
+								None
+							)) as Box<Handler>)
+						},
 					}
 				},
 			}
 		};
 
 		if let Some(status) = new_status {
-			dapps.clear_garbage(MAX_CACHED_DAPPS);
-			dapps.insert(app_id, status);
+			cache.clear_garbage(MAX_CACHED_DAPPS);
+			cache.insert(content_id, status);
 		}
 
 		handler
@@ -169,7 +198,7 @@ impl<R: URLHint> AppFetcher<R> {
 pub enum ValidationError {
 	Io(io::Error),
 	Zip(zip::result::ZipError),
-	InvalidDappId,
+	InvalidContentId,
 	ManifestNotFound,
 	ManifestSerialization(String),
 	HashMismatch { expected: H256, got: H256, },
@@ -180,7 +209,7 @@ impl fmt::Display for ValidationError {
 		match *self {
 			ValidationError::Io(ref io) => write!(f, "Unexpected IO error occured: {:?}", io),
 			ValidationError::Zip(ref zip) => write!(f, "Unable to read ZIP archive: {:?}", zip),
-			ValidationError::InvalidDappId => write!(f, "Dapp ID is invalid. It should be 32 bytes hash of content."),
+			ValidationError::InvalidContentId => write!(f, "ID is invalid. It should be 256 bits keccak hash of content."),
 			ValidationError::ManifestNotFound => write!(f, "Downloaded Dapp bundle did not contain valid manifest.json file."),
 			ValidationError::ManifestSerialization(ref err) => {
 				write!(f, "There was an error during Dapp Manifest serialization: {:?}", err)
@@ -204,10 +233,44 @@ impl From<zip::result::ZipError> for ValidationError {
 	}
 }
 
+struct ContentInstaller {
+	id: String,
+	mime: String,
+	content_path: PathBuf,
+	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
+}
+
+impl ContentValidator for ContentInstaller {
+	type Error = ValidationError;
+
+	fn validate_and_install(&self, path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
+		// Create dir
+		try!(fs::create_dir_all(&self.content_path));
+
+		// And prepare path for a file
+		let filename = path.file_name().expect("We always fetch a file.");
+		let mut content_path = self.content_path.clone();
+		content_path.push(&filename);
+
+		if content_path.exists() {
+			try!(fs::remove_dir_all(&content_path))
+		}
+
+		try!(fs::copy(&path, &content_path));
+
+		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone())))
+	}
+
+	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
+		(self.on_done)(self.id.clone(), endpoint)
+	}
+}
+
+
 struct DappInstaller {
-	dapp_id: String,
+	id: String,
 	dapps_path: PathBuf,
-	dapps: Arc<Mutex<ContentCache>>,
+	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
 }
 
 impl DappInstaller {
@@ -245,14 +308,14 @@ impl DappInstaller {
 impl ContentValidator for DappInstaller {
 	type Error = ValidationError;
 
-	fn validate_and_install(&self, app_path: PathBuf) -> Result<Manifest, ValidationError> {
+	fn validate_and_install(&self, app_path: PathBuf) -> Result<(String, LocalPageEndpoint), ValidationError> {
 		trace!(target: "dapps", "Opening dapp bundle at {:?}", app_path);
 		let mut file_reader = io::BufReader::new(try!(fs::File::open(app_path)));
 		let hash = try!(sha3(&mut file_reader));
-		let dapp_id = try!(self.dapp_id.as_str().parse().map_err(|_| ValidationError::InvalidDappId));
-		if dapp_id != hash {
+		let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
+		if id != hash {
 			return Err(ValidationError::HashMismatch {
-				expected: dapp_id,
+				expected: id,
 				got: hash,
 			});
 		}
@@ -262,7 +325,7 @@ impl ContentValidator for DappInstaller {
 		// First find manifest file
 		let (mut manifest, manifest_dir) = try!(Self::find_manifest(&mut zip));
 		// Overwrite id to match hash
-		manifest.id = self.dapp_id.clone();
+		manifest.id = self.id.clone();
 
 		let target = self.dapp_target_path(&manifest);
 
@@ -299,23 +362,15 @@ impl ContentValidator for DappInstaller {
 		let mut manifest_file = try!(fs::File::create(manifest_path));
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
+		// Create endpoint
+		let app = LocalPageEndpoint::new(target, manifest.clone().into());
+
 		// Return modified app manifest
-		Ok(manifest)
+		Ok((manifest.id.clone(), app))
 	}
 
-	fn done(&self, manifest: Option<&Manifest>) {
-		let mut dapps = self.dapps.lock();
-		match manifest {
-			Some(manifest) => {
-				let path = self.dapp_target_path(manifest);
-				let app = LocalPageEndpoint::new(path, manifest.clone().into());
-				dapps.insert(self.dapp_id.clone(), ContentStatus::Ready(app));
-			},
-			// In case of error
-			None => {
-				dapps.remove(&self.dapp_id);
-			},
-		}
+	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
+		(self.on_done)(self.id.clone(), endpoint)
 	}
 }
 
@@ -327,12 +382,12 @@ mod tests {
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
 	use apps::cache::ContentStatus;
-	use apps::urlhint::{GithubApp, URLHint};
-	use super::AppFetcher;
+	use apps::urlhint::{URLHint, URLHintResult};
+	use super::ContentFetcher;
 
 	struct FakeResolver;
 	impl URLHint for FakeResolver {
-		fn resolve(&self, _app_id: Bytes) -> Option<GithubApp> {
+		fn resolve(&self, _id: Bytes) -> Option<URLHintResult> {
 			None
 		}
 	}
@@ -341,7 +396,7 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = AppFetcher::new(FakeResolver, Arc::new(|| false));
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false));
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),

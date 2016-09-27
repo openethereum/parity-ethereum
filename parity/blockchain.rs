@@ -17,23 +17,25 @@
 use std::str::{FromStr, from_utf8};
 use std::{io, fs};
 use std::io::{BufReader, BufRead};
-use std::time::Duration;
+use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
-use util::ToPretty;
+use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use informant::Informant;
-use params::{SpecType, Pruning};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
+use informant::{Informant, MillisecondDuration};
+use io_handler::ImportIoHandler;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -107,8 +109,16 @@ pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
 }
 
 fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
+	let timer = Instant::now();
+
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
+
+	// Setup logging
+	let _logger = setup_log(&cmd.logger_config);
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -116,23 +126,32 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -170,6 +189,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
 
+	try!(service.register_io_handler(Arc::new(ImportIoHandler {
+		info: Arc::new(informant),
+	})).map_err(|_| "Unable to register informant handler".to_owned()));
+
 	let do_import = |bytes| {
 		while client.queue_info().is_full() { sleep(Duration::from_secs(1)); }
 		match client.import_block(bytes) {
@@ -181,7 +204,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 			},
 			Ok(_) => {},
 		}
-		informant.tick();
 		Ok(())
 	};
 
@@ -215,14 +237,36 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	}
 	client.flush_queue();
 
-	Ok("Import completed.".into())
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
+	let report = client.report();
+
+	let ms = timer.elapsed().as_milliseconds();
+	Ok(format!("Import completed in {} seconds, {} blocks, {} blk/s, {} transactions, {} tx/s, {} Mgas, {} Mgas/s",
+		ms / 1000,
+		report.blocks_imported,
+		(report.blocks_imported * 1000) as u64 / ms,
+		report.transactions_applied,
+		(report.transactions_applied * 1000) as u64 / ms,
+		report.gas_processed / From::from(1_000_000),
+		(report.gas_processed / From::from(ms * 1000)).low_u64(),
+	).into())
 }
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
-	let format = cmd.format.unwrap_or_else(Default::default);
+	// Setup logging
+	let _logger = setup_log(&cmd.logger_config);
+
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs());
+
+	let format = cmd.format.unwrap_or_default();
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -230,23 +274,32 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
 
 	let service = try!(ClientService::start(
 		client_config,
@@ -266,10 +319,10 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	};
 
 	let from = try!(client.block_number(cmd.from_block).ok_or("From block could not be found"));
-	let to = try!(client.block_number(cmd.to_block).ok_or("From block could not be found"));
+	let to = try!(client.block_number(cmd.to_block).ok_or("To block could not be found"));
 
 	for i in from..(to + 1) {
-		let b = client.block(BlockID::Number(i)).unwrap();
+		let b = try!(client.block(BlockID::Number(i)).ok_or("Error exporting incomplete chain"));
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }

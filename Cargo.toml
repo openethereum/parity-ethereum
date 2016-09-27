@@ -25,6 +25,7 @@ ansi_term = "0.7"
 lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
+toml = "0.2"
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
 fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
@@ -41,8 +42,10 @@ ethcore-logger = { path = "logger" }
 rlp = { path = "util/rlp" }
 json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.85", optional = true}
+clippy = { version = "0.0.90", optional = true}
 ethcore-stratum = { path = "stratum" }
+serde = "0.8.0"
+serde_json = "0.8.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -60,11 +63,13 @@ ui = ["dapps", "ethcore-signer/ui"]
 use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-precompiled-js"]
 dapps = ["ethcore-dapps"]
 ipc = ["ethcore/ipc"]
+jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
 stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]
+evm-debug = ["ethcore/evm-debug"]
 
 [[bin]]
 path = "parity/main.rs"

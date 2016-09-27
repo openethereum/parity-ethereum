@@ -90,7 +90,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
-			deps.apis.signer_queue.clone(),
+			deps.apis.signer_service.queue(),
 			codes_path(conf.signer_path),
 		);
 		if conf.skip_origin_validation {

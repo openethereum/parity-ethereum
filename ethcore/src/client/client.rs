@@ -145,7 +145,9 @@ pub struct Client {
 	factories: Factories,
 }
 
-const HISTORY: u64 = 1200;
+/// The pruning constant -- how old blocks must be before we
+/// assume finality of a given candidate.
+pub const HISTORY: u64 = 1200;
 
 /// Append a path element to the given path and return the string.
 pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
@@ -169,7 +171,7 @@ impl Client {
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
-		let tracedb = RwLock::new(try!(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone())));
+		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
@@ -674,6 +676,8 @@ impl Client {
 impl snapshot::DatabaseRestore for Client {
 	/// Restart the client with a new backend
 	fn restore_db(&self, new_db: &str) -> Result<(), EthcoreError> {
+		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
+
 		let _import_lock = self.import_lock.lock();
 		let mut state_db = self.state_db.write();
 		let mut chain = self.chain.write();
@@ -684,7 +688,7 @@ impl snapshot::DatabaseRestore for Client {
 
 		*state_db = journaldb::new(db.clone(), self.pruning, ::db::COL_STATE);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
-		*tracedb = try!(TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone()).map_err(ClientError::from));
+		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
 }
@@ -957,9 +961,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn logs(&self, filter: Filter) -> Vec<LocalizedLogEntry> {
-		// TODO: lock blockchain only once
-
-		let mut blocks = filter.bloom_possibilities().iter()
+		let blocks = filter.bloom_possibilities().iter()
 			.filter_map(|bloom| self.blocks_with_bloom(bloom, filter.from_block.clone(), filter.to_block.clone()))
 			.flat_map(|m| m)
 			// remove duplicate elements
@@ -967,35 +969,7 @@ impl BlockChainClient for Client {
 			.into_iter()
 			.collect::<Vec<u64>>();
 
-		blocks.sort();
-
-		let chain = self.chain.read();
-		blocks.into_iter()
-			.filter_map(|number| chain.block_hash(number).map(|hash| (number, hash)))
-			.filter_map(|(number, hash)| chain.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
-			.filter_map(|(number, hash, receipts)| chain.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
-			.flat_map(|(number, hash, receipts, hashes)| {
-				let mut log_index = 0;
-				receipts.into_iter()
-					.enumerate()
-					.flat_map(|(index, receipt)| {
-						log_index += receipt.logs.len();
-						receipt.logs.into_iter()
-							.enumerate()
-							.filter(|tuple| filter.matches(&tuple.1))
-							.map(|(i, log)| LocalizedLogEntry {
-								entry: log,
-								block_hash: hash.clone(),
-								block_number: number,
-								transaction_hash: hashes.get(index).cloned().unwrap_or_else(H256::default),
-								transaction_index: index,
-								log_index: log_index + i
-							})
-							.collect::<Vec<LocalizedLogEntry>>()
-					})
-					.collect::<Vec<LocalizedLogEntry>>()
-			})
-			.collect()
+		self.chain.read().logs(blocks, |entry| filter.matches(entry), filter.limit)
 	}
 
 	fn filter_traces(&self, filter: TraceFilter) -> Option<Vec<LocalizedTrace>> {

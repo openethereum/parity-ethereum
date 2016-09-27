@@ -191,13 +191,16 @@ impl Server {
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let apps_fetcher = Arc::new(apps::fetcher::AppFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
-			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(format!("{}", addr), endpoints.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
+			special.insert(
+				router::SpecialEndpoint::Api,
+				api::RestApi::new(format!("{}", addr), endpoints.clone(), content_fetcher.clone())
+			);
 			special
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));
@@ -206,7 +209,7 @@ impl Server {
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
 				apps::main_page(),
-				apps_fetcher.clone(),
+				content_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
 				authorization.clone(),
