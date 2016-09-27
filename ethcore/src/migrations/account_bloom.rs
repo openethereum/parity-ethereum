@@ -30,7 +30,7 @@ use std::path::PathBuf;
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.
 /// Can be called on upgraded database with no issues (will do nothing).
-pub fn migrate_add_account_bloom(db_path: PathBuf) -> Result<(), Error> {
+pub fn upgrade_account_bloom(db_path: PathBuf) -> Result<(), Error> {
 	let path = try!(db_path.to_str().ok_or(Error::MigrationImpossible));
 	let source = try!(Database::open(&DatabaseConfig {
 		max_open_files: 64,
@@ -47,13 +47,17 @@ pub fn migrate_add_account_bloom(db_path: PathBuf) -> Result<(), Error> {
 	};
 	let best_block_header = match try!(source.get(DB_COL_HEADERS, &best_block_hash)) {
 		// no best block, nothing to do
-		None => { return Ok(()) },
+		None => {
+			trace!(target: "migration", "No best block, skipping");
+			return Ok(())
+		},
 		Some(ref x) => x.to_vec(),
 	};
 	let state_root = HeaderView::new(&best_block_header).state_root();
 
 	if StateDB::check_bloom_exists(&source) {
 		// bloom already exists, nothing to do
+		trace!(target: "migration", "Bloom already present, skipping");
 		return Ok(())
 	}
 
@@ -75,9 +79,13 @@ pub fn migrate_add_account_bloom(db_path: PathBuf) -> Result<(), Error> {
 		bloom.drain_journal()
 	};
 
+	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
+
 	let batch = DBTransaction::new(&db);
 	try!(StateDB::commit_bloom(&batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned())));
 	try!(db.write(batch));
+
+	trace!(target: "migration", "Finished bloom update");
 
 	Ok(())
 }
