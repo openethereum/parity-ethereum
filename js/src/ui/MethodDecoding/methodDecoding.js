@@ -150,21 +150,6 @@ export default class Method extends Component {
     );
   }
 
-  renderSimple () {
-    const { methodName } = this.state;
-
-    return (
-      <div className={ styles.details }>
-        <div className={ styles.name }>
-          { methodName }
-        </div>
-        <div className={ styles.inputs }>
-          { this.renderInputs() }
-        </div>
-      </div>
-    );
-  }
-
   renderSignatureMethod () {
     const { historic, transaction } = this.props;
     const { methodName } = this.state;
