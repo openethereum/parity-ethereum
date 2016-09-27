@@ -175,7 +175,7 @@ impl Spec {
 		header.set_transactions_root(self.transactions_root.clone());
 		header.set_uncles_hash(RlpStream::new_list(0).out().sha3());
 		header.set_extra_data(self.extra_data.clone());
-		header.set_state_root(self.state_root().clone());
+		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
 		header.set_log_bloom(H2048::new().clone());
 		header.set_gas_used(self.gas_used.clone());
@@ -190,6 +190,7 @@ impl Spec {
 			let r = Rlp::new(&seal);
 			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 		});
+		trace!(target: "spec", "Header hash is {}", header.hash());
 		header
 	}
 
@@ -235,13 +236,16 @@ impl Spec {
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
 	pub fn ensure_db_good(&self, db: &mut StateDB) -> Result<bool, Box<TrieError>> {
 		if !db.as_hashdb().contains(&self.state_root()) {
+			trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
 			let mut root = H256::new();
+
 			{
 				let mut t = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
 					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
+			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}

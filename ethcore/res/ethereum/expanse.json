@@ -7,7 +7,6 @@
 				"gasLimitBoundDivisor": "0x0400",
 				"minimumDifficulty": "0x020000",
 				"difficultyBoundDivisor": "0x0800",
-				"difficultyBoundDivisor2": "0x0200",
 				"durationLimit": "0x3C",
 				"blockReward": "0x6f05b59d3b200000",
 				"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
@@ -33,12 +32,11 @@
 			}
 		},
 		"difficulty": "0x40000000",
-		"author": "0x0000000000000000000000000000000000000000",
+		"author": "0x93decab0cd745598860f782ac1e8f046cb99e898",
 		"timestamp": "0x00",
 		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
 		"extraData": "0x4672616e6b6f497346726565646f6d",
-		"gasLimit": "0x1388",
-		"stateRoot": "0xc10a9483141b62388c2d2dd9cf5875a3cc0287d91f2946bc53a0b08ff42931cd"
+		"gasLimit": "0x1388"
 	},
 	"nodes": [
 		"enode://e809c4a2fec7daed400e5e28564e23693b23b2cc5a019b612505631bbe7b9ccf709c1796d2a3d29ef2b045f210caf51e3c4f5b6d3587d43ad5d6397526fa6179@174.112.32.157:30303",
@@ -47,6 +45,10 @@
 		"enode://217ebe27e89bf4fec8ce06509323ff095b1014378deb75ab2e5f6759a4e8750a3bd8254b8c6833136e4d5e58230d65ee8ab34a5db5abf0640408c4288af3c8a7@188.138.1.237:30303"
 	],
 	"accounts": {
+		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } },
 		"bb94f0ceb32257275b2a7a9c094c13e469b4563e": {
 			"balance": "10000000000000000000000000"
 		},
