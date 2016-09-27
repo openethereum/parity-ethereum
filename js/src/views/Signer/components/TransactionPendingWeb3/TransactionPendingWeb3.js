@@ -34,6 +34,7 @@ class TransactionPendingWeb3 extends Component {
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
+    date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract
     data: PropTypes.string, // hex
     nonce: PropTypes.number,
@@ -49,7 +50,7 @@ class TransactionPendingWeb3 extends Component {
   render () {
     const { web3 } = this.context;
     const { fromBalance, toBalance, chain } = this.state;
-    let { from, to } = this.props;
+    let { from, to, date } = this.props;
 
     from = web3.toChecksumAddress(from);
     to = to ? web3.toChecksumAddress(to) : to;
@@ -62,6 +63,7 @@ class TransactionPendingWeb3 extends Component {
         fromBalance={ fromBalance }
         toBalance={ toBalance }
         chain={ chain }
+        date={ date }
       />
     );
   }

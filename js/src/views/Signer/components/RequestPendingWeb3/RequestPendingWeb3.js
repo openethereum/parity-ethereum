@@ -30,6 +30,7 @@ class RequestPendingWeb3 extends Component {
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
+    date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
       PropTypes.shape({ transaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
@@ -38,7 +39,7 @@ class RequestPendingWeb3 extends Component {
   };
 
   render () {
-    const { payload, id, className, isSending, onConfirm, onReject } = this.props;
+    const { payload, id, className, isSending, date, onConfirm, onReject } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -71,6 +72,7 @@ class RequestPendingWeb3 extends Component {
           from={ transaction.from }
           to={ transaction.to }
           value={ transaction.value }
+          date={ date }
           />
       );
     }

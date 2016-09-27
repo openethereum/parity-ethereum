@@ -15,9 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ReactTooltip from 'react-tooltip';
+import TimeIcon from 'material-ui/svg-icons/device/access-time';
+import moment from 'moment';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TxHashLink from '../TxHashLink';
+import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
+
 import styles from './TransactionFinished.css';
 
 import * as tUtil from '../util/transaction';
@@ -34,6 +39,7 @@ export default class TransactionFinished extends Component {
     gasPrice: PropTypes.string.isRequired, // wei hex
     gas: PropTypes.string.isRequired, // hex
     status: PropTypes.string.isRequired, // rejected, confirmed
+    date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract
     toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
     txHash: PropTypes.string, // undefined if transacation is rejected
@@ -53,7 +59,7 @@ export default class TransactionFinished extends Component {
   }
 
   render () {
-    const { className } = this.props;
+    const { className, date, id } = this.props;
     const { totalValue } = this.state;
 
     return (
@@ -63,7 +69,12 @@ export default class TransactionFinished extends Component {
             { ...this.props }
             totalValue={ totalValue }
             className={ styles.transactionDetails }
-          />
+          >
+            <TransactionSecondaryDetails
+              id={ id }
+              date={ date }
+            />
+          </TransactionMainDetails>
           <div className={ styles.statusContainer }>
             { this.renderStatus() }
           </div>

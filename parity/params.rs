@@ -14,15 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
-use std::fs;
+use std::{str, fs};
 use std::time::Duration;
-use util::{H256, Address, U256, version_data};
+use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
-use dir::Directories;
+use user_defaults::UserDefaults;
 
 #[derive(Debug, PartialEq)]
 pub enum SpecType {
@@ -39,7 +38,7 @@ impl Default for SpecType {
 	}
 }
 
-impl FromStr for SpecType {
+impl str::FromStr for SpecType {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -81,7 +80,7 @@ impl Default for Pruning {
 	}
 }
 
-impl FromStr for Pruning {
+impl str::FromStr for Pruning {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -93,23 +92,11 @@ impl FromStr for Pruning {
 }
 
 impl Pruning {
-	pub fn to_algorithm(&self, dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>) -> Algorithm {
+	pub fn to_algorithm(&self, user_defaults: &UserDefaults) -> Algorithm {
 		match *self {
 			Pruning::Specific(algo) => algo,
-			Pruning::Auto => Self::find_best_db(dirs, genesis_hash, fork_name),
+			Pruning::Auto => user_defaults.pruning,
 		}
-	}
-
-	fn find_best_db(dirs: &Directories, genesis_hash: H256, fork_name: Option<&String>) -> Algorithm {
-		let mut algo_types = Algorithm::all_types();
-		// if all dbs have the same modification time, the last element is the default one
-		algo_types.push(Algorithm::default());
-
-		algo_types.into_iter().max_by_key(|i| {
-			let mut client_path = dirs.client_path(genesis_hash, fork_name, *i);
-			client_path.push("CURRENT");
-			fs::metadata(&client_path).and_then(|m| m.modified()).ok()
-		}).unwrap()
 	}
 }
 
@@ -128,7 +115,7 @@ impl Default for ResealPolicy {
 	}
 }
 
-impl FromStr for ResealPolicy {
+impl str::FromStr for ResealPolicy {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -223,10 +210,50 @@ impl Default for MinerExtras {
 	}
 }
 
+/// 3-value enum.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum Switch {
+	/// True.
+	On,
+	/// False.
+	Off,
+	/// Auto.
+	Auto,
+}
+
+impl Default for Switch {
+	fn default() -> Self {
+		Switch::Auto
+	}
+}
+
+impl str::FromStr for Switch {
+	type Err = String;
+
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		match s {
+			"on" => Ok(Switch::On),
+			"off" => Ok(Switch::Off),
+			"auto" => Ok(Switch::Auto),
+			other => Err(format!("Invalid switch value: {}", other))
+		}
+	}
+}
+
+pub fn tracing_switch_to_bool(switch: Switch, user_defaults: &UserDefaults) -> Result<bool, String> {
+	match (user_defaults.is_first_launch, switch, user_defaults.tracing) {
+		(false, Switch::On, false) => Err("TraceDB resync required".into()),
+		(_, Switch::On, _) => Ok(true),
+		(_, Switch::Off, _) => Ok(false),
+		(_, Switch::Auto, def) => Ok(def),
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;
-	use super::{SpecType, Pruning, ResealPolicy};
+	use user_defaults::UserDefaults;
+	use super::{SpecType, Pruning, ResealPolicy, Switch, tracing_switch_to_bool};
 
 	#[test]
 	fn test_spec_type_parsing() {
@@ -273,5 +300,37 @@ mod tests {
 	fn test_reseal_policy_default() {
 		let all = ResealPolicy { own: true, external: true };
 		assert_eq!(all, ResealPolicy::default());
+	}
+
+	#[test]
+	fn test_switch_parsing() {
+		assert_eq!(Switch::On, "on".parse().unwrap());
+		assert_eq!(Switch::Off, "off".parse().unwrap());
+		assert_eq!(Switch::Auto, "auto".parse().unwrap());
+	}
+
+	#[test]
+	fn test_switch_default() {
+		assert_eq!(Switch::default(), Switch::Auto);
+	}
+
+	fn user_defaults_with_tracing(first_launch: bool, tracing: bool) -> UserDefaults {
+		let mut ud = UserDefaults::default();
+		ud.is_first_launch = first_launch;
+		ud.tracing = tracing;
+		ud
+	}
+
+	#[test]
+	fn test_switch_to_bool() {
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(true, true)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(true, false)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(false, true)).unwrap());
+		assert!(!tracing_switch_to_bool(Switch::Off, &user_defaults_with_tracing(false, false)).unwrap());
+
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(true, true)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(true, false)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(false, true)).unwrap());
+		assert!(tracing_switch_to_bool(Switch::On, &user_defaults_with_tracing(false, false)).is_err());
 	}
 }
