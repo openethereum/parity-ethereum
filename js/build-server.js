@@ -14,33 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Traces config.
-use bloomchain::Config as BloomConfig;
+/**
+ * Run `PARITY_URL="127.0.0.1:8180" NODE_ENV="production" npm run build`
+ * to build the project ; use this server to test that the minifed
+ * version is working (this is a simple proxy server)
+ */
 
-/// Traces config.
-#[derive(Debug, PartialEq, Clone)]
-pub struct Config {
-	/// Indicates if tracing should be enabled or not.
-	/// If it's None, it will be automatically configured.
-	pub enabled: bool,
-	/// Traces blooms configuration.
-	pub blooms: BloomConfig,
-	/// Preferef cache-size.
-	pub pref_cache_size: usize,
-	/// Max cache-size.
-	pub max_cache_size: usize,
-}
+var express = require('express');
+var proxy = require('http-proxy-middleware');
 
-impl Default for Config {
-	fn default() -> Self {
-		Config {
-			enabled: false,
-			blooms: BloomConfig {
-				levels: 3,
-				elements_per_index: 16,
-			},
-			pref_cache_size: 15 * 1024 * 1024,
-			max_cache_size: 20 * 1024 * 1024,
-		}
-	}
-}
+var app = express();
+
+app.use(express.static('build'));
+
+app.use('/api/*', proxy({
+  target: 'http://127.0.0.1:8080',
+  changeOrigin: true
+}));
+
+app.use('/rpc/*', proxy({
+  target: 'http://127.0.0.1:8080',
+  changeOrigin: true
+}));
+
+app.listen(3000);
