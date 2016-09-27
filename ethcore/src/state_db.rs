@@ -23,7 +23,7 @@ use account::Account;
 use bloomfilter::{Bloom, BloomJournal};
 use util::Database;
 use client::DB_COL_ACCOUNT_BLOOM;
-use byteorder::{LittleEndian, WriteBytesExt, ReadBytesExt, ByteOrder};
+use byteorder::{LittleEndian, ByteOrder};
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -49,13 +49,12 @@ pub struct StateDB {
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
-pub const ACCOUNT_BLOOM_SPACE_COLUMN: &'static[u8] = b"accounts_bloom";
-pub const ACCOUNT_BLOOM_HASHCOUNT_COLUMN: &'static[u8] = b"account_hash_count";
+pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static[u8] = b"account_hash_count";
 
 impl StateDB {
 
 	pub fn load_bloom(db: &Database) -> Bloom {
-		let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_COLUMN)
+		let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
 		if hash_count_entry.is_none() {
@@ -66,10 +65,9 @@ impl StateDB {
 		let hash_count = hash_count_bytes[0];
 
 		let mut bloom_parts = vec![0u64; ACCOUNT_BLOOM_SPACE / 8];
-		let mut key = vec![0u8; 8];
-		let empty = vec![0u8; 8];
+		let mut key = [0u8; 8];
 		for i in 0..ACCOUNT_BLOOM_SPACE / 8 {
-			key.write_u64::<LittleEndian>(i as u64);
+			LittleEndian::write_u64(&mut key, i as u64);
 			bloom_parts[i] = db.get(DB_COL_ACCOUNT_BLOOM, &key).expect("low-level database error")
 				.and_then(|val| Some(LittleEndian::read_u64(&val[..])))
 				.unwrap_or(0u64);
@@ -90,10 +88,6 @@ impl StateDB {
 		}
 	}
 
-	fn new_account_bloom() -> Bloom {
-		Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET)
-	}
-
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
 		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
@@ -108,7 +102,7 @@ impl StateDB {
 
 	pub fn commit_bloom(batch: &DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
-		try!(batch.put(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![journal.hash_functions as u8]));
+		try!(batch.put(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &vec![journal.hash_functions as u8]));
 		let mut key = [0u8; 8];
 		let mut val = [0u8; 8];
 
@@ -125,7 +119,7 @@ impl StateDB {
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		{
 			let mut bloom_lock = self.account_bloom.lock();
-			Self::commit_bloom(batch, bloom_lock.drain_journal());
+			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
 		}
 
 		let records = try!(self.db.commit(batch, now, id, end));
