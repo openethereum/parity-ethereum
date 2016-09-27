@@ -147,7 +147,7 @@ impl CompactionProfile {
 pub struct DatabaseConfig {
 	/// Max number of open files.
 	pub max_open_files: i32,
-	/// Vector of cache sizes (in MiB) for specific columns.
+	/// Cache sizes (in MiB) for specific columns.
 	pub cache_sizes: HashMap<Option<u32>, usize>,
 	/// Compaction profile
 	pub compaction: CompactionProfile,
