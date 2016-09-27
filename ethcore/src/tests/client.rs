@@ -142,7 +142,8 @@ fn returns_logs() {
 		to_block: BlockID::Latest,
 		address: None,
 		topics: vec![],
-	}, None);
+		limit: None,
+	});
 	assert_eq!(logs.len(), 0);
 }
 
@@ -156,7 +157,8 @@ fn returns_logs_with_limit() {
 		to_block: BlockID::Latest,
 		address: None,
 		topics: vec![],
-	}, Some(2));
+		limit: Some(2),
+	});
 	assert_eq!(logs.len(), 0);
 }
 
