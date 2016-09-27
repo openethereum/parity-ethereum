@@ -41,7 +41,7 @@ pub enum Error {
 pub type FetchResult = Result<PathBuf, FetchError>;
 pub type OnDone = Box<Fn(FetchResult) + Send>;
 
-pub struct Fetch {
+pub struct FetchHandler {
 	path: PathBuf,
 	abort: Arc<AtomicBool>,
 	file: Option<fs::File>,
@@ -49,13 +49,13 @@ pub struct Fetch {
 	on_done: Option<OnDone>,
 }
 
-impl fmt::Debug for Fetch {
+impl fmt::Debug for FetchHandler {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		write!(f, "Fetch {{ path: {:?}, file: {:?}, result: {:?} }}", self.path, self.file, self.result)
 	}
 }
 
-impl Drop for Fetch {
+impl Drop for FetchHandler {
     fn drop(&mut self) {
 		let res = self.result.take().unwrap_or(Err(Error::NotStarted.into()));
 		// Remove file if there was an error
@@ -73,9 +73,9 @@ impl Drop for Fetch {
     }
 }
 
-impl Fetch {
+impl FetchHandler {
 	pub fn new(path: PathBuf, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
-		Fetch {
+		FetchHandler {
 			path: path,
 			abort: abort,
 			file: None,
@@ -83,9 +83,7 @@ impl Fetch {
 			on_done: Some(on_done),
 		}
 	}
-}
 
-impl Fetch {
 	fn is_aborted(&self) -> bool {
 		self.abort.load(Ordering::SeqCst)
 	}
@@ -95,7 +93,7 @@ impl Fetch {
 	}
 }
 
-impl hyper::client::Handler<HttpStream> for Fetch {
+impl hyper::client::Handler<HttpStream> for FetchHandler {
     fn on_request(&mut self, req: &mut Request) -> Next {
 		if self.is_aborted() {
 			return self.mark_aborted();

@@ -14,16 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
+//! Test implementation of fetch client.
 
-#[macro_use]
-extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
+use std::io::Write;
+use std::{env, fs, thread};
+use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
+use fetch::{Fetch, FetchError, FetchResult};
+
+/// Test implementation of fetcher. Will always return the same file.
+#[derive(Default)]
+pub struct TestFetch;
+
+impl Fetch for TestFetch {
+	fn request_async(&mut self, _url: &str, _abort: Arc<AtomicBool>, on_done: Box<Fn(FetchResult) + Send>) -> Result<(), FetchError> {
+		thread::spawn(move || {
+			let mut path = env::temp_dir();
+			path.push(Self::random_filename());
+
+			let mut file = fs::File::create(&path).unwrap();
+			file.write_all(b"Some content").unwrap();
+
+			on_done(Ok(path));
+		});
+		Ok(())
+	}
+}
 
 
-pub mod client;
-pub mod fetch_file;
-
-pub use self::client::{Client, Fetch, FetchError, FetchResult};

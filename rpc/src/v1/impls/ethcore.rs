@@ -23,7 +23,7 @@ use util::{RotatingLogger, Address, Mutex, sha3};
 use util::misc::version_data;
 
 use crypto::ecies;
-use fetch::Client as FetchClient;
+use fetch::{Client as FetchClient, Fetch};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -37,10 +37,11 @@ use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
-pub struct EthcoreClient<C, M, S: ?Sized> where
+pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	C: MiningBlockChainClient,
 	M: MinerService,
-	S: SyncProvider {
+	S: SyncProvider,
+	F: Fetch {
 
 	client: Weak<C>,
 	miner: Weak<M>,
@@ -49,10 +50,14 @@ pub struct EthcoreClient<C, M, S: ?Sized> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	fetch: Mutex<FetchClient>
+	fetch: Mutex<F>
 }
 
-impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
+impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+	S: SyncProvider,
+	F: Fetch, {
 	/// Creates new `EthcoreClient`.
 	pub fn new(
 		client: &Arc<C>,
@@ -71,7 +76,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 			logger: logger,
 			settings: settings,
 			signer: signer,
-			fetch: Mutex::new(FetchClient::new()),
+			fetch: Mutex::new(F::default()),
 		}
 	}
 
@@ -82,7 +87,11 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 	}
 }
 
-impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService + 'static, C: MiningBlockChainClient + 'static, S: SyncProvider + 'static {
+impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
+	M: MinerService + 'static,
+	C: MiningBlockChainClient + 'static,
+	S: SyncProvider + 'static,
+	F: Fetch + 'static {
 
 	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
