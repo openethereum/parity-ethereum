@@ -17,7 +17,7 @@
 use std::str::FromStr;
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
+pub use trace::Config as TraceConfig;
 pub use evm::VMType;
 
 use verification::{VerifierType, QueueConfig};
