@@ -21,7 +21,7 @@ use io::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
-use miner::Miner;
+use miner::{Miner, MinerService};
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
@@ -48,6 +48,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
+	/// Trigger sealing update (useful for internal sealing).
+	UpdateSealing,
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -104,6 +106,8 @@ impl ClientService {
 			snapshot: snapshot.clone(),
 		});
 		try!(io_service.register_handler(client_io));
+
+		spec.engine.register_message_channel(io_service.channel());
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -196,7 +200,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				if let Err(e) = self.snapshot.take_snapshot(&*self.client, num) {
 					warn!("Failed to take snapshot at block #{}: {}", num, e);
 				}
-			}
+			},
+			ClientIoMessage::UpdateSealing => {
+				println!("Message received!");
+				self.client.update_sealing()
+			},
 			_ => {} // ignore other messages
 		}
 	}

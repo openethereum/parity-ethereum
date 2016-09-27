@@ -488,6 +488,11 @@ impl Client {
 		self.miner.set_author(author)
 	}
 
+	/// Used by PoA to try sealing on period change.
+	pub fn update_sealing(&self) {
+		self.miner.update_sealing(self)
+	}
+
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
@@ -1025,13 +1030,15 @@ impl BlockChainClient for Client {
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
-		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
+		let queue_size = self.queue_transactions.load(AtomicOrdering::Relaxed);
+		trace!(target: "external_tx", "Queue size: {}", queue_size);
+		if queue_size > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
 			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
 				Ok(_) => {
-					trace!(target: "external_tx", "Sending IoMessage");
+					trace!(target: "external_tx", "Sent IoMessage");
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}
 				Err(e) => {

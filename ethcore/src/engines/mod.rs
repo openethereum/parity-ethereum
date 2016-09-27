@@ -31,6 +31,8 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
 use evm::Schedule;
+use io::IoChannel;
+use service::ClientIoMessage;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -130,5 +132,7 @@ pub trait Engine : Sync + Send {
 	/// Panics if `is_builtin(a)` is not true.
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.builtins().get(a).unwrap().execute(input, output); }
 
+	/// Add a channel for communication with Client.
+	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {}
 	// TODO: sealing stuff - though might want to leave this for later.
 }

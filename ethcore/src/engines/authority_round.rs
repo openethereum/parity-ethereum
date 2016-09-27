@@ -27,7 +27,8 @@ use spec::CommonParams;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService};
+use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
+use service::ClientIoMessage;
 use time::get_time;
 
 /// `AuthorityRound` params.
@@ -61,6 +62,7 @@ pub struct AuthorityRound {
 	our_params: AuthorityRoundParams,
 	builtins: BTreeMap<Address, Builtin>,
 	transistion_service: IoService<BlockArrived>,
+	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 }
 
@@ -73,6 +75,7 @@ impl AuthorityRound {
 				our_params: our_params,
 				builtins: builtins,
 				transistion_service: IoService::<BlockArrived>::start().expect("Error creating engine timeout service"),
+				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(0),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
@@ -115,19 +118,22 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 			if let Some(engine) = self.engine.upgrade() {
 				debug!(target: "authorityround", "Timeout step: {}", engine.step.load(AtomicOrdering::Relaxed));
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
+				if let Some(ref channel) = *engine.message_channel.try_lock().unwrap() {
+					channel.send(ClientIoMessage::UpdateSealing);
+				}
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
 			}
 		}
 	}
 
-	fn message(&self, io: &IoContext<BlockArrived>, _net_message: &BlockArrived) {
-		if let Some(engine) = self.engine.upgrade() {
-			trace!(target: "authorityround", "Message: {:?}", get_time().sec);
-			engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
-		}
-	}
+//	fn message(&self, io: &IoContext<BlockArrived>, _net_message: &BlockArrived) {
+//		if let Some(engine) = self.engine.upgrade() {
+//			trace!(target: "authorityround", "Message: {:?}", get_time().sec);
+//			engine.step.fetch_add(1, AtomicOrdering::SeqCst);
+//			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
+//			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
+//		}
+//	}
 }
 
 impl Engine for AuthorityRound {
@@ -247,6 +253,11 @@ impl Engine for AuthorityRound {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
+		let mut guard = self.message_channel.try_lock().unwrap();
+		*guard = Some(message_channel);
 	}
 }
 
