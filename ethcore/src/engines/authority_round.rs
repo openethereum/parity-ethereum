@@ -29,7 +29,6 @@ use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
 use service::ClientIoMessage;
-use time::get_time;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -119,7 +118,10 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 				debug!(target: "authorityround", "Timeout step: {}", engine.step.load(AtomicOrdering::Relaxed));
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 				if let Some(ref channel) = *engine.message_channel.try_lock().unwrap() {
-					channel.send(ClientIoMessage::UpdateSealing);
+					match channel.send(ClientIoMessage::UpdateSealing) {
+						Ok(_) => trace!(target: "authorityround", "timeout: UpdateSealing message sent."),
+						Err(_) => trace!(target: "authorityround", "timeout: Could not send a sealing message."),
+					}
 				}
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
 			}

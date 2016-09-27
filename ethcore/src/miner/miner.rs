@@ -78,7 +78,7 @@ impl Default for MinerOptions {
 		MinerOptions {
 			new_work_notify: vec![],
 			force_sealing: false,
-			reseal_on_external_tx: true,
+			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,

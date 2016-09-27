@@ -21,7 +21,7 @@ use io::*;
 use spec::Spec;
 use error::*;
 use client::{Client, ClientConfig, ChainNotify};
-use miner::{Miner, MinerService};
+use miner::Miner;
 use snapshot::ManifestData;
 use snapshot::service::{Service as SnapshotService, ServiceParams as SnapServiceParams};
 use std::sync::atomic::AtomicBool;
@@ -202,7 +202,7 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				}
 			},
 			ClientIoMessage::UpdateSealing => {
-				println!("Message received!");
+				trace!(target: "authorityround", "message: UpdateSealing");
 				self.client.update_sealing()
 			},
 			_ => {} // ignore other messages

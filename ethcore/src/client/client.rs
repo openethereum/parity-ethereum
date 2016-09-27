@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, TransactionImportResult
+	ChainNotify
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -478,16 +478,6 @@ impl Client {
 		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
-	}
-
-	// TODO: these are only used for tests in sync and only contribute to huge Client 
-	/// Import a locally created transaction.
-	pub fn import_own_transaction(&self, transaction: SignedTransaction) -> Result<TransactionImportResult, EthcoreError> {
-		self.miner.import_own_transaction(self, transaction)
-	}
-	/// Set miner author.
-	pub fn set_author(&self, author: Address) {
-		self.miner.set_author(author)
 	}
 
 	/// Used by PoA to try sealing on period change.
@@ -1039,13 +1029,8 @@ impl BlockChainClient for Client {
 		} else {
 			let len = transactions.len();
 			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
-				Ok(_) => {
-					trace!(target: "external_tx", "Sent IoMessage");
-					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
-				}
-				Err(e) => {
-					debug!("Ignoring {} transactions: error queueing: {}", len, e);
-				}
+				Ok(_) => { self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst); },
+				Err(e) => debug!("Ignoring {} transactions: error queueing: {}", len, e),
 			}
 		}
 	}

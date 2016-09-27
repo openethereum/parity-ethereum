@@ -132,7 +132,7 @@ pub trait Engine : Sync + Send {
 	/// Panics if `is_builtin(a)` is not true.
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
 
-	/// Add a channel for communication with Client.
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {}
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
 	// TODO: sealing stuff - though might want to leave this for later.
 }
