@@ -33,12 +33,16 @@
 .expanded {
   right: 16px;
   width: 964px;
-  height: 296px;
+  height: 300px;
   border-radius: 4px 4px 0 0;
-  overflow-y: scroll;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .expanded .content {
+  flex: 1;
+  overflow: auto;
 }
 
 .corner {

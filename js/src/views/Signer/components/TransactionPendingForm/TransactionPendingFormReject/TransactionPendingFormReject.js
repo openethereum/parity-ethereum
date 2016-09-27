@@ -60,9 +60,8 @@ export default class TransactionPendingFormReject extends Component {
           className={ styles.rejectButton }
           disabled={ rejectCounter > 0 }
           fullWidth
-          >
-          Reject Transaction { this.renderCounter() }
-        </RaisedButton>
+          label={ `Reject Transaction ${this.renderCounter()}` }
+        />
       </div>
     );
   }
@@ -70,11 +69,9 @@ export default class TransactionPendingFormReject extends Component {
   renderCounter () {
     const { rejectCounter } = this.state;
     if (!rejectCounter) {
-      return;
+      return '';
     }
-    return (
-      <span>{ `(${rejectCounter})` }</span>
-    );
+    return `(${rejectCounter})`;
   }
 
   onInitCounter () {
