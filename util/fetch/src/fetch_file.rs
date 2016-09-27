@@ -33,6 +33,7 @@ use super::FetchError;
 pub enum Error {
 	Aborted,
 	NotStarted,
+	SizeLimit,
 	UnexpectedStatus(StatusCode),
 	IoError(io::Error),
 	HyperError(hyper::Error),
@@ -47,6 +48,7 @@ pub struct FetchHandler {
 	file: Option<fs::File>,
 	result: Option<FetchResult>,
 	on_done: Option<OnDone>,
+	size_limit: Option<u64>,
 }
 
 impl fmt::Debug for FetchHandler {
@@ -74,19 +76,21 @@ impl Drop for FetchHandler {
 }
 
 impl FetchHandler {
-	pub fn new(path: PathBuf, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
+	pub fn new(path: PathBuf, abort: Arc<AtomicBool>, on_done: OnDone, size_limit: Option<u64>) -> Self {
 		FetchHandler {
 			path: path,
 			abort: abort,
 			file: None,
 			result: None,
 			on_done: Some(on_done),
+			size_limit: size_limit,
 		}
 	}
 
 	fn is_aborted(&self) -> bool {
 		self.abort.load(Ordering::SeqCst)
 	}
+
 	fn mark_aborted(&mut self) -> Next {
 		self.result = Some(Err(Error::Aborted.into()));
 		Next::end()
@@ -138,7 +142,19 @@ impl hyper::client::Handler<HttpStream> for FetchHandler {
 		}
         match io::copy(decoder, self.file.as_mut().expect("File is there because on_response has created it.")) {
             Ok(0) => Next::end(),
-            Ok(_) => read(),
+            Ok(bytes_read) => match self.size_limit {
+				None => read(),
+				// Check limit
+				Some(limit) if limit > bytes_read => {
+					self.size_limit = Some(limit - bytes_read);
+					read()
+				},
+				// Size limit reached
+				_ => {
+					self.result = Some(Err(Error::SizeLimit.into()));
+					Next::end()
+				},
+			},
             Err(e) => match e.kind() {
                 io::ErrorKind::WouldBlock => Next::read(),
                 _ => {

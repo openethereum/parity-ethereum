@@ -80,19 +80,22 @@ pub trait Fetch: Default + Send {
 pub struct Client {
 	http_client: hyper::Client<FetchHandler>,
 	https_client: https::Client,
+	limit: Option<usize>,
 }
 
 impl Default for Client {
 	fn default() -> Self {
-		Client::new()
+		// Max 15MB will be downloaded.
+		Client::with_limit(Some(15*1024*1024))
 	}
 }
 
 impl Client {
-	fn new() -> Self {
+	fn with_limit(limit: Option<usize>) -> Self {
 		Client {
 			http_client: hyper::Client::new().expect("Unable to initialize http client."),
-			https_client: https::Client::new().expect("Unable to initialize https client."),
+			https_client: https::Client::with_limit(limit).expect("Unable to initialize https client."),
+			limit: limit,
 		}
 	}
 
@@ -133,7 +136,7 @@ impl Fetch for Client {
 		} else {
 			try!(self.http_client.request(
 				url,
-				FetchHandler::new(temp_path, abort, Box::new(move |result| on_done(result))),
+				FetchHandler::new(temp_path, abort, Box::new(move |result| on_done(result)), self.limit.map(|v| v as u64).clone()),
 			).map_err(|e| FetchError::Other(format!("{:?}", e))));
 		}
 

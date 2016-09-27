@@ -53,12 +53,11 @@ pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	fetch: Mutex<F>
 }
 
-impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
+impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
 	C: MiningBlockChainClient,
 	M: MinerService,
-	S: SyncProvider,
-	F: Fetch, {
-	/// Creates new `EthcoreClient`.
+	S: SyncProvider, {
+	/// Creates new `EthcoreClient` with default `Fetch`.
 	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
@@ -68,6 +67,26 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>
 	) -> Self {
+		Self::with_fetch(client, miner, sync, net, logger, settings, signer)
+	}
+}
+
+impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+	S: SyncProvider,
+	F: Fetch, {
+
+	/// Creates new `EthcoreClient` with customizable `Fetch`.
+	pub fn with_fetch(
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		sync: &Arc<S>,
+		net: &Arc<ManageNetwork>,
+		logger: Arc<RotatingLogger>,
+		settings: Arc<NetworkSettings>,
+		signer: Option<Arc<SignerService>>
+		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),

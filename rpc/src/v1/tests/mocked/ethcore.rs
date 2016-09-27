@@ -68,7 +68,7 @@ fn ethcore_client(
 	sync: &Arc<TestSyncProvider>,
 	net: &Arc<ManageNetwork>)
 	-> TestEthcoreClient {
-	EthcoreClient::new(client, miner, sync, net, logger(), settings(), None)
+	EthcoreClient::with_fetch(client, miner, sync, net, logger(), settings(), None)
 }
 
 #[test]
@@ -143,7 +143,7 @@ fn rpc_ethcore_dev_logs() {
 	let logger = logger();
 	logger.append("a".to_owned());
 	logger.append("b".to_owned());
-	let ethcore: TestEthcoreClient = EthcoreClient::new(&client, &miner, &sync, &net, logger.clone(), settings(), None);
+	let ethcore: TestEthcoreClient = EthcoreClient::with_fetch(&client, &miner, &sync, &net, logger.clone(), settings(), None);
 	let io = IoHandler::new();
 	io.add_delegate(ethcore.to_delegate());
 
@@ -266,7 +266,7 @@ fn rpc_ethcore_unsigned_transactions_count() {
 	let net = network_service();
 	let io = IoHandler::new();
 	let signer = Arc::new(SignerService::new_test());
-	let ethcore: TestEthcoreClient = EthcoreClient::new(&client, &miner, &sync, &net, logger(), settings(), Some(signer));
+	let ethcore: TestEthcoreClient = EthcoreClient::with_fetch(&client, &miner, &sync, &net, logger(), settings(), Some(signer));
 	io.add_delegate(ethcore.to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
