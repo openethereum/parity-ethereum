@@ -112,6 +112,10 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 					.map_err(|_| errors::request_rejected_limit())
 			})
 	}
+
+	fn dispatch_decrypt(&self, params: Params) -> Result<DispatchResult, Error> {
+		unimplemented!()
+	}
 }
 
 impl<C, M> EthSigning for EthSigningQueueClient<C, M>
@@ -168,11 +172,17 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
-	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(_account, _ciphertext)| {
-			Err(errors::unimplemented())
-		})
+	fn decrypt_message(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.dispatch_decrypt(params));
+		match res {
+			Ok(DispatchResult::Promise(promise)) => {
+				promise.wait_for_result(move |result| {
+					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
+				})
+			},
+			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
+			Err(e) => ready.ready(Err(e)),
+		}
 	}
 
 	fn check_request(&self, params: Params) -> Result<Value, Error> {
@@ -248,12 +258,13 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 			}))
 	}
 
-	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(address, ciphertext)| {
-			let s = try!(take_weak!(self.accounts).decrypt(address.into(), &[0; 0], &ciphertext.0).map_err(|_| Error::internal_error()));
-			Ok(to_value(RpcBytes::from(s)))
-		})
+	fn decrypt_message(&self, params: Params, ready: Ready) {
+		ready.ready(self.active()
+			.and_then(|_| from_params::<(RpcH160, RpcBytes)>(params))
+			.and_then(|(address, ciphertext)| {
+				let s = try!(take_weak!(self.accounts).decrypt(address.into(), &[0; 0], &ciphertext.0).map_err(errors::encryption_error));
+				Ok(to_value(RpcBytes::from(s)))
+			}))
 	}
 
 	fn post_sign(&self, _: Params) -> Result<Value, Error> {

@@ -222,7 +222,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
-			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(|_| Error::internal_error()));
+			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(errors::encryption_error));
 			Ok(to_value(&Bytes::from(s)))
 		})
 	}

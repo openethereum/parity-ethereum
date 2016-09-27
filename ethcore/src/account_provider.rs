@@ -23,7 +23,7 @@ use std::time::{Instant, Duration};
 use util::{Mutex, RwLock};
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
 use ethstore::dir::{KeyDirectory};
-use ethstore::ethkey::{Address, Message, Secret, Random, Generator};
+use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
 pub use ethstore::ethkey::Signature;
 
@@ -182,9 +182,16 @@ impl AccountProvider {
 
 	/// Creates new random account.
 	pub fn new_account(&self, password: &str) -> Result<Address, Error> {
-		let secret = Random.generate().unwrap().secret().clone();
+		self.new_account_and_public(password).map(|d| d.0)
+	}
+
+	/// Creates new random account and returns address and public key
+	pub fn new_account_and_public(&self, password: &str) -> Result<(Address, Public), Error> {
+		let acc = Random.generate().unwrap();
+		let public = acc.public().clone();
+		let secret = acc.secret().clone();
 		let address = try!(self.sstore.insert_account(secret, password));
-		Ok(address)
+		Ok((address, public))
 	}
 
 	/// Inserts new account into underlying store.
