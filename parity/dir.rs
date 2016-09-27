@@ -52,38 +52,62 @@ impl Directories {
 		Ok(())
 	}
 
-	/// Get the chain's root path.
-	pub fn chain_path(&self, genesis_hash: H256, fork_name: Option<&String>) -> PathBuf {
-		let mut dir = Path::new(&self.db).to_path_buf();
-		dir.push(format!("{:?}{}", H64::from(genesis_hash), fork_name.map(|f| format!("-{}", f)).unwrap_or_default()));
-		dir
-	}
-
-	/// Get the root path for database
-	pub fn db_version_path(&self, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> PathBuf {
-		let mut dir = self.chain_path(genesis_hash, fork_name);
-		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning.as_internal_name_str()));
-		dir
-	}
-
-	/// Get the path for the databases given the genesis_hash and information on the databases.
-	pub fn client_path(&self, genesis_hash: H256, fork_name: Option<&String>, pruning: Algorithm) -> PathBuf {
-		let mut dir = self.db_version_path(genesis_hash, fork_name, pruning);
-		dir.push("db");
-		dir
-	}
-
-	/// Get the path for the snapshot directory given the genesis hash and fork name.
-	pub fn snapshot_path(&self, genesis_hash: H256, fork_name: Option<&String>) -> PathBuf {
-		let mut dir = self.chain_path(genesis_hash, fork_name);
-		dir.push("snapshot");
-		dir
+	/// Database paths.
+	pub fn database(&self, genesis_hash: H256, fork_name: Option<String>) -> DatabaseDirectories {
+		DatabaseDirectories {
+			path: self.db.clone(),
+			genesis_hash: genesis_hash,
+			fork_name: fork_name,
+		}
 	}
 
 	/// Get the ipc sockets path
 	pub fn ipc_path(&self) -> PathBuf {
 		let mut dir = Path::new(&self.db).to_path_buf();
 		dir.push("ipc");
+		dir
+	}
+}
+
+#[derive(Debug, PartialEq)]
+pub struct DatabaseDirectories {
+	pub path: String,
+	pub genesis_hash: H256,
+	pub fork_name: Option<String>,
+}
+
+impl DatabaseDirectories {
+	fn fork_path(&self) -> PathBuf {
+		let mut dir = Path::new(&self.path).to_path_buf();
+		dir.push(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()));
+		dir
+	}
+
+	/// Get the root path for database
+	pub fn version_path(&self, pruning: Algorithm) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push(format!("v{}-sec-{}", LEGACY_CLIENT_DB_VER_STR, pruning.as_internal_name_str()));
+		dir
+	}
+
+	/// Get the path for the databases given the genesis_hash and information on the databases.
+	pub fn client_path(&self, pruning: Algorithm) -> PathBuf {
+		let mut dir = self.version_path(pruning);
+		dir.push("db");
+		dir
+	}
+
+	/// Get user defaults path
+	pub fn user_defaults_path(&self) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push("user_defaults");
+		dir
+	}
+
+	/// Get the path for the snapshot directory given the genesis hash and fork name.
+	pub fn snapshot_path(&self) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push("snapshot");
 		dir
 	}
 }

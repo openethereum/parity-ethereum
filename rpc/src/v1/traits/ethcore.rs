@@ -18,7 +18,7 @@
 use jsonrpc_core::Error;
 
 use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H512, U256, Bytes, Peers, RpcSettings};
+use v1::types::{H160, H512, U256, Bytes, Peers, Transaction, RpcSettings};
 
 build_rpc_trait! {
 	/// Ethcore-specific rpc interface.
@@ -100,5 +100,9 @@ build_rpc_trait! {
 		/// First parameter is the 512-byte destination public key, second is the message.
 		#[name("ethcore_encryptMessage")]
 		fn encrypt_message(&self, H512, Bytes) -> Result<Bytes, Error>;
+
+		/// Returns all pending transactions from transaction queue.
+		#[name("ethcore_pendingTransactions")]
+		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
 	}
 }

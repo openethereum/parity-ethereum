@@ -29,7 +29,7 @@ use ethcore::client::{MiningBlockChainClient};
 
 use jsonrpc_core::*;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H512, Peers, RpcSettings};
+use v1::types::{Bytes, U256, H160, H512, Peers, Transaction, RpcSettings};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 
 /// Ethcore implementation.
@@ -215,5 +215,11 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		ecies::encrypt(&key.into(), &[0; 0], &phrase.0)
 			.map_err(|_| Error::internal_error())
 			.map(Into::into)
+	}
+
+	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
+		try!(self.active());
+
+		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 }
