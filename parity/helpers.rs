@@ -19,13 +19,12 @@ use std::io::{Write, Read, BufReader, BufRead};
 use std::time::Duration;
 use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, H256, CompactionProfile};
+use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
 use ethcore::miner::PendingSet;
 use cache::CacheConfig;
-use dir::Directories;
-use params::Pruning;
+use dir::DatabaseDirectories;
 use upgrade::upgrade;
 use migration::migrate;
 use ethsync::is_valid_node_url;
@@ -190,16 +189,13 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
-		dirs: &Directories,
-		genesis_hash: H256,
 		mode: Mode,
-		tracing: Switch,
-		pruning: Pruning,
+		tracing: bool,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
 		vm_type: VMType,
 		name: String,
-		fork_name: Option<&String>,
+		pruning: Algorithm,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -221,7 +217,7 @@ pub fn to_client_config(
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
-	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
+	client_config.pruning = pruning;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
@@ -230,14 +226,12 @@ pub fn to_client_config(
 }
 
 pub fn execute_upgrades(
-	dirs: &Directories,
-	genesis_hash: H256,
-	fork_name: Option<&String>,
+	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
 ) -> Result<(), String> {
 
-	match upgrade(Some(&dirs.db)) {
+	match upgrade(Some(&dirs.path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
@@ -247,7 +241,7 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.db_version_path(genesis_hash, fork_name, pruning);
+	let client_path = dirs.version_path(pruning);
 	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 
