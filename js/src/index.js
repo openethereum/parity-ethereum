@@ -29,6 +29,8 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import Web3 from 'web3';
 
 import Api from './api';
+import ContractInstances from './contracts';
+
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsViews, Signer, Status } from './views';
@@ -54,6 +56,7 @@ const parityUrl = process.env.PARITY_URL ||
   );
 
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
+ContractInstances.create(api);
 
 muiTheme.parity.setBackgroundSeed(api.util.sha3(initToken + Date.now()));
 
