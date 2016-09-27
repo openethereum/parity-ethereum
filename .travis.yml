@@ -52,6 +52,10 @@ addons:
     - libdw-dev
     - gcc-4.8
     - g++-4.8
+    
+before_install: 
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update -q
 
 install:
   - ([ "$RUN_COVERAGE" = "false" ]) || (test -x $KCOV_CMD) || (
