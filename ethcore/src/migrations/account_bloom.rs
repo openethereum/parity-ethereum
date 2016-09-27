@@ -25,18 +25,18 @@ use util::migration::Error;
 use util::journaldb;
 use util::{H256, FixedHash, Hashable, BytesConvertable};
 use util::{Database, DatabaseConfig, DBTransaction, CompactionProfile};
-use std::path::PathBuf;
+use std::path::Path;
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.
 /// Can be called on upgraded database with no issues (will do nothing).
-pub fn upgrade_account_bloom(db_path: PathBuf) -> Result<(), Error> {
+pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	let path = try!(db_path.to_str().ok_or(Error::MigrationImpossible));
 	let source = try!(Database::open(&DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
 		compaction: CompactionProfile::default(),
-		columns: None,
+		columns: DB_NO_OF_COLUMNS,
 		wal: true,
 	}, path));
 
@@ -51,7 +51,7 @@ pub fn upgrade_account_bloom(db_path: PathBuf) -> Result<(), Error> {
 			trace!(target: "migration", "No best block, skipping");
 			return Ok(())
 		},
-		Some(ref x) => x.to_vec(),
+		Some(x) => x,
 	};
 	let state_root = HeaderView::new(&best_block_header).state_root();
 
