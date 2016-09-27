@@ -36,8 +36,12 @@ class Container extends Component {
   };
 
   componentDidMount () {
-    this.props.actions.addresses.fetch();
-    this.props.actions.fetchContract();
+    Promise.all([
+      this.props.actions.addresses.fetch(),
+      this.props.actions.fetchContract()
+    ]).then(() => {
+      this.props.actions.events.subscribe('Reserved');
+    });
   }
 
   render () {
