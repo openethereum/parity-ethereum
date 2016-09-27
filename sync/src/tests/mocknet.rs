@@ -325,7 +325,6 @@ impl MockNet {
 	}
 
 	pub fn is_synced(&self, block: BlockNumber) {
-		println!("Is block {:?}", &block);
 		let hash = self.peer(0).client.chain_info().best_block_hash;
 		for p in &self.peers {
 			let ci = p.client.chain_info();

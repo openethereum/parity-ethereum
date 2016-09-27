@@ -24,9 +24,22 @@ use ethcore::client::BlockChainClient;
 fn authorities() -> Vec<H256> { vec!["1".sha3(), "2".sha3()] }
 
 #[test]
-fn three_peer_tx_seal() {
+fn two_auth() {
 	::env_logger::init().ok();
 	let mut net = MockNet::new_with_spec(2, authorities(), &Spec::new_test_round);
+	net.peer(1).issue_rand_tx();
+	net.sync();
+	sleep(Duration::from_secs(1));
+	net.sync();
+	println!("{:?}", net.peer(0).client.chain_info());
+	println!("{:?}", net.peer(1).client.chain_info());
+	net.is_synced(1);
+}
+
+#[test]
+fn one_auth_missing() {
+	::env_logger::init().ok();
+	let mut net = MockNet::new_with_spec(2, vec!["1".sha3()], &Spec::new_test_round);
 	net.peer(1).issue_rand_tx();
 	sleep(Duration::from_secs(1));
 	net.sync();
