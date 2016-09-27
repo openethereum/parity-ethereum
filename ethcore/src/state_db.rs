@@ -16,11 +16,12 @@
 
 use lru_cache::LruCache;
 use util::journaldb::JournalDB;
-use util::hash::{H256, H128k, FixedHash};
+use util::hash::H256;
 use util::hashdb::HashDB;
 use util::{Arc, Address, DBTransaction, UtilError, Mutex};
 use account::Account;
-use util::Hashable;
+use util::{Hashable, BytesConvertable};
+use bloomfilter::Bloom;
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -38,40 +39,50 @@ pub struct StateDB {
 	db: Box<JournalDB>,
 	account_cache: Arc<Mutex<AccountCache>>,
 	cache_overlay: Vec<(Address, Option<Account>)>,
-	account_bloom: Arc<Mutex<H128k>>,
+	account_bloom: Arc<Mutex<Bloom>>,
 	is_canon: bool,
 }
 
-pub const ACCOUNT_BLOOM_SPACE: usize = 16384;
-pub const ACCOUNT_BLOOM_HASHCOUNT: usize = 8;
+pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
+
+pub const ACCOUNT_BLOOM_SPACE_COLUMN: &'static[u8] = b"accounts_bloom";
+pub const ACCOUNT_BLOOM_HASHCOUNT_COLUMN: &'static[u8] = b"account_hash_count";
 
 impl StateDB {
 
-	fn new_account_bloom() -> H128k {
-		H128k::zero()
+	fn new_account_bloom() -> Bloom {
+		Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET)
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
 		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
-		bloom.contains_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3())
+		bloom.check(address.sha3().as_slice())
 	}
 
 	pub fn note_account_bloom(&self, address: &Address) {
 		trace!(target: "state_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
-		bloom.shift_bloomed(ACCOUNT_BLOOM_HASHCOUNT, &address.sha3());
+		bloom.set(address.sha3().as_slice());
 	}
 
 	/// Create a new instance wrapping `JournalDB`
 	pub fn new(db: Box<JournalDB>) -> StateDB {
-		let bloom = match db.backing().get(None, b"accounts_bloom").expect("Low-level database error") {
+		let bloom = match db.backing().get(None, ACCOUNT_BLOOM_SPACE_COLUMN).expect("Low-level database error") {
 			Some(val) => {
 				if val.len() != ACCOUNT_BLOOM_SPACE {
 					Self::new_account_bloom()
 				}
 				else {
-					H128k::from_slice(&val)
+					let hash_count_bytes  =
+						db.backing()
+							.get(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN)
+							.expect("Low-level database error")
+							.expect("account_bloom present but account_hash_count is not");
+					assert_eq!(hash_count_bytes.len(), 1);
+					let hash_count = hash_count_bytes[0];
+					Bloom::from_bytes(&val, hash_count as u32)
 				}
 			}
 			None => Self::new_account_bloom(),
@@ -90,9 +101,10 @@ impl StateDB {
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		// commit bloom
-		let transaction = DBTransaction::new(self.db.backing());
-		try!(transaction.put(None, b"accounts_bloom", &self.account_bloom.lock()));
-		try!(self.db.backing().write(transaction));
+		let (bloom_bytes, hash_count) = self.account_bloom.lock().to_bytes();
+		try!(batch.put(None, ACCOUNT_BLOOM_SPACE_COLUMN, &bloom_bytes));
+		assert!(hash_count <= 255);
+		try!(batch.put(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![hash_count as u8]));
 
 		// commit cache
 		let records = try!(self.db.commit(batch, now, id, end));

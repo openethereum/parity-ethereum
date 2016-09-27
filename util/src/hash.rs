@@ -579,7 +579,6 @@ impl_hash!(H512, 64);
 impl_hash!(H520, 65);
 impl_hash!(H1024, 128);
 impl_hash!(H2048, 256);
-impl_hash!(H128k, 16384);
 
 // Specialized HashMap and HashSet
 

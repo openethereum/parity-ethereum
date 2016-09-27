@@ -101,6 +101,7 @@ extern crate ethcore_devtools as devtools;
 extern crate rand;
 extern crate bit_set;
 extern crate lru_cache;
+extern crate bloomfilter;
 
 #[cfg(feature = "jit" )] extern crate evmjit;
 
