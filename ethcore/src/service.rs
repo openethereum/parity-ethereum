@@ -83,7 +83,10 @@ impl ClientService {
 
 		// give all rocksdb cache to state column; everything else has its
 		// own caches.
-		db_config.set_cache(::db::COL_STATE, config.db_cache_size);
+		if let Some(size) = config.db_cache_size {
+			db_config.set_cache(::db::COL_STATE, size);
+		}
+
 		db_config.compaction = config.db_compaction.compaction_profile();
 		db_config.wal = config.db_wal;
 
@@ -93,7 +96,7 @@ impl ClientService {
 		let snapshot_params = SnapServiceParams {
 			engine: spec.engine.clone(),
 			genesis_block: spec.genesis_block(),
-			db_config: db_config,
+			db_config: db_config.clone(),
 			pruning: pruning,
 			channel: io_service.channel(),
 			snapshot_root: snapshot_path.into(),

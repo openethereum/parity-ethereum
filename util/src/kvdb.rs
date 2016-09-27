@@ -167,7 +167,7 @@ impl DatabaseConfig {
 	}
 
 	/// Set the column cache size in MiB.
-	pub fn with_cache(&mut self, col: Option<u32>, size: usize) {
+	pub fn set_cache(&mut self, col: Option<u32>, size: usize) {
 		self.cache_sizes.insert(col, size);
 	}
 }
