@@ -180,7 +180,6 @@ fn consolidate_database(
 	Ok(())
 }
 
-
 /// Migrates database at given position with given migration rules.
 fn migrate_database(version: u32, db_path: PathBuf, mut migrations: MigrationManager) -> Result<(), Error> {
 	// check if migration is needed

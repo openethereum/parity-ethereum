@@ -23,3 +23,6 @@ pub mod extras;
 mod v9;
 pub use self::v9::ToV9;
 pub use self::v9::Extract;
+
+mod account_bloom;
+pub use self::account_bloom::migrate_add_account_bloom;
