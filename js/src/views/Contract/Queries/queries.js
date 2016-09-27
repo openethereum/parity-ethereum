@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
+import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQueries from './input-queries';
 import { Container, ContainerTitle } from '../../../ui';
@@ -63,9 +64,6 @@ export default class Queries extends Component {
         <ContainerTitle title='queries' />
         <div className={ styles.methods }>
           { noInputQueries }
-        </div>
-        <br />
-        <div className={ styles.methods }>
           { withInputQueries }
         </div>
       </Container>
@@ -93,10 +91,16 @@ export default class Queries extends Component {
 
     return (
       <div
-        key={ fn.signature }
-        className={ styles.method }>
-        <p>{ fn.name }</p>
-        { this.renderValue(values[fn.name]) }
+        key={ fn.signature }>
+        <Card style={ {
+          backgroundColor: 'rgba(48, 48, 48, 0.5)',
+          margin: '1rem'
+        } }>
+          <CardTitle title={ fn.name } />
+          <CardText>
+            { this.renderValue(values[fn.name]) }
+          </CardText>
+        </Card>
       </div>
     );
   }

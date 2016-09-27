@@ -19,9 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
 import TextField from 'material-ui/TextField';
 import LinearProgress from 'material-ui/LinearProgress';
-import RaisedButton from 'material-ui/RaisedButton';
-
-import styles from '../contract.css';
+import FlatButton from 'material-ui/FlatButton';
+import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
 export default class InputQueries extends Component {
   static contextTypes = {
@@ -48,35 +47,51 @@ export default class InputQueries extends Component {
     const inputsFields = inputs
       .map(input => this.renderInput(input));
 
-    return (<div>
-      { name }
-      { this.renderResults() }
-      { inputsFields }
-      <RaisedButton
-        label='Execute'
-        disabled={ !isValid }
-        primary
-        onClick={ this.onClick }
-      />
-    </div>);
+    return (
+      <Card style={ {
+        backgroundColor: 'rgba(48, 48, 48, 0.5)',
+        margin: '1rem'
+      } }>
+        <CardTitle title={ name } />
+        <CardText>
+          { this.renderResults() }
+          { inputsFields }
+        </CardText>
+        <CardActions>
+          <FlatButton
+            label='Execute'
+            disabled={ !isValid }
+            primary
+            onTouchTap={ this.onClick } />
+        </CardActions>
+      </Card>
+    );
   }
 
   renderResults () {
     const { results, isLoading } = this.state;
-console.log(this.props.outputs);
+    const { outputs } = this.props;
+
     if (isLoading) {
       return (<LinearProgress mode='indeterminate' />);
     }
 
     if (!results || results.length < 1) return null;
 
-    return results.map((result, index) => (
-      <Chip
-        key={ index }
-      >
-        { this.renderValue(result) }
-      </Chip>
-    ));
+    return outputs
+      .map((out, index) => ({
+        name: out.name,
+        value: results[index]
+      }))
+      .map((out, index) => (<div key={ index }>
+        <div>{ out.name }</div>
+        <Chip labelStyle={ {
+          userSelect: 'text'
+        } }>
+          { this.renderValue(out.value) }
+        </Chip>
+        <br />
+      </div>));
   }
 
   renderInput (input) {
@@ -108,23 +123,22 @@ console.log(this.props.outputs);
   }
 
   renderValue (value) {
-    if (!value) return null;
+    if (!value) return 'no data';
 
     const { api } = this.context;
-    let valueToDisplay = value.toString();
 
     if (api.util.isInstanceOf(value, BigNumber)) {
-      valueToDisplay = value.toFormat(0);
+      return value.toFormat(0);
     } else if (api.util.isArray(value)) {
-      valueToDisplay = api.util.bytesToHex(value);
+      return api.util.bytesToHex(value);
     }
 
-    return (<Chip>{ valueToDisplay }</Chip>);
+    return value.toString();
   }
 
   onClick = () => {
     const { values } = this.state;
-    const { inputs, contract, name } = this.props;
+    const { inputs, contract, name, outputs } = this.props;
 
     this.setState({
       isLoading: true,
@@ -137,9 +151,13 @@ console.log(this.props.outputs);
       .instance[name]
       .call({}, inputValues)
       .then(results => {
+        if (outputs.length === 1) {
+          results = [ results ];
+        }
+
         this.setState({
           isLoading: false,
-          results: [].concat(results)
+          results
         });
       })
       .catch(e => {
