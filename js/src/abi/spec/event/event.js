@@ -26,11 +26,18 @@ export default class Event {
     this._name = abi.name;
     this._inputs = EventParam.toEventParams(abi.inputs || []);
     this._anonymous = !!abi.anonymous;
-    this._signature = eventSignature(this._name, this.inputParamTypes());
+
+    const { id, signature } = eventSignature(this._name, this.inputParamTypes());
+    this._id = id;
+    this._signature = signature;
   }
 
   get name () {
     return this._name;
+  }
+
+  get id () {
+    return this._id;
   }
 
   get inputs () {

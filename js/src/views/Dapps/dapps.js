@@ -52,6 +52,12 @@ class Dapps extends Component {
         address: '0x1AE76cf6Ee3955F773C429801a203f08c84B7cc5',
         description: 'A registry of transactable tokens on the network',
         url: 'tokenreg'
+      },
+      {
+        name: 'Method Registry',
+        address: '0x2b7E4db4AD1B3D550Ac6111C122EE9cf65c14AcB',
+        description: 'A registry of method signatures for lookups on transactions',
+        url: 'signaturereg'
       }
     ]
   }
