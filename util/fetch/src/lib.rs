@@ -14,12 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Test rpc services.
+//! A service to fetch any HTTP / HTTPS content.
 
-mod sync_provider;
-mod miner_service;
-mod fetch;
+#[macro_use]
+extern crate log;
+extern crate hyper;
+extern crate https_fetch;
+extern crate rand;
 
-pub use self::sync_provider::{Config, TestSyncProvider};
-pub use self::miner_service::TestMinerService;
-pub use self::fetch::TestFetch;
+
+pub mod client;
+pub mod fetch_file;
+
+pub use self::client::{Client, Fetch, FetchError, FetchResult};

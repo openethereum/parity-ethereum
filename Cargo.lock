@@ -317,7 +317,7 @@ dependencies = [
  "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
  "ethcore-util 1.4.0",
- "https-fetch 0.1.0",
+ "fetch 0.1.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
@@ -466,6 +466,7 @@ dependencies = [
  "ethkey 0.2.0",
  "ethstore 0.1.0",
  "ethsync 1.4.0",
+ "fetch 0.1.0",
  "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
@@ -640,6 +641,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "fetch"
+version = "0.1.0"
+dependencies = [
+ "https-fetch 0.1.0",
+ "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "flate2"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -690,7 +701,7 @@ version = "0.1.0"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
- "rustls 0.1.1 (git+https://github.com/ctz/rustls)",
+ "rustls 0.1.2 (git+https://github.com/ctz/rustls)",
 ]
 
 [[package]]
@@ -1345,7 +1356,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ring"
-version = "0.3.1"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1429,15 +1440,15 @@ dependencies = [
 
 [[package]]
 name = "rustls"
-version = "0.1.1"
-source = "git+https://github.com/ctz/rustls#a9c5a79f49337e22ac05bb1ea114240bdbe0fdd2"
+version = "0.1.2"
+source = "git+https://github.com/ctz/rustls#3d2db624997004b7b18ba4463d6081f37598b2f5"
 dependencies = [
  "base64 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "ring 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ring 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "webpki 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "webpki 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1788,10 +1799,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "webpki"
-version = "0.2.2"
+version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "ring 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ring 0.4.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "untrusted 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
