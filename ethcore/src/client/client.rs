@@ -25,13 +25,12 @@ use time::precise_time_ns;
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
 use util::journaldb::{self, JournalDB};
 use util::{U256, H256, Address, H2048, Uint};
-use util::sha3::*;
 use util::TrieFactory;
 use util::kvdb::*;
 
 // other
 use io::*;
-use views::{BlockView, HeaderView, BodyView};
+use views::{HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::State;
@@ -47,7 +46,7 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
-use block_queue::{BlockQueue, BlockQueueInfo};
+use verification::queue::{BlockQueue, QueueInfo as BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
@@ -805,7 +804,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.block_status(&hash),
+			Some(hash) => self.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
 		}
 	}
@@ -917,16 +916,21 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
+		use verification::queue::kind::HasHash;
+		use verification::queue::kind::blocks::Unverified;
+
+		// create unverified block here so the `sha3` calculation can be cached.
+		let unverified = Unverified::new(bytes);
+
 		{
-			let header = BlockView::new(&bytes).header_view();
-			if self.chain.read().is_known(&header.sha3()) {
+			if self.chain.read().is_known(&unverified.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+			if self.block_status(BlockID::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
+				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
-		Ok(try!(self.block_queue.import_block(bytes)))
+		Ok(try!(self.block_queue.import(unverified)))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {

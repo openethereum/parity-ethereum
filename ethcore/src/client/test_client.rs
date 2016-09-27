@@ -37,7 +37,7 @@ use evm::{Factory as EvmFactory, VMType};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 
-use block_queue::BlockQueueInfo;
+use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
 use error::CallError;
@@ -544,8 +544,8 @@ impl BlockChainClient for TestBlockChainClient {
 		Ok(h)
 	}
 
-	fn queue_info(&self) -> BlockQueueInfo {
-		BlockQueueInfo {
+	fn queue_info(&self) -> QueueInfo {
+		QueueInfo {
 			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
 			unverified_queue_size: 0,
 			verifying_queue_size: 0,
