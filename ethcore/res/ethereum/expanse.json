@@ -1,0 +1,62 @@
+{
+	"name": "Expanse",
+	"forkName": "expanse",
+	"engine": {
+		"Ethash": {
+			"params": {
+				"gasLimitBoundDivisor": "0x0400",
+				"minimumDifficulty": "0x020000",
+				"difficultyBoundDivisor": "0x0800",
+				"difficultyBoundDivisor2": "0x0200",
+				"durationLimit": "0x3C",
+				"blockReward": "0x4563918244F40000",
+				"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
+				"frontierCompatibilityModeLimit": "0x30d40",
+				"difficultyHardforkTransition": "0x59db",
+				"difficultyHardforkBoundDivisor": "60",
+				"bombDefuseTransition": "0x30d40"
+			}
+		}
+	},
+	"params": {
+		"accountStartNonce": "0x00",
+		"maximumExtraDataSize": "0x20",
+		"minGasLimit": "0x1388",
+		"networkID" : "0x1"
+	},
+	"genesis": {
+		"seal": {
+			"ethereum": {
+				"nonce": "0x214652414e4b4f21",
+				"mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000"
+			}
+		},
+		"difficulty": "0x40000000",
+		"author": "0x0000000000000000000000000000000000000000",
+		"timestamp": "0x00",
+		"parentHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+		"extraData": "0x4672616e6b6f497346726565646f6d",
+		"gasLimit": "0x1388",
+		"stateRoot": "0xc10a9483141b62388c2d2dd9cf5875a3cc0287d91f2946bc53a0b08ff42931cd"
+	},
+	"nodes": [
+		"enode://e809c4a2fec7daed400e5e28564e23693b23b2cc5a019b612505631bbe7b9ccf709c1796d2a3d29ef2b045f210caf51e3c4f5b6d3587d43ad5d6397526fa6179@174.112.32.157:30303",
+		"enode://687be94c3a7beaa3d2fde82fa5046cdeb3e8198354e05b29d6e0d4e276713e3707ac10f784a7904938b06b46c764875c241b0337dd853385a4d8bfcbf8190647@95.183.51.229:30303",
+		"enode://6e538e7c1280f0a31ff08b382db5302480f775480b8e68f8febca0ceff81e4b19153c6f8bf60313b93bef2cc34d34e1df41317de0ce613a201d1660a788a03e2@52.206.67.235:30303",
+		"enode://217ebe27e89bf4fec8ce06509323ff095b1014378deb75ab2e5f6759a4e8750a3bd8254b8c6833136e4d5e58230d65ee8ab34a5db5abf0640408c4288af3c8a7@188.138.1.237:30303"
+	],
+	"accounts": {
+		"bb94f0ceb32257275b2a7a9c094c13e469b4563e": {
+			"balance": "10000000000000000000000000"
+		},
+		"15656715068ab0dbdf0ab00748a8a19e40f28192": {
+			"balance": "1000000000000000000000000"
+		},
+		"c075fa11f85bda3aaba67106226aaf086ac16f4e": {
+			"balance": "100000000000000000000000"
+		},
+		"93decab0cd745598860f782ac1e8f046cb99e898": {
+			"balance": "10000000000000000000000"
+		}
+	}
+}

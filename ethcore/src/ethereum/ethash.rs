@@ -267,7 +267,14 @@ impl Ethash {
 		}
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
-		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
+		let difficulty_hardfork = match self.ethash_params.difficulty_hardfork_transition {
+			Some(n) if header.number() >= n => true,
+			_ => false,
+		};
+		let difficulty_bound_divisor = match self.ethash_params.difficulty_hardfork_bound_divisor {
+			Some(d) if difficulty_hardfork => d,
+			_ => self.ethash_params.difficulty_bound_divisor,
+		};
 		let duration_limit = self.ethash_params.duration_limit;
 		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
 
@@ -281,17 +288,23 @@ impl Ethash {
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp() - parent.timestamp()) / 10;
+			let diff_inc_divisor = self.ethash_params.difficulty_increment_divisor.unwrap_or(10);
+			let diff_inc = (header.timestamp() - parent.timestamp()) / diff_inc_divisor;
 			if diff_inc <= 1 {
-				parent.difficulty().clone() + parent.difficulty().clone() / From::from(2048) * From::from(1 - diff_inc)
+				parent.difficulty().clone() + parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(1 - diff_inc)
 			} else {
-				parent.difficulty().clone() - parent.difficulty().clone() / From::from(2048) * From::from(min(diff_inc - 1, 99))
+				parent.difficulty().clone() - parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(min(diff_inc - 1, 99))
 			}
 		};
 		target = max(min_difficulty, target);
-		let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
-		if period > 1 {
-			target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+		match self.ethash_params.bomb_defuse_transition {
+			Some(n) if header.number() >= n => {}
+			_ => {
+				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				if period > 1 {
+					target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+				}
+			}
 		}
 		target
 	}

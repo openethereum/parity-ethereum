@@ -42,6 +42,9 @@ pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
+/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
+
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
