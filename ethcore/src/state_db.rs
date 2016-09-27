@@ -18,8 +18,9 @@ use lru_cache::LruCache;
 use util::journaldb::JournalDB;
 use util::hash::{H256};
 use util::hashdb::HashDB;
-use util::{Arc, Address, DBTransaction, UtilError, Mutex};
+use util::{Arc, Address, DBTransaction, UtilError, Mutex, Hashable, BytesConvertable};
 use account::Account;
+use bloomfilter::Bloom;
 
 const STATE_CACHE_ITEMS: usize = 65536;
 
@@ -39,22 +40,71 @@ pub struct StateDB {
 	account_cache: Arc<Mutex<AccountCache>>,
 	cache_overlay: Vec<(Address, Option<Account>)>,
 	is_canon: bool,
+	account_bloom: Arc<Mutex<Bloom>>,
 }
+
+pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
+
+pub const ACCOUNT_BLOOM_SPACE_COLUMN: &'static[u8] = b"accounts_bloom";
+pub const ACCOUNT_BLOOM_HASHCOUNT_COLUMN: &'static[u8] = b"account_hash_count";
 
 impl StateDB {
 	/// Create a new instance wrapping `JournalDB`
 	pub fn new(db: Box<JournalDB>) -> StateDB {
+		let bloom = match db.backing().get(None, ACCOUNT_BLOOM_SPACE_COLUMN).expect("Low-level database error") {
+			Some(val) => {
+				if val.len() != ACCOUNT_BLOOM_SPACE {
+					Self::new_account_bloom()
+				}
+				else {
+					let hash_count_bytes  =
+						db.backing()
+							.get(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN)
+							.expect("Low-level database error")
+							.expect("account_bloom present but account_hash_count is not");
+					assert_eq!(hash_count_bytes.len(), 1);
+					let hash_count = hash_count_bytes[0];
+					Bloom::from_bytes(&val, hash_count as u32)
+				}
+			}
+			None => Self::new_account_bloom(),
+		};
+
 		StateDB {
 			db: db,
 			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
 			cache_overlay: Vec::new(),
 			is_canon: false,
+			account_bloom: Arc::new(Mutex::new(bloom)),
 		}
+	}
+
+	fn new_account_bloom() -> Bloom {
+		Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET)
+	}
+
+	pub fn check_account_bloom(&self, address: &Address) -> bool {
+		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
+		let bloom = self.account_bloom.lock();
+		bloom.check(address.sha3().as_slice())
+	}
+
+	pub fn note_account_bloom(&self, address: &Address) {
+		trace!(target: "state_bloom", "Note account bloom: {:?}", address);
+		let mut bloom = self.account_bloom.lock();
+		bloom.set(address.sha3().as_slice());
 	}
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		// commit bloom (does not matter if canonical or not)
+		let (bloom_bytes, hash_count) = self.account_bloom.lock().to_bytes();
+		try!(batch.put(None, ACCOUNT_BLOOM_SPACE_COLUMN, &bloom_bytes));
+		assert!(hash_count <= 255);
+		try!(batch.put(None, ACCOUNT_BLOOM_HASHCOUNT_COLUMN, &vec![hash_count as u8]));
+
 		let records = try!(self.db.commit(batch, now, id, end));
 		if self.is_canon {
 			self.commit_cache();
@@ -81,6 +131,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: false,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
@@ -91,6 +142,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
 			is_canon: true,
+			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
