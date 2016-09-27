@@ -37,6 +37,8 @@ pub struct CommonParams {
 	pub maximum_extra_data_size: usize,
 	/// Network id.
 	pub network_id: U256,
+	/// Main subprotocol name.
+	pub subprotocol_name: String,
 	/// Minimum gas limit.
 	pub min_gas_limit: U256,
 	/// Fork block to check.
@@ -49,6 +51,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			account_start_nonce: p.account_start_nonce.into(),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
+			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 		}
@@ -155,6 +158,9 @@ impl Spec {
 
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> U256 { self.params.network_id }
+
+	/// Get the configured Network ID.
+	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
 
 	/// Get the configured network fork block.
 	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
