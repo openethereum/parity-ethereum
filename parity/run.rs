@@ -145,11 +145,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	info!("State DB configuation: {}{}{}",
 		Colour::White.bold().paint(algorithm.as_str()),
 		match fat_db {
-			true => format!("{}", Colour::White.bold().paint(" +Fat")),
+			true => Colour::White.bold().paint(" +Fat").to_string(),
 			false => "".to_owned(),
 		},
 		match tracing {
-			true => format!("{}", Colour::White.bold().paint(" +Trace")),
+			true => Colour::White.bold().paint(" +Trace").to_string(),
 			false => "".to_owned(),
 		}
 	);
