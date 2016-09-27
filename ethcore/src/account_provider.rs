@@ -287,6 +287,21 @@ impl AccountProvider {
 		Ok(())
 	}
 
+	fn password(&self, account: &Address) -> Result<String, Error> {
+		let mut unlocked = self.unlocked.lock();
+		let data = try!(unlocked.get(account).ok_or(Error::NotUnlocked)).clone();
+		if let Unlock::Temp = data.unlock {
+			unlocked.remove(account).expect("data exists: so key must exist: qed");
+		}
+		if let Unlock::Timed((ref start, ref duration)) = data.unlock {
+			if start.elapsed() > Duration::from_millis(*duration as u64) {
+				unlocked.remove(account).expect("data exists: so key must exist: qed");
+				return Err(Error::NotUnlocked);
+			}
+		}
+		Ok(data.password.clone())
+	}
+
 	/// Unlocks account permanently.
 	pub fn unlock_account_permanently(&self, account: Address, password: String) -> Result<(), Error> {
 		self.unlock_account(account, password, Unlock::Perm)
@@ -310,49 +325,25 @@ impl AccountProvider {
 
 	/// Signs the message. Account must be unlocked.
 	pub fn sign(&self, account: Address, message: Message) -> Result<Signature, Error> {
-		let data = {
-			let mut unlocked = self.unlocked.lock();
-			let data = try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone();
-			if let Unlock::Temp = data.unlock {
-				unlocked.remove(&account).expect("data exists: so key must exist: qed");
-			}
-			if let Unlock::Timed((ref start, ref duration)) = data.unlock {
-				if start.elapsed() > Duration::from_millis(*duration as u64) {
-					unlocked.remove(&account).expect("data exists: so key must exist: qed");
-					return Err(Error::NotUnlocked);
-				}
-			}
-			data
-		};
-
-		let signature = try!(self.sstore.sign(&account, &data.password, &message));
-		Ok(signature)
+		let password = try!(self.password(&account));
+		self.sign_with_password(account, &password, message)
 	}
 
 	/// Decrypts a message. Account must be unlocked.
 	pub fn decrypt(&self, account: Address, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let data = {
-			let mut unlocked = self.unlocked.lock();
-			let data = try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone();
-			if let Unlock::Temp = data.unlock {
-				unlocked.remove(&account).expect("data exists: so key must exist: qed");
-			}
-			if let Unlock::Timed((ref start, ref duration)) = data.unlock {
-				if start.elapsed() > Duration::from_millis(*duration as u64) {
-					unlocked.remove(&account).expect("data exists: so key must exist: qed");
-					return Err(Error::NotUnlocked);
-				}
-			}
-			data
-		};
-
-		Ok(try!(self.sstore.decrypt(&account, &data.password, shared_mac, message)))
+		let password = try!(self.password(&account));
+		self.decrypt_with_password(account, &password, shared_mac, message)
 	}
 
-	/// Unlocks an account, signs the message, and locks it again.
-	pub fn sign_with_password(&self, account: Address, password: String, message: Message) -> Result<Signature, Error> {
-		let signature = try!(self.sstore.sign(&account, &password, &message));
-		Ok(signature)
+	/// Decrypts the message given password, without unlocking the account.
+	pub fn decrypt_with_password(&self, account: Address, password: &str, shared_mac: &[u8], message: &[u8])
+		-> Result<Vec<u8>, Error> {
+		Ok(try!(self.sstore.decrypt(&account, password, shared_mac, message)))
+	}
+
+	/// Signs the message given password, without unlocking the account.
+	pub fn sign_with_password(&self, account: Address, password: &str, message: Message) -> Result<Signature, Error> {
+		Ok(try!(self.sstore.sign(&account, password, &message)))
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.

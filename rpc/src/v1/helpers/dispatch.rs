@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::{Address, H256, U256, Uint};
+use util::{Address, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
@@ -22,7 +22,7 @@ use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
 use jsonrpc_core::{Error, Value, to_value};
 use v1::helpers::TransactionRequest;
-use v1::types::{H256 as RpcH256, H520 as RpcH520};
+use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes};
 use v1::helpers::errors;
 
 fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest) -> Transaction where C: MiningBlockChainClient, M: MinerService {
@@ -45,17 +45,23 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Sig
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = RpcH256::from(signed_transaction.hash());
 
-	let import = miner.import_own_transaction(client, signed_transaction);
-
-	import
+	miner.import_own_transaction(client, signed_transaction)
 		.map_err(errors::from_transaction_error)
 		.map(|_| hash)
 }
 
 pub fn signature_with_password(accounts: &AccountProvider, address: Address, hash: H256, pass: String) -> Result<Value, Error> {
-	accounts.sign_with_password(address, pass, hash)
+	accounts.sign_with_password(address, &pass, hash)
 		.map_err(errors::from_password_error)
-		.map(|hash| to_value(&RpcH520::from(hash)))
+		.map(RpcH520::from)
+		.map(to_value)
+}
+
+pub fn unlock_and_decrypt(accounts: &AccountProvider, address: Address, msg: Bytes, pass: String) -> Result<Value, Error> {
+	accounts.decrypt_with_password(address, &pass, &[0, 0], &msg)
+		.map_err(errors::from_password_error)
+		.map(RpcBytes::from)
+		.map(to_value)
 }
 
 pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, password: String) -> Result<Value, Error>
@@ -65,7 +71,7 @@ pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: Transactio
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
 		let hash = t.hash();
-		let signature = try!(account_provider.sign_with_password(address, password, hash).map_err(errors::from_password_error));
+		let signature = try!(account_provider.sign_with_password(address, &password, hash).map_err(errors::from_password_error));
 		t.with_signature(signature)
 	};
 

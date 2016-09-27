@@ -16,7 +16,7 @@
 
 //! Types used in Confirmations queue (Trusted Signer)
 
-use v1::types::{U256, TransactionRequest, H160, H256};
+use v1::types::{U256, TransactionRequest, H160, H256, Bytes};
 use v1::helpers;
 
 
@@ -47,6 +47,15 @@ pub struct SignRequest {
 	pub hash: H256,
 }
 
+/// Decrypt request
+#[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
+pub struct DecryptRequest {
+	/// Address
+	pub address: H160,
+	/// Message to decrypt
+	pub msg: Bytes,
+}
+
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
@@ -56,6 +65,9 @@ pub enum ConfirmationPayload {
 	/// Signature
 	#[serde(rename="sign")]
 	Sign(SignRequest),
+	/// Decryption
+	#[serde(rename="decrypt")]
+	Decrypt(DecryptRequest),
 }
 
 impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
@@ -65,6 +77,10 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 			helpers::ConfirmationPayload::Sign(address, hash) => ConfirmationPayload::Sign(SignRequest {
 				address: address.into(),
 				hash: hash.into(),
+			}),
+			helpers::ConfirmationPayload::Decrypt(address, msg) => ConfirmationPayload::Decrypt(DecryptRequest {
+				address: address.into(),
+				msg: msg.into(),
 			}),
 		}
 	}

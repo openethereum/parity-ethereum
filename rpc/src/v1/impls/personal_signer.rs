@@ -25,7 +25,7 @@ use v1::traits::PersonalSigner;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::params::expect_no_params;
-use v1::helpers::dispatch::{unlock_sign_and_dispatch, signature_with_password};
+use v1::helpers::dispatch::{unlock_sign_and_dispatch, signature_with_password, unlock_and_decrypt};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -92,7 +92,10 @@ impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: Mini
 						},
 						ConfirmationPayload::Sign(address, hash) => {
 							signature_with_password(&*accounts, address, hash, pass)
-						}
+						},
+						ConfirmationPayload::Decrypt(address, msg) => {
+							unlock_and_decrypt(&*accounts, address, msg, pass)
+						},
 					};
 					if let Ok(ref response) = result {
 						signer.request_confirmed(id, Ok(response.clone()));

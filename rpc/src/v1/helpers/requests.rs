@@ -103,4 +103,6 @@ pub enum ConfirmationPayload {
 	Transaction(FilledTransactionRequest),
 	/// Sign request
 	Sign(Address, H256),
+	/// Decrypt request
+	Decrypt(Address, Bytes),
 }

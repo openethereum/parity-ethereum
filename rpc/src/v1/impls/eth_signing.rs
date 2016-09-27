@@ -20,7 +20,7 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use util::{U256, Address, H256, Mutex};
+use util::{U256, Address, H256, Mutex, Bytes};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
 use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest, SignerService};
@@ -83,7 +83,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 
 			let accounts = take_weak!(self.accounts);
 			if accounts.is_unlocked(address) {
-				return Ok(DispatchResult::Value(to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
+				return Ok(DispatchResult::Value(to_value(accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
 			}
 
 			let signer = take_weak!(self.signer);
@@ -114,7 +114,20 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 	}
 
 	fn dispatch_decrypt(&self, params: Params) -> Result<DispatchResult, Error> {
-		unimplemented!()
+		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(address, msg)| {
+			let address: Address = address.into();
+			let msg: Bytes = msg.into();
+
+			let accounts = take_weak!(self.accounts);
+			if accounts.is_unlocked(address) {
+				return Ok(DispatchResult::Value(to_value(accounts.decrypt(address, &[0; 0], &msg).ok().map_or_else(RpcBytes::default, Into::into))))
+			}
+
+			let signer = take_weak!(self.signer);
+			signer.add_request(ConfirmationPayload::Decrypt(address, msg))
+				.map(DispatchResult::Promise)
+				.map_err(|_| errors::request_rejected_limit())
+		})
 	}
 }
 

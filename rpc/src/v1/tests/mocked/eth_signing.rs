@@ -284,7 +284,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 	let request = format!("{}0x{:?}{}",
 		r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":[""#,
 		public,
-		r#"", "0x01"], "id": 1}"#
+		r#"", "0x01020304"], "id": 1}"#
 	);
 	let encrypted: Success = serde_json::from_str(&tester.io.handle_request_sync(&request).unwrap()).unwrap();
 
@@ -296,8 +296,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 		encrypted.result,
 		r#"], "id": 1}"#
 	);
-	let response = r#"{"jsonrpc":"2.0","result":"0x01","id":1}"#;
-	println!("Request: {:?}", request);
+	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
@@ -313,12 +312,12 @@ fn should_add_decryption_to_the_queue() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_encryptMessage",
-		"params": ["0x"#.to_owned() + &format!("{:?}", acc.public()) + r#"",
-		"0x01"],
+		"method": "ethcore_decryptMessage",
+		"params": ["0x"#.to_owned() + &format!("{:?}", acc.address()) + r#"",
+		"0x012345"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x012345","id":1}"#;
 
 	// then
 	let async_result = tester.io.handle_request(&request).unwrap();
