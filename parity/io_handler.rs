@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use ethcore::client::Client;
 use ethcore::service::ClientIoMessage;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -31,6 +32,7 @@ pub struct ClientIoHandler {
 	pub net: Arc<ManageNetwork>,
 	pub accounts: Arc<AccountProvider>,
 	pub info: Arc<Informant>,
+	pub shutdown: Arc<AtomicBool>
 }
 
 impl IoHandler<ClientIoMessage> for ClientIoHandler {
@@ -39,8 +41,24 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 	}
 
 	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
-		if let INFO_TIMER = timer {
+		if timer == INFO_TIMER && !self.shutdown.load(Ordering::SeqCst) {
 			self.info.tick();
+		}
+	}
+}
+
+pub struct ImportIoHandler {
+	pub info: Arc<Informant>,
+}
+
+impl IoHandler<ClientIoMessage> for ImportIoHandler {
+	fn initialize(&self, io: &IoContext<ClientIoMessage>) {
+		io.register_timer(INFO_TIMER, 5000).expect("Error registering timer");
+	}
+
+	fn timeout(&self, _io: &IoContext<ClientIoMessage>, timer: TimerToken) {
+		if let INFO_TIMER = timer {
+			self.info.tick()
 		}
 	}
 }

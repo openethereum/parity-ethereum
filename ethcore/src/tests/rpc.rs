@@ -25,18 +25,23 @@ use devtools::*;
 use miner::Miner;
 use crossbeam;
 use io::IoChannel;
+use util::kvdb::DatabaseConfig;
 
 pub fn run_test_worker(scope: &crossbeam::Scope, stop: Arc<AtomicBool>, socket_path: &str) {
 	let socket_path = socket_path.to_owned();
 	scope.spawn(move || {
 		let temp = RandomTempPath::create_dir();
 		let spec = get_test_spec();
+		let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
 		let client = Client::new(
 			ClientConfig::default(),
 			&spec,
 			temp.as_path(),
 			Arc::new(Miner::with_spec(&spec)),
-			IoChannel::disconnected()).unwrap();
+			IoChannel::disconnected(),
+			&db_config
+		).unwrap();
 		let mut worker = nanoipc::Worker::new(&(client as Arc<BlockChainClient>));
 		worker.add_reqrep(&socket_path).unwrap();
 		while !stop.load(Ordering::Relaxed) {
@@ -51,7 +56,7 @@ fn can_handshake() {
 		let stop_guard = StopGuard::new();
 		let socket_path = "ipc:///tmp/parity-client-rpc-10.ipc";
 		run_test_worker(scope, stop_guard.share(), socket_path);
-		let remote_client = nanoipc::init_client::<RemoteClient<_>>(socket_path).unwrap();
+		let remote_client = nanoipc::generic_client::<RemoteClient<_>>(socket_path).unwrap();
 
 		assert!(remote_client.handshake().is_ok());
 	})
@@ -63,7 +68,7 @@ fn can_query_block() {
 		let stop_guard = StopGuard::new();
 		let socket_path = "ipc:///tmp/parity-client-rpc-20.ipc";
 		run_test_worker(scope, stop_guard.share(), socket_path);
-		let remote_client = nanoipc::init_client::<RemoteClient<_>>(socket_path).unwrap();
+		let remote_client = nanoipc::generic_client::<RemoteClient<_>>(socket_path).unwrap();
 
 		let non_existant_block = remote_client.block_header(BlockID::Number(999));
 

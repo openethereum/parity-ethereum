@@ -20,15 +20,20 @@ use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
+#[derive(Clone)]
 pub struct Redirection {
 	to_url: String
 }
 
 impl Redirection {
-	pub fn new(url: &str) -> Box<Self> {
-		Box::new(Redirection {
+	pub fn new(url: &str) -> Self {
+		Redirection {
 			to_url: url.to_owned()
-		})
+		}
+	}
+
+	pub fn boxed(url: &str) -> Box<Self> {
+		Box::new(Self::new(url))
 	}
 }
 

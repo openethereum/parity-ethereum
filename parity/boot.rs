@@ -54,16 +54,14 @@ pub fn payload<B: ipc::BinaryConvertable>() -> Result<B, BootError> {
 
 	let mut buffer = Vec::new();
 	try!(
-		io::stdin().read_to_end(&mut buffer)
-			.map_err(|io_err| BootError::ReadArgs(io_err))
+		io::stdin().read_to_end(&mut buffer).map_err(BootError::ReadArgs)
 	);
 
-	ipc::binary::deserialize::<B>(&buffer)
-		.map_err(|binary_error| BootError::DecodeArgs(binary_error))
+	ipc::binary::deserialize::<B>(&buffer).map_err(BootError::DecodeArgs)
 }
 
 pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> GuardedSocket<HypervisorServiceClient<NanoSocket>>{
-	let hypervisor_client = nanoipc::init_client::<HypervisorServiceClient<_>>(hv_url).unwrap();
+	let hypervisor_client = nanoipc::fast_client::<HypervisorServiceClient<_>>(hv_url).unwrap();
 	hypervisor_client.handshake().unwrap();
 	hypervisor_client.module_ready(module_id, control_url.to_owned());
 
@@ -73,7 +71,7 @@ pub fn register(hv_url: &str, control_url: &str, module_id: IpcModuleId) -> Guar
 pub fn dependency<C: WithSocket<NanoSocket>>(url: &str)
 	-> Result<GuardedSocket<C>, BootError>
 {
-	nanoipc::init_client::<C>(url).map_err(|socket_err| BootError::DependencyConnect(socket_err))
+	nanoipc::generic_client::<C>(url).map_err(BootError::DependencyConnect)
 }
 
 pub fn main_thread() -> Arc<AtomicBool> {

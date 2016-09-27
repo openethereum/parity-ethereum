@@ -18,6 +18,7 @@
 
 mod blocks;
 mod state;
+mod service;
 
 pub mod helpers;
 

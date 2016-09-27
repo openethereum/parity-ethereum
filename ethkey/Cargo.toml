@@ -1,7 +1,7 @@
 [package]
 name = "ethkey"
 version = "0.2.0"
-authors = ["debris <marek.kotewicz@gmail.com>"]
+authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
 rand = "0.3.14"
@@ -10,7 +10,7 @@ tiny-keccak = "1.0"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rustc-serialize = "0.3"
 docopt = { version = "0.6", optional = true }
-bigint = { path = "../util/bigint" }
+ethcore-bigint = { path = "../util/bigint" }
 
 [features]
 default = []

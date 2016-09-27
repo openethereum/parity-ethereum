@@ -103,6 +103,13 @@ impl DatabaseDirectories {
 		dir.push("user_defaults");
 		dir
 	}
+
+	/// Get the path for the snapshot directory given the genesis hash and fork name.
+	pub fn snapshot_path(&self) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push("snapshot");
+		dir
+	}
 }
 
 #[cfg(test)]

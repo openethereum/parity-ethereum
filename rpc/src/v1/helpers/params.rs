@@ -28,18 +28,11 @@ pub fn expect_no_params(params: Params) -> Result<(), Error> {
 	}
 }
 
-fn params_len(params: &Params) -> usize {
+/// Returns number of different parameters in given `Params` object.
+pub fn params_len(params: &Params) -> usize {
 	match params {
 		&Params::Array(ref vec) => vec.len(),
 		_ => 0,
-	}
-}
-
-/// Deserialize request parameters with optional second parameter `BlockNumber` defaulting to `BlockNumber::Latest`.
-pub fn from_params_default_second<F>(params: Params) -> Result<(F, BlockNumber, ), Error> where F: serde::de::Deserialize {
-	match params_len(&params) {
-		1 => from_params::<(F, )>(params).map(|(f,)| (f, BlockNumber::Latest)),
-		_ => from_params::<(F, BlockNumber)>(params),
 	}
 }
 

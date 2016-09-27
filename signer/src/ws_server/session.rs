@@ -22,7 +22,7 @@ use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
-use util::{H256, Mutex};
+use util::{H256, Mutex, version};
 
 #[cfg(feature = "ui")]
 mod signer {
@@ -59,7 +59,7 @@ fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	}
 }
 
-fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
+fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 	match protocols {
 		Ok(ref protocols) if protocols.len() == 1 => {
 			protocols.iter().any(|protocol| {
@@ -69,8 +69,15 @@ fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 
 				if let (Some(auth), Some(time)) = (auth, time) {
 					// Check if the code is valid
-					AuthCodes::from_file(codes)
-						.map(|codes| codes.is_valid(&auth, time))
+					AuthCodes::from_file(codes_path)
+						.map(|mut codes| {
+							let res = codes.is_valid(&auth, time);
+							// make sure to save back authcodes - it might have been modified
+							if let Err(_) = codes.to_file(codes_path) {
+								warn!(target: "signer", "Couldn't save authorization codes to file.");
+							}
+							res
+						})
 						.unwrap_or(false)
 				} else {
 					false
@@ -107,21 +114,32 @@ impl ws::Handler for Session {
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
 		let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
 		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
+		// Styles file is allowed for error pages to display nicely.
+		let is_styles_file = req.resource() == "/styles.css";
 
 		// Check request origin and host header.
 		if !self.skip_origin_validation {
-			if !origin_is_allowed(&self.self_origin, origin) && !(origin.is_none() && origin_is_allowed(&self.self_origin, host)) {
+			let is_valid = origin_is_allowed(&self.self_origin, origin) || (origin.is_none() && origin_is_allowed(&self.self_origin, host));
+			let is_valid = is_styles_file || is_valid;
+
+			if !is_valid {
 				warn!(target: "signer", "Blocked connection to Signer API from untrusted origin.");
-				return Ok(ws::Response::forbidden(format!("You are not allowed to access system ui. Use: http://{}", self.self_origin)));
+				return Ok(error(
+						ErrorType::Forbidden,
+						"URL Blocked",
+						"You are not allowed to access Trusted Signer using this URL.",
+						Some(&format!("Use: http://{}", self.self_origin)),
+				));
 			}
 		}
 
-		// Detect if it's a websocket request.
-		if req.header("sec-websocket-key").is_some() {
+		// Detect if it's a websocket request
+		// (styles file skips origin validation, so make sure to prevent WS connections on this resource)
+		if req.header("sec-websocket-key").is_some() && !is_styles_file {
 			// Check authorization
 			if !auth_is_valid(&self.authcodes_path, req.protocols()) {
 				info!(target: "signer", "Unauthorized connection to Signer API blocked.");
-				return Ok(ws::Response::forbidden("You are not authorized.".into()));
+				return Ok(error(ErrorType::Forbidden, "Not Authorized", "Request to this API was not authorized.", None));
 			}
 
 			let protocols = req.protocols().expect("Existence checked by authorization.");
@@ -137,7 +155,7 @@ impl ws::Handler for Session {
 		Ok(signer::handle(req.resource())
 			.map_or_else(
 				// return 404 not found
-				|| add_headers(ws::Response::not_found("Not found".into()), "text/plain"),
+				|| error(ErrorType::NotFound, "Not found", "Requested file was not found.", None),
 				// or serve the file
 				|f| add_headers(ws::Response::ok(f.content.into()), &f.mime)
 			))
@@ -188,4 +206,25 @@ impl ws::Factory for Factory {
 			authcodes_path: self.authcodes_path.clone(),
 		}
 	}
+}
+
+enum ErrorType {
+	NotFound,
+	Forbidden,
+}
+
+fn error(error: ErrorType, title: &str, message: &str, details: Option<&str>) -> ws::Response {
+	let content = format!(
+		include_str!("./error_tpl.html"),
+		title=title,
+		meta="",
+		message=message,
+		details=details.unwrap_or(""),
+		version=version(),
+	);
+	let res = match error {
+		ErrorType::NotFound => ws::Response::not_found(content),
+		ErrorType::Forbidden => ws::Response::forbidden(content),
+	};
+	add_headers(res, "text/html")
 }

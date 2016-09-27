@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::str::FromStr;
+use std::{str, fs};
 use std::time::Duration;
-use util::{contents, Address, U256, version_data};
+use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
@@ -38,7 +38,7 @@ impl Default for SpecType {
 	}
 }
 
-impl FromStr for SpecType {
+impl str::FromStr for SpecType {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -60,7 +60,10 @@ impl SpecType {
 			SpecType::Testnet => Ok(ethereum::new_morden()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
-			SpecType::Custom(ref file) => Ok(Spec::load(&try!(contents(file).map_err(|_| "Could not load specification file."))))
+			SpecType::Custom(ref filename) => {
+				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
+				Spec::load(file)
+			}
 		}
 	}
 }
@@ -77,7 +80,7 @@ impl Default for Pruning {
 	}
 }
 
-impl FromStr for Pruning {
+impl str::FromStr for Pruning {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -112,7 +115,7 @@ impl Default for ResealPolicy {
 	}
 }
 
-impl FromStr for ResealPolicy {
+impl str::FromStr for ResealPolicy {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -224,7 +227,7 @@ impl Default for Switch {
 	}
 }
 
-impl FromStr for Switch {
+impl str::FromStr for Switch {
 	type Err = String;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {

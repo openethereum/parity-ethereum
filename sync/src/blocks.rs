@@ -233,7 +233,7 @@ impl BlockCollection {
 	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
 		let body = UntrustedRlp::new(&b);
 		let tx = try!(body.at(0));
-		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
 		let uncles = try!(body.at(1)).as_raw().sha3();
 		let header_id = HeaderId {
 			transactions_root: tx_root,
