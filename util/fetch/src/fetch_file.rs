@@ -16,12 +16,11 @@
 
 //! Hyper Client Handler to Fetch File
 
-use std::{env, io, fs, fmt};
+use std::{io, fs, fmt};
 use std::path::PathBuf;
-use std::sync::{mpsc, Arc};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
-use random_filename;
 
 use hyper::status::StatusCode;
 use hyper::client::{Request, Response, DefaultTransport as HttpStream};
@@ -34,30 +33,31 @@ use super::FetchError;
 pub enum Error {
 	Aborted,
 	NotStarted,
+	SizeLimit,
 	UnexpectedStatus(StatusCode),
 	IoError(io::Error),
 	HyperError(hyper::Error),
 }
 
 pub type FetchResult = Result<PathBuf, FetchError>;
-pub type OnDone = Box<Fn() + Send>;
+pub type OnDone = Box<Fn(FetchResult) + Send>;
 
-pub struct Fetch {
+pub struct FetchHandler {
 	path: PathBuf,
 	abort: Arc<AtomicBool>,
 	file: Option<fs::File>,
 	result: Option<FetchResult>,
-	sender: mpsc::Sender<FetchResult>,
 	on_done: Option<OnDone>,
+	size_limit: Option<u64>,
 }
 
-impl fmt::Debug for Fetch {
+impl fmt::Debug for FetchHandler {
 	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
 		write!(f, "Fetch {{ path: {:?}, file: {:?}, result: {:?} }}", self.path, self.file, self.result)
 	}
 }
 
-impl Drop for Fetch {
+impl Drop for FetchHandler {
     fn drop(&mut self) {
 		let res = self.result.take().unwrap_or(Err(Error::NotStarted.into()));
 		// Remove file if there was an error
@@ -69,40 +69,35 @@ impl Drop for Fetch {
 			}
 		}
 		// send result
-		let _ = self.sender.send(res);
 		if let Some(f) = self.on_done.take() {
-			f();
+			f(res);
 		}
     }
 }
 
-impl Fetch {
-	pub fn new(sender: mpsc::Sender<FetchResult>, abort: Arc<AtomicBool>, on_done: OnDone) -> Self {
-		let mut dir = env::temp_dir();
-		dir.push(random_filename());
-
-		Fetch {
-			path: dir,
+impl FetchHandler {
+	pub fn new(path: PathBuf, abort: Arc<AtomicBool>, on_done: OnDone, size_limit: Option<u64>) -> Self {
+		FetchHandler {
+			path: path,
 			abort: abort,
 			file: None,
 			result: None,
-			sender: sender,
 			on_done: Some(on_done),
+			size_limit: size_limit,
 		}
 	}
-}
 
-impl Fetch {
 	fn is_aborted(&self) -> bool {
 		self.abort.load(Ordering::SeqCst)
 	}
+
 	fn mark_aborted(&mut self) -> Next {
 		self.result = Some(Err(Error::Aborted.into()));
 		Next::end()
 	}
 }
 
-impl hyper::client::Handler<HttpStream> for Fetch {
+impl hyper::client::Handler<HttpStream> for FetchHandler {
     fn on_request(&mut self, req: &mut Request) -> Next {
 		if self.is_aborted() {
 			return self.mark_aborted();
@@ -147,7 +142,19 @@ impl hyper::client::Handler<HttpStream> for Fetch {
 		}
         match io::copy(decoder, self.file.as_mut().expect("File is there because on_response has created it.")) {
             Ok(0) => Next::end(),
-            Ok(_) => read(),
+            Ok(bytes_read) => match self.size_limit {
+				None => read(),
+				// Check limit
+				Some(limit) if limit > bytes_read => {
+					self.size_limit = Some(limit - bytes_read);
+					read()
+				},
+				// Size limit reached
+				_ => {
+					self.result = Some(Err(Error::SizeLimit.into()));
+					Next::end()
+				},
+			},
             Err(e) => match e.kind() {
                 io::ErrorKind::WouldBlock => Next::read(),
                 _ => {

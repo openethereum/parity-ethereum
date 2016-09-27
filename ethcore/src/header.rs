@@ -295,6 +295,12 @@ impl Encodable for Header {
 	}
 }
 
+impl HeapSizeOf for Header {
+	fn heap_size_of_children(&self) -> usize {
+		self.extra_data.heap_size_of_children() + self.seal.heap_size_of_children()
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use rustc_serialize::hex::FromHex;

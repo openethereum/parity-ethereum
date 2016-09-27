@@ -210,7 +210,7 @@ impl Manager {
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
-			cache_size: None,
+			cache_sizes: Default::default(),
 			compaction: config.compaction_profile,
 			columns: columns,
 			wal: true,

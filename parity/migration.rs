@@ -160,7 +160,7 @@ fn consolidate_database(
 	let config = default_migration_settings(compaction_profile);
 	let mut db_config = DatabaseConfig {
 		max_open_files: 64,
-		cache_size: None,
+		cache_sizes: Default::default(),
 		compaction: config.compaction_profile,
 		columns: None,
 		wal: true,
