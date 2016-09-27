@@ -40,7 +40,7 @@
 }
 
 .transactions tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .transactions th {
@@ -90,7 +90,6 @@
 }
 
 .method {
-  opacity: 0.75;
   width: 40%;
 }
 
