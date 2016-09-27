@@ -44,35 +44,46 @@ export default class InputQueries extends Component {
   }
 
   render () {
-    const { inputs, name, className } = this.props;
+    const { name, className } = this.props;
+
+    return (
+      <Card
+        className={ className }
+        >
+        <CardTitle
+          className={ styles.methodTitle }
+          title={ name }
+        />
+        { this.renderContent() }
+      </Card>
+    );
+  }
+
+  renderContent () {
+    const { inputs } = this.props;
+
     const { isValid } = this.state;
 
     const inputsFields = inputs
       .map(input => this.renderInput(input));
 
-    return (
-      <Card className={ className }>
-        <CardTitle
-          className={ styles.methodTitle }
-          title={ name }
-        />
-        <CardText
-          className={ styles.methodContent }
-        >
-          <div className={ styles.methodResults }>
-            { this.renderResults() }
-          </div>
-          { inputsFields }
-        </CardText>
-        <CardActions>
-          <FlatButton
-            label='Execute'
-            disabled={ !isValid }
-            primary
-            onTouchTap={ this.onClick } />
-        </CardActions>
-      </Card>
-    );
+    return (<div>
+      <CardText
+        className={ styles.methodContent }
+      >
+        <div className={ styles.methodResults }>
+          { this.renderResults() }
+        </div>
+        { inputsFields }
+      </CardText>
+      <CardActions>
+        <FlatButton
+          label='Execute'
+          disabled={ !isValid }
+          primary
+          onTouchTap={ this.onClick } />
+      </CardActions>
+    </div>);
   }
 
   renderResults () {
@@ -122,6 +133,7 @@ export default class InputQueries extends Component {
           hintText={ kind.type }
           floatingLabelText={ name }
           floatingLabelFixed
+          fullWidth
           required
           onChange={ onChange }
         />

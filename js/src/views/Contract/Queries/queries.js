@@ -34,10 +34,6 @@ export default class Queries extends Component {
     values: PropTypes.object
   }
 
-  state = {
-    forms: {}
-  }
-
   render () {
     const { contract } = this.props;
 
@@ -75,7 +71,7 @@ export default class Queries extends Component {
   }
 
   renderInputQuery (fn) {
-    const { inputs, outputs } = fn;
+    const { inputs, outputs, name } = fn;
     const { contract } = this.props;
 
     return (
@@ -84,7 +80,7 @@ export default class Queries extends Component {
         className={ styles.method }
         inputs={ inputs }
         outputs={ outputs }
-        name={ fn.name }
+        name={ name }
         contract={ contract }
       />
     );
