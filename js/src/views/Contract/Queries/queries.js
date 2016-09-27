@@ -17,9 +17,8 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
-import TextField from 'material-ui/TextField';
-import RaisedButton from 'material-ui/RaisedButton';
 
+import InputQueries from './input-queries';
 import { Container, ContainerTitle } from '../../../ui';
 
 import styles from '../contract.css';
@@ -64,6 +63,9 @@ export default class Queries extends Component {
         <ContainerTitle title='queries' />
         <div className={ styles.methods }>
           { noInputQueries }
+        </div>
+        <br />
+        <div className={ styles.methods }>
           { withInputQueries }
         </div>
       </Container>
@@ -71,69 +73,16 @@ export default class Queries extends Component {
   }
 
   renderInputQuery (fn) {
-    const { inputs } = fn;
-
-    const inputsFields = inputs
-      .map(input => this.renderInput(fn.name, input));
-
-    const onClick = () => {
-      const form = this.state.forms[fn.name];
-      const inputsValue = inputs.map(input => {
-        if (!form) return null;
-        return form[input.name];
-      });
-
-      this.props
-        .contract.instance[fn.name]
-        .call({}, inputsValue)
-        .then(results => {
-          console.log(results);
-        })
-        .catch(e => {
-          console.error(`sending ${fn.name} with params`, inputsValue, e);
-        });
-    };
+    const { inputs, outputs } = fn;
+    const { contract } = this.props;
 
     return (
-      <div
-        key={ fn.signature }
-        >
-        { fn.name }
-        { inputsFields }
-        <RaisedButton
-          label='Execute'
-          primary
-          onClick={ onClick }
-        />
-      </div>
-    );
-  }
-
-  renderInput (fnName, input) {
-    const { name, kind } = input;
-    const onChange = (event) => {
-      const value = event.target.value;
-      const { forms } = this.state;
-
-      this.setState({
-        forms: {
-          ...forms,
-          [fnName]: {
-            ...forms[fnName],
-            [ name ]: value
-          }
-        }
-      });
-    };
-
-    return (
-      <div key={ name }>
-        <TextField
-          hintText={ kind.type }
-          floatingLabelText={ name }
-          floatingLabelFixed
-          required
-          onChange={ onChange }
+      <div key={ fn.signature }>
+        <InputQueries
+          inputs={ inputs }
+          outputs={ outputs }
+          name={ fn.name }
+          contract={ contract }
         />
       </div>
     );
