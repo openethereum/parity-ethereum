@@ -63,16 +63,16 @@ export default class Events extends Component {
     const { events } = this.state;
 
     return events.map((event) => {
-      const name = accountsInfo[event.params.owner]
-        ? accountsInfo[event.params.owner].name
-        : event.params.owver;
+      const name = accountsInfo[event.params.creator]
+        ? accountsInfo[event.params.creator].name
+        : event.params.creator;
 
       return (
         <tr className={ styles[event.state] } key={ event.key }>
           <td className={ styles.timestamp }>{ formatBlockTimestamp(event.block) }</td>
           <td className={ styles.blockNumber }>{ formatBlockNumber(event.blockNumber) }</td>
           <td className={ styles.owner }>
-            <IdentityIcon address={ event.params.owner } />
+            <IdentityIcon address={ event.params.creator } />
             <div>{ name }</div>
           </td>
           <td className={ styles.signature }>{ formatSignature(event.params.signature) }</td>
