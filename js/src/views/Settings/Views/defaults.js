@@ -22,7 +22,6 @@ import CommunicationContacts from 'material-ui/svg-icons/communication/contacts'
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import { isFunction } from '../../../api/util';
 import { SignerIcon } from '../../../ui';
 
 import styles from './views.css';
@@ -94,50 +93,55 @@ const defaultViews = {
     route: '/settings',
     value: 'settings',
     description: 'This view. Allows you to customize the application in term of options, operation and look and feel.'
-  },
-
-  getDefaultViews: () => {
-    const views = {};
-
-    Object.keys(this).forEach((id) => {
-      const view = this[id];
-
-      if (isFunction(view)) {
-        return;
-      }
-
-      views[id] = {
-        active: view.active || false
-      };
-    });
-
-    return views;
-  },
-
-  load: () => {
-    const defaults = this.getDefaults();
-    let data;
-
-    try {
-      const json = window.localStorage.getItem(LS_VIEWS) || {};
-
-      data = Object.assign(defaults, JSON.parse(json));
-    } catch (e) {
-      data = defaults;
-    }
-
-    return data;
-  },
-
-  save: (_data) => {
-    Object.keys(_data).forEach((id) => {
-      this.id.active = _data[id].active;
-    });
-
-    const data = defaultViews.getDefaults();
-
-    window.localStorage.setItem(LS_VIEWS, JSON.stringify(data));
   }
+};
+
+const getFixed = () => {
+  const views = {};
+
+  Object.keys(defaultViews).forEach((id) => {
+    if (defaultViews[id].fixed) {
+      views[id] = { active: true };
+    }
+  });
+
+  return views;
+};
+
+const getDefaults = () => {
+  const views = {};
+
+  Object.keys(defaultViews).forEach((id) => {
+    views[id] = {
+      active: defaultViews[id].active || false
+    };
+  });
+
+  return views;
+};
+
+defaultViews.load = () => {
+  const fixed = getFixed();
+  const defaults = getDefaults();
+  let data;
+
+  try {
+    const json = window.localStorage.getItem(LS_VIEWS) || {};
+
+    data = Object.assign(defaults, JSON.parse(json), fixed);
+  } catch (e) {
+    data = defaults;
+  }
+
+  return data;
+};
+
+defaultViews.save = (_data) => {
+  Object.keys(_data).forEach((id) => {
+    defaultViews.id.active = _data[id].active;
+  });
+
+  window.localStorage.setItem(LS_VIEWS, JSON.stringify(getDefaults()));
 };
 
 export default defaultViews;
