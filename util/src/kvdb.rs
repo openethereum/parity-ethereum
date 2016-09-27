@@ -219,6 +219,9 @@ impl Database {
 
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
+		// default cache size for columns not specified.
+		const DEFAULT_CACHE: usize = 2;
+
 		let mut opts = Options::new();
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
@@ -249,9 +252,10 @@ impl Database {
 				x => Some(x - 1),
 			};
 
-			if let Some(cache_size) = config.cache_sizes.get(&col_opt) {
+			{
+				let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
 				let mut block_opts = BlockBasedOptions::new();
-				// all goes to read cache
+				// all goes to read cache.
 				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 				opts.set_block_based_table_factory(&block_opts);
 			}
