@@ -22,11 +22,18 @@ use util::{Arc, Address, DBTransaction, UtilError, Mutex};
 use account::Account;
 use util::Hashable;
 
+const STATE_CACHE_ITEMS: usize = 65536;
+
 struct AccountCache {
 	accounts: LruCache<Address, Option<Account>>,
 }
 
 /// State database abstraction.
+/// Manages shared global state cache.
+/// A clone of `StateDB` may be created as canonical or not.
+/// For canonical clones cache changes are accumulated and applied
+/// on commit.
+/// For non-canonical clones cache is cleared on commit.
 pub struct StateDB {
 	db: Box<JournalDB>,
 	account_cache: Arc<Mutex<AccountCache>>,
@@ -72,22 +79,29 @@ impl StateDB {
 
 		StateDB {
 			db: db,
-			account_cache: Arc::new(Mutex::new(AccountCache {
-				accounts: LruCache::new(65536),
-			})),
+			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
+			cache_overlay: Vec::new(),
 			is_canon: false,
 			account_bloom: Arc::new(Mutex::new(bloom)),
-			cache_overlay: Vec::new(),
 		}
 	}
 
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	pub fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+		// commit bloom
 		let transaction = DBTransaction::new(self.db.backing());
 		try!(transaction.put(None, b"accounts_bloom", &self.account_bloom.lock()));
 		try!(self.db.backing().write(transaction));
-		self.db.commit(batch, now, id, end)
+
+		// commit cache
+		let records = try!(self.db.commit(batch, now, id, end));
+		if self.is_canon {
+			self.commit_cache();
+		} else {
+			self.clear_cache();
+		}
+		Ok(records)
 	}
 
 	/// Returns an interface to HashDB.
@@ -112,7 +126,7 @@ impl StateDB {
 	}
 
 	/// Clone the database for a canonical state.
-	pub fn canon_clone(&self) -> StateDB {
+	pub fn boxed_clone_canon(&self) -> StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
@@ -129,7 +143,7 @@ impl StateDB {
 
 	/// Heap size used.
 	pub fn mem_used(&self) -> usize {
-		self.db.mem_used()
+		self.db.mem_used() //TODO: + self.account_cache.lock().heap_size_of_children()
 	}
 
 	/// Returns underlying `JournalDB`.
@@ -137,11 +151,13 @@ impl StateDB {
 		&*self.db
 	}
 
+	/// Enqueue cache change.
 	pub fn cache_account(&mut self, addr: Address, data: Option<Account>) {
 		self.cache_overlay.push((addr, data));
 	}
 
-	pub fn commit_cache(&mut self) {
+	/// Apply pending cache changes.
+	fn commit_cache(&mut self) {
 		let mut cache = self.account_cache.lock();
 		for (address, account) in self.cache_overlay.drain(..) {
 			if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&address) {
@@ -154,11 +170,16 @@ impl StateDB {
 		}
 	}
 
-	pub fn clear_cache(&self) {
+	/// Clear the cache.
+	pub fn clear_cache(&mut self) {
+		self.cache_overlay.clear();
 		let mut cache = self.account_cache.lock();
 		cache.accounts.clear();
 	}
 
+	/// Get basic copy of the cached account. Does not include storage.
+	/// Returns 'None' if the state is non-canonical and cache is disabled
+	/// or if the account is not cached.
 	pub fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
 		if !self.is_canon {
 			return None;
@@ -167,6 +188,9 @@ impl StateDB {
 		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
+	/// Get value from a cached account.
+	/// Returns 'None' if the state is non-canonical and cache is disabled
+	/// or if the account is not cached.
 	pub fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
 		where F: FnOnce(Option<&mut Account>) -> U {
 		if !self.is_canon {

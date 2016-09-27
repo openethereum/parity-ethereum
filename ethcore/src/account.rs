@@ -16,7 +16,6 @@
 
 //! Single account in the system.
 
-use std::mem::replace;
 use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
@@ -24,6 +23,8 @@ use account_db::*;
 use lru_cache::LruCache;
 
 use std::cell::{RefCell, Cell};
+
+const STORAGE_CACHE_ITEMS: usize = 4096;
 
 /// Single account in the system.
 pub struct Account {
@@ -33,9 +34,11 @@ pub struct Account {
 	nonce: U256,
 	// Trie-backed storage.
 	storage_root: H256,
-	// Cache of trie-backed storage
+	// LRU Cache of the trie-backed storage.
+	// This is limited to `STORAGE_CACHE_ITEMS` recent queries
 	storage_cache: RefCell<LruCache<H256, H256>>,
-	// Modified storage
+	// Modified storage. Accumulates changes to storage made in `set_storage`
+	// Takes precedence over `storage_cache`.
 	storage_changes: HashMap<H256, H256>,
 	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
 	code_hash: Option<H256>,
@@ -68,7 +71,7 @@ impl Account {
 	}
 
 	fn empty_storage_cache() -> RefCell<LruCache<H256, H256>> {
-		RefCell::new(LruCache::new(4096))
+		RefCell::new(LruCache::new(STORAGE_CACHE_ITEMS))
 	}
 
 	/// General constructor.
@@ -169,6 +172,7 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
+	/// Takes modifed storage into account.
 	pub fn storage_at(&self, db: &AccountDB, key: &H256) -> H256 {
 		if let Some(value) = self.storage_changes.get(key) {
 			return value.clone()
@@ -190,9 +194,16 @@ impl Account {
 		value
 	}
 
-	/// Get cahnged storage value if any.
-	pub fn modified_storage_at(&self, key: &H256) -> Option<H256> {
-		self.storage_changes.get(key).cloned()
+	/// Get cached storage value if any. Returns `None` if the
+	/// key is not in the cache.
+	pub fn cached_storage_at(&self, key: &H256) -> Option<H256> {
+		if let Some(value) = self.storage_changes.get(key) {
+			return Some(value.clone())
+		}
+		if let Some(value) = self.storage_cache.borrow_mut().get_mut(key) {
+			return Some(value.clone())
+		}
+		None
 	}
 
 	/// return the balance associated with this account.
@@ -255,11 +266,12 @@ impl Account {
 
 	/// Is this a new or modified account?
 	pub fn is_dirty(&self) -> bool {
-		self.filth == Filth::Dirty
+		self.filth == Filth::Dirty || !self.storage_is_clean()
 	}
 
 	/// Mark account as clean.
 	pub fn set_clean(&mut self) {
+		assert!(self.storage_is_clean());
 		self.filth = Filth::Clean
 	}
 
@@ -405,20 +417,32 @@ impl Account {
 	pub fn clone_dirty(&self) -> Account {
 		let mut account = self.clone_basic();
 		account.storage_changes = self.storage_changes.clone();
+		account.code_cache = self.code_cache.clone();
+		account
+	}
+
+	/// Clone account data, dirty storage keys and cached storage keys.
+	pub fn clone_all(&self) -> Account {
+		let mut account = self.clone_dirty();
+		account.storage_cache = self.storage_cache.clone();
 		account
 	}
 
 	/// Replace self with the data from other account merging storage cache
-	pub fn merge_with(&mut self, mut other: Account) {
+	pub fn merge_with(&mut self, other: Account) {
 		assert!(self.storage_is_clean());
 		assert!(other.storage_is_clean());
-		let mut our_cache = replace(&mut self.storage_cache, Self::empty_storage_cache()).into_inner();
-		let updated_cache = replace(&mut other.storage_cache, Self::empty_storage_cache()).into_inner();
-		for (k, v) in updated_cache.into_iter() {
-			our_cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
+		self.balance = other.balance;
+		self.nonce = other.nonce;
+		self.storage_root = other.storage_root;
+		self.code_hash = other.code_hash;
+		self.code_cache = other.code_cache;
+		self.code_size = other.code_size;
+		self.address_hash = other.address_hash;
+		let mut cache = self.storage_cache.borrow_mut();
+		for (k, v) in other.storage_cache.into_inner().into_iter() {
+			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
-		*self = other;
-		self.storage_cache = RefCell::new(our_cache);
 	}
 }
 
