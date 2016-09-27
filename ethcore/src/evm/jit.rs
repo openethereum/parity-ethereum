@@ -18,6 +18,7 @@
 use common::*;
 use evmjit;
 use evm::{self, GasLeft};
+use types::executed::CallType;
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
@@ -77,10 +78,11 @@ impl IntoJit<evmjit::I256> for U256 {
 impl IntoJit<evmjit::I256> for H256 {
 	fn into_jit(self) -> evmjit::I256 {
 		let mut ret = [0; 4];
-		for i in 0..self.bytes().len() {
-			let rev = self.bytes().len() - 1 - i;
+		let len = self.len();
+		for i in 0..len {
+			let rev = len - 1 - i;
 			let pos = rev / 8;
-			ret[pos] += (self.bytes()[i] as u64) << ((rev % 8) * 8);
+			ret[pos] += (self[i] as u64) << ((rev % 8) * 8);
 		}
 		evmjit::I256 { words: ret }
 	}
@@ -206,6 +208,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let sender_address = unsafe { Address::from_jit(&*sender_address) };
 		let receive_address = unsafe { Address::from_jit(&*receive_address) };
 		let code_address = unsafe { Address::from_jit(&*code_address) };
+		// TODO Is it always safe in case of DELEGATE_CALL?
 		let transfer_value = unsafe { U256::from_jit(&*transfer_value) };
 		let value = Some(transfer_value);
 
@@ -239,6 +242,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		}
 
+		// TODO [ToDr] Any way to detect DelegateCall?
+		let call_type = match is_callcode {
+			true => CallType::CallCode,
+			false => CallType::Call,
+		};
+
 		match self.ext.call(
 					  &call_gas,
 					  &sender_address,
@@ -246,7 +255,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 					  value,
 					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
 					  &code_address,
-					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
+					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) },
+					  call_type,
+					  ) {
 			evm::MessageCallResult::Success(gas_left) => unsafe {
 				*io_gas = (gas + gas_left).low_u64();
 				true
