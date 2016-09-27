@@ -73,7 +73,9 @@ impl StateDB {
 				.unwrap_or(0u64);
 		}
 
-		Bloom::from_parts(&bloom_parts, hash_count as u32)
+		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
+		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions number = {:?}", bloom.how_full(), hash_count);
+		bloom
 	}
 
 	/// Create a new instance wrapping `JournalDB`
@@ -89,13 +91,13 @@ impl StateDB {
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
-		trace!(target: "state_bloom", "Check account bloom: {:?}", address);
+		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
 		bloom.check(address.sha3().as_slice())
 	}
 
 	pub fn note_account_bloom(&self, address: &Address) {
-		trace!(target: "state_bloom", "Note account bloom: {:?}", address);
+		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
 		bloom.set(address.sha3().as_slice());
 	}
