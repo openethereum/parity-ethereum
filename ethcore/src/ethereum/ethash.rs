@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;
@@ -180,6 +180,10 @@ impl Engine for Ethash {
 			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
 
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);		
+		}		
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -229,6 +233,7 @@ impl Engine for Ethash {
 		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, Ethash::from_ethash(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), Ethash::from_ethash(result.mix_hash), Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
