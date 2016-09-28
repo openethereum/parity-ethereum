@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import ParityBar from '../ParityBar';
+
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
@@ -74,6 +76,7 @@ class Application extends Component {
           pending={ pending } />
         { children }
         <Status />
+        <ParityBar />
       </Container>
     );
   }

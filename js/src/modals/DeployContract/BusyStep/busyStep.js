@@ -20,8 +20,7 @@ import styles from '../deployContract.css';
 
 export default class BusyStep extends Component {
   static propTypes = {
-    deployState: PropTypes.string,
-    showSigner: PropTypes.bool
+    deployState: PropTypes.string
   }
 
   render () {
@@ -32,21 +31,6 @@ export default class BusyStep extends Component {
         <div>
           The deployment is currently in progress, { deployState }
         </div>
-        { this.renderSigner() }
-      </div>
-    );
-  }
-
-  renderSigner () {
-    const { showSigner } = this.props;
-
-    if (!showSigner) {
-      return null;
-    }
-
-    return (
-      <div>
-        Visit the Signer to <a href='/#/signer' target='_blank'>authenticate the transaction</a>.
       </div>
     );
   }

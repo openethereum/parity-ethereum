@@ -16,15 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '../../ui';
 
-import CompletedStep from './CompletedStep';
 import DetailsStep from './DetailsStep';
-
-const steps = ['function execute', 'completed'];
 
 export default class ExecuteContract extends Component {
   static contextTypes = {
@@ -61,14 +57,13 @@ export default class ExecuteContract extends Component {
   }
 
   render () {
-    const { step } = this.state;
+    const { sending } = this.state;
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        current={ step }
-        steps={ steps }
-        waiting={ [1] }
+        title='execute function'
+        busy={ sending }
         visible>
         { this.renderStep() }
       </Modal>
@@ -77,60 +72,38 @@ export default class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { step, sending } = this.state;
+    const { sending } = this.state;
 
-    switch (step) {
-      case 0:
-        return [
-          <Button
-            key='cancel'
-            label='Cancel'
-            icon={ <ContentClear /> }
-            onClick={ onClose } />,
-          <Button
-            key='postTransaction'
-            label='post transaction'
-            disabled={ sending }
-            icon={ <IdentityIcon address={ fromAddress } button /> }
-            onClick={ this.postTransaction } />
-        ];
-
-      case 1:
-        return [
-          <Button
-            key='close'
-            label='close'
-            icon={ <ActionDoneAll /> }
-            onClick={ onClose } />
-        ];
-    }
+    return [
+      <Button
+        key='cancel'
+        label='Cancel'
+        icon={ <ContentClear /> }
+        onClick={ onClose } />,
+      <Button
+        key='postTransaction'
+        label='post transaction'
+        disabled={ sending }
+        icon={ <IdentityIcon address={ fromAddress } button /> }
+        onClick={ this.postTransaction } />
+    ];
   }
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { step } = this.state;
 
-    switch (step) {
-      case 0:
-        return (
-          <DetailsStep
-            { ...this.props }
-            { ...this.state }
-            onFromAddressChange={ onFromAddressChange }
-            onFuncChange={ this.onFuncChange }
-            onValueChange={ this.onValueChange } />
-        );
-      case 1:
-        return (
-          <CompletedStep />
-        );
-    }
+    return (
+      <DetailsStep
+        { ...this.props }
+        { ...this.state }
+        onFromAddressChange={ onFromAddressChange }
+        onFuncChange={ this.onFuncChange }
+        onValueChange={ this.onValueChange } />
+    );
   }
 
   onAmountChange = (event, amount) => {
-    this.setState({
-      amount
-    });
+    this.setState({ amount });
   }
 
   onFuncChange = (event, func) => {
@@ -180,23 +153,24 @@ export default class ExecuteContract extends Component {
 
   postTransaction = () => {
     const { api, store } = this.context;
-    const { fromAddress } = this.props;
+    const { fromAddress, onClose } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       from: fromAddress,
       value: api.util.toWei(amount || 0)
     };
 
-    this.setState({
-      sending: true,
-      step: 1
-    });
+    this.setState({ sending: true });
 
     func
       .estimateGas(options, values)
       .then((gas) => {
         options.gas = gas.mul(1.2).toFixed(0);
         return func.postTransaction(options, values);
+      })
+      .then(() => {
+        this.setState({ sending: false });
+        onClose();
       })
       .catch((error) => {
         console.error('postTransaction', error);

@@ -28,24 +28,33 @@ import styles from './parityBar.css';
 
 class ParityBar extends Component {
   static propTypes = {
-    pending: PropTypes.array
+    pending: PropTypes.array,
+    dapp: PropTypes.bool.isRequired
   }
 
   state = {
-    opened: false
+    opened: false,
+    lastCount: -1
   }
 
   componentWillReceiveProps (nextProps) {
+    const { lastCount } = this.state;
+
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
 
+    if (count === newCount) {
+      return;
+    }
+
     // Open when a request is added
     if (count < newCount) {
-      this.setState({ opened: true });
-
+      this.setState({ opened: lastCount !== -1, lastCount: newCount });
     // Close when no more requests pending
     } else if (newCount === 0 && count === 1) {
-      this.setState({ opened: false });
+      this.setState({ opened: false, lastCount: newCount });
+    } else {
+      this.setState({ lastCount: newCount });
     }
   }
 
@@ -58,6 +67,12 @@ class ParityBar extends Component {
   }
 
   renderBar () {
+    const { dapp } = this.props;
+
+    if (!dapp) {
+      return null;
+    }
+
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }

@@ -402,13 +402,14 @@ export default class Transfer extends Component {
   }
 
   onSend = () => {
-    this.onNext();
+    const { onClose } = this.props;
 
     this.setState({ sending: true }, () => {
       (this.state.isEth
         ? this._sendEth()
         : this._sendToken()
       ).then((txhash) => {
+        onClose();
         this.setState({
           sending: false,
           txhash

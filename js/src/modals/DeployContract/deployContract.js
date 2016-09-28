@@ -222,24 +222,24 @@ export default class DeployContract extends Component {
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
-        this.setState({ deployState: 'Preparing transaction for network transmission', showSigner: false });
+        this.setState({ deployState: 'Preparing transaction for network transmission' });
         return;
 
       case 'checkRequest':
-        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Signer', showSigner: true });
+        this.setState({ deployState: 'Waiting for confirmation of the transaction in the Parity Secure Signer' });
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for the contract to be deployed/mined', showSigner: false });
+        this.setState({ deployState: 'Waiting for the contract to be mined' });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating the contract deployment', showSigner: false });
+        this.setState({ deployState: 'Validating the contract deployment' });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'Contract deployment has been completed', showSigner: false });
+        this.setState({ deployState: 'Contract deployment has been completed' });
         return;
 
       default:
