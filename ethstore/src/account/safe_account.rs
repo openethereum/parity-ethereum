@@ -16,7 +16,7 @@
 
 use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
 use {json, Error, crypto};
-use crypto::{Keccak256};
+use crypto::Keccak256;
 use random::Random;
 use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 
@@ -107,6 +107,10 @@ impl Crypto {
 	}
 
 	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
+		if self.ciphertext.len() > 32 {
+			return Err(Error::InvalidSecret);
+		}
+
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
 			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
 			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r),
@@ -122,7 +126,8 @@ impl Crypto {
 
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut *secret)
+				let from = 32 - self.ciphertext.len();
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut (&mut *secret)[from..])
 			},
 		}
 
