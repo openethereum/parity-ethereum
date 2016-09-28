@@ -853,9 +853,12 @@ impl BlockChainClient for Client {
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
 		let chain = self.chain.read();
-		self.transaction_address(id).and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
+		self.transaction_address(id)
+			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
 			let t = chain.block_body(&address.block_hash)
-				.and_then(|block| BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index));
+				.and_then(|block| {
+					BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index)
+				});
 
 			match (t, chain.transaction_receipt(&address)) {
 				(Some(tx), Some(receipt)) => {
