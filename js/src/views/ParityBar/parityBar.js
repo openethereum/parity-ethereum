@@ -29,7 +29,7 @@ import styles from './parityBar.css';
 class ParityBar extends Component {
   static propTypes = {
     pending: PropTypes.array,
-    dapp: PropTypes.bool.isRequired
+    dapp: PropTypes.bool
   }
 
   state = {
@@ -47,10 +47,8 @@ class ParityBar extends Component {
       return;
     }
 
-    // Open when a request is added
     if (count < newCount) {
-      this.setState({ opened: lastCount !== -1, lastCount: newCount });
-    // Close when no more requests pending
+      this.setState({ opened: !count || lastCount !== -1, lastCount: newCount });
     } else if (newCount === 0 && count === 1) {
       this.setState({ opened: false, lastCount: newCount });
     } else {

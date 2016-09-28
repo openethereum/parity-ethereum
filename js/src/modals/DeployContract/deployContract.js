@@ -18,13 +18,13 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
-import BusyStep from './BusyStep';
-import CompletedStep from './CompletedStep';
 import DetailsStep from './DetailsStep';
 import ErrorStep from './ErrorStep';
+
+import styles from './deployContract.css';
 
 const steps = ['contract details', 'deployment', 'completed'];
 
@@ -114,7 +114,7 @@ export default class DeployContract extends Component {
 
   renderStep () {
     const { accounts } = this.props;
-    const { deployError, step } = this.state;
+    const { address, deployError, step, deployState } = this.state;
 
     if (deployError) {
       return (
@@ -137,12 +137,21 @@ export default class DeployContract extends Component {
 
       case 1:
         return (
-          <BusyStep { ...this.state } />
+          <BusyStep
+            title='The deployment is currently in progress'
+            state={ deployState } />
         );
 
       case 2:
         return (
-          <CompletedStep { ...this.state } />
+          <CompletedStep>
+            <div>Your contract has been deployed to</div>
+            <div>
+              <IdentityIcon address={ address } inline center className={ styles.identityicon } />
+              <div className={ styles.address }>{ address }</div>
+            </div>
+            <div>and has been added to your list of available contracts</div>
+          </CompletedStep>
         );
     }
   }

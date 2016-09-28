@@ -16,19 +16,23 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from '../deployContract.css';
+import styles from './busy.css';
 
-export default class CompletedStep extends Component {
+export default class Busy extends Component {
   static propTypes = {
-    address: PropTypes.string
+    title: PropTypes.string,
+    state: PropTypes.string,
+    children: PropTypes.node
   }
 
   render () {
-    const { address } = this.props;
+    const { children, title, state } = this.props;
 
     return (
       <div className={ styles.center }>
-        The contract has been deployed to { address } and added to your list of available contracts
+        <div className={ styles.title }>{ title }</div>
+        <div className={ styles.state }>{ state }</div>
+        { children }
       </div>
     );
   }
