@@ -16,9 +16,11 @@
 
 import { newError } from '../ui/Errors/actions';
 import { clearStatusLogs, toggleStatusLogs } from './providers/statusActions';
+import { toggleView } from '../views/Settings';
 
 export {
   newError,
   clearStatusLogs,
-  toggleStatusLogs
+  toggleStatusLogs,
+  toggleView
 };

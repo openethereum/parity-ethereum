@@ -15,8 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
-export default class ParityBackground extends Component {
+class ParityBackground extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
   }
@@ -24,17 +26,39 @@ export default class ParityBackground extends Component {
   static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
-    gradient: PropTypes.string
+    gradient: PropTypes.string,
+    seed: PropTypes.any,
+    settings: PropTypes.object.isRequired,
+    onClick: PropTypes.func
   }
 
   render () {
-    const { children, className, gradient } = this.props;
     const { muiTheme } = this.context;
+    const { children, className, gradient, seed, settings, onClick } = this.props;
+    const style = muiTheme.parity.getBackgroundStyle(gradient, seed || settings.backgroundSeed);
 
     return (
-      <div className={ className } style={ muiTheme.parity.getBackgroundStyle(gradient) }>
+      <div
+        className={ className }
+        style={ style }
+        onTouchTap={ onClick }>
         { children }
       </div>
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { settings } = state;
+
+  return { settings };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ParityBackground);

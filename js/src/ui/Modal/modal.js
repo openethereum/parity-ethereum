@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Dialog } from 'material-ui';
 
 import Container from '../Container';
@@ -26,7 +28,7 @@ const DIALOG_STYLE = { paddingTop: '1px' };
 
 import styles from './modal.css';
 
-export default class Modal extends Component {
+class Modal extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
   }
@@ -42,12 +44,14 @@ export default class Modal extends Component {
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
     ]),
-    visible: PropTypes.bool.isRequired
+    visible: PropTypes.bool.isRequired,
+    settings: PropTypes.object.isRequired
   }
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, className, current, children, scroll, steps, waiting, title, visible } = this.props;
+    const { actions, className, current, children, scroll, steps, waiting, title, visible, settings } = this.props;
+    const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
         current={ current }
@@ -67,7 +71,7 @@ export default class Modal extends Component {
         actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
         contentClassName={ styles.content }
-        contentStyle={ muiTheme.parity.getBackgroundStyle() }
+        contentStyle={ contentStyle }
         modal
         open={ visible }
         repositionOnUpdate={ false }
@@ -81,3 +85,18 @@ export default class Modal extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { settings } = state;
+
+  return { settings };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Modal);

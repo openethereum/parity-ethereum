@@ -14,34 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Account from './Account';
-import Accounts from './Accounts';
-import Address from './Address';
-import Addresses from './Addresses';
-import Application from './Application';
-import Contract from './Contract';
-import Contracts from './Contracts';
-import Dapp from './Dapp';
-import Dapps from './Dapps';
-import ParityBar from './ParityBar';
-import Settings, { SettingsBackground, SettingsViews } from './Settings';
-import Signer from './Signer';
-import Status from './Status';
+import { handleActions } from 'redux-actions';
 
-export {
-  Account,
-  Accounts,
-  Address,
-  Addresses,
-  Application,
-  Contract,
-  Contracts,
-  Dapp,
-  Dapps,
-  ParityBar,
-  Settings,
-  SettingsBackground,
-  SettingsViews,
-  Signer,
-  Status
+import views from './Views/defaults';
+
+const initialState = {
+  views,
+  backgroundSeed: `${Date.now()}`
 };
+
+export default handleActions({
+  toggleView (state, action) {
+    return Object.assign({}, state, { views });
+  },
+
+  toggleViews (state, action) {
+    return Object.assign({}, state, { views });
+  },
+
+  updateBackground (state, action) {
+    const { backgroundSeed } = action;
+
+    return Object.assign({}, state, { backgroundSeed });
+  }
+}, initialState);
