@@ -47,7 +47,7 @@ import './index.html';
 
 injectTapEventPlugin();
 
-const initToken = window.localStorage.getItem('sysuiToken');
+const initToken = window.localStorage.getItem('sysuiToken') || 'initial';
 const parityUrl = process.env.PARITY_URL ||
   (
     process.env.NODE_ENV === 'production'
@@ -58,7 +58,8 @@ const parityUrl = process.env.PARITY_URL ||
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
 ContractInstances.create(api);
 
-muiTheme.parity.setBackgroundSeed(api.util.sha3(initToken + Date.now()));
+const backgroundSeed = window.localStorage.getItem('backgroundSeed') || api.util.sha3(`${initToken}_${Date.now()}`);
+muiTheme.parity.setBackgroundSeed(backgroundSeed);
 
 // signer
 function tokenSetter (token, cb) {

@@ -16,16 +16,90 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { Container, ContainerTitle, ParityBackground } from '../../../ui';
+
+import layout from '../layout.css';
+import styles from './background.css';
+
+let counter = 0;
+
 export default class Background extends Component {
-  static propTypes = {
+  static contextTypes = {
+    api: PropTypes.object.isRequired,
+    muiTheme: PropTypes.object.isRequired
   }
 
   state = {
+    seeds: []
+  }
+
+  componentDidMount () {
+    const { muiTheme } = this.context;
+
+    this.setState({
+      seeds: [muiTheme.backgroundSeed]
+    }, () => this.addSeeds(15));
   }
 
   render () {
     return (
-      <div>background</div>
+      <Container>
+        <ContainerTitle title='background' />
+        <div className={ layout.layout }>
+          <div className={ layout.overview }>
+            <div>Manage your unique, fingerprinted application background.</div>
+            <div>The bckground is derived from the secure token shared between the fron-end and Parity, and it unique accross connections. Apart from allowing you to customize the look of your UI, it also allow you to uniquely identify that you are indeed connected to a know endpoint.</div>
+          </div>
+          <div className={ layout.details }>
+            <div className={ styles.bgcontainer }>
+              { this.renderBackgrounds() }
+            </div>
+          </div>
+        </div>
+      </Container>
     );
+  }
+
+  renderBackgrounds () {
+    const { seeds } = this.state;
+
+    return seeds.map((seed) => {
+      return (
+        <div className={ styles.bg }>
+          <ParityBackground
+            className={ styles.seed }
+            key={ seed }
+            seed={ seed }
+            onTouchTap={ this.onSelect(seed) } />
+        </div>
+      );
+    });
+  }
+
+  onSelect = (seed) => {
+    const { muiTheme } = this.context;
+
+    return (event) => {
+      muiTheme.setBackgroundSeed(seed);
+    };
+  }
+
+  addSeeds (count) {
+    const { seeds } = this.state;
+    const newSeeds = [];
+
+    for (let index = 0; index < count; index++) {
+      newSeeds.push(this.generateSeed());
+    }
+
+    this.setState({
+      seeds: seeds.concat(newSeeds)
+    });
+  }
+
+  generateSeed () {
+    const { api, muiTheme } = this.context;
+
+    return api.util.sha3(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
   }
 }

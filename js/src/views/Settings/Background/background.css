@@ -15,40 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.layout {
-  padding-top: 1.5em;
+.bgcontainer {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
 }
 
-.layout::after {
-  display: table;
-  clear: both;
-  content: '';
-}
-
-.overview, .details {
-  float: left;
+.bg {
+  flex-basis: 25%;
   box-sizing: border-box;
+  display: inline-block;
+  padding: 0 0.5em 1em 0.5em;
 }
 
-.overview {
-  width: 33.33333%;
-  width: -webkit-calc(100% / 12 * 4);
-  width: -moz-calc(100% / 12 * 4);
-  width: calc(100% / 12 * 4);
-}
-
-.overview {
-  opacity: 0.5;
-}
-
-.overview>div+div {
-  padding-top: 1.25em;
-}
-
-.details {
-  width: 66.66665%;
-  width: -webkit-calc(100% / 12 * 8);
-  width: -moz-calc(100% / 12 * 8);
-  width: calc(100% / 12 * 8);
-  padding-left: 3em;
+.seed {
+  width: 100%;
+  height: 10em;
+  border-radius: 4px;
+  cursor: pointer;
 }
