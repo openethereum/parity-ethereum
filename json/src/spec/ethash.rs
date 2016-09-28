@@ -64,9 +64,6 @@ pub struct EthashParams {
 	#[serde(rename="difficultyHardforkBoundDivisor")]
 	pub difficulty_hardfork_bound_divisor: Option<Uint>,
 	/// See main EthashParams docs.
-	#[serde(rename="difficultyHardforkIncrementDivisor")]
-	pub difficulty_hardfork_increment_divisor: Option<Uint>,
-	/// See main EthashParams docs.
 	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
 }
@@ -118,8 +115,8 @@ mod tests {
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"difficultyHardforkTransition": "0x59db",
-				"difficultyHardforkBoundDivisor": "60",
+				"difficultyHardforkTransition": "0x59d9",
+				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x42"
 			}
 		}"#;
