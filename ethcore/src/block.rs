@@ -70,7 +70,7 @@ impl Decodable for Block {
 	}
 }
 
-/// Internal type for a block's common elements.
+/// An internal type for a block's common elements.
 #[derive(Clone)]
 pub struct ExecutedBlock {
 	base: Block,
