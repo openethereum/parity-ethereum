@@ -18,11 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 
 import DetailsStep from './DetailsStep';
-
-import styles from './executeContract.css';
 
 export default class ExecuteContract extends Component {
   static contextTypes = {
@@ -112,7 +110,7 @@ export default class ExecuteContract extends Component {
   }
 
   renderStep () {
-    const { onFromAddressChange, isTest } = this.props;
+    const { onFromAddressChange } = this.props;
     const { step, busyState, txhash } = this.state;
 
     if (step === 0) {
@@ -132,14 +130,10 @@ export default class ExecuteContract extends Component {
       );
     }
 
-    const link = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${txhash}`;
-
     return (
       <CompletedStep>
         <div>Your transaction has been posted to the network with a transaction hash of</div>
-        <div className={ styles.txhash }>
-          <a href={ link } target='_blank'>{ txhash }</a>
-        </div>
+        <TxHash hash={ txhash } />
       </CompletedStep>
     );
   }
@@ -212,7 +206,7 @@ export default class ExecuteContract extends Component {
       })
       .then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('eth', 'checkRequest', requestId);
+        return api.pollMethod('eth_checkRequest', requestId);
       })
       .then((txhash) => {
         this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });

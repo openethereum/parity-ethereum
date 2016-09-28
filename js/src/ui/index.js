@@ -31,6 +31,7 @@ import Page from './Page';
 import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
 import Tooltips, { Tooltip } from './Tooltips';
+import TxHash from './TxHash';
 
 export {
   Actionbar,
@@ -60,5 +61,6 @@ export {
   ParityBackground,
   SignerIcon,
   Tooltip,
-  Tooltips
+  Tooltips,
+  TxHash
 };

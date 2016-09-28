@@ -95,9 +95,12 @@ export default class Api {
   }
 
   pollMethod (method, input, validate) {
+    const [_group, endpoint] = method.split('_');
+    const group = `_${_group}`;
+
     return new Promise((resolve, reject) => {
       const timeout = () => {
-        method(input)
+        this[group][endpoint](input)
           .then((result) => {
             if ((validate && validate(result)) || result) {
               resolve(result);
