@@ -23,7 +23,7 @@ use views::HeaderView;
 use bloomfilter::Bloom;
 use util::migration::Error;
 use util::journaldb;
-use util::{H256, FixedHash, Hashable, BytesConvertable};
+use util::{H256, FixedHash, BytesConvertable};
 use util::{Database, DatabaseConfig, DBTransaction, CompactionProfile};
 use std::path::Path;
 
@@ -73,7 +73,7 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 		let account_trie = try!(TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e))));
 		for (ref account_key, _) in account_trie.iter() {
 			let account_key_hash = H256::from_slice(&account_key);
-			bloom.set(account_key_hash.sha3().as_slice());
+			bloom.set(account_key_hash.as_slice());
 		}
 
 		bloom.drain_journal()
@@ -86,7 +86,6 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	try!(db.write(batch));
 
 	trace!(target: "migration", "Finished bloom update");
-	println!("Done.");
 
 
 	Ok(())

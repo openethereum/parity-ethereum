@@ -81,7 +81,7 @@ impl StateDB {
 		}
 
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
-		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions number = {:?}", bloom.how_full(), hash_count);
+		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.how_full(), hash_count);
 		bloom
 	}
 
