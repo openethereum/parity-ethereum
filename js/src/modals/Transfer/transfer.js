@@ -141,7 +141,6 @@ export default class Transfer extends Component {
 
     return (
       <CompletedStep>
-        <div>Your transaction has been posted to the network with a transaction hash of</div>
         <TxHash hash={ txhash } />
       </CompletedStep>
     );

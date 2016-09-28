@@ -59,6 +59,9 @@ class TxHash extends Component {
 
     return (
       <div className={ styles.details }>
+        <div className={ styles.header }>
+          The transaction has been posted to the network with a transaction hash of
+        </div>
         <div className={ styles.hash }>
           <a href={ link } target='_blank'>{ hash }</a>
         </div>

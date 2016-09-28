@@ -102,7 +102,7 @@ export default class Api {
       const timeout = () => {
         this[group][endpoint](input)
           .then((result) => {
-            if ((validate && validate(result)) || result) {
+            if (validate ? validate(result) : result) {
               resolve(result);
             } else {
               setTimeout(timeout, 500);

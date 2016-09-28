@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
@@ -114,7 +114,7 @@ export default class DeployContract extends Component {
 
   renderStep () {
     const { accounts } = this.props;
-    const { address, deployError, step, deployState } = this.state;
+    const { address, deployError, step, deployState, txhash } = this.state;
 
     if (deployError) {
       return (
@@ -136,21 +136,26 @@ export default class DeployContract extends Component {
         );
 
       case 1:
+        const body = txhash
+          ? <TxHash hash={ txhash } />
+          : null;
         return (
           <BusyStep
             title='The deployment is currently in progress'
-            state={ deployState } />
+            state={ deployState }>
+            { body }
+          </BusyStep>
         );
 
       case 2:
         return (
           <CompletedStep>
-            <div>Your contract has been deployed to</div>
+            <div>Your contract has been deployed at</div>
             <div>
               <IdentityIcon address={ address } inline center className={ styles.identityicon } />
               <div className={ styles.address }>{ address }</div>
             </div>
-            <div>and has been added to your list of available contracts</div>
+            <TxHash hash={ txhash } />
           </CompletedStep>
         );
     }
@@ -239,16 +244,16 @@ export default class DeployContract extends Component {
         return;
 
       case 'getTransactionReceipt':
-        this.setState({ deployState: 'Waiting for the contract to be mined' });
+        this.setState({ deployState: 'Waiting for the contract deployment transaction receipt', txhash: data.txhash });
         return;
 
       case 'hasReceipt':
       case 'getCode':
-        this.setState({ deployState: 'Validating the contract deployment' });
+        this.setState({ deployState: 'Validating the deployed contract code' });
         return;
 
       case 'completed':
-        this.setState({ deployState: 'Contract deployment has been completed' });
+        this.setState({ deployState: 'The contract deployment has been completed' });
         return;
 
       default:

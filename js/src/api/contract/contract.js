@@ -118,11 +118,11 @@ export default class Contract {
 
         setState({ state: 'hasReceipt', receipt });
         this._address = receipt.contractAddress;
-        return receipt.contractAddress;
+        return this._address;
       })
       .then((address) => {
         setState({ state: 'getCode' });
-        return this._api.eth.getCode(address);
+        return this._api.eth.getCode(this._address);
       })
       .then((code) => {
         if (code === '0x') {
@@ -164,12 +164,12 @@ export default class Contract {
   }
 
   _pollCheckRequest = (requestId) => {
-    return this._api.pollEthMethod('eth_checkRequest', requestId);
+    return this._api.pollMethod('eth_checkRequest', requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
-    return this.api.pollEthMethod('eth_getTransactionReceipt', txhash, (receipt) => {
-      if (!receipt || receipt.blockNumber.eq(0)) {
+    return this.api.pollMethod('eth_getTransactionReceipt', txhash, (receipt) => {
+      if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
         return false;
       }
 
