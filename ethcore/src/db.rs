@@ -86,6 +86,9 @@ pub trait Writable {
 	/// Writes the value into the database.
 	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: Deref<Target = [u8]>;
 
+	/// Deletes key from the databse.
+	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: Deref<Target = [u8]>;
+
 	/// Writes the value into the database and updates the cache.
 	fn write_with_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
@@ -122,6 +125,34 @@ pub trait Writable {
 			},
 		}
 	}
+
+	/// Writes and removes the values into the database and updates the cache.
+	fn extend_with_option_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
+	K: Key<T, Target = R> + Hash + Eq,
+	T: rlp::Encodable,
+	R: Deref<Target = [u8]> {
+		match policy {
+			CacheUpdatePolicy::Overwrite => {
+				for (key, value) in values.into_iter() {
+					match value {
+						Some(ref v) => self.write(col, &key, v),
+						None => self.delete(col, &key),
+					}
+					cache.insert(key, value);
+				}
+			},
+			CacheUpdatePolicy::Remove => {
+				for (key, value) in values.into_iter() {
+					match value {
+						Some(v) => self.write(col, &key, &v),
+						None => self.delete(col, &key),
+					}
+					cache.remove(&key);
+				}
+			},
+		}
+	}
+
 }
 
 /// Should be used to read values from database.
@@ -172,6 +203,10 @@ pub trait Readable {
 impl Writable for DBTransaction {
 	fn write<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: rlp::Encodable, R: Deref<Target = [u8]> {
 		self.put(col, &key.key(), &rlp::encode(value));
+	}
+
+	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: Deref<Target = [u8]> {
+		self.delete(col, &key.key());
 	}
 }
 
