@@ -56,8 +56,6 @@ impl EthashManager {
 		}
 	}
 
-
-
 	/// Calculate the light client data
 	/// `block_number` - Block number to check
 	/// `light` - The light client handler

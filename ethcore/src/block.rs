@@ -348,7 +348,6 @@ impl<'x> OpenBlock<'x> {
 	pub fn close(self) -> ClosedBlock {
 		let mut s = self;
 
-
 		let unclosed_state = s.block.state.clone();
 
 		s.engine.on_close_block(&mut s.block);

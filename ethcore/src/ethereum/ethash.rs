@@ -184,7 +184,6 @@ impl Engine for Ethash {
 		if let Err(e) = fields.state.commit() {
 			warn!("Encountered error on state commit: {}", e);		
 		}		
-
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -202,7 +201,7 @@ impl Engine for Ethash {
 		if header.difficulty() < &min_difficulty {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
 		}
-/*
+
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
 			&Ethash::to_ethash(header.bare_hash()),
 			header.nonce().low_u64(),
@@ -211,7 +210,7 @@ impl Engine for Ethash {
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
 		}
-*/
+
 		if header.number() >= self.ethash_params.dao_hardfork_transition &&
 			header.number() <= self.ethash_params.dao_hardfork_transition + 9 &&
 			header.extra_data()[..] != b"dao-hard-fork"[..] {
