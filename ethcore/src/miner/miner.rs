@@ -924,7 +924,7 @@ impl MinerService for Miner {
 			out_of_chain.for_each(|txs| {
 				let mut transaction_queue = self.transaction_queue.lock();
 				let _ = self.add_transactions_to_queue(
-					chain, txs, TransactionOrigin::External, &mut transaction_queue
+					chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
 				);
 			});
 		}
