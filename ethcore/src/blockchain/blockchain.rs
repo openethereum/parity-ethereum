@@ -1060,7 +1060,8 @@ impl BlockChain {
 					hashes.into_iter().map(|hash| (hash, None)).collect::<HashMap<H256, Option<TransactionAddress>>>()
 				});
 
-				addresses.chain(current_addresses).chain(retracted).collect()
+				// The order here is important! Don't remove transaction if it was part of enacted blocks as well.
+				retracted.chain(addresses).chain(current_addresses).collect()
 			},
 			BlockLocation::Branch => HashMap::new(),
 		}
@@ -1357,6 +1358,71 @@ mod tests {
 
 		// TODO: insert block that already includes one of them as an uncle to check it's not allowed.
 	}
+
+	#[test]
+	fn test_fork_transaction_addresses() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let mut fork_chain = canon_chain.fork(1);
+		let mut fork_finalizer = finalizer.fork();
+
+		let t1 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+
+
+		let b1a = canon_chain
+			.with_transaction(t1.clone())
+			.generate(&mut finalizer).unwrap();
+
+		// Empty block
+		let b1b = fork_chain
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b2 = fork_chain
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
+		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
+		let b2_hash = BlockView::new(&b2).header_view().sha3();
+
+		let t1_hash = t1.hash();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
+		bc.commit();
+		let _ = bc.insert_block(&mut batch, &b1b, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		assert_eq!(bc.best_block_hash(), b1a_hash);
+		assert_eq!(bc.transaction_address(&t1_hash), Some(TransactionAddress {
+			block_hash: b1a_hash.clone(),
+			index: 0,
+		}));
+
+		// now let's make forked chain the canon chain
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b2, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		// Transaction should be retracted
+		assert_eq!(bc.best_block_hash(), b2_hash);
+		assert_eq!(bc.transaction_address(&t1_hash), None);
+	}
+
+
 
 	#[test]
 	fn test_overwriting_transaction_addresses() {
