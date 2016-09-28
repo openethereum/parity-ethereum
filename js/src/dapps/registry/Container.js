@@ -59,7 +59,7 @@ export default connect(
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
-    bound.register = bindActionCreators(actions.register, dispatch);
+    bound.names = bindActionCreators(actions.names, dispatch);
     return { actions: bound };
   }
 )(Container);
