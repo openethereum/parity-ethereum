@@ -66,7 +66,7 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 		return Ok(())
 	}
 
-	println!("Adding accounts bloom (one-time upgrade). Please don't close parity.");
+	println!("Adding accounts bloom (one-time upgrade)");
 	let db = ::std::sync::Arc::new(source);
 	let bloom_journal = {
 		let mut bloom = Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
