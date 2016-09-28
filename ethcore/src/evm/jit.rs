@@ -196,7 +196,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				receive_address: *const evmjit::H256,
 				code_address: *const evmjit::H256,
 				transfer_value: *const evmjit::I256,
-				// TODO [ToDr] Why do we ignore that?
+				// Ignoring apparent value - it's handled correctly in executive.
 				_apparent_value: *const evmjit::I256,
 				in_beg: *const u8,
 				in_size: u64,
@@ -210,11 +210,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let receive_address = unsafe { Address::from_jit(&*receive_address) };
 		let code_address = unsafe { Address::from_jit(&*code_address) };
 		let transfer_value = unsafe { U256::from_jit(&*transfer_value) };
-		let value = Some(transfer_value);
 
 		// receive address and code address are the same in normal calls
 		let is_callcode = receive_address != code_address;
 		let is_delegatecall = is_callcode && sender_address != receive_address;
+
+		let value = if is_delegatecall { None } else { Some(transfer_value) };
 
 		if !is_callcode && !self.ext.exists(&code_address) {
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
