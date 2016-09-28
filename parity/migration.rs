@@ -29,7 +29,7 @@ use ethcore::migrations::Extract;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 10;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -140,7 +140,12 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	// this won't ever fire, because version will be already 9
+	// added because migration api should know that it should open database with 5 columns
+	try!(manager.add_migration(migrations::ToV9::new(Some(5), migrations::Extract::All)).map_err(|_| Error::MigrationImpossible));
+	// this will
+	try!(manager.add_migration(migrations::ToV10).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 

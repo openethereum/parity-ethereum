@@ -14,18 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Database migrations.
+//! This migration compresses the state db.
 
-pub mod state;
-pub mod blocks;
-pub mod extras;
+use util::migration::SimpleMigration;
 
-mod v9;
-pub use self::v9::ToV9;
-pub use self::v9::Extract;
+/// Compressing migration.
+#[derive(Default)]
+pub struct ToV10;
 
-mod account_bloom;
-pub use self::account_bloom::upgrade_account_bloom;
+impl SimpleMigration for ToV10 {
+	fn version(&self) -> u32 {
+		10
+	}
 
-mod v10;
-pub use self::v10::ToV10;
+	fn columns(&self) -> Option<u32> { Some(6) }
+
+	fn simple_migrate(&mut self, _key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		None
+	}
+}

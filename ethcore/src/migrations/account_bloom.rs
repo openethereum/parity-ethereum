@@ -16,7 +16,7 @@
 
 //! Bloom upgrade
 
-use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_NO_OF_COLUMNS};
+use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_NO_OF_COLUMNS, DB_COL_STATE};
 use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use util::trie::TrieDB;
 use views::HeaderView;
@@ -61,15 +61,15 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 		return Ok(())
 	}
 
+	println!("Adding accounts bloom (one-time upgrade). Please don't close parity.");
 	let db = ::std::sync::Arc::new(source);
-
 	let bloom_journal = {
 		let mut bloom = Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
 		// no difference what algorithm is passed, since there will be no writes
 		let state_db = journaldb::new(
 			db.clone(),
 			journaldb::Algorithm::OverlayRecent,
-			DB_NO_OF_COLUMNS);
+			DB_COL_STATE);
 		let account_trie = try!(TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e))));
 		for (ref account_key, _) in account_trie.iter() {
 			let account_key_hash = H256::from_slice(&account_key);
@@ -86,6 +86,8 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	try!(db.write(batch));
 
 	trace!(target: "migration", "Finished bloom update");
+	println!("Done.");
+
 
 	Ok(())
 }
