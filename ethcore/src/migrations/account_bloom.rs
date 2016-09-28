@@ -32,6 +32,8 @@ use std::path::Path;
 /// Can be called on upgraded database with no issues (will do nothing).
 pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	let path = try!(db_path.to_str().ok_or(Error::MigrationImpossible));
+	trace!(target: "migration", "Account bloom upgrade at {:?}", db_path);
+
 	let source = try!(Database::open(&DatabaseConfig {
 		max_open_files: 64,
 		cache_size: None,
@@ -42,13 +44,16 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 
 	let best_block_hash = match try!(source.get(DB_COL_EXTRA, b"best")) {
 		// no migration needed
-		None => { return Ok(()); }
+		None => {
+			trace!(target: "migration", "No best block hash, skipping");
+			return Ok(());
+		},
 		Some(hash) => hash,
 	};
 	let best_block_header = match try!(source.get(DB_COL_HEADERS, &best_block_hash)) {
 		// no best block, nothing to do
 		None => {
-			trace!(target: "migration", "No best block, skipping");
+			trace!(target: "migration", "No best block header, skipping");
 			return Ok(())
 		},
 		Some(x) => x,
