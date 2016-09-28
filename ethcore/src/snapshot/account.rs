@@ -205,7 +205,7 @@ impl Account {
 #[cfg(test)]
 mod tests {
 	use account_db::{AccountDB, AccountDBMut};
-	use tests::helpers::get_temp_journal_db;
+	use tests::helpers::get_temp_state_db;
 	use snapshot::tests::helpers::fill_storage;
 
 	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
@@ -218,8 +218,7 @@ mod tests {
 
 	#[test]
 	fn encoding_basic() {
-		let mut db = get_temp_journal_db();
-		let mut db = &mut **db;
+		let mut db = get_temp_state_db();
 		let addr = Address::random();
 
 		let account = Account {
@@ -239,8 +238,7 @@ mod tests {
 
 	#[test]
 	fn encoding_storage() {
-		let mut db = get_temp_journal_db();
-		let mut db = &mut **db;
+		let mut db = get_temp_state_db();
 		let addr = Address::random();
 
 		let account = {
@@ -265,8 +263,7 @@ mod tests {
 
 	#[test]
 	fn encoding_code() {
-		let mut db = get_temp_journal_db();
-		let mut db = &mut **db;
+		let mut db = get_temp_state_db();
 
 		let addr1 = Address::random();
 		let addr2 = Address::random();

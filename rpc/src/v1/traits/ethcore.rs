@@ -80,6 +80,12 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 	/// First parameter is the 512-byte destination public key, second is the message.
 	fn encrypt_message(&self, _: Params) -> Result<Value, Error>;
 
+	/// Returns all pending (current) transactions from transaction queue.
+	fn pending_transactions(&self, _: Params) -> Result<Value, Error>;
+
+	/// Hash a file content under given URL.
+	fn hash_content(&self, _: Params, _: Ready);
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
@@ -103,6 +109,8 @@ pub trait Ethcore: Sized + Send + Sync + 'static {
 		delegate.add_method("ethcore_phraseToAddress", Ethcore::phrase_to_address);
 		delegate.add_method("ethcore_registryAddress", Ethcore::registry_address);
 		delegate.add_method("ethcore_encryptMessage", Ethcore::encrypt_message);
+		delegate.add_method("ethcore_pendingTransactions", Ethcore::pending_transactions);
+		delegate.add_async_method("ethcore_hashContent", Ethcore::hash_content);
 
 		delegate
 	}

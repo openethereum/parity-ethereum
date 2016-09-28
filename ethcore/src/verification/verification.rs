@@ -36,14 +36,22 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
+impl HeapSizeOf for PreverifiedBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children()
+			+ self.transactions.heap_size_of_children()
+			+ self.bytes.heap_size_of_children()
+	}
+}
+
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(verify_header(&header, engine));
+	try!(verify_header_params(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash()));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = try!(u);
-		try!(verify_header(&u, engine));
+		try!(verify_header_params(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	// Verify transactions.
@@ -179,7 +187,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
