@@ -61,6 +61,25 @@ fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	traces
 }
 
+#[test]
+fn should_prefix_address_properly() {
+	use super::trace::{Action, Res, Suicide};
+
+	let f = |v: Vec<usize>| FlatTrace {
+		action: Action::Suicide(Suicide {
+			address: Default::default(),
+			balance: Default::default(),
+			refund_address: Default::default(),
+		}),
+		result: Res::None,
+		subtraces: 0,
+		trace_address: v.into_iter().collect(),
+	};
+	let mut t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
+	let t = prefix_subtrace_addresses(t);
+	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
+}  
+
 impl Tracer for ExecutiveTracer {
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
 		Some(Call::from(params.clone()))
