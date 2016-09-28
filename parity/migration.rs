@@ -238,7 +238,7 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 
 	// We are in the latest version, yay!
 	if version == CURRENT_VERSION {
-		try!(run_inplace_upgrades(path));
+		try!(run_inplace_upgrades(consolidated_database_path(path).as_path()));
 		return Ok(())
 	}
 
@@ -270,7 +270,7 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		println!("Migration finished");
 	}
 
-	try!(run_inplace_upgrades(path));
+	try!(run_inplace_upgrades(consolidated_database_path(path).as_path()));
 
 	// update version file.
 	update_version(path)
