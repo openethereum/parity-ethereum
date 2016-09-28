@@ -749,7 +749,7 @@ mod tests {
 		let t = StateDiff(map![
 			42.into() => AccountDiff {
 				balance: Diff::Same,
-				nonce: Diff::Born(1),
+				nonce: Diff::Born(1.into()),
 				code: Diff::Same,
 				storage: map![
 					42.into() => Diff::Same
@@ -757,7 +757,7 @@ mod tests {
 			},
 			69.into() => AccountDiff {
 				balance: Diff::Same,
-				nonce: Diff::Changed(ChangedType { from: 1, to: 0.into() }),
+				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
 				code: Diff::Died(vec![96].into()),
 				storage: map![],
 			}
