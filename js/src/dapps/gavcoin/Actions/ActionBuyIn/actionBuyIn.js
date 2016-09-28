@@ -21,7 +21,6 @@ import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import { api } from '../../parity';
 import AccountSelector from '../../AccountSelector';
-import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 import styles from '../actions.css';
@@ -53,13 +52,17 @@ export default class ActionBuyIn extends Component {
   render () {
     const { complete } = this.state;
 
+    if (complete) {
+      return null;
+    }
+
     return (
       <Dialog
         title='buy coins for a specific account'
         modal open
         className={ styles.dialog }
         actions={ this.renderActions() }>
-        { complete ? <StepComplete /> : this.renderFields() }
+        { this.renderFields() }
       </Dialog>
     );
   }
@@ -187,6 +190,7 @@ export default class ActionBuyIn extends Component {
         return instance.buyin.postTransaction(options, values);
       })
       .then(() => {
+        this.props.onClose();
         this.setState({
           sending: false,
           complete: true
