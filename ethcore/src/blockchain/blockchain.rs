@@ -181,7 +181,7 @@ pub struct BlockChain {
 
 	pending_best_block: RwLock<Option<BestBlock>>,
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
-	pending_transaction_addresses: RwLock<HashMap<H256, TransactionAddress>>,
+	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
 }
 
 impl BlockProvider for BlockChain {
@@ -680,8 +680,8 @@ impl BlockChain {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: self.prepare_block_details_update(bytes, &info),
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
-				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
 				block: bytes
 			}, is_best);
@@ -714,8 +714,8 @@ impl BlockChain {
 				block_hashes: self.prepare_block_hashes_update(bytes, &info),
 				block_details: update,
 				block_receipts: self.prepare_block_receipts_update(receipts, &info),
-				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+				transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 				info: info,
 				block: bytes,
 			}, is_best);
@@ -783,8 +783,8 @@ impl BlockChain {
 			block_hashes: self.prepare_block_hashes_update(bytes, &info),
 			block_details: self.prepare_block_details_update(bytes, &info),
 			block_receipts: self.prepare_block_receipts_update(receipts, &info),
-			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			blocks_blooms: self.prepare_block_blooms_update(bytes, &info),
+			transactions_addresses: self.prepare_transaction_addresses_update(bytes, &info),
 			info: info.clone(),
 			block: bytes,
 		}, true);
@@ -877,7 +877,7 @@ impl BlockChain {
 			let mut write_txs = self.pending_transaction_addresses.write();
 
 			batch.extend_with_cache(db::COL_EXTRA, &mut *write_hashes, update.block_hashes, CacheUpdatePolicy::Overwrite);
-			batch.extend_with_cache(db::COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
+			batch.extend_with_option_cache(db::COL_EXTRA, &mut *write_txs, update.transactions_addresses, CacheUpdatePolicy::Overwrite);
 		}
 	}
 
@@ -895,18 +895,25 @@ impl BlockChain {
 			*best_block = block;
 		}
 
+		let pending_txs = mem::replace(&mut *pending_write_txs, HashMap::new());
+		let (retracted_txs, enacted_txs) = pending_txs.into_iter().partition::<HashMap<_, _>, _>(|&(_, ref value)| value.is_none());
+
 		let pending_hashes_keys: Vec<_> = pending_write_hashes.keys().cloned().collect();
-		let pending_txs_keys: Vec<_> = pending_write_txs.keys().cloned().collect();
+		let enacted_txs_keys: Vec<_> = enacted_txs.keys().cloned().collect();
 
 		write_hashes.extend(mem::replace(&mut *pending_write_hashes, HashMap::new()));
-		write_txs.extend(mem::replace(&mut *pending_write_txs, HashMap::new()));
+		write_txs.extend(enacted_txs.into_iter().map(|(k, v)| (k, v.expect("Transactions were partitioned; qed"))));
+
+		for hash in retracted_txs.keys() {
+			write_txs.remove(hash);
+		}
 
 		let mut cache_man = self.cache_man.lock();
 		for n in pending_hashes_keys {
 			cache_man.note_used(CacheID::BlockHashes(n));
 		}
 
-		for hash in pending_txs_keys {
+		for hash in enacted_txs_keys {
 			cache_man.note_used(CacheID::TransactionAddresses(hash));
 		}
 	}
@@ -1008,7 +1015,7 @@ impl BlockChain {
 	}
 
 	/// This function returns modified transaction addresses.
-	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, TransactionAddress> {
+	fn prepare_transaction_addresses_update(&self, block_bytes: &[u8], info: &BlockInfo) -> HashMap<H256, Option<TransactionAddress>> {
 		let block = BlockView::new(block_bytes);
 		let transaction_hashes = block.transaction_hashes();
 
@@ -1017,10 +1024,10 @@ impl BlockChain {
 				transaction_hashes.into_iter()
 					.enumerate()
 					.map(|(i ,tx_hash)| {
-						(tx_hash, TransactionAddress {
+						(tx_hash, Some(TransactionAddress {
 							block_hash: info.hash.clone(),
 							index: i
-						})
+						}))
 					})
 					.collect()
 			},
@@ -1031,23 +1038,30 @@ impl BlockChain {
 						let hashes = BodyView::new(&bytes).transaction_hashes();
 						hashes.into_iter()
 							.enumerate()
-							.map(|(i, tx_hash)| (tx_hash, TransactionAddress {
+							.map(|(i, tx_hash)| (tx_hash, Some(TransactionAddress {
 								block_hash: hash.clone(),
 								index: i,
-							}))
-							.collect::<HashMap<H256, TransactionAddress>>()
+							})))
+							.collect::<HashMap<H256, Option<TransactionAddress>>>()
 					});
 
 				let current_addresses = transaction_hashes.into_iter()
 					.enumerate()
 					.map(|(i ,tx_hash)| {
-						(tx_hash, TransactionAddress {
+						(tx_hash, Some(TransactionAddress {
 							block_hash: info.hash.clone(),
 							index: i
-						})
+						}))
 					});
 
-				addresses.chain(current_addresses).collect()
+				let retracted = data.retracted.iter().flat_map(|hash| {
+					let bytes = self.block_body(hash).expect("Retracted block must be in database.");
+					let hashes = BodyView::new(&bytes).transaction_hashes();
+					hashes.into_iter().map(|hash| (hash, None)).collect::<HashMap<H256, Option<TransactionAddress>>>()
+				});
+
+				// The order here is important! Don't remove transaction if it was part of enacted blocks as well.
+				retracted.chain(addresses).chain(current_addresses).collect()
 			},
 			BlockLocation::Branch => HashMap::new(),
 		}
@@ -1346,6 +1360,71 @@ mod tests {
 	}
 
 	#[test]
+	fn test_fork_transaction_addresses() {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		let genesis = canon_chain.generate(&mut finalizer).unwrap();
+		let mut fork_chain = canon_chain.fork(1);
+		let mut fork_finalizer = finalizer.fork();
+
+		let t1 = Transaction {
+			nonce: 0.into(),
+			gas_price: 0.into(),
+			gas: 100_000.into(),
+			action: Action::Create,
+			value: 100.into(),
+			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
+		}.sign(&"".sha3());
+
+
+		let b1a = canon_chain
+			.with_transaction(t1.clone())
+			.generate(&mut finalizer).unwrap();
+
+		// Empty block
+		let b1b = fork_chain
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b2 = fork_chain
+			.generate(&mut fork_finalizer).unwrap();
+
+		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
+		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
+		let b2_hash = BlockView::new(&b2).header_view().sha3();
+
+		let t1_hash = t1.hash();
+
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
+		bc.commit();
+		let _ = bc.insert_block(&mut batch, &b1b, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		assert_eq!(bc.best_block_hash(), b1a_hash);
+		assert_eq!(bc.transaction_address(&t1_hash), Some(TransactionAddress {
+			block_hash: b1a_hash.clone(),
+			index: 0,
+		}));
+
+		// now let's make forked chain the canon chain
+		let mut batch = db.transaction();
+		let _ = bc.insert_block(&mut batch, &b2, vec![]);
+		bc.commit();
+		db.write(batch).unwrap();
+
+		// Transaction should be retracted
+		assert_eq!(bc.best_block_hash(), b2_hash);
+		assert_eq!(bc.transaction_address(&t1_hash), None);
+	}
+
+
+
+	#[test]
 	fn test_overwriting_transaction_addresses() {
 		let mut canon_chain = ChainGenerator::default();
 		let mut finalizer = BlockFinalizer::default();
@@ -1415,14 +1494,14 @@ mod tests {
 		db.write(batch).unwrap();
 
 		assert_eq!(bc.best_block_hash(), b1a_hash);
-		assert_eq!(bc.transaction_address(&t1_hash).unwrap(), TransactionAddress {
+		assert_eq!(bc.transaction_address(&t1_hash), Some(TransactionAddress {
 			block_hash: b1a_hash.clone(),
 			index: 0,
-		});
-		assert_eq!(bc.transaction_address(&t2_hash).unwrap(), TransactionAddress {
+		}));
+		assert_eq!(bc.transaction_address(&t2_hash), Some(TransactionAddress {
 			block_hash: b1a_hash.clone(),
 			index: 1,
-		});
+		}));
 
 		// now let's make forked chain the canon chain
 		let mut batch = db.transaction();
@@ -1431,18 +1510,18 @@ mod tests {
 		db.write(batch).unwrap();
 
 		assert_eq!(bc.best_block_hash(), b2_hash);
-		assert_eq!(bc.transaction_address(&t1_hash).unwrap(), TransactionAddress {
+		assert_eq!(bc.transaction_address(&t1_hash), Some(TransactionAddress {
 			block_hash: b1b_hash.clone(),
 			index: 1,
-		});
-		assert_eq!(bc.transaction_address(&t2_hash).unwrap(), TransactionAddress {
+		}));
+		assert_eq!(bc.transaction_address(&t2_hash), Some(TransactionAddress {
 			block_hash: b1b_hash.clone(),
 			index: 0,
-		});
-		assert_eq!(bc.transaction_address(&t3_hash).unwrap(), TransactionAddress {
+		}));
+		assert_eq!(bc.transaction_address(&t3_hash), Some(TransactionAddress {
 			block_hash: b2_hash.clone(),
 			index: 0,
-		});
+		}));
 	}
 
 	#[test]
