@@ -19,12 +19,18 @@ use rlp::*;
 use network::NetworkError;
 use ethcore::header::{ Header as BlockHeader};
 
-known_heap_size!(0, HeaderId, SyncBlock);
+known_heap_size!(0, HeaderId);
 
 /// Block data with optional body.
 struct SyncBlock {
 	header: Bytes,
 	body: Option<Bytes>,
+}
+
+impl HeapSizeOf for SyncBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children() + self.body.heap_size_of_children()
+	}
 }
 
 /// Used to identify header by transactions and uncles hashes
@@ -219,10 +225,14 @@ impl BlockCollection {
 		self.blocks.contains_key(hash)
 	}
 
-	/// Return heap size.
+	/// Return used heap size.
 	pub fn heap_size(&self) -> usize {
-		//TODO: other collections
-		self.blocks.heap_size_of_children()
+		self.heads.heap_size_of_children()
+			+ self.blocks.heap_size_of_children()
+			+ self.parents.heap_size_of_children()
+			+ self.header_ids.heap_size_of_children()
+			+ self.downloading_headers.heap_size_of_children()
+			+ self.downloading_bodies.heap_size_of_children()
 	}
 
 	/// Check if given block hash is marked as being downloaded.
