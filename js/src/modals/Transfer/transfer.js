@@ -21,7 +21,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 
 import Details from './Details';
 import Extras from './Extras';
@@ -32,7 +32,7 @@ const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
-  budy: 'sending',
+  sending: 'sending',
   complete: 'complete',
   extras: 'extra information'
 };
@@ -71,7 +71,8 @@ export default class Transfer extends Component {
     value: '0.0',
     valueAll: false,
     valueError: null,
-    isEth: true
+    isEth: true,
+    busyState: null
   }
 
   componentDidMount () {
@@ -128,19 +129,21 @@ export default class Transfer extends Component {
   }
 
   renderCompletePage () {
-    const { sending, txhash } = this.state;
+    const { sending, txhash, busyState } = this.state;
 
     if (sending) {
       return (
         <BusyStep
-          title='Your transaction has been sent' />
+          title='The transaction is in progress'
+          state={ busyState } />
       );
     }
 
     return (
-      <CompletedStep
-        sending={ sending }
-        txhash={ txhash } />
+      <CompletedStep>
+        <div>Your transaction has been posted to the network with a transaction hash of</div>
+        <TxHash hash={ txhash } />
+      </CompletedStep>
     );
   }
 
@@ -408,17 +411,24 @@ export default class Transfer extends Component {
   }
 
   onSend = () => {
-    const { onClose } = this.props;
+    const { api } = this.context;
+
+    this.onNext();
 
     this.setState({ sending: true }, () => {
       (this.state.isEth
         ? this._sendEth()
         : this._sendToken()
-      ).then((txhash) => {
-        onClose();
+      ).then((requestId) => {
+        this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
+        return api.pollMethod('eth_checkRequest', requestId);
+      })
+      .then((txhash) => {
+        this.onNext();
         this.setState({
           sending: false,
-          txhash
+          txhash,
+          busyState: 'Your transaction has been posted to the network'
         });
       })
       .catch((error) => {
