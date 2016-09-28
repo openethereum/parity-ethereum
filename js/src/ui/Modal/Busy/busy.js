@@ -16,35 +16,23 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import LinearProgress from 'material-ui/LinearProgress';
+import styles from './busy.css';
 
-import styles from '../transfer.css';
-
-export default class Complete extends Component {
+export default class Busy extends Component {
   static propTypes = {
-    txhash: PropTypes.string,
-    sending: PropTypes.bool
+    title: PropTypes.string,
+    state: PropTypes.string,
+    children: PropTypes.node
   }
 
   render () {
-    const { sending } = this.props;
-
-    if (sending) {
-      return (
-        <div>
-          <div className={ styles.info }>
-            The transaction is sending, please wait until the transaction hash is received
-          </div>
-          <LinearProgress mode='indeterminate' />
-        </div>
-      );
-    }
+    const { children, title, state } = this.props;
 
     return (
-      <div>
-        <div className={ styles.info }>
-          The transaction was sent and awaits verification in the signer. <a href='/#/signer'>Enter the signer</a> and authenticate the correct transactions with your account password.
-        </div>
+      <div className={ styles.center }>
+        <div className={ styles.title }>{ title }</div>
+        <div className={ styles.state }>{ state }</div>
+        { children }
       </div>
     );
   }

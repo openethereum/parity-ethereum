@@ -14,4 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './complete';
+import React, { Component, PropTypes } from 'react';
+
+import styles from './completed.css';
+
+export default class Completed extends Component {
+  static propTypes = {
+    children: PropTypes.node
+  }
+
+  render () {
+    const { children } = this.props;
+
+    return (
+      <div className={ styles.body }>
+        { children }
+      </div>
+    );
+  }
+}

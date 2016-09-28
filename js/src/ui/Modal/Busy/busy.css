@@ -19,11 +19,9 @@
   text-align: center;
 }
 
-.address {
-  vertical-align: top;
-  display: inline-block;
+.title {
 }
 
-.identityicon {
-  margin: -8px 0.5em;
+.state {
+  margin-top: 1em;
 }

@@ -310,7 +310,7 @@ export default class Method extends Component {
     const { signature, paramdata } = api.util.decodeCallData(transaction.input);
     this.setState({ methodSignature: signature, methodParams: paramdata });
 
-    if (!signature || signature === CONTRACT_CREATE) {
+    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
       this.setState({ isDeploy: true });
       return;
     }

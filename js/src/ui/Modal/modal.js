@@ -35,6 +35,7 @@ class Modal extends Component {
 
   static propTypes = {
     actions: PropTypes.node,
+    busy: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
     current: PropTypes.number,
@@ -50,11 +51,12 @@ class Modal extends Component {
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, className, current, children, scroll, steps, waiting, title, visible, settings } = this.props;
+    const { actions, busy, className, current, children, scroll, steps, waiting, title, visible, settings } = this.props;
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
         current={ current }
+        busy={ busy }
         waiting={ waiting }
         steps={ steps }
         title={ title } />

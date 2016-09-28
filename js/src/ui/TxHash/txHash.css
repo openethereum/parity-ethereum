@@ -15,15 +15,27 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.center {
-  text-align: center;
+.details {
 }
 
-.address {
-  vertical-align: top;
-  display: inline-block;
+.header {
 }
 
-.identityicon {
-  margin: -8px 0.5em;
+.hash {
+  padding-top: 1em;
+}
+
+.confirm {
+  padding-top: 1em;
+  opacity: 0.5;
+}
+
+.progressbar {
+  margin: 0.5em !important;
+  width: 30% !important;
+  display: inline-block !important;
+  height: 0.75em !important;
+}
+
+.progressinfo {
 }

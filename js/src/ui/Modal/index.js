@@ -14,4 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import Busy from './Busy';
+import Completed from './Completed';
+
 export default from './modal';
+
+export {
+  Busy,
+  Completed
+};

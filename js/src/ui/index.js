@@ -25,12 +25,13 @@ import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
 import MethodDecoding from './MethodDecoding';
-import Modal from './Modal';
+import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
 import Tooltips, { Tooltip } from './Tooltips';
+import TxHash from './TxHash';
 
 export {
   Actionbar,
@@ -53,10 +54,13 @@ export {
   IdentityIcon,
   MethodDecoding,
   Modal,
+  BusyStep,
+  CompletedStep,
   muiTheme,
   Page,
   ParityBackground,
   SignerIcon,
   Tooltip,
-  Tooltips
+  Tooltips,
+  TxHash
 };

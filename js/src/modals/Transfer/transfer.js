@@ -21,9 +21,8 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 
-import Complete from './Complete';
 import Details from './Details';
 import Extras from './Extras';
 import ERRORS from './errors';
@@ -33,11 +32,12 @@ const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
+  sending: 'sending',
   complete: 'complete',
   extras: 'extra information'
 };
-const STAGES_BASIC = [TITLES.transfer, TITLES.complete];
-const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
+const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
+const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
 
 export default class Transfer extends Component {
   static contextTypes = {
@@ -71,7 +71,8 @@ export default class Transfer extends Component {
     value: '0.0',
     valueAll: false,
     valueError: null,
-    isEth: true
+    isEth: true,
+    busyState: null
   }
 
   componentDidMount () {
@@ -81,7 +82,6 @@ export default class Transfer extends Component {
   render () {
     const { stage, extras } = this.state;
 
-    // title={ this.renderAccount() }
     return (
       <Modal
         actions={ this.renderDialogActions() }
@@ -129,12 +129,20 @@ export default class Transfer extends Component {
   }
 
   renderCompletePage () {
-    const { sending, txhash } = this.state;
+    const { sending, txhash, busyState } = this.state;
+
+    if (sending) {
+      return (
+        <BusyStep
+          title='The transaction is in progress'
+          state={ busyState } />
+      );
+    }
 
     return (
-      <Complete
-        sending={ sending }
-        txhash={ txhash } />
+      <CompletedStep>
+        <TxHash hash={ txhash } />
+      </CompletedStep>
     );
   }
 
@@ -402,16 +410,24 @@ export default class Transfer extends Component {
   }
 
   onSend = () => {
+    const { api } = this.context;
+
     this.onNext();
 
     this.setState({ sending: true }, () => {
       (this.state.isEth
         ? this._sendEth()
         : this._sendToken()
-      ).then((txhash) => {
+      ).then((requestId) => {
+        this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
+        return api.pollMethod('eth_checkRequest', requestId);
+      })
+      .then((txhash) => {
+        this.onNext();
         this.setState({
           sending: false,
-          txhash
+          txhash,
+          busyState: 'Your transaction has been posted to the network'
         });
       })
       .catch((error) => {

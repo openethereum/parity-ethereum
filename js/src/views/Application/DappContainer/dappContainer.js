@@ -31,7 +31,7 @@ export default class DappContainer extends Component {
     return (
       <div className={ styles.container }>
         { children }
-        <ParityBar />
+        <ParityBar dapp />
       </div>
     );
   }

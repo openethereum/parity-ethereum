@@ -15,15 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.center {
+.body {
   text-align: center;
 }
 
-.address {
-  vertical-align: top;
-  display: inline-block;
-}
-
-.identityicon {
-  margin: -8px 0.5em;
+.body>div+div {
+  margin-top: 1em;
 }
