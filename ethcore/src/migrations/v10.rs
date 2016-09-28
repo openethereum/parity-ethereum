@@ -29,7 +29,7 @@ impl SimpleMigration for ToV10 {
 
 	fn columns(&self) -> Option<u32> { Some(6) }
 
-	fn simple_migrate(&mut self, _key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		None
+	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
+		Some(key, vlaue)
 	}
 }
