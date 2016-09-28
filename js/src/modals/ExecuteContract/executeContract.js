@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
+import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
 
 import DetailsStep from './DetailsStep';
+
+import styles from './executeContract.css';
 
 export default class ExecuteContract extends Component {
   static contextTypes = {
@@ -29,6 +31,7 @@ export default class ExecuteContract extends Component {
   }
 
   static propTypes = {
+    isTest: PropTypes.bool,
     fromAddress: PropTypes.string,
     accounts: PropTypes.object,
     contract: PropTypes.object,
@@ -44,7 +47,9 @@ export default class ExecuteContract extends Component {
     values: [],
     valuesError: [],
     step: 0,
-    sending: false
+    sending: false,
+    busyState: null,
+    txhash: null
   }
 
   componentDidMount () {
@@ -72,33 +77,70 @@ export default class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { sending } = this.state;
-
-    return [
+    const { sending, step } = this.state;
+    const cancelBtn = (
       <Button
         key='cancel'
         label='Cancel'
         icon={ <ContentClear /> }
-        onClick={ onClose } />,
+        onClick={ onClose } />
+    );
+
+    if (step === 0) {
+      return [
+        cancelBtn,
+        <Button
+          key='postTransaction'
+          label='post transaction'
+          disabled={ sending }
+          icon={ <IdentityIcon address={ fromAddress } button /> }
+          onClick={ this.postTransaction } />
+      ];
+    } else if (step === 1) {
+      return [
+        cancelBtn
+      ];
+    }
+
+    return [
       <Button
-        key='postTransaction'
-        label='post transaction'
-        disabled={ sending }
-        icon={ <IdentityIcon address={ fromAddress } button /> }
-        onClick={ this.postTransaction } />
+        key='close'
+        label='Done'
+        icon={ <ActionDoneAll /> }
+        onClick={ onClose } />
     ];
   }
 
   renderStep () {
-    const { onFromAddressChange } = this.props;
+    const { onFromAddressChange, isTest } = this.props;
+    const { step, busyState, txhash } = this.state;
+
+    if (step === 0) {
+      return (
+        <DetailsStep
+          { ...this.props }
+          { ...this.state }
+          onFromAddressChange={ onFromAddressChange }
+          onFuncChange={ this.onFuncChange }
+          onValueChange={ this.onValueChange } />
+      );
+    } else if (step === 1) {
+      return (
+        <BusyStep
+          title='The function execution is in progress'
+          state={ busyState } />
+      );
+    }
+
+    const link = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${txhash}`;
 
     return (
-      <DetailsStep
-        { ...this.props }
-        { ...this.state }
-        onFromAddressChange={ onFromAddressChange }
-        onFuncChange={ this.onFuncChange }
-        onValueChange={ this.onValueChange } />
+      <CompletedStep>
+        <div>Your transaction has been posted to the network with a transaction hash of</div>
+        <div className={ styles.txhash }>
+          <a href={ link } target='_blank'>{ txhash }</a>
+        </div>
+      </CompletedStep>
     );
   }
 
@@ -153,14 +195,14 @@ export default class ExecuteContract extends Component {
 
   postTransaction = () => {
     const { api, store } = this.context;
-    const { fromAddress, onClose } = this.props;
+    const { fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       from: fromAddress,
       value: api.util.toWei(amount || 0)
     };
 
-    this.setState({ sending: true });
+    this.setState({ sending: true, step: 1 });
 
     func
       .estimateGas(options, values)
@@ -168,9 +210,12 @@ export default class ExecuteContract extends Component {
         options.gas = gas.mul(1.2).toFixed(0);
         return func.postTransaction(options, values);
       })
-      .then(() => {
-        this.setState({ sending: false });
-        onClose();
+      .then((requestId) => {
+        this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
+        return api.pollMethod('eth', 'checkRequest', requestId);
+      })
+      .then((txhash) => {
+        this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });
       })
       .catch((error) => {
         console.error('postTransaction', error);

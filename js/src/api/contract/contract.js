@@ -163,33 +163,12 @@ export default class Contract {
     return receipt;
   }
 
-  _pollEthMethod (method, input, validate) {
-    return new Promise((resolve, reject) => {
-      const timeout = () => {
-        this._api.eth[method](input)
-          .then((result) => {
-            if (validate(result)) {
-              resolve(result);
-            } else {
-              setTimeout(timeout, 500);
-            }
-          })
-          .catch((error) => {
-            console.error('_pollEthEndpoint', error);
-            reject(error);
-          });
-      };
-
-      timeout();
-    });
-  }
-
   _pollCheckRequest = (requestId) => {
-    return this._pollEthMethod('checkRequest', requestId, (txhash) => txhash);
+    return this._api.pollEthMethod('eth', 'checkRequest', requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
-    return this._pollEthMethod('getTransactionReceipt', txhash, (receipt) => {
+    return this.api.pollEthMethod('eth', 'getTransactionReceipt', txhash, (receipt) => {
       if (!receipt || receipt.blockNumber.eq(0)) {
         return false;
       }

@@ -21,9 +21,8 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Button, IdentityIcon, Modal } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
 
-import Complete from './Complete';
 import Details from './Details';
 import Extras from './Extras';
 import ERRORS from './errors';
@@ -33,11 +32,12 @@ const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
+  budy: 'sending',
   complete: 'complete',
   extras: 'extra information'
 };
-const STAGES_BASIC = [TITLES.transfer, TITLES.complete];
-const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.complete];
+const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
+const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
 
 export default class Transfer extends Component {
   static contextTypes = {
@@ -81,7 +81,6 @@ export default class Transfer extends Component {
   render () {
     const { stage, extras } = this.state;
 
-    // title={ this.renderAccount() }
     return (
       <Modal
         actions={ this.renderDialogActions() }
@@ -131,8 +130,15 @@ export default class Transfer extends Component {
   renderCompletePage () {
     const { sending, txhash } = this.state;
 
+    if (sending) {
+      return (
+        <BusyStep
+          title='Your transaction has been sent' />
+      );
+    }
+
     return (
-      <Complete
+      <CompletedStep
         sending={ sending }
         txhash={ txhash } />
     );

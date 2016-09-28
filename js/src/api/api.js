@@ -94,6 +94,29 @@ export default class Api {
     return this._subscriptions.unsubscribe(subscriptionName, subscriptionId);
   }
 
+  pollMethod (_group, method, input, validate) {
+    const group = `_${_group}`;
+
+    return new Promise((resolve, reject) => {
+      const timeout = () => {
+        this[group][method](input)
+          .then((result) => {
+            if ((validate && validate(result)) || result) {
+              resolve(result);
+            } else {
+              setTimeout(timeout, 500);
+            }
+          })
+          .catch((error) => {
+            console.error('pollMethod', error);
+            reject(error);
+          });
+      };
+
+      timeout();
+    });
+  }
+
   static Transport = {
     Http: Http,
     Ws: Ws
