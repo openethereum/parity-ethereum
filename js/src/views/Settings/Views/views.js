@@ -74,7 +74,8 @@ class Views extends Component {
             disabled={ view.fixed }
             label={ label }
             onCheck={ toggle }
-            checked={ view.active || view.fixed } />
+            checked={ view.active }
+            value={ view.active } />
           <div className={ styles.info }>
             { view.description }
           </div>

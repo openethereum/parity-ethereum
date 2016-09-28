@@ -53,7 +53,7 @@ export default class Settings extends Component {
     const hash = (window.location.hash || '').split('?')[0].split('/')[2];
 
     return (
-      <Tabs className={ styles.tabs }>
+      <Tabs className={ styles.tabs } value={ hash }>
         <Tab
           className={ hash === 'views' ? styles.tabactive : styles.tab }
           value='views'

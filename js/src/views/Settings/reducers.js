@@ -18,21 +18,18 @@ import { handleActions } from 'redux-actions';
 
 import views from './Views/defaults';
 
-const backgroundSeed = window.localStorage.getItem('backgroundSeed') || `${Date.now()}`;
-window.localStorage.setItem('backgroundSeed', backgroundSeed);
-
 const initialState = {
   views,
-  backgroundSeed
+  backgroundSeed: `${Date.now()}`
 };
 
 export default handleActions({
   toggleView (state, action) {
-    const { viewId } = action;
+    return Object.assign({}, state, { views });
+  },
 
-    state.views[viewId].active = !state.views[viewId].active;
-
-    return Object.assign({}, state);
+  toggleViews (state, action) {
+    return Object.assign({}, state, { views });
   },
 
   updateBackground (state, action) {

@@ -68,6 +68,7 @@ const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
 
 const store = initStore(api, ws, tokenSetter);
+store.dispatch({ type: 'initAll', api });
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new

@@ -26,8 +26,6 @@ import { SignerIcon } from '../../../ui';
 
 import styles from './views.css';
 
-const LS_VIEWS = 'views';
-
 const defaultViews = {
   accounts: {
     active: true,
@@ -94,54 +92,6 @@ const defaultViews = {
     value: 'settings',
     description: 'This view. Allows you to customize the application in term of options, operation and look and feel.'
   }
-};
-
-const getFixed = () => {
-  const views = {};
-
-  Object.keys(defaultViews).forEach((id) => {
-    if (defaultViews[id].fixed) {
-      views[id] = { active: true };
-    }
-  });
-
-  return views;
-};
-
-const getDefaults = () => {
-  const views = {};
-
-  Object.keys(defaultViews).forEach((id) => {
-    views[id] = {
-      active: defaultViews[id].active || false
-    };
-  });
-
-  return views;
-};
-
-const load = () => {
-  const fixed = getFixed();
-  const defaults = getDefaults();
-  let data;
-
-  try {
-    const json = window.localStorage.getItem(LS_VIEWS) || {};
-
-    data = Object.assign(defaults, JSON.parse(json), fixed);
-  } catch (e) {
-    data = defaults;
-  }
-
-  return data;
-};
-
-const save = (_data) => {
-  Object.keys(_data).forEach((id) => {
-    defaultViews.id.active = _data[id].active;
-  });
-
-  window.localStorage.setItem(LS_VIEWS, JSON.stringify(getDefaults()));
 };
 
 export default defaultViews;
