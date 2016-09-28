@@ -39,6 +39,10 @@
   width: calc(100% / 12 * 4);
 }
 
+.overview>div+div {
+  padding-top: 1.25em;
+}
+
 .details {
   width: 66.66665%;
   width: -webkit-calc(100% / 12 * 8);

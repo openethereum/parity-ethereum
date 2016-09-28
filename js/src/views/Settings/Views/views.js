@@ -15,16 +15,20 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { Checkbox } from 'material-ui';
 
 import { Container } from '../../../ui';
 
+import { toggleView } from './actions';
+
 import layout from '../layout.css';
+import styles from './views.css';
 
-export default class Views extends Component {
+class Views extends Component {
   static propTypes = {
-  }
-
-  state = {
+    views: PropTypes.object.isRequired
   }
 
   render () {
@@ -32,16 +36,63 @@ export default class Views extends Component {
       <Container>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <p>Manage the available application views, using only the parts of the application that is applicable to you.</p>
-            <p>Are you an end-user? The defaults are setups for both beginner and advanced users alike.</p>
-            <p>Are you a developer? Add some features to manage contracts are interact with application develoyments.</p>
-            <p>Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.</p>
+            <div>Manage the available application views, using only the parts of the application that is applicable to you.</div>
+            <div>Are you an end-user? The defaults are setups for both beginner and advanced users alike.</div>
+            <div>Are you a developer? Add some features to manage contracts are interact with application develoyments.</div>
+            <div>Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.</div>
           </div>
           <div className={ layout.details }>
-            details goes here
+            { this.renderViews() }
           </div>
         </div>
       </Container>
     );
   }
+
+  renderViews () {
+    const { views, toggleView } = this.props;
+
+    return Object.keys(views).map((id) => {
+      const toggle = () => toggleView(id);
+      const view = views[id];
+      const label = (
+        <div className={ styles.header }>
+          <div className={ styles.labelicon }>
+            { view.icon }
+          </div>
+          <div className={ styles.label }>
+            { view.label }
+          </div>
+        </div>
+      );
+
+      return (
+        <div className={ styles.view }>
+          <Checkbox
+            disabled={ view.fixed }
+            label={ label }
+            onCheck={ toggle }
+            checked={ view.active || view.fixed } />
+          <div className={ styles.info }>
+            { view.description }
+          </div>
+        </div>
+      );
+    });
+  }
 }
+
+function mapStateToProps (state) {
+  const { views } = state;
+
+  return { views };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({ toggleView }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Views);

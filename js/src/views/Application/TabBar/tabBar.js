@@ -15,10 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
-import { defaultViews } from '../../Settings';
 import { Badge, ParityBackground, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
@@ -31,7 +32,7 @@ const TABMAP = {
   contracts: 'contract'
 };
 
-export default class TabBar extends Component {
+class TabBar extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
   }
@@ -39,28 +40,12 @@ export default class TabBar extends Component {
   static propTypes = {
     pending: PropTypes.array,
     isTest: PropTypes.bool,
-    netChain: PropTypes.string
+    netChain: PropTypes.string,
+    views: PropTypes.object.isRequired
   }
 
   state = {
-    accountsVisible: true,
-    addressesVisible: true,
-    appsVisible: true,
-    statusVisible: true,
-    signerVisible: true,
     activeRoute: '/accounts'
-  }
-
-  constructor () {
-    super();
-
-    defaultViews.accounts.body = <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />;
-    defaultViews.signer.renderLabel = this.renderSignerLabel;
-    defaultViews.status.renderLabel = this.renderStatusLabel;
-  }
-
-  componentDidMount () {
-    this.loadViews();
   }
 
   render () {
@@ -98,30 +83,37 @@ export default class TabBar extends Component {
   }
 
   renderTabs () {
+    const { views } = this.props;
     const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
 
-    const items = Object.keys(defaultViews)
-      .filter((id) => {
-        const tab = defaultViews[id];
-        const isFixed = tab.fixed;
-        const isVisible = this.state[this.visibleId(id)];
-
-        return isFixed || isVisible;
-      })
+    const items = Object.keys(views)
+      .filter((id) => views[id].fixed || views[id].active)
       .map((id) => {
-        const tab = defaultViews[id];
-        const onActivate = () => this.onActivate(tab.route);
+        const view = views[id];
+        const onActivate = () => this.onActivate(view.route);
+        let label = this.renderLabel(view.label);
+        let body = null;
+
+        if (id === 'accounts') {
+          body = (
+            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+          );
+        } else if (id === 'signer') {
+          label = this.renderSignerLabel(label);
+        } else if (id === 'status') {
+          label = this.renderStatusLabel(label);
+        }
 
         return (
           <Tab
-            className={ hash === tab.value ? styles.tabactive : '' }
-            value={ tab.value }
-            icon={ tab.icon }
+            className={ hash === view.value ? styles.tabactive : '' }
+            value={ view.value }
+            icon={ view.icon }
             key={ id }
-            label={ tab.renderLabel ? tab.renderLabel(tab.label) : this.renderLabel(tab.label) }
+            label={ label }
             onActive={ onActivate }>
-            { tab.body }
+            { body }
           </Tab>
         );
       });
@@ -172,49 +164,25 @@ export default class TabBar extends Component {
     return this.renderLabel(label, bubble);
   }
 
-  visibleId (id) {
-    return `${id}Visible`;
-  }
-
   onActivate = (activeRoute) => {
     const { router } = this.context;
 
     router.push(activeRoute);
     this.setState({ activeRoute });
   }
-
-  toggleMenu = (event, menu) => {
-    const id = menu.props['data-id'];
-    const toggle = this.visibleId(id);
-    const isActive = this.state[toggle];
-
-    if (defaultViews[id].fixed) {
-      return;
-    }
-
-    this.setState({
-      [toggle]: !isActive
-    }, this.saveViews);
-  }
-
-  loadViews () {
-    const state = {};
-    const data = defaultViews.load();
-
-    Object.keys(data).forEach((id) => {
-      state[this.visibleId(id)] = data[id].active;
-    });
-
-    this.setState(state, this.saveViews);
-  }
-
-  saveViews = () => {
-    const data = {};
-
-    Object.keys(data).forEach((id) => {
-      data[id] = { active: this.state[this.visibleId(id)] };
-    });
-
-    defaultViews.save(data);
-  }
 }
+
+function mapStateToProps (state) {
+  const { views } = state;
+
+  return { views };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(TabBar);

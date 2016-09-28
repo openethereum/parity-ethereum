@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import SettingsBackground from './Background';
-import SettingsViews, { defaultViews } from './Views';
+import SettingsViews, { defaultViews, viewsReducer, toggleView } from './Views';
 
 export default from './settings';
 
 export {
   SettingsBackground,
   SettingsViews,
-  defaultViews
+  defaultViews,
+  viewsReducer,
+  toggleView
 };

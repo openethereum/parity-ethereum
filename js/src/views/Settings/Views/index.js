@@ -15,9 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import defaultViews from './defaults';
+import viewsReducer from './reducers';
+import { toggleView } from './actions';
 
 export default from './views';
 
 export {
-  defaultViews
+  defaultViews,
+  viewsReducer,
+  toggleView
 };

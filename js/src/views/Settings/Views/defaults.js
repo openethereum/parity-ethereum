@@ -120,7 +120,7 @@ const getDefaults = () => {
   return views;
 };
 
-defaultViews.load = () => {
+const load = () => {
   const fixed = getFixed();
   const defaults = getDefaults();
   let data;
@@ -136,7 +136,7 @@ defaultViews.load = () => {
   return data;
 };
 
-defaultViews.save = (_data) => {
+const save = (_data) => {
   Object.keys(_data).forEach((id) => {
     defaultViews.id.active = _data[id].active;
   });

@@ -20,6 +20,7 @@ import { routerReducer } from 'react-router-redux';
 import { balancesReducer, personalReducer, statusReducer as nodeStatusReducer } from './providers';
 
 import { errorReducer } from '../ui/Errors';
+import { viewsReducer } from '../views/Settings';
 import { tooltipReducer } from '../ui/Tooltips';
 
 import {
@@ -32,6 +33,7 @@ export default function () {
     errors: errorReducer,
     tooltip: tooltipReducer,
     routing: routerReducer,
+    views: viewsReducer,
 
     balances: balancesReducer,
     nodeStatus: nodeStatusReducer,
