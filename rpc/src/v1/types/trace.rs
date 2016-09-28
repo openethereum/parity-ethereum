@@ -414,15 +414,15 @@ pub struct LocalizedTrace {
 	/// Result
 	result: Res,
 	/// Trace address
-	trace_address: Vec<U256>,
+	trace_address: Vec<usize>,
 	/// Subtraces
-	subtraces: U256,
+	subtraces: usize,
 	/// Transaction position
-	transaction_position: U256,
+	transaction_position: usize,
 	/// Transaction hash
 	transaction_hash: H256,
 	/// Block Number
-	block_number: U256,
+	block_number: u64,
 	/// Block Hash
 	block_hash: H256,
 }
@@ -485,9 +485,9 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 #[derive(Debug)]
 pub struct Trace {
 	/// Trace address
-	trace_address: Vec<U256>,
+	trace_address: Vec<usize>,
 	/// Subtraces
-	subtraces: U256,
+	subtraces: usize,
 	/// Action
 	action: Action,
 	/// Result
