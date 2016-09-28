@@ -215,11 +215,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let is_callcode = receive_address != code_address;
 		let is_delegatecall = is_callcode && sender_address != receive_address;
 
-		let value = if is_delegatecall {
-			None
-		} else {
-			Some(transfer_value)
-		};
+		let value = if is_delegatecall { None } else { Some(transfer_value) };
 
 		if !is_callcode && !self.ext.exists(&code_address) {
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
