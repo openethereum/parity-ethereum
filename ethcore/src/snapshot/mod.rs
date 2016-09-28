@@ -25,8 +25,9 @@ use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
+use super::state_db::StateDB;
 
-use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut};
+use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut, BytesConvertable};
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -453,7 +454,7 @@ impl StateRebuilder {
 			Ok::<_, ::error::Error>(())
 		}));
 
-
+		let mut bloom = StateDB::load_bloom(&backing);
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
@@ -463,11 +464,14 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
+				bloom.set(hash.as_slice());
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
+		let bloom_journal = bloom.drain_journal();
 		let batch = backing.transaction();
+		try!(StateDB::commit_bloom(&batch, bloom_journal));
 		try!(self.db.inject(&batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
