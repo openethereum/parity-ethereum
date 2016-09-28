@@ -68,7 +68,7 @@ fn codes_path(path: String) -> PathBuf {
 
 pub fn new_token(path: String) -> Result<String, String> {
 	generate_new_token(path)
-		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
+		.map(|code| format!("This key code will authorise your System Signer UI: {}", code))
 		.map_err(|err| format!("Error generating token: {:?}", err))
 }
 
