@@ -94,12 +94,10 @@ export default class Api {
     return this._subscriptions.unsubscribe(subscriptionName, subscriptionId);
   }
 
-  pollMethod (_group, method, input, validate) {
-    const group = `_${_group}`;
-
+  pollMethod (method, input, validate) {
     return new Promise((resolve, reject) => {
       const timeout = () => {
-        this[group][method](input)
+        method(input)
           .then((result) => {
             if ((validate && validate(result)) || result) {
               resolve(result);

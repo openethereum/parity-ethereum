@@ -164,11 +164,11 @@ export default class Contract {
   }
 
   _pollCheckRequest = (requestId) => {
-    return this._api.pollEthMethod('eth', 'checkRequest', requestId);
+    return this._api.pollEthMethod(this._api.eth.checkRequest, requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
-    return this.api.pollEthMethod('eth', 'getTransactionReceipt', txhash, (receipt) => {
+    return this.api.pollEthMethod(this._api.eth.getTransactionReceipt, txhash, (receipt) => {
       if (!receipt || receipt.blockNumber.eq(0)) {
         return false;
       }
