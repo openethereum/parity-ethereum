@@ -31,7 +31,7 @@ fn top_level_subtraces(traces: &[FlatTrace]) -> usize {
 	traces.iter().filter(|t| t.trace_address.is_empty()).count()
 }
 
-fn update_trace_address(traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
+fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// input traces are expected to be ordered like
 	// []
 	// [0]
@@ -48,25 +48,37 @@ fn update_trace_address(traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// [0, 0, 1]
 	// [1]
 	// [1, 0]
-	let mut top_subtrace_index = 0;
-	let mut subtrace_subtraces_left = 0;
-	traces.into_iter().map(|mut trace| {
-		let is_top_subtrace = trace.trace_address.is_empty();
-		let is_subtrace = trace.trace_address.len() == 1;
-		trace.trace_address.push_front(top_subtrace_index);
-
-		if is_top_subtrace {
-			subtrace_subtraces_left = trace.subtraces;
-		} else if is_subtrace {
-			subtrace_subtraces_left -= 1;
-		}
-
-		if subtrace_subtraces_left == 0 {
-			top_subtrace_index += 1;
-		}
-		trace
-	}).collect()
+	let mut current_subtrace_index = 0;
+	let mut first = true;
+	for trace in traces.iter_mut() {
+		match (first, trace.trace_address.is_empty()) {
+			(true, _) => first = false,
+			(_, true) => current_subtrace_index += 1,
+			_ => {}
+		}			
+		trace.trace_address.push_front(current_subtrace_index);
+	}
+	traces
 }
+
+#[test]
+fn should_prefix_address_properly() {
+	use super::trace::{Action, Res, Suicide};
+
+	let f = |v: Vec<usize>| FlatTrace {
+		action: Action::Suicide(Suicide {
+			address: Default::default(),
+			balance: Default::default(),
+			refund_address: Default::default(),
+		}),
+		result: Res::None,
+		subtraces: 0,
+		trace_address: v.into_iter().collect(),
+	};
+	let t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
+	let t = prefix_subtrace_addresses(t);
+	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
+}  
 
 impl Tracer for ExecutiveTracer {
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {
@@ -93,7 +105,7 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced call {:?}", trace);
 		self.traces.push(trace);
-		self.traces.extend(update_trace_address(subs));
+		self.traces.extend(prefix_subtrace_addresses(subs));
 	}
 
 	fn trace_create(&mut self, create: Option<Create>, gas_used: U256, code: Option<Bytes>, address: Address, subs: Vec<FlatTrace>) {
@@ -109,7 +121,7 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced create {:?}", trace);
 		self.traces.push(trace);
-		self.traces.extend(update_trace_address(subs));
+		self.traces.extend(prefix_subtrace_addresses(subs));
 	}
 
 	fn trace_failed_call(&mut self, call: Option<Call>, subs: Vec<FlatTrace>, error: TraceError) {
@@ -121,7 +133,7 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced failed call {:?}", trace);
 		self.traces.push(trace);
-		self.traces.extend(update_trace_address(subs));
+		self.traces.extend(prefix_subtrace_addresses(subs));
 	}
 
 	fn trace_failed_create(&mut self, create: Option<Create>, subs: Vec<FlatTrace>, error: TraceError) {
@@ -133,7 +145,7 @@ impl Tracer for ExecutiveTracer {
 		};
 		debug!(target: "trace", "Traced failed create {:?}", trace);
 		self.traces.push(trace);
-		self.traces.extend(update_trace_address(subs));
+		self.traces.extend(prefix_subtrace_addresses(subs));
 	}
 
 	fn trace_suicide(&mut self, address: Address, balance: U256, refund_address: Address) {
