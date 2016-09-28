@@ -18,13 +18,18 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Tab, Tabs } from 'material-ui';
-import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
+import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
+import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Actionbar, Page } from '../../ui';
 
 import styles from './settings.css';
 
 export default class Settings extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     children: PropTypes.object.isRequired
   }
@@ -45,27 +50,33 @@ export default class Settings extends Component {
   }
 
   renderTabs () {
+    const hash = (window.location.hash || '').split('?')[0].split('/')[2];
+
     return (
       <Tabs className={ styles.tabs }>
         <Tab
-          className={ styles.tab }
+          className={ hash === 'views' ? styles.tabactive : styles.tab }
           value='views'
           key='views'
-          icon={ <RemoveRedEye /> }
-          label={ <div className={ styles.menu }>views</div> } />
+          icon={ <ImageRemoveRedEye /> }
+          label={ <div className={ styles.menu }>views</div> }
+          onActive={ this.onActivate('views') } />
         <Tab
-          className={ styles.tab }
+          className={ hash === 'background' ? styles.tabactive : styles.tab }
           value='background'
           key='background'
-          icon={ <RemoveRedEye /> }
-          label={ <div className={ styles.menu }>views</div> } />
+          icon={ <ImageBlurOn /> }
+          label={ <div className={ styles.menu }>background</div> }
+          onActive={ this.onActivate('background') } />
       </Tabs>
     );
   }
 
-  menuClick = (section) => {
+  onActivate = (section) => {
     const { router } = this.context;
 
-    return (event) => router.push(`/settings/${section}`);
+    return (event) => {
+      router.push(`/settings/${section}`);
+    };
   }
 }

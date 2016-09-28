@@ -16,7 +16,7 @@
 */
 
 .layout {
-  margin: 0 -1.5em;
+  padding-top: 1.5em;
 }
 
 .layout::after {
@@ -27,7 +27,6 @@
 
 .overview, .details {
   float: left;
-  padding: 0 1.5em;
   box-sizing: border-box;
 }
 
@@ -48,4 +47,5 @@
   width: -webkit-calc(100% / 12 * 8);
   width: -moz-calc(100% / 12 * 8);
   width: calc(100% / 12 * 8);
+  padding-left: 3em;
 }

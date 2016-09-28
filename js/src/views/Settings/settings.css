@@ -31,26 +31,32 @@
 }
 
 .tab,
-.tabActive {
+.tabactive {
   padding: 16px 2em !important;
   line-height: 24px !important;
 }
 
-.tab.active {
-
+.tabactive {
 }
 
-.tab>div>div {
-  flex-direction: row !important;
-  height: auto !important;
-  align-items: none !important;
+.tab>div,
+.tabactive>div {
+  height: 24px !important;
 }
 
-.tab svg {
+.tab>div>div,
+.tabactive>div>div {
+  display: inline-block !important;
+}
+
+.tab svg,
+.tabactive svg {
   margin-right: 0.5em;
+  margin-bottom: 0 !important;
 }
 
-.tab .menu {
+.tab .menu,
+.tabactive .menu {
   vertical-align: top;
-  margin-bottom: 5px;
+  display: inline-block;
 }

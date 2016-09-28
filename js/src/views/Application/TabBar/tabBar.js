@@ -91,7 +91,6 @@ class TabBar extends Component {
       .filter((id) => views[id].fixed || views[id].active)
       .map((id) => {
         const view = views[id];
-        const onActivate = () => this.onActivate(view.route);
         let label = this.renderLabel(view.label);
         let body = null;
 
@@ -112,7 +111,7 @@ class TabBar extends Component {
             icon={ view.icon }
             key={ id }
             label={ label }
-            onActive={ onActivate }>
+            onActive={ this.onActivate(view.route) }>
             { body }
           </Tab>
         );
@@ -167,8 +166,10 @@ class TabBar extends Component {
   onActivate = (activeRoute) => {
     const { router } = this.context;
 
-    router.push(activeRoute);
-    this.setState({ activeRoute });
+    return (event) => {
+      router.push(activeRoute);
+      this.setState({ activeRoute });
+    };
   }
 }
 

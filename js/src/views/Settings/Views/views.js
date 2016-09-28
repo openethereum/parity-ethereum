@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
-import { Container } from '../../../ui';
+import { Container, ContainerTitle } from '../../../ui';
 
 import { toggleView } from './actions';
 
@@ -28,12 +28,14 @@ import styles from './views.css';
 
 class Views extends Component {
   static propTypes = {
-    views: PropTypes.object.isRequired
+    views: PropTypes.object.isRequired,
+    toggleView: PropTypes.func.isRequired
   }
 
   render () {
     return (
       <Container>
+        <ContainerTitle title='Views' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>Manage the available application views, using only the parts of the application that is applicable to you.</div>
@@ -67,7 +69,7 @@ class Views extends Component {
       );
 
       return (
-        <div className={ styles.view }>
+        <div className={ styles.view } key={ id }>
           <Checkbox
             disabled={ view.fixed }
             label={ label }
