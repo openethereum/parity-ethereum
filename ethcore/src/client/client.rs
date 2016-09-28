@@ -1082,6 +1082,8 @@ impl MiningBlockChainClient for Client {
 		let number = block.header().number();
 
 		let block_data = block.rlp_bytes();
+		// Clear canonical state cache
+		self.state_db.lock().clear_cache();
 		let route = self.commit_block(block, &h, &block_data);
 		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 
