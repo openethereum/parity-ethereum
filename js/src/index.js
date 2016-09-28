@@ -58,9 +58,6 @@ const parityUrl = process.env.PARITY_URL ||
 const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
 ContractInstances.create(api);
 
-const backgroundSeed = window.localStorage.getItem('backgroundSeed') || api.util.sha3(`${initToken}_${Date.now()}`);
-muiTheme.parity.setBackgroundSeed(backgroundSeed);
-
 // signer
 function tokenSetter (token, cb) {
   window.localStorage.setItem('sysuiToken', token);

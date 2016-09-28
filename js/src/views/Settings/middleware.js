@@ -14,10 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export function toggleView (viewId) {
-  console.log('toggleView', viewId);
-  return {
-    type: 'toggleView',
-    viewId
-  };
+export default class SettingsMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type === 'updateBackground') {
+        window.localStorage.setItem('backgroundSeed', action.backgroundSeed);
+      }
+
+      next(action);
+    };
+  }
 }

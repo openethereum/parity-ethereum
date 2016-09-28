@@ -21,16 +21,26 @@
   flex-wrap: wrap;
 }
 
-.bg {
+.bgflex {
   flex-basis: 25%;
   box-sizing: border-box;
   display: inline-block;
   padding: 0 0.5em 1em 0.5em;
 }
 
-.seed {
-  width: 100%;
+.bgseed {
+  background: black;
+  border-radius: 4px;
+}
+
+.seed,
+.seedactive {
   height: 10em;
   border-radius: 4px;
   cursor: pointer;
+  border: 2px solid rgba(255, 255, 255, 1);
+}
+
+.seed {
+  opacity: 0.5;
 }

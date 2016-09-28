@@ -41,7 +41,7 @@ class TabBar extends Component {
     pending: PropTypes.array,
     isTest: PropTypes.bool,
     netChain: PropTypes.string,
-    views: PropTypes.object.isRequired
+    settings: PropTypes.object.isRequired
   }
 
   state = {
@@ -83,14 +83,14 @@ class TabBar extends Component {
   }
 
   renderTabs () {
-    const { views } = this.props;
+    const { settings } = this.props;
     const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
 
-    const items = Object.keys(views)
-      .filter((id) => views[id].fixed || views[id].active)
+    const items = Object.keys(settings.views)
+      .filter((id) => settings.views[id].fixed || settings.views[id].active)
       .map((id) => {
-        const view = views[id];
+        const view = settings.views[id];
         let label = this.renderLabel(view.label);
         let body = null;
 
@@ -174,9 +174,9 @@ class TabBar extends Component {
 }
 
 function mapStateToProps (state) {
-  const { views } = state;
+  const { settings } = state;
 
-  return { views };
+  return { settings };
 }
 
 function mapDispatchToProps (dispatch) {

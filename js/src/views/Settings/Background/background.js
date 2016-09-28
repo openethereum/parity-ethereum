@@ -15,18 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Container, ContainerTitle, ParityBackground } from '../../../ui';
+import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
+
+import { updateBackground } from '../actions';
 
 import layout from '../layout.css';
 import styles from './background.css';
 
 let counter = 0;
 
-export default class Background extends Component {
+class Background extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     muiTheme: PropTypes.object.isRequired
+  }
+
+  static propTypes = {
+    settings: PropTypes.object.isRequired,
+    updateBackground: PropTypes.func.isRequired
   }
 
   state = {
@@ -34,11 +44,11 @@ export default class Background extends Component {
   }
 
   componentDidMount () {
-    const { muiTheme } = this.context;
+    const { settings } = this.props;
 
     this.setState({
-      seeds: [muiTheme.backgroundSeed]
-    }, () => this.addSeeds(15));
+      seeds: [settings.backgroundSeed]
+    }, () => this.addSeeds(19));
   }
 
   render () {
@@ -48,12 +58,16 @@ export default class Background extends Component {
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>Manage your unique, fingerprinted application background.</div>
-            <div>The bckground is derived from the secure token shared between the fron-end and Parity, and it unique accross connections. Apart from allowing you to customize the look of your UI, it also allow you to uniquely identify that you are indeed connected to a know endpoint.</div>
+            <div>The background is derived from the secure token shared between the front-end and Parity, and it unique across connections. Apart from allowing you to customize the look of your UI, it also allow you to uniquely identify that you are indeed connected to a know endpoint.</div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.bgcontainer }>
               { this.renderBackgrounds() }
             </div>
+            <Button
+              icon={ <NavigationRefresh /> }
+              label='generate more'
+              onClick={ this.generateMore } />
           </div>
         </div>
       </Container>
@@ -61,16 +75,18 @@ export default class Background extends Component {
   }
 
   renderBackgrounds () {
+    const { settings } = this.props;
     const { seeds } = this.state;
 
     return seeds.map((seed) => {
       return (
-        <div className={ styles.bg }>
-          <ParityBackground
-            className={ styles.seed }
-            key={ seed }
-            seed={ seed }
-            onTouchTap={ this.onSelect(seed) } />
+        <div className={ styles.bgflex } key={ seed }>
+          <div className={ styles.bgseed }>
+            <ParityBackground
+              className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
+              seed={ seed }
+              onClick={ this.onSelect(seed) } />
+          </div>
         </div>
       );
     });
@@ -78,10 +94,16 @@ export default class Background extends Component {
 
   onSelect = (seed) => {
     const { muiTheme } = this.context;
+    const { updateBackground } = this.props;
 
     return (event) => {
-      muiTheme.setBackgroundSeed(seed);
+      muiTheme.parity.setBackgroundSeed(seed);
+      updateBackground(seed);
     };
+  }
+
+  generateMore = () => {
+    this.addSeeds(20);
   }
 
   addSeeds (count) {
@@ -103,3 +125,18 @@ export default class Background extends Component {
     return api.util.sha3(`${muiTheme.backgroundSeed}${Math.random()}${counter++}`);
   }
 }
+
+function mapStateToProps (state) {
+  const { settings } = state;
+
+  return { settings };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({ updateBackground }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Background);

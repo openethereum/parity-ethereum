@@ -21,14 +21,14 @@ import { Checkbox } from 'material-ui';
 
 import { Container, ContainerTitle } from '../../../ui';
 
-import { toggleView } from './actions';
+import { toggleView } from '../actions';
 
 import layout from '../layout.css';
 import styles from './views.css';
 
 class Views extends Component {
   static propTypes = {
-    views: PropTypes.object.isRequired,
+    settings: PropTypes.object.isRequired,
     toggleView: PropTypes.func.isRequired
   }
 
@@ -52,11 +52,11 @@ class Views extends Component {
   }
 
   renderViews () {
-    const { views, toggleView } = this.props;
+    const { settings, toggleView } = this.props;
 
-    return Object.keys(views).map((id) => {
+    return Object.keys(settings.views).map((id) => {
       const toggle = () => toggleView(id);
-      const view = views[id];
+      const view = settings.views[id];
       const label = (
         <div className={ styles.header }>
           <div className={ styles.labelicon }>
@@ -85,9 +85,9 @@ class Views extends Component {
 }
 
 function mapStateToProps (state) {
-  const { views } = state;
+  const { settings } = state;
 
-  return { views };
+  return { settings };
 }
 
 function mapDispatchToProps (dispatch) {
