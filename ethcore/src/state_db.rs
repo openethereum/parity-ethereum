@@ -49,17 +49,9 @@ pub struct StateDB {
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
-pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static[u8] = b"account_hash_count";
+pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
 impl StateDB {
-
-	pub fn check_bloom_exists(db: &Database) -> bool {
-		let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
-			.expect("Low-level database error");
-
-		hash_count_entry.is_some()
-	}
-
 	pub fn load_bloom(db: &Database) -> Bloom {
 		let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");

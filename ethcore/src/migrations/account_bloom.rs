@@ -16,8 +16,8 @@
 
 //! Bloom upgrade
 
-use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_NO_OF_COLUMNS, DB_COL_STATE};
-use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
+use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_NO_OF_COLUMNS, DB_COL_STATE, DB_COL_ACCOUNT_BLOOM};
+use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB, ACCOUNT_BLOOM_HASHCOUNT_KEY};
 use util::trie::TrieDB;
 use views::HeaderView;
 use bloomfilter::Bloom;
@@ -26,6 +26,13 @@ use util::journaldb;
 use util::{H256, FixedHash, BytesConvertable};
 use util::{Database, DatabaseConfig, DBTransaction, CompactionProfile};
 use std::path::Path;
+
+fn check_bloom_exists(db: &Database) -> bool {
+	let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
+		.expect("Low-level database error");
+
+	hash_count_entry.is_some()
+}
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
 /// If database empty (no best block), does nothing.
@@ -60,7 +67,7 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	};
 	let state_root = HeaderView::new(&best_block_header).state_root();
 
-	if StateDB::check_bloom_exists(&source) {
+	if check_bloom_exists(&source) {
 		// bloom already exists, nothing to do
 		trace!(target: "migration", "Bloom already present, skipping");
 		return Ok(())
