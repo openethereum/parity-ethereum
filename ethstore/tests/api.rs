@@ -19,9 +19,8 @@ extern crate ethstore;
 
 mod util;
 
-use std::str::FromStr;
 use ethstore::{SecretStore, EthStore};
-use ethstore::ethkey::{Random, Generator, Secret, Address};
+use ethstore::ethkey::{Random, Generator, Secret, KeyPair, verify_address};
 use ethstore::dir::DiskDirectory;
 use util::TransientDir;
 
@@ -103,14 +102,21 @@ fn pat_path() -> &'static str {
 	}
 }
 
+fn ciphertext_path() -> &'static str {
+	match ::std::fs::metadata("ethstore") {
+		Ok(_) => "ethstore/tests/res/ciphertext",
+		Err(_) => "tests/res/ciphertext",
+	}
+}
+
 #[test]
 fn secret_store_laod_geth_files() {
 	let dir = DiskDirectory::at(test_path());
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert_eq!(store.accounts().unwrap(), vec![
-		Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap(),
-		Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap(),
-		Address::from_str("63121b431a52f8043c16fcf0d1df9cb7b5f66649").unwrap(),
+		"3f49624084b67849c7b4e805c5988c21a430f9d9".into(),
+		"5ba4dcf897e97c2bdf8315b9ef26c13c085988cf".into(),
+		"63121b431a52f8043c16fcf0d1df9cb7b5f66649".into(),
 	]);
 }
 
@@ -119,9 +125,30 @@ fn secret_store_load_pat_files() {
 	let dir = DiskDirectory::at(pat_path());
 	let store = EthStore::open(Box::new(dir)).unwrap();
 	assert_eq!(store.accounts().unwrap(), vec![
-		Address::from_str("3f49624084b67849c7b4e805c5988c21a430f9d9").unwrap(),
-		Address::from_str("5ba4dcf897e97c2bdf8315b9ef26c13c085988cf").unwrap(),
+		"3f49624084b67849c7b4e805c5988c21a430f9d9".into(),
+		"5ba4dcf897e97c2bdf8315b9ef26c13c085988cf".into(),
 	]);
 }
 
+#[test]
+fn test_decrypting_files_with_short_ciphertext() {
+	// 31e9d1e6d844bd3a536800ef8d8be6a9975db509, 30
+	let kp1 = KeyPair::from_secret("000081c29e8142bb6a81bef5a92bda7a8328a5c85bb2f9542e76f9b0f94fc018".into()).unwrap();
+	// d1e64e5480bfaf733ba7d48712decb8227797a4e , 31
+	let kp2 = KeyPair::from_secret("00fa7b3db73dc7dfdf8c5fbdb796d741e4488628c41fc4febd9160a866ba0f35".into()).unwrap();
+	let dir = DiskDirectory::at(ciphertext_path());
+	let store = EthStore::open(Box::new(dir)).unwrap();
+	let accounts = store.accounts().unwrap();
+	assert_eq!(accounts, vec![
+		"31e9d1e6d844bd3a536800ef8d8be6a9975db509".into(),
+		"d1e64e5480bfaf733ba7d48712decb8227797a4e".into(),
+	]);
 
+	let message = Default::default();
+
+	let s1 = store.sign(&accounts[0], "foo", &message).unwrap();
+	let s2 = store.sign(&accounts[1], "foo", &message).unwrap();
+	assert!(verify_address(&accounts[0], &s1, &message).unwrap());
+	assert!(verify_address(&kp1.address(), &s1, &message).unwrap());
+	assert!(verify_address(&kp2.address(), &s2, &message).unwrap());
+}
