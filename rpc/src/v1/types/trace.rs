@@ -601,11 +601,11 @@ mod tests {
 				gas_used: 8.into(),
 				output: vec![0x56, 0x78].into(),
 			}),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -624,11 +624,11 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: Res::FailedCall(TraceError::OutOfGas),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -649,11 +649,11 @@ mod tests {
 				code: vec![0x56, 0x78].into(),
 				address: 0xff.into(),
 			}),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -670,11 +670,11 @@ mod tests {
 				init: Bytes::new(vec![0x12, 0x34]),
 			}),
 			result: Res::FailedCreate(TraceError::OutOfGas),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -690,11 +690,11 @@ mod tests {
 				balance: 7.into(),
 			}),
 			result: Res::None,
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
@@ -749,7 +749,7 @@ mod tests {
 		let t = StateDiff(map![
 			42.into() => AccountDiff {
 				balance: Diff::Same,
-				nonce: Diff::Born(1.into()),
+				nonce: Diff::Born(1),
 				code: Diff::Same,
 				storage: map![
 					42.into() => Diff::Same
@@ -757,7 +757,7 @@ mod tests {
 			},
 			69.into() => AccountDiff {
 				balance: Diff::Same,
-				nonce: Diff::Changed(ChangedType { from: 1.into(), to: 0.into() }),
+				nonce: Diff::Changed(ChangedType { from: 1, to: 0.into() }),
 				code: Diff::Died(vec![96].into()),
 				storage: map![],
 			}
