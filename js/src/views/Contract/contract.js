@@ -53,9 +53,11 @@ class Contract extends Component {
     showEditDialog: false,
     showExecuteDialog: false,
     subscriptionId: -1,
+    blockSubscriptionId: -1,
     allEvents: [],
     minedEvents: [],
-    pendingEvents: []
+    pendingEvents: [],
+    queryValues: {}
   }
 
   componentDidMount () {
@@ -64,7 +66,9 @@ class Contract extends Component {
     this.attachContract(this.props);
     this.setBaseAccount(this.props);
 
-    api.subscribe('eth_blockNumber', this.queryContract);
+    api
+      .subscribe('eth_blockNumber', this.queryContract)
+      .then(blockSubscriptionId => this.setState({ blockSubscriptionId }));
   }
 
   componentWillReceiveProps (newProps) {
@@ -79,9 +83,17 @@ class Contract extends Component {
     }
   }
 
+  componentWillUnmount () {
+    const { api } = this.context;
+    const { subscriptionId, blockSubscriptionId, contract } = this.state;
+
+    api.unsubscribe('eth_blockNumber', blockSubscriptionId);
+    contract.unsubscribe(subscriptionId);
+  }
+
   render () {
     const { balances, contracts, params, isTest } = this.props;
-    const { allEvents, contract } = this.state;
+    const { allEvents, contract, queryValues } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
 
@@ -101,7 +113,8 @@ class Contract extends Component {
             account={ account }
             balance={ balance } />
           <Queries
-            contract={ contract } />
+            contract={ contract }
+            values={ queryValues } />
           <Events
             isTest={ isTest }
             events={ allEvents } />
@@ -194,6 +207,15 @@ class Contract extends Component {
 
     Promise
       .all(queries.map((query) => query.call()))
+      .then(results => {
+        const values = queries.reduce((object, fn, idx) => {
+          const key = fn.name;
+          object[key] = results[idx];
+          return object;
+        }, {});
+
+        this.setState({ queryValues: values });
+      })
       .catch((error) => {
         console.error('queryContract', error);
       });

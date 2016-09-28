@@ -35,6 +35,20 @@ class ParityBar extends Component {
     opened: false
   }
 
+  componentWillReceiveProps (nextProps) {
+    const count = this.props.pending.length;
+    const newCount = nextProps.pending.length;
+
+    // Open when a request is added
+    if (count < newCount) {
+      this.setState({ opened: true });
+
+    // Close when no more requests pending
+    } else if (newCount === 0 && count === 1) {
+      this.setState({ opened: false });
+    }
+  }
+
   render () {
     const { opened } = this.state;
 
