@@ -41,7 +41,7 @@ impl TestProtocol {
 	/// Creates and register protocol with the network service
 	pub fn register(service: &mut NetworkService, drop_session: bool) -> Arc<TestProtocol> {
 		let handler = Arc::new(TestProtocol::new(drop_session));
-		service.register_protocol(handler.clone(), "test", &[42u8, 43u8]).expect("Error registering test protocol handler");
+		service.register_protocol(handler.clone(), b"test".clone(), &[42u8, 43u8]).expect("Error registering test protocol handler");
 		handler
 	}
 
