@@ -738,13 +738,14 @@ impl TransactionQueue {
 
 		let address = tx.sender();
 		let nonce = tx.nonce();
+		let hash = tx.hash();
 
 		// The transaction might be old, let's check that.
 		// This has to be the first test, otherwise calculating
 		// nonce height would result in overflow.
 		if nonce < state_nonce {
 			// Droping transaction
-			trace!(target: "txqueue", "Dropping old transaction: {:?} (nonce: {} < {})", tx.hash(), nonce, state_nonce);
+			trace!(target: "txqueue", "Dropping old transaction: {:?} (nonce: {} < {})", hash, nonce, state_nonce);
 			return Err(TransactionError::Old);
 		}
 
@@ -959,30 +960,6 @@ mod test {
 		(tx.sign(secret), tx2.sign(secret))
 	}
 
-	#[test]
-	fn test_ordering() {
-		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::External), Ordering::Less);
-		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::Local), Ordering::Less);
-		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::External), Ordering::Less);
-
-		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::Local), Ordering::Greater);
-		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
-		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
-	}
-
-	#[test]
-	fn should_return_correct_nonces_when_dropped_because_of_limit() {
-		// given
-		let mut txq = TransactionQueue::with_limits(2, !U256::zero());
-		let (tx1, tx2) = new_tx_pair(123.into(), 1.into(), 1.into(), 0.into());
-		let sender = tx1.sender().unwrap();
-		let nonce = tx1.nonce;
-		txq.add(tx1.clone(), &default_account_details, TransactionOrigin::External).unwrap();
-		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::External).unwrap();
-		assert_eq!(txq.status().pending, 2);
-		assert_eq!(txq.last_nonce(&sender), Some(nonce + U256::one()));
-	}
-
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
 		let keypair = KeyPair::create().unwrap();
 		let secret = &keypair.secret();
@@ -992,6 +969,17 @@ mod test {
 		tx2.gas_price = tx2.gas_price + gas_price;
 
 		(tx.sign(secret), tx2.sign(secret))
+	}
+
+	#[test]
+	fn test_ordering() {
+		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::External), Ordering::Less);
+		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::Local), Ordering::Less);
+		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::External), Ordering::Less);
+
+		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::Local), Ordering::Greater);
+		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
+		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
 	}
 
 	#[test]
@@ -1101,8 +1089,8 @@ mod test {
 	fn should_move_all_transactions_from_future() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let (tx, tx2) = new_tx_pair_default(1.into(), 1.into());
-		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_account_details(a).nonce - U256::one(), balance:
+		let (tx, tx2) = new_txs_with_gas_price_diff(1.into(), 1.into());
+		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance:
 			!U256::zero() };
 
 		// First insert one transaction to future
@@ -1111,7 +1099,7 @@ mod test {
 		assert_eq!(txq.status().future, 1);
 
 		// now import second transaction to current
-		let res = txq.add(tx2.clone(), &default_account_details, TransactionOrigin::External);
+		let res = txq.add(tx2.clone(), &default_nonce, TransactionOrigin::External);
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
@@ -1335,15 +1323,15 @@ mod test {
 	fn should_prioritize_reimported_transactions_within_same_nonce_height() {
 		// given
 		let mut txq = TransactionQueue::new();
-		let tx = new_tx_default();
+		let tx = new_tx();
 		// the second one has same nonce but higher `gas_price`
-		let (_, tx2) = new_similar_tx_pair();
+		let (_, tx2) = new_similar_txs();
 
 		// when
 		// first insert local one with higher gas price
-		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
+		txq.add(tx2.clone(), &default_nonce, TransactionOrigin::Local).unwrap();
 		// then the one with lower gas price, but from retracted block
-		txq.add(tx.clone(), &default_account_details, TransactionOrigin::RetractedBlock).unwrap();
+		txq.add(tx.clone(), &default_nonce, TransactionOrigin::RetractedBlock).unwrap();
 
 		// then
 		let top = txq.top_transactions();

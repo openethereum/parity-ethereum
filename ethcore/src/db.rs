@@ -65,7 +65,7 @@ pub trait Writable {
 	fn write<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>, value: &T) where T: Encodable, R: Deref<Target = [u8]>;
 
 	/// Deletes key from the databse.
-	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: Deref<Target = [u8]>;
+	fn delete<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) where T: Encodable, R: Deref<Target = [u8]>;
 
 	/// Writes the value into the database and updates the cache.
 	fn write_with_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, T>, key: K, value: T, policy: CacheUpdatePolicy) where
@@ -105,9 +105,9 @@ pub trait Writable {
 	}
 
 	/// Writes and removes the values into the database and updates the cache.
-	fn extend_with_option_cache<K, T, R>(&mut self, col: Option<u32>, cache: &mut Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
+	fn extend_with_option_cache<K, T, R>(&self, col: Option<u32>, cache: &mut Cache<K, Option<T>>, values: HashMap<K, Option<T>>, policy: CacheUpdatePolicy) where
 	K: Key<T, Target = R> + Hash + Eq,
-	T: rlp::Encodable,
+	T: Encodable,
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
@@ -186,8 +186,11 @@ impl Writable for DBTransaction {
 		}
 	}
 
-	fn delete<T, R>(&mut self, col: Option<u32>, key: &Key<T, Target = R>) where T: rlp::Encodable, R: Deref<Target = [u8]> {
-		self.delete(col, &key.key());
+	fn delete<T, R>(&self, col: Option<u32>, key: &Key<T, Target = R>) where T: Encodable, R: Deref<Target = [u8]> {
+		let result = DBTransaction::delete(self, col, &key.key());
+		if let Err(err) = result {
+			panic!("db delete failed, key: {:?}, err: {:?}", &key.key() as &[u8], err);
+		}
 	}
 }
 
