@@ -23,8 +23,10 @@ use util::{U256 as EthU256, Uint};
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Uint serialization.
-		#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+		#[derive(Debug, Default, Clone, Copy, PartialEq, Hash)]
 		pub struct $name($other);
+
+		impl Eq for $name { }
 
 		impl<T> From<T> for $name where $other: From<T> {
 			fn from(o: T) -> Self {

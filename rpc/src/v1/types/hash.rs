@@ -25,8 +25,9 @@ use util::{H64 as Eth64, H256 as EthH256, H520 as EthH520, H2048 as Eth2048, Add
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Hash serialization
-		#[derive(Eq)]
 		pub struct $name([u8; $size]);
+
+		impl Eq for $name { }
 
 		impl Default for $name {
 			fn default() -> Self {
