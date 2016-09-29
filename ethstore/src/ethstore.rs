@@ -20,7 +20,7 @@ use std::mem;
 use ethkey::KeyPair;
 use crypto::KEY_ITERATIONS;
 use random::Random;
-use ethkey::{Signature, Address, Message, Secret};
+use ethkey::{Signature, Address, Message, Secret, Public};
 use dir::KeyDirectory;
 use account::SafeAccount;
 use {Error, SecretStore};
@@ -147,6 +147,11 @@ impl SecretStore for EthStore {
 	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let account = try!(self.get(account));
 		account.decrypt(password, shared_mac, message)
+	}
+
+	fn public(&self, account: &Address, password: &str) -> Result<Public, Error> {
+		let account = try!(self.get(account));
+		account.public(password)
 	}
 
 	fn uuid(&self, address: &Address) -> Result<UUID, Error> {
