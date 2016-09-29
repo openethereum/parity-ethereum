@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import ContractIcon from 'material-ui/svg-icons/action/code';
 
 import styles from './identityIcon.css';
 
@@ -82,7 +83,7 @@ export default class IdentityIcon extends Component {
   }
 
   render () {
-    const { button, className, center, inline, padded, tiny } = this.props;
+    const { address, button, className, center, inline, padded, tiny } = this.props;
     const { iconsrc } = this.state;
     const classes = [
       styles.icon,
@@ -101,6 +102,14 @@ export default class IdentityIcon extends Component {
       size = '24px';
     } else if (inline) {
       size = '32px';
+    }
+
+    if (!address) {
+      return (
+        <ContractIcon
+          className={ classes }
+          style={ { width: size, height: size, background: '#eee' } } />
+      );
     }
 
     return (
