@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
-import InputQueries from './input-queries';
+import InputQueries from './inputQueries';
 import { Container, ContainerTitle } from '../../../ui';
 
 import styles from '../contract.css';
@@ -71,15 +71,15 @@ export default class Queries extends Component {
   }
 
   renderInputQuery (fn) {
-    const { inputs, outputs, name } = fn;
+    const { abi, name } = fn;
     const { contract } = this.props;
 
     return (
       <InputQueries
         key={ fn.signature }
         className={ styles.method }
-        inputs={ inputs }
-        outputs={ outputs }
+        inputs={ abi.inputs }
+        outputs={ abi.outputs }
         name={ name }
         contract={ contract }
       />

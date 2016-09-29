@@ -17,10 +17,10 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
-import TextField from 'material-ui/TextField';
 import LinearProgress from 'material-ui/LinearProgress';
-import FlatButton from 'material-ui/FlatButton';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
+
+import { Button, Input } from '../../../ui';
 
 import styles from '../contract.css';
 
@@ -77,11 +77,10 @@ export default class InputQueries extends Component {
         { inputsFields }
       </CardText>
       <CardActions>
-        <FlatButton
+        <Button
           label='Execute'
           disabled={ !isValid }
-          primary
-          onTouchTap={ this.onClick } />
+          onClick={ this.onClick } />
       </CardActions>
     </div>);
   }
@@ -113,7 +112,8 @@ export default class InputQueries extends Component {
   }
 
   renderInput (input) {
-    const { name, kind } = input;
+    const { name, type } = input;
+    const label = `${name}: ${type}`;
 
     const onChange = (event) => {
       const value = event.target.value;
@@ -129,11 +129,9 @@ export default class InputQueries extends Component {
 
     return (
       <div key={ name }>
-        <TextField
-          hintText={ kind.type }
-          floatingLabelText={ name }
-          floatingLabelFixed
-          fullWidth
+        <Input
+          hint={ type }
+          label={ label }
           required
           onChange={ onChange }
         />

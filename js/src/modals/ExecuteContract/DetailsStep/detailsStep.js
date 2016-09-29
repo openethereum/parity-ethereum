@@ -73,13 +73,13 @@ export default class DetailsStep extends Component {
       .filter((func) => !func.constant)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((func) => {
-        const params = func.inputs
+        const params = func.abi.inputs
           .map((input, index) => {
             return (
               <span key={ input.name }>
                 <span>{ index ? ', ' : '' }</span>
                 <span className={ styles.paramname }>{ input.name }: </span>
-                <span>{ input.kind.type }</span>
+                <span>{ input.type }</span>
               </span>
             );
           });
@@ -121,13 +121,13 @@ export default class DetailsStep extends Component {
       return null;
     }
 
-    return func.inputs.map((input, index) => {
+    return func.abi.inputs.map((input, index) => {
       const onChange = (event, value) => onValueChange(event, index, value);
       const onSubmit = (value) => onValueChange(null, index, value);
-      const label = `${input.name}: ${input.kind.type}`;
+      const label = `${input.name}: ${input.type}`;
       let inputbox;
 
-      switch (input.kind.type) {
+      switch (input.type) {
         case 'address':
           inputbox = (
             <InputAddressSelect
