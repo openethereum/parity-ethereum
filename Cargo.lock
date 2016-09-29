@@ -310,6 +310,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-bloom-journal"
+version = "0.1.0"
+
+[[package]]
 name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
@@ -528,6 +532,7 @@ dependencies = [
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.0",
+ "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
