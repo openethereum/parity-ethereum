@@ -27,9 +27,10 @@ export default class DetailsStep extends Component {
     contract: PropTypes.object.isRequired,
     amount: PropTypes.string,
     amountError: PropTypes.string,
+    onAmountChange: PropTypes.func.isRequired,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
-    onFromAddressChange: PropTypes.func,
+    onFromAddressChange: PropTypes.func.isRequired,
     func: PropTypes.object,
     funcError: PropTypes.string,
     onFuncChange: PropTypes.func,
@@ -39,7 +40,7 @@ export default class DetailsStep extends Component {
   }
 
   render () {
-    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange } = this.props;
+    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange, onAmountChange } = this.props;
 
     return (
       <Form>
@@ -57,7 +58,7 @@ export default class DetailsStep extends Component {
           hint='the amount to send to with the transaction'
           value={ amount }
           error={ amountError }
-          onSubmit={ this.onChangeAmount } />
+          onSubmit={ onAmountChange } />
       </Form>
     );
   }
@@ -73,13 +74,13 @@ export default class DetailsStep extends Component {
       .filter((func) => !func.constant)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((func) => {
-        const params = func.inputs
+        const params = func.abi.inputs
           .map((input, index) => {
             return (
               <span key={ input.name }>
                 <span>{ index ? ', ' : '' }</span>
                 <span className={ styles.paramname }>{ input.name }: </span>
-                <span>{ input.kind.type }</span>
+                <span>{ input.type }</span>
               </span>
             );
           });
@@ -121,13 +122,13 @@ export default class DetailsStep extends Component {
       return null;
     }
 
-    return func.inputs.map((input, index) => {
+    return func.abi.inputs.map((input, index) => {
       const onChange = (event, value) => onValueChange(event, index, value);
       const onSubmit = (value) => onValueChange(null, index, value);
-      const label = `${input.name}: ${input.kind.type}`;
+      const label = `${input.name}: ${input.type}`;
       let inputbox;
 
-      switch (input.kind.type) {
+      switch (input.type) {
         case 'address':
           inputbox = (
             <InputAddressSelect

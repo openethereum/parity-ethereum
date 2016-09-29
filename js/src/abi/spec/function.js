@@ -21,6 +21,7 @@ import { methodSignature } from '../util/signature';
 
 export default class Func {
   constructor (abi) {
+    this._abi = abi;
     this._name = abi.name;
     this._constant = !!abi.constant;
     this._payable = abi.payable;
@@ -30,6 +31,10 @@ export default class Func {
     const { id, signature } = methodSignature(this._name, this.inputParamTypes());
     this._id = id;
     this._signature = signature;
+  }
+
+  get abi () {
+    return this._abi;
   }
 
   get constant () {
