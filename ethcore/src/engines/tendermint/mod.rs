@@ -16,8 +16,10 @@
 
 //! Tendermint BFT consensus engine with round robin proof-of-authority.
 
+mod message;
+mod timeout;
+
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use std::sync::Weak;
 use common::*;
 use rlp::{UntrustedRlp, View, encode};
 use ethkey::{recover, public_to_address};
@@ -27,8 +29,9 @@ use spec::CommonParams;
 use engines::{Engine, EngineError, ProposeCollect};
 use evm::Schedule;
 use ethjson;
-use io::{IoContext, IoHandler, TimerToken, IoService};
-use time::get_time;
+use io::IoService;
+use self::message::ConsensusMessage;
+use self::timeout::{TimerHandler, NextStep, DefaultTimeouts};
 
 /// `Tendermint` params.
 #[derive(Debug, Clone)]
@@ -63,8 +66,15 @@ enum Step {
 	/// Precommit step storing the precommit vote and accumulating seal.
 	Precommit(ProposeCollect, Seal),
 	/// Commit step storing a complete valid seal.
-	Commit(H256, Seal)
+	Commit(BlockHash, Seal)
 }
+
+pub type Height = usize;
+pub type Round = usize;
+pub type BlockHash = H256;
+
+pub type AtomicMs = AtomicUsize;
+type Seal = Vec<Bytes>;
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
@@ -79,15 +89,12 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	}
 }
 
-#[derive(Clone)]
-struct StepMessage;
-
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
 	params: CommonParams,
 	our_params: TendermintParams,
 	builtins: BTreeMap<Address, Builtin>,
-	timeout_service: IoService<StepMessage>,
+	timeout_service: IoService<NextStep>,
 	/// Consensus round.
 	r: AtomicUsize,
 	/// Consensus step.
@@ -98,25 +105,21 @@ pub struct Tendermint {
 	proposer_nonce: AtomicUsize,
 }
 
-struct TimerHandler {
-	engine: Weak<Tendermint>,
-}
-
 impl Tendermint {
 	/// Create a new instance of Tendermint engine
 	pub fn new(params: CommonParams, our_params: TendermintParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
-				timeout: AtomicUsize::new(our_params.timeouts.propose),
+				timeout: AtomicUsize::new(our_params.timeouts.propose()),
 				our_params: our_params,
 				builtins: builtins,
-				timeout_service: IoService::<StepMessage>::start().expect("Error creating engine timeout service"),
+				timeout_service: IoService::<NextStep>::start().expect("Error creating engine timeout service"),
 				r: AtomicUsize::new(0),
 				s: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0)
 			});
-		let handler = TimerHandler { engine: Arc::downgrade(&engine) };
+		let handler = TimerHandler::new(Arc::downgrade(&engine));
 		engine.timeout_service.register_handler(Arc::new(handler)).expect("Error creating engine timeout service");
 		engine
 	}
@@ -134,7 +137,7 @@ impl Tendermint {
 		self.our_params.validators.contains(address)
 	}
 
-	fn new_vote(&self, proposal: H256) -> ProposeCollect {
+	fn new_vote(&self, proposal: BlockHash) -> ProposeCollect {
 		ProposeCollect::new(proposal,
 							self.our_params.validators.iter().cloned().collect(),
 							self.threshold())
@@ -163,7 +166,7 @@ impl Tendermint {
 		Ok(message.as_raw().to_vec())
 	}
 
-	fn to_prevote(&self, proposal: H256) {
+	fn to_prevote(&self, proposal: BlockHash) {
 		trace!(target: "tendermint", "step: entering prevote");
 		println!("step: entering prevote");
 		// Proceed to the prevote step.
@@ -195,7 +198,7 @@ impl Tendermint {
 		Ok(message.as_raw().to_vec())
 	}
 
-	fn to_precommit(&self, proposal: H256) {
+	fn to_precommit(&self, proposal: BlockHash) {
 		trace!(target: "tendermint", "step: entering precommit");
 		println!("step: entering precommit");
 		self.to_step(Step::Precommit(self.new_vote(proposal), Vec::new()));
@@ -346,72 +349,6 @@ impl Engine for Tendermint {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
-	}
-}
-
-/// Base timeout of each step in ms.
-#[derive(Debug, Clone)]
-struct DefaultTimeouts {
-	propose: Ms,
-	prevote: Ms,
-	precommit: Ms,
-	commit: Ms
-}
-
-impl Default for DefaultTimeouts {
-	fn default() -> Self {
-		DefaultTimeouts {
-			propose: 1000,
-			prevote: 1000,
-			precommit: 1000,
-			commit: 1000
-		}
-	}
-}
-
-type Ms = usize;
-type Seal = Vec<Bytes>;
-type AtomicMs = AtomicUsize;
-
-/// Timer token representing the consensus step timeouts.
-pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 0;
-
-impl IoHandler<StepMessage> for TimerHandler {
-	fn initialize(&self, io: &IoContext<StepMessage>) {
-		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Error registering engine timeout");
-		}
-	}
-
-	fn timeout(&self, io: &IoContext<StepMessage>, timer: TimerToken) {
-		if timer == ENGINE_TIMEOUT_TOKEN {
-			if let Some(engine) = self.engine.upgrade() {
-				println!("Timeout: {:?}", get_time());
-				// Can you release entering a clause?
-				let next_step = match *engine.s.try_read().unwrap() {
-					Step::Propose => Step::Propose,
-					Step::Prevote(_) => Step::Propose,
-					Step::Precommit(_, _) => Step::Propose,
-					Step::Commit(_, _) => {
-						engine.r.fetch_add(1, AtomicOrdering::Relaxed);
-						Step::Propose
-					},
-				};
-				match next_step {
-					Step::Propose => engine.to_propose(),
-					_ => (),
-				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Failed to restart consensus step timer.")
-			}
-		}
-	}
-
-	fn message(&self, io: &IoContext<StepMessage>, _net_message: &StepMessage) {
-		if let Some(engine) = self.engine.upgrade() {
-			println!("Message: {:?}", get_time().sec);
-			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Failed to restart consensus step timer.")
-		}
 	}
 }
 
