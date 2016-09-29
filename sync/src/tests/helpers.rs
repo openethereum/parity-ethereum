@@ -26,6 +26,7 @@ pub struct TestIo<'p> {
 	pub chain: &'p mut TestBlockChainClient,
 	pub queue: &'p mut VecDeque<TestPacket>,
 	pub sender: Option<PeerId>,
+	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'p> TestIo<'p> {
@@ -33,7 +34,8 @@ impl<'p> TestIo<'p> {
 		TestIo {
 			chain: chain,
 			queue: queue,
-			sender: sender
+			sender: sender,
+			overlay: RwLock::new(HashMap::new()),
 		}
 	}
 }
@@ -69,6 +71,10 @@ impl<'p> SyncIo for TestIo<'p> {
 
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
+	}
+
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
+		&self.overlay
 	}
 }
 
