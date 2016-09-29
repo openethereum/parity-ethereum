@@ -259,9 +259,12 @@ impl State {
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		// Storage key search and update works like this:
-		// 1. If there's an entry for the account in the local cache check for the key and return it if found.
-		// 2. If there's an entry for the account in the global cache check for the key or load it into that account.
-		// 3. If account is missing in the global cache load it into the local cache and cache the key there.
+		// 1. Check bloom to see if account never used surely
+		// 2. If there's an entry for the account in the local cache check for the key and return it if found.
+		// 3. If there's an entry for the account in the global cache check for the key or load it into that account.
+		// 4. If account is missing in the global cache load it into the local cache and cache the key there.
+
+		// check bloom
 
 		// check local cache first without updating
 		{
@@ -293,6 +296,7 @@ impl State {
 			}
 		}
 		// account is not found in the global cache, get from the DB and insert into local
+		if !self.db.check_account_bloom(address) { return H256::zero() }
 		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
 			Ok(acc) => acc.map(Account::from_rlp),
@@ -387,6 +391,7 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut AccountEntry::Cached(ref mut account) if account.is_dirty() => {
+					db.note_account_bloom(&address);
 					let mut account_db = AccountDBMut::from_hash(db.as_hashdb_mut(), account.address_hash(address));
 					account.commit_storage(trie_factory, &mut account_db);
 					account.commit_code(&mut account_db);
@@ -449,6 +454,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
+			self.db.note_account_bloom(&add);
 			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
@@ -525,6 +531,7 @@ impl State {
 			Some(r) => r,
 			None => {
 				// not found in the global cache, get from the DB and insert into local
+				if !self.db.check_account_bloom(a) { return f(None); }
 				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
 					Ok(acc) => acc.map(Account::from_rlp),
@@ -559,11 +566,17 @@ impl State {
 				Some(Some(acc)) => self.insert_cache(a, AccountEntry::Cached(acc)),
 				Some(None) => self.insert_cache(a, AccountEntry::Missing),
 				None => {
-					let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-					let maybe_acc = match db.get(a) {
-						Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
-						Ok(None) => AccountEntry::Missing,
-						Err(e) => panic!("Potential DB corruption encountered: {}", e),
+					let maybe_acc = if self.db.check_account_bloom(a) {
+						let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+						let maybe_acc = match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
+							Ok(None) => AccountEntry::Missing,
+							Err(e) => panic!("Potential DB corruption encountered: {}", e),
+						};
+						maybe_acc
+					}
+					else {
+						AccountEntry::Missing
 					};
 					self.insert_cache(a, maybe_acc);
 				}
