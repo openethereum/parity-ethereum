@@ -76,6 +76,7 @@ class Modal extends Component {
         contentStyle={ contentStyle }
         modal
         open={ visible }
+        overlayClassName={ styles.overlay }
         repositionOnUpdate={ false }
         style={ DIALOG_STYLE }
         title={ header }

@@ -26,14 +26,6 @@
   margin: 0;
 }
 
-.item:nth-child(odd)>div {
-  padding-right: 0.125em;
-}
-
-.item:nth-child(even)>div {
-  padding-left: 0.125em;
-}
-
 .empty {
   width: 100%;
   display: block;

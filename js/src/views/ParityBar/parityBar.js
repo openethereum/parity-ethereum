@@ -33,13 +33,10 @@ class ParityBar extends Component {
   }
 
   state = {
-    opened: false,
-    lastCount: -1
+    opened: false
   }
 
   componentWillReceiveProps (nextProps) {
-    const { lastCount } = this.state;
-
     const count = this.props.pending.length;
     const newCount = nextProps.pending.length;
 
@@ -48,11 +45,9 @@ class ParityBar extends Component {
     }
 
     if (count < newCount) {
-      this.setState({ opened: !count || lastCount !== -1, lastCount: newCount });
+      this.setState({ opened: true });
     } else if (newCount === 0 && count === 1) {
-      this.setState({ opened: false, lastCount: newCount });
-    } else {
-      this.setState({ lastCount: newCount });
+      this.setState({ opened: false });
     }
   }
 
@@ -100,22 +95,24 @@ class ParityBar extends Component {
 
   renderExpanded () {
     return (
-      <ParityBackground className={ styles.expanded }>
-        <div className={ styles.header }>
-          <div className={ styles.title }>
-            <ContainerTitle title='Parity Signer: Pending' />
+      <div className={ styles.overlay }>
+        <ParityBackground className={ styles.expanded }>
+          <div className={ styles.header }>
+            <div className={ styles.title }>
+              <ContainerTitle title='Parity Signer: Pending' />
+            </div>
+            <div className={ styles.actions }>
+              <Button
+                icon={ <ContentClear /> }
+                label='Close'
+                onClick={ this.toggleDisplay } />
+            </div>
           </div>
-          <div className={ styles.actions }>
-            <Button
-              icon={ <ContentClear /> }
-              label='Close'
-              onClick={ this.toggleDisplay } />
+          <div className={ styles.content }>
+            <Signer />
           </div>
-        </div>
-        <div className={ styles.content }>
-          <Signer />
-        </div>
-      </ParityBackground>
+        </ParityBackground>
+      </div>
     );
   }
 

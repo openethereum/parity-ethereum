@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import LinearProgress from 'material-ui/LinearProgress';
 
 import etherscan from '../../../3rdparty/etherscan';
-import { Container } from '../../../ui';
+import { Container, ContainerTitle } from '../../../ui';
 
 import Transaction from './Transaction';
 
@@ -53,6 +53,7 @@ class Transactions extends Component {
   render () {
     return (
       <Container>
+        <ContainerTitle title='transactions' />
         { this.renderTransactions() }
       </Container>
     );
