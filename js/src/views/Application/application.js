@@ -26,6 +26,8 @@ import FrameError from './FrameError';
 import Status from './Status';
 import TabBar from './TabBar';
 
+import styles from './application.css';
+
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 class Application extends Component {
@@ -50,21 +52,26 @@ class Application extends Component {
   }
 
   render () {
-    const { children, pending, netChain, isTest } = this.props;
-    const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
+    const isDapp = root === 'app';
 
     if (inFrame) {
       return (
         <FrameError />
       );
-    } else if (root === 'app') {
-      return (
-        <DappContainer>
-          { children }
-        </DappContainer>
-      );
     }
+
+    return (
+      <div className={ styles.outer }>
+        { isDapp ? this.renderDapp() : this.renderApp() }
+        <ParityBar dapp={ isDapp } />
+      </div>
+    );
+  }
+
+  renderApp () {
+    const { children, pending, netChain, isTest } = this.props;
+    const { showFirstRun } = this.state;
 
     return (
       <Container
@@ -76,8 +83,17 @@ class Application extends Component {
           pending={ pending } />
         { children }
         <Status />
-        <ParityBar />
       </Container>
+    );
+  }
+
+  renderDapp () {
+    const { children } = this.props;
+
+    return (
+      <DappContainer>
+        { children }
+      </DappContainer>
     );
   }
 
