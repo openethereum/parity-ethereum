@@ -18,6 +18,7 @@
 
 mod message;
 mod timeout;
+mod params;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use common::*;
@@ -28,36 +29,10 @@ use block::*;
 use spec::CommonParams;
 use engines::{Engine, EngineError, ProposeCollect};
 use evm::Schedule;
-use ethjson;
 use io::IoService;
 use self::message::ConsensusMessage;
-use self::timeout::{TimerHandler, NextStep, DefaultTimeouts};
-
-/// `Tendermint` params.
-#[derive(Debug, Clone)]
-pub struct TendermintParams {
-	/// Gas limit divisor.
-	pub gas_limit_bound_divisor: U256,
-	/// List of validators.
-	pub validators: Vec<Address>,
-	/// Number of validators.
-	pub validator_n: usize,
-	/// Timeout durations for different steps.
-	timeouts: DefaultTimeouts,
-}
-
-impl Default for TendermintParams {
-	fn default() -> Self {
-		let validators = vec!["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e".into(), "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()];
-		let val_n = validators.len();
-		TendermintParams {
-			gas_limit_bound_divisor: 0x0400.into(),
-			validators: validators,
-			validator_n: val_n,
-			timeouts:  DefaultTimeouts::default()
-		}
-	}
-}
+use self::timeout::{TimerHandler, NextStep};
+use self::params::TendermintParams;
 
 #[derive(Debug)]
 enum Step {
@@ -75,19 +50,6 @@ pub type BlockHash = H256;
 
 pub type AtomicMs = AtomicUsize;
 type Seal = Vec<Bytes>;
-
-impl From<ethjson::spec::TendermintParams> for TendermintParams {
-	fn from(p: ethjson::spec::TendermintParams) -> Self {
-		let val: Vec<_> = p.validators.into_iter().map(Into::into).collect();
-		let val_n = val.len();
-		TendermintParams {
-			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			validators: val,
-			validator_n: val_n,
-			timeouts: DefaultTimeouts::default()
-		}
-	}
-}
 
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
