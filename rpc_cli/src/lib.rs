@@ -16,10 +16,9 @@ use std::fs::File;
 use futures::Future;
 
 fn sign_interactive(signer: &mut SignerRpc, pwd: &String, request: ConfirmationRequest)
-					-> Result<String, String>
 {
 	print!("\n{}\nSign this transaction? (y)es/(N)o/(r)eject: ", request);
-	stdout().flush();
+	let _ = stdout().flush();
 	match BufReader::new(stdin()).lines().next() {
 		Some(Ok(line)) => {
 			match line.to_lowercase().chars().nth(0) {
@@ -36,9 +35,8 @@ fn sign_interactive(signer: &mut SignerRpc, pwd: &String, request: ConfirmationR
 				_ => ()
 			}
 		}
-		_ => return Err("Could not read from stdin".to_string())
+		_ => println!("Could not read from stdin")
 	}
-	Ok("Finished".to_string())
 }
 
 fn sign_transactions(signer: &mut SignerRpc, pwd: String) -> Result<String, String> {
@@ -49,7 +47,7 @@ fn sign_transactions(signer: &mut SignerRpc, pwd: String) -> Result<String, Stri
 					Ok("No transactions in signing queue".to_string())
 				} else {
 					for r in reqs {
-						sign_interactive(signer, &pwd, r);
+						sign_interactive(signer, &pwd, r)
 					}
 					Ok("".to_string())
 				}
