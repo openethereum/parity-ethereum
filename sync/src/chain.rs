@@ -1346,8 +1346,10 @@ impl ChainSync {
 						let mut rlp_stream = RlpStream::new_list(blocks.len());
 						for block_hash in  blocks {
 							let mut hash_rlp = RlpStream::new_list(2);
-							let number = HeaderView::new(&chain.block_header(BlockID::Hash(block_hash.clone()))
-								.expect("chain.tree_route and chain.find_uncles only return hahses of blocks that are in the blockchain. qed.")).number();
+							let number = match chain.block_header(BlockID::Hash(block_hash.clone())) {
+								Some(header) => HeaderView::new(&header).number(),
+								_ => return None,
+							};
 							hash_rlp.append(&block_hash);
 							hash_rlp.append(&number);
 							rlp_stream.append_raw(hash_rlp.as_raw(), 1);
