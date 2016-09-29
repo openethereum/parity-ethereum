@@ -27,9 +27,10 @@ export default class DetailsStep extends Component {
     contract: PropTypes.object.isRequired,
     amount: PropTypes.string,
     amountError: PropTypes.string,
+    onAmountChange: PropTypes.func.isRequired,
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
-    onFromAddressChange: PropTypes.func,
+    onFromAddressChange: PropTypes.func.isRequired,
     func: PropTypes.object,
     funcError: PropTypes.string,
     onFuncChange: PropTypes.func,
@@ -39,7 +40,7 @@ export default class DetailsStep extends Component {
   }
 
   render () {
-    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange } = this.props;
+    const { accounts, amount, amountError, fromAddress, fromAddressError, onFromAddressChange, onAmountChange } = this.props;
 
     return (
       <Form>
@@ -57,7 +58,7 @@ export default class DetailsStep extends Component {
           hint='the amount to send to with the transaction'
           value={ amount }
           error={ amountError }
-          onSubmit={ this.onChangeAmount } />
+          onSubmit={ onAmountChange } />
       </Form>
     );
   }
