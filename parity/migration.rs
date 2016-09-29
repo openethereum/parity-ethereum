@@ -271,10 +271,12 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	}
 
 	// update version file.
-	update_version(path)
-	
+	try!(update_version(path));
+
 	// run any inplace migrations for the fully upgraded database
 	try!(run_inplace_upgrades(consolidated_database_path(path).as_path()));
+
+	Ok(())
 }
 
 /// Old migrations utilities
