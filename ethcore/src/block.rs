@@ -411,7 +411,7 @@ impl ClosedBlock {
 	pub fn hash(&self) -> H256 { self.header().rlp_sha3(Seal::Without) }
 
 	/// Turn this into a `LockedBlock`, unable to be reopened again.
-	pub fn lock(mut self) -> LockedBlock {
+	pub fn lock(self) -> LockedBlock {
 		LockedBlock {
 			block: self.block,
 			uncle_bytes: self.uncle_bytes,

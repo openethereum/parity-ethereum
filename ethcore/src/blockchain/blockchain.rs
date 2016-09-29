@@ -1389,7 +1389,6 @@ mod tests {
 			.generate(&mut fork_finalizer).unwrap();
 
 		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
-		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
 		let b2_hash = BlockView::new(&b2).header_view().sha3();
 
 		let t1_hash = t1.hash();
