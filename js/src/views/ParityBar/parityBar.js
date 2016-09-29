@@ -100,22 +100,24 @@ class ParityBar extends Component {
 
   renderExpanded () {
     return (
-      <ParityBackground className={ styles.expanded }>
-        <div className={ styles.header }>
-          <div className={ styles.title }>
-            <ContainerTitle title='Parity Signer: Pending' />
+      <div className={ styles.overlay }>
+        <ParityBackground className={ styles.expanded }>
+          <div className={ styles.header }>
+            <div className={ styles.title }>
+              <ContainerTitle title='Parity Signer: Pending' />
+            </div>
+            <div className={ styles.actions }>
+              <Button
+                icon={ <ContentClear /> }
+                label='Close'
+                onClick={ this.toggleDisplay } />
+            </div>
           </div>
-          <div className={ styles.actions }>
-            <Button
-              icon={ <ContentClear /> }
-              label='Close'
-              onClick={ this.toggleDisplay } />
+          <div className={ styles.content }>
+            <Signer />
           </div>
-        </div>
-        <div className={ styles.content }>
-          <Signer />
-        </div>
-      </ParityBackground>
+        </ParityBackground>
+      </div>
     );
   }
 
