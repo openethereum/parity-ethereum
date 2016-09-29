@@ -113,17 +113,18 @@ export default class Transaction extends Component {
   renderAddress (prefix, address) {
     const { accounts, contacts, contracts, tokens } = this.props;
 
-    if (!address && !address.length) {
-      return (
-        <td className={ styles.left } />
-      );
-    }
-
-    const link = `${prefix}address/${address}`;
     const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address] || (contracts || {})[address];
     const name = account
       ? account.name.toUpperCase()
       : this.formatHash(address);
+    const eslink = address ? (
+      <a
+        href={ `${prefix}address/${address}` }
+        target='_blank'
+        className={ styles.link }>
+        { name }
+      </a>
+    ) : 'DEPLOY';
 
     return (
       <td className={ styles.address }>
@@ -135,12 +136,7 @@ export default class Transaction extends Component {
             address={ address } />
         </div>
         <div className={ styles.center }>
-          <a
-            href={ link }
-            target='_blank'
-            className={ styles.link }>
-            { name }
-          </a>
+          { eslink }
         </div>
       </td>
     );
