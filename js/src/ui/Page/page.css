@@ -17,3 +17,7 @@
 .layout {
   padding: 0;
 }
+
+.layout>div {
+  padding-bottom: 0.25em;
+}

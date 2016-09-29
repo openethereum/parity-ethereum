@@ -68,7 +68,7 @@ class Dapps extends Component {
         <Actionbar
           title='Decentralized Applications' />
         <Page>
-          <div className={ styles.contracts }>
+          <div className={ styles.list }>
             { this.renderApps() }
           </div>
         </Page>
@@ -83,7 +83,7 @@ class Dapps extends Component {
     return apps.map((app, idx) => {
       return (
         <div
-          className={ styles.contract }
+          className={ styles.item }
           key={ app.address }>
           <Summary
             app={ app }
