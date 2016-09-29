@@ -589,8 +589,11 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	evm_test!{test_call_to_create: test_call_to_create_jit, test_call_to_create_int}
-	fn test_call_to_create(factory: Factory) {
+	#[test]
+	// Tracing is not suported in JIT
+	fn test_call_to_create() {
+		let factory = Factory::new(VMType::Interpreter);
+
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -712,8 +715,10 @@ mod tests {
 		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
-	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
-	fn test_create_contract(factory: Factory) {
+	#[test]
+	fn test_create_contract() {
+		// Tracing is not supported in JIT
+		let factory = Factory::new(VMType::Interpreter);
 		// code:
 		//
 		// 60 10 - push 16

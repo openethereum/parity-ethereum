@@ -19,7 +19,7 @@ linux-stable:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
   tags:
@@ -40,7 +40,7 @@ linux-stable-14.04:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
   tags:
@@ -101,7 +101,7 @@ linux-centos:
     - export CC="gcc"
     - cargo build --release --verbose
     - strip target/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
   tags:
@@ -127,7 +127,7 @@ linux-armv7:
     - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
   tags:
@@ -154,7 +154,7 @@ linux-arm:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
   tags:
@@ -181,7 +181,7 @@ linux-armv6:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
   tags:
@@ -208,7 +208,7 @@ linux-aarch64:
     - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
   tags:
@@ -228,7 +228,7 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
   tags:
@@ -268,6 +268,7 @@ test-linux:
     - ./js/scripts/install-deps.sh
   script:
     - ./js/scripts/test.sh
+    - export RUST_BACKTRACE=1
     - ./test.sh --verbose
   tags:
     - rust-test

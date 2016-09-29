@@ -98,6 +98,8 @@ pub enum TransactionOrigin {
 	Local,
 	/// External transaction received from network
 	External,
+	/// Transactions from retracted blocks
+	RetractedBlock,
 }
 
 impl PartialOrd for TransactionOrigin {
@@ -112,10 +114,11 @@ impl Ord for TransactionOrigin {
 			return Ordering::Equal;
 		}
 
-		if *self == TransactionOrigin::Local {
-			Ordering::Less
-		} else {
-			Ordering::Greater
+		match (*self, *other) {
+			(TransactionOrigin::RetractedBlock, _) => Ordering::Less,
+			(_, TransactionOrigin::RetractedBlock) => Ordering::Greater,
+			(TransactionOrigin::Local, _) => Ordering::Less,
+			_ => Ordering::Greater,
 		}
 	}
 }
@@ -1015,6 +1018,17 @@ mod test {
 	}
 
 	#[test]
+	fn test_ordering() {
+		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::External), Ordering::Less);
+		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::Local), Ordering::Less);
+		assert_eq!(TransactionOrigin::RetractedBlock.cmp(&TransactionOrigin::External), Ordering::Less);
+
+		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::Local), Ordering::Greater);
+		assert_eq!(TransactionOrigin::Local.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
+		assert_eq!(TransactionOrigin::External.cmp(&TransactionOrigin::RetractedBlock), Ordering::Greater);
+	}
+
+	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
 		let mut txq = TransactionQueue::with_limits(2, !U256::zero());
@@ -1371,6 +1385,27 @@ mod test {
 		// then
 		let top = txq.top_transactions();
 		assert_eq!(top[0], tx); // local should be first
+		assert_eq!(top[1], tx2);
+		assert_eq!(top.len(), 2);
+	}
+
+	#[test]
+	fn should_prioritize_reimported_transactions_within_same_nonce_height() {
+		// given
+		let mut txq = TransactionQueue::new();
+		let tx = new_tx_default();
+		// the second one has same nonce but higher `gas_price`
+		let (_, tx2) = new_similar_tx_pair();
+
+		// when
+		// first insert local one with higher gas price
+		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
+		// then the one with lower gas price, but from retracted block
+		txq.add(tx.clone(), &default_account_details, TransactionOrigin::RetractedBlock).unwrap();
+
+		// then
+		let top = txq.top_transactions();
+		assert_eq!(top[0], tx); // retracted should be first
 		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
 	}
