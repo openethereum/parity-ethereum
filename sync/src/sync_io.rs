@@ -14,8 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
+use ethcore::header::BlockNumber;
 use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
+use util::{RwLock, Bytes};
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -41,20 +44,24 @@ pub trait SyncIo {
 	}
 	/// Check if the session is expired
 	fn is_expired(&self) -> bool;
+	/// Return sync overlay
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>>;
 }
 
 /// Wraps `NetworkContext` and the blockchain client
 pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	network: &'s NetworkContext<'h>,
-	chain: &'s BlockChainClient
+	chain: &'s BlockChainClient,
+	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient, chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
+			chain_overlay: chain_overlay,
 		}
 	}
 }
@@ -78,6 +85,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
+	}
+
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
+		self.chain_overlay
 	}
 
 	fn peer_info(&self, peer_id: PeerId) -> String {

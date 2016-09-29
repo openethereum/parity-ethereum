@@ -449,7 +449,9 @@ impl ChainSync {
 		let confirmed = match self.peers.get_mut(&peer_id) {
 			Some(ref mut peer) if peer.asking == PeerAsking::ForkHeader => {
 				let item_count = r.item_count();
-				if item_count == 0 || (item_count == 1 && try!(r.at(0)).as_raw().sha3() == self.fork_block.unwrap().1) {
+				let (fork_number, fork_hash) = self.fork_block.expect("ForkHeader request is sent only fork block is Some; qed").clone();
+				let header = try!(r.at(0)).as_raw();
+				if item_count == 0 || (item_count == 1 && header.sha3() == fork_hash) {
 					peer.asking = PeerAsking::Nothing;
 					if item_count == 0 {
 						trace!(target: "sync", "{}: Chain is too short to confirm the block", peer_id);
@@ -457,6 +459,9 @@ impl ChainSync {
 					} else {
 						trace!(target: "sync", "{}: Confirmed peer", peer_id);
 						peer.confirmation = ForkConfirmation::Confirmed;
+						if !io.chain_overlay().read().contains_key(&fork_number) {
+							io.chain_overlay().write().insert(fork_number, header.to_vec());
+						}
 					}
 					true
 				} else {
@@ -1135,8 +1140,13 @@ impl ChainSync {
 		let mut count = 0;
 		let mut data = Bytes::new();
 		let inc = (skip + 1) as BlockNumber;
+		let overlay = io.chain_overlay().read();
 		while number <= last && count < max_count {
-			if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
+			if let Some(hdr) = overlay.get(&number) {
+				trace!(target: "sync", "{}: Returning cached fork header", peer_id);
+				data.extend(hdr);
+				count += 1;
+			} else if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
 				data.append(&mut hdr);
 				count += 1;
 			}
