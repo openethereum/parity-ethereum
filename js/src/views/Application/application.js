@@ -29,6 +29,7 @@ import TabBar from './TabBar';
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
+const showFirstRun = window.localStorage.getItem('showFirstRun') === '1';
 
 class Application extends Component {
   static contextTypes = {
@@ -104,7 +105,7 @@ class Application extends Component {
       .listAccounts()
       .then((accounts) => {
         this.setState({
-          showFirst: accounts.length === 0
+          showFirstRun: showFirstRun || accounts.length === 0
         });
       })
       .catch((error) => {
@@ -113,6 +114,7 @@ class Application extends Component {
   }
 
   onCloseFirstRun = () => {
+    window.localStorage.setItem('showFirstRun', '0');
     this.setState({
       showFirstRun: false
     });
