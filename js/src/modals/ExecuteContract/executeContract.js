@@ -67,6 +67,7 @@ export default class ExecuteContract extends Component {
         actions={ this.renderDialogActions() }
         title='execute function'
         busy={ sending }
+        waiting={ [1] }
         visible>
         { this.renderStep() }
       </Modal>
@@ -118,6 +119,7 @@ export default class ExecuteContract extends Component {
         <DetailsStep
           { ...this.props }
           { ...this.state }
+          onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
           onValueChange={ this.onValueChange } />
@@ -137,7 +139,7 @@ export default class ExecuteContract extends Component {
     );
   }
 
-  onAmountChange = (event, amount) => {
+  onAmountChange = (amount) => {
     this.setState({ amount });
   }
 
