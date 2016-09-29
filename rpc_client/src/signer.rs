@@ -1,7 +1,6 @@
 
 use client::{Rpc, RpcError};
 use rpc::v1::types::{ConfirmationRequest,
-					 ConfirmationPayload,
 					 TransactionModification,
 					 U256};
 use serde_json::{Value as JsonValue, to_value};

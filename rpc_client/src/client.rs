@@ -84,7 +84,6 @@ impl Handler for RpcHandler {
 		match mem::replace(&mut self.complete, None) {
 			Some(c) => c.complete(Ok(Rpc {
 				out: mem::replace(&mut self.out, None).unwrap(),
-				auth_code: self.auth_code.clone(),
 				counter: AtomicUsize::new(0),
 				pending: self.pending.clone(),
 			})),
@@ -138,7 +137,6 @@ pub struct Rpc {
 	out: Sender,
 	counter: AtomicUsize,
 	pending: Pending,
-	auth_code: String,
 }
 
 impl Rpc {

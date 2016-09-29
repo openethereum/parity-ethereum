@@ -18,18 +18,18 @@ extern crate lazy_static;
 #[macro_use]
 extern crate matches;
 
+#[cfg(test)]
 mod test {
 	use futures::Future;
-	use url::Url;
 	use std::path::PathBuf;
 
 	use client::{Rpc, RpcError};
 
-	use mock;
+	use mock::serve;
 
 	#[test]
 	fn test_connection_refused() {
-		let (srv, port, tmpdir, _) = mock::serve();
+		let (srv, port, tmpdir, _) = serve();
 
 		let mut path = PathBuf::from(tmpdir.path());
 		path.push("authcodes");
@@ -44,7 +44,7 @@ mod test {
 
 	#[test]
 	fn test_authcode_fail() {
-		let (srv, port, _, _) = mock::serve();
+		let (srv, port, _, _) = serve();
 		let path = PathBuf::from("nonexist");
 
 		let connect = Rpc::connect(&format!("ws://127.0.0.1:{}", port), &path);
@@ -58,7 +58,7 @@ mod test {
 
 	#[test]
 	fn test_authcode_correct() {
-		let (srv, port, tmpdir, _) = mock::serve();
+		let (srv, port, tmpdir, _) = serve();
 
 		let mut path = PathBuf::from(tmpdir.path());
 		path.push("authcodes");
