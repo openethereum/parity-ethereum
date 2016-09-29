@@ -209,32 +209,38 @@ pub struct BloomJournal {
     pub entries: Vec<(usize, u64)>,
 }
 
-#[test]
-fn bloom_test_set() {
-	let mut bloom = Bloom::new(10, 80);
-	let key = vec![115u8, 99];
-	assert!(!bloom.check(&key));
-	bloom.set(&key);
-	assert!(bloom.check(&key));
-}
 
-#[test]
-fn bloom_journalling() {
-	let initial = vec![0u64; 8];
-	let mut bloom = Bloom::from_parts(&initial, 3);
-	bloom.set(&vec![5u8, 4]);
-	let drain = bloom.drain_journal();
+#[cfg(test)]
+mod tests {
+	use super::Bloom;
 
-	assert_eq!(2, drain.entries.len())
-}
+	#[test]
+	fn bloom_test_set() {
+		let mut bloom = Bloom::new(10, 80);
+		let key = vec![115u8, 99];
+		assert!(!bloom.check(&key));
+		bloom.set(&key);
+		assert!(bloom.check(&key));
+	}
 
-#[test]
-fn bloom_howfull() {
-	let initial = vec![0u64; 8];
-	let mut bloom = Bloom::from_parts(&initial, 3);
-	bloom.set(&vec![5u8, 4]);
+	#[test]
+	fn bloom_journalling() {
+		let initial = vec![0u64; 8];
+		let mut bloom = Bloom::from_parts(&initial, 3);
+		bloom.set(&vec![5u8, 4]);
+		let drain = bloom.drain_journal();
 
-	let full = bloom.how_full();
-	// 2/8/64 = 0.00390625
-	assert!(full >= 0.0039f64 && full <= 0.004f64);
+		assert_eq!(2, drain.entries.len())
+	}
+
+	#[test]
+	fn bloom_howfull() {
+		let initial = vec![0u64; 8];
+		let mut bloom = Bloom::from_parts(&initial, 3);
+		bloom.set(&vec![5u8, 4]);
+
+		let full = bloom.how_full();
+		// 2/8/64 = 0.00390625
+		assert!(full >= 0.0039f64 && full <= 0.004f64);
+	}
 }
