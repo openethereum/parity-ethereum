@@ -19,6 +19,7 @@
 use super::{Height, Round, BlockHash};
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 
+#[derive(Debug)]
 pub enum ConsensusMessage {
 	Prevote(Height, Round, BlockHash),
 	Precommit(Height, Round, BlockHash),

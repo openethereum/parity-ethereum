@@ -73,7 +73,7 @@ impl Tendermint {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
-				timeout: AtomicUsize::new(our_params.timeouts.propose()),
+				timeout: AtomicUsize::new(our_params.timeouts.propose),
 				our_params: our_params,
 				builtins: builtins,
 				timeout_service: IoService::<NextStep>::start().expect("Error creating engine timeout service"),
@@ -244,6 +244,8 @@ impl Engine for Tendermint {
 	}
 
 	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
+		let c: ConsensusMessage = try!(message.as_val());
+		println!("{:?}", c);
 		// Check if correct round.
 		if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {
 			try!(Err(EngineError::WrongRound))
@@ -325,11 +327,8 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError};
-	use super::{Tendermint, TendermintParams};
-
-	/// Create a new test chain spec with `Tendermint` consensus engine.
-	/// Account "0".sha3() and "1".sha3() are a validators.
-	fn new_test_tendermint() -> Spec { Spec::load(include_bytes!("../../res/tendermint.json")) }
+	use super::Tendermint;
+	use super::params::TendermintParams;
 
 	fn propose_default(engine: &Arc<Engine>, round: u8, proposer: Address) -> Result<Bytes, Error> {
 		let mut s = RlpStream::new_list(3);
@@ -372,14 +371,14 @@ mod tests {
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: 0.into(),
@@ -395,7 +394,7 @@ mod tests {
 
 	#[test]
 	fn verification_fails_on_short_seal() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -409,7 +408,7 @@ mod tests {
 
 	#[test]
 	fn verification_fails_on_wrong_signatures() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let mut header = Header::default();
 		let tap = AccountProvider::transient_provider();
 
@@ -445,7 +444,7 @@ mod tests {
 
 	#[test]
 	fn seal_with_enough_signatures_is_ok() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let mut header = Header::default();
 
 		let seal = good_seal(&header);
@@ -460,7 +459,7 @@ mod tests {
 
 	#[test]
 	fn can_generate_seal() {
-		let spec = new_test_tendermint();
+		let spec = Spec::new_test_tendermint();
 		let ref engine = *spec.engine;
 		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new());
 
@@ -480,7 +479,7 @@ mod tests {
 
 	#[test]
 	fn propose_step() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
 		let r = 0;
 
@@ -499,7 +498,7 @@ mod tests {
 
 	#[test]
 	fn proposer_switching() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
 
 		// Currently not a proposer.
@@ -514,7 +513,7 @@ mod tests {
 
 	#[test]
 	fn prevote_step() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
 		let r = 0;
 
@@ -533,7 +532,7 @@ mod tests {
 
 	#[test]
 	fn precommit_step() {
-		let engine = new_test_tendermint().engine;
+		let engine = Spec::new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
 		let r = 0;
 
@@ -553,7 +552,7 @@ mod tests {
 	#[test]
 	fn timeout_switching() {
 		let tender = {
-			let engine = new_test_tendermint().engine;
+			let engine = Spec::new_test_tendermint().engine;
 			Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new())
 		};
 
@@ -563,7 +562,7 @@ mod tests {
 
 	#[test]
 	fn increments_round() {
-		let spec = new_test_tendermint();
+		let spec = Spec::new_test_tendermint();
 		let ref engine = *spec.engine;
 		let def_params = TendermintParams::default();
 		let tender = Tendermint::new(engine.params().clone(), def_params.clone(), BTreeMap::new());

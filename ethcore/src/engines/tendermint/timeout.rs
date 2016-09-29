@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tendermint BFT consensus engine with round robin proof-of-authority.
+//! Tendermint timeout handling.
 
 use std::sync::atomic::{Ordering as AtomicOrdering};
 use std::sync::Weak;
@@ -35,14 +35,10 @@ impl TimerHandler {
 /// Base timeout of each step in ms.
 #[derive(Debug, Clone)]
 pub struct DefaultTimeouts {
-	propose: Ms,
-	prevote: Ms,
-	precommit: Ms,
-	commit: Ms
-}
-
-impl DefaultTimeouts {
-	pub fn propose(&self) -> usize { self.propose }
+	pub propose: Ms,
+	pub prevote: Ms,
+	pub precommit: Ms,
+	pub commit: Ms
 }
 
 impl Default for DefaultTimeouts {
@@ -56,7 +52,7 @@ impl Default for DefaultTimeouts {
 	}
 }
 
-type Ms = usize;
+pub type Ms = usize;
 
 #[derive(Clone)]
 pub struct NextStep;

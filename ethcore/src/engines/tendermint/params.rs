@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Tendermint BFT consensus engine with round robin proof-of-authority.
+//! Tendermint specific parameters.
 
 use common::{Address, U256};
 use ethjson;

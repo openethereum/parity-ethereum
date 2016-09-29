@@ -266,6 +266,12 @@ impl Spec {
 	pub fn new_test_instant() -> Self {
 		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
 	}
+
+	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
+	/// Account "0".sha3() and "1".sha3() are a validators.
+	pub fn new_test_tendermint() -> Self {
+		Spec::load(include_bytes!("../../res/tendermint.json") as &[u8]).expect("tendermint.json is invalid")
+	}
 }
 
 #[cfg(test)]
