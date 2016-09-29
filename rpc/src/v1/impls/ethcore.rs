@@ -32,6 +32,7 @@ use jsonrpc_core::*;
 use v1::traits::Ethcore;
 use v1::types::{Bytes, U256, H160, H512, Peers, Transaction};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
@@ -222,7 +223,7 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
-			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(errors::encryption_error));
+			let s = try!(ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0).map_err(errors::encryption_error));
 			Ok(to_value(&Bytes::from(s)))
 		})
 	}

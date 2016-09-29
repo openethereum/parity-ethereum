@@ -323,27 +323,16 @@ impl AccountProvider {
 		unlocked.get(&account).is_some()
 	}
 
-	/// Signs the message. Account must be unlocked.
-	pub fn sign(&self, account: Address, message: Message) -> Result<Signature, Error> {
-		let password = try!(self.password(&account));
-		self.sign_with_password(account, &password, message)
+	/// Signs the message. If password is not provided the account must be unlocked.
+	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, Error> {
+		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
+		Ok(try!(self.sstore.sign(&account, &password, &message)))
 	}
 
-	/// Decrypts a message. Account must be unlocked.
-	pub fn decrypt(&self, account: Address, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let password = try!(self.password(&account));
-		self.decrypt_with_password(account, &password, shared_mac, message)
-	}
-
-	/// Decrypts the message given password, without unlocking the account.
-	pub fn decrypt_with_password(&self, account: Address, password: &str, shared_mac: &[u8], message: &[u8])
-		-> Result<Vec<u8>, Error> {
-		Ok(try!(self.sstore.decrypt(&account, password, shared_mac, message)))
-	}
-
-	/// Signs the message given password, without unlocking the account.
-	pub fn sign_with_password(&self, account: Address, password: &str, message: Message) -> Result<Signature, Error> {
-		Ok(try!(self.sstore.sign(&account, password, &message)))
+	/// Decrypts a message. If password is not provided the account must be unlocked.
+	pub fn decrypt(&self, account: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
+		Ok(try!(self.sstore.decrypt(&account, &password, shared_mac, message)))
 	}
 
 	/// Returns the underlying `SecretStore` reference if one exists.

@@ -182,7 +182,7 @@ fn should_sign_if_account_is_unlocked() {
 	let acc = tester.accounts.new_account("test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
-	let signature = tester.accounts.sign(acc, hash).unwrap();
+	let signature = tester.accounts.sign(acc, None, hash).unwrap();
 
 	// when
 	let request = r#"{
@@ -246,7 +246,7 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts.sign(acc, t.hash()).unwrap();
+	let signature = tester.accounts.sign(acc, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	// when
@@ -296,6 +296,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 		encrypted.result,
 		r#"], "id": 1}"#
 	);
+	println!("Request: {:?}", request);
 	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
 
 	// then
@@ -317,7 +318,7 @@ fn should_add_decryption_to_the_queue() {
 		"0x012345"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x012345","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
 	// then
 	let async_result = tester.io.handle_request(&request).unwrap();
