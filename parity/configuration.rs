@@ -42,6 +42,8 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 
+const AUTHCODE_FILENAME: &'static str = "authcodes";
+
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
 	Run(RunCmd),
@@ -61,7 +63,7 @@ pub enum Cmd {
 		authfile: PathBuf
 	},
 	SignerReject {
-		id: usize,
+		id: Option<usize>,
 		port: u16,
 		authfile: PathBuf
 	},
@@ -123,15 +125,14 @@ impl Configuration {
 =======
 		} else if self.args.cmd_signer {
 			let mut authfile = PathBuf::from(signer_conf.signer_path);
-			authfile.push("authcodes");
+			authfile.push(AUTHCODE_FILENAME);
 
 			if self.args.cmd_new_token {
 				Cmd::SignerToken(dirs.signer)
 			} else if self.args.cmd_sign {
-				let pwfile = match self.args.flag_password.get(0) {
-					Some(pwfile) => Some(PathBuf::from(pwfile)),
-					None => None,
-				};
+				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
+					PathBuf::from(pwfile)
+				});
 				Cmd::SignerSign {
 					id: self.args.arg_id,
 					pwfile: pwfile,
@@ -140,8 +141,7 @@ impl Configuration {
 				}
 			} else if self.args.cmd_reject  {
 				Cmd::SignerReject {
-					// id is a required field for this command
-					id: self.args.arg_id.unwrap(),
+					id: self.args.arg_id,
 					port: signer_conf.port,
 					authfile: authfile,
 				}

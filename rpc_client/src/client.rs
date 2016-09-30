@@ -4,7 +4,6 @@ use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::BTreeMap;
 use std::thread;
-use std::mem;
 use std::time;
 
 use std::path::PathBuf;
@@ -12,7 +11,7 @@ use util::Hashable;
 use url::Url;
 use std::fs::File;
 
-use ws::{connect,
+use ws::{self,
 		 Request,
 		 Handler,
 		 Sender,
@@ -25,11 +24,11 @@ use ws::{connect,
 use serde::Serialize;
 use serde::Deserialize;
 use serde::ser::Serializer;
-use serde_json::{from_str,
-				 to_string,
-				 from_value,
+use serde_json::{self as json,
 				 Value as JsonValue,
 				 Error as JsonError};
+
+//use jsonrpc_core::
 
 use futures::{BoxFuture, Canceled, Complete, Future, oneshot, done};
 
@@ -65,9 +64,12 @@ impl Handler for RpcHandler {
     fn build_request(&mut self, url: &Url) -> WsResult<Request> {
 		match Request::from_url(url) {
 			Ok(mut r) => {
-				let timestamp = time::UNIX_EPOCH.elapsed().unwrap().as_secs();
-				let hashed = format!("{}:{}", self.auth_code, timestamp).sha3();
-				let proto = format!("{:?}_{}", hashed, timestamp);
+				let timestamp = try!(time::UNIX_EPOCH.elapsed().map_err(|err| {
+					WsError::new(WsErrorKind::Internal, format!("{}", err))
+				}));
+				let secs = timestamp.as_secs();
+				let hashed = format!("{}:{}", self.auth_code, secs).sha3();
+				let proto = format!("{:?}_{}", hashed, secs);
 				r.add_protocol(&proto);
 				Ok(r)
 			},
@@ -75,22 +77,25 @@ impl Handler for RpcHandler {
 		}
     }
     fn on_error(&mut self, err: WsError) {
-		match mem::replace(&mut self.complete, None) {
+		match self.complete.take() {
 			Some(c) => c.complete(Err(RpcError::WsError(err))),
-			None => println!("warning: unexpected error"),
+			None => println!("unexpected error: {}", err),
 		}
     }
     fn on_open(&mut self, _: Handshake) -> WsResult<()> {
-		match mem::replace(&mut self.complete, None) {
-			Some(c) => c.complete(Ok(Rpc {
-				out: mem::replace(&mut self.out, None).unwrap(),
-				counter: AtomicUsize::new(0),
-				pending: self.pending.clone(),
-			})),
-			// Should not be reachable
-			None => (),
+		match (self.complete.take(), self.out.take()) {
+			(Some(c), Some(out)) => {
+				c.complete(Ok(Rpc {
+					out: out,
+					counter: AtomicUsize::new(0),
+					pending: self.pending.clone(),
+				}));
+				Ok(())
+			},
+			_ => {
+				Err(WsError::new(WsErrorKind::Internal, format!("on_open called twice")))
+			}
 		}
-		Ok(())
 	}
     fn on_message(&mut self, msg: Message) -> WsResult<()> {
 		match parse_response(&msg.to_string()) {
@@ -153,16 +158,25 @@ impl Rpc {
 			Err(e) => return done(Ok(Err(e))).boxed(),
 			Ok(code) => {
 				let url = String::from(url);
+				// The ws::connect takes a FnMut closure,
+				// which means c cannot be moved into it,
+				// since it's consumed on complete.
+				// Therefore we wrap it in an option
+				// and pick it out once.
+				let mut once = Some(c);
 				thread::spawn(move || {
-					// mem:replace Option hack to move `c` out
-					// of the FnMut closure
-					let mut swap = Some(c);
-					match connect(url, |out| {
-						let c = mem::replace(&mut swap, None).unwrap();
+					let conn = ws::connect(url, |out| {
+						// this will panic if the closure
+						// is called twice, which it should never
+						// be.
+						let c = once.take().expect("connection closure called only once");
 						RpcHandler::new(out, code.clone(), c)
-					}) {
+					});
+					match conn {
 						Err(err) => {
-							let c = mem::replace(&mut swap, None).unwrap();
+							// since ws::connect is only called once, it cannot
+							// both fail and succeed.
+							let c = once.take().expect("connection closure called only once");
 							c.complete(Err(RpcError::WsError(err)));
 						},
 						// c will complete on the `on_open` event in the Handler
@@ -183,13 +197,13 @@ impl Rpc {
 		let id = self.counter.fetch_add(1, Ordering::Relaxed);
 		self.pending.insert(id, c);
 
-		let serialized = to_string(&RpcRequest::new(id, method, params)).unwrap();
+		let serialized = json::to_string(&RpcRequest::new(id, method, params)).unwrap();
 		let _ = self.out.send(serialized);
 
 		p.map(|result| {
 			match result {
 				Ok(json) => {
-					let t: T = try!(from_value(json));
+					let t: T = try!(json::from_value(json));
 					Ok(t)
 				},
 				Err(err) => Err(err)
@@ -281,7 +295,7 @@ impl From<Canceled> for RpcError {
 }
 
 fn parse_response(s: &str) -> (Option<usize>, Result<JsonValue, RpcError>) {
-	let mut json: JsonValue = match from_str(s) {
+	let mut json: JsonValue = match json::from_str(s) {
 		Err(e) => return (None, Err(RpcError::ParseError(e))),
 		Ok(json) => json,
 	};

@@ -43,10 +43,16 @@ pub struct TransactionRequest {
 
 impl fmt::Display for TransactionRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "{:?} from {:?} to {:?}",
-			   self.value.unwrap_or(U256::from(0)),
-			   self.from,
-			   self.to)
+		let eth = self.value.unwrap_or(U256::from(0));
+		match self.to {
+			Some(ref to) => write!(f, "{} Ether from {:?} to {:?}",
+							   eth.format_ether(),
+							   self.from,
+							   to),
+			None => write!(f, "{} Ether from {:?}",
+							   eth.format_ether(),
+							   self.from),
+		}
 	}
 }
 

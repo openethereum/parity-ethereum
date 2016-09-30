@@ -1,4 +1,3 @@
-
 use client::{Rpc, RpcError};
 use rpc::v1::types::{ConfirmationRequest,
 					 TransactionModification,
@@ -13,16 +12,12 @@ pub struct SignerRpc {
 
 impl SignerRpc {
 	pub fn new(url: &str, authfile: &PathBuf) -> Result<Self, RpcError> {
-		match Rpc::new(&url, authfile) {
-			Ok(rpc) => Ok(SignerRpc { rpc: rpc }),
-			Err(e) => Err(e),
-		}
+		Ok(SignerRpc { rpc: try!(Rpc::new(&url, authfile)) })
 	}
 	pub fn requests_to_confirm(&mut self) ->
 		BoxFuture<Result<Vec<ConfirmationRequest>, RpcError>, Canceled>
 	{
-		self.rpc.request::<Vec<ConfirmationRequest>>
-			("personal_requestsToConfirm", vec![])
+		self.rpc.request("personal_requestsToConfirm", vec![])
 	}
 	pub fn confirm_request(&mut self,
 						   id: U256,
@@ -30,7 +25,7 @@ impl SignerRpc {
 						   pwd: &str) ->
 		BoxFuture<Result<U256, RpcError>, Canceled>
 	{
-		self.rpc.request::<U256>("personal_confirmRequest", vec![
+		self.rpc.request("personal_confirmRequest", vec![
 			to_value(&format!("{:#x}", id)),
 			to_value(&TransactionModification { gas_price: new_gas_price }),
 			to_value(&pwd),
@@ -39,7 +34,7 @@ impl SignerRpc {
 	pub fn reject_request(&mut self, id: U256) ->
 		BoxFuture<Result<bool, RpcError>, Canceled>
 	{
-		self.rpc.request::<bool>("personal_rejectRequest", vec![
+		self.rpc.request("personal_rejectRequest", vec![
 			JsonValue::String(format!("{:#x}", id))
 		])
 	}
