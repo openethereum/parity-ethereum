@@ -290,3 +290,9 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+test-ci:
+  stage: build
+  script:
+    - echo 2+2
+  tags:
+    - rust-test
