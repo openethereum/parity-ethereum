@@ -331,11 +331,12 @@ impl BlockProvider for BlockChain {
 			.filter_map(|number| self.block_hash(number).map(|hash| (number, hash)))
 			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
-			.flat_map(|(number, hash, mut receipts, hashes)| {
+			.flat_map(|(number, hash, mut receipts, mut hashes)| {
 				assert_eq!(receipts.len(), hashes.len());
 				log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
 
 				let receipts_len = receipts.len();
+				hashes.reverse();
 				receipts.reverse();
 				receipts.into_iter()
 					.map(|receipt| receipt.logs)
@@ -1389,7 +1390,6 @@ mod tests {
 			.generate(&mut fork_finalizer).unwrap();
 
 		let b1a_hash = BlockView::new(&b1a).header_view().sha3();
-		let b1b_hash = BlockView::new(&b1b).header_view().sha3();
 		let b2_hash = BlockView::new(&b2).header_view().sha3();
 
 		let t1_hash = t1.hash();
@@ -1761,7 +1761,7 @@ mod tests {
 			gas_price: 0.into(),
 			gas: 100_000.into(),
 			action: Action::Create,
-			value: 100.into(),
+			value: 101.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
 		}.sign(&"".sha3());
 		let t2 = Transaction {
@@ -1769,7 +1769,7 @@ mod tests {
 			gas_price: 0.into(),
 			gas: 100_000.into(),
 			action: Action::Create,
-			value: 100.into(),
+			value: 102.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
 		}.sign(&"".sha3());
 		let t3 = Transaction {
@@ -1777,7 +1777,7 @@ mod tests {
 			gas_price: 0.into(),
 			gas: 100_000.into(),
 			action: Action::Create,
-			value: 100.into(),
+			value: 103.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
 		}.sign(&"".sha3());
 		let tx_hash1 = t1.hash();
