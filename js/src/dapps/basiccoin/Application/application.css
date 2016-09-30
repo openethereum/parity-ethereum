@@ -15,25 +15,16 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  padding: 2em;
-}
-
 .container {
   color: #333;
   font-family: 'Roboto';
   vertical-align: middle;
+  min-height: 100vh;
+  position: relative;
 }
 
-.loading {
-  width: 100%;
-  text-align: center;
-  padding-top: 5em;
-  font-size: 2em;
-  color: #999;
-}
-
-.title {
-  font-size: 1.25em;
-  margin-bottom: 0.25em;
+.page {
+  padding: 2em;
+  background: rgba(255, 255, 255, 0.85);
+  min-height: 100vh;
 }

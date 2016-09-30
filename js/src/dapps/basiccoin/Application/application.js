@@ -16,10 +16,11 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import Header from '../Header';
-import Loading from '../Loading';
+import Header from './Header';
+import Loading from './Loading';
+import PAGES from './pages';
 
-import styles from '../style.css';
+import styles from './application.css';
 
 export default class Application extends Component {
   static propTypes = {
@@ -44,10 +45,15 @@ export default class Application extends Component {
       );
     }
 
+    const path = (window.location.hash || '').split('?')[0].split('/')[1];
+    const page = PAGES.find((page) => page.path === path);
+
     return (
-      <div className={ styles.container }>
+      <div className={ styles.container } style={ { background: page.color } }>
         <Header />
-        { children }
+        <div className={ styles.page }>
+          { children }
+        </div>
       </div>
     );
   }

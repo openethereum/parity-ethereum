@@ -31,10 +31,10 @@ module.exports = {
   context: path.join(__dirname, './src'),
   entry: {
     // dapps
+    'basiccoin': ['./dapps/basiccoin.js'],
     'gavcoin': ['./dapps/gavcoin.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
-    'tokendeploy': ['./dapps/tokendeploy.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],

@@ -38,7 +38,7 @@ class Dapps extends Component {
       {
         name: 'Token Deployment',
         description: 'Deploy new basic tokens that you are able to send around',
-        url: 'tokendeploy'
+        url: 'basiccoin'
       },
       {
         name: 'GAVcoin',

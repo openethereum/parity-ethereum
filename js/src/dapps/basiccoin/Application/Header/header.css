@@ -16,14 +16,23 @@
 */
 
 .header {
+}
+
+.titlebar {
+  padding: 0.5em 1em;
+  margin: 0;
+  color: white;
+}
+
+.navigation {
   table-layout: fixed;
   width: 100%;
-  border-spacing: 0.15em;
+  border-spacing: 0;
   border-collapse: separate;
   border-color: white;
 }
 
-tr {
+.navigation tr {
   height: 10em;
 }
 
@@ -34,7 +43,7 @@ tr {
 
 .byline {
   font-size: 1em;
-  opacity: 0.7;
+  opacity: 0.75;
 }
 
 .nav {
@@ -45,7 +54,7 @@ tr {
 }
 
 .nav:hover {
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
 .navCurrent {
@@ -53,24 +62,4 @@ tr {
 }
 
 .navNext {
-}
-
-.overview {
-  background: green;
-}
-
-.send {
-  background: red;
-}
-
-.events {
-  background: blue;
-}
-
-.deploy {
-  background: purple;
-}
-
-.status {
-  background: orange;
 }

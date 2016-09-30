@@ -22,17 +22,17 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
-import Deploy from './tokendeploy/Deploy';
-import Events from './tokendeploy/Events';
-import Application from './tokendeploy/Application';
-import Overview from './tokendeploy/Overview';
-import Send from './tokendeploy/Send';
-import Status from './tokendeploy/Status';
+import Deploy from './basiccoin/Deploy';
+import Events from './basiccoin/Events';
+import Application from './basiccoin/Application';
+import Overview from './basiccoin/Overview';
+import Send from './basiccoin/Send';
+import Status from './basiccoin/Status';
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 import './style.css';
-import './tokendeploy.html';
+import './basiccoin.html';
 
 ReactDOM.render(
   <Router history={ routerHistory }>
