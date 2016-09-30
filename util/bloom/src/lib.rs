@@ -63,7 +63,7 @@ impl BitVecJournal {
 		journal.map(|idx| (idx, self.elems[idx])).collect::<Vec<(usize, u64)>>()
 	}
 
-	pub fn how_full(&self) -> f64 {
+	pub fn saturation(&self) -> f64 {
 		self.elems.iter().fold(0u64, |acc, e| acc + e.count_ones() as u64) as f64 / (self.elems.len() * 64) as f64
 	}
 }
@@ -96,7 +96,7 @@ impl Bloom {
 
 	/// Initializes bloom filter from saved state
 	pub fn from_parts(parts: &[u64], k_num: u32) -> Bloom {
-		let bitmap_size = parts.len()*8;
+		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
 		let sips = [Bloom::sip_new(), Bloom::sip_new()];
@@ -197,8 +197,8 @@ impl Bloom {
 	}
 
 	/// Returns the ratio of set bits in the bloom filter to the total bits
-	pub fn how_full(&self) -> f64 {
-		self.bitmap.how_full()
+	pub fn saturation(&self) -> f64 {
+		self.bitmap.saturation()
 	}
 }
 
@@ -216,7 +216,7 @@ mod tests {
 	use super::Bloom;
 
 	#[test]
-	fn bloom_test_set() {
+	fn get_set() {
 		let mut bloom = Bloom::new(10, 80);
 		let key = vec![115u8, 99];
 		assert!(!bloom.check(&key));
@@ -225,7 +225,7 @@ mod tests {
 	}
 
 	#[test]
-	fn bloom_journalling() {
+	fn journalling() {
 		let initial = vec![0u64; 8];
 		let mut bloom = Bloom::from_parts(&initial, 3);
 		bloom.set(&vec![5u8, 4]);
@@ -235,12 +235,12 @@ mod tests {
 	}
 
 	#[test]
-	fn bloom_howfull() {
+	fn saturation() {
 		let initial = vec![0u64; 8];
 		let mut bloom = Bloom::from_parts(&initial, 3);
 		bloom.set(&vec![5u8, 4]);
 
-		let full = bloom.how_full();
+		let full = bloom.saturation();
 		// 2/8/64 = 0.00390625
 		assert!(full >= 0.0039f64 && full <= 0.004f64);
 	}
