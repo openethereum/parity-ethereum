@@ -156,5 +156,8 @@ pub trait Engine : Sync + Send {
 	/// Panics if `is_builtin(a)` is not true.
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
 
+	/// Check if new block should be chosen as the one  in chain.
+	fn is_new_best_block(&self, parent_details: BlockDetails, best_header: HeaderView, new_header: HeaderView) -> bool;
+
 	// TODO: sealing stuff - though might want to leave this for later.
 }
