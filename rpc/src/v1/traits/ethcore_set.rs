@@ -25,55 +25,55 @@ build_rpc_trait! {
 	/// Ethcore-specific rpc interface for operations altering the settings.
 	pub trait EthcoreSet {
 		/// Sets new minimal gas price for mined blocks.
-		#[name("ethcore_setMinGasPrice")]
+		#[rpc(name = "ethcore_setMinGasPrice")]
 		fn set_min_gas_price(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new gas floor target for mined blocks.
-		#[name("ethcore_setGasFloorTarget")]
+		#[rpc(name = "ethcore_setGasFloorTarget")]
 		fn set_gas_floor_target(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new gas ceiling target for mined blocks.
-		#[name("ethcore_setGasCeilTarget")]
+		#[rpc(name = "ethcore_setGasCeilTarget")]
 		fn set_gas_ceil_target(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new extra data for mined blocks.
-		#[name("ethcore_setExtraData")]
+		#[rpc(name = "ethcore_setExtraData")]
 		fn set_extra_data(&self, Bytes) -> Result<bool, Error>;
 
 		/// Sets new author for mined block.
-		#[name("ethcore_setAuthor")]
+		#[rpc(name = "ethcore_setAuthor")]
 		fn set_author(&self, H160) -> Result<bool, Error>;
 
 		/// Sets the limits for transaction queue.
-		#[name("ethcore_setTransactionsLimit")]
+		#[rpc(name = "ethcore_setTransactionsLimit")]
 		fn set_transactions_limit(&self, usize) -> Result<bool, Error>;
 
 		/// Sets the maximum amount of gas a single transaction may consume.
-		#[name("ethcore_setMaxTransactionGas")]
+		#[rpc(name = "ethcore_setMaxTransactionGas")]
 		fn set_tx_gas_limit(&self, U256) -> Result<bool, Error>;
 
 		/// Add a reserved peer.
-		#[name("ethcore_addReservedPeer")]
+		#[rpc(name = "ethcore_addReservedPeer")]
 		fn add_reserved_peer(&self, String) -> Result<bool, Error>;
 
 		/// Remove a reserved peer.
-		#[name("ethcore_removeReservedPeer")]
+		#[rpc(name = "ethcore_removeReservedPeer")]
 		fn remove_reserved_peer(&self, String) -> Result<bool, Error>;
 
 		/// Drop all non-reserved peers.
-		#[name("ethcore_dropNonReservedPeers")]
+		#[rpc(name = "ethcore_dropNonReservedPeers")]
 		fn drop_non_reserved_peers(&self) -> Result<bool, Error>;
 
 		/// Accept non-reserved peers (default behavior)
-		#[name("ethcore_acceptNonReservedPeers")]
+		#[rpc(name = "ethcore_acceptNonReservedPeers")]
 		fn accept_non_reserved_peers(&self) -> Result<bool, Error>;
 
 		/// Start the network.
-		#[name("ethcore_startNetwork")]
+		#[rpc(name = "ethcore_startNetwork")]
 		fn start_network(&self) -> Result<bool, Error>;
 
 		/// Stop the network.
-		#[name("ethcore_stopNetwork")]
+		#[rpc(name = "ethcore_stopNetwork")]
 		fn stop_network(&self) -> Result<bool, Error>;
 	}
 }

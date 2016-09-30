@@ -23,16 +23,16 @@ build_rpc_trait! {
 	/// Net rpc interface.
 	pub trait Net {
 		/// Returns protocol version.
-		#[name("net_version")]
+		#[rpc(name = "net_version")]
 		fn version(&self) -> Result<String, Error>;
 
 		/// Returns number of peers connected to node.
-		#[name("net_peerCount")]
+		#[rpc(name = "net_peerCount")]
 		fn peer_count(&self) -> Result<String, Error>;
 
 		/// Returns true if client is actively listening for network connections.
 		/// Otherwise false.
-		#[name("net_listening")]
+		#[rpc(name = "net_listening")]
 		fn is_listening(&self) -> Result<bool, Error>;
 	}
 }
