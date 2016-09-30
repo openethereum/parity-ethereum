@@ -204,7 +204,7 @@ impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
 	/// Possibly signatures of all validators.
-	fn seal_fields(&self) -> usize { self.our_params.validator_n }
+	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
@@ -260,12 +260,13 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		if header.seal().len() <= self.threshold() {
-			Err(From::from(BlockError::InvalidSealArity(
-				Mismatch { expected: self.threshold(), found: header.seal().len() }
-			)))
-		} else {
+		let seal_length = header.seal().len();
+		if seal_length == self.seal_fields() {
 			Ok(())
+		} else {
+			Err(From::from(BlockError::InvalidSealArity(
+				Mismatch { expected: self.seal_fields(), found: seal_length }
+			)))
 		}
 	}
 
