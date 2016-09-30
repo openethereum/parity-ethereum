@@ -202,6 +202,9 @@ impl SeedHashCompute {
 	}
 }
 
+pub fn slow_get_seedhash(block_number: u64) -> H256 {
+	SeedHashCompute::resume_compute_seedhash([0u8; 32], 0, block_number / ETHASH_EPOCH_LENGTH)
+}
 
 #[inline]
 fn fnv_hash(x: u32, y: u32) -> u32 {

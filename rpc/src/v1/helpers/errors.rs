@@ -23,6 +23,7 @@ macro_rules! rpc_unimplemented {
 use std::fmt;
 use ethcore::error::Error as EthcoreError;
 use ethcore::account_provider::{Error as AccountError};
+use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
 
 mod codes {
@@ -41,6 +42,7 @@ mod codes {
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
 	pub const COMPILATION_ERROR: i64 = -32050;
+	pub const FETCH_ERROR: i64 = -32060;
 }
 
 pub fn unimplemented() -> Error {
@@ -152,6 +154,14 @@ pub fn signer_disabled() -> Error {
 		code: ErrorCode::ServerError(codes::SIGNER_DISABLED),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
 		data: None
+	}
+}
+
+pub fn from_fetch_error(error: FetchError) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::FETCH_ERROR),
+		message: "Error while fetching content.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
 
