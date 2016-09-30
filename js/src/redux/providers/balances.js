@@ -16,7 +16,7 @@
 
 import { getBalances, getTokens } from './balancesActions';
 
-import * as abis from '../../json';
+import * as abis from '../../contracts/abi';
 
 import imagesEthereum from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
