@@ -36,26 +36,27 @@ class Dapps extends Component {
   state = {
     apps: [
       {
+        name: 'Token Deployment',
+        description: 'Deploy new basic tokens that you are able to send around',
+        url: 'tokendeploy'
+      },
+      {
         name: 'GAVcoin',
-        address: '0x6C5b287A875298f773225e72ce3fA8B2782e0347',
         description: 'Manage your GAVcoins, the hottest new property in crypto',
         url: 'gavcoin'
       },
       {
         name: 'Registry',
-        address: '0x8E4e9B13D4b45Cb0befC93c3061b1408f67316B2',
         description: 'A global registry of addresses on the network',
         url: 'registry'
       },
       {
         name: 'Token Registry',
-        address: '0x1AE76cf6Ee3955F773C429801a203f08c84B7cc5',
         description: 'A registry of transactable tokens on the network',
         url: 'tokenreg'
       },
       {
         name: 'Method Registry',
-        address: '0x2b7E4db4AD1B3D550Ac6111C122EE9cf65c14AcB',
         description: 'A registry of method signatures for lookups on transactions',
         url: 'signaturereg'
       }
@@ -84,7 +85,7 @@ class Dapps extends Component {
       return (
         <div
           className={ styles.item }
-          key={ app.address }>
+          key={ app.url }>
           <Summary
             app={ app }
             tokens={ tokens } />

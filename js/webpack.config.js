@@ -34,6 +34,7 @@ module.exports = {
     'gavcoin': ['./dapps/gavcoin.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
+    'tokendeploy': ['./dapps/tokendeploy.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],
