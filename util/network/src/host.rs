@@ -137,7 +137,7 @@ const SYS_TIMER: usize = LAST_SESSION + 1;
 /// Protocol handler level packet id
 pub type PacketId = u8;
 /// Protocol / handler id
-pub type ProtocolId = &'static str;
+pub type ProtocolId = [u8; 3];
 
 /// Messages used to communitate with the event loop from other threads.
 #[derive(Clone)]
@@ -185,7 +185,7 @@ pub struct CapabilityInfo {
 impl Encodable for CapabilityInfo {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		s.begin_list(2);
-		s.append(&self.protocol);
+		s.append(&&self.protocol[..]);
 		s.append(&self.version);
 	}
 }
@@ -284,10 +284,13 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Returns max version for a given protocol.
-	pub fn protocol_version(&self, peer: PeerId, protocol: &str) -> Option<u8> {
+	pub fn protocol_version(&self, peer: PeerId, protocol: ProtocolId) -> Option<u8> {
 		let session = self.resolve_session(peer);
 		session.and_then(|s| s.lock().capability_version(protocol))
 	}
+
+	/// Returns this object's subprotocol name.
+	pub fn subprotocol_name(&self) -> ProtocolId { self.protocol }
 }
 
 /// Shared host information
@@ -801,8 +804,8 @@ impl Host {
 							}
 						}
 						for (p, _) in self.handlers.read().iter() {
-							if s.have_capability(p)  {
-								ready_data.push(p);
+							if s.have_capability(*p) {
+								ready_data.push(*p);
 							}
 						}
 					},
@@ -811,7 +814,7 @@ impl Host {
 						protocol,
 						packet_id,
 					}) => {
-						match self.handlers.read().get(protocol) {
+						match self.handlers.read().get(&protocol) {
 							None => { warn!(target: "network", "No handler found for protocol: {:?}", protocol) },
 							Some(_) => packet_data.push((protocol, packet_id, data)),
 						}
@@ -826,13 +829,13 @@ impl Host {
 		}
 		let handlers = self.handlers.read();
 		for p in ready_data {
-			let h = handlers.get(p).unwrap().clone();
+			let h = handlers.get(&p).unwrap().clone();
 			self.stats.inc_sessions();
 			let reserved = self.reserved_nodes.read();
 			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
 		}
 		for (p, packet_id, data) in packet_data {
-			let h = handlers.get(p).unwrap().clone();
+			let h = handlers.get(&p).unwrap().clone();
 			let reserved = self.reserved_nodes.read();
 			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token, packet_id, &data[1..]);
 		}
@@ -857,8 +860,8 @@ impl Host {
 					if s.is_ready() {
 						self.num_sessions.fetch_sub(1, AtomicOrdering::SeqCst);
 						for (p, _) in self.handlers.read().iter() {
-							if s.have_capability(p)  {
-								to_disconnect.push(p);
+							if s.have_capability(*p)  {
+								to_disconnect.push(*p);
 							}
 						}
 					}
@@ -874,7 +877,7 @@ impl Host {
 			}
 		}
 		for p in to_disconnect {
-			let h = self.handlers.read().get(p).unwrap().clone();
+			let h = self.handlers.read().get(&p).unwrap().clone();
 			let reserved = self.reserved_nodes.read();
 			h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
 		}
@@ -980,7 +983,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				self.nodes.write().clear_useless();
 			},
 			_ => match self.timers.read().get(&token).cloned() {
-				Some(timer) => match self.handlers.read().get(timer.protocol).cloned() {
+				Some(timer) => match self.handlers.read().get(&timer.protocol).cloned() {
 					None => { warn!(target: "network", "No handler found for protocol: {:?}", timer.protocol) },
 					Some(h) => {
 						let reserved = self.reserved_nodes.read();
@@ -1004,11 +1007,11 @@ impl IoHandler<NetworkIoMessage> for Host {
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
-				h.initialize(&NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved));
-				self.handlers.write().insert(protocol, h);
+				h.initialize(&NetworkContext::new(io, *protocol, None, self.sessions.clone(), &reserved));
+				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
 				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: protocol, version: *v, packet_count:0 });
+					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count:0 });
 				}
 			},
 			NetworkIoMessage::AddTimer {
@@ -1023,7 +1026,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					*counter += 1;
 					handler_token
 				};
-				self.timers.write().insert(handler_token, ProtocolTimer { protocol: protocol, token: *token });
+				self.timers.write().insert(handler_token, ProtocolTimer { protocol: *protocol, token: *token });
 				io.register_timer(handler_token, *delay).unwrap_or_else(|e| debug!("Error registering timer {}: {:?}", token, e));
 			},
 			NetworkIoMessage::Disconnect(ref peer) => {

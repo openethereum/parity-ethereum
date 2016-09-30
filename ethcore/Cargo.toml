@@ -37,6 +37,7 @@ ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
 rand = "0.3"
+lru-cache = "0.0.7"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

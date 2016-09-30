@@ -864,15 +864,24 @@ impl MinerService for Miner {
 	}
 
 	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
-		let result = if let Some(b) = self.sealing_work.lock().queue.get_used_if(if self.options.enable_resubmission { GetAction::Clone } else { GetAction::Take }, |b| &b.hash() == &pow_hash) {
-			b.lock().try_seal(&*self.engine, seal).or_else(|_| {
-				warn!(target: "miner", "Mined solution rejected: Invalid.");
-				Err(Error::PowInvalid)
-			})
-		} else {
-			warn!(target: "miner", "Mined solution rejected: Block unknown or out of date.");
-			Err(Error::PowHashInvalid)
-		};
+		let result =
+			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
+				if self.options.enable_resubmission {
+					GetAction::Clone
+				} else {
+					GetAction::Take
+				},
+				|b| &b.hash() == &pow_hash
+			) {
+				trace!(target: "miner", "Sealing block {}={}={} with seal {:?}", pow_hash, b.hash(), b.header().bare_hash(), seal);
+				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
+					warn!(target: "miner", "Mined solution rejected: {}", e);
+					Err(Error::PowInvalid)
+				})
+			} else {
+				warn!(target: "miner", "Mined solution rejected: Block unknown or out of date.");
+				Err(Error::PowHashInvalid)
+			};
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
@@ -915,7 +924,7 @@ impl MinerService for Miner {
 			out_of_chain.for_each(|txs| {
 				let mut transaction_queue = self.transaction_queue.lock();
 				let _ = self.add_transactions_to_queue(
-					chain, txs, TransactionOrigin::External, &mut transaction_queue
+					chain, txs, TransactionOrigin::RetractedBlock, &mut transaction_queue
 				);
 			});
 		}

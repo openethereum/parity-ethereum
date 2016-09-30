@@ -17,8 +17,8 @@
 //! Ethcore-specific rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H512, U256, Bytes, Peers, Transaction, RpcSettings};
+use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
+use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings};
 
 build_rpc_trait! {
 	/// Ethcore-specific rpc interface.
@@ -104,5 +104,9 @@ build_rpc_trait! {
 		/// Returns all pending transactions from transaction queue.
 		#[rpc(name = "ethcore_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
+
+		/// Hash a file content under given URL.
+		#[rpc(async, name = "ethcore_hashContent")]
+		fn hash_content(&self, Ready<H256>, String);
 	}
 }

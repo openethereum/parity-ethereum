@@ -93,10 +93,10 @@ macro_rules! build_rpc_trait {
 
 	( WRAP $del: expr =>
 		(async, name = $name: expr)
-		fn $method: ident (&self, $(, $param: ty)*, Ready<$out: ty>)
+		fn $method: ident (&self, Ready<$out: ty> $(, $param: ty)*)
 	) => {
-		$del.add_async_method($name move |base, params, ready| {
-			(Self::$method as fn(&_ $(, $param)*, Ready<$out>)).wrap_rpc(base, params, ready)
+		$del.add_async_method($name, move |base, params, ready| {
+			(Self::$method as fn(&_, Ready<$out> $(, $param)*)).wrap_rpc(base, params, ready)
 		})
 	};
 }
@@ -180,10 +180,10 @@ macro_rules! wrap {
 			BASE: Send + Sync + 'static,
 			OUT: Serialize,
 			$($x: Deserialize,)+
-		> WrapAsync<BASE> for fn(&BASE, $($x,)+ Ready<OUT>) {
+		> WrapAsync<BASE> for fn(&BASE, Ready<OUT>, $($x,)+ ) {
 			fn wrap_rpc(&self, base: &BASE, params: Params, ready: ::jsonrpc_core::Ready) {
 				match from_params::<($($x,)+)>(params) {
-					Ok(($($x,)+)) => (self)(base, $($x,)+ ready.into()),
+					Ok(($($x,)+)) => (self)(base, ready.into(), $($x,)+),
 					Err(e) => ready.ready(Err(e)),
 				}
 			}
@@ -212,7 +212,7 @@ impl<B, OUT, T> Wrap<B> for fn(&B, Trailing<T>) -> Result<OUT, Error>
 	}
 }
 
-impl<B, OUT, T> WrapAsync<B> for fn(&B, Trailing<T>, Ready<OUT>)
+impl<B, OUT, T> WrapAsync<B> for fn(&B, Ready<OUT>, Trailing<T>)
 	where B: Send + Sync + 'static, OUT: Serialize, T: Default + Deserialize
 {
 	fn wrap_rpc(&self, base: &B, params: Params, ready: ::jsonrpc_core::Ready) {
@@ -229,7 +229,7 @@ impl<B, OUT, T> WrapAsync<B> for fn(&B, Trailing<T>, Ready<OUT>)
 		};
 
 		match id {
-			Ok((id,)) => (self)(base, Trailing(id), ready.into()),
+			Ok((id,)) => (self)(base, ready.into(), Trailing(id)),
 			Err(e) => ready.ready(Err(e)),
 		}
 	}
@@ -272,7 +272,7 @@ macro_rules! wrap_with_trailing {
 			OUT: Serialize,
 			$($x: Deserialize,)+
 			TRAILING: Default + Deserialize,
-		> WrapAsync<BASE> for fn(&BASE, $($x,)+ Trailing<TRAILING>, Ready<OUT>) {
+		> WrapAsync<BASE> for fn(&BASE, Ready<OUT>, $($x,)+ Trailing<TRAILING>) {
 			fn wrap_rpc(&self, base: &BASE, params: Params, ready: ::jsonrpc_core::Ready) {
 				let len = match params {
 					Params::Array(ref v) => v.len(),
@@ -289,7 +289,7 @@ macro_rules! wrap_with_trailing {
 				};
 
 				match params {
-					Ok(($($x,)+ id)) => (self)(base, $($x,)+ Trailing(id), ready.into()),
+					Ok(($($x,)+ id)) => (self)(base, ready.into(), $($x,)+ Trailing(id)),
 					Err(e) => ready.ready(Err(e))
 				}
 			}
