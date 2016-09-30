@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cmp;
+use std::mem;
 use std::f64;
 use std::hash::{Hash, Hasher, SipHasher};
 use std::collections::HashSet;
@@ -58,8 +59,8 @@ impl BitVecJournal {
 	}
 
 	pub fn drain(&mut self) -> Vec<(usize, u64)> {
-		let journal = self.journal.drain().collect::<Vec<usize>>();
-		journal.iter().map(|idx| (*idx, self.elems[*idx])).collect::<Vec<(usize, u64)>>()
+		let journal = mem::replace(&mut self.journal, HashSet::new()).into_iter();
+		journal.map(|idx| (idx, self.elems[idx])).collect::<Vec<(usize, u64)>>()
 	}
 
 	pub fn how_full(&self) -> f64 {
