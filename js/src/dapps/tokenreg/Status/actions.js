@@ -18,7 +18,7 @@ import {
   registry as registryAbi,
   tokenreg as tokenregAbi,
   githubhint as githubhintAbi
-} from '../../../json';
+} from '../../../contracts/abi';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
