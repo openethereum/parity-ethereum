@@ -19,9 +19,11 @@ linux-stable:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
+    - md5sum target/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/checksum --body checksum
   tags:
     - rust
     - rust-stable
@@ -40,9 +42,11 @@ linux-stable-14.04:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
+    - md5sum target/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/checksum --body checksum
   tags:
     - rust
     - rust-14.04
@@ -101,9 +105,11 @@ linux-centos:
     - export CC="gcc"
     - cargo build --release --verbose
     - strip target/release/parity
+    - md5sum target/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/checksum --body checksum
   tags:
     - rust
     - rust-centos
@@ -127,9 +133,11 @@ linux-armv7:
     - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
+    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/checksum --body checksum
   tags:
     - rust
     - rust-arm
@@ -154,9 +162,11 @@ linux-arm:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
+    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/checksum --body checksum
   tags:
     - rust
     - rust-arm
@@ -181,9 +191,11 @@ linux-armv6:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> checksum 
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/checksum --body checksum
   tags:
     - rust
     - rust-arm
@@ -208,9 +220,11 @@ linux-aarch64:
     - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
+    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/checksum --body checksum
   tags:
     - rust
     - rust-arm
@@ -228,9 +242,11 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
+    - md5sum target/release/parity >> checksum
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/checksum --body checksum
   tags:
     - osx
   artifacts:
@@ -250,10 +266,12 @@ windows:
     - set RUST_BACKTRACE=1
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
+    - md5sum target/release/parity >> checksum
     - aws configure set aws_access_key_id %s3_key%
     - aws configure set aws_secret_access_key %s3_secret%
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target/release/parity.exe
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target/release/parity.pdb
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/checksum --body checksum
   tags:
    - rust-windows
   artifacts:
@@ -266,6 +284,7 @@ test-linux:
   before_script:
     - git submodule update --init --recursive
   script:
+    - export RUST_BACKTRACE=1
     - ./test.sh --verbose
   tags:
     - rust-test

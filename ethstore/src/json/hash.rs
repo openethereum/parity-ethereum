@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
-use std::ops;
-use std::str::FromStr;
+use std::{ops, fmt, str};
 use rustc_serialize::hex::{FromHex, ToHex};
 use serde::{Serialize, Serializer, Deserialize, Deserializer, Error as SerdeError};
 use serde::de::Visitor;
@@ -65,7 +63,7 @@ macro_rules! impl_hash {
 					type Value = $name;
 
 					fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-						FromStr::from_str(value).map_err(SerdeError::custom)
+						value.parse().map_err(SerdeError::custom)
 					}
 
 					fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -77,7 +75,7 @@ macro_rules! impl_hash {
 			}
 		}
 
-		impl FromStr for $name {
+		impl str::FromStr for $name {
 			type Err = Error;
 
 			fn from_str(value: &str) -> Result<Self, Self::Err> {
@@ -89,6 +87,12 @@ macro_rules! impl_hash {
 					}
 					_ => Err(Error::InvalidH256),
 				}
+			}
+		}
+
+		impl From<&'static str> for $name {
+			fn from(s: &'static str) -> Self {
+				s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 			}
 		}
 

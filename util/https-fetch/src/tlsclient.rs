@@ -87,6 +87,7 @@ impl TlsClient {
 		writer: Box<io::Write + Send>,
 		abort: Arc<AtomicBool>,
 		mut callback: Box<FnMut(FetchResult) + Send>,
+		size_limit: Option<usize>,
 		) -> Result<Self, FetchError> {
 			let res = TlsClient::make_config().and_then(|cfg| {
 				TcpStream::connect(url.address()).map(|sock| {
@@ -98,7 +99,7 @@ impl TlsClient {
 				Ok((cfg, sock)) => Ok(TlsClient {
 					abort: abort,
 					token: token,
-					writer: HttpProcessor::new(writer),
+					writer: HttpProcessor::new(writer, size_limit),
 					socket: sock,
 					closing: false,
 					error: None,

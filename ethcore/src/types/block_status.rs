@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Block status description module
+use verification::queue::Status as QueueStatus;
 
 /// General block status
 #[derive(Debug, Eq, PartialEq, Binary)]
@@ -27,4 +28,14 @@ pub enum BlockStatus {
 	Bad,
 	/// Unknown.
 	Unknown,
+}
+
+impl From<QueueStatus> for BlockStatus {
+	fn from(status: QueueStatus) -> Self {
+		match status {
+			QueueStatus::Queued => BlockStatus::Queued,
+			QueueStatus::Bad => BlockStatus::Bad,
+			QueueStatus::Unknown => BlockStatus::Unknown,
+		}
+	}
 }

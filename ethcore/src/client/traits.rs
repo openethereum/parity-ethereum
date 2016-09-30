@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
-use block_queue::BlockQueueInfo;
+use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
