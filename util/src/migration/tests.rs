@@ -91,7 +91,7 @@ impl Migration for AddsColumn {
 
 	fn version(&self) -> u32 { 1 }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
