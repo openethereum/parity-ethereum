@@ -41,16 +41,16 @@ impl From<helpers::ConfirmationRequest> for ConfirmationRequest {
 
 impl fmt::Display for ConfirmationRequest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		write!(f, "id: {:?}, {}", self.id, self.payload)
+		write!(f, "#{}: {}", self.id, self.payload)
 	}
 }
 
 impl fmt::Display for ConfirmationPayload {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-		match self {
-			&ConfirmationPayload::Transaction(ref transaction)
+		match *self {
+			ConfirmationPayload::Transaction(ref transaction)
 				=> write!(f, "{}", transaction),
-			&ConfirmationPayload::Sign(_) => write!(f, "TODO: data"),
+			ConfirmationPayload::Sign(_) => write!(f, "TODO: data"),
 		}
 	}
 }
