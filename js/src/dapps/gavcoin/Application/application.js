@@ -24,7 +24,7 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 
 import { api } from '../parity';
 
-import * as abis from '../../../json';
+import * as abis from '../../../contracts/abi';
 
 import Accounts from '../Accounts';
 import Actions, { ActionBuyIn, ActionRefund, ActionTransfer } from '../Actions';

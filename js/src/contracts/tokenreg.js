@@ -18,7 +18,6 @@ export default class TokenReg {
   constructor (api, registry) {
     this._api = api;
     this._registry = registry;
-    this._instance = null;
 
     this.getInstance();
   }
