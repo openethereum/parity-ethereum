@@ -20,14 +20,16 @@ import styles from './container.css';
 
 export default class Container extends Component {
   static propTypes = {
+    className: PropTypes.string,
     children: PropTypes.node.isRequired
   }
 
   render () {
-    const { children } = this.props;
+    const { className, children } = this.props;
+    const classes = `${styles.content} ${className}`;
 
     return (
-      <div className={ styles.content }>
+      <div className={ classes }>
         { children }
       </div>
     );

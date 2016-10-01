@@ -44,12 +44,20 @@ export default class Deploy extends Component {
     const { deploying } = this.state;
 
     return deploying
-      ? null
+      ? this.renderDeploying()
       : this.renderForm();
+  }
+
+  renderDeploying () {
+    return (
+      <Container>
+      </Container>
+    );
   }
 
   renderForm () {
     const { name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${layout.input} ${layout.error}`;
 
     return (
@@ -91,8 +99,11 @@ export default class Deploy extends Component {
           </div>
         </div>
         <div className={ styles.buttonRow }>
-          <div className={ styles.button }>
-            Register
+          <div
+            className={ styles.button }
+            disabled={ hasError }
+            onClick={ this.onDeploy }>
+            Deploy Token
           </div>
         </div>
       </Container>
@@ -124,5 +135,16 @@ export default class Deploy extends Component {
     const totalSupply = event.target.value;
 
     this.setState({ totalSupply });
+  }
+
+  onDeploy = (event) => {
+    const { deploying, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const hasError = !!(nameError || tlaError || totalSupplyError);
+
+    if (hasError || deploying) {
+      return;
+    }
+
+    this.setState({ deploying: true });
   }
 }
