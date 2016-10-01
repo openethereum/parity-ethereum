@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { api } from '../parity';
+
 import Container from '../Container';
 import styles from './deploy.css';
 import layout from '../style.css';
@@ -27,17 +29,23 @@ const ERRORS = {
 
 export default class Deploy extends Component {
   static contextTypes = {
-    router: PropTypes.object.isRequired
+    router: PropTypes.object.isRequired,
+    managerInstance: PropTypes.object.isRequired,
+    registryInstance: PropTypes.object.isRequired,
+    tokenregInstance: PropTypes.object.isRequired
   }
 
   state = {
     deploying: false,
+    local: true,
+    fromAddress: null,
     name: '',
     nameError: ERRORS.name,
     tla: '',
     tlaError: ERRORS.tla,
     totalSupply: '1000000',
-    totalSupplyError: null
+    totalSupplyError: null,
+    signerRequestId: 0
   }
 
   render () {
@@ -139,13 +147,43 @@ export default class Deploy extends Component {
   }
 
   onDeploy = (event) => {
-    const { deploying, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { managerInstance, registryInstance, tokenregInstance } = this.context;
+    const { deploying, fromAddress, local, fee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
+    const tokenreg = local ? registryInstance : tokenregInstance;
 
     if (hasError || deploying) {
       return;
     }
 
     this.setState({ deploying: true });
+
+    managerInstance
+      .base.call()
+      .then((base) => {
+        console.log(`base value of ${base.toFormat(0)}`);
+
+        const options = {
+          from: fromAddress,
+          value: fee
+        };
+
+        return managerInstance
+          .deploy.estimateGas(options, [base.mul(totalSupply), tla, name, tokenreg.address])
+          .then((gas) => {
+            console.log(`gas estimated at ${gas.toFormat(0)}`);
+
+            options.gas = gas.mul(1.2).toFixed(0);
+
+            return managerInstance
+              .deploy.postTransaction(options, [base.mul(totalSupply), tla, name, tokenreg.address]);
+          });
+      })
+      .then((signerRequestId) => {
+        this.setState({ signerRequestId });
+      })
+      .catch((error) => {
+        console.error('onDeploy', error);
+      });
   }
 }
