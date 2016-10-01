@@ -19,6 +19,7 @@ use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
+use std::sync::Arc;
 use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
@@ -172,13 +173,13 @@ fn consolidate_database(
 	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
 	let new_path_str = try!(new_db_path.to_str().ok_or(Error::MigrationImpossible));
 
-	let cur_db = try!(Database::open(&db_config, old_path_str).map_err(db_error));
+	let cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(db_error)));
 	// open new DB with proper number of columns
 	db_config.columns = migration.columns();
 	let mut new_db = try!(Database::open(&db_config, new_path_str).map_err(db_error));
 
 	// Migrate to new database (default column only)
-	try!(migration.migrate(&cur_db, &config, &mut new_db, None));
+	try!(migration.migrate(cur_db, &config, &mut new_db, None));
 
 	Ok(())
 }

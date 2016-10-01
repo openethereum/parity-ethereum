@@ -22,6 +22,7 @@ use std::collections::BTreeMap;
 use std::fs;
 use std::fmt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
 
@@ -123,7 +124,7 @@ pub trait Migration: 'static {
 	/// Version of the database after the migration.
 	fn version(&self) -> u32;
 	/// Migrate a source to a destination.
-	fn migrate(&mut self, source: &Database, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<(), Error>;
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, destination: &mut Database, col: Option<u32>) -> Result<(), Error>;
 }
 
 /// A simple migration over key-value pairs.
@@ -142,7 +143,7 @@ impl<T: SimpleMigration> Migration for T {
 
 	fn version(&self) -> u32 { SimpleMigration::version(self) }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
 
 		for (key, value) in source.iter(col) {
@@ -239,7 +240,7 @@ impl Manager {
 
 		// start with the old db.
 		let old_path_str = try!(old_path.to_str().ok_or(Error::MigrationImpossible));
-		let mut cur_db = try!(Database::open(&db_config, old_path_str).map_err(Error::Custom));
+		let mut cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(Error::Custom)));
 
 		for migration in migrations {
 			// Change number of columns in new db
@@ -254,16 +255,16 @@ impl Manager {
 			// perform the migration from cur_db to new_db.
 			match current_columns {
 				// migrate only default column
-				None => try!(migration.migrate(&cur_db, &config, &mut new_db, None)),
+				None => try!(migration.migrate(cur_db.clone(), &config, &mut new_db, None)),
 				Some(v) => {
 					// Migrate all columns in previous DB
 					for col in 0..v {
-						try!(migration.migrate(&cur_db, &config, &mut new_db, Some(col)))
+						try!(migration.migrate(cur_db.clone(), &config, &mut new_db, Some(col)))
 					}
 				}
 			}
 			// next iteration, we will migrate from this db into the other temp.
-			cur_db = new_db;
+			cur_db = Arc::new(new_db);
 			temp_idx.swap();
 
 			// remove the other temporary migration database.
