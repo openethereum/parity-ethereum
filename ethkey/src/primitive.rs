@@ -24,7 +24,6 @@ macro_rules! impl_primitive {
 	($name: ident, $size: expr, $err: expr) => {
 
 		#[repr(C)]
-		#[derive(Eq)]
 		pub struct $name([u8; $size]);
 
 		impl fmt::Debug for $name {
