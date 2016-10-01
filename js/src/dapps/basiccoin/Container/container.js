@@ -20,13 +20,14 @@ import styles from './container.css';
 
 export default class Container extends Component {
   static propTypes = {
+    center: PropTypes.bool,
     className: PropTypes.string,
     children: PropTypes.node.isRequired
   }
 
   render () {
-    const { className, children } = this.props;
-    const classes = `${styles.content} ${className}`;
+    const { center, className, children } = this.props;
+    const classes = `${styles.content} ${center ? styles.center : null} ${className}`;
 
     return (
       <div className={ classes }>

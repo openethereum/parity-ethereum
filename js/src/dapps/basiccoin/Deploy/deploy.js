@@ -50,7 +50,8 @@ export default class Deploy extends Component {
 
   renderDeploying () {
     return (
-      <Container>
+      <Container center>
+        Your token is currently being deployed to the network
       </Container>
     );
   }

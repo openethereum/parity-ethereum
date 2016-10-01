@@ -16,6 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import * as abis from '../../../contracts/abi';
+import { api } from '../parity';
+
 import Header from './Header';
 import Loading from './Loading';
 import PAGES from './pages';
@@ -23,16 +26,25 @@ import PAGES from './pages';
 import styles from './application.css';
 
 export default class Application extends Component {
+  static childContextTypes = {
+    managerInstance: PropTypes.object,
+    registryInstance: PropTypes.object,
+    tokenregInstance: PropTypes.object
+  }
+
   static propTypes = {
     children: PropTypes.node.isRequired
   }
 
   state = {
-    loading: true
+    loading: true,
+    managerInstance: null,
+    registryInstance: null,
+    tokenregInstance: null
   }
 
   componentDidMount () {
-    this.setState({ loading: false });
+    this.attachInstance();
   }
 
   render () {
@@ -57,5 +69,46 @@ export default class Application extends Component {
         </div>
       </div>
     );
+  }
+
+  getChildContext () {
+    const { managerInstance, registryInstance, tokenregInstance } = this.state;
+
+    return {
+      managerInstance,
+      registryInstance,
+      tokenregInstance
+    };
+  }
+
+  attachInstance () {
+    api.ethcore
+      .registryAddress()
+      .then((registryAddress) => {
+        console.log(`contract was found at registry=${registryAddress}`);
+
+        const registry = api.newContract(abis.registry, registryAddress).instance;
+
+        return Promise
+          .all([
+            registry.getAddress.call({}, [api.util.sha3('basiccoinmanager'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('basiccoinregistry'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A'])
+          ]);
+      })
+      .then(([managerAddress, registryAddress, tokenregAddress]) => {
+        console.log(`contracts were found at manager=${managerAddress}, registry=${registryAddress}, tokenreg=${registryAddress}`);
+
+        const managerInstance = api.newContract(abis.basiccoinmanager, managerAddress).instance;
+        const registryInstance = api.newContract(abis.tokenreg, registryAddress).instance;
+        const tokenregInstance = api.newContract(abis.tokenreg, tokenregAddress).instance;
+
+        this.setState({
+          loading: false,
+          managerInstance,
+          registryInstance,
+          tokenregInstance
+        });
+      });
   }
 }

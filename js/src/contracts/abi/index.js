@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import basiccoinmanager from './basiccoinmanager.json';
 import eip20 from './eip20.json';
 import gavcoin from './gavcoin.json';
 import githubhint from './githubhint.json';
@@ -23,6 +24,7 @@ import signaturereg from './signaturereg.json';
 import tokenreg from './tokenreg.json';
 
 export {
+  basiccoinmanager,
   eip20,
   gavcoin,
   githubhint,
