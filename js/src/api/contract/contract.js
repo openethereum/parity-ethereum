@@ -65,6 +65,7 @@ export default class Contract {
   }
 
   get instance () {
+    this._instance.address = this._address;
     return this._instance;
   }
 
