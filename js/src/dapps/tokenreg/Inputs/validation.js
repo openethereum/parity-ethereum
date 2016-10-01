@@ -84,10 +84,14 @@ const validateTokenAddress = (address, contract, simple) => {
 
       return contract.instance
         .fromAddress.call({}, [ address ])
-        .then(() => ({
-          error: ERRORS.addressAlreadyTaken,
-          valid: false
-        }), () => {});
+        .then(([id, tla, base, name, owner]) => {
+          if (owner !== '0x0000000000000000000000000000000000000000') {
+            return {
+              error: ERRORS.addressAlreadyTaken,
+              valid: false
+            };
+          }
+        });
     })
     .then((result) => {
       if (result) return result;
@@ -115,10 +119,14 @@ const validateTLA = (tla, contract, simple) => {
 
   return contract.instance
     .fromTLA.call({}, [ fTLA ])
-    .then(() => ({
-      error: ERRORS.tlaAlreadyTaken,
-      valid: false
-    }), () => {})
+    .then(([id, address, base, name, owner]) => {
+      if (owner !== '0x0000000000000000000000000000000000000000') {
+        return {
+          error: ERRORS.tlaAlreadyTaken,
+          valid: false
+        };
+      }
+    })
     .then((result) => {
       if (result) return result;
       return {
