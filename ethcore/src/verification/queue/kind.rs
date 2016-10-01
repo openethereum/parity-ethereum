@@ -164,6 +164,7 @@ pub mod headers {
 	}
 
 	/// A mode for verifying headers.
+	#[allow(dead_code)]
 	pub struct Headers;
 
 	impl Kind for Headers {
