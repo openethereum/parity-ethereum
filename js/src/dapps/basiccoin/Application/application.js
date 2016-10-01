@@ -94,14 +94,14 @@ export default class Application extends Component {
 
         return Promise
           .all([
-            registry.getAddress.call({}, [api.util.sha3('basiccoinmanager'), 'A']),
-            registry.getAddress.call({}, [api.util.sha3('basiccoinregistry'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('basiccoinmgr'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('basiccoinreg'), 'A']),
             registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
             api.personal.accountsInfo()
           ]);
       })
       .then(([managerAddress, registryAddress, tokenregAddress, accountsInfo]) => {
-        console.log(`contracts were found at manager=${managerAddress}, registry=${registryAddress}, tokenreg=${registryAddress}`);
+        console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${registryAddress}`);
 
         const managerInstance = api.newContract(abis.basiccoinmanager, managerAddress).instance;
         const registryInstance = api.newContract(abis.tokenreg, registryAddress).instance;
