@@ -27,7 +27,7 @@ import styles from './application.css';
 
 export default class Application extends Component {
   static childContextTypes = {
-    accounts: PropTypes.object,
+    accounts: PropTypes.array,
     managerInstance: PropTypes.object,
     registryInstance: PropTypes.object,
     tokenregInstance: PropTypes.object
@@ -108,6 +108,7 @@ export default class Application extends Component {
         const tokenregInstance = api.newContract(abis.tokenreg, tokenregAddress).instance;
 
         this.setState({
+          loading: false,
           managerInstance,
           registryInstance,
           tokenregInstance,
