@@ -17,8 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 
 import PAGES from '../pages';
-
-import layout from '../../style.css';
 import styles from './header.css';
 
 export default class Header extends Component {
@@ -60,7 +58,7 @@ export default class Header extends Component {
         colSpan={ index ? 1 : 2 }
         rowSpan={ index ? 1 : 2 }
         onClick={ this.onNavigate(page.path) }>
-        <div className={ layout.title }>
+        <div className={ styles.title }>
           { page.title }
         </div>
         <div className={ styles.byline }>

@@ -20,10 +20,8 @@
   font-family: 'Roboto';
   vertical-align: middle;
   min-height: 100vh;
-  position: relative;
 }
 
 .body {
-  padding: 5em;
-  min-height: 100vh;
+  padding: 4em;
 }
