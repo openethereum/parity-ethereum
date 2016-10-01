@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './style.css';
+import styles from './container.css';
 
 export default class Container extends Component {
   static propTypes = {

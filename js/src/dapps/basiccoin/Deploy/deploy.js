@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import Container from '../Container';
+import styles from './deploy.css';
 import layout from '../style.css';
 
 const ERRORS = {
@@ -87,6 +88,11 @@ export default class Deploy extends Component {
             <div className={ layout.hint }>
               { totalSupplyError || 'The total number of tokens in circulation' }
             </div>
+          </div>
+        </div>
+        <div className={ styles.buttonRow }>
+          <div className={ styles.button }>
+            Register
           </div>
         </div>
       </Container>
