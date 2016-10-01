@@ -14,16 +14,89 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 
-import styles from '../style.css';
+import layout from '../style.css';
 
 export default class Deploy extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  }
+
+  state = {
+    deploying: false,
+    name: '',
+    nameError: null,
+    tla: '',
+    tlaError: null,
+    totalSupply: '1000000',
+    totalSupplyError: null
+  }
+
   render () {
     return (
-      <div className={ styles.body }>
-        <div className={ styles.title }>Deploy</div>
+      <div className={ layout.body }>
+        <div className={ layout.title }>Deploy</div>
+        { this.renderForm() }
       </div>
     );
+  }
+
+  renderForm () {
+    const { deploying, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+
+    if (deploying) {
+      return null;
+    }
+
+    const error = `${layout.input} ${layout.error}`;
+
+    return (
+      <div className={ layout.form }>
+        <div className={ nameError ? error : layout.input }>
+          <label>token name</label>
+          <input
+            value={ name }
+            onChange={ this.onChangeName } />
+          <div className={ layout.hint }>
+            A name for the token to identify it
+          </div>
+        </div>
+        <div className={ tlaError ? error : layout.input }>
+          <label>token TLA</label>
+          <input
+            className={ layout.small }
+            value={ tla }
+            onChange={ this.onChangeTla } />
+          <div className={ layout.hint }>
+            A unique network acronym for this token (3 characters)
+          </div>
+        </div>
+        <div className={ totalSupplyError ? error : layout.input }>
+          <label>total number of tokens</label>
+          <input
+            type='number'
+            min='1000'
+            max='999999999'
+            value={ totalSupply }
+            onChange={ this.onChangeSupply } />
+          <div className={ layout.hint }>
+            The total number of tokens in circulation
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  onChangeName = (event, name) => {
+    this.setState({ name });
+  }
+
+  onChangeTla = (event, tla) => {
+    this.setState({ tla });
+  }
+
+  onChangeSupply = (event, totalSupply) => {
+    this.setState({ totalSupply });
   }
 }

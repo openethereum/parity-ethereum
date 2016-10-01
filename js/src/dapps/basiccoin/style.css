@@ -15,6 +15,50 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.body {
+}
+
+.form {
+}
+
+.form .input {
+  margin-bottom: 1em;
+}
+
+.form .input>* {
+  display: inline-block;
+  margin-right: 1em;
+  padding: 0.5em;
+  font-size: 1em;
+}
+
+.form label {
+  opacity: 0.8;
+  width: 20em;
+  text-align: right;
+  padding: 0.5em 0;
+}
+
+.form input {
+  width: 20em;
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 4px;
+  border-width: 1px;
+}
+
+.form .input.error input {
+  background: rgba(255, 0, 0, 0.5);
+}
+
+.form input.small {
+  width: 10em;
+  margin-right: 11em;
+}
+
+.form .hint {
+  opacity: 0.4;
+}
+
 .title {
   font-size: 1.25em;
   margin-bottom: 0.25em;
