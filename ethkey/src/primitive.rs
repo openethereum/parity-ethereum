@@ -62,6 +62,8 @@ macro_rules! impl_primitive {
 			}
 		}
 
+		impl Eq for $name { }
+
 		impl PartialOrd for $name {
 			fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
 				let self_ref: &[u8] = &self.0;
