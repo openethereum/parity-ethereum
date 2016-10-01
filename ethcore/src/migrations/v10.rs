@@ -17,7 +17,7 @@
 //! Bloom upgrade
 
 use std::sync::Arc;
-use db::{COL_EXTRA, COL_HEADERS, COL_STATE, COL_ACCOUNT_BLOOM};
+use db::{COL_EXTRA, COL_HEADERS, COL_STATE};
 use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB};
 use util::trie::TrieDB;
 use views::HeaderView;
@@ -102,19 +102,16 @@ impl Migration for ToV10 {
 
 	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
+		for (key, value) in source.iter(col) {
+			self.progress.tick();
+			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
+		}
+		try!(batch.commit(dest));
 
-		match col {
-			COL_ACCOUNT_BLOOM => {
-				try!(generate_bloom(source, dest));
-			},
-			_ => {
-				for (key, value) in source.iter(col) {
-					self.progress.tick();
-					try!(batch.insert(key.to_vec(), value.to_vec(), dest));
-				}
-			},
+		if col == COL_STATE {
+			try!(generate_bloom(source, dest));
 		}
 
-		batch.commit(dest)
+		Ok(())
 	}
 }

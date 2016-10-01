@@ -144,8 +144,8 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings(compaction_profile));
-	try!(manager.add_migration(migrations::ToV10).map_err(|_| Error::MigrationImpossible));
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	try!(manager.add_migration(migrations::ToV10::new()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
