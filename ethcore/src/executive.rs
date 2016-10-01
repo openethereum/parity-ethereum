@@ -167,13 +167,14 @@ impl<'a> Executive<'a> {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
 					code_address: new_address.clone(),
+					code_hash: t.data.sha3(),
 					address: new_address,
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
-					code: Some(t.data.clone()),
+					code: Some(Arc::new(t.data.clone())),
 					data: None,
 					call_type: CallType::None,
 				};
@@ -189,6 +190,7 @@ impl<'a> Executive<'a> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
+					code_hash: self.state.code_hash(address),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
@@ -510,7 +512,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some("3331600055".from_hex().unwrap());
+		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -569,7 +571,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -624,7 +626,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
@@ -734,7 +736,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -822,7 +824,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -874,7 +876,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -931,7 +933,7 @@ mod tests {
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code_a.clone());
+		params.code = Some(Arc::new(code_a.clone()));
 		params.value = ActionValue::Transfer(U256::from(100_000));
 
 		let mut state_result = get_temp_state();
@@ -981,10 +983,10 @@ mod tests {
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code.clone()));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.init_code(&address, code.clone());
+		state.init_code(&address, code);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -1182,7 +1184,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();

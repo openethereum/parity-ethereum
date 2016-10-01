@@ -81,7 +81,7 @@ pub trait Ext {
 	) -> MessageCallResult;
 
 	/// Returns code at given address
-	fn extcode(&self, address: &Address) -> Bytes;
+	fn extcode(&self, address: &Address) -> Arc<Bytes>;
 
 	/// Returns code length in bytes at given address
 	fn extcode_len(&self, address: &Address) -> u64;
