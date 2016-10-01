@@ -24,6 +24,7 @@ use util::{Address, FixedHash, H256};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, SimpleMigration, Progress};
 use util::sha3::Hashable;
+use std::sync::Arc;
 
 use rlp::{decode, Rlp, RlpStream, Stream, View};
 
@@ -107,7 +108,7 @@ pub struct OverlayRecentV7 {
 impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// find migrations for any possible inserted keys.
-	fn walk_journal(&mut self, source: &Database) -> Result<(), Error> {
+	fn walk_journal(&mut self, source: Arc<Database>) -> Result<(), Error> {
 		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			let mut era = decode::<u64>(&val);
 			loop {
@@ -151,7 +152,7 @@ impl OverlayRecentV7 {
 	// walk all journal entries in the database backwards.
 	// replace all possible inserted/deleted keys with their migrated counterparts
 	// and commit the altered entries.
-	fn migrate_journal(&self, source: &Database, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
+	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
 		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
 			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
 
@@ -228,7 +229,7 @@ impl Migration for OverlayRecentV7 {
 	// walk all records in the database, attempting to migrate any possible and
 	// keeping records of those that we do. then migrate the journal using
 	// this information.
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, col);
 
 		// check version metadata.
@@ -257,7 +258,7 @@ impl Migration for OverlayRecentV7 {
 			try!(batch.insert(key, value.into_vec(), dest));
 		}
 
-		try!(self.walk_journal(source));
+		try!(self.walk_journal(source.clone()));
 		self.migrate_journal(source, batch, dest)
 	}
 }
