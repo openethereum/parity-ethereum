@@ -66,6 +66,9 @@ export default class Header extends Component {
         <div className={ styles.byline }>
           { page.byline }
         </div>
+        <div className={ styles.description }>
+          { index ? null : page.description }
+        </div>
       </td>
     );
   }

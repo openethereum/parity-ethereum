@@ -14,14 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 
-import Container from '../Container';
+import styles from './style.css';
 
-export default class Events extends Component {
+export default class Container extends Component {
+  static propTypes = {
+    children: PropTypes.node.isRequired
+  }
+
   render () {
+    const { children } = this.props;
+
     return (
-      <Container />
+      <div className={ styles.content }>
+        { children }
+      </div>
     );
   }
 }

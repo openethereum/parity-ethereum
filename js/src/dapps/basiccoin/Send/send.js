@@ -16,14 +16,12 @@
 
 import React, { Component } from 'react';
 
-import styles from '../style.css';
+import Container from '../Container';
 
 export default class Send extends Component {
   render () {
     return (
-      <div className={ styles.body }>
-        <div className={ styles.title }>Send</div>
-      </div>
+      <Container />
     );
   }
 }

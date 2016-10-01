@@ -23,8 +23,7 @@
   position: relative;
 }
 
-.page {
-  padding: 2em;
-  background: rgba(255, 255, 255, 0.85);
+.body {
+  padding: 5em;
   min-height: 100vh;
 }

@@ -44,6 +44,13 @@
 .byline {
   font-size: 1em;
   opacity: 0.75;
+  margin-bottom: 0.25em;
+}
+
+.description {
+  font-size: 0.5em;
+  opacity: 0.5;
+  line-height: 1.5em;
 }
 
 .nav {

@@ -37,7 +37,8 @@ const PAGES = [
     path: 'deploy',
     color: 'purple',
     title: 'Deploy',
-    byline: 'Deploy a new token to the network'
+    byline: 'Deploy a new token to the network',
+    description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transaction in tokens from anywhere these transactions are allowed.'
   },
   {
     path: 'status',

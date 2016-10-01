@@ -16,7 +16,13 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import Container from '../Container';
 import layout from '../style.css';
+
+const ERRORS = {
+  name: 'specify a valid name >3 & <32 characters',
+  tla: 'specify a valid TLA, 3 characters in length'
+};
 
 export default class Deploy extends Component {
   static contextTypes = {
@@ -26,77 +32,91 @@ export default class Deploy extends Component {
   state = {
     deploying: false,
     name: '',
-    nameError: null,
+    nameError: ERRORS.name,
     tla: '',
-    tlaError: null,
+    tlaError: ERRORS.tla,
     totalSupply: '1000000',
     totalSupplyError: null
   }
 
   render () {
-    return (
-      <div className={ layout.body }>
-        <div className={ layout.title }>Deploy</div>
-        { this.renderForm() }
-      </div>
-    );
+    const { deploying } = this.state;
+
+    return deploying
+      ? null
+      : this.renderForm();
   }
 
   renderForm () {
-    const { deploying, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
-
-    if (deploying) {
-      return null;
-    }
-
+    const { name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const error = `${layout.input} ${layout.error}`;
 
     return (
-      <div className={ layout.form }>
-        <div className={ nameError ? error : layout.input }>
-          <label>token name</label>
-          <input
-            value={ name }
-            onChange={ this.onChangeName } />
-          <div className={ layout.hint }>
-            A name for the token to identify it
+      <Container>
+        <div className={ layout.form }>
+          <div className={ nameError ? error : layout.input }>
+            <label>token name</label>
+            <input
+              value={ name }
+              name='name'
+              onChange={ this.onChangeName } />
+            <div className={ layout.hint }>
+              { nameError || 'an identifying name for the token' }
+            </div>
+          </div>
+          <div className={ tlaError ? error : layout.input }>
+            <label>token TLA</label>
+            <input
+              className={ layout.small }
+              name='tla'
+              value={ tla }
+              onChange={ this.onChangeTla } />
+            <div className={ layout.hint }>
+              { tlaError || 'unique network acronym for this token' }
+            </div>
+          </div>
+          <div className={ totalSupplyError ? error : layout.input }>
+            <label>total number of tokens</label>
+            <input
+              type='number'
+              min='1000'
+              max='999999999'
+              name='totalSupply'
+              value={ totalSupply }
+              onChange={ this.onChangeSupply } />
+            <div className={ layout.hint }>
+              { totalSupplyError || 'The total number of tokens in circulation' }
+            </div>
           </div>
         </div>
-        <div className={ tlaError ? error : layout.input }>
-          <label>token TLA</label>
-          <input
-            className={ layout.small }
-            value={ tla }
-            onChange={ this.onChangeTla } />
-          <div className={ layout.hint }>
-            A unique network acronym for this token (3 characters)
-          </div>
-        </div>
-        <div className={ totalSupplyError ? error : layout.input }>
-          <label>total number of tokens</label>
-          <input
-            type='number'
-            min='1000'
-            max='999999999'
-            value={ totalSupply }
-            onChange={ this.onChangeSupply } />
-          <div className={ layout.hint }>
-            The total number of tokens in circulation
-          </div>
-        </div>
-      </div>
+      </Container>
     );
   }
 
-  onChangeName = (event, name) => {
-    this.setState({ name });
+  onChangeName = (event) => {
+    const name = event.target.value;
+    const nameError = name && (name.length > 3) && (name.length < 32)
+      ? null
+      : ERRORS.name;
+
+    this.setState({ name, nameError });
   }
 
-  onChangeTla = (event, tla) => {
-    this.setState({ tla });
+  onChangeTla = (event) => {
+    const _tla = event.target.value;
+    const tla = _tla && (_tla.length > 3)
+      ? _tla.substr(0, 3)
+      : _tla;
+    const tlaError = tla && (tla.length === 3)
+      ? null
+      : ERRORS.tla;
+
+    this.setState({ tla, tlaError });
   }
 
-  onChangeSupply = (event, totalSupply) => {
+  onChangeSupply = (event) => {
+    const totalSupply = event.target.value;
+
     this.setState({ totalSupply });
   }
 }
