@@ -40,14 +40,16 @@ pub struct Account {
 	// Modified storage. Accumulates changes to storage made in `set_storage`
 	// Takes precedence over `storage_cache`.
 	storage_changes: HashMap<H256, H256>,
-	// Code hash of the account. If None, means that it's a contract whose code has not yet been set.
-	code_hash: Option<H256>,
+	// Code hash of the account.
+	code_hash: H256,
 	// Size of the accoun code.
 	code_size: Option<usize>,
 	// Code cache of the account.
-	code_cache: Bytes,
-	// Account is new or has been modified
+	code_cache: Arc<Bytes>,
+	// Account is new or has been modified.
 	filth: Filth,
+	// Account code new or has been modified.
+	code_filth: Filth,
 	// Cached address hash.
 	address_hash: Cell<Option<H256>>,
 }
@@ -62,10 +64,11 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: storage,
-			code_hash: Some(code.sha3()),
+			code_hash: code.sha3(),
 			code_size: Some(code.len()),
-			code_cache: code,
+			code_cache: Arc::new(code),
 			filth: Filth::Dirty,
+			code_filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
 	}
@@ -82,9 +85,10 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: pod.storage.into_iter().collect(),
-			code_hash: pod.code.as_ref().map(|c| c.sha3()),
+			code_hash: pod.code.as_ref().map_or(SHA3_EMPTY, |c| c.sha3()),
+			code_filth: Filth::Dirty,
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
-			code_cache: pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c),
+			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
 			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
@@ -98,10 +102,11 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: HashMap::new(),
-			code_hash: Some(SHA3_EMPTY),
-			code_cache: vec![],
+			code_hash: SHA3_EMPTY,
+			code_cache: Arc::new(vec![]),
 			code_size: Some(0),
 			filth: Filth::Dirty,
+			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
 	}
@@ -115,10 +120,11 @@ impl Account {
 			storage_root: r.val_at(2),
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: HashMap::new(),
-			code_hash: Some(r.val_at(3)),
-			code_cache: vec![],
+			code_hash: r.val_at(3),
+			code_cache: Arc::new(vec![]),
 			code_size: None,
 			filth: Filth::Clean,
+			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
 	}
@@ -132,10 +138,11 @@ impl Account {
 			storage_root: SHA3_NULL_RLP,
 			storage_cache: Self::empty_storage_cache(),
 			storage_changes: HashMap::new(),
-			code_hash: None,
-			code_cache: vec![],
+			code_hash: SHA3_EMPTY,
+			code_cache: Arc::new(vec![]),
 			code_size: None,
 			filth: Filth::Dirty,
+			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
 	}
@@ -143,16 +150,15 @@ impl Account {
 	/// Set this account's code to the given code.
 	/// NOTE: Account should have been created with `new_contract()`
 	pub fn init_code(&mut self, code: Bytes) {
-		assert!(self.code_hash.is_none());
-		self.code_cache = code;
+		self.code_hash = code.sha3();
+		self.code_cache = Arc::new(code);
 		self.code_size = Some(self.code_cache.len());
 		self.filth = Filth::Dirty;
+		self.code_filth = Filth::Dirty;
 	}
 
 	/// Reset this account's code to the given code.
 	pub fn reset_code(&mut self, code: Bytes) {
-		self.code_hash = None;
-		self.code_size = Some(0);
 		self.init_code(code);
 	}
 
@@ -209,10 +215,9 @@ impl Account {
 	/// return the nonce associated with this account.
 	pub fn nonce(&self) -> &U256 { &self.nonce }
 
-	#[cfg(test)]
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
-		self.code_hash.clone().unwrap_or(SHA3_EMPTY)
+		self.code_hash.clone()
 	}
 
 	/// return the code hash associated with this account.
@@ -227,13 +232,11 @@ impl Account {
 
 	/// returns the account's code. If `None` then the code cache isn't available -
 	/// get someone who knows to call `note_code`.
-	pub fn code(&self) -> Option<&[u8]> {
-		match self.code_hash {
-			Some(c) if c == SHA3_EMPTY && self.code_cache.is_empty() => Some(&self.code_cache),
-			Some(_) if !self.code_cache.is_empty() => Some(&self.code_cache),
-			None => Some(&self.code_cache),
-			_ => None,
+	pub fn code(&self) -> Option<Arc<Bytes>> {
+		if self.code_hash != SHA3_EMPTY && self.code_cache.is_empty() {
+			return None;
 		}
+		Some(self.code_cache.clone())
 	}
 
 	/// returns the account's code size. If `None` then the code cache or code size cache isn't available -
@@ -246,24 +249,23 @@ impl Account {
 	/// Provide a byte array which hashes to the `code_hash`. returns the hash as a result.
 	pub fn note_code(&mut self, code: Bytes) -> Result<(), H256> {
 		let h = code.sha3();
-		match self.code_hash {
-			Some(ref i) if h == *i => {
-				self.code_cache = code;
-				self.code_size = Some(self.code_cache.len());
-				Ok(())
-			},
-			_ => Err(h)
+		if self.code_hash == h {
+			self.code_cache = Arc::new(code);
+			self.code_size = Some(self.code_cache.len());
+			Ok(())
+		} else {
+			Err(h)
 		}
 	}
 
 	/// Is `code_cache` valid; such that code is going to return Some?
 	pub fn is_cached(&self) -> bool {
-		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == Some(SHA3_EMPTY))
+		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == SHA3_EMPTY)
 	}
 
 	/// Is this a new or modified account?
 	pub fn is_dirty(&self) -> bool {
-		self.filth == Filth::Dirty || !self.storage_is_clean()
+		self.filth == Filth::Dirty || self.code_filth == Filth::Dirty || !self.storage_is_clean()
 	}
 
 	/// Mark account as clean.
@@ -277,20 +279,17 @@ impl Account {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
-			match self.code_hash {
-				Some(ref h) => match db.get(h) {
-					Some(x) => {
-						self.code_cache = x.to_vec();
-						self.code_size = Some(x.len());
-						true
-					},
-					_ => {
-						warn!("Failed reverse get of {}", h);
-						false
-					},
-				},
-				_ => false,
-			}
+		match db.get(&self.code_hash) {
+			Some(x) => {
+				self.code_cache = Arc::new(x.to_vec());
+				self.code_size = Some(x.len());
+				true
+			},
+			_ => {
+				warn!("Failed reverse get of {}", self.code_hash);
+				false
+			},
+		}
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
@@ -298,18 +297,19 @@ impl Account {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.code_size.is_some() ||
-			match self.code_hash {
-				Some(ref h) if h != &SHA3_EMPTY => match db.get(h) {
+			if self.code_hash != SHA3_EMPTY {
+				match db.get(&self.code_hash) {
 					Some(x) => {
 						self.code_size = Some(x.len());
 						true
 					},
 					_ => {
-						warn!("Failed reverse get of {}", h);
+						warn!("Failed reverse get of {}", self.code_hash);
 						false
 					},
-				},
-				_ => false,
+				}
+			} else {
+				false
 			}
 	}
 
@@ -370,15 +370,16 @@ impl Account {
 
 	/// Commit any unsaved code. `code_hash` will always return the hash of the `code_cache` after this.
 	pub fn commit_code(&mut self, db: &mut HashDB) {
-		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_hash.is_none(), self.code_cache.is_empty());
-		match (self.code_hash.is_none(), self.code_cache.is_empty()) {
+		trace!("Commiting code of {:?} - {:?}, {:?}", self, self.code_filth == Filth::Dirty, self.code_cache.is_empty());
+		match (self.code_filth == Filth::Dirty, self.code_cache.is_empty()) {
 			(true, true) => {
-				self.code_hash = Some(SHA3_EMPTY);
 				self.code_size = Some(0);
+				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				self.code_hash = Some(db.insert(&self.code_cache));
+				db.emplace(self.code_hash.clone(), (*self.code_cache).clone());
 				self.code_size = Some(self.code_cache.len());
+				self.code_filth = Filth::Clean;
 			},
 			(false, _) => {},
 		}
@@ -390,7 +391,7 @@ impl Account {
 		stream.append(&self.nonce);
 		stream.append(&self.balance);
 		stream.append(&self.storage_root);
-		stream.append(self.code_hash.as_ref().unwrap_or(&SHA3_EMPTY));
+		stream.append(&self.code_hash);
 		stream.out()
 	}
 
@@ -404,8 +405,9 @@ impl Account {
 			storage_changes: HashMap::new(),
 			code_hash: self.code_hash.clone(),
 			code_size: self.code_size.clone(),
-			code_cache: Bytes::new(),
+			code_cache: self.code_cache.clone(),
 			filth: self.filth,
+			code_filth: self.code_filth,
 			address_hash: self.address_hash.clone(),
 		}
 	}
@@ -433,6 +435,7 @@ impl Account {
 		self.nonce = other.nonce;
 		self.storage_root = other.storage_root;
 		self.code_hash = other.code_hash;
+		self.code_filth = other.code_filth;
 		self.code_cache = other.code_cache;
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
@@ -536,7 +539,7 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
-		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		assert_eq!(a.code_filth, Filth::Dirty);
 		assert_eq!(a.code_size(), Some(3));
 		a.commit_code(&mut db);
 		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
@@ -548,11 +551,12 @@ mod tests {
 		let mut db = MemoryDB::new();
 		let mut db = AccountDBMut::new(&mut db, &Address::new());
 		a.init_code(vec![0x55, 0x44, 0xffu8]);
-		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		assert_eq!(a.code_filth, Filth::Dirty);
 		a.commit_code(&mut db);
+		assert_eq!(a.code_filth, Filth::Clean);
 		assert_eq!(a.code_hash().hex(), "af231e631776a517ca23125370d542873eca1fb4d613ed9b5d5335a46ae5b7eb");
 		a.reset_code(vec![0x55]);
-		assert_eq!(a.code_hash(), SHA3_EMPTY);
+		assert_eq!(a.code_filth, Filth::Dirty);
 		a.commit_code(&mut db);
 		assert_eq!(a.code_hash().hex(), "37bf2238b11b68cdc8382cece82651b59d3c3988873b6e0f33d79694aa45f1be");
 	}

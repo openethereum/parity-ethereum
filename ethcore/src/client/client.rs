@@ -831,7 +831,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
-		self.state_at(id).map(|s| s.code(address))
+		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {

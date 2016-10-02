@@ -31,10 +31,12 @@ macro_rules! evm_debug {
 mod gasometer;
 mod stack;
 mod memory;
+mod shared_cache;
 
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
+pub use self::shared_cache::SharedCache;
 
 use std::marker::PhantomData;
 use common::*;
@@ -98,9 +100,9 @@ enum InstructionResult<Gas> {
 
 
 /// Intepreter EVM implementation
-#[derive(Default)]
 pub struct Interpreter<Cost: CostType> {
 	mem: Vec<u8>,
+	cache: Arc<SharedCache>,
 	_type: PhantomData<Cost>,
 }
 
@@ -109,7 +111,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 		self.mem.clear();
 
 		let code = &params.code.as_ref().unwrap();
-		let valid_jump_destinations = self.find_jump_destinations(code);
+		let valid_jump_destinations = self.cache.jump_destinations(&params.code_hash, code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
@@ -188,6 +190,14 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 }
 
 impl<Cost: CostType> Interpreter<Cost> {
+	/// Create a new `Interpreter` instance with shared cache.
+	pub fn new(cache: Arc<SharedCache>) -> Interpreter<Cost> {
+		Interpreter {
+			mem: Vec::new(),
+			cache: cache,
+			_type: PhantomData::default(),
+		}
+	}
 
 	fn verify_instruction(&self, ext: &evm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
 		let schedule = ext.schedule();
@@ -486,10 +496,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
-				self.copy_data_to_memory(stack, &params.data.clone().unwrap_or_else(|| vec![]));
+				self.copy_data_to_memory(stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 			},
 			instructions::CODECOPY => {
-				self.copy_data_to_memory(stack, &params.code.clone().unwrap_or_else(|| vec![]));
+				self.copy_data_to_memory(stack, params.code.as_ref().map_or_else(|| &[] as &[u8], |c| &**c as &[u8]));
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
@@ -790,23 +800,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &[u8]) -> BitSet {
-		let mut jump_dests = BitSet::with_capacity(code.len());
-		let mut position = 0;
-
-		while position < code.len() {
-			let instruction = code[position];
-
-			if instruction == instructions::JUMPDEST {
-				jump_dests.insert(position);
-			} else if instructions::is_push(instruction) {
-				position += instructions::get_push_bytes(instruction);
-			}
-			position += 1;
-		}
-
-		jump_dests
-	}
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
@@ -833,15 +826,3 @@ fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
 
-#[test]
-fn test_find_jump_destinations() {
-	// given
-	let interpreter = Interpreter::<U256>::default();
-	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5b01600055".from_hex().unwrap();
-
-	// when
-	let valid_jump_destinations = interpreter.find_jump_destinations(&code);
-
-	// then
-	assert!(valid_jump_destinations.contains(66));
-}
