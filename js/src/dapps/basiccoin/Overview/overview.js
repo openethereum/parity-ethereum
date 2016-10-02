@@ -14,14 +14,59 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import BigNumber from 'bignumber.js';
+import React, { Component, PropTypes } from 'react';
 
 import Container from '../Container';
 
 export default class Overview extends Component {
+  static contextTypes = {
+    accounts: PropTypes.array.isRequired,
+    managerInstance: PropTypes.object.isRequired
+  }
+
+  state = {
+    total: new BigNumber(0),
+    tokens: {}
+  }
+
+  componentDidMount () {
+    const { accounts, managerInstance } = this.context;
+    let total = 0;
+
+    Promise
+      .all(accounts.map((account) => managerInstance.countByOwner.call({}, [account.address])))
+      .then((counts) => {
+        return Promise
+          .all(accounts.map((account, index) => {
+            const promises = [];
+
+            total = counts[index].add(total);
+            for (let i = 0; i < counts[index]; i++) {
+              promises.push(managerInstance.getByOwner.call({}, [account.address, i]));
+            }
+
+            return Promise.all(promises);
+          }));
+      })
+      .then((_tokens) => {
+        this.setState({
+          total,
+          tokens: accounts.reduce((tokens, account, index) => {
+            tokens[account.address] = _tokens[index];
+            return tokens;
+          }, {})
+        });
+      });
+  }
+
   render () {
+    const { total } = this.state;
+
     return (
-      <Container />
+      <Container center>
+        You have { total.toFormat(0) } tokens created by your accounts
+      </Container>
     );
   }
 }

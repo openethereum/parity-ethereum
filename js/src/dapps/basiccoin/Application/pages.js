@@ -19,7 +19,8 @@ const PAGES = [
     path: 'overview',
     color: '#080',
     title: 'Overview',
-    byline: 'Display all the current information relating to your own deployed tokens'
+    byline: 'Display all the current information relating to your own deployed tokens',
+    description: 'View the total number of tokens in circulation, the number of different tokens associated with your accounts as well as the types of tokens created by you.'
   },
   {
     path: 'send',
