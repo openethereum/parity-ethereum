@@ -30,6 +30,7 @@
   border-spacing: 0;
   border-collapse: separate;
   border-color: white;
+  background: white;
 }
 
 .navigation tr {
@@ -53,20 +54,18 @@
   line-height: 1.5em;
 }
 
-.nav {
-  cursor: pointer;
+.navNext,
+.navCurrent {
   color: white;
   padding: 1em 2em;
   vertical-align: middle;
 }
 
-.nav:hover {
+.navNext:hover {
+  cursor: pointer;
   opacity: 0.8;
 }
 
 .navCurrent {
   font-size: 2em;
-}
-
-.navNext {
 }

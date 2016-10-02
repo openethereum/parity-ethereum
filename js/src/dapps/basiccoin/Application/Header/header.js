@@ -49,11 +49,10 @@ export default class Header extends Component {
 
   renderHeader (index, offset) {
     const page = PAGES[(index + offset) % PAGES.length];
-    const classes = `${styles.nav} ${index ? styles.navNext : styles.navCurrent}`;
 
     return (
       <td
-        className={ classes }
+        className={ index ? styles.navNext : styles.navCurrent }
         style={ { background: page.color } }
         colSpan={ index ? 1 : 2 }
         rowSpan={ index ? 1 : 2 }
