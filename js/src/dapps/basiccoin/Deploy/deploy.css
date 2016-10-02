@@ -15,14 +15,16 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_vars.css';
+
 .buttonRow {
   width: 40em;
   text-align: right;
-  padding: 0 3em;
+  padding: 0 2em;
 }
 
 .button {
-  background: purple;
+  background: $bgDeploy;
   color: white;
   border: none;
   border-radius: 1px;

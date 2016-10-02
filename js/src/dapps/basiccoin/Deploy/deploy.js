@@ -23,7 +23,7 @@ import styles from './deploy.css';
 import layout from '../style.css';
 
 const ERRORS = {
-  name: 'specify a valid name >3 & <32 characters',
+  name: 'specify a valid name >2 & <32 characters',
   tla: 'specify a valid TLA, 3 characters in length'
 };
 
@@ -37,8 +37,10 @@ export default class Deploy extends Component {
 
   state = {
     deploying: false,
-    local: true,
-    fromAddress: null,
+    globalReg: false,
+    globalFee: 0,
+    globalFeeText: '1.000',
+    fromAddress: '0x63Cf90D3f0410092FC0fca41846f596223979195',
     name: '',
     nameError: ERRORS.name,
     tla: '',
@@ -46,6 +48,16 @@ export default class Deploy extends Component {
     totalSupply: '1000000',
     totalSupplyError: null,
     signerRequestId: 0
+  }
+
+  componentDidMount () {
+    const { tokenregInstance } = this.context;
+
+    tokenregInstance.fee
+      .call()
+      .then((globalFee) => {
+        this.setState({ globalFee, globalFeeText: api.util.fromWei(globalFee).toFormat(3) });
+      });
   }
 
   render () {
@@ -65,7 +77,7 @@ export default class Deploy extends Component {
   }
 
   renderForm () {
-    const { name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${layout.input} ${layout.error}`;
 
@@ -106,6 +118,16 @@ export default class Deploy extends Component {
               { totalSupplyError || 'The total number of tokens in circulation' }
             </div>
           </div>
+          <div className={ layout.input }>
+            <label>global registration</label>
+            <select onChange={ this.onChangeRegistrar }>
+              <option value='no'>No, only for me</option>
+              <option value='yes'>Yes, for everybody</option>
+            </select>
+            <div className={ layout.hint }>
+              register as a network token (fee: { globalFeeText }<small>ETH</small>)
+            </div>
+          </div>
         </div>
         <div className={ styles.buttonRow }>
           <div
@@ -121,11 +143,21 @@ export default class Deploy extends Component {
 
   onChangeName = (event) => {
     const name = event.target.value;
-    const nameError = name && (name.length > 3) && (name.length < 32)
+    const nameError = name && (name.length > 2) && (name.length < 32)
       ? null
       : ERRORS.name;
 
     this.setState({ name, nameError });
+  }
+
+  onChangeRegistrar = (event) => {
+    this.setState({ globalReg: event.target.value === 'yes' });
+  }
+
+  onChangeSupply = (event) => {
+    const totalSupply = event.target.value;
+
+    this.setState({ totalSupply });
   }
 
   onChangeTla = (event) => {
@@ -140,17 +172,11 @@ export default class Deploy extends Component {
     this.setState({ tla, tlaError });
   }
 
-  onChangeSupply = (event) => {
-    const totalSupply = event.target.value;
-
-    this.setState({ totalSupply });
-  }
-
   onDeploy = (event) => {
     const { managerInstance, registryInstance, tokenregInstance } = this.context;
-    const { deploying, fromAddress, local, fee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { deploying, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
-    const tokenreg = local ? registryInstance : tokenregInstance;
+    const tokenreg = globalReg ? tokenregInstance : registryInstance;
 
     if (hasError || deploying) {
       return;
@@ -163,20 +189,20 @@ export default class Deploy extends Component {
       .then((base) => {
         console.log(`base value of ${base.toFormat(0)}`);
 
+        const values = [base.mul(totalSupply), tla, name, tokenreg.address];
         const options = {
           from: fromAddress,
-          value: fee
+          value: globalReg ? globalFee : 0
         };
 
         return managerInstance
-          .deploy.estimateGas(options, [base.mul(totalSupply), tla, name, tokenreg.address])
+          .deploy.estimateGas(options, values)
           .then((gas) => {
             console.log(`gas estimated at ${gas.toFormat(0)}`);
 
             options.gas = gas.mul(1.2).toFixed(0);
 
-            return managerInstance
-              .deploy.postTransaction(options, [base.mul(totalSupply), tla, name, tokenreg.address]);
+            // return managerInstance.deploy.postTransaction(options, values);
           });
       })
       .then((signerRequestId) => {

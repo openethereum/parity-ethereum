@@ -17,32 +17,32 @@
 const PAGES = [
   {
     path: 'overview',
-    color: 'green',
+    color: '#080',
     title: 'Overview',
     byline: 'Display all the current information relating to your own deployed tokens'
   },
   {
     path: 'send',
-    color: 'red',
+    color: '#80f',
     title: 'Send',
     byline: 'Send tokens associated with your accounts to other addresses'
   },
   {
     path: 'events',
-    color: 'blue',
+    color: '#808',
     title: 'Events',
     byline: 'Track the events for your tokens, showing actions as they hapenned'
   },
   {
     path: 'deploy',
-    color: 'purple',
+    color: '#088',
     title: 'Deploy',
     byline: 'Deploy a new token to the network',
     description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transaction in tokens from anywhere these transactions are allowed.'
   },
   {
     path: 'status',
-    color: 'orange',
+    color: '#f80',
     title: 'Status',
     byline: 'Show the status of all network tokens deployed with this application'
   }
