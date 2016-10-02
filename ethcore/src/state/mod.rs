@@ -319,9 +319,14 @@ impl State {
 	}
 
 	/// Get accounts' code.
-	pub fn code(&self, a: &Address) -> Option<Bytes> {
+	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
 		self.ensure_cached(a, RequireCache::Code,
-			|a| a.as_ref().map_or(None, |a| a.code().map(|x|x.to_vec())))
+			|a| a.as_ref().map_or(None, |a| a.code().clone()))
+	}
+
+	pub fn code_hash(&self, a: &Address) -> H256 {
+		self.ensure_cached(a, RequireCache::None,
+			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
@@ -640,6 +645,7 @@ impl Clone for State {
 #[cfg(test)]
 mod tests {
 
+use std::sync::Arc;
 use std::str::FromStr;
 use rustc_serialize::hex::FromHex;
 use super::*;
@@ -1504,14 +1510,14 @@ fn code_from_database() {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
 		state.init_code(&a, vec![1, 2, 3]);
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 		state.commit().unwrap();
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 		state.drop()
 	};
 
 	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+	assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 }
 
 #[test]
