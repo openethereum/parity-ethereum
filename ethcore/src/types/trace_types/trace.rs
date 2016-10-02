@@ -181,7 +181,7 @@ impl From<ActionParams> for Create {
 			from: p.sender,
 			value: p.value.value(),
 			gas: p.gas,
-			init: p.code.unwrap_or_else(Vec::new),
+			init: p.code.map_or_else(Vec::new, |c| (*c).clone()),
 		}
 	}
 }
