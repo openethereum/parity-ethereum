@@ -24,7 +24,6 @@ macro_rules! impl_primitive {
 	($name: ident, $size: expr, $err: expr) => {
 
 		#[repr(C)]
-		#[derive(Eq)]
 		pub struct $name([u8; $size]);
 
 		impl fmt::Debug for $name {
@@ -61,6 +60,8 @@ macro_rules! impl_primitive {
 				self_ref == other_ref
 			}
 		}
+
+		impl Eq for $name { }
 
 		impl PartialOrd for $name {
 			fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
