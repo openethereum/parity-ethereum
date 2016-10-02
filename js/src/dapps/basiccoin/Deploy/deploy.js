@@ -91,7 +91,7 @@ export default class Deploy extends Component {
             Your token has been deployed
           </div>
           <div className={ styles.statusInfo }>
-            Start <a href='#/send' className={ styles.link }>sending tokens</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this and any of your other tokens.
+            Start <a href='#/send' className={ styles.link }>sending tokens</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this and any of your other tokens. In addition, you can view the <a href='#/deployments' className={ styles.link }>deployment</a> along with others.
           </div>
           <div className={ styles.statusState }>
             { deployState }

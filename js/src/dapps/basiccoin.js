@@ -23,11 +23,11 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 injectTapEventPlugin();
 
 import Deploy from './basiccoin/Deploy';
+import Deployments from './basiccoin/Deployments';
 import Events from './basiccoin/Events';
 import Application from './basiccoin/Application';
 import Overview from './basiccoin/Overview';
 import Send from './basiccoin/Send';
-import Status from './basiccoin/Status';
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 
@@ -39,10 +39,10 @@ ReactDOM.render(
     <Redirect from='/' to='/overview' />
     <Route path='/' component={ Application }>
       <Route path='deploy' component={ Deploy } />
+      <Route path='deployments' component={ Deployments } />
       <Route path='events' component={ Events } />
       <Route path='overview' component={ Overview } />
       <Route path='send' component={ Send } />
-      <Route path='status' component={ Status } />
     </Route>
   </Router>,
   document.querySelector('#container')

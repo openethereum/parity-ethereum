@@ -41,10 +41,11 @@ const PAGES = [
     description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transaction in tokens from anywhere these transactions are allowed.'
   },
   {
-    path: 'status',
+    path: 'deployments',
     color: '#f80',
-    title: 'Status',
-    byline: 'Show the status of all network tokens deployed with this application'
+    title: 'Deployments',
+    byline: 'Show the status of all network tokens deployed with this application',
+    description: 'Showing all the token creation events, both for your tokens and tokens created by others on the network. This includes when, by whom, name & TLA as well as the global and local network status.'
   }
 ];
 

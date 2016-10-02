@@ -44,7 +44,8 @@ export default class Event extends Component {
       return;
     }
 
-    const registry = event.params.tokenreg === tokenregInstance.address
+    const isGlobal = event.params.tokenreg === tokenregInstance.address;
+    const registry = isGlobal
       ? tokenregInstance
       : registryInstance;
 
@@ -58,7 +59,7 @@ export default class Event extends Component {
 
         this.setState({
           block,
-          coin: { id, tla, base, name, owner }
+          coin: { id, tla, base, name, owner, isGlobal }
         });
       });
   }
@@ -83,6 +84,7 @@ export default class Event extends Component {
           <div>{ isPending ? '' : coin.tla }</div>
           <div>{ isPending ? '' : coin.name }</div>
         </td>
+        <td>{ isPending || !coin.isGlobal ? '' : 'global' }</td>
       </tr>
     );
   }
