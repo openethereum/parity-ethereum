@@ -17,6 +17,11 @@
 
 @import '../_vars.css';
 
+a.link, a.link:hover, a.link:visited {
+  color: $bgDeploy;
+  cursor: pointer;
+}
+
 .buttonRow {
   width: 40em;
   text-align: right;
@@ -37,4 +42,23 @@
 .button[disabled] {
   opacity: 0.5;
   cursor: default;
+}
+
+.statusHeader {
+  font-size: 1.25em;
+  margin-bottom: 0.25em;
+}
+
+.statusInfo {
+  margin-bottom: 0.25em;
+}
+
+.statusState {
+  opacity: 0.75;
+  margin-top: 1em;
+}
+
+.statusError {
+  color: red;
+  margin-top: 1em;
 }

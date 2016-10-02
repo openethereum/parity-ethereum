@@ -37,7 +37,10 @@ export default class Deploy extends Component {
 
   state = {
     base: null,
-    deploying: false,
+    deployBusy: false,
+    deployDone: false,
+    deployError: null,
+    deployState: null,
     globalReg: false,
     globalFee: 0,
     globalFeeText: '1.000',
@@ -71,17 +74,50 @@ export default class Deploy extends Component {
   }
 
   render () {
-    const { deploying } = this.state;
+    const { deployBusy } = this.state;
 
-    return deploying
+    return deployBusy
       ? this.renderDeploying()
       : this.renderForm();
   }
 
   renderDeploying () {
+    const { deployDone, deployError, deployState } = this.state;
+
+    if (deployDone) {
+      return (
+        <Container center>
+          <div className={ styles.statusHeader }>
+            Your token has been deployed
+          </div>
+          <div className={ styles.statusInfo }>
+            Start <a href='#/send' className={ styles.link }>sending tokens</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this and any of your other tokens.
+          </div>
+          <div className={ styles.statusState }>
+            { deployState }
+          </div>
+        </Container>
+      );
+    }
+
+    let error = null;
+    if (deployError) {
+      error = (
+        <div className={ styles.statusError }>
+          { deployError }
+        </div>
+      );
+    }
+
     return (
       <Container center>
-        Your token is currently being deployed to the network
+        <div className={ styles.statusHeader }>
+          Your token is currently being deployed to the network
+        </div>
+        <div className={ styles.statusState }>
+          { deployState }
+        </div>
+        { error }
       </Container>
     );
   }
@@ -184,36 +220,56 @@ export default class Deploy extends Component {
 
   onDeploy = () => {
     const { managerInstance, registryInstance, tokenregInstance } = this.context;
-    const { base, deploying, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { base, deployBusy, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
 
-    if (hasError || deploying) {
+    if (hasError || deployBusy) {
       return;
     }
 
-    this.setState({ deploying: true });
-
     const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
     const values = [base.mul(totalSupply), tla, name, tokenreg];
+    let gasPassed = 0;
     const options = {
       from: fromAddress,
       value: globalReg ? globalFee : 0
     };
 
+    this.setState({ deployBusy: true, deployState: 'Estimating gas for the transaction' });
+
     managerInstance
       .deploy.estimateGas(options, values)
       .then((gas) => {
-        console.log(`gas estimated at ${gas.toFormat(0)}`);
+        this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 
-        options.gas = gas.mul(1.2).toFixed(0);
+        gasPassed = gas.mul(1.2);
+        options.gas = gasPassed.toFixed(0);
+        console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 
-        // return managerInstance.deploy.postTransaction(options, values);
+        return managerInstance.deploy.postTransaction(options, values);
       })
       .then((signerRequestId) => {
-        this.setState({ signerRequestId });
+        this.setState({ signerRequestId, deployState: 'Transaction posted, Waiting for transaction authorization' });
+
+        return api.pollMethod('eth_checkRequest', signerRequestId);
+      })
+      .then((txHash) => {
+        this.setState({ txHash, deployState: 'Transaction authorized, Waiting for network confirmations' });
+
+        return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
+          if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+            return false;
+          }
+
+          return true;
+        });
+      })
+      .then((txReceipt) => {
+        this.setState({ txReceipt, deployDone: true, deployState: 'Network confirmed, Received transaction receipt' });
       })
       .catch((error) => {
         console.error('onDeploy', error);
+        this.setState({ deployError: error.message });
       });
   }
 }
