@@ -94,7 +94,7 @@ export default class Application extends Component {
 
         return Promise
           .all([
-            registry.getAddress.call({}, [api.util.sha3('basiccoinmgr'), 'A']),
+            registry.getAddress.call({}, [api.util.sha3('playbasiccoinmgr'), 'A']),
             registry.getAddress.call({}, [api.util.sha3('basiccoinreg'), 'A']),
             registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
             api.personal.accountsInfo()

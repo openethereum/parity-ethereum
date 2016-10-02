@@ -36,6 +36,7 @@ export default class Deploy extends Component {
   }
 
   state = {
+    base: null,
     deploying: false,
     globalReg: false,
     globalFee: 0,
@@ -45,18 +46,27 @@ export default class Deploy extends Component {
     nameError: ERRORS.name,
     tla: '',
     tlaError: ERRORS.tla,
-    totalSupply: '1000000',
+    totalSupply: '5000000',
     totalSupplyError: null,
-    signerRequestId: 0
+    signerRequestId: null,
+    txHash: null
   }
 
   componentDidMount () {
-    const { tokenregInstance } = this.context;
+    const { managerInstance, tokenregInstance } = this.context;
 
-    tokenregInstance.fee
-      .call()
-      .then((globalFee) => {
-        this.setState({ globalFee, globalFeeText: api.util.fromWei(globalFee).toFormat(3) });
+    Promise
+      .all([
+        managerInstance.base.call(),
+        tokenregInstance.fee.call()
+      ])
+      .then(([base, globalFee]) => {
+        this.setState({
+          base,
+          baseText: base.toFormat(0),
+          globalFee,
+          globalFeeText: api.util.fromWei(globalFee).toFormat(3)
+        });
       });
   }
 
@@ -77,7 +87,7 @@ export default class Deploy extends Component {
   }
 
   renderForm () {
-    const { globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { baseText, globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${layout.input} ${layout.error}`;
 
@@ -115,7 +125,7 @@ export default class Deploy extends Component {
               value={ totalSupply }
               onChange={ this.onChangeSupply } />
             <div className={ layout.hint }>
-              { totalSupplyError || 'The total number of tokens in circulation' }
+              { totalSupplyError || `number of tokens in circulation (base: ${baseText})` }
             </div>
           </div>
           <div className={ layout.input }>
@@ -172,11 +182,10 @@ export default class Deploy extends Component {
     this.setState({ tla, tlaError });
   }
 
-  onDeploy = (event) => {
+  onDeploy = () => {
     const { managerInstance, registryInstance, tokenregInstance } = this.context;
-    const { deploying, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { base, deploying, fromAddress, globalReg, globalFee, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
-    const tokenreg = globalReg ? tokenregInstance : registryInstance;
 
     if (hasError || deploying) {
       return;
@@ -184,26 +193,21 @@ export default class Deploy extends Component {
 
     this.setState({ deploying: true });
 
+    const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
+    const values = [base.mul(totalSupply), tla, name, tokenreg];
+    const options = {
+      from: fromAddress,
+      value: globalReg ? globalFee : 0
+    };
+
     managerInstance
-      .base.call()
-      .then((base) => {
-        console.log(`base value of ${base.toFormat(0)}`);
+      .deploy.estimateGas(options, values)
+      .then((gas) => {
+        console.log(`gas estimated at ${gas.toFormat(0)}`);
 
-        const values = [base.mul(totalSupply), tla, name, tokenreg.address];
-        const options = {
-          from: fromAddress,
-          value: globalReg ? globalFee : 0
-        };
+        options.gas = gas.mul(1.2).toFixed(0);
 
-        return managerInstance
-          .deploy.estimateGas(options, values)
-          .then((gas) => {
-            console.log(`gas estimated at ${gas.toFormat(0)}`);
-
-            options.gas = gas.mul(1.2).toFixed(0);
-
-            // return managerInstance.deploy.postTransaction(options, values);
-          });
+        // return managerInstance.deploy.postTransaction(options, values);
       })
       .then((signerRequestId) => {
         this.setState({ signerRequestId });
