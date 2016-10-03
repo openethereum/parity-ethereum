@@ -241,7 +241,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		})),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
