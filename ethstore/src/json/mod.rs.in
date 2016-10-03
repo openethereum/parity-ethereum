@@ -1,3 +1,4 @@
+mod bytes;
 mod cipher;
 mod crypto;
 mod error;
@@ -8,8 +9,9 @@ mod key_file;
 mod presale;
 mod version;
 
+pub use self::bytes::Bytes;
 pub use self::cipher::{Cipher, CipherSer, CipherSerParams, Aes128Ctr};
-pub use self::crypto::Crypto;
+pub use self::crypto::{Crypto, CipherText};
 pub use self::error::Error;
 pub use self::hash::{H128, H160, H256};
 pub use self::id::UUID;

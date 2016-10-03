@@ -18,8 +18,10 @@
 //!
 //! TODO: consider spliting it into two separate files.
 use std::fmt;
+use std::sync::Arc;
 use evm::Evm;
 use util::{U256, Uint};
+use super::interpreter::SharedCache;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Type of EVM to use.
@@ -82,7 +84,8 @@ impl VMType {
 /// Evm factory. Creates appropriate Evm.
 #[derive(Clone)]
 pub struct Factory {
-	evm: VMType
+	evm: VMType,
+	evm_cache: Arc<SharedCache>,
 }
 
 impl Factory {
@@ -95,9 +98,9 @@ impl Factory {
 				Box::new(super::jit::JitEvm::default())
 			},
 			VMType::Interpreter => if Self::can_fit_in_usize(gas) {
-				Box::new(super::interpreter::Interpreter::<usize>::default())
+				Box::new(super::interpreter::Interpreter::<usize>::new(self.evm_cache.clone()))
 			} else {
-				Box::new(super::interpreter::Interpreter::<U256>::default())
+				Box::new(super::interpreter::Interpreter::<U256>::new(self.evm_cache.clone()))
 			}
 		}
 	}
@@ -108,9 +111,9 @@ impl Factory {
 	pub fn create(&self, gas: U256) -> Box<Evm> {
 		match self.evm {
 			VMType::Interpreter => if Self::can_fit_in_usize(gas) {
-				Box::new(super::interpreter::Interpreter::<usize>::default())
+				Box::new(super::interpreter::Interpreter::<usize>::new(self.evm_cache.clone()))
 			} else {
-				Box::new(super::interpreter::Interpreter::<U256>::default())
+				Box::new(super::interpreter::Interpreter::<U256>::new(self.evm_cache.clone()))
 			}
 		}
 	}
@@ -118,7 +121,8 @@ impl Factory {
 	/// Create new instance of specific `VMType` factory
 	pub fn new(evm: VMType) -> Self {
 		Factory {
-			evm: evm
+			evm: evm,
+			evm_cache: Arc::new(SharedCache::default()),
 		}
 	}
 
@@ -132,7 +136,8 @@ impl Default for Factory {
 	#[cfg(all(feature = "jit", not(test)))]
 	fn default() -> Factory {
 		Factory {
-			evm: VMType::Jit
+			evm: VMType::Jit,
+			evm_cache: Arc::new(SharedCache::default()),
 		}
 	}
 
@@ -140,7 +145,8 @@ impl Default for Factory {
 	#[cfg(any(not(feature = "jit"), test))]
 	fn default() -> Factory {
 		Factory {
-			evm: VMType::Interpreter
+			evm: VMType::Interpreter,
+			evm_cache: Arc::new(SharedCache::default()),
 		}
 	}
 }

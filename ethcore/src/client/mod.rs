@@ -23,7 +23,7 @@ mod trace;
 mod client;
 
 pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, Switch, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};

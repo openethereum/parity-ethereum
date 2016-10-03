@@ -17,7 +17,6 @@
 use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
 use ethcore::snapshot::SnapshotService;
-use api::ETH_PROTOCOL;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -101,7 +100,7 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 	}
 
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
-		self.network.protocol_version(peer_id, ETH_PROTOCOL).unwrap_or(0)
+		self.network.protocol_version(peer_id, self.network.subprotocol_name()).unwrap_or(0)
 	}
 }
 

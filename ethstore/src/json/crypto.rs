@@ -16,12 +16,14 @@
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer, Error};
 use serde::de::{Visitor, MapVisitor};
-use super::{Cipher, CipherSer, CipherSerParams, Kdf, KdfSer, KdfSerParams, H256};
+use super::{Cipher, CipherSer, CipherSerParams, Kdf, KdfSer, KdfSerParams, H256, Bytes};
+
+pub type CipherText = Bytes;
 
 #[derive(Debug, PartialEq)]
 pub struct Crypto {
 	pub cipher: Cipher,
-	pub ciphertext: H256,
+	pub ciphertext: CipherText,
 	pub kdf: Kdf,
 	pub mac: H256,
 }

@@ -152,7 +152,8 @@ impl<'a, T, V, B> Ext for Externalities<'a, T, V, B>
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
-			code: Some(code.to_vec()),
+			code: Some(Arc::new(code.to_vec())),
+			code_hash: code.sha3(),
 			data: None,
 			call_type: CallType::None,
 		};
@@ -191,6 +192,7 @@ impl<'a, T, V, B> Ext for Externalities<'a, T, V, B>
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			code: self.state.code(code_address),
+			code_hash: self.state.code_hash(code_address),
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -207,14 +209,13 @@ impl<'a, T, V, B> Ext for Externalities<'a, T, V, B>
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes {
-		self.state.code(address).unwrap_or_else(|| vec![])
+	fn extcode(&self, address: &Address) -> Arc<Bytes> {
+		self.state.code(address).unwrap_or_else(|| Arc::new(vec![]))
 	}
 
 	fn extcodesize(&self, address: &Address) -> usize {
 		self.state.code_size(address).unwrap_or(0)
 	}
-
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>

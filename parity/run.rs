@@ -23,7 +23,7 @@ use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -35,10 +35,14 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool,
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -71,6 +75,7 @@ pub struct RunCmd {
 	pub miner_extras: MinerExtras,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
@@ -87,34 +92,48 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// increase max number of open files
-	raise_fd_limit();
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
 
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// increase max number of open files
+	raise_fd_limit();
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
-	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -123,7 +142,17 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match fat_db {
+			true => Colour::White.bold().paint(" +Fat").to_string(),
+			false => "".to_owned(),
+		},
+		match tracing {
+			true => Colour::White.bold().paint(" +Trace").to_string(),
+			false => "".to_owned(),
+		}
+	);
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -136,6 +165,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	if spec.subprotocol_name().len() != 3 {
+		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");
+	} else {
+		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
+	}
 	sync_config.fork_block = spec.fork_block();
 
 	// prepare account provider
@@ -152,16 +186,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
 		cmd.mode,
-		cmd.tracing,
-		cmd.pruning,
+		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
 	);
 
 	// set up bootnodes
@@ -287,6 +319,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
+
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

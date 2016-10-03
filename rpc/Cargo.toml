@@ -25,6 +25,7 @@ ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 rlp = { path = "../util/rlp" }
+fetch = { path = "../util/fetch" }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 serde_macros = { version = "0.8.0", optional = true }

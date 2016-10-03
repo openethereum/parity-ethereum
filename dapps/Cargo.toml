@@ -26,7 +26,7 @@ linked-hash-map = "0.3"
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
-https-fetch = { path = "../util/https-fetch" }
+fetch = { path = "../util/fetch" }
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 # List of apps
 parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }

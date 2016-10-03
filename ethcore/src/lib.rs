@@ -99,6 +99,8 @@ extern crate ethcore_devtools as devtools;
 extern crate rand;
 extern crate bit_set;
 extern crate rlp;
+extern crate ethcore_bloom_journal as bloom_journal;
+extern crate byteorder;
 
 #[macro_use]
 extern crate log;
@@ -110,6 +112,7 @@ extern crate lazy_static;
 extern crate heapsize;
 #[macro_use]
 extern crate ethcore_ipc as ipc;
+extern crate lru_cache;
 
 #[cfg(feature = "jit" )]
 extern crate evmjit;
@@ -119,7 +122,6 @@ pub extern crate ethstore;
 pub mod account_provider;
 pub mod engines;
 pub mod block;
-pub mod block_queue;
 pub mod client;
 pub mod error;
 pub mod ethereum;
@@ -143,6 +145,7 @@ mod basic_types;
 mod env_info;
 mod pod_account;
 mod state;
+mod state_db;
 mod account_db;
 mod builtin;
 mod executive;

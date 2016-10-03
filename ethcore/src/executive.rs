@@ -168,13 +168,14 @@ impl<'a, B: 'a + state::Backend> Executive<'a, B> {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
 					code_address: new_address.clone(),
+					code_hash: t.data.sha3(),
 					address: new_address,
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
-					code: Some(t.data.clone()),
+					code: Some(Arc::new(t.data.clone())),
 					data: None,
 					call_type: CallType::None,
 				};
@@ -190,6 +191,7 @@ impl<'a, B: 'a + state::Backend> Executive<'a, B> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
+					code_hash: self.state.code_hash(address),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
@@ -511,7 +513,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some("3331600055".from_hex().unwrap());
+		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -570,7 +572,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -589,8 +591,11 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	evm_test!{test_call_to_create: test_call_to_create_jit, test_call_to_create_int}
-	fn test_call_to_create(factory: Factory) {
+	#[test]
+	// Tracing is not suported in JIT
+	fn test_call_to_create() {
+		let factory = Factory::new(VMType::Interpreter);
+
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -625,7 +630,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
@@ -712,8 +717,10 @@ mod tests {
 		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
-	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
-	fn test_create_contract(factory: Factory) {
+	#[test]
+	fn test_create_contract() {
+		// Tracing is not supported in JIT
+		let factory = Factory::new(VMType::Interpreter);
 		// code:
 		//
 		// 60 10 - push 16
@@ -735,7 +742,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -823,7 +830,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -875,7 +882,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -932,7 +939,7 @@ mod tests {
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code_a.clone());
+		params.code = Some(Arc::new(code_a.clone()));
 		params.value = ActionValue::Transfer(U256::from(100_000));
 
 		let mut state_result = get_temp_state();
@@ -982,10 +989,10 @@ mod tests {
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code.clone()));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.init_code(&address, code.clone());
+		state.init_code(&address, code);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -1183,7 +1190,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();

@@ -15,30 +15,34 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Ethcore-specific rpc implementation.
-use std::sync::{Arc, Weak};
+use std::{fs, io};
+use std::sync::{mpsc, Arc, Weak};
 use std::str::FromStr;
 use std::collections::{BTreeMap};
-use util::{RotatingLogger, Address};
+use util::{RotatingLogger, Address, Mutex, sha3};
 use util::misc::version_data;
 
 use crypto::ecies;
+use fetch::{Client as FetchClient, Fetch};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
+use ethcore::ids::BlockID;
 
-use jsonrpc_core::*;
+use jsonrpc_core::{from_params, to_value, Value, Error, Params, Ready};
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H512, Peers};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::params::expect_no_params;
 
 /// Ethcore implementation.
-pub struct EthcoreClient<C, M, S: ?Sized> where
+pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	C: MiningBlockChainClient,
 	M: MinerService,
-	S: SyncProvider {
+	S: SyncProvider,
+	F: Fetch {
 
 	client: Weak<C>,
 	miner: Weak<M>,
@@ -47,10 +51,14 @@ pub struct EthcoreClient<C, M, S: ?Sized> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
+	fetch: Mutex<F>
 }
 
-impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M: MinerService, S: SyncProvider {
-	/// Creates new `EthcoreClient`.
+impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+	S: SyncProvider, {
+	/// Creates new `EthcoreClient` with default `Fetch`.
 	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
@@ -60,6 +68,26 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>
 	) -> Self {
+		Self::with_fetch(client, miner, sync, net, logger, settings, signer)
+	}
+}
+
+impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+	S: SyncProvider,
+	F: Fetch, {
+
+	/// Creates new `EthcoreClient` with customizable `Fetch`.
+	pub fn with_fetch(
+		client: &Arc<C>,
+		miner: &Arc<M>,
+		sync: &Arc<S>,
+		net: &Arc<ManageNetwork>,
+		logger: Arc<RotatingLogger>,
+		settings: Arc<NetworkSettings>,
+		signer: Option<Arc<SignerService>>
+		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -68,6 +96,7 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 			logger: logger,
 			settings: settings,
 			signer: signer,
+			fetch: Mutex::new(F::default()),
 		}
 	}
 
@@ -78,7 +107,11 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where C: MiningBlockChainClient, M:
 	}
 }
 
-impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService + 'static, C: MiningBlockChainClient + 'static, S: SyncProvider + 'static {
+impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
+	M: MinerService + 'static,
+	C: MiningBlockChainClient + 'static,
+	S: SyncProvider + 'static,
+	F: Fetch + 'static {
 
 	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
@@ -219,11 +252,74 @@ impl<C, M, S: ?Sized> Ethcore for EthcoreClient<C, M, S> where M: MinerService +
 		)
 	}
 
+	fn list_accounts(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		take_weak!(self.client)
+			.list_accounts(BlockID::Latest)
+			.map(|a| Ok(to_value(&a.into_iter().map(Into::into).collect::<Vec<H160>>())))
+			.unwrap_or(Ok(Value::Null))
+	}
+
+	fn list_storage_keys(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+
+		from_params::<(H160,)>(params).and_then(|(_addr,)|
+			Ok(Value::Null)
+		)
+	}
+
 	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
 			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(|_| Error::internal_error()));
 			Ok(to_value(&Bytes::from(s)))
 		})
+	}
+
+	fn pending_transactions(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+
+		Ok(to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>()))
+	}
+
+	fn hash_content(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| from_params::<(String,)>(params));
+
+		let hash_content = |result| {
+			let path = try!(result);
+			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
+			// Try to hash
+			let result = sha3(&mut file);
+			// Remove file (always)
+			try!(fs::remove_file(&path));
+			// Return the result
+			Ok(try!(result))
+		};
+
+		match res {
+			Err(e) => ready.ready(Err(e)),
+			Ok((url, )) => {
+				let (tx, rx) = mpsc::channel();
+				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
+					let result = hash_content(result)
+							.map_err(errors::from_fetch_error)
+							.map(|hash| to_value(H256::from(hash)));
+
+					// Receive ready and invoke with result.
+					let ready: Ready = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
+					ready.ready(result);
+				}));
+
+				// Either invoke ready right away or transfer it to the closure.
+				if let Err(e) = res {
+					ready.ready(Err(errors::from_fetch_error(e)));
+				} else {
+					tx.send(ready).expect("Rx end is sent to on_done closure.");
+				}
+			}
+		}
 	}
 }

@@ -22,7 +22,7 @@ use util::{Address, H256, Bytes};
 use std::collections::HashMap;
 
 use error::Error;
-use state::Account;
+use state::{Account, AccountEntry};
 
 pub use self::db::Database;
 
@@ -47,7 +47,7 @@ pub trait Backend: Clone + Send {
 
 	/// Commit all the accounts and their storage from the given cache, marking them clean
 	/// as it goes.
-	fn commit(&mut self, accounts: &mut HashMap<Address, Option<Account>>) -> Result<(), Error>;
+	fn commit(&mut self, accounts: &mut HashMap<Address, AccountEntry>) -> Result<(), Error>;
 
 	/// Get the state root.
 	fn root(&self) -> &H256;
