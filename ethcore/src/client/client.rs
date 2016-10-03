@@ -305,7 +305,7 @@ impl Client {
 		let parent = chain_has_parent.unwrap();
 		let last_hashes = self.build_last_hashes(header.parent_hash.clone());
 		let is_canon = header.parent_hash == self.chain.best_block_hash();
-		let db = if is_canon { self.state_db.lock().boxed_clone_canon() } else { self.state_db.lock().boxed_clone() };
+		let db = if is_canon { self.state_db.lock().boxed_clone_canon(&header.parent_hash) } else { self.state_db.lock().boxed_clone() };
 
 		let enact_result = enact_verified(block, engine, self.tracedb.tracing_enabled(), db, &parent, last_hashes, &self.vm_factory, self.trie_factory.clone());
 		if let Err(e) = enact_result {
@@ -444,11 +444,7 @@ impl Client {
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
 
 		let batch = DBTransaction::new(&self.db);
-		// CHECK! I *think* this is fine, even if the state_root is equal to another
-		// already-imported block of the same number.
-		// TODO: Prove it with a test.
 		let mut state = block.drain();
-		state.commit(&batch, number, hash, ancient).expect("DB commit failed.");
 
 		let route = self.chain.insert_block(&batch, block_data, receipts);
 		self.tracedb.import(&batch, TraceImportRequest {
@@ -458,6 +454,13 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		// CHECK! I *think* this is fine, even if the state_root is equal to another
+		// already-imported block of the same number.
+		// TODO: Prove it with a test.
+		state.commit(&batch, number, hash, ancient).expect("DB commit failed.");
+		for h in &route.retracted {
+			state.revert_cache(h);
+		}
 		// Final commit to the DB
 		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();
@@ -532,9 +535,10 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
+		let header = self.best_block_header();
 		State::from_existing(
-			self.state_db.lock().boxed_clone(),
-			HeaderView::new(&self.best_block_header()).state_root(),
+			self.state_db.lock().boxed_clone_canon(&header.sha3()),
+			HeaderView::new(&header).state_root(),
 			self.engine.account_start_nonce(),
 			self.trie_factory.clone())
 		.expect("State root of best block header always valid.")

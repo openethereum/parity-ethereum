@@ -16,7 +16,6 @@
 
 //! Single account in the system.
 
-use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
 use account_db::*;
@@ -24,7 +23,7 @@ use lru_cache::LruCache;
 
 use std::cell::{RefCell, Cell};
 
-const STORAGE_CACHE_ITEMS: usize = 4096;
+const STORAGE_CACHE_ITEMS: usize = 8192;
 
 /// Single account in the system.
 pub struct Account {
@@ -46,8 +45,6 @@ pub struct Account {
 	code_size: Option<u64>,
 	// Code cache of the account.
 	code_cache: Arc<Bytes>,
-	// Account is new or has been modified.
-	filth: Filth,
 	// Account code new or has been modified.
 	code_filth: Filth,
 	// Cached address hash.
@@ -67,7 +64,6 @@ impl Account {
 			code_hash: code.sha3(),
 			code_size: Some(code.len() as u64),
 			code_cache: Arc::new(code),
-			filth: Filth::Dirty,
 			code_filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
@@ -89,7 +85,6 @@ impl Account {
 			code_filth: Filth::Dirty,
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len() as u64)),
 			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
-			filth: Filth::Dirty,
 			address_hash: Cell::new(None),
 		}
 	}
@@ -105,7 +100,6 @@ impl Account {
 			code_hash: SHA3_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: Some(0),
-			filth: Filth::Dirty,
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
@@ -123,7 +117,6 @@ impl Account {
 			code_hash: r.val_at(3),
 			code_cache: Arc::new(vec![]),
 			code_size: None,
-			filth: Filth::Clean,
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
@@ -141,7 +134,6 @@ impl Account {
 			code_hash: SHA3_EMPTY,
 			code_cache: Arc::new(vec![]),
 			code_size: None,
-			filth: Filth::Dirty,
 			code_filth: Filth::Clean,
 			address_hash: Cell::new(None),
 		}
@@ -153,7 +145,6 @@ impl Account {
 		self.code_hash = code.sha3();
 		self.code_cache = Arc::new(code);
 		self.code_size = Some(self.code_cache.len() as u64);
-		self.filth = Filth::Dirty;
 		self.code_filth = Filth::Dirty;
 	}
 
@@ -164,17 +155,7 @@ impl Account {
 
 	/// Set (and cache) the contents of the trie's storage at `key` to `value`.
 	pub fn set_storage(&mut self, key: H256, value: H256) {
-		match self.storage_changes.entry(key) {
-			Entry::Occupied(ref mut entry) if entry.get() != &value => {
-				entry.insert(value);
-				self.filth = Filth::Dirty;
-			},
-			Entry::Vacant(entry) => {
-				entry.insert(value);
-				self.filth = Filth::Dirty;
-			},
-			_ => {},
-		}
+		self.storage_changes.insert(key, value);
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
@@ -263,17 +244,6 @@ impl Account {
 		!self.code_cache.is_empty() || (self.code_cache.is_empty() && self.code_hash == SHA3_EMPTY)
 	}
 
-	/// Is this a new or modified account?
-	pub fn is_dirty(&self) -> bool {
-		self.filth == Filth::Dirty || self.code_filth == Filth::Dirty || !self.storage_is_clean()
-	}
-
-	/// Mark account as clean.
-	pub fn set_clean(&mut self) {
-		assert!(self.storage_is_clean());
-		self.filth = Filth::Clean
-	}
-
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
 	pub fn cache_code(&mut self, db: &AccountDB) -> bool {
 		// TODO: fill out self.code_cache;
@@ -326,25 +296,18 @@ impl Account {
 	/// Increment the nonce of the account by one.
 	pub fn inc_nonce(&mut self) {
 		self.nonce = self.nonce + U256::from(1u8);
-		self.filth = Filth::Dirty;
 	}
 
 	/// Increment the nonce of the account by one.
 	pub fn add_balance(&mut self, x: &U256) {
-		if !x.is_zero() {
-			self.balance = self.balance + *x;
-			self.filth = Filth::Dirty;
-		}
+		self.balance = self.balance + *x;
 	}
 
 	/// Increment the nonce of the account by one.
 	/// Panics if balance is less than `x`
 	pub fn sub_balance(&mut self, x: &U256) {
-		if !x.is_zero() {
-			assert!(self.balance >= *x);
-			self.balance = self.balance - *x;
-			self.filth = Filth::Dirty;
-		}
+		assert!(self.balance >= *x);
+		self.balance = self.balance - *x;
 	}
 
 	/// Commit the `storage_changes` to the backing DB and update `storage_root`.
@@ -406,7 +369,6 @@ impl Account {
 			code_hash: self.code_hash.clone(),
 			code_size: self.code_size.clone(),
 			code_cache: self.code_cache.clone(),
-			filth: self.filth,
 			code_filth: self.code_filth,
 			address_hash: self.address_hash.clone(),
 		}
@@ -429,8 +391,6 @@ impl Account {
 
 	/// Replace self with the data from other account merging storage cache
 	pub fn merge_with(&mut self, other: Account) {
-		assert!(self.storage_is_clean());
-		assert!(other.storage_is_clean());
 		self.balance = other.balance;
 		self.nonce = other.nonce;
 		self.storage_root = other.storage_root;
@@ -443,6 +403,12 @@ impl Account {
 		for (k, v) in other.storage_cache.into_inner().into_iter() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
+		self.storage_changes.extend(other.storage_changes.into_iter());
+	}
+
+	/// Revert storage changes
+	pub fn revert_storage_changes(&mut self) {
+		self.storage_changes.clear();
 	}
 }
 
