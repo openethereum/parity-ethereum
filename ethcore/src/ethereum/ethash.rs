@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
@@ -243,10 +243,10 @@ impl Engine for Ethash {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
 		}
 
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-			&Ethash::to_ethash(header.bare_hash()),
+		let difficulty = Ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
+			&header.bare_hash().0,
 			header.nonce().low_u64(),
-			&Ethash::to_ethash(header.mix_hash())
+			&header.mix_hash().0
 		)));
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
@@ -271,10 +271,10 @@ impl Engine for Ethash {
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
-		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
-		let mix = Ethash::from_ethash(result.mix_hash);
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
-		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, Ethash::from_ethash(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), Ethash::from_ethash(result.mix_hash), Ethash::from_ethash(result.value));
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
+		let mix = H256(result.mix_hash);
+		let difficulty = Ethash::boundary_to_difficulty(&H256(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, H256(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), H256(result.mix_hash), H256(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
@@ -323,7 +323,7 @@ impl Engine for Ethash {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))] // to_ethash should take self
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
@@ -395,14 +395,6 @@ impl Ethash {
 		} else {
 			(((U256::one() << 255) / *difficulty) << 1).into()
 		}
-	}
-
-	fn to_ethash(hash: H256) -> EH256 {
-		unsafe { mem::transmute(hash) }
-	}
-
-	fn from_ethash(hash: EH256) -> H256 {
-		unsafe { mem::transmute(hash) }
 	}
 }
 
