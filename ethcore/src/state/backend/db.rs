@@ -37,6 +37,7 @@ pub struct Database {
 	root: H256,
 	trie_factory: TrieFactory,
 	db_factory: AccountDBFactory,
+	// TODO: move this into StateDB so it's persistent.
 	address_hashes: RefCell<HashMap<Address, H256>>,
 }
 
