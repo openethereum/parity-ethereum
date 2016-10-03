@@ -59,12 +59,8 @@ export default class Application extends Component {
       );
     }
 
-    const path = (window.location.hash || '').split('?')[0].split('/')[1];
-    const page = PAGES.find((page) => page.path === path);
-    const style = { background: page.color };
-
     return (
-      <div className={ styles.container } style={ style }>
+      <div className={ styles.container }>
         <Header />
         <div className={ styles.body }>
           { children }
