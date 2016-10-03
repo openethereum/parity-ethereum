@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { api } from '../parity';
 
+import AddressSelect from '../AddressSelect';
 import Container from '../Container';
 import styles from './deploy.css';
 import layout from '../style.css';
@@ -44,7 +45,7 @@ export default class Deploy extends Component {
     globalReg: false,
     globalFee: 0,
     globalFeeText: '1.000',
-    fromAddress: '0x63Cf90D3f0410092FC0fca41846f596223979195',
+    fromAddress: null,
     name: '',
     nameError: ERRORS.name,
     tla: '',
@@ -91,7 +92,7 @@ export default class Deploy extends Component {
             Your token has been deployed
           </div>
           <div className={ styles.statusInfo }>
-            Start <a href='#/send' className={ styles.link }>sending tokens</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this and any of your other tokens. In addition, you can view the <a href='#/deployments' className={ styles.link }>deployment</a> along with others.
+            Start <a href='#/send' className={ styles.link }>sending tokens</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this and any of your other tokens.
           </div>
           <div className={ styles.statusState }>
             { deployState }
@@ -130,6 +131,10 @@ export default class Deploy extends Component {
     return (
       <Container>
         <div className={ layout.form }>
+          <div className={ layout.input }>
+            <label>deployment account</label>
+            <AddressSelect onChange={ this.onChangeFrom } />
+          </div>
           <div className={ nameError ? error : layout.input }>
             <label>token name</label>
             <input
@@ -185,6 +190,12 @@ export default class Deploy extends Component {
         </div>
       </Container>
     );
+  }
+
+  onChangeFrom = (event) => {
+    const fromAddress = event.target.value;
+
+    this.setState({ fromAddress });
   }
 
   onChangeName = (event) => {
