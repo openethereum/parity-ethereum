@@ -22,7 +22,6 @@ pub use evm::VMType;
 
 use verification::{VerifierType, QueueConfig};
 use util::{journaldb, CompactionProfile};
-use util::trie::TrieSpec;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq)]
@@ -91,8 +90,8 @@ pub struct ClientConfig {
 	pub tracing: TraceConfig,
 	/// VM type.
 	pub vm_type: VMType,
-	/// Trie type.
-	pub trie_spec: TrieSpec,
+	/// Fat DB enabled?
+	pub fat_db: bool,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.

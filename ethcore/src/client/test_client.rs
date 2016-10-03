@@ -384,6 +384,10 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
+	fn list_accounts(&self, _id: BlockID) -> Option<Vec<Address>> {
+		None
+	}
+
 	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {
 		None	// Simple default.
 	}
