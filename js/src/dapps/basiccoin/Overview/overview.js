@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
+import { loadTokens } from '../services';
 import Container from '../Container';
 import Owner from './Owner';
 
@@ -70,30 +71,26 @@ export default class Overview extends Component {
   }
 
   renderOwners () {
-    const { tokenOwners } = this.state;
+    const { tokens } = this.state;
 
-    return tokenOwners.map((address) => (
+    return Object.keys(tokens).map((address) => (
       <Owner
         key={ address }
+        tokens={ tokens[address] }
         address={ address } />
     ));
   }
 
   loadOwners () {
-    const { accounts, managerInstance } = this.context;
+    const { accounts } = this.context;
+    const addresses = Object
+      .values(accounts)
+      .filter((account) => account.uuid)
+      .map((account) => account.address);
 
-    Promise
-      .all(Object.keys(accounts).map((address) => managerInstance.countByOwner.call({}, [address])))
-      .then((counts) => {
-        let total = 0;
-        const tokenOwners = Object.keys(accounts).filter((address, index) => {
-          if (counts[index].gt(0)) {
-            total = counts[index].add(total);
-            return true;
-          }
-        });
-
-        this.setState({ tokenOwners, total, loading: false });
+    loadTokens(addresses)
+      .then(({ tokens, total }) => {
+        this.setState({ tokens, total, loading: false });
       });
   }
 }
