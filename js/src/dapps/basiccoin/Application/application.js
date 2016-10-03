@@ -16,8 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import * as abis from '../../../contracts/abi';
 import { api } from '../parity';
+import { attachInstances } from '../services';
 
 import Header from './Header';
 import Loading from './Loading';
@@ -85,36 +85,22 @@ export default class Application extends Component {
   }
 
   attachInstance () {
-    api.ethcore
-      .registryAddress()
-      .then((registryAddress) => {
-        console.log(`contract was found at registry=${registryAddress}`);
-
-        const registry = api.newContract(abis.registry, registryAddress).instance;
-
-        return Promise
-          .all([
-            registry.getAddress.call({}, [api.util.sha3('playbasiccoinmgr'), 'A']),
-            registry.getAddress.call({}, [api.util.sha3('basiccoinreg'), 'A']),
-            registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
-            api.personal.accountsInfo()
-          ]);
-      })
-      .then(([managerAddress, registryAddress, tokenregAddress, accountsInfo]) => {
-        console.log(`contracts were found at basiccoinmgr=${managerAddress}, basiccoinreg=${registryAddress}, tokenreg=${registryAddress}`);
-
-        const managerInstance = api.newContract(abis.basiccoinmanager, managerAddress).instance;
-        const registryInstance = api.newContract(abis.tokenreg, registryAddress).instance;
-        const tokenregInstance = api.newContract(abis.tokenreg, tokenregAddress).instance;
+    Promise
+      .all([
+        attachInstances(),
+        api.personal.accountsInfo()
+      ])
+      .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
+        const accounts = Object.keys(accountsInfo)
+          .filter((address) => accountsInfo[address].uuid)
+          .map((address) => Object.assign(accountsInfo[address], { address }));
 
         this.setState({
           loading: false,
           managerInstance,
           registryInstance,
           tokenregInstance,
-          accounts: Object.keys(accountsInfo)
-            .filter((address) => accountsInfo[address].uuid)
-            .map((address) => Object.assign(accountsInfo[address], { address }))
+          accounts
         });
       });
   }

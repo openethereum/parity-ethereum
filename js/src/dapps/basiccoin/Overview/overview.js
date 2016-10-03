@@ -20,6 +20,8 @@ import React, { Component, PropTypes } from 'react';
 import Container from '../Container';
 import Owner from './Owner';
 
+import styles from './overview.css';
+
 export default class Overview extends Component {
   static contextTypes = {
     accounts: PropTypes.array.isRequired,
@@ -27,6 +29,7 @@ export default class Overview extends Component {
   }
 
   state = {
+    loading: true,
     total: new BigNumber(0),
     tokenOwners: []
   }
@@ -36,13 +39,33 @@ export default class Overview extends Component {
   }
 
   render () {
-    const { total } = this.state;
+    const { loading } = this.state;
 
     return (
       <Container center>
-        You have { total.toFormat(0) } tokens created by your accounts
-        { this.renderOwners() }
+        { loading ? this.renderLoading() : this.renderBody() }
       </Container>
+    );
+  }
+
+  renderLoading () {
+    return (
+      <div className={ styles.statusHeader }>
+        Loading tokens
+      </div>
+    );
+  }
+
+  renderBody () {
+    const { total } = this.state;
+
+    return (
+      <div className={ styles.body }>
+        <div className={ styles.statusHeader }>
+          You have { total.toFormat(0) } tokens created by your accounts
+        </div>
+        { this.renderOwners() }
+      </div>
     );
   }
 
@@ -70,7 +93,7 @@ export default class Overview extends Component {
           }
         });
 
-        this.setState({ tokenOwners, total });
+        this.setState({ tokenOwners, total, loading: false });
       });
   }
 }

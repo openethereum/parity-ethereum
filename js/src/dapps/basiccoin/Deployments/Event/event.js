@@ -76,19 +76,15 @@ export default class Event extends Component {
 
   lookup () {
     const { event } = this.props;
-    const { registryInstance, tokenregInstance } = this.context;
 
     if (event.type === 'pending') {
       return;
     }
 
-    const isGlobal = event.params.tokenreg === tokenregInstance.address;
-    const registry = isGlobal ? tokenregInstance : registryInstance;
-
     Promise
       .all([
         api.eth.getBlockByNumber(event.blockNumber),
-        getCoin(registry, event.params.coin)
+        getCoin(event.params.tokenreg, event.params.coin)
       ])
       .then(([block, coin]) => {
         this.setState({ block, coin });
