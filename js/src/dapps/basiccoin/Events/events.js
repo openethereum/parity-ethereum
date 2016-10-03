@@ -14,22 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import basiccoinmanager from './basiccoinmanager.json';
-import eip20 from './eip20.json';
-import gavcoin from './gavcoin.json';
-import githubhint from './githubhint.json';
-import owned from './owned.json';
-import registry from './registry.json';
-import signaturereg from './signaturereg.json';
-import tokenreg from './tokenreg.json';
+import React, { Component } from 'react';
 
-export {
-  basiccoinmanager,
-  eip20,
-  gavcoin,
-  githubhint,
-  owned,
-  registry,
-  signaturereg,
-  tokenreg
-};
+import Container from '../Container';
+
+export default class Deploy extends Component {
+  render () {
+    return (
+      <Container />
+    );
+  }
+}
