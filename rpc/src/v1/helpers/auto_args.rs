@@ -42,10 +42,10 @@ use serde::{Serialize, Deserialize};
 ///  - `#[rpc(async, name = "name_here")]` (an async rpc function which should be bound to the given name)
 ///
 /// Synchronous function format:
-/// `fn foo(Param1, Param2, Param3) -> Out`.
+/// `fn foo(&self, Param1, Param2, Param3) -> Out`.
 ///
 /// Asynchronous RPC functions must come in this form:
-/// `fn foo(Param1, Param2, Param3, Ready<Out>);
+/// `fn foo(&self, Param1, Param2, Param3, Ready<Out>);
 ///
 /// Anything else will be rejected by the code generator.
 macro_rules! build_rpc_trait {
