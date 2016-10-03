@@ -20,6 +20,7 @@ mod db;
 
 use util::{Address, H256, Bytes};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use error::Error;
 use state::{Account, AccountEntry};
@@ -32,7 +33,7 @@ pub use self::db::Database;
 pub trait Backend: Clone + Send {
 	/// Query an account's contract code.
 	/// Returns `None` if it doesn't exist.
-	fn code(&self, address: Address, code_hash: &H256) -> Option<Bytes>;
+	fn code(&self, address: Address, code_hash: &H256) -> Option<Arc<Bytes>>;
 
 	/// Query an account with the given state root and address.
 	/// Returns the RLP of the account structure or `None` if it doesn't exist.

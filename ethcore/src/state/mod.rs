@@ -316,7 +316,7 @@ impl<B: Backend> State<B> {
 	/// Get accounts' code.
 	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
 		self.ensure_cached(a, RequireCache::Code,
-			|a| a.as_ref().map_or(None, |a| a.code().clone()))
+			|a| a.as_ref().map_or(None, |a| a.code()))
 	}
 
 	pub fn code_hash(&self, a: &Address) -> H256 {

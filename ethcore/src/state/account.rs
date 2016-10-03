@@ -256,10 +256,8 @@ impl Account {
 		self.is_cached() ||
 			match b.code(address.clone(), &self.code_hash) {
 				Some(x) => {
-					// TODO: have the backend return these shared pointers.
-					// useless otherwise.
-					self.code_cache = Arc::new(x.to_vec());
 					self.code_size = Some(x.len());
+					self.code_cache = x;
 					true
 				}
 				_ => {

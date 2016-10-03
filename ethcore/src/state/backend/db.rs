@@ -20,6 +20,7 @@ use util::{Bytes, H256, Address, Hashable, U256, Uint};
 
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use account_db::Factory as AccountDBFactory;
 use error::Error;
@@ -116,9 +117,19 @@ impl Clone for Database {
 }
 
 impl state::Backend for Database {
-	fn code(&self, address: Address, code_hash: &H256) -> Option<Bytes> {
-		let addr_hash = self.addr_hash(address);
-		self.db_factory.readonly(self.backing.as_hashdb(), addr_hash).get(code_hash).map(Into::into)
+	fn code(&self, address: Address, code_hash: &H256) -> Option<Arc<Bytes>> {
+		let addr_hash = self.addr_hash(address.clone());
+
+		// first check the global state cache.
+		match self.backing.get_cached(&address, |acc| acc.and_then(|acc| acc.code())) {
+			Some(code) => code,
+			None => {
+				// if that fails, do a DB lookup.
+				self.db_factory
+					.readonly(self.backing.as_hashdb(), addr_hash)
+					.get(code_hash).map(|b| Arc::new(b.to_owned()))
+			}
+		}
 	}
 
 	fn account(&self, address: &Address) -> Option<Account> {
