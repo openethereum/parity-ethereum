@@ -300,7 +300,10 @@ impl State {
 				}
 			}
 		}
-		
+
+		// check bloom before any requests to trie
+		if !self.db.check_account_bloom(address) { return H256::zero() }
+
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
@@ -405,6 +408,7 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut AccountEntry::Cached(ref mut account) if account.is_dirty() => {
+					db.note_account_bloom(&address);
 					let addr_hash = account.address_hash(address);
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
 					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
@@ -468,6 +472,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
+			self.db.note_account_bloom(&add);
 			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
@@ -543,6 +548,9 @@ impl State {
 		match result {
 			Some(r) => r,
 			None => {
+				// first check bloom if it is not in database for sure
+				if !self.db.check_account_bloom(a) { return f(None); }
+
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
@@ -579,11 +587,17 @@ impl State {
 				Some(Some(acc)) => self.insert_cache(a, AccountEntry::Cached(acc)),
 				Some(None) => self.insert_cache(a, AccountEntry::Missing),
 				None => {
-					let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-					let maybe_acc = match db.get(a) {
-						Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
-						Ok(None) => AccountEntry::Missing,
-						Err(e) => panic!("Potential DB corruption encountered: {}", e),
+					let maybe_acc = if self.db.check_account_bloom(a) {
+						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+						let maybe_acc = match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
+							Ok(None) => AccountEntry::Missing,
+							Err(e) => panic!("Potential DB corruption encountered: {}", e),
+						};
+						maybe_acc
+					}
+					else {
+						AccountEntry::Missing
 					};
 					self.insert_cache(a, maybe_acc);
 				}

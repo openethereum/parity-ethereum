@@ -112,6 +112,9 @@ pub trait BlockChainClient : Sync + Send {
 			Therefore storage_at has returned Some; qed")
 	}
 
+	/// Get a list of all accounts in the block `id`, if fat DB is in operation, otherwise `None`.
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>>;
+
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
