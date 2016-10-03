@@ -24,6 +24,7 @@ import styles from './event.css';
 
 export default class Event extends Component {
   static contextTypes = {
+    accounts: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
     tokenregInstance: PropTypes.object.isRequired
   }
@@ -67,7 +68,10 @@ export default class Event extends Component {
   }
 
   renderAddress (address) {
-    return address;
+    const { accounts } = this.context;
+    const account = accounts[address];
+
+    return account ? account.name : address;
   }
 
   renderHash (hash) {

@@ -21,13 +21,12 @@ import { attachInstances } from '../services';
 
 import Header from './Header';
 import Loading from './Loading';
-import PAGES from './pages';
 
 import styles from './application.css';
 
 export default class Application extends Component {
   static childContextTypes = {
-    accounts: PropTypes.array,
+    accounts: PropTypes.object,
     managerInstance: PropTypes.object,
     registryInstance: PropTypes.object,
     tokenregInstance: PropTypes.object
@@ -87,16 +86,17 @@ export default class Application extends Component {
         api.personal.accountsInfo()
       ])
       .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
-        const accounts = Object.keys(accountsInfo)
-          .filter((address) => accountsInfo[address].uuid)
-          .map((address) => Object.assign(accountsInfo[address], { address }));
-
         this.setState({
           loading: false,
           managerInstance,
           registryInstance,
           tokenregInstance,
-          accounts
+          accounts: Object
+            .keys(accountsInfo)
+            .reduce((accounts, address) => {
+              accounts[address] = Object.assign(accountsInfo[address], { address });
+              return accounts;
+            }, {})
         });
       });
   }

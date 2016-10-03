@@ -21,6 +21,7 @@ import styles from './owner.css';
 
 export default class Owner extends Component {
   static contextTypes = {
+    accounts: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired
   }
 
@@ -37,6 +38,7 @@ export default class Owner extends Component {
   }
 
   render () {
+    const { accounts } = this.context;
     const { address } = this.props;
     const { tokens } = this.state;
 
@@ -46,7 +48,9 @@ export default class Owner extends Component {
 
     return (
       <div className={ styles.info }>
-        <div className={ styles.owner }>{ address }</div>
+        <div className={ styles.owner }>
+          { accounts[address].name }
+        </div>
         { this.renderTokens() }
       </div>
     );

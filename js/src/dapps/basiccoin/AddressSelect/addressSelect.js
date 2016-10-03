@@ -21,7 +21,7 @@ import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired
+    accounts: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -37,14 +37,17 @@ export default class AddressSelect extends Component {
 
     this.onChange({
       target: {
-        value: accounts[0].address
+        value: Object.keys(accounts)[0]
       }
     });
   }
 
   render () {
     const { accounts } = this.context;
-    const options = accounts.map(this.renderOption);
+    const options = Object
+      .values(accounts)
+      .filter((account) => account.uuid)
+      .map(this.renderOption);
 
     return (
       <select

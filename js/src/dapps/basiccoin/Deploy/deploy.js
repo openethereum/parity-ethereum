@@ -17,11 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../parity';
-
 import AddressSelect from '../AddressSelect';
 import Container from '../Container';
 import styles from './deploy.css';
-import layout from '../style.css';
 
 const ERRORS = {
   name: 'specify a valid name >2 & <32 characters',
@@ -126,37 +124,37 @@ export default class Deploy extends Component {
   renderForm () {
     const { baseText, globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
-    const error = `${layout.input} ${layout.error}`;
+    const error = `${styles.input} ${styles.error}`;
 
     return (
       <Container>
-        <div className={ layout.form }>
-          <div className={ layout.input }>
+        <div className={ styles.form }>
+          <div className={ styles.input }>
             <label>deployment account</label>
             <AddressSelect onChange={ this.onChangeFrom } />
           </div>
-          <div className={ nameError ? error : layout.input }>
+          <div className={ nameError ? error : styles.input }>
             <label>token name</label>
             <input
               value={ name }
               name='name'
               onChange={ this.onChangeName } />
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               { nameError || 'an identifying name for the token' }
             </div>
           </div>
-          <div className={ tlaError ? error : layout.input }>
+          <div className={ tlaError ? error : styles.input }>
             <label>token TLA</label>
             <input
-              className={ layout.small }
+              className={ styles.small }
               name='tla'
               value={ tla }
               onChange={ this.onChangeTla } />
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               { tlaError || 'unique network acronym for this token' }
             </div>
           </div>
-          <div className={ totalSupplyError ? error : layout.input }>
+          <div className={ totalSupplyError ? error : styles.input }>
             <label>total number of tokens</label>
             <input
               type='number'
@@ -165,17 +163,17 @@ export default class Deploy extends Component {
               name='totalSupply'
               value={ totalSupply }
               onChange={ this.onChangeSupply } />
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               { totalSupplyError || `number of tokens in circulation (base: ${baseText})` }
             </div>
           </div>
-          <div className={ layout.input }>
+          <div className={ styles.input }>
             <label>global registration</label>
             <select onChange={ this.onChangeRegistrar }>
               <option value='no'>No, only for me</option>
               <option value='yes'>Yes, for everybody</option>
             </select>
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               register as a network token (fee: { globalFeeText }<small>ETH</small>)
             </div>
           </div>

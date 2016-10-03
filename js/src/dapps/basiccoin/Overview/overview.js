@@ -24,7 +24,7 @@ import styles from './overview.css';
 
 export default class Overview extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired,
+    accounts: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired
   }
 
@@ -72,10 +72,10 @@ export default class Overview extends Component {
   renderOwners () {
     const { tokenOwners } = this.state;
 
-    return tokenOwners.map((account) => (
+    return tokenOwners.map((address) => (
       <Owner
-        key={ account.address }
-        address={ account.address } />
+        key={ address }
+        address={ address } />
     ));
   }
 
@@ -83,10 +83,10 @@ export default class Overview extends Component {
     const { accounts, managerInstance } = this.context;
 
     Promise
-      .all(accounts.map((account) => managerInstance.countByOwner.call({}, [account.address])))
+      .all(Object.keys(accounts).map((address) => managerInstance.countByOwner.call({}, [address])))
       .then((counts) => {
         let total = 0;
-        const tokenOwners = accounts.filter((account, index) => {
+        const tokenOwners = Object.keys(accounts).filter((address, index) => {
           if (counts[index].gt(0)) {
             total = counts[index].add(total);
             return true;

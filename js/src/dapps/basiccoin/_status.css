@@ -15,53 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.form {
+.statusHeader {
+  font-size: 1.25em;
+  margin-bottom: 0.75em;
+  opacity: 0.75;
 }
 
-.form .input {
-  margin-bottom: 1.5em;
+.statusInfo {
+  margin-bottom: 0.25em;
 }
 
-.form .input>* {
-  display: inline-block;
-  margin-right: 1em;
-  padding: 0.5em;
-  font-size: 1em;
+.statusState {
+  opacity: 0.75;
+  margin-top: 1em;
 }
 
-.form label {
-  opacity: 0.8;
-  width: 20em;
-  text-align: right;
-  padding: 0.5em 0;
-}
-
-.form input,
-.form select {
-  width: 20em;
-  background: rgba(255, 255, 255, 0.25);
-  border-radius: 5px;
-  border: 1px solid rgba(0, 0, 0, 0.25);
-  box-sizing: border-box;
-}
-
-.form select {
-  height: 36px;
-}
-
-.form input.small {
-  width: 10em;
-  margin-right: 11em;
-}
-
-.form .hint {
-  opacity: 0.5;
-}
-
-.form .error input {
-  border: 1px solid rgba(255, 0, 0, 0.5);
-}
-
-.form .error .hint {
+.statusError {
   color: red;
+  margin-top: 1em;
 }

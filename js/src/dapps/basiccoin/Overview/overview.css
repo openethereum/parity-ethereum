@@ -15,10 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-}
+@import '../_status.css';
 
-.statusHeader {
-  font-size: 1.25em;
-  margin-bottom: 0.25em;
+.body {
 }
