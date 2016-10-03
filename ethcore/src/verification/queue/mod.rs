@@ -515,11 +515,12 @@ impl<K: Kind> VerificationQueue<K> {
 		let mut verifiers = self.verifiers.lock();
 		let len = verifiers.len();
 
+		// never remove the last thread.
 		if len == 1 {
 			return;
 		}
 
-		debug!(target: "verification", "Removing verification thread #{}", len);
+		debug!(target: "verification", "Removing verification thread #{}", len + 1);
 
 		if let Some(handle) = verifiers.pop() {
 			handle.conclude();
