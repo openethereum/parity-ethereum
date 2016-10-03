@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { totalSupply, getCoin } from '../../services';
 import styles from './token.css';
 
 export default class Token extends Component {
@@ -30,11 +31,8 @@ export default class Token extends Component {
   }
 
   state = {
-    id: null,
-    tla: null,
-    base: null,
-    name: null,
-    owner: null,
+    coin: null,
+    totalSupply: null,
     isGlobal: false
   }
 
@@ -44,17 +42,18 @@ export default class Token extends Component {
 
   render () {
     const { address } = this.props;
-    const { tla, name, isGlobal, base } = this.state;
+    const { coin, isGlobal, totalSupply } = this.state;
 
-    if (!base) {
+    if (!coin) {
       return null;
     }
 
     return (
       <div className={ styles.info }>
         <div className={ styles.address }>{ address }</div>
-        <div className={ styles.tla }>{ tla }</div>
-        <div className={ styles.name }>{ name }</div>
+        <div className={ styles.tla }>{ coin.tla }</div>
+        <div className={ styles.name }>{ coin.name }</div>
+        <div className={ styles.supply }>{ totalSupply.div(1000000).toFormat(0) }</div>
         <div className={ styles.global }>{ isGlobal ? 'global' : 'local' }</div>
       </div>
     );
@@ -66,10 +65,13 @@ export default class Token extends Component {
     const isGlobal = tokenreg === tokenregInstance.address;
     const registry = isGlobal ? tokenregInstance : registryInstance;
 
-    registry.fromAddress
-      .call({}, [address])
-      .then(([id, tla, base, name, owner]) => {
-        this.setState({ id, tla, base, name, owner, isGlobal });
+    Promise
+      .all([
+        getCoin(registry, address),
+        totalSupply(address)
+      ])
+      .then(([coin, totalSupply]) => {
+        this.setState({ coin, isGlobal, totalSupply });
       });
   }
 }

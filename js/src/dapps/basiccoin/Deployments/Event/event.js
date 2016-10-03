@@ -18,6 +18,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
+import { getCoin } from '../../services';
 
 import styles from './event.css';
 
@@ -37,31 +38,7 @@ export default class Event extends Component {
   }
 
   componentDidMount () {
-    const { event } = this.props;
-    const { registryInstance, tokenregInstance } = this.context;
-
-    if (event.type === 'pending') {
-      return;
-    }
-
-    const isGlobal = event.params.tokenreg === tokenregInstance.address;
-    const registry = isGlobal
-      ? tokenregInstance
-      : registryInstance;
-
-    Promise
-      .all([
-        api.eth.getBlockByNumber(event.blockNumber),
-        registry.fromAddress.call({}, [event.params.coin])
-      ])
-      .then(([block, coin]) => {
-        const [id, tla, base, name, owner] = coin;
-
-        this.setState({
-          block,
-          coin: { id, tla, base, name, owner, isGlobal }
-        });
-      });
+    this.lookup();
   }
 
   render () {
@@ -95,5 +72,26 @@ export default class Event extends Component {
 
   renderHash (hash) {
     return `${hash.substr(0, 10)}...${hash.slice(-10)}`;
+  }
+
+  lookup () {
+    const { event } = this.props;
+    const { registryInstance, tokenregInstance } = this.context;
+
+    if (event.type === 'pending') {
+      return;
+    }
+
+    const isGlobal = event.params.tokenreg === tokenregInstance.address;
+    const registry = isGlobal ? tokenregInstance : registryInstance;
+
+    Promise
+      .all([
+        api.eth.getBlockByNumber(event.blockNumber),
+        getCoin(registry, event.params.coin)
+      ])
+      .then(([block, coin]) => {
+        this.setState({ block, coin });
+      });
   }
 }
