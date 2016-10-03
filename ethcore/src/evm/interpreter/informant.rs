@@ -51,6 +51,14 @@ mod inner {
 		}
 	}
 
+	fn print(data: String) {
+		if cfg!(feature = "evm-debug-tests") {
+			println!("{}", data);
+		} else {
+			debug!(target: "evm", "{}", data);
+		}
+	}
+
 	pub struct EvmInformant {
 		spacing: String,
 		last_instruction: Instant,
@@ -85,18 +93,18 @@ mod inner {
 			let time = self.last_instruction.elapsed();
 			self.last_instruction = Instant::now();
 
-			println!("{}[0x{:<3x}][{:>19}(0x{:<2x}) Gas Left: {:6?} (Previous took: {:10}μs)",
+			print(format!("{}[0x{:<3x}][{:>19}(0x{:<2x}) Gas Left: {:6?} (Previous took: {:10}μs)",
 				&self.spacing,
 				pc,
 				Self::color(instruction, info.name),
 				instruction,
 				current_gas,
 				Self::as_micro(&time),
-			);
+			));
 
 			if info.args > 0 {
 				for (idx, item) in stack.peek_top(info.args).iter().enumerate() {
-					println!("{}       |{:2}: {:?}", self.spacing, idx, item);
+					print(format!("{}       |{:2}: {:?}", self.spacing, idx, item));
 				}
 			}
 		}
@@ -114,16 +122,16 @@ mod inner {
 			let mut stats: Vec<(_,_)> = self.stats.drain().collect();
 			stats.sort_by(|ref a, ref b| b.1.avg().cmp(&a.1.avg()));
 
-			println!("\n{}-------OPCODE STATS:", self.spacing);
+			print(format!("\n{}-------OPCODE STATS:", self.spacing));
 			for (instruction, stats) in stats.into_iter() {
 				let info = infos[instruction as usize];
-				println!("{}-------{:>19}(0x{:<2x}) count: {:4}, avg: {:10}μs",
+				print(format!("{}-------{:>19}(0x{:<2x}) count: {:4}, avg: {:10}μs",
 					self.spacing,
 					Self::color(instruction, info.name),
 					instruction,
 					stats.count,
 					stats.avg(),
-				);
+				));
 			}
 		}
 
