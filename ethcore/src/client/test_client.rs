@@ -25,8 +25,9 @@ use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
 	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
-	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError
+	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 };
+use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
 use filter::Filter;
 use log_entry::LocalizedLogEntry;
@@ -286,8 +287,8 @@ impl TestBlockChainClient {
 
 pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	let temp = RandomTempPath::new();
-	let db = Database::open_default(temp.as_str()).unwrap();
-	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, None);
+	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), temp.as_str()).unwrap();
+	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	let state_db = StateDB::new(journal_db);
 	GuardedTempResult {
 		_temp: temp,
@@ -382,6 +383,10 @@ impl BlockChainClient for TestBlockChainClient {
 		} else {
 			None
 		}
+	}
+
+	fn list_accounts(&self, _id: BlockID) -> Option<Vec<Address>> {
+		None
 	}
 
 	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {

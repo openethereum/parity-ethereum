@@ -115,6 +115,12 @@ impl From<::std::io::Error> for Error {
 	}
 }
 
+impl From<String> for Error {
+	fn from(e: String) -> Self {
+		Error::Custom(e)
+	}
+}
+
 /// A generalized migration from the given db to a destination db.
 pub trait Migration: 'static {
 	/// Number of columns in the database before the migration.
@@ -222,10 +228,12 @@ impl Manager {
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
 		let migrations = self.migrations_from(version);
+		trace!(target: "migration", "Total migrations to execute for version {}: {}", version, migrations.len());
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 
-		let columns = migrations.iter().find(|m| m.version() == version).and_then(|m| m.pre_columns());
+		let columns = migrations.iter().nth(0).and_then(|m| m.pre_columns());
 
+		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_sizes: Default::default(),

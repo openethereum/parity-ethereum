@@ -35,7 +35,10 @@ use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch, tracing_switch_to_bool};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool,
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
@@ -72,6 +75,7 @@ pub struct RunCmd {
 	pub miner_extras: MinerExtras,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
@@ -115,11 +119,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
-	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -135,7 +142,17 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match fat_db {
+			true => Colour::White.bold().paint(" +Fat").to_string(),
+			false => "".to_owned(),
+		},
+		match tracing {
+			true => Colour::White.bold().paint(" +Trace").to_string(),
+			false => "".to_owned(),
+		}
+	);
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -171,6 +188,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		&cmd.cache_config,
 		cmd.mode,
 		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
