@@ -99,6 +99,8 @@ extern crate ethcore_devtools as devtools;
 extern crate rand;
 extern crate bit_set;
 extern crate rlp;
+extern crate ethcore_bloom_journal as bloom_journal;
+extern crate byteorder;
 
 #[macro_use]
 extern crate log;
