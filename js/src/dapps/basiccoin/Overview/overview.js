@@ -18,6 +18,7 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import Container from '../Container';
+import Owner from './Owner';
 
 export default class Overview extends Component {
   static contextTypes = {
@@ -27,37 +28,11 @@ export default class Overview extends Component {
 
   state = {
     total: new BigNumber(0),
-    tokens: {}
+    tokenOwners: []
   }
 
   componentDidMount () {
-    const { accounts, managerInstance } = this.context;
-    let total = 0;
-
-    Promise
-      .all(accounts.map((account) => managerInstance.countByOwner.call({}, [account.address])))
-      .then((counts) => {
-        return Promise
-          .all(accounts.map((account, index) => {
-            const promises = [];
-
-            total = counts[index].add(total);
-            for (let i = 0; i < counts[index]; i++) {
-              promises.push(managerInstance.getByOwner.call({}, [account.address, i]));
-            }
-
-            return Promise.all(promises);
-          }));
-      })
-      .then((_tokens) => {
-        this.setState({
-          total,
-          tokens: accounts.reduce((tokens, account, index) => {
-            tokens[account.address] = _tokens[index];
-            return tokens;
-          }, {})
-        });
-      });
+    this.loadOwners();
   }
 
   render () {
@@ -66,7 +41,36 @@ export default class Overview extends Component {
     return (
       <Container center>
         You have { total.toFormat(0) } tokens created by your accounts
+        { this.renderOwners() }
       </Container>
     );
+  }
+
+  renderOwners () {
+    const { tokenOwners } = this.state;
+
+    return tokenOwners.map((account) => (
+      <Owner
+        key={ account.address }
+        address={ account.address } />
+    ));
+  }
+
+  loadOwners () {
+    const { accounts, managerInstance } = this.context;
+
+    Promise
+      .all(accounts.map((account) => managerInstance.countByOwner.call({}, [account.address])))
+      .then((counts) => {
+        let total = 0;
+        const tokenOwners = accounts.filter((account, index) => {
+          if (counts[index].gt(0)) {
+            total = counts[index].add(total);
+            return true;
+          }
+        });
+
+        this.setState({ tokenOwners, total });
+      });
   }
 }

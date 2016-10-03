@@ -121,7 +121,6 @@ export default class Deployments extends Component {
     }
 
     const { minedEvents, pendingEvents } = this.state;
-
     const minedNew = logs
       .filter((log) => log.type === 'mined')
       .map(this.logToEvent)
@@ -137,7 +136,6 @@ export default class Deployments extends Component {
       .filter((log) => !minedNew.find((event) => event.transactionHash === log.transactionHash));
     const events = [].concat(pendingNew).concat(minedNew);
 
-    console.log(logs);
     this.setState({ loading: false, events, minedEvents: minedNew, pendingEvents: pendingNew });
   }
 }
