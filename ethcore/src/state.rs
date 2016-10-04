@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::cell::{RefCell, RefMut};
-
+use std::collections::hash_map::Entry;
 use common::*;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
@@ -48,8 +48,7 @@ enum AccountData {
 }
 
 impl AccountData {
-	/// Clone dirty data into new `AccountData`.
-	/// Returns None if clean.
+	/// Clone dirty data into a new `AccountData`.
 	fn clone_dirty(&self) -> AccountData {
 		match *self {
 			AccountData::Cached(ref acc) => AccountData::Cached(acc.clone_dirty()),
@@ -58,7 +57,7 @@ impl AccountData {
 	}
 
 	/// Clone account entry data that needs to be saved in the snapshot.
-	/// This includes basic account information and all locally cached storage keys
+	/// This includes basic account information and all locally modified storage keys
 	fn clone_for_snapshot(&self) -> AccountData {
 		match *self {
 			AccountData::Cached(ref acc) => AccountData::Cached(acc.clone_dirty()),
@@ -240,17 +239,17 @@ impl State {
 				match v {
 					Some(v) => {
 						match self.cache.borrow_mut().entry(k) {
-							::std::collections::hash_map::Entry::Occupied(mut e) => {
+							Entry::Occupied(mut e) => {
 								e.get_mut().merge_snapshot(v);
 							},
-							::std::collections::hash_map::Entry::Vacant(e) => {
+							Entry::Vacant(e) => {
 								e.insert(v);
 							}
 						}
 					},
 					None => {
 						match self.cache.borrow_mut().entry(k) {
-							::std::collections::hash_map::Entry::Occupied(e) => {
+							Entry::Occupied(e) => {
 								if e.get().is_dirty() {
 									e.remove();
 								}
@@ -369,10 +368,12 @@ impl State {
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| a.storage_at(&AccountDB::from_hash(self.db.as_hashdb(), a.address_hash(address)), key));
-		match maybe_acc {
-			Some(account) => self.insert_cache(address, AccountEntry::new_clean(AccountData::Cached(account))),
-			None => self.insert_cache(address, AccountEntry::new_clean(AccountData::Missing)),
-		}
+		self.insert_cache(address, AccountEntry::new_clean(
+			match maybe_acc {
+				Some(account) => AccountData::Cached(account),
+				None => AccountData::Missing
+			}
+		));
 		r
 	}
 
@@ -422,9 +423,9 @@ impl State {
 
 	/// Mutate storage of account `a` so that it is `value` for `key`.
 	pub fn set_storage(&mut self, a: &Address, key: H256, value: H256) {
-		//if self.storage_at(a, &key) != value {
+		if self.storage_at(a, &key) != value {
 			self.require(a, false).set_storage(key, value)
-		//}
+		}
 	}
 
 	/// Initialise the code of account `a` so that it is `code`.
@@ -498,14 +499,11 @@ impl State {
 		let mut addresses = self.cache.borrow_mut();
 		trace!("Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| !a.is_dirty()) {
-			match a.account {
-				AccountData::Cached(acc) => {
-					self.db.cache_account(address, Some(acc), a.state == AccountState::Commited);
-				},
-				AccountData::Missing => {
-					self.db.cache_account(address, None, a.state == AccountState::Commited);
-				},
-			}
+			let entry = match a.account {
+				AccountData::Cached(acc) => Some(acc),
+				AccountData::Missing => None,
+			};
+			self.db.cache_account(address, entry, a.state == AccountState::Commited);
 		}
 	}
 

@@ -298,12 +298,12 @@ impl Account {
 		self.nonce = self.nonce + U256::from(1u8);
 	}
 
-	/// Increment the nonce of the account by one.
+	/// Increase account balance.
 	pub fn add_balance(&mut self, x: &U256) {
 		self.balance = self.balance + *x;
 	}
 
-	/// Increment the nonce of the account by one.
+	/// Decrease account balance.
 	/// Panics if balance is less than `x`
 	pub fn sub_balance(&mut self, x: &U256) {
 		assert!(self.balance >= *x);

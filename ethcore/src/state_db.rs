@@ -143,8 +143,9 @@ impl StateDB {
 		Ok(records)
 	}
 
-	/// Commit all recent insert operations and canonical historical commits' removals from the
-	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
+	/// Update canonical cache. This should be called after the block has been commited and the
+	/// blockchain route has ben calculated.
+	/// `reverted` is the list of the retracted block hashes.
 	pub fn update_cache(&mut self, reverted: &[H256]) {
 		let mut cache = self.account_cache.lock();
 		let mut cache = &mut *cache;
@@ -284,20 +285,22 @@ impl StateDB {
 	}
 
 	fn is_allowed(addr: &Address, parent_hash: &Option<H256>, modifications: &VecDeque<(H256, HashSet<Address>)>) -> bool {
-		if let &Some(ref parent) = parent_hash {
-			if modifications.is_empty() {
-				return true;
-			}
-			//ignore all accounts modified in later blocks
-			let mut iter = modifications.iter();
-			while let Some(&(ref h, ref changes)) = iter.next() {
-				if h != parent {
-					if changes.contains(addr) {
-						return false;
-					}
-				} else {
-					return true;
+		let parent = match *parent_hash {
+			None => return false,
+			Some(ref parent) => parent,
+		};
+		if modifications.is_empty() {
+			return true;
+		}
+		//ignore all accounts modified in later blocks
+		let mut iter = modifications.iter();
+		while let Some(&(ref h, ref changes)) = iter.next() {
+			if h != parent {
+				if changes.contains(addr) {
+					return false;
 				}
+			} else {
+				return true;
 			}
 		}
 		return false;
