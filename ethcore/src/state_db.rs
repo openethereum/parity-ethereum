@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::{VecDeque, HashSet};
 use lru_cache::LruCache;
 use util::journaldb::JournalDB;
 use util::hash::{H256};
@@ -25,6 +26,8 @@ use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
 const STATE_CACHE_ITEMS: usize = 65536;
+const STATE_CACHE_BLOCKS: usize = 8;
+
 
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
@@ -34,6 +37,13 @@ pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 struct AccountCache {
 	/// DB Account cache. `None` indicates that account is known to be missing.
 	accounts: LruCache<Address, Option<Account>>,
+	modifications: VecDeque<(H256, HashSet<Address>)>, // (block hash, modified accounts)
+}
+
+struct CacheQueueItem {
+	address: Address,
+	account: Option<Account>,
+	modified: bool,
 }
 
 /// State database abstraction.
@@ -45,25 +55,12 @@ struct AccountCache {
 pub struct StateDB {
 	db: Box<JournalDB>,
 	account_cache: Arc<Mutex<AccountCache>>,
-	cache_overlay: Vec<(Address, Option<Account>)>,
-	is_canon: bool,
+	cache_overlay: Vec<CacheQueueItem>,
+	parent_hash: Option<H256>,
 	account_bloom: Arc<Mutex<Bloom>>,
 }
 
 impl StateDB {
-
-	/// Create a new instance wrapping `JournalDB`
-	pub fn new(db: Box<JournalDB>) -> StateDB {
-		let bloom = Self::load_bloom(db.backing());
-		StateDB {
-			db: db,
-			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
-			cache_overlay: Vec::new(),
-			is_canon: false,
-			account_bloom: Arc::new(Mutex::new(bloom)),
-		}
-	}
-
 	/// Loads accounts bloom from the database
 	/// This bloom is used to handle request for the non-existant account fast
 	pub fn load_bloom(db: &Database) -> Bloom {
@@ -89,6 +86,21 @@ impl StateDB {
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
 		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.saturation(), hash_count);
 		bloom
+	}
+
+	/// Create a new instance wrapping `JournalDB`
+	pub fn new(db: Box<JournalDB>) -> StateDB {
+		let bloom = Self::load_bloom(db.backing());
+		StateDB {
+			db: db,
+			account_cache: Arc::new(Mutex::new(AccountCache {
+				accounts: LruCache::new(STATE_CACHE_ITEMS),
+				modifications: VecDeque::new(),
+			})),
+			cache_overlay: Vec::new(),
+			parent_hash: None,
+			account_bloom: Arc::new(Mutex::new(bloom)),
+		}
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
@@ -125,12 +137,49 @@ impl StateDB {
  			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
  		}
 		let records = try!(self.db.commit(batch, now, id, end));
-		if self.is_canon {
-			self.commit_cache();
-		} else {
-			self.clear_cache();
+		let mut cache = self.account_cache.lock();
+		if self.parent_hash.as_ref().map_or(false, |h| cache.modifications.front().map_or(true, |head| h == &head.0)) {
+			if cache.modifications.len() == STATE_CACHE_BLOCKS {
+				cache.modifications.pop_back();
+			}
+			let mut modifications = HashSet::new();
+			trace!("committing {} cache entries", self.cache_overlay.len());
+			for account in self.cache_overlay.drain(..) {
+				if account.modified {
+					modifications.insert(account.address.clone());
+				}
+				if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
+					if let Some(new) = account.account {
+						existing.merge_with(new);
+						continue;
+					}
+				}
+				cache.accounts.insert(account.address, account.account);
+			}
+			cache.modifications.push_front((id.clone(), modifications));
 		}
 		Ok(records)
+	}
+
+	pub fn revert_cache(&self, block: &H256) {
+		let mut cache = self.account_cache.lock();
+		let mut cache = &mut *cache;
+		let clear = {
+			if let Some(&(_, ref changes)) = cache.modifications.iter().find(|&&(ref h, _)| h == block) {
+				// remove accounts modified in that block from cache
+				for a in changes {
+					cache.accounts.remove(a);
+				}
+				false
+			} else {
+				true
+			}
+		};
+		if clear {
+			// clear everything
+			cache.accounts.clear();
+			cache.modifications.clear();
+		}
 	}
 
 	/// Returns an interface to HashDB.
@@ -149,18 +198,18 @@ impl StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
-			is_canon: false,
+			parent_hash: None,
 			account_bloom: self.account_bloom.clone(),
 		}
 	}
 
 	/// Clone the database for a canonical state.
-	pub fn boxed_clone_canon(&self) -> StateDB {
+	pub fn boxed_clone_canon(&self, parent: &H256) -> StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
 			cache_overlay: Vec::new(),
-			is_canon: true,
+			parent_hash: Some(parent.clone()),
 			account_bloom: self.account_bloom.clone(),
 		}
 	}
@@ -181,26 +230,17 @@ impl StateDB {
 	}
 
 	/// Enqueue cache change.
-	pub fn cache_account(&mut self, addr: Address, data: Option<Account>) {
-		self.cache_overlay.push((addr, data));
-	}
-
-	/// Apply pending cache changes.
-	fn commit_cache(&mut self) {
-		let mut cache = self.account_cache.lock();
-		for (address, account) in self.cache_overlay.drain(..) {
-			if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&address) {
-				if let Some(new) = account {
-					existing.merge_with(new);
-					continue;
-				}
-			}
-			cache.accounts.insert(address, account);
-		}
+	pub fn cache_account(&mut self, addr: Address, data: Option<Account>, modified: bool) {
+		self.cache_overlay.push(CacheQueueItem {
+			address: addr,
+			account: data,
+			modified: modified,
+		})
 	}
 
 	/// Clear the cache.
 	pub fn clear_cache(&mut self) {
+		trace!("Clearing cache");
 		self.cache_overlay.clear();
 		let mut cache = self.account_cache.lock();
 		cache.accounts.clear();
@@ -210,10 +250,10 @@ impl StateDB {
 	/// Returns 'None' if the state is non-canonical and cache is disabled
 	/// or if the account is not cached.
 	pub fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
-		if !self.is_canon {
+		let mut cache = self.account_cache.lock();
+		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
 			return None;
 		}
-		let mut cache = self.account_cache.lock();
 		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
@@ -222,11 +262,31 @@ impl StateDB {
 	/// or if the account is not cached.
 	pub fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
 		where F: FnOnce(Option<&mut Account>) -> U {
-		if !self.is_canon {
+		let mut cache = self.account_cache.lock();
+		if !Self::is_allowed(a, &self.parent_hash, &cache.modifications) {
 			return None;
 		}
-		let mut cache = self.account_cache.lock();
 		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+	}
+
+	fn is_allowed(addr: &Address, parent_hash: &Option<H256>, modifications: &VecDeque<(H256, HashSet<Address>)>) -> bool {
+		if let &Some(ref parent) = parent_hash {
+			if modifications.is_empty() {
+				return true;
+			}
+			//ignore all accounts modified in later blocks
+			let mut iter = modifications.iter();
+			while let Some(&(ref h, ref changes)) = iter.next() {
+				if h != parent {
+					if changes.contains(addr) {
+						return false;
+					}
+				} else {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 }
 
