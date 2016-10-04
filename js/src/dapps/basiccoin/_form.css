@@ -16,6 +16,9 @@
 */
 
 .form {
+  text-align: left;
+  margin: 0 auto;
+  display: inline-block;
 }
 
 .form .input {
@@ -24,16 +27,21 @@
 
 .form .input>* {
   display: inline-block;
-  margin-right: 1em;
+  margin: 0 0.5em;
   padding: 0.5em;
   font-size: 1em;
 }
 
 .form label {
-  opacity: 0.8;
   width: 20em;
+  opacity: 0.8;
   text-align: right;
-  padding: 0.5em 0;
+}
+
+.form .hint {
+  width: 20em;
+  opacity: 0.5;
+  font-size: 0.75em;
 }
 
 .form input,
@@ -52,10 +60,6 @@
 .form input.small {
   width: 10em;
   margin-right: 11em;
-}
-
-.form .hint {
-  opacity: 0.5;
 }
 
 .form .error input {

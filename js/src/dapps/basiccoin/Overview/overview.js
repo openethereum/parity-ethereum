@@ -43,7 +43,7 @@ export default class Overview extends Component {
     const { loading } = this.state;
 
     return (
-      <Container center>
+      <Container>
         { loading ? this.renderLoading() : this.renderBody() }
       </Container>
     );

@@ -28,6 +28,7 @@ const ERRORS = {
 
 export default class Deploy extends Component {
   static contextTypes = {
+    accounts: PropTypes.object.isRequired,
     router: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
@@ -85,7 +86,7 @@ export default class Deploy extends Component {
 
     if (deployDone) {
       return (
-        <Container center>
+        <Container>
           <div className={ styles.statusHeader }>
             Your token has been deployed
           </div>
@@ -109,7 +110,7 @@ export default class Deploy extends Component {
     }
 
     return (
-      <Container center>
+      <Container>
         <div className={ styles.statusHeader }>
           Your token is currently being deployed to the network
         </div>
@@ -122,16 +123,20 @@ export default class Deploy extends Component {
   }
 
   renderForm () {
+    const { accounts } = this.context;
     const { baseText, globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${styles.input} ${styles.error}`;
+    const addresses = Object.keys(accounts).filter((address) => accounts[address].uuid);
 
     return (
       <Container>
         <div className={ styles.form }>
           <div className={ styles.input }>
             <label>deployment account</label>
-            <AddressSelect onChange={ this.onChangeFrom } />
+            <AddressSelect
+              addresses={ addresses }
+              onChange={ this.onChangeFrom } />
           </div>
           <div className={ nameError ? error : styles.input }>
             <label>token name</label>
@@ -164,7 +169,7 @@ export default class Deploy extends Component {
               value={ totalSupply }
               onChange={ this.onChangeSupply } />
             <div className={ styles.hint }>
-              { totalSupplyError || `number of tokens in circulation (base: ${baseText})` }
+              { totalSupplyError || `number of tokens (base: ${baseText})` }
             </div>
           </div>
           <div className={ styles.input }>
