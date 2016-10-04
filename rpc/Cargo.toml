@@ -25,7 +25,7 @@ rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 serde_macros = { version = "0.7.0", optional = true }
 clippy = { version = "0.0.80", optional = true}
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git", branch = "beta" }
 ethcore-ipc = { path = "../ipc/rpc" }
 
 [build-dependencies]

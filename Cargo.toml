@@ -39,7 +39,7 @@ ethcore-ipc-nano = { path = "ipc/nano" }
 ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git", branch = "beta" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.80", optional = true}
 
