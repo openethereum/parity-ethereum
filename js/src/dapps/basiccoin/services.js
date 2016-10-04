@@ -166,10 +166,9 @@ export function loadBalances (addresses) {
       .then((_balances) => {
         return tokens.map((token, tindex) => {
           const balances = _balances[tindex];
-          token.balances = addresses.reduce((balance, address, aindex) => {
-            balance[address] = balances[aindex];
-            return balance;
-          }, {});
+          token.balances = addresses.map((address, aindex) => {
+            return { address, balance: balances[aindex] };
+          });
           return token;
         });
       });

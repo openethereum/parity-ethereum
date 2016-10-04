@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 
 import { loadBalances } from '../services';
+import AddressSelect from '../AddressSelect';
 import Container from '../Container';
 
 import styles from './send.css';
@@ -27,7 +28,11 @@ export default class Send extends Component {
   }
 
   state = {
-    loading: true
+    loading: true,
+    tokens: null,
+    selectedToken: null,
+    availableBalances: [],
+    fromAddress: null
   }
 
   componentDidMount () {
@@ -38,7 +43,7 @@ export default class Send extends Component {
     const { loading } = this.state;
 
     return (
-      <Container center>
+      <Container>
         { loading ? this.renderLoading() : this.renderBody() }
       </Container>
     );
@@ -47,13 +52,65 @@ export default class Send extends Component {
   renderLoading () {
     return (
       <div className={ styles.statusHeader }>
-        Loading tokens
+        Loading available tokens
       </div>
     );
   }
 
   renderBody () {
-    return 'loaded';
+    const { availableBalances } = this.state;
+    const fromAddresses = availableBalances.map((balance) => balance.address);
+
+    return (
+      <div className={ styles.form }>
+        <div className={ styles.input }>
+          <label>token type</label>
+          <select onChange={ this.onSelectToken }>
+            { this.renderTokens() }
+          </select>
+          <div className={ styles.hint }>
+            The token type to transfer from
+          </div>
+        </div>
+        <div className={ styles.input }>
+          <label>transfer from</label>
+          <AddressSelect
+            addresses={ fromAddresses }
+            onChange={ this.onSelectFrom } />
+          <div className={ styles.hint }>
+            The account to transfer from
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  renderTokens () {
+    const { tokens } = this.state;
+
+    return tokens.map((token) => (
+      <option
+        key={ token.address }
+        value={ token.address }>
+        { token.coin.tla } { token.coin.name }
+      </option>
+    ));
+  }
+
+  onSelectFrom = (event) => {
+    const fromAddress = event.target.value;
+
+    this.setState({ fromAddress });
+  }
+
+  onSelectToken = (event) => {
+    const { tokens } = this.state;
+    const address = event.target.value;
+    const selectedToken = tokens.find((_token) => _token.address === address);
+    const availableBalances = selectedToken.balances.filter((balance) => balance.balance.gt(0));
+
+    this.setState({ selectedToken, availableBalances });
+    this.onSelectFrom({ target: { value: availableBalances.address } });
   }
 
   loadBalances () {
@@ -64,9 +121,19 @@ export default class Send extends Component {
       .map((account) => account.address);
 
     loadBalances(myAccounts)
-      .then((balances) => {
-        console.log(balances);
-        this.setState({ balances, loading: false });
+      .then((_tokens) => {
+        const tokens = _tokens.filter((token) => {
+          for (let index = 0; index < token.balances.length; index++) {
+            if (token.balances[index].balance.gt(0)) {
+              return true;
+            }
+          }
+
+          return false;
+        });
+
+        this.setState({ tokens, loading: false });
+        this.onSelectToken({ target: { value: tokens[0].address } });
       });
   }
 }

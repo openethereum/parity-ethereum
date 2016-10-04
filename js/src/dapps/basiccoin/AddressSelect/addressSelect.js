@@ -25,6 +25,7 @@ export default class AddressSelect extends Component {
   }
 
   static propTypes = {
+    addresses: PropTypes.array.isRequired,
     onChange: PropTypes.func.isRequired
   }
 
@@ -33,32 +34,30 @@ export default class AddressSelect extends Component {
   }
 
   componentDidMount () {
-    const { accounts } = this.context;
+    const { addresses } = this.props;
 
     this.onChange({
       target: {
-        value: Object.keys(accounts)[0]
+        value: addresses[0]
       }
     });
   }
 
   render () {
-    const { accounts } = this.context;
-    const options = Object
-      .values(accounts)
-      .filter((account) => account.uuid)
-      .map(this.renderOption);
+    const { addresses } = this.props;
 
     return (
       <select
         className={ styles.iconMenu }
         onChange={ this.onChange }>
-        { options }
+        { addresses.map(this.renderOption) }
       </select>
     );
   }
 
-  renderOption = (account) => {
+  renderOption = (address) => {
+    const { accounts } = this.context;
+    const account = accounts[address];
     const style = { background: `transparent url(${api.util.createIdentityImg(account.address, 3)}) no-repeat left center` };
 
     return (
