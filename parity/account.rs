@@ -100,7 +100,7 @@ fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use ethcore::ethstore::Error;
 
 	let dir = Box::new(try!(keys_dir(i.to)));
-	let secret_store = Box::new(EthStore::open(dir).unwrap());
+	let secret_store = EthStore::open(dir).unwrap();
 	let geth_accounts = read_geth_accounts(i.testnet);
 	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
 		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),
