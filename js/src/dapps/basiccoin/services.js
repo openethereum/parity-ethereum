@@ -82,7 +82,7 @@ export function attachInstances () {
     });
 }
 
-export function loadTokens (addresses) {
+export function loadOwnedTokens (addresses) {
   let total = new BigNumber(0);
 
   return Promise
@@ -116,17 +116,63 @@ export function loadTokens (addresses) {
     });
 }
 
+export function loadAllTokens () {
+  return managerInstance
+    .count.call()
+    .then((count) => {
+      const promises = [];
+
+      for (let index = 0; count.gt(index); index++) {
+        promises.push(managerInstance.get.call({}, [index]));
+      }
+
+      return Promise.all(promises);
+    })
+    .then((_tokens) => {
+      const tokens = [];
+
+      return Promise
+        .all(
+          _tokens.map(([address, owner, tokenreg]) => {
+            const isGlobal = tokenreg === tokenregInstance.address;
+            tokens.push({ address, owner, tokenreg, isGlobal });
+            return registries[tokenreg].fromAddress.call({}, [address]);
+          })
+        )
+        .then((coins) => {
+          return tokens.map((token, index) => {
+            const [id, tla, base, name, owner] = coins[index];
+            token.coin = { id, tla, base, name, owner };
+            return token;
+          });
+        });
+    })
+    .catch((error) => {
+      console.log('loadAllTokens', error);
+      throw error;
+    });
+}
+
 export function loadBalances (addresses) {
-  return Promise
-    .all([
-      loadInstanceBalances(tokenregInstance, addresses),
-      loadInstanceBalances(registryInstance, addresses)
-    ])
-    .then(([trBalances, bcBalances]) => {
-      return {
-        global: trBalances,
-        local: bcBalances
-      };
+  return loadAllTokens()
+    .then((tokens) => {
+      return Promise.all(
+        tokens.map((token) => {
+          return Promise.all(
+            addresses.map((address) => loadTokenBalance(token.address, address))
+          );
+        })
+      )
+      .then((_balances) => {
+        return tokens.map((token, tindex) => {
+          const balances = _balances[tindex];
+          token.balances = addresses.reduce((balance, address, aindex) => {
+            balance[address] = balances[aindex];
+            return balance;
+          }, {});
+          return token;
+        });
+      });
     })
     .catch((error) => {
       console.error('loadBalances', error);
@@ -134,60 +180,11 @@ export function loadBalances (addresses) {
     });
 }
 
-export function loadInstanceBalances (tokenreg, addresses) {
-  return loadInstanceCoins(tokenreg)
-    .then((coins) => {
-      return Promise.all(
-        coins.map((coin) => {
-          return Promise.all(
-             addresses.map((address) => loadCoinBalance(coin.address, address))
-          );
-        })
-      )
-      .then((_balances) => {
-        return _balances.map((_balance, cindex) => {
-          return {
-            coin: coins[cindex],
-            balances: _balance.reduce((balance, value, aindex) => {
-              balance[addresses[aindex]] = value;
-              return balance;
-            }, {})
-          };
-        });
-      });
-    })
-    .catch((error) => {
-      console.error('loadInstanceBalances', error);
-      throw error;
-    });
-}
-
-export function loadCoinBalance (coinAddress, address) {
-  return api.newContract(abis.eip20, coinAddress).instance
+export function loadTokenBalance (tokenAddress, address) {
+  return api.newContract(abis.eip20, tokenAddress).instance
     .balanceOf.call({}, [address])
     .catch((error) => {
-      console.error('loadCoinBalance', error);
-      throw error;
-    });
-}
-
-export function loadInstanceCoins (tokenreg) {
-  return tokenreg
-    .tokenCount.call()
-    .then((count) => {
-      const promises = [];
-      for (let i = 0; count.gt(i); i++) {
-        promises.push(tokenreg.token.call({}, [i]));
-      }
-      return Promise.all(promises);
-    })
-    .then((coins) => {
-      return coins.map(([address, tla, base, name, owner], id) => {
-        return { id, address, tla, base, name, owner };
-      });
-    })
-    .catch((error) => {
-      console.error('loadInstanceCoins', error);
+      console.error('loadTokenBalance', error);
       throw error;
     });
 }

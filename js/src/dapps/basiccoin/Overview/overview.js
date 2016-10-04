@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import { loadTokens } from '../services';
+import { loadOwnedTokens } from '../services';
 import Container from '../Container';
 import Owner from './Owner';
 
@@ -88,7 +88,7 @@ export default class Overview extends Component {
       .filter((account) => account.uuid)
       .map((account) => account.address);
 
-    loadTokens(addresses)
+    loadOwnedTokens(addresses)
       .then(({ tokens, total }) => {
         this.setState({ tokens, total, loading: false });
       });
