@@ -446,6 +446,11 @@ impl Client {
 		let batch = DBTransaction::new(&self.db);
 		let mut state = block.drain();
 
+		// CHECK! I *think* this is fine, even if the state_root is equal to another
+		// already-imported block of the same number.
+		// TODO: Prove it with a test.
+		state.commit(&batch, number, hash, ancient).expect("DB commit failed.");
+
 		let route = self.chain.insert_block(&batch, block_data, receipts);
 		self.tracedb.import(&batch, TraceImportRequest {
 			traces: traces.into(),
@@ -454,13 +459,7 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
-		// CHECK! I *think* this is fine, even if the state_root is equal to another
-		// already-imported block of the same number.
-		// TODO: Prove it with a test.
-		state.commit(&batch, number, hash, ancient).expect("DB commit failed.");
-		for h in &route.retracted {
-			state.revert_cache(h);
-		}
+		state.update_cache(&route.retracted);
 		// Final commit to the DB
 		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();

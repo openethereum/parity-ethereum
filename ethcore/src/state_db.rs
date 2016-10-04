@@ -54,6 +54,7 @@ pub struct StateDB {
 	cache_overlay: Vec<CacheQueueItem>,
 	parent_hash: Option<H256>,
 	account_bloom: Arc<Mutex<Bloom>>,
+	commit_id: Option<H256>,
 }
 
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
@@ -99,6 +100,7 @@ impl StateDB {
 			cache_overlay: Vec::new(),
 			parent_hash: None,
 			account_bloom: Arc::new(Mutex::new(bloom)),
+			commit_id: None,
 		}
 	}
 
@@ -137,48 +139,58 @@ impl StateDB {
 		}
 
 		let records = try!(self.db.commit(batch, now, id, end));
-		let mut cache = self.account_cache.lock();
-		if self.parent_hash.as_ref().map_or(false, |h| cache.modifications.front().map_or(true, |head| h == &head.0)) {
-			if cache.modifications.len() == STATE_CACHE_BLOCKS {
-				cache.modifications.pop_back();
-			}
-			let mut modifications = HashSet::new();
-			trace!("committing {} cache entries", self.cache_overlay.len());
-			for account in self.cache_overlay.drain(..) {
-				if account.modified {
-					modifications.insert(account.address.clone());
-				}
-				if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
-					if let Some(new) = account.account {
-						existing.merge_with(new);
-						continue;
-					}
-				}
-				cache.accounts.insert(account.address, account.account);
-			}
-			cache.modifications.push_front((id.clone(), modifications));
-		}
+		self.commit_id = Some(id.clone());
 		Ok(records)
 	}
 
-	pub fn revert_cache(&self, block: &H256) {
+	/// Commit all recent insert operations and canonical historical commits' removals from the
+	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
+	pub fn update_cache(&mut self, reverted: &[H256]) {
 		let mut cache = self.account_cache.lock();
 		let mut cache = &mut *cache;
-		let clear = {
-			if let Some(&(_, ref changes)) = cache.modifications.iter().find(|&&(ref h, _)| h == block) {
-				// remove accounts modified in that block from cache
-				for a in changes {
-					cache.accounts.remove(a);
+
+		// revert changes from retracted blocks
+		for block in reverted {
+			let clear = {
+				if let Some(&(_, ref changes)) = cache.modifications.iter().find(|&&(ref h, _)| h == block) {
+					// remove accounts modified in that block from cache
+					for a in changes {
+						cache.accounts.remove(a);
+					}
+					false
+				} else {
+					true
 				}
-				false
-			} else {
-				true
+			};
+			if clear {
+				// clear everything
+				cache.accounts.clear();
+				cache.modifications.clear();
 			}
-		};
-		if clear {
-			// clear everything
-			cache.accounts.clear();
-			cache.modifications.clear();
+		}
+
+		// apply cache changes only if committing on top of the latest canonical state
+		if let Some(ref id) = self.commit_id {
+			if self.parent_hash.as_ref().map_or(false, |h| cache.modifications.front().map_or(true, |head| h == &head.0)) {
+				if cache.modifications.len() == STATE_CACHE_BLOCKS {
+					cache.modifications.pop_back();
+				}
+				let mut modifications = HashSet::new();
+				trace!("committing {} cache entries", self.cache_overlay.len());
+				for account in self.cache_overlay.drain(..) {
+					if account.modified {
+						modifications.insert(account.address.clone());
+					}
+					if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&account.address) {
+						if let Some(new) = account.account {
+							existing.merge_with(new);
+							continue;
+						}
+					}
+					cache.accounts.insert(account.address, account.account);
+				}
+				cache.modifications.push_front((id.clone(), modifications));
+			}
 		}
 	}
 
@@ -200,6 +212,7 @@ impl StateDB {
 			cache_overlay: Vec::new(),
 			parent_hash: None,
 			account_bloom: self.account_bloom.clone(),
+			commit_id: None,
 		}
 	}
 
@@ -211,6 +224,7 @@ impl StateDB {
 			cache_overlay: Vec::new(),
 			parent_hash: Some(parent.clone()),
 			account_bloom: self.account_bloom.clone(),
+			commit_id: None,
 		}
 	}
 
