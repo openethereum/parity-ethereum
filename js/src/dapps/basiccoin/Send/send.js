@@ -32,56 +32,114 @@ export default class Send extends Component {
     tokens: null,
     selectedToken: null,
     availableBalances: [],
-    fromAddress: null
+    fromAddress: null,
+    fromBalance: null,
+    toAddress: null,
+    toKnown: true,
+    amount: 0,
+    amountError: null
   }
 
   componentDidMount () {
     this.loadBalances();
+    this.onAmountChange({ target: { value: '0' } });
   }
 
   render () {
     const { loading } = this.state;
 
-    return (
-      <Container>
-        { loading ? this.renderLoading() : this.renderBody() }
-      </Container>
-    );
+    return loading
+      ? this.renderLoading()
+      : this.renderBody();
   }
 
   renderLoading () {
     return (
-      <div className={ styles.statusHeader }>
-        Loading available tokens
-      </div>
+      <Container>
+        <div className={ styles.statusHeader }>
+          Loading available tokens
+        </div>
+      </Container>
     );
   }
 
   renderBody () {
-    const { availableBalances } = this.state;
+    const { accounts } = this.context;
+    const { availableBalances, fromAddress, amount, amountError, toKnown, toAddress } = this.state;
+    const fromBalance = availableBalances.find((balance) => balance.address === fromAddress);
     const fromAddresses = availableBalances.map((balance) => balance.address);
+    const toAddresses = Object.keys(accounts);
+    const toInput = toKnown
+      ? <AddressSelect addresses={ toAddresses } onChange={ this.onChangeTo } />
+      : <input value={ toAddress } onChange={ this.onChangeTo } />;
+    const hasError = amountError;
+    const error = `${styles.input} ${styles.error}`;
+    const maxAmountHint = `Value to transfer (max: ${fromBalance ? fromBalance.balance.div(1000000).toFormat(6) : '1'})`;
 
     return (
-      <div className={ styles.form }>
-        <div className={ styles.input }>
-          <label>token type</label>
-          <select onChange={ this.onSelectToken }>
-            { this.renderTokens() }
-          </select>
-          <div className={ styles.hint }>
-            The token type to transfer from
+      <Container>
+        <div className={ styles.form }>
+          <div className={ styles.input }>
+            <label>token type</label>
+            <select onChange={ this.onSelectToken }>
+              { this.renderTokens() }
+            </select>
+            <div className={ styles.hint }>
+              The token type to transfer
+            </div>
+          </div>
+          <div className={ styles.input }>
+            <label>transfer from</label>
+            <AddressSelect
+              addresses={ fromAddresses }
+              onChange={ this.onSelectFrom } />
+            <div className={ styles.hint }>
+              The account to transfer from
+            </div>
+          </div>
+          <div className={ styles.input }>
+            <label>transfer to</label>
+            <select onChange={ this.onChangeToType }>
+              <option value='known'>Known, Select from list</option>
+              <option value='unknown'>Unknown, Keyboard input</option>
+            </select>
+            <div className={ styles.hint }>
+              the type of address input
+            </div>
+          </div>
+          <div className={ styles.input }>
+            <label />
+            { toInput }
+            <div className={ styles.hint }>
+              the account to transfer to
+            </div>
+          </div>
+          <div className={ amountError ? error : styles.input }>
+            <label>amount</label>
+            <input
+              type='number'
+              min='0'
+              step='0.1'
+              value={ amount }
+              max={ fromBalance ? fromBalance.balance.div(1000000).toFixed(6) : 1 }
+              onChange={ this.onAmountChange } />
+            <div className={ styles.hint }>
+              { amountError || maxAmountHint }
+            </div>
+          </div>
+          <div className={ styles.input }>
+            <label />
+            <div className={ styles.buttonRow }>
+              <div
+                className={ styles.button }
+                disabled={ hasError }
+                onClick={ this.onSend }>
+                Send Tokens
+              </div>
+            </div>
           </div>
         </div>
-        <div className={ styles.input }>
-          <label>transfer from</label>
-          <AddressSelect
-            addresses={ fromAddresses }
-            onChange={ this.onSelectFrom } />
-          <div className={ styles.hint }>
-            The account to transfer from
-          </div>
-        </div>
-      </div>
+      </Container>
     );
   }
 
@@ -92,7 +150,7 @@ export default class Send extends Component {
       <option
         key={ token.address }
         value={ token.address }>
-        { token.coin.tla } { token.coin.name }
+        { token.coin.tla } / { token.coin.name }
       </option>
     ));
   }
@@ -103,6 +161,18 @@ export default class Send extends Component {
     this.setState({ fromAddress });
   }
 
+  onChangeTo = (event) => {
+    const toAddress = event.target.value;
+
+    this.setState({ toAddress });
+  }
+
+  onChangeToType = (event) => {
+    const toKnown = event.target.value === 'known';
+
+    this.setState({ toKnown });
+  }
+
   onSelectToken = (event) => {
     const { tokens } = this.state;
     const address = event.target.value;
@@ -110,7 +180,19 @@ export default class Send extends Component {
     const availableBalances = selectedToken.balances.filter((balance) => balance.balance.gt(0));
 
     this.setState({ selectedToken, availableBalances });
-    this.onSelectFrom({ target: { value: availableBalances.address } });
+    this.onSelectFrom({ target: { value: availableBalances[0].address } });
+  }
+
+  onAmountChange = (event) => {
+    const amount = parseFloat(event.target.value);
+    const amountError = !isFinite(amount) || amount <= 0
+      ? 'amount needs to be > 0'
+      : null;
+
+    this.setState({ amount, amountError });
+  }
+
+  onSend = () => {
   }
 
   loadBalances () {

@@ -182,13 +182,16 @@ export default class Deploy extends Component {
               register as a network token (fee: { globalFeeText }<small>ETH</small>)
             </div>
           </div>
-        </div>
-        <div className={ styles.buttonRow }>
-          <div
-            className={ styles.button }
-            disabled={ hasError }
-            onClick={ this.onDeploy }>
-            Deploy Token
+          <div className={ styles.input }>
+            <label />
+            <div className={ styles.buttonRow }>
+              <div
+                className={ styles.button }
+                disabled={ hasError }
+                onClick={ this.onDeploy }>
+                Deploy Token
+              </div>
+            </div>
           </div>
         </div>
       </Container>

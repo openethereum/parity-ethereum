@@ -25,7 +25,7 @@
   margin-bottom: 1.5em;
 }
 
-.form .input>* {
+.form .input * {
   display: inline-block;
   margin: 0 0.5em;
   padding: 0.5em;
@@ -48,9 +48,12 @@
 .form select {
   width: 20em;
   background: rgba(255, 255, 255, 0.25);
-  border-radius: 5px;
+  border-radius: 1px;
   border: 1px solid rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .form select {
@@ -64,6 +67,7 @@
 
 .form .error input {
   border: 1px solid rgba(255, 0, 0, 0.5);
+  color: red;
 }
 
 .form .error label {
@@ -72,4 +76,24 @@
 
 .form .error .hint {
   color: red;
+}
+
+.buttonRow {
+  text-align: right;
+  width: 20em;
+}
+
+.button {
+  color: white;
+  border: none;
+  border-radius: 1px;
+  padding: 1em 2em !important;
+  display: inline-block;
+  margin-left: 1em !important;
+  cursor: pointer;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: default;
 }
