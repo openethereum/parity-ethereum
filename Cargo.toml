@@ -70,6 +70,8 @@ stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
+evm-debug-tests = ["ethcore/evm-debug-tests"]
+slow-blocks = ["ethcore/slow-blocks"]
 
 [[bin]]
 path = "parity/main.rs"
