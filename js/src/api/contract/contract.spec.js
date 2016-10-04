@@ -113,7 +113,7 @@ describe('api/contract/Contract', () => {
       ]);
       contract.at('6789');
 
-      expect(Object.keys(contract.instance)).to.deep.equal(['Drained', 'balanceOf']);
+      expect(Object.keys(contract.instance)).to.deep.equal(['Drained', 'balanceOf', 'address']);
       expect(contract.address).to.equal('6789');
     });
   });
