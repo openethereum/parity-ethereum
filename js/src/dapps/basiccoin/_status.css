@@ -15,7 +15,22 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_status.css';
+.statusHeader {
+  font-size: 1.25em;
+  margin-bottom: 0.75em;
+  opacity: 0.75;
+}
 
-.body {
+.statusInfo {
+  margin-bottom: 0.25em;
+}
+
+.statusState {
+  opacity: 0.75;
+  margin-top: 1em;
+}
+
+.statusError {
+  color: red;
+  margin-top: 1em;
 }

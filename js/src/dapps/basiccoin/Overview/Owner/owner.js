@@ -21,24 +21,22 @@ import styles from './owner.css';
 
 export default class Owner extends Component {
   static contextTypes = {
+    accounts: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    address: PropTypes.string.isRequired
+    address: PropTypes.string.isRequired,
+    tokens: PropTypes.array.isRequired
   }
 
   state = {
     tokens: []
   }
 
-  componentDidMount () {
-    this.loadTokens();
-  }
-
   render () {
-    const { address } = this.props;
-    const { tokens } = this.state;
+    const { accounts } = this.context;
+    const { address, tokens } = this.props;
 
     if (!tokens.length) {
       return null;
@@ -46,14 +44,16 @@ export default class Owner extends Component {
 
     return (
       <div className={ styles.info }>
-        <div className={ styles.owner }>{ address }</div>
+        <div className={ styles.owner }>
+          { accounts[address].name }
+        </div>
         { this.renderTokens() }
       </div>
     );
   }
 
   renderTokens () {
-    const { tokens } = this.state;
+    const { tokens } = this.props;
 
     return tokens.map((token) => (
       <Token
@@ -61,29 +61,5 @@ export default class Owner extends Component {
         address={ token.address }
         tokenreg={ token.tokenreg } />
     ));
-  }
-
-  loadTokens () {
-    const { managerInstance } = this.context;
-    const { address } = this.props;
-
-    managerInstance
-      .countByOwner.call({}, [address])
-      .then((count) => {
-        const promises = [];
-
-        for (let index = 0; count.gt(index); index++) {
-          promises.push(managerInstance.getByOwner.call({}, [address, index]));
-        }
-
-        return Promise.all(promises);
-      })
-      .then((tokens) => {
-        this.setState({
-          tokens: tokens.map(([address, _owner, tokenreg]) => {
-            return { address, tokenreg };
-          })
-        });
-      });
   }
 }

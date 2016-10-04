@@ -17,11 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../parity';
-
 import AddressSelect from '../AddressSelect';
 import Container from '../Container';
 import styles from './deploy.css';
-import layout from '../style.css';
 
 const ERRORS = {
   name: 'specify a valid name >2 & <32 characters',
@@ -30,6 +28,7 @@ const ERRORS = {
 
 export default class Deploy extends Component {
   static contextTypes = {
+    accounts: PropTypes.object.isRequired,
     router: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired,
     registryInstance: PropTypes.object.isRequired,
@@ -87,7 +86,7 @@ export default class Deploy extends Component {
 
     if (deployDone) {
       return (
-        <Container center>
+        <Container>
           <div className={ styles.statusHeader }>
             Your token has been deployed
           </div>
@@ -101,62 +100,69 @@ export default class Deploy extends Component {
       );
     }
 
-    let error = null;
     if (deployError) {
-      error = (
-        <div className={ styles.statusError }>
-          { deployError }
-        </div>
+      return (
+        <Container>
+          <div className={ styles.statusHeader }>
+            Your deployment has encountered an error
+          </div>
+          <div className={ styles.statusError }>
+            { deployError }
+          </div>
+        </Container>
       );
     }
 
     return (
-      <Container center>
+      <Container>
         <div className={ styles.statusHeader }>
           Your token is currently being deployed to the network
         </div>
         <div className={ styles.statusState }>
           { deployState }
         </div>
-        { error }
       </Container>
     );
   }
 
   renderForm () {
+    const { accounts } = this.context;
     const { baseText, globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
-    const error = `${layout.input} ${layout.error}`;
+    const error = `${styles.input} ${styles.error}`;
+    const addresses = Object.keys(accounts).filter((address) => accounts[address].uuid);
 
     return (
       <Container>
-        <div className={ layout.form }>
-          <div className={ layout.input }>
+        <div className={ styles.form }>
+          <div className={ styles.input }>
             <label>deployment account</label>
-            <AddressSelect onChange={ this.onChangeFrom } />
+            <AddressSelect
+              addresses={ addresses }
+              onChange={ this.onChangeFrom } />
           </div>
-          <div className={ nameError ? error : layout.input }>
+          <div className={ nameError ? error : styles.input }>
             <label>token name</label>
             <input
               value={ name }
               name='name'
               onChange={ this.onChangeName } />
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               { nameError || 'an identifying name for the token' }
             </div>
           </div>
-          <div className={ tlaError ? error : layout.input }>
+          <div className={ tlaError ? error : styles.input }>
             <label>token TLA</label>
             <input
-              className={ layout.small }
+              className={ styles.small }
               name='tla'
               value={ tla }
               onChange={ this.onChangeTla } />
-            <div className={ layout.hint }>
+            <div className={ styles.hint }>
               { tlaError || 'unique network acronym for this token' }
             </div>
           </div>
-          <div className={ totalSupplyError ? error : layout.input }>
+          <div className={ totalSupplyError ? error : styles.input }>
             <label>total number of tokens</label>
             <input
               type='number'
@@ -165,27 +171,30 @@ export default class Deploy extends Component {
               name='totalSupply'
               value={ totalSupply }
               onChange={ this.onChangeSupply } />
-            <div className={ layout.hint }>
-              { totalSupplyError || `number of tokens in circulation (base: ${baseText})` }
+            <div className={ styles.hint }>
+              { totalSupplyError || `number of tokens (base: ${baseText})` }
             </div>
           </div>
-          <div className={ layout.input }>
+          <div className={ styles.input }>
             <label>global registration</label>
             <select onChange={ this.onChangeRegistrar }>
               <option value='no'>No, only for me</option>
               <option value='yes'>Yes, for everybody</option>
             </select>
-            <div className={ layout.hint }>
-              register as a network token (fee: { globalFeeText }<small>ETH</small>)
+            <div className={ styles.hint }>
+              register on network (fee: { globalFeeText }ETH)
             </div>
           </div>
-        </div>
-        <div className={ styles.buttonRow }>
-          <div
-            className={ styles.button }
-            disabled={ hasError }
-            onClick={ this.onDeploy }>
-            Deploy Token
+          <div className={ styles.input }>
+            <label />
+            <div className={ styles.buttonRow }>
+              <div
+                className={ styles.button }
+                disabled={ hasError }
+                onClick={ this.onDeploy }>
+                Deploy Token
+              </div>
+            </div>
           </div>
         </div>
       </Container>
@@ -240,7 +249,6 @@ export default class Deploy extends Component {
 
     const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
     const values = [base.mul(totalSupply), tla, name, tokenreg];
-    let gasPassed = 0;
     const options = {
       from: fromAddress,
       value: globalReg ? globalFee : 0
@@ -253,7 +261,7 @@ export default class Deploy extends Component {
       .then((gas) => {
         this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 
-        gasPassed = gas.mul(1.2);
+        const gasPassed = gas.mul(1.2);
         options.gas = gasPassed.toFixed(0);
         console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

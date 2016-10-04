@@ -61,7 +61,7 @@ export default class Deployments extends Component {
     const { loading } = this.state;
 
     return (
-      <Container center>
+      <Container>
         { loading ? this.renderLoading() : this.renderEvents() }
       </Container>
     );

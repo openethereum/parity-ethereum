@@ -15,6 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+@import '../_form.css';
+@import '../_status.css';
 @import '../_vars.css';
 
 a.link, a.link:hover, a.link:visited {
@@ -22,43 +24,6 @@ a.link, a.link:hover, a.link:visited {
   cursor: pointer;
 }
 
-.buttonRow {
-  width: 40em;
-  text-align: right;
-  padding: 0 2em;
-}
-
 .button {
   background: $bgDeploy;
-  color: white;
-  border: none;
-  border-radius: 1px;
-  padding: 1em 2em;
-  display: inline-block;
-  margin-left: 1em;
-  cursor: pointer;
-}
-
-.button[disabled] {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.statusHeader {
-  font-size: 1.25em;
-  margin-bottom: 0.25em;
-}
-
-.statusInfo {
-  margin-bottom: 0.25em;
-}
-
-.statusState {
-  opacity: 0.75;
-  margin-top: 1em;
-}
-
-.statusError {
-  color: red;
-  margin-top: 1em;
 }

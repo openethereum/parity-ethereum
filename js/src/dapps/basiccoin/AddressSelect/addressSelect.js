@@ -21,10 +21,11 @@ import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired
+    accounts: PropTypes.object.isRequired
   }
 
   static propTypes = {
+    addresses: PropTypes.array.isRequired,
     onChange: PropTypes.func.isRequired
   }
 
@@ -33,35 +34,52 @@ export default class AddressSelect extends Component {
   }
 
   componentDidMount () {
-    const { accounts } = this.context;
+    const { addresses } = this.props;
 
     this.onChange({
       target: {
-        value: accounts[0].address
+        value: addresses[0]
       }
     });
   }
 
+  componentWillReceiveProps (newProps) {
+    const { addresses } = this.props;
+    let changed = addresses.length !== newProps.addresses.length;
+
+    if (!changed) {
+      changed = addresses.filter((address, index) => newProps.addresses[index] !== address).length;
+    }
+
+    if (changed) {
+      this.onChange({ target: { value: newProps.addresses[0] } });
+    }
+  }
+
   render () {
-    const { accounts } = this.context;
-    const options = accounts.map(this.renderOption);
+    const { addresses } = this.props;
+    const { selectedAddress } = this.state;
+    const style = {
+      background: `transparent url(${api.util.createIdentityImg(selectedAddress, 3)}) no-repeat 98% center`
+    };
 
     return (
       <select
         className={ styles.iconMenu }
+        style={ style }
         onChange={ this.onChange }>
-        { options }
+        { addresses.map(this.renderOption) }
       </select>
     );
   }
 
-  renderOption = (account) => {
-    const style = { background: `transparent url(${api.util.createIdentityImg(account.address, 3)}) no-repeat left center` };
+  renderOption = (address) => {
+    const { accounts } = this.context;
+    const account = accounts[address];
 
     return (
       <option
         key={ account.address }
-        style={ style }
         value={ account.address }>
         { account.name }
       </option>
@@ -69,7 +87,7 @@ export default class AddressSelect extends Component {
   }
 
   onChange = (event) => {
-    this.setState({ selected: event.target.value });
+    this.setState({ selectedAddress: event.target.value });
     this.props.onChange(event);
   }
 }

@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import * as abis from '../../contracts/abi';
 import { api } from './parity';
 
@@ -36,6 +38,10 @@ export function getCoin (tokenreg, address) {
         id, tla, base, name, owner,
         isGlobal: tokenregInstance.address === tokenreg
       };
+    })
+    .catch((error) => {
+      console.error('getCoin', error);
+      throw error;
     });
 }
 
@@ -69,5 +75,115 @@ export function attachInstances () {
         registryInstance,
         tokenregInstance
       };
+    })
+    .catch((error) => {
+      console.error('attachInstances', error);
+      throw error;
+    });
+}
+
+export function loadOwnedTokens (addresses) {
+  let total = new BigNumber(0);
+
+  return Promise
+    .all(
+      addresses.map((address) => managerInstance.countByOwner.call({}, [address]))
+    )
+    .then((counts) => {
+      return Promise.all(
+        addresses.reduce((promises, address, index) => {
+          total = counts[index].add(total);
+          for (let i = 0; counts[index].gt(i); i++) {
+            promises.push(managerInstance.getByOwner.call({}, [address, i]));
+          }
+          return promises;
+        }, [])
+      );
+    })
+    .then((_tokens) => {
+      const tokens = _tokens.reduce((tokens, token) => {
+        const [address, owner, tokenreg] = token;
+        tokens[owner] = tokens[owner] || [];
+        tokens[owner].push({ address, owner, tokenreg });
+        return tokens;
+      }, {});
+
+      return { tokens, total };
+    })
+    .catch((error) => {
+      console.error('loadTokens', error);
+      throw error;
+    });
+}
+
+export function loadAllTokens () {
+  return managerInstance
+    .count.call()
+    .then((count) => {
+      const promises = [];
+
+      for (let index = 0; count.gt(index); index++) {
+        promises.push(managerInstance.get.call({}, [index]));
+      }
+
+      return Promise.all(promises);
+    })
+    .then((_tokens) => {
+      const tokens = [];
+
+      return Promise
+        .all(
+          _tokens.map(([address, owner, tokenreg]) => {
+            const isGlobal = tokenreg === tokenregInstance.address;
+            tokens.push({ address, owner, tokenreg, isGlobal });
+            return registries[tokenreg].fromAddress.call({}, [address]);
+          })
+        )
+        .then((coins) => {
+          return tokens.map((token, index) => {
+            const [id, tla, base, name, owner] = coins[index];
+            token.coin = { id, tla, base, name, owner };
+            return token;
+          });
+        });
+    })
+    .catch((error) => {
+      console.log('loadAllTokens', error);
+      throw error;
+    });
+}
+
+export function loadBalances (addresses) {
+  return loadAllTokens()
+    .then((tokens) => {
+      return Promise.all(
+        tokens.map((token) => {
+          return Promise.all(
+            addresses.map((address) => loadTokenBalance(token.address, address))
+          );
+        })
+      )
+      .then((_balances) => {
+        return tokens.map((token, tindex) => {
+          const balances = _balances[tindex];
+          token.balances = addresses.map((address, aindex) => {
+            return { address, balance: balances[aindex] };
+          });
+          return token;
+        });
+      });
+    })
+    .catch((error) => {
+      console.error('loadBalances', error);
+      throw error;
+    });
+}
+
+export function loadTokenBalance (tokenAddress, address) {
+  return api.newContract(abis.eip20, tokenAddress).instance
+    .balanceOf.call({}, [address])
+    .catch((error) => {
+      console.error('loadTokenBalance', error);
+      throw error;
     });
 }

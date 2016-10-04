@@ -16,33 +16,43 @@
 */
 
 .form {
+  text-align: left;
+  margin: 0 auto;
+  display: inline-block;
 }
 
 .form .input {
   margin-bottom: 1.5em;
 }
 
-.form .input>* {
+.form .input * {
   display: inline-block;
-  margin-right: 1em;
+  margin: 0 0.5em;
   padding: 0.5em;
   font-size: 1em;
 }
 
 .form label {
+  width: 25em;
   opacity: 0.8;
-  width: 20em;
   text-align: right;
-  padding: 0.5em 0;
+}
+
+.form .hint {
+  width: 25em;
+  opacity: 0.5;
 }
 
 .form input,
 .form select {
-  width: 20em;
+  width: 18em;
   background: rgba(255, 255, 255, 0.25);
-  border-radius: 5px;
+  border-radius: 1px;
   border: 1px solid rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
+  -moz-appearance: none;
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .form select {
@@ -50,18 +60,39 @@
 }
 
 .form input.small {
-  width: 10em;
-  margin-right: 11em;
-}
-
-.form .hint {
-  opacity: 0.5;
+  width: 9em;
+  margin-right: 10em;
 }
 
 .form .error input {
   border: 1px solid rgba(255, 0, 0, 0.5);
+  color: red;
+}
+
+.form .error label {
+  color: red;
 }
 
 .form .error .hint {
   color: red;
+}
+
+.buttonRow {
+  text-align: right;
+  width: 18em;
+}
+
+.button {
+  color: white;
+  border: none;
+  border-radius: 1px;
+  padding: 1em 2em !important;
+  display: inline-block;
+  margin-left: 1em !important;
+  cursor: pointer;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: default;
 }

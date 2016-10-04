@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
+import { loadOwnedTokens } from '../services';
 import Container from '../Container';
 import Owner from './Owner';
 
@@ -24,7 +25,7 @@ import styles from './overview.css';
 
 export default class Overview extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired,
+    accounts: PropTypes.object.isRequired,
     managerInstance: PropTypes.object.isRequired
   }
 
@@ -42,7 +43,7 @@ export default class Overview extends Component {
     const { loading } = this.state;
 
     return (
-      <Container center>
+      <Container>
         { loading ? this.renderLoading() : this.renderBody() }
       </Container>
     );
@@ -70,30 +71,26 @@ export default class Overview extends Component {
   }
 
   renderOwners () {
-    const { tokenOwners } = this.state;
+    const { tokens } = this.state;
 
-    return tokenOwners.map((account) => (
+    return Object.keys(tokens).map((address) => (
       <Owner
-        key={ account.address }
-        address={ account.address } />
+        key={ address }
+        tokens={ tokens[address] }
+        address={ address } />
     ));
   }
 
   loadOwners () {
-    const { accounts, managerInstance } = this.context;
+    const { accounts } = this.context;
+    const addresses = Object
+      .values(accounts)
+      .filter((account) => account.uuid)
+      .map((account) => account.address);
 
-    Promise
-      .all(accounts.map((account) => managerInstance.countByOwner.call({}, [account.address])))
-      .then((counts) => {
-        let total = 0;
-        const tokenOwners = accounts.filter((account, index) => {
-          if (counts[index].gt(0)) {
-            total = counts[index].add(total);
-            return true;
-          }
-        });
-
-        this.setState({ tokenOwners, total, loading: false });
+    loadOwnedTokens(addresses)
+      .then(({ tokens, total }) => {
+        this.setState({ tokens, total, loading: false });
       });
   }
 }
