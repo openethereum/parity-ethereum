@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
@@ -360,27 +359,10 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::{import_accounts, EthStore};
-	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-	use ethcore::ethstore::Error;
+	use ethcore::ethstore::EthStore;
+	use ethcore::ethstore::dir::DiskDirectory;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
-
-	if cfg.import_keys {
-		let t = if cfg.testnet {
-			DirectoryType::Testnet
-		} else {
-			DirectoryType::Main
-		};
-
-		let from = GethDirectory::open(t);
-		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
-		match import_accounts(&from, &to) {
-			Ok(_) => {}
-			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
-			Err(err) => warn!("Import geth accounts failed. {}", err)
-		}
-	}
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(

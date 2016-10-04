@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::ethstore::{EthStore, import_accounts};
+use ethcore::ethstore::{EthStore, SecretStore, import_accounts, read_geth_accounts};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
@@ -24,6 +24,7 @@ pub enum AccountCmd {
 	New(NewAccount),
 	List(String),
 	Import(ImportAccounts),
+	ImportFromGeth(ImportFromGethAccounts)
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,11 +40,18 @@ pub struct ImportAccounts {
 	pub to: String,
 }
 
+#[derive(Debug, PartialEq)]
+pub struct ImportFromGethAccounts {
+	pub testnet: bool,
+	pub to: String,
+}
+
 pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 	match cmd {
 		AccountCmd::New(new_cmd) => new(new_cmd),
 		AccountCmd::List(path) => list(path),
 		AccountCmd::Import(import_cmd) => import(import_cmd),
+		AccountCmd::ImportFromGeth(import_geth_cmd) => import_geth(import_geth_cmd)
 	}
 }
 
@@ -85,4 +93,18 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 		imported += try!(import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")).len();
 	}
 	Ok(format!("{}", imported))
+}
+
+fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
+	use std::io::ErrorKind;
+	use ethcore::ethstore::Error;
+
+	let dir = Box::new(try!(keys_dir(i.to)));
+	let secret_store = Box::new(EthStore::open(dir).unwrap());
+	let geth_accounts = read_geth_accounts(i.testnet);
+	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
+		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),
+		Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => Err("Failed to find geth keys folder.".into()),
+		Err(err) => Err(format!("Import geth accounts failed. {}", err))
+	}
 }
