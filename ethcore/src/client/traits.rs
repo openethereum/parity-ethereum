@@ -38,7 +38,6 @@ use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {

@@ -29,5 +29,6 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 parking_lot = "0.2.6"
 
 [features]
-default = []
+default = ["ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
+ipc = []
