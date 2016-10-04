@@ -19,6 +19,8 @@ import React, { Component, PropTypes } from 'react';
 import PAGES from '../pages';
 import styles from './header.css';
 
+const colors = ['#622', '#733', '#844'];
+
 export default class Header extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
@@ -35,11 +37,9 @@ export default class Header extends Component {
             <tr>
               { this.renderHeader(0, offset) }
               { this.renderHeader(1, offset) }
-              { this.renderHeader(2, offset) }
             </tr>
             <tr>
-              { this.renderHeader(3, offset) }
-              { this.renderHeader(4, offset) }
+              { this.renderHeader(2, offset) }
             </tr>
           </tbody>
         </table>
@@ -47,15 +47,16 @@ export default class Header extends Component {
     );
   }
 
-  renderHeader (index, offset) {
-    const page = PAGES[(index + offset) % PAGES.length];
+  renderHeader (position, offset) {
+    const index = (position + offset) % PAGES.length;
+    const page = PAGES[index];
 
     return (
       <td
-        className={ index ? styles.navNext : styles.navCurrent }
-        style={ { background: page.color } }
-        colSpan={ index ? 1 : 2 }
-        rowSpan={ index ? 1 : 2 }
+        className={ position ? styles.navNext : styles.navCurrent }
+        style={ { background: colors[position] } }
+        colSpan={ position ? 1 : 2 }
+        rowSpan={ position ? 1 : 2 }
         onClick={ this.onNavigate(page.path) }>
         <div className={ styles.title }>
           { page.title }
@@ -64,7 +65,7 @@ export default class Header extends Component {
           { page.byline }
         </div>
         <div className={ styles.description }>
-          { index ? null : page.description }
+          { position ? null : page.description }
         </div>
       </td>
     );

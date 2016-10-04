@@ -14,18 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-
-import Deployment from './Deployment';
-import Events from './Events';
-
-export default class Deploy extends Component {
-  render () {
-    return (
-      <div>
-        <Deployment />
-        <Events />
-      </div>
-    );
-  }
-}
+export default from './events';

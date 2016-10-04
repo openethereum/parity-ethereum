@@ -16,6 +16,7 @@
 */
 
 .header {
+  margin-bottom: 4em;
 }
 
 .titlebar {
@@ -27,7 +28,7 @@
 .navigation {
   table-layout: fixed;
   width: 100%;
-  border-spacing: 0;
+  border-spacing: 0.25em;
   border-collapse: separate;
   border-color: white;
   background: white;

@@ -16,14 +16,14 @@
 
 import React, { Component } from 'react';
 
-import Deployment from './Deployment';
 import Events from './Events';
+import Send from './Send';
 
-export default class Deploy extends Component {
+export default class Transfer extends Component {
   render () {
     return (
       <div>
-        <Deployment />
+        <Send />
         <Events />
       </div>
     );

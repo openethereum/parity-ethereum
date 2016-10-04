@@ -16,12 +16,12 @@
 
 import React, { Component } from 'react';
 
-import { loadAllTokens, subscribeEvents, unsubscribeEvents } from '../services';
-import Container from '../Container';
+import { loadAllTokens, subscribeEvents, unsubscribeEvents } from '../../services';
+import Container from '../../Container';
 
 import styles from './events.css';
 
-export default class Deploy extends Component {
+export default class Events extends Component {
   state = {
     subscriptionId: 0,
     loading: true,

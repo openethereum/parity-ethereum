@@ -15,6 +15,15 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+.button {
+  background: #622;
+}
+
+a.link, a.link:hover, a.link:visited {
+  color: #622;
+  cursor: pointer;
+}
+
 .form {
   text-align: left;
   margin: 0 auto;
@@ -90,6 +99,7 @@
   display: inline-block;
   margin-left: 1em !important;
   cursor: pointer;
+  position: relative;
 }
 
 .button[disabled] {

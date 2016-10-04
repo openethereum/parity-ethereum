@@ -15,15 +15,11 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_form.css';
-@import '../_status.css';
-@import '../_vars.css';
-
-a.link, a.link:hover, a.link:visited {
-  color: $bgDeploy;
-  cursor: pointer;
+.statusHeader {
+  font-size: 1.25em;
 }
 
-.button {
-  background: $bgDeploy;
+.eventList {
+  border: none;
+  margin: 0 auto;
 }

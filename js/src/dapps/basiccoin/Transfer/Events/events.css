@@ -15,15 +15,5 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_form.css';
-@import '../_status.css';
-@import '../_vars.css';
-
-a.link, a.link:hover, a.link:visited {
-  color: $bgSend;
-  cursor: pointer;
-}
-
-.button {
-  background: $bgSend;
-}
+@import '../../_form.css';
+@import '../../_status.css';

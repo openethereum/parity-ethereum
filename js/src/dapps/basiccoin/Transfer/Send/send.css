@@ -15,8 +15,5 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$bgEvents: #808;
-$bgDeploy: #088;
-$bgOverview: #080;
-$bgDeployments: #f80;
-$bgSend: #80f;
+@import '../../_form.css';
+@import '../../_status.css';
