@@ -100,12 +100,16 @@ export default class Deploy extends Component {
       );
     }
 
-    let error = null;
     if (deployError) {
-      error = (
-        <div className={ styles.statusError }>
-          { deployError }
-        </div>
+      return (
+        <Container>
+          <div className={ styles.statusHeader }>
+            Your deployment has encountered an error
+          </div>
+          <div className={ styles.statusError }>
+            { deployError }
+          </div>
+        </Container>
       );
     }
 
@@ -117,7 +121,6 @@ export default class Deploy extends Component {
         <div className={ styles.statusState }>
           { deployState }
         </div>
-        { error }
       </Container>
     );
   }
@@ -179,7 +182,7 @@ export default class Deploy extends Component {
               <option value='yes'>Yes, for everybody</option>
             </select>
             <div className={ styles.hint }>
-              register as a network token (fee: { globalFeeText }<small>ETH</small>)
+              register on network (fee: { globalFeeText }ETH)
             </div>
           </div>
           <div className={ styles.input }>
@@ -246,7 +249,6 @@ export default class Deploy extends Component {
 
     const tokenreg = (globalReg ? tokenregInstance : registryInstance).address;
     const values = [base.mul(totalSupply), tla, name, tokenreg];
-    let gasPassed = 0;
     const options = {
       from: fromAddress,
       value: globalReg ? globalFee : 0
@@ -259,7 +261,7 @@ export default class Deploy extends Component {
       .then((gas) => {
         this.setState({ deployState: 'Gas estimated, Posting transaction to the network' });
 
-        gasPassed = gas.mul(1.2);
+        const gasPassed = gas.mul(1.2);
         options.gas = gasPassed.toFixed(0);
         console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
 

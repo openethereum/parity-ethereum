@@ -14,8 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
+import { eip20 } from '../../../contracts/abi';
+
+import { api } from '../parity';
 import { loadBalances } from '../services';
 import AddressSelect from '../AddressSelect';
 import Container from '../Container';
@@ -37,7 +41,14 @@ export default class Send extends Component {
     toAddress: null,
     toKnown: true,
     amount: 0,
-    amountError: null
+    amountError: null,
+    sendBusy: false,
+    sendError: null,
+    sendState: null,
+    sendDone: false,
+    signerRequestId: null,
+    txHash: null,
+    txReceipt: null
   }
 
   componentDidMount () {
@@ -53,6 +64,58 @@ export default class Send extends Component {
       : this.renderBody();
   }
 
+  renderBody () {
+    const { sendBusy } = this.state;
+
+    return sendBusy
+      ? this.renderSending()
+      : this.renderForm();
+  }
+
+  renderSending () {
+    const { sendDone, sendError, sendState } = this.state;
+
+    if (sendDone) {
+      return (
+        <Container>
+          <div className={ styles.statusHeader }>
+            Your token value transfer has been completed
+          </div>
+          <div className={ styles.statusInfo }>
+            View <a href='#/events' className={ styles.link }>token events</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this transaction and any of your other tokens.
+          </div>
+          <div className={ styles.statusState }>
+            { sendState }
+          </div>
+        </Container>
+      );
+    }
+
+    if (sendError) {
+      return (
+        <Container>
+          <div className={ styles.statusHeader }>
+            Your deployment has encountered an error
+          </div>
+          <div className={ styles.statusError }>
+            { sendError }
+          </div>
+        </Container>
+      );
+    }
+
+    return (
+      <Container>
+        <div className={ styles.statusHeader }>
+          Your token value is being transferred
+        </div>
+        <div className={ styles.statusState }>
+          { sendState }
+        </div>
+      </Container>
+    );
+  }
+
   renderLoading () {
     return (
       <Container>
@@ -63,7 +126,7 @@ export default class Send extends Component {
     );
   }
 
-  renderBody () {
+  renderForm () {
     const { accounts } = this.context;
     const { availableBalances, fromAddress, amount, amountError, toKnown, toAddress } = this.state;
     const fromBalance = availableBalances.find((balance) => balance.address === fromAddress);
@@ -193,6 +256,55 @@ export default class Send extends Component {
   }
 
   onSend = () => {
+    const { amount, fromAddress, toAddress, amountError, selectedToken, sendBusy } = this.state;
+    const hasError = amountError;
+
+    if (hasError || sendBusy) {
+      return;
+    }
+
+    const values = [toAddress, new BigNumber(amount).mul(1000000).toFixed(0)];
+    const options = {
+      from: fromAddress
+    };
+    const instance = api.newContract(eip20, selectedToken.address).instance;
+
+    this.setState({ sendBusy: true, sendState: 'Estimating gas for the transaction' });
+
+    instance
+      .transfer.estimateGas(options, values)
+      .then((gas) => {
+        this.setState({ sendState: 'Gas estimated, Posting transaction to the network' });
+
+        const gasPassed = gas.mul(1.2);
+        options.gas = gasPassed.toFixed(0);
+        console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
+
+        return instance.transfer.postTransaction(options, values);
+      })
+      .then((signerRequestId) => {
+        this.setState({ signerRequestId, sendState: 'Transaction posted, Waiting for transaction authorization' });
+
+        return api.pollMethod('eth_checkRequest', signerRequestId);
+      })
+      .then((txHash) => {
+        this.setState({ txHash, sendState: 'Transaction authorized, Waiting for network confirmations' });
+
+        return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
+          if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+            return false;
+          }
+
+          return true;
+        });
+      })
+      .then((txReceipt) => {
+        this.setState({ txReceipt, sendDone: true, sendState: 'Network confirmed, Received transaction receipt' });
+      })
+      .catch((error) => {
+        console.error('onSend', error);
+        this.setState({ sendError: error.message });
+      });
   }
 
   loadBalances () {

@@ -33,20 +33,19 @@
 }
 
 .form label {
-  width: 20em;
+  width: 25em;
   opacity: 0.8;
   text-align: right;
 }
 
 .form .hint {
-  width: 20em;
+  width: 25em;
   opacity: 0.5;
-  font-size: 0.75em;
 }
 
 .form input,
 .form select {
-  width: 20em;
+  width: 18em;
   background: rgba(255, 255, 255, 0.25);
   border-radius: 1px;
   border: 1px solid rgba(0, 0, 0, 0.25);
@@ -61,8 +60,8 @@
 }
 
 .form input.small {
-  width: 10em;
-  margin-right: 11em;
+  width: 9em;
+  margin-right: 10em;
 }
 
 .form .error input {
@@ -80,7 +79,7 @@
 
 .buttonRow {
   text-align: right;
-  width: 20em;
+  width: 18em;
 }
 
 .button {
