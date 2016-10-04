@@ -96,6 +96,15 @@ build_rpc_trait! {
 		#[rpc(name = "ethcore_registryAddress")]
 		fn registry_address(&self) -> Result<Option<H160>, Error>;
 
+		/// Returns all addresses if Fat DB is enabled (`--fat-db`), or null if not.
+		#[rpc(name = "ethcore_listAccounts")]
+		fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error>;
+
+		/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
+		/// or null if not.
+		#[rpc(name = "ethcore_listStorageKeys")]
+		fn list_storage_keys(&self, H160) -> Result<Option<Vec<H256>>, Error>;
+
 		/// Encrypt some data with a public key under ECIES.
 		/// First parameter is the 512-byte destination public key, second is the message.
 		#[rpc(name = "ethcore_encryptMessage")]

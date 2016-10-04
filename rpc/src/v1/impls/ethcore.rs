@@ -29,6 +29,7 @@ use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
+use ethcore::ids::BlockID;
 
 use jsonrpc_core::Error;
 use v1::traits::Ethcore;
@@ -241,6 +242,21 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 		try!(self.active());
 
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
+	}
+
+	fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error> {
+		try!(self.active());
+
+		Ok(take_weak!(self.client)
+			.list_accounts(BlockID::Latest)
+			.map(|a| a.into_iter().map(Into::into).collect()))
+	}
+
+	fn list_storage_keys(&self, _address: H160) -> Result<Option<Vec<H256>>, Error> {
+		try!(self.active());
+
+		// TODO: implement this
+		Ok(None)
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {

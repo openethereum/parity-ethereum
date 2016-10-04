@@ -252,6 +252,19 @@ pub fn tracing_switch_to_bool(switch: Switch, user_defaults: &UserDefaults) -> R
 	}
 }
 
+pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, algorithm: Algorithm) -> Result<bool, String> {
+	if algorithm != Algorithm::Archive {
+		return Err("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`".into());
+	}
+
+	match (user_defaults.is_first_launch, switch, user_defaults.fat_db) {
+		(false, Switch::On, false) => Err("FatDB resync required".into()),
+		(_, Switch::On, _) => Ok(true),
+		(_, Switch::Off, _) => Ok(false),
+		(_, Switch::Auto, def) => Ok(def),
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use util::journaldb::Algorithm;

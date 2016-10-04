@@ -23,9 +23,9 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
-use util::journaldb;
-use util::{U256, H256, Address, H2048, Uint};
-use util::TrieFactory;
+use util::{journaldb, TrieFactory, Trie};
+use util::trie::TrieSpec;
+use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::kvdb::*;
 
 // other
@@ -51,7 +51,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify
+	ChainNotify,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -171,6 +171,11 @@ impl Client {
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
+		let trie_spec = match config.fat_db {
+			true => TrieSpec::Fat,
+			false => TrieSpec::Secure,
+		};
+
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db);
 		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db)) {
@@ -193,7 +198,7 @@ impl Client {
 
 		let factories = Factories {
 			vm: EvmFactory::new(config.vm_type.clone()),
-			trie: TrieFactory::new(config.trie_spec.clone()),
+			trie: TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		};
 
@@ -831,7 +836,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
-		self.state_at(id).map(|s| s.code(address))
+		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
@@ -840,6 +845,38 @@ impl BlockChainClient for Client {
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
 		self.state_at(id).map(|s| s.storage_at(address, position))
+	}
+
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>> {
+		if !self.factories.trie.is_fat() {
+			trace!(target: "fatdb", "list_accounts: Not a fat DB");
+			return None;
+		}
+
+		let state = match self.state_at(id) {
+			Some(state) => state,
+			_ => return None,
+		};
+
+		let (root, db) = state.drop();
+		let trie = match self.factories.trie.readonly(db.as_hashdb(), &root) {
+			Ok(trie) => trie,
+			_ => {
+				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
+				return None;
+			}
+		};
+
+		let iter = match trie.iter() {
+			Ok(iter) => iter,
+			_ => return None,
+		};
+
+		let accounts = iter.filter_map(|item| {
+			item.ok().map(|(addr, _)| Address::from_slice(&addr))
+		}).collect();
+
+		Some(accounts)
 	}
 
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {

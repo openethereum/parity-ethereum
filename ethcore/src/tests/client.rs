@@ -57,7 +57,7 @@ fn should_return_registrar() {
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
-	assert_eq!(client.additional_params().get("registrar"), Some(&"8e4e9b13d4b45cb0befc93c3061b1408f67316b2".to_owned()));
+	assert_eq!(client.additional_params().get("registrar"), Some(&"52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".to_owned()));
 }
 
 #[test]

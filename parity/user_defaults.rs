@@ -30,6 +30,7 @@ pub struct UserDefaults {
 	pub is_first_launch: bool,
 	pub pruning: Algorithm,
 	pub tracing: bool,
+	pub fat_db: bool,
 }
 
 impl Serialize for UserDefaults {
@@ -38,6 +39,7 @@ impl Serialize for UserDefaults {
 		let mut map: BTreeMap<String, Value> = BTreeMap::new();
 		map.insert("pruning".into(), Value::String(self.pruning.as_str().into()));
 		map.insert("tracing".into(), Value::Bool(self.tracing));
+		map.insert("fat_db".into(), Value::Bool(self.fat_db));
 		map.serialize(serializer)
 	}
 }
@@ -62,11 +64,14 @@ impl Visitor for UserDefaultsVisitor {
 		let pruning = try!(pruning.parse().map_err(|_| Error::custom("invalid pruning method")));
 		let tracing: Value = try!(map.remove("tracing".into()).ok_or_else(|| Error::custom("missing tracing")));
 		let tracing = try!(tracing.as_bool().ok_or_else(|| Error::custom("invalid tracing value")));
+		let fat_db: Value = map.remove("fat_db".into()).unwrap_or_else(|| Value::Bool(false));
+		let fat_db = try!(fat_db.as_bool().ok_or_else(|| Error::custom("invalid fat_db value")));
 
 		let user_defaults = UserDefaults {
 			is_first_launch: false,
 			pruning: pruning,
 			tracing: tracing,
+			fat_db: fat_db,
 		};
 
 		Ok(user_defaults)
@@ -79,6 +84,7 @@ impl Default for UserDefaults {
 			is_first_launch: true,
 			pruning: Algorithm::default(),
 			tracing: false,
+			fat_db: false,
 		}
 	}
 }

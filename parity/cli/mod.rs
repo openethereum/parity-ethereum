@@ -217,7 +217,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).fast_and_loose.clone(),
 		flag_db_compaction: String = "ssd",
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
-		flag_fat_db: bool = false,
+		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
 
 		// -- Import/Export Options
@@ -362,7 +362,7 @@ struct Footprint {
 	cache_size_blocks: Option<u32>,
 	cache_size_queue: Option<u32>,
 	db_compaction: Option<String>,
-	fat_db: Option<bool>,
+	fat_db: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -535,7 +535,7 @@ mod tests {
 			flag_cache_size: Some(128),
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
-			flag_fat_db: false,
+			flag_fat_db: "auto".into(),
 
 			// -- Import/Export Options
 			flag_from: "1".into(),
@@ -687,7 +687,7 @@ mod tests {
 				cache_size_blocks: Some(16),
 				cache_size_queue: Some(100),
 				db_compaction: Some("ssd".into()),
-				fat_db: Some(true),
+				fat_db: Some("off".into()),
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),
