@@ -40,9 +40,12 @@ pub struct ImportAccounts {
 	pub to: String,
 }
 
+/// Parameters for geth accounts' import 
 #[derive(Debug, PartialEq)]
 pub struct ImportFromGethAccounts {
+	/// import mainnet (false) or testnet (true) accounts 
 	pub testnet: bool,
+	/// directory to import accounts to
 	pub to: String,
 }
 
@@ -59,6 +62,13 @@ fn keys_dir(path: String) -> Result<DiskDirectory, String> {
 	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
 }
 
+fn secret_store(dir: Box<DiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
+	match iterations {
+		Some(i) => EthStore::open_with_iterations(dir, i),
+		_ => EthStore::open(dir) 
+	}.map_err(|e| format!("Could not open keys store: {}", e))
+}
+
 fn new(n: NewAccount) -> Result<String, String> {
 	let password: String = match n.password_file {
 		Some(file) => try!(password_from_file(file)),
@@ -66,7 +76,7 @@ fn new(n: NewAccount) -> Result<String, String> {
 	};
 
 	let dir = Box::new(try!(keys_dir(n.path)));
-	let secret_store = Box::new(EthStore::open_with_iterations(dir, n.iterations).unwrap());
+	let secret_store = Box::new(try!(secret_store(dir, Some(n.iterations))));
 	let acc_provider = AccountProvider::new(secret_store);
 	let new_account = try!(acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e)));
 	Ok(format!("{:?}", new_account))
@@ -74,7 +84,7 @@ fn new(n: NewAccount) -> Result<String, String> {
 
 fn list(path: String) -> Result<String, String> {
 	let dir = Box::new(try!(keys_dir(path)));
-	let secret_store = Box::new(EthStore::open(dir).unwrap());
+	let secret_store = Box::new(try!(secret_store(dir, None)));
 	let acc_provider = AccountProvider::new(secret_store);
 	let accounts = acc_provider.accounts();
 	let result = accounts.into_iter()
@@ -100,7 +110,7 @@ fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
 	use ethcore::ethstore::Error;
 
 	let dir = Box::new(try!(keys_dir(i.to)));
-	let secret_store = EthStore::open(dir).unwrap();
+	let secret_store = Box::new(try!(secret_store(dir, None)));
 	let geth_accounts = read_geth_accounts(i.testnet);
 	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
 		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),
