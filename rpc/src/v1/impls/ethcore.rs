@@ -18,7 +18,7 @@
 use std::{fs, io};
 use std::sync::{mpsc, Arc, Weak};
 use std::str::FromStr;
-use std::collections::{BTreeMap};
+
 use util::{RotatingLogger, Address, Mutex, sha3};
 use util::misc::version_data;
 
@@ -31,11 +31,11 @@ use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockID;
 
-use jsonrpc_core::{from_params, to_value, Value, Error, Params, Ready};
+use jsonrpc_core::Error;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
-use v1::helpers::params::expect_no_params;
+use v1::helpers::auto_args::Ready;
 
 /// Ethcore implementation.
 pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
@@ -113,180 +113,168 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 	S: SyncProvider + 'static,
 	F: Fetch + 'static {
 
-	fn transactions_limit(&self, params: Params) -> Result<Value, Error> {
+	fn transactions_limit(&self) -> Result<usize, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&take_weak!(self.miner).transactions_limit()))
+
+		Ok(take_weak!(self.miner).transactions_limit())
 	}
 
-	fn min_gas_price(&self, params: Params) -> Result<Value, Error> {
+	fn min_gas_price(&self) -> Result<U256, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&U256::from(take_weak!(self.miner).minimal_gas_price())))
+
+		Ok(U256::from(take_weak!(self.miner).minimal_gas_price()))
 	}
 
-	fn extra_data(&self, params: Params) -> Result<Value, Error> {
+	fn extra_data(&self) -> Result<Bytes, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&Bytes::new(take_weak!(self.miner).extra_data())))
+
+		Ok(Bytes::new(take_weak!(self.miner).extra_data()))
 	}
 
-	fn gas_floor_target(&self, params: Params) -> Result<Value, Error> {
+	fn gas_floor_target(&self) -> Result<U256, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&U256::from(take_weak!(self.miner).gas_floor_target())))
+
+		Ok(U256::from(take_weak!(self.miner).gas_floor_target()))
 	}
 
-	fn gas_ceil_target(&self, params: Params) -> Result<Value, Error> {
+	fn gas_ceil_target(&self) -> Result<U256, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&U256::from(take_weak!(self.miner).gas_ceil_target())))
+
+		Ok(U256::from(take_weak!(self.miner).gas_ceil_target()))
 	}
 
-	fn dev_logs(&self, params: Params) -> Result<Value, Error> {
+	fn dev_logs(&self) -> Result<Vec<String>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
+
 		let logs = self.logger.logs();
-		Ok(to_value(&logs.as_slice()))
+		Ok(logs.as_slice().to_owned())
 	}
 
-	fn dev_logs_levels(&self, params: Params) -> Result<Value, Error> {
+	fn dev_logs_levels(&self) -> Result<String, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&self.logger.levels()))
+
+		Ok(self.logger.levels().to_owned())
 	}
 
-	fn net_chain(&self, params: Params) -> Result<Value, Error> {
+	fn net_chain(&self) -> Result<String, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&self.settings.chain))
+
+		Ok(self.settings.chain.clone())
 	}
 
-	fn net_peers(&self, params: Params) -> Result<Value, Error> {
+	fn net_peers(&self) -> Result<Peers, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
 		let sync_status = take_weak!(self.sync).status();
 		let net_config = take_weak!(self.net).network_config();
 
-		Ok(to_value(&Peers {
+		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
 			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
-		}))
+		})
 	}
 
-	fn net_port(&self, params: Params) -> Result<Value, Error> {
+	fn net_port(&self) -> Result<u16, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&self.settings.network_port))
+
+		Ok(self.settings.network_port)
 	}
 
-	fn node_name(&self, params: Params) -> Result<Value, Error> {
+	fn node_name(&self) -> Result<String, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&self.settings.name))
+
+		Ok(self.settings.name.clone())
 	}
 
-	fn registry_address(&self, params: Params) -> Result<Value, Error> {
+	fn registry_address(&self) -> Result<Option<H160>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		let r = take_weak!(self.client)
-			.additional_params()
-			.get("registrar")
-			.and_then(|s| Address::from_str(s).ok())
-			.map(|s| H160::from(s));
-		Ok(to_value(&r))
+
+		Ok(
+			take_weak!(self.client)
+				.additional_params()
+				.get("registrar")
+				.and_then(|s| Address::from_str(s).ok())
+				.map(|s| H160::from(s))
+		)
 	}
 
-	fn rpc_settings(&self, params: Params) -> Result<Value, Error> {
+	fn rpc_settings(&self) -> Result<RpcSettings, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		let mut map = BTreeMap::new();
-		map.insert("enabled".to_owned(), Value::Bool(self.settings.rpc_enabled));
-		map.insert("interface".to_owned(), Value::String(self.settings.rpc_interface.clone()));
-		map.insert("port".to_owned(), Value::U64(self.settings.rpc_port as u64));
-		Ok(Value::Object(map))
+		Ok(RpcSettings {
+			enabled: self.settings.rpc_enabled,
+			interface: self.settings.rpc_interface.clone(),
+			port: self.settings.rpc_port as u64,
+		})
 	}
 
-	fn default_extra_data(&self, params: Params) -> Result<Value, Error> {
+	fn default_extra_data(&self) -> Result<Bytes, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
-		Ok(to_value(&Bytes::new(version_data())))
+
+		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_statistics(&self, params: Params) -> Result<Value, Error> {
+	fn gas_price_statistics(&self) -> Result<Vec<U256>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
 		match take_weak!(self.client).gas_price_statistics(100, 8) {
-			Ok(stats) => Ok(to_value(&stats
-				.into_iter()
-				.map(|x| to_value(&U256::from(x)))
-				.collect::<Vec<_>>())),
+			Ok(stats) => Ok(stats.into_iter().map(Into::into).collect()),
 			_ => Err(Error::internal_error()),
 		}
 	}
 
-	fn unsigned_transactions_count(&self, params: Params) -> Result<Value, Error> {
+	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
 		match self.signer {
 			None => Err(errors::signer_disabled()),
-			Some(ref signer) => Ok(to_value(&signer.len())),
+			Some(ref signer) => Ok(signer.len()),
 		}
 	}
 
-	fn generate_secret_phrase(&self, params: Params) -> Result<Value, Error> {
+	fn generate_secret_phrase(&self) -> Result<String, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
-		Ok(to_value(&random_phrase(12)))
+		Ok(random_phrase(12))
 	}
 
-	fn phrase_to_address(&self, params: Params) -> Result<Value, Error> {
+	fn phrase_to_address(&self, phrase: String) -> Result<H160, Error> {
 		try!(self.active());
-		from_params::<(String,)>(params).map(|(phrase,)|
-			to_value(&H160::from(Brain::new(phrase).generate().unwrap().address()))
-		)
+
+		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self, params: Params) -> Result<Value, Error> {
+	fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
-		take_weak!(self.client)
+		Ok(take_weak!(self.client)
 			.list_accounts(BlockID::Latest)
-			.map(|a| Ok(to_value(&a.into_iter().map(Into::into).collect::<Vec<H160>>())))
-			.unwrap_or(Ok(Value::Null))
+			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
-	fn list_storage_keys(&self, params: Params) -> Result<Value, Error> {
+	fn list_storage_keys(&self, _address: H160) -> Result<Option<Vec<H256>>, Error> {
 		try!(self.active());
 
-		from_params::<(H160,)>(params).and_then(|(_addr,)|
-			Ok(Value::Null)
-		)
+		// TODO: implement this
+		Ok(None)
 	}
 
-	fn encrypt_message(&self, params: Params) -> Result<Value, Error> {
+	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
 		try!(self.active());
-		from_params::<(H512, Bytes)>(params).and_then(|(key, phrase)| {
-			let s = try!(ecies::encrypt(&key.into(), &[0; 0], &phrase.0).map_err(|_| Error::internal_error()));
-			Ok(to_value(&Bytes::from(s)))
-		})
+
+		ecies::encrypt(&key.into(), &[0; 0], &phrase.0)
+			.map_err(|_| Error::internal_error())
+			.map(Into::into)
 	}
 
-	fn pending_transactions(&self, params: Params) -> Result<Value, Error> {
+	fn pending_transactions(&self) -> Result<Vec<Transaction>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
-		Ok(to_value(&take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<Transaction>>()))
+		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
 	}
 
-	fn hash_content(&self, params: Params, ready: Ready) {
-		let res = self.active().and_then(|_| from_params::<(String,)>(params));
+	fn hash_content(&self, ready: Ready<H256>, url: String) {
+		let res = self.active();
 
 		let hash_content = |result| {
 			let path = try!(result);
@@ -301,15 +289,15 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 
 		match res {
 			Err(e) => ready.ready(Err(e)),
-			Ok((url, )) => {
+			Ok(()) => {
 				let (tx, rx) = mpsc::channel();
 				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
 					let result = hash_content(result)
 							.map_err(errors::from_fetch_error)
-							.map(|hash| to_value(H256::from(hash)));
+							.map(Into::into);
 
 					// Receive ready and invoke with result.
-					let ready: Ready = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
+					let ready: Ready<H256> = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
 					ready.ready(result);
 				}));
 
