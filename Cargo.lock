@@ -276,6 +276,7 @@ dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.4.0",
@@ -289,6 +290,7 @@ dependencies = [
  "ethjson 0.1.0",
  "ethkey 0.2.0",
  "ethstore 0.1.0",
+ "evmjit 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -322,6 +324,7 @@ version = "0.1.0"
 name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
@@ -463,6 +466,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "1.4.0"
 dependencies = [
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.4.0",
  "ethcore 1.4.0",
  "ethcore-devtools 1.4.0",
@@ -492,6 +496,7 @@ dependencies = [
 name = "ethcore-signer"
 version = "1.4.0"
 dependencies = [
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-io 1.4.0",
@@ -529,6 +534,7 @@ version = "1.4.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
@@ -582,6 +588,7 @@ dependencies = [
 name = "ethkey"
 version = "0.2.0"
 dependencies = [
+ "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.0",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -594,6 +601,7 @@ dependencies = [
 name = "ethstore"
 version = "0.1.0"
 dependencies = [
+ "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcrypto 0.1.0",
  "ethkey 0.2.0",
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -613,6 +621,7 @@ dependencies = [
 name = "ethsync"
 version = "1.4.0"
 dependencies = [
+ "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.4.0",
  "ethcore-io 1.4.0",
@@ -628,6 +637,13 @@ dependencies = [
  "rlp 0.1.0",
  "semver 0.2.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "evmjit"
+version = "1.4.0"
+dependencies = [
+ "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
