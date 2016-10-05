@@ -25,6 +25,8 @@ use panics::*;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 
+const STACK_SIZE: usize = 16*1024*1024;
+
 pub enum WorkType<Message> {
 	Readable,
 	Writable,
@@ -66,7 +68,7 @@ impl Worker {
 			deleting: deleting.clone(),
 			wait_mutex: wait_mutex.clone(),
 		};
-		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
+		worker.thread = Some(thread::Builder::new().stack_size(STACK_SIZE).name(format!("IO Worker #{}", index)).spawn(
 			move || {
 				panic_handler.catch_panic(move || {
 					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
