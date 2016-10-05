@@ -26,6 +26,8 @@ use std::cell::{RefCell, Cell};
 const STORAGE_CACHE_ITEMS: usize = 8192;
 
 /// Single account in the system.
+/// Keeps track of changes to the code and storage.
+/// The changes are applied in `commit_storage` and `commit_code`
 pub struct Account {
 	// Balance of the account.
 	balance: U256,
@@ -390,7 +392,8 @@ impl Account {
 	}
 
 	/// Replace self with the data from other account merging storage cache.
-	/// Storage changes are overwritten.
+	/// Basic account data and all modifications are overwritten
+	/// with new values.
 	pub fn merge_with(&mut self, other: Account) {
 		self.balance = other.balance;
 		self.nonce = other.nonce;
