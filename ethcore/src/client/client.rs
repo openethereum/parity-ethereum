@@ -23,7 +23,7 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
-use util::journaldb::{self, JournalDB};
+use util::journaldb;
 use util::{U256, H256, H520, Address, H2048, Uint};
 use util::sha3::*;
 use util::TrieFactory;
@@ -170,7 +170,7 @@ impl Client {
 		let gb = spec.genesis_block();
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
@@ -689,7 +689,7 @@ impl snapshot::DatabaseRestore for Client {
 		try!(db.restore(new_db));
 
 		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE));
-		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone(), self.engine.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
