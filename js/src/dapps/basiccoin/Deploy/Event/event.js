@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
 import { getCoin } from '../../services';
+import IdentityIcon from '../../IdentityIcon';
 
 import styles from './event.css';
 
@@ -55,7 +56,7 @@ export default class Event extends Component {
         </td>
         <td>{ event.event }</td>
         <td className={ styles.address }>
-          <div>{ this.renderAddress(event.params.owner) }</div>
+          { this.renderAddress(event.params.owner) }
           <div>{ this.renderHash(event.transactionHash) }</div>
         </td>
         <td className={ styles.description }>
@@ -71,7 +72,12 @@ export default class Event extends Component {
     const { accounts } = this.context;
     const account = accounts[address];
 
-    return account ? account.name : address;
+    return (
+      <div>
+        <IdentityIcon address={ address } />
+        <span>{ account ? account.name : address }</span>
+      </div>
+    );
   }
 
   renderHash (hash) {

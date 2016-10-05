@@ -21,7 +21,7 @@ import { loadAllTokens, subscribeEvents, unsubscribeEvents } from '../../service
 import Container from '../../Container';
 import Event from '../Event';
 
-import styles from './events.css';
+import styles from '../../Deploy/Events/events.css';
 
 export default class Events extends Component {
   state = {
@@ -29,14 +29,15 @@ export default class Events extends Component {
     loading: true,
     events: [],
     pendingEvents: [],
-    minedEvents: []
+    minedEvents: [],
+    tokens: []
   }
 
   componentDidMount () {
     loadAllTokens()
       .then((tokens) => {
         const addresses = tokens.map((token) => token.address);
-
+        this.setState({ tokens });
         return subscribeEvents(addresses, this.eventCallback);
       })
       .then((subscriptionId) => {
@@ -90,12 +91,17 @@ export default class Events extends Component {
   }
 
   renderEventsList () {
-    const { events } = this.state;
-    const rows = events.map((event) => (
-      <Event
-        key={ event.key }
-        event={ event } />
-    ));
+    const { events, tokens } = this.state;
+    const rows = events.map((event) => {
+      const token = tokens.find((token) => token.address === event.address);
+
+      return (
+        <Event
+          key={ event.key }
+          token={ token }
+          event={ event } />
+      );
+    });
 
     return (
       <table className={ styles.eventList }>
@@ -133,7 +139,7 @@ export default class Events extends Component {
       .concat(pendingEvents)
       .filter((log) => !minedNew.find((event) => event.transactionHash === log.transactionHash));
     const events = [].concat(pendingNew).concat(minedNew);
-
+    console.log('*** events', events.map((event) => event.address));
     this.setState({ loading: false, events, minedEvents: minedNew, pendingEvents: pendingNew });
   }
 }

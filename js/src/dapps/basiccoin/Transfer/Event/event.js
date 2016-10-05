@@ -19,7 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
-import { getCoin } from '../../services';
+import IdentityIcon from '../../IdentityIcon';
 import styles from '../../Deploy/Event/event.css';
 
 export default class Event extends Component {
@@ -30,12 +30,12 @@ export default class Event extends Component {
   }
 
   static propTypes = {
-    event: PropTypes.object.isRequired
+    event: PropTypes.object.isRequired,
+    token: PropTypes.object.isRequired
   }
 
   state = {
-    block: null,
-    coin: {}
+    block: null
   }
 
   componentDidMount () {
@@ -43,8 +43,8 @@ export default class Event extends Component {
   }
 
   render () {
-    const { event } = this.props;
-    const { block, coin } = this.state;
+    const { event, token } = this.props;
+    const { block } = this.state;
     const isPending = event.type === 'pending';
 
     return (
@@ -55,7 +55,7 @@ export default class Event extends Component {
         </td>
         <td>{ event.event }</td>
         <td className={ styles.address }>
-          <div>{ this.renderAddress(event.params.from) }</div>
+          { this.renderAddress(event.params.from) }
         </td>
         <td className={ styles.value }>
           <div>{ event.params.value.div(1000000).toFormat(6) }</div>
@@ -63,11 +63,11 @@ export default class Event extends Component {
           <div>{ this.renderHash(event.transactionHash) }</div>
         </td>
         <td className={ styles.address }>
-          <div>{ this.renderAddress(event.params.to) }</div>
+          { this.renderAddress(event.params.to) }
         </td>
         <td className={ styles.description }>
-          <div>{ isPending ? '' : coin.tla }</div>
-          <div>{ isPending ? '' : coin.name }</div>
+          <div>{ isPending ? '' : token && token.coin.tla }</div>
+          <div>{ isPending ? '' : token && token.coin.name }</div>
         </td>
       </tr>
     );
@@ -77,7 +77,12 @@ export default class Event extends Component {
     const { accounts } = this.context;
     const account = accounts[address];
 
-    return account ? account.name : address;
+    return (
+      <div>
+        <IdentityIcon address={ address } />
+        <span>{ account ? account.name : address }</span>
+      </div>
+    );
   }
 
   renderHash (hash) {
@@ -91,13 +96,10 @@ export default class Event extends Component {
       return;
     }
 
-    Promise
-      .all([
-        api.eth.getBlockByNumber(event.blockNumber),
-        getCoin(event.params.tokenreg, event.params.coin)
-      ])
-      .then(([block, coin]) => {
-        this.setState({ block, coin });
+    api.eth
+      .getBlockByNumber(event.blockNumber)
+      .then((block) => {
+        this.setState({ block });
       });
   }
 }

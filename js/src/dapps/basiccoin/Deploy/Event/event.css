@@ -25,11 +25,7 @@
 .mined td,
 .pending td {
   padding: 0.5em 1em;
-}
-
-.mined td>div+div,
-.pending td>div+div {
-  margin-top: 0.25em;
+  line-height: 24px;
 }
 
 .blocknumber {

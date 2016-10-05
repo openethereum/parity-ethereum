@@ -22,4 +22,12 @@
 .eventList {
   border: none;
   margin: 0 auto;
+  border-collapse: collapse;
+}
+
+.eventList tr:nth-child(even) {
+  background: #faf5f5;
+}
+
+.eventList tr:nth-child(odd) {
 }
