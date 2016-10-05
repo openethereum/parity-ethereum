@@ -19,11 +19,6 @@
   background: #622;
 }
 
-a.link, a.link:hover, a.link:visited {
-  color: #622;
-  cursor: pointer;
-}
-
 .form {
   text-align: left;
   margin: 0 auto;
