@@ -36,6 +36,8 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
 use evm::Schedule;
+use ethereum::ethash;
+use blockchain::extras::BlockDetails;
 
 /// Voting errors.
 #[derive(Debug)]
@@ -157,7 +159,9 @@ pub trait Engine : Sync + Send {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
 
 	/// Check if new block should be chosen as the one  in chain.
-	fn is_new_best_block(&self, parent_details: BlockDetails, best_header: HeaderView, new_header: HeaderView) -> bool;
+	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
+	}
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }
