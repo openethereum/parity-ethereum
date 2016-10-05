@@ -52,7 +52,6 @@ export function attachInterface (callback) {
     })
     .then(([address, addresses, accountsInfo]) => {
       console.log(`signaturereg was found at ${address}`);
-      address = '0x15fF40Ceb6092b8EBeD4046E2d4c54e5e4cae458';
 
       const contract = api.newContract(abis.signaturereg, address);
       const accounts = addresses.reduce((obj, address) => {
