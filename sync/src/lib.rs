@@ -63,3 +63,9 @@ pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNet
 	ServiceConfiguration, NetworkConfiguration};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
+
+/// IPC interfaces
+#[cfg(feature="ipc")]
+pub mod remote {
+	pub use api::{SyncClient, NetworkManagerClient};
+}
