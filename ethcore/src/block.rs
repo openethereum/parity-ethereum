@@ -16,14 +16,26 @@
 
 //! Blockchain block.
 
-use common::*;
+use std::sync::Arc;
+use std::collections::HashSet;
+
+use rlp::{UntrustedRlp, RlpStream, Encodable, Decodable, Decoder, DecoderError, View, Stream};
+use util::{Bytes, Address, Uint, FixedHash, Hashable, U256, H256, ordered_trie_root, SHA3_NULL_RLP};
+use util::error::{Mismatch, OutOfBounds};
+
+use basic_types::{LogBloom, Seal};
+use env_info::{EnvInfo, LastHashes};
 use engines::Engine;
+use error::{Error, BlockError, TransactionError};
+use factory::Factories;
+use header::Header;
+use receipt::Receipt;
 use state::{self, State};
 use state_db::StateDB;
-use verification::PreverifiedBlock;
 use trace::FlatTrace;
-use factory::Factories;
-use rlp::*;
+use transaction::SignedTransaction;
+use verification::PreverifiedBlock;
+use views::BlockView;
 
 /// A block, encoded as it is on the block chain.
 #[derive(Default, Debug, Clone, PartialEq)]
@@ -518,25 +530,38 @@ pub fn enact(
 	b.set_uncles_hash(header.uncles_hash().clone());
 	b.set_transactions_root(header.transactions_root().clone());
 	b.set_receipts_root(header.receipts_root().clone());
-	for t in transactions { try!(b.push_transaction(t.clone(), None)); }
-	for u in uncles { try!(b.push_uncle(u.clone())); }
+
+	try!(push_transactions(&mut b, transactions));
+	for u in uncles {
+		try!(b.push_uncle(u.clone()));
+	}
 	Ok(b.close_and_lock())
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
-pub fn enact_bytes(
-	block_bytes: &[u8],
-	engine: &Engine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-) -> Result<LockedBlock, Error> {
-	let block = BlockView::new(block_bytes);
-	let header = block.header();
-	enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+#[inline(always)]
+#[cfg(not(feature = "slow-blocks"))]
+fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
+	for t in transactions {
+		try!(block.push_transaction(t.clone(), None));
+	}
+	Ok(())
+}
+
+#[cfg(feature = "slow-blocks")]
+fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
+	use std::time;
+
+	let slow_tx = option_env!("SLOW_TX_DURATION").and_then(|v| v.parse().ok()).unwrap_or(100);
+	for t in transactions {
+		let hash = t.hash();
+		let start = time::Instant::now();
+		try!(block.push_transaction(t.clone(), None));
+		let took = start.elapsed();
+		if took > time::Duration::from_millis(slow_tx) {
+			warn!("Heavy transaction in block {:?}: {:?}", block.header().number(), hash);
+		}
+	}
+	Ok(())
 }
 
 /// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -554,26 +579,45 @@ pub fn enact_verified(
 	enact(&block.header, &block.transactions, &view.uncles(), engine, tracing, db, parent, last_hashes, factories)
 }
 
-/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
-#[cfg_attr(feature="dev", allow(too_many_arguments))]
-pub fn enact_and_seal(
-	block_bytes: &[u8],
-	engine: &Engine,
-	tracing: bool,
-	db: StateDB,
-	parent: &Header,
-	last_hashes: Arc<LastHashes>,
-	factories: Factories,
-) -> Result<SealedBlock, Error> {
-	let header = BlockView::new(block_bytes).header_view();
-	Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)).seal(engine, header.seal())))
-}
-
 #[cfg(test)]
 mod tests {
 	use tests::helpers::*;
 	use super::*;
 	use common::*;
+	use engines::Engine;
+	use factory::Factories;
+	use state_db::StateDB;
+
+	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	fn enact_bytes(
+		block_bytes: &[u8],
+		engine: &Engine,
+		tracing: bool,
+		db: StateDB,
+		parent: &Header,
+		last_hashes: Arc<LastHashes>,
+		factories: Factories,
+	) -> Result<LockedBlock, Error> {
+		let block = BlockView::new(block_bytes);
+		let header = block.header();
+		enact(&header, &block.transactions(), &block.uncles(), engine, tracing, db, parent, last_hashes, factories)
+	}
+
+	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header. Seal the block aferwards
+	#[cfg_attr(feature="dev", allow(too_many_arguments))]
+	fn enact_and_seal(
+		block_bytes: &[u8],
+		engine: &Engine,
+		tracing: bool,
+		db: StateDB,
+		parent: &Header,
+		last_hashes: Arc<LastHashes>,
+		factories: Factories,
+	) -> Result<SealedBlock, Error> {
+		let header = BlockView::new(block_bytes).header_view();
+		Ok(try!(try!(enact_bytes(block_bytes, engine, tracing, db, parent, last_hashes, factories)).seal(engine, header.seal())))
+	}
 
 	#[test]
 	fn open_block() {

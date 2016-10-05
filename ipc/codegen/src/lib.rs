@@ -83,7 +83,7 @@ pub fn register(reg: &mut syntex::Registry) {
 	reg.add_attr("feature(custom_derive)");
 	reg.add_attr("feature(custom_attribute)");
 
-	reg.add_decorator("derive_Ipc", codegen::expand_ipc_implementation);
+	reg.add_decorator("ipc", codegen::expand_ipc_implementation);
 	reg.add_decorator("derive_Binary", serialization::expand_serialization_implementation);
 
 	reg.add_post_expansion_pass(strip_attributes);
@@ -92,7 +92,7 @@ pub fn register(reg: &mut syntex::Registry) {
 #[cfg(not(feature = "with-syntex"))]
 pub fn register(reg: &mut rustc_plugin::Registry) {
 	reg.register_syntax_extension(
-		syntax::parse::token::intern("derive_Ipc"),
+		syntax::parse::token::intern("ipc"),
 		syntax::ext::base::MultiDecorator(
 			Box::new(codegen::expand_ipc_implementation)));
 	reg.register_syntax_extension(

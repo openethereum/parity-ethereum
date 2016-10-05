@@ -39,7 +39,7 @@ use signer::Configuration as SignerConfiguration;
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ImportAccounts};
+use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 
 #[derive(Debug, PartialEq)]
@@ -119,6 +119,14 @@ impl Configuration {
 			} else {
 				unreachable!();
 			};
+			Cmd::Account(account_cmd)
+		} else if self.args.flag_import_geth_keys {
+        	let account_cmd = AccountCmd::ImportFromGeth(
+				ImportFromGethAccounts {
+					to: dirs.keys,
+					testnet: self.args.flag_testnet
+				} 
+			);
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
@@ -319,7 +327,6 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.flag_keys_iterations,
-			import_keys: self.args.flag_import_geth_keys,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),

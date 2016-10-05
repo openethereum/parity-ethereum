@@ -33,7 +33,7 @@ impl IpcConfig for DBWriter {}
 #[derive(Binary)]
 pub enum DBError { Write, Read }
 
-#[derive(Ipc)]
+#[ipc]
 impl<L: Sized> DBWriter for DB<L> {
 	fn write(&self, data: Vec<u8>) -> Result<(), DBError> {
 		let mut writes = self.writes.write().unwrap();
@@ -48,7 +48,7 @@ impl<L: Sized> DBWriter for DB<L> {
 	}
 }
 
-#[derive(Ipc)]
+#[ipc]
 trait DBNotify {
 	fn notify(&self, a: u64, b: u64) -> bool;
 }

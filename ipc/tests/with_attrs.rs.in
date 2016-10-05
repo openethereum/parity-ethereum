@@ -18,7 +18,6 @@ use ipc::IpcConfig;
 
 pub struct BadlyNamedService;
 
-#[derive(Ipc)]
 #[ipc(client_ident="PrettyNamedClient")]
 impl BadlyNamedService {
 	fn is_zero(&self, x: u64) -> bool {

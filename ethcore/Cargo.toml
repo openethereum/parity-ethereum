@@ -47,7 +47,9 @@ default-features = false
 
 [features]
 jit = ["evmjit"]
-evm-debug = []
+evm-debug = ["slow-blocks"]
+evm-debug-tests = ["evm-debug"]
+slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
 dev = ["clippy"]

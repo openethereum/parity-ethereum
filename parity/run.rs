@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
@@ -241,7 +240,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		})),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -358,27 +359,10 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::{import_accounts, EthStore};
-	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-	use ethcore::ethstore::Error;
+	use ethcore::ethstore::EthStore;
+	use ethcore::ethstore::dir::DiskDirectory;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
-
-	if cfg.import_keys {
-		let t = if cfg.testnet {
-			DirectoryType::Testnet
-		} else {
-			DirectoryType::Main
-		};
-
-		let from = GethDirectory::open(t);
-		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
-		match import_accounts(&from, &to) {
-			Ok(_) => {}
-			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
-			Err(err) => warn!("Import geth accounts failed. {}", err)
-		}
-	}
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(
