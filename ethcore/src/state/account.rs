@@ -389,7 +389,8 @@ impl Account {
 		account
 	}
 
-	/// Replace self with the data from other account merging storage cache
+	/// Replace self with the data from other account merging storage cache.
+	/// Storage changes are overwritten.
 	pub fn merge_with(&mut self, other: Account) {
 		self.balance = other.balance;
 		self.nonce = other.nonce;
@@ -403,7 +404,7 @@ impl Account {
 		for (k, v) in other.storage_cache.into_inner().into_iter() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
-		self.storage_changes.extend(other.storage_changes.into_iter());
+		self.storage_changes = other.storage_changes;
 	}
 }
 

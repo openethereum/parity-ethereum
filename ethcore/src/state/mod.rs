@@ -44,21 +44,21 @@ pub struct ApplyOutcome {
 pub type ApplyResult = Result<ApplyOutcome, Error>;
 
 #[derive(Debug)]
-// Cached account data
-enum AccountData {
-	/// Contains account data.
-	Cached(Account),
-	/// Account has been deleted or does not exist.
-	Missing,
+/// Account data. Can hold existing account or record that it does not exist.
+enum MaybeAccount {
+	/// Existing account.
+	Extant(Account),
+	/// Account does not exist (missing or deleted).
+	None,
 }
 
-impl AccountData {
-	/// Clone dirty data into a new `AccountData`.
+impl MaybeAccount {
+	/// Clone dirty data into a new `MaybeAccount`.
 	/// This includes basic account information and all locally modified storage keys
-	fn clone_dirty(&self) -> AccountData {
+	fn clone_dirty(&self) -> MaybeAccount {
 		match *self {
-			AccountData::Cached(ref acc) => AccountData::Cached(acc.clone_dirty()),
-			AccountData::Missing => AccountData::Missing,
+			MaybeAccount::Cached(ref acc) => MaybeAccount::Cached(acc.clone_dirty()),
+			MaybeAccount::None => MaybeAccount::None,
 		}
 	}
 }
@@ -74,8 +74,9 @@ enum AccountState {
 }
 
 #[derive(Debug)]
+/// In-memory copy of the account data. Can
 struct AccountEntry {
-	account: AccountData,
+	account: MaybeAccount,
 	state: AccountState,
 }
 
@@ -86,32 +87,35 @@ impl AccountEntry {
 		self.state == AccountState::Dirty
 	}
 
-	/// Clone dirty data into new `AccountEntry`.
+	/// Clone dirty data into new `AccountEntry`. This includes
+	/// basic account data and modified storage keys.
 	/// Returns None if clean.
-	fn clone_dirty(&self) -> Option<AccountEntry> {
+	fn clone_if_dirty(&self) -> Option<AccountEntry> {
 		match self.is_dirty() {
-			true => Some(self.clone_for_snapshot()),
+			true => Some(self.clone_dirty()),
 			false => None,
 		}
 	}
 
-	/// Clone account entry data that needs to be saved in the snapshot.
-	/// This includes basic account information and all locally cached storage keys
-	fn clone_for_snapshot(&self) -> AccountEntry {
+	/// Clone dirty data into new `AccountEntry`. This includes
+	/// basic account data and modified storage keys.
+	fn clone_dirty(&self) -> AccountEntry {
 		AccountEntry {
 			account: self.account.clone_dirty(),
 			state: self.state,
 		}
 	}
 
-	fn new_dirty(account: AccountData) -> AccountEntry {
+	// Create a new account entry and mark it as dirty
+	fn new_dirty(account: MaybeAccount) -> AccountEntry {
 		AccountEntry {
 			account: account,
 			state: AccountState::Dirty,
 		}
 	}
 	
-	fn new_clean(account: AccountData) -> AccountEntry {
+	// Create a new account entry and mark it as clean
+	fn new_clean(account: MaybeAccount) -> AccountEntry {
 		AccountEntry {
 			account: account,
 			state: AccountState::Clean,
@@ -258,7 +262,7 @@ impl State {
 	fn note_cache(&self, address: &Address) {
 		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
 			if !snapshot.contains_key(address) {
-				snapshot.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_for_snapshot));
+				snapshot.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_dirty));
 			}
 		}
 	}
@@ -277,12 +281,12 @@ impl State {
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
 	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(contract, AccountEntry::new_dirty(AccountData::Cached(Account::new_contract(balance, self.account_start_nonce))));
+		self.insert_cache(contract, AccountEntry::new_dirty(MaybeAccount::Cached(Account::new_contract(balance, self.account_start_nonce))));
 	}
 
 	/// Remove an existing account.
 	pub fn kill_account(&mut self, account: &Address) {
-		self.insert_cache(account, AccountEntry::new_dirty(AccountData::Missing));
+		self.insert_cache(account, AccountEntry::new_dirty(MaybeAccount::None));
 	}
 
 	/// Determine whether an account exists.
@@ -315,7 +319,7 @@ impl State {
 			let mut local_account = None;
 			if let Some(maybe_acc) = local_cache.get(address) {
 				match maybe_acc.account {
-					AccountData::Cached(ref account) => {
+					MaybeAccount::Cached(ref account) => {
 						if let Some(value) = account.cached_storage_at(key) {
 							return value;
 						} else {
@@ -334,7 +338,7 @@ impl State {
 				return result;
 			}
 			if let Some(ref mut acc) = local_account {
-				if let AccountData::Cached(ref account) = acc.account {
+				if let MaybeAccount::Cached(ref account) = acc.account {
 					let account_db = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(address));
 					return account.storage_at(account_db.as_hashdb(), key)
 				} else {
@@ -358,8 +362,8 @@ impl State {
 		});
 		self.insert_cache(address, AccountEntry::new_clean(
 			match maybe_acc {
-				Some(account) => AccountData::Cached(account),
-				None => AccountData::Missing
+				Some(account) => MaybeAccount::Cached(account),
+				None => MaybeAccount::None
 			}
 		));
 		r
@@ -456,7 +460,7 @@ impl State {
 		// first, commit the sub trees.
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 			match a.account {
-				AccountData::Cached(ref mut account) => {
+				MaybeAccount::Cached(ref mut account) => {
 					db.note_account_bloom(&address);
 					let addr_hash = account.address_hash(address);
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
@@ -472,10 +476,10 @@ impl State {
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Commited;
 				match a.account {
-					AccountData::Cached(ref mut account) => {
+					MaybeAccount::Cached(ref mut account) => {
 						try!(trie.insert(address, &account.rlp()));
 					},
-					AccountData::Missing => {
+					MaybeAccount::None => {
 						try!(trie.remove(address));
 					},
 				}
@@ -490,8 +494,8 @@ impl State {
 		trace!("Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| !a.is_dirty()) {
 			let entry = match a.account {
-				AccountData::Cached(acc) => Some(acc),
-				AccountData::Missing => None,
+				MaybeAccount::Cached(acc) => Some(acc),
+				MaybeAccount::None => None,
 			};
 			self.db.cache_account(address, entry);
 		}
@@ -515,7 +519,7 @@ impl State {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
 			self.db.note_account_bloom(&add);
-			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(AccountData::Cached(Account::from_pod(acc))));
+			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(MaybeAccount::Cached(Account::from_pod(acc))));
 		}
 	}
 
@@ -525,7 +529,7 @@ impl State {
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
-			if let AccountData::Cached(ref acc) = opt.account {
+			if let MaybeAccount::Cached(ref acc) = opt.account {
 				m.insert(add.clone(), PodAccount::from_account(acc));
 			}
 			m
@@ -572,7 +576,7 @@ impl State {
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
-			if let AccountData::Cached(ref mut account) = maybe_acc.account {
+			if let MaybeAccount::Cached(ref mut account) = maybe_acc.account {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
 				Self::update_account_cache(require, account, accountdb.as_hashdb());
 				return f(Some(account));
@@ -605,8 +609,8 @@ impl State {
 				}
 				let r = f(maybe_acc.as_ref());
 				match maybe_acc {
-					Some(account) => self.insert_cache(a, AccountEntry::new_clean(AccountData::Cached(account))),
-					None => self.insert_cache(a, AccountEntry::new_clean(AccountData::Missing)),
+					Some(account) => self.insert_cache(a, AccountEntry::new_clean(MaybeAccount::Cached(account))),
+					None => self.insert_cache(a, AccountEntry::new_clean(MaybeAccount::None)),
 				}
 				r
 			}
@@ -626,20 +630,20 @@ impl State {
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
 			match self.db.get_cached_account(a) {
-				Some(Some(acc)) => self.insert_cache(a, AccountEntry::new_dirty(AccountData::Cached(acc))),
-				Some(None) => self.insert_cache(a, AccountEntry::new_dirty(AccountData::Missing)),
+				Some(Some(acc)) => self.insert_cache(a, AccountEntry::new_dirty(MaybeAccount::Cached(acc))),
+				Some(None) => self.insert_cache(a, AccountEntry::new_dirty(MaybeAccount::None)),
 				None => {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 						let maybe_acc = match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_dirty(AccountData::Cached(Account::from_rlp(acc))),
-							Ok(None) => AccountEntry::new_dirty(AccountData::Missing),
+							Ok(Some(acc)) => AccountEntry::new_dirty(MaybeAccount::Cached(Account::from_rlp(acc))),
+							Ok(None) => AccountEntry::new_dirty(MaybeAccount::None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
 						};
 						maybe_acc
 					}
 					else {
-						AccountEntry::new_dirty(AccountData::Missing)
+						AccountEntry::new_dirty(MaybeAccount::None)
 					};
 					self.insert_cache(a, maybe_acc);
 				}
@@ -649,15 +653,15 @@ impl State {
 		}
 
 		match &mut self.cache.borrow_mut().get_mut(a).unwrap().account {
-			&mut AccountData::Cached(ref mut acc) => not_default(acc),
-			slot => *slot = AccountData::Cached(default()),
+			&mut MaybeAccount::Cached(ref mut acc) => not_default(acc),
+			slot => *slot = MaybeAccount::Cached(default()),
 		}
 
 		RefMut::map(self.cache.borrow_mut(), |c| {
 			let mut entry = c.get_mut(a).unwrap();
 			entry.state = AccountState::Dirty;
 			match entry.account {
-				AccountData::Cached(ref mut account) => {
+				MaybeAccount::Cached(ref mut account) => {
 					if require_code {
 						let addr_hash = account.address_hash(a);
 						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
