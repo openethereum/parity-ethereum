@@ -63,9 +63,14 @@ export default class Registry {
 
   lookupAddress (_name) {
     const name = _name.toLowerCase();
+    const sha3 = this._api.util.sha3(name);
 
     return this.getInstance().then((instance) => {
-      return instance.getAddress.call({}, [this._api.util.sha3(name), 'A']);
+      return instance.getAddress.call({}, [sha3, 'A']);
+    })
+    .then((address) => {
+      console.log('lookupAddress', name, sha3, address);
+      return address;
     });
   }
 }
