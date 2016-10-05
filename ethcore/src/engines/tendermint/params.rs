@@ -25,22 +25,22 @@ use super::timeout::DefaultTimeouts;
 pub struct TendermintParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
-	/// List of validators.
-	pub validators: Vec<Address>,
-	/// Number of validators.
-	pub validator_n: usize,
+	/// List of authorities.
+	pub authorities: Vec<Address>,
+	/// Number of authorities.
+	pub authority_n: usize,
 	/// Timeout durations for different steps.
 	pub timeouts: DefaultTimeouts,
 }
 
 impl Default for TendermintParams {
 	fn default() -> Self {
-		let validators = vec!["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e".into(), "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()];
-		let val_n = validators.len();
+		let authorities = vec!["0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e".into(), "0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1".into()];
+		let val_n = authorities.len();
 		TendermintParams {
 			gas_limit_bound_divisor: 0x0400.into(),
-			validators: validators,
-			validator_n: val_n,
+			authorities: authorities,
+			authority_n: val_n,
 			timeouts:  DefaultTimeouts::default()
 		}
 	}
@@ -48,12 +48,12 @@ impl Default for TendermintParams {
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
-		let val: Vec<_> = p.validators.into_iter().map(Into::into).collect();
+		let val: Vec<_> = p.authorities.into_iter().map(Into::into).collect();
 		let val_n = val.len();
 		TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			validators: val,
-			validator_n: val_n,
+			authorities: val,
+			authority_n: val_n,
 			timeouts: DefaultTimeouts::default()
 		}
 	}
