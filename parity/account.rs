@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethcore::ethstore::{EthStore, import_accounts};
+use ethcore::ethstore::{EthStore, SecretStore, import_accounts, read_geth_accounts};
 use ethcore::ethstore::dir::DiskDirectory;
 use ethcore::account_provider::AccountProvider;
 use helpers::{password_prompt, password_from_file};
@@ -24,6 +24,7 @@ pub enum AccountCmd {
 	New(NewAccount),
 	List(String),
 	Import(ImportAccounts),
+	ImportFromGeth(ImportFromGethAccounts)
 }
 
 #[derive(Debug, PartialEq)]
@@ -39,16 +40,33 @@ pub struct ImportAccounts {
 	pub to: String,
 }
 
+/// Parameters for geth accounts' import 
+#[derive(Debug, PartialEq)]
+pub struct ImportFromGethAccounts {
+	/// import mainnet (false) or testnet (true) accounts 
+	pub testnet: bool,
+	/// directory to import accounts to
+	pub to: String,
+}
+
 pub fn execute(cmd: AccountCmd) -> Result<String, String> {
 	match cmd {
 		AccountCmd::New(new_cmd) => new(new_cmd),
 		AccountCmd::List(path) => list(path),
 		AccountCmd::Import(import_cmd) => import(import_cmd),
+		AccountCmd::ImportFromGeth(import_geth_cmd) => import_geth(import_geth_cmd)
 	}
 }
 
 fn keys_dir(path: String) -> Result<DiskDirectory, String> {
 	DiskDirectory::create(path).map_err(|e| format!("Could not open keys directory: {}", e))
+}
+
+fn secret_store(dir: Box<DiskDirectory>, iterations: Option<u32>) -> Result<EthStore, String> {
+	match iterations {
+		Some(i) => EthStore::open_with_iterations(dir, i),
+		_ => EthStore::open(dir) 
+	}.map_err(|e| format!("Could not open keys store: {}", e))
 }
 
 fn new(n: NewAccount) -> Result<String, String> {
@@ -58,7 +76,7 @@ fn new(n: NewAccount) -> Result<String, String> {
 	};
 
 	let dir = Box::new(try!(keys_dir(n.path)));
-	let secret_store = Box::new(EthStore::open_with_iterations(dir, n.iterations).unwrap());
+	let secret_store = Box::new(try!(secret_store(dir, Some(n.iterations))));
 	let acc_provider = AccountProvider::new(secret_store);
 	let new_account = try!(acc_provider.new_account(&password).map_err(|e| format!("Could not create new account: {}", e)));
 	Ok(format!("{:?}", new_account))
@@ -66,7 +84,7 @@ fn new(n: NewAccount) -> Result<String, String> {
 
 fn list(path: String) -> Result<String, String> {
 	let dir = Box::new(try!(keys_dir(path)));
-	let secret_store = Box::new(EthStore::open(dir).unwrap());
+	let secret_store = Box::new(try!(secret_store(dir, None)));
 	let acc_provider = AccountProvider::new(secret_store);
 	let accounts = acc_provider.accounts();
 	let result = accounts.into_iter()
@@ -85,4 +103,18 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 		imported += try!(import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")).len();
 	}
 	Ok(format!("{}", imported))
+}
+
+fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
+	use std::io::ErrorKind;
+	use ethcore::ethstore::Error;
+
+	let dir = Box::new(try!(keys_dir(i.to)));
+	let secret_store = Box::new(try!(secret_store(dir, None)));
+	let geth_accounts = read_geth_accounts(i.testnet);
+	match secret_store.import_geth_accounts(geth_accounts, i.testnet) {
+		Ok(v) => Ok(format!("Successfully imported {} account(s) from geth.", v.len())),
+		Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => Err("Failed to find geth keys folder.".into()),
+		Err(err) => Err(format!("Import geth accounts failed. {}", err))
+	}
 }
