@@ -147,7 +147,6 @@ export default class Contract {
       const decoded = event.decodeLog(log.topics, log.data);
 
       log.params = {};
-      log.address = decoded.address;
       log.event = event.name;
 
       decoded.params.forEach((param) => {
