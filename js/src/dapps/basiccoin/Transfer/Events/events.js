@@ -16,8 +16,10 @@
 
 import React, { Component } from 'react';
 
+import { api } from '../../parity';
 import { loadAllTokens, subscribeEvents, unsubscribeEvents } from '../../services';
 import Container from '../../Container';
+import Event from '../Event';
 
 import styles from './events.css';
 
@@ -56,18 +58,18 @@ export default class Events extends Component {
   render () {
     const { loading } = this.state;
 
-    return loading
-      ? this.renderLoading()
-      : this.renderEvents();
+    return (
+      <Container>
+        { loading ? this.renderLoading() : this.renderEvents() }
+      </Container>
+    );
   }
 
   renderLoading () {
     return (
-      <Container>
-        <div className={ styles.statusHeader }>
-          Attaching events
-        </div>
-      </Container>
+      <div className={ styles.statusHeader }>
+        Attaching events
+      </div>
     );
   }
 
@@ -81,26 +83,57 @@ export default class Events extends Component {
 
   renderEventsNone () {
     return (
-      <Container>
-        <div className={ styles.statusHeader }>
-          There are currently no events available
-        </div>
-      </Container>
+      <div className={ styles.statusHeader }>
+        There are currently no events available
+      </div>
     );
   }
 
   renderEventsList () {
+    const { events } = this.state;
+    const rows = events.map((event) => (
+      <Event
+        key={ event.key }
+        event={ event } />
+    ));
+
     return (
-      <Container>events go here ...</Container>
+      <table className={ styles.eventList }>
+        <tbody>
+          { rows }
+        </tbody>
+      </table>
     );
   }
 
-  eventCallback = (error, events) => {
+  logToEvent = (log) => {
+    log.key = api.util.sha3(JSON.stringify(log));
+
+    return log;
+  }
+
+  eventCallback = (error, logs) => {
     if (error) {
       console.error('eventCallback', error);
       return;
     }
 
-    console.log(events);
+    const { minedEvents, pendingEvents } = this.state;
+    const minedNew = logs
+      .filter((log) => log.type === 'mined')
+      .map(this.logToEvent)
+      .filter((log) => !minedEvents.find((event) => event.transactionHash === log.transactionHash))
+      .reverse()
+      .concat(minedEvents);
+    const pendingNew = logs
+      .filter((log) => log.type === 'pending')
+      .map(this.logToEvent)
+      .filter((log) => !pendingEvents.find((event) => event.transactionHash === log.transactionHash))
+      .reverse()
+      .concat(pendingEvents)
+      .filter((log) => !minedNew.find((event) => event.transactionHash === log.transactionHash));
+    const events = [].concat(pendingNew).concat(minedNew);
+
+    this.setState({ loading: false, events, minedEvents: minedNew, pendingEvents: pendingNew });
   }
 }

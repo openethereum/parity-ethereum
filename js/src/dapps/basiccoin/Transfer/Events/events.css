@@ -17,3 +17,8 @@
 
 @import '../../_form.css';
 @import '../../_status.css';
+
+.eventList {
+  border: none;
+  margin: 0 auto;
+}

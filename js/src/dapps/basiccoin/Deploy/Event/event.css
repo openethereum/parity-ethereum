@@ -36,10 +36,14 @@
   text-align: right;
 }
 
-.frominfo {
+.address {
   text-align: left;
 }
 
 .description {
   text-align: left;
+}
+
+.center {
+  text-align: right;
 }

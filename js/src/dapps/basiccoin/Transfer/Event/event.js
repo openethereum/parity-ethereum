@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+// TODO: This is a copy & paste for Deploy/Event -> render() different. Not very DRY
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
 import { getCoin } from '../../services';
-
-import styles from './event.css';
+import styles from '../../Deploy/Event/event.css';
 
 export default class Event extends Component {
   static contextTypes = {
@@ -55,14 +55,20 @@ export default class Event extends Component {
         </td>
         <td>{ event.event }</td>
         <td className={ styles.address }>
-          <div>{ this.renderAddress(event.params.owner) }</div>
+          <div>{ this.renderAddress(event.params.from) }</div>
+        </td>
+        <td className={ styles.value }>
+          <div>{ event.params.value.div(1000000).toFormat(6) }</div>
+          <div>⇒</div>
           <div>{ this.renderHash(event.transactionHash) }</div>
+        </td>
+        <td className={ styles.address }>
+          <div>{ this.renderAddress(event.params.to) }</div>
         </td>
         <td className={ styles.description }>
           <div>{ isPending ? '' : coin.tla }</div>
           <div>{ isPending ? '' : coin.name }</div>
         </td>
-        <td>{ isPending || !coin.isGlobal ? '' : 'global' }</td>
       </tr>
     );
   }
