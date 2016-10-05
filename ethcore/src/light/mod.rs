@@ -15,4 +15,5 @@
 mod provider;
 mod client;
 
+pub use self::client::Client;
 pub use self::provider::{CHTProofRequest, ProofRequest, Provider};

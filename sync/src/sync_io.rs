@@ -18,7 +18,7 @@ use network::{NetworkContext, PeerId, PacketId, NetworkError};
 use ethcore::client::BlockChainClient;
 use ethcore::snapshot::SnapshotService;
 
-/// IO interface for the syning handler.
+/// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.
 // TODO: ratings
 pub trait SyncIo {
@@ -38,7 +38,7 @@ pub trait SyncIo {
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
-	/// Maximum mutuallt supported ETH protocol version
+	/// Maximum mutually supported ETH protocol version
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
 	fn is_chain_queue_empty(&self) -> bool {

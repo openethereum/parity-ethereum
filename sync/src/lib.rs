@@ -50,6 +50,7 @@ mod chain;
 mod blocks;
 mod sync_io;
 mod snapshot;
+mod light;
 
 #[cfg(test)]
 mod tests;

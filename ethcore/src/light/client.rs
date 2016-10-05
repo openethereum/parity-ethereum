@@ -39,57 +39,33 @@ pub struct Client {
 	engine: Arc<Engine>,
 	header_queue: HeaderQueue,
 	message_channel: IoChannel<ClientIoMessage>,
-	transaction_queue: TransactionQueue,
 }
 
 impl Client {
 	/// Import a header as rlp-encoded bytes.
-	fn import_header(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
+	pub fn import_header(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
 		let header = ::rlp::decode(&bytes);
 
 		self.header_queue.import(header).map_err(Into::into)
 	}
 
 	/// Whether the block is already known (but not necessarily part of the canonical chain)
-	fn is_known(&self, id: BlockID) -> bool {
+	pub fn is_known(&self, id: BlockID) -> bool {
 		false
 	}
 
 	/// Fetch a vector of all pending transactions.
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.transaction_queue.top_transactions()
+	pub fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		vec![]
 	}
 
 	/// Inquire about the status of a given block.
-	fn status(&self, id: BlockID) -> BlockStatus {
+	pub fn status(&self, id: BlockID) -> BlockStatus {
 		BlockStatus::Unknown
 	}
-}
 
-// stub implementation, can be partially implemented using LRU-caches
-// but will almost definitely never be able to provide complete responses.
-impl Provider for Client {
-	fn block_headers(&self, _block: H256, _skip: usize, _max: usize, _reverse: bool) -> Vec<Bytes> {
-		vec![]
-	}
-
-	fn block_bodies(&self, _blocks: Vec<H256>) -> Vec<Bytes> {
-		vec![]
-	}
-
-	fn receipts(&self, _blocks: Vec<H256>) -> Vec<Bytes> {
-		vec![]
-	}
-
-	fn proofs(&self, _requests: Vec<(H256, ProofRequest)>) -> Vec<Bytes> {
-		vec![]
-	}
-
-	fn code(&self, _accounts: Vec<(H256, H256)>) -> Vec<Bytes> {
-		vec![]
-	}
-
-	fn header_proofs(&self, _requests: Vec<CHTProofRequest>) -> Vec<Bytes> {
-		vec![]
+	/// Get the header queue info.
+	pub fn queue_info(&self) -> QueueInfo {
+		self.header_queue.queue_info()
 	}
 }
