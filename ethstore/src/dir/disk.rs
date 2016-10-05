@@ -76,7 +76,6 @@ impl DiskDirectory {
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
 
-
 		paths
 			.iter()
 			.map(|p| (
@@ -87,7 +86,7 @@ impl DiskDirectory {
 			))
 			.map(|(file, path)| match file {
 				Ok(file) => Ok((path.clone(), SafeAccount::from_file(
-					file, Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned())
+					file, path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned()
 				))),
 				Err(err) => Err(Error::InvalidKeyFile(format!("{:?}: {}", path, err))),
 			})
