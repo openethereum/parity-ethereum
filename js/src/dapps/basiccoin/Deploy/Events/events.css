@@ -15,31 +15,19 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.mined {
+.statusHeader {
+  font-size: 1.25em;
 }
 
-.pending {
-  opacity: 0.5;
+.eventList {
+  border: none;
+  margin: 0 auto;
+  border-collapse: collapse;
 }
 
-.mined td,
-.pending td {
-  padding: 0.5em 1em;
+.eventList tr:nth-child(even) {
+  background: #faf5f5;
 }
 
-.mined td>div+div,
-.pending td>div+div {
-  margin-top: 0.25em;
-}
-
-.blocknumber {
-  text-align: right;
-}
-
-.frominfo {
-  text-align: left;
-}
-
-.description {
-  text-align: left;
+.eventList tr:nth-child(odd) {
 }

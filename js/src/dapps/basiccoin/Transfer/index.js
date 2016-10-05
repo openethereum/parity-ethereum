@@ -14,14 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-
-import Container from '../Container';
-
-export default class Deploy extends Component {
-  render () {
-    return (
-      <Container>todo ...</Container>
-    );
-  }
-}
+export default from './transfer';

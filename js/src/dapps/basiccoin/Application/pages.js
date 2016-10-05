@@ -17,36 +17,21 @@
 const PAGES = [
   {
     path: 'overview',
-    color: '#080',
     title: 'Overview',
     byline: 'Display all the current information relating to your own deployed tokens',
-    description: 'View the total number of tokens in circulation, the number of different tokens associated with your accounts as well as the types of tokens created by you.'
+    description: 'View the total number of tokens in circulation, the number of different tokens associated with your accounts as well as the types of tokens created by you. In addition view the balances associated with your accounts in reltion to the total in circulation.'
   },
   {
-    path: 'send',
-    color: '#80f',
-    title: 'Send',
-    byline: 'Send tokens associated with your accounts to other addresses'
-  },
-  {
-    path: 'events',
-    color: '#808',
-    title: 'Events',
-    byline: 'Track the events for your tokens, showing actions as they hapenned'
+    path: 'transfer',
+    title: 'Transfer',
+    byline: 'Send tokens associated with your accounts to other addresses',
+    description: 'Send any tokens created byt you or received from others. In addition have a bird\'s eye view of all events relating to token transfers, be it yours, created byt others, either local or globally available on the network.'
   },
   {
     path: 'deploy',
-    color: '#088',
     title: 'Deploy',
     byline: 'Deploy a new token to the network',
     description: 'Token registration has never been this easy. Select the name for your token, the TLA and the number of tokens in circulation. Start sending the tokens to contacts right from this interface. Optionally you can register the token with the Token Registry which would allow you to transaction in tokens from anywhere these transactions are allowed.'
-  },
-  {
-    path: 'deployments',
-    color: '#f80',
-    title: 'Deployments',
-    byline: 'Show the status of all network tokens deployed with this application',
-    description: 'Showing all the token creation events, both for your tokens and tokens created by others on the network. This includes when, by whom, name & TLA as well as the global and local network status.'
   }
 ];
 

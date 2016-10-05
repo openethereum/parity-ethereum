@@ -15,15 +15,31 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../_form.css';
-@import '../_status.css';
-@import '../_vars.css';
-
-a.link, a.link:hover, a.link:visited {
-  color: $bgDeploy;
-  cursor: pointer;
+.mined {
 }
 
-.button {
-  background: $bgDeploy;
+.pending {
+  opacity: 0.5;
+}
+
+.mined td,
+.pending td {
+  padding: 0.5em 1em;
+  line-height: 24px;
+}
+
+.blocknumber {
+  text-align: right;
+}
+
+.address {
+  text-align: left;
+}
+
+.description {
+  text-align: left;
+}
+
+.center {
+  text-align: right;
 }

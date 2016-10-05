@@ -16,8 +16,7 @@
 */
 
 .icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  margin-right: 0.5em;
+  width: 24px;
+  height: 24px;
+  margin: 0 0.5em -4px 0;
 }

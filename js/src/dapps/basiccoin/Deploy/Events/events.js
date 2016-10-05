@@ -16,13 +16,13 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { api } from '../parity';
-import Container from '../Container';
-import Event from './Event';
+import { api } from '../../parity';
+import Container from '../../Container';
+import Event from '../Event';
 
-import styles from './deployments.css';
+import styles from './events.css';
 
-export default class Deployments extends Component {
+export default class Events extends Component {
   static contextTypes = {
     managerInstance: PropTypes.object.isRequired
   }

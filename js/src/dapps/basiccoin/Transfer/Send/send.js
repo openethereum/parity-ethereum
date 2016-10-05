@@ -17,12 +17,12 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
-import { eip20 } from '../../../contracts/abi';
+import { eip20 } from '../../../../contracts/abi';
 
-import { api } from '../parity';
-import { loadBalances } from '../services';
-import AddressSelect from '../AddressSelect';
-import Container from '../Container';
+import { api } from '../../parity';
+import { loadBalances } from '../../services';
+import AddressSelect from '../../AddressSelect';
+import Container from '../../Container';
 
 import styles from './send.css';
 
@@ -80,12 +80,6 @@ export default class Send extends Component {
         <Container>
           <div className={ styles.statusHeader }>
             Your token value transfer has been completed
-          </div>
-          <div className={ styles.statusInfo }>
-            View <a href='#/events' className={ styles.link }>token events</a> or <a href='#/overview' className={ styles.link }>view information</a> relating to this transaction and any of your other tokens.
-          </div>
-          <div className={ styles.statusState }>
-            { sendState }
           </div>
         </Container>
       );
@@ -197,7 +191,7 @@ export default class Send extends Component {
                 className={ styles.button }
                 disabled={ hasError }
                 onClick={ this.onSend }>
-                Send Tokens
+                Transfer Tokens
               </div>
             </div>
           </div>

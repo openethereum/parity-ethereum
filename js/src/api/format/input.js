@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { isHex, isInstanceOf, isString } from '../util/types';
+import { isArray, isHex, isInstanceOf, isString } from '../util/types';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -63,7 +63,11 @@ export function inFilter (options) {
     Object.keys(options).forEach((key) => {
       switch (key) {
         case 'address':
-          options[key] = inAddress(options[key]);
+          if (isArray(options[key])) {
+            options[key] = options[key].map(inAddress);
+          } else {
+            options[key] = inAddress(options[key]);
+          }
           break;
 
         case 'fromBlock':

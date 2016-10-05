@@ -24,28 +24,78 @@ let tokenregInstance;
 let registryInstance;
 
 const registries = {};
+const subscriptions = {};
+let nextSubscriptionId = 1000;
 
-export function totalSupply (address) {
-  return api.newContract(abis.eip20, address)
-    .instance.totalSupply.call();
-}
+export function subscribeEvents (addresses, callback) {
+  const subscriptionId = nextSubscriptionId++;
+  const contract = api.newContract(abis.eip20);
+  const event = contract.events.filter((evt) => evt.name === 'Transfer');
 
-export function getCoin (tokenreg, address) {
-  return registries[tokenreg].fromAddress
-    .call({}, [address])
-    .then(([id, tla, base, name, owner]) => {
-      return {
-        id, tla, base, name, owner,
-        isGlobal: tokenregInstance.address === tokenreg
-      };
+  return api.eth
+    .newFilter({
+      address: addresses,
+      fromBlock: 0,
+      toBlock: 'pending',
+      limit: 50,
+      topics: [event.signature]
     })
+    .then((filterId) => {
+      subscriptions[subscriptionId] = { subscriptionId, filterId, addresses, callback, contract };
+
+      return api.eth.getFilterLogs(filterId);
+    })
+    .then((logs) => callback(null, contract.parseEventLogs(logs)))
+    .then(() => subscriptionId)
     .catch((error) => {
-      console.error('getCoin', error);
+      console.error('subscribeEvents', error);
       throw error;
     });
 }
 
+export function unsubscribeEvents (subscriptionId) {
+  api.eth
+    .uninstallFilter(subscriptions[subscriptionId].filterId)
+    .catch((error) => {
+      console.error('unsubscribeEvents', error);
+    });
+
+  delete subscriptions[subscriptionId];
+}
+
+function pollEvents () {
+  const loop = Object.values(subscriptions);
+  const timeout = () => setTimeout(pollEvents, 1000);
+
+  Promise
+    .all(loop.map((subscription) => api.eth.getFilterChanges(subscription.filterId)))
+    .then((logsArray) => {
+      logsArray.forEach((logs, index) => {
+        const subscription = loop[index];
+
+        if (!logs || !logs.length) {
+          return;
+        }
+
+        try {
+          subscription.callback(null, subscription.contract.parseEventLogs(logs));
+        } catch (error) {
+          unsubscribeEvents(loop.subscriptionId);
+          console.error('pollEvents', error);
+        }
+      });
+
+      timeout();
+    })
+    .catch((error) => {
+      console.error('pollEvents', error);
+      timeout();
+    });
+}
+
 export function attachInstances () {
+  pollEvents();
+
   return api.ethcore
     .registryAddress()
     .then((registryAddress) => {
@@ -78,6 +128,26 @@ export function attachInstances () {
     })
     .catch((error) => {
       console.error('attachInstances', error);
+      throw error;
+    });
+}
+
+export function totalSupply (address) {
+  return api.newContract(abis.eip20, address)
+    .instance.totalSupply.call();
+}
+
+export function getCoin (tokenreg, address) {
+  return registries[tokenreg].fromAddress
+    .call({}, [address])
+    .then(([id, tla, base, name, owner]) => {
+      return {
+        id, tla, base, name, owner,
+        isGlobal: tokenregInstance.address === tokenreg
+      };
+    })
+    .catch((error) => {
+      console.error('getCoin', error);
       throw error;
     });
 }
