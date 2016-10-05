@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .layout {
-  padding: 0;
+  padding: 0.25em;
 }
 
 .layout>div {

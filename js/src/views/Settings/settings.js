@@ -39,10 +39,10 @@ export default class Settings extends Component {
 
     return (
       <div className={ styles.layout }>
+        <Actionbar title='settings' className={ styles.bar }>
+          { this.renderTabs() }
+        </Actionbar>
         <Page>
-          <Actionbar title='settings' className={ styles.bar }>
-            { this.renderTabs() }
-          </Actionbar>
           { children }
         </Page>
       </div>
