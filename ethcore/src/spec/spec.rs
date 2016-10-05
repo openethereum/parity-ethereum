@@ -279,7 +279,7 @@ impl Spec {
 	}
 
 	/// Create a new Spec with Tendermint consensus which does internal sealing (not requiring work).
-	/// Account "0".sha3() and "1".sha3() are a validators.
+	/// Account "0".sha3() and "1".sha3() are a authorities.
 	pub fn new_test_tendermint() -> Self {
 		Spec::load(include_bytes!("../../res/tendermint.json") as &[u8]).expect("tendermint.json is invalid")
 	}

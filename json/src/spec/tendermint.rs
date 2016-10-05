@@ -26,7 +26,7 @@ pub struct TendermintParams {
 	#[serde(rename="gasLimitBoundDivisor")]
 	pub gas_limit_bound_divisor: Uint,
 	/// Valid authorities
-	pub validators: Vec<Address>,
+	pub authorities: Vec<Address>,
 }
 
 /// Tendermint engine deserialization.
@@ -46,7 +46,7 @@ mod tests {
 		let s = r#"{
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
-				"validators" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
+				"authorities" : ["0xc6d9d2cd449a754c494264e1809c50e34d64562b"]
 			}
 		}"#;
 
