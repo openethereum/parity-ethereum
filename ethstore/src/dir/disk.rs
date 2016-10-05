@@ -76,15 +76,14 @@ impl DiskDirectory {
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
 
-		let files: Result<Vec<_>, _> = paths.iter()
-			.map(fs::File::open)
-			.collect();
-
-		let files = try!(files);
-
-		files.into_iter()
-			.map(json::KeyFile::load)
-			.zip(paths.into_iter())
+		paths
+			.iter()
+			.map(|p| (
+				fs::File::open(p)
+					.map_err(Error::from)
+					.and_then(|r| json::KeyFile::load(r).map_err(|e| Error::Custom(format!("{:?}", e)))),
+				p
+			))
 			.map(|(file, path)| match file {
 				Ok(file) => Ok((path.clone(), SafeAccount::from_file(
 					file, Some(path.file_name().and_then(|n| n.to_str()).expect("Keys have valid UTF8 names only.").to_owned())
