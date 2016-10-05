@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import IdentityIcon from '../../IdentityIcon';
 import Token from '../Token';
 import styles from './owner.css';
 
@@ -43,12 +44,19 @@ export default class Owner extends Component {
     }
 
     return (
-      <div className={ styles.info }>
-        <div className={ styles.owner }>
-          { accounts[address].name }
-        </div>
-        { this.renderTokens() }
-      </div>
+      <tr className={ styles.info }>
+        <td className={ styles.owner }>
+          <div>
+            <span>{ accounts[address].name }</span>
+            <IdentityIcon
+              className={ styles.icon }
+              address={ address } />
+          </div>
+        </td>
+        <td className={ styles.tokens }>
+          { this.renderTokens() }
+        </td>
+      </tr>
     );
   }
 
@@ -56,10 +64,11 @@ export default class Owner extends Component {
     const { tokens } = this.props;
 
     return tokens.map((token) => (
-      <Token
-        key={ token.address }
-        address={ token.address }
-        tokenreg={ token.tokenreg } />
+      <div key={ token.address }>
+        <Token
+          address={ token.address }
+          tokenreg={ token.tokenreg } />
+      </div>
     ));
   }
 }

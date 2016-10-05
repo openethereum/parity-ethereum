@@ -19,4 +19,29 @@
 }
 
 .owner {
+  vertical-align: top;
+  text-align: right;
+}
+
+.owner>div {
+  border-radius: 1px;
+  padding: 1em 2em;
+  white-space: nowrap;
+}
+
+.tokens {
+  text-align: left;
+}
+
+.tokens>div {
+  border-radius: 1px;
+  background: rgba(255, 240, 240, 1);
+  padding: 1em 2em;
+  margin: 0 0 0.5em 0.5em;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.icon {
+  margin: 0 0 -4px 1em;
 }
