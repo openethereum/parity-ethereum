@@ -49,7 +49,7 @@ pub fn expand_ipc_implementation(
 	let item = match *annotatable {
 		Annotatable::Item(ref item) => item,
 		_ => {
-			cx.span_err(meta_item.span, "`#[derive(Ipc)]` may only be applied to struct implementations");
+			cx.span_err(meta_item.span, "`#[ipc]` may only be applied to implementations and traits");
 			return;
 		},
 	};
@@ -832,7 +832,7 @@ fn implement_interface(
 		_ => {
 			cx.span_err(
 				item.span,
-				"`#[derive(Ipc)]` may only be applied to implementations and traits");
+				"`#[ipc]` may only be applied to implementations and traits");
 			return Err(Error);
 		},
 	};

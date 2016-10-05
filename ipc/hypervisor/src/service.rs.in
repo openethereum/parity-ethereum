@@ -40,12 +40,12 @@ pub struct ModuleState {
 }
 
 
-#[derive(Ipc)]
+#[ipc]
 pub trait ControlService {
 	fn shutdown(&self) -> bool;
 }
 
-#[derive(Ipc)]
+#[ipc]
 impl HypervisorService {
 	// return type for making method synchronous
 	fn module_ready(&self, module_id: u64, control_url: String) -> bool {

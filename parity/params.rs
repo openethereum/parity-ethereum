@@ -142,7 +142,6 @@ impl str::FromStr for ResealPolicy {
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
 	pub iterations: u32,
-	pub import_keys: bool,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
@@ -152,7 +151,6 @@ impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
 			iterations: 10240,
-			import_keys: false,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
