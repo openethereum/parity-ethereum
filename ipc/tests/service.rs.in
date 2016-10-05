@@ -28,7 +28,7 @@ pub struct CustomData {
 	pub b: u64,
 }
 
-#[derive(Ipc)]
+#[ipc]
 impl Service {
 	fn commit(&self, f: u32) -> u32 {
 		let mut lock = self.commits.write().unwrap();

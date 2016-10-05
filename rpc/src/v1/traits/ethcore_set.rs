@@ -16,66 +16,64 @@
 
 //! Ethcore-specific rpc interface for operations altering the settings.
 
-use std::sync::Arc;
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
 
-/// Ethcore-specific rpc interface for operations altering the settings.
-pub trait EthcoreSet: Sized + Send + Sync + 'static {
+use v1::helpers::auto_args::Wrap;
+use v1::types::{Bytes, H160, U256};
 
-	/// Sets new minimal gas price for mined blocks.
-	fn set_min_gas_price(&self, _: Params) -> Result<Value, Error>;
+build_rpc_trait! {
+	/// Ethcore-specific rpc interface for operations altering the settings.
+	pub trait EthcoreSet {
+		/// Sets new minimal gas price for mined blocks.
+		#[rpc(name = "ethcore_setMinGasPrice")]
+		fn set_min_gas_price(&self, U256) -> Result<bool, Error>;
 
-	/// Sets new gas floor target for mined blocks.
-	fn set_gas_floor_target(&self, _: Params) -> Result<Value, Error>;
+		/// Sets new gas floor target for mined blocks.
+		#[rpc(name = "ethcore_setGasFloorTarget")]
+		fn set_gas_floor_target(&self, U256) -> Result<bool, Error>;
 
-	/// Sets new gas ceiling target for mined blocks.
-	fn set_gas_ceil_target(&self, _: Params) -> Result<Value, Error>;
+		/// Sets new gas ceiling target for mined blocks.
+		#[rpc(name = "ethcore_setGasCeilTarget")]
+		fn set_gas_ceil_target(&self, U256) -> Result<bool, Error>;
 
-	/// Sets new extra data for mined blocks.
-	fn set_extra_data(&self, _: Params) -> Result<Value, Error>;
+		/// Sets new extra data for mined blocks.
+		#[rpc(name = "ethcore_setExtraData")]
+		fn set_extra_data(&self, Bytes) -> Result<bool, Error>;
 
-	/// Sets new author for mined block.
-	fn set_author(&self, _: Params) -> Result<Value, Error>;
+		/// Sets new author for mined block.
+		#[rpc(name = "ethcore_setAuthor")]
+		fn set_author(&self, H160) -> Result<bool, Error>;
 
-	/// Sets the limits for transaction queue.
-	fn set_transactions_limit(&self, _: Params) -> Result<Value, Error>;
+		/// Sets the limits for transaction queue.
+		#[rpc(name = "ethcore_setTransactionsLimit")]
+		fn set_transactions_limit(&self, usize) -> Result<bool, Error>;
 
-	/// Sets the maximum amount of gas a single transaction may consume.
-	fn set_tx_gas_limit(&self, _: Params) -> Result<Value, Error>;
+		/// Sets the maximum amount of gas a single transaction may consume.
+		#[rpc(name = "ethcore_setMaxTransactionGas")]
+		fn set_tx_gas_limit(&self, U256) -> Result<bool, Error>;
 
-	/// Add a reserved peer.
-	fn add_reserved_peer(&self, _: Params) -> Result<Value, Error>;
+		/// Add a reserved peer.
+		#[rpc(name = "ethcore_addReservedPeer")]
+		fn add_reserved_peer(&self, String) -> Result<bool, Error>;
 
-	/// Remove a reserved peer.
-	fn remove_reserved_peer(&self, _: Params) -> Result<Value, Error>;
+		/// Remove a reserved peer.
+		#[rpc(name = "ethcore_removeReservedPeer")]
+		fn remove_reserved_peer(&self, String) -> Result<bool, Error>;
 
-	/// Drop all non-reserved peers.
-	fn drop_non_reserved_peers(&self, _: Params) -> Result<Value, Error>;
+		/// Drop all non-reserved peers.
+		#[rpc(name = "ethcore_dropNonReservedPeers")]
+		fn drop_non_reserved_peers(&self) -> Result<bool, Error>;
 
-	/// Accept non-reserved peers (default behavior)
-	fn accept_non_reserved_peers(&self, _: Params) -> Result<Value, Error>;
+		/// Accept non-reserved peers (default behavior)
+		#[rpc(name = "ethcore_acceptNonReservedPeers")]
+		fn accept_non_reserved_peers(&self) -> Result<bool, Error>;
 
-	/// Start the network.
-	fn start_network(&self, _: Params) -> Result<Value, Error>;
+		/// Start the network.
+		#[rpc(name = "ethcore_startNetwork")]
+		fn start_network(&self) -> Result<bool, Error>;
 
-	/// Stop the network.
-	fn stop_network(&self, _: Params) -> Result<Value, Error>;
-
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_method("ethcore_setMinGasPrice", EthcoreSet::set_min_gas_price);
-		delegate.add_method("ethcore_setGasFloorTarget", EthcoreSet::set_gas_floor_target);
-		delegate.add_method("ethcore_setGasCeilTarget", EthcoreSet::set_gas_ceil_target);
-		delegate.add_method("ethcore_setExtraData", EthcoreSet::set_extra_data);
-		delegate.add_method("ethcore_setAuthor", EthcoreSet::set_author);
-		delegate.add_method("ethcore_setMaxTransactionGas", EthcoreSet::set_tx_gas_limit);
-		delegate.add_method("ethcore_setTransactionsLimit", EthcoreSet::set_transactions_limit);
-		delegate.add_method("ethcore_addReservedPeer", EthcoreSet::add_reserved_peer);
-		delegate.add_method("ethcore_removeReservedPeer", EthcoreSet::remove_reserved_peer);
-		delegate.add_method("ethcore_dropNonReservedPeers", EthcoreSet::drop_non_reserved_peers);
-		delegate.add_method("ethcore_acceptNonReservedPeers", EthcoreSet::accept_non_reserved_peers);
-
-		delegate
+		/// Stop the network.
+		#[rpc(name = "ethcore_stopNetwork")]
+		fn stop_network(&self) -> Result<bool, Error>;
 	}
 }
