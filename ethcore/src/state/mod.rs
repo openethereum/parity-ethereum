@@ -54,16 +54,8 @@ enum AccountData {
 
 impl AccountData {
 	/// Clone dirty data into a new `AccountData`.
-	fn clone_dirty(&self) -> AccountData {
-		match *self {
-			AccountData::Cached(ref acc) => AccountData::Cached(acc.clone_dirty()),
-			AccountData::Missing => AccountData::Missing,
-		}
-	}
-
-	/// Clone account entry data that needs to be saved in the snapshot.
 	/// This includes basic account information and all locally modified storage keys
-	fn clone_for_snapshot(&self) -> AccountData {
+	fn clone_dirty(&self) -> AccountData {
 		match *self {
 			AccountData::Cached(ref acc) => AccountData::Cached(acc.clone_dirty()),
 			AccountData::Missing => AccountData::Missing,
@@ -98,10 +90,7 @@ impl AccountEntry {
 	/// Returns None if clean.
 	fn clone_dirty(&self) -> Option<AccountEntry> {
 		match self.is_dirty() {
-			true => Some( AccountEntry {
-				account: self.account.clone_dirty(),
-				state: self.state,
-			}),
+			true => Some(self.clone_for_snapshot()),
 			false => None,
 		}
 	}
@@ -110,7 +99,7 @@ impl AccountEntry {
 	/// This includes basic account information and all locally cached storage keys
 	fn clone_for_snapshot(&self) -> AccountEntry {
 		AccountEntry {
-			account: self.account.clone_for_snapshot(),
+			account: self.account.clone_dirty(),
 			state: self.state,
 		}
 	}
