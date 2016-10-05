@@ -30,7 +30,7 @@ use error::{Error, BlockError, TransactionError};
 use factory::Factories;
 use header::Header;
 use receipt::Receipt;
-use state::State;
+use state::{self, State};
 use state_db::StateDB;
 use trace::FlatTrace;
 use transaction::SignedTransaction;
@@ -89,7 +89,7 @@ pub struct ExecutedBlock {
 
 	receipts: Vec<Receipt>,
 	transactions_set: HashSet<H256>,
-	state: State,
+	state: state::DiskBacked,
 	traces: Option<Vec<Vec<FlatTrace>>>,
 }
 
@@ -104,7 +104,7 @@ pub struct BlockRefMut<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a mut State,
+	pub state: &'a mut state::DiskBacked,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
@@ -120,14 +120,14 @@ pub struct BlockRef<'a> {
 	/// Transaction receipts.
 	pub receipts: &'a [Receipt],
 	/// State.
-	pub state: &'a State,
+	pub state: &'a state::DiskBacked,
 	/// Traces.
 	pub traces: &'a Option<Vec<Vec<FlatTrace>>>,
 }
 
 impl ExecutedBlock {
 	/// Create a new block from the given `state`.
-	fn new(state: State, tracing: bool) -> ExecutedBlock {
+	fn new(state: state::DiskBacked, tracing: bool) -> ExecutedBlock {
 		ExecutedBlock {
 			base: Default::default(),
 			receipts: Default::default(),
@@ -174,7 +174,7 @@ pub trait IsBlock {
 	fn header(&self) -> &Header { &self.block().base.header }
 
 	/// Get the final state associated with this object's block.
-	fn state(&self) -> &State { &self.block().state }
+	fn state(&self) -> &state::DiskBacked { &self.block().state }
 
 	/// Get all information on transactions in this block.
 	fn transactions(&self) -> &[SignedTransaction] { &self.block().base.transactions }
@@ -218,7 +218,7 @@ pub struct ClosedBlock {
 	block: ExecutedBlock,
 	uncle_bytes: Bytes,
 	last_hashes: Arc<LastHashes>,
-	unclosed_state: State,
+	unclosed_state: state::DiskBacked,
 }
 
 /// Just like `ClosedBlock` except that we can't reopen it and it's faster.

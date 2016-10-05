@@ -16,7 +16,7 @@
 
 //! Transaction Execution environment.
 use common::*;
-use state::{State, Substate};
+use state::{self, State, Substate};
 use engines::Engine;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
@@ -55,8 +55,10 @@ impl OriginInfo {
 }
 
 /// Implementation of evm Externalities.
-pub struct Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
-	state: &'a mut State,
+pub struct Externalities<'a, T, V, B>
+	where T: 'a + Tracer, V: 'a + VMTracer, B: 'a + state::Backend
+{
+	state: &'a mut State<B>,
 	env_info: &'a EnvInfo,
 	engine: &'a Engine,
 	vm_factory: &'a Factory,
@@ -69,10 +71,12 @@ pub struct Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	vm_tracer: &'a mut V,
 }
 
-impl<'a, T, V> Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
+impl<'a, T, V, B> Externalities<'a, T, V, B>
+	where T: 'a + Tracer, V: 'a + VMTracer, B: 'a + state::Backend
+{
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	/// Basic `Externalities` constructor.
-	pub fn new(state: &'a mut State,
+	pub fn new(state: &'a mut State<B>,
 		env_info: &'a EnvInfo,
 		engine: &'a Engine,
 		vm_factory: &'a Factory,
@@ -99,7 +103,9 @@ impl<'a, T, V> Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
 	}
 }
 
-impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMTracer {
+impl<'a, T, V, B> Ext for Externalities<'a, T, V, B>
+	where T: 'a + Tracer, V: 'a + VMTracer, B: 'a + state::Backend
+{
 	fn storage_at(&self, key: &H256) -> H256 {
 		self.state.storage_at(&self.origin_info.address, key)
 	}
@@ -306,7 +312,7 @@ mod tests {
 	use common::*;
 	use engines::Engine;
 	use evm::Ext;
-	use state::{State, Substate};
+	use state::{self, Substate};
 	use tests::helpers::*;
 	use devtools::GuardedTempResult;
 	use super::*;
@@ -335,7 +341,7 @@ mod tests {
 	}
 
 	struct TestSetup {
-		state: GuardedTempResult<State>,
+		state: GuardedTempResult<state::DiskBacked>,
 		engine: Arc<Engine>,
 		sub_state: Substate,
 		env_info: EnvInfo

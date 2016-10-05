@@ -19,10 +19,11 @@
 use std::collections::hash_map::Entry;
 use util::*;
 use pod_account::*;
+use state;
 use rlp::*;
 use lru_cache::LruCache;
 
-use std::cell::{RefCell, Cell};
+use std::cell::RefCell;
 
 const STORAGE_CACHE_ITEMS: usize = 4096;
 
@@ -50,8 +51,6 @@ pub struct Account {
 	filth: Filth,
 	// Account code new or has been modified.
 	code_filth: Filth,
-	// Cached address hash.
-	address_hash: Cell<Option<H256>>,
 }
 
 impl Account {
@@ -69,7 +68,6 @@ impl Account {
 			code_cache: Arc::new(code),
 			filth: Filth::Dirty,
 			code_filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -90,7 +88,6 @@ impl Account {
 			code_size: Some(pod.code.as_ref().map_or(0, |c| c.len())),
 			code_cache: Arc::new(pod.code.map_or_else(|| { warn!("POD account with unknown code is being created! Assuming no code."); vec![] }, |c| c)),
 			filth: Filth::Dirty,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -107,7 +104,6 @@ impl Account {
 			code_size: Some(0),
 			filth: Filth::Dirty,
 			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -125,7 +121,6 @@ impl Account {
 			code_size: None,
 			filth: Filth::Clean,
 			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -143,7 +138,6 @@ impl Account {
 			code_size: None,
 			filth: Filth::Dirty,
 			code_filth: Filth::Clean,
-			address_hash: Cell::new(None),
 		}
 	}
 
@@ -178,21 +172,12 @@ impl Account {
 	}
 
 	/// Get (and cache) the contents of the trie's storage at `key`.
-	/// Takes modifed storage into account.
-	pub fn storage_at(&self, db: &HashDB, key: &H256) -> H256 {
+	pub fn storage_at<B: state::Backend>(&self, b: &B, a: Address, key: &H256) -> H256 {
 		if let Some(value) = self.cached_storage_at(key) {
 			return value;
 		}
-		let db = SecTrieDB::new(db, &self.storage_root)
-			.expect("Account storage_root initially set to zero (valid) and only altered by SecTrieDBMut. \
-			SecTrieDBMut would not set it to an invalid state root. Therefore the root is valid and DB creation \
-			using it will not fail.");
 
-		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, decode),
-			Err(e) => panic!("Encountered potential DB corruption: {}", e),
-		};
-		let value: H256 = item.into();
+		let value = b.storage(a, &self.storage_root, key);
 		self.storage_cache.borrow_mut().insert(key.clone(), value.clone());
 		value
 	}
@@ -218,16 +203,6 @@ impl Account {
 	/// return the code hash associated with this account.
 	pub fn code_hash(&self) -> H256 {
 		self.code_hash.clone()
-	}
-
-	/// return the code hash associated with this account.
-	pub fn address_hash(&self, address: &Address) -> H256 {
-		let hash = self.address_hash.get();
-		hash.unwrap_or_else(|| {
-			let hash = address.sha3();
-			self.address_hash.set(Some(hash.clone()));
-			hash
-		})
 	}
 
 	/// returns the account's code. If `None` then the code cache isn't available -
@@ -275,38 +250,38 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code<B: state::Backend>(&mut self, b: &B, address: &Address) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.is_cached() ||
-		match db.get(&self.code_hash) {
-			Some(x) => {
-				self.code_cache = Arc::new(x.to_vec());
-				self.code_size = Some(x.len());
-				true
-			},
-			_ => {
-				warn!("Failed reverse get of {}", self.code_hash);
-				false
-			},
-		}
+			match b.code(address.clone(), &self.code_hash) {
+				Some(x) => {
+					self.code_size = Some(x.len());
+					self.code_cache = x;
+					true
+				}
+				_ => {
+					warn!("Failed reverse get of {}", self.code_hash);
+					false
+				}
+			}
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
-	pub fn cache_code_size(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code_size<B: state::Backend>(&mut self, b: &B, address: &Address) -> bool {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code_size: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
 		self.code_size.is_some() ||
 			if self.code_hash != SHA3_EMPTY {
-				match db.get(&self.code_hash) {
+				match b.code(address.clone(), &self.code_hash) {
 					Some(x) => {
 						self.code_size = Some(x.len());
 						true
-					},
+					}
 					_ => {
 						warn!("Failed reverse get of {}", self.code_hash);
 						false
-					},
+					}
 				}
 			} else {
 				false
@@ -316,8 +291,8 @@ impl Account {
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
 	pub fn storage_is_clean(&self) -> bool { self.storage_changes.is_empty() }
 
-	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
+	#[cfg(test)]
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 
 	/// return the storage overlay.
@@ -408,7 +383,6 @@ impl Account {
 			code_cache: self.code_cache.clone(),
 			filth: self.filth,
 			code_filth: self.code_filth,
-			address_hash: self.address_hash.clone(),
 		}
 	}
 
@@ -438,7 +412,6 @@ impl Account {
 		self.code_filth = other.code_filth;
 		self.code_cache = other.code_cache;
 		self.code_size = other.code_size;
-		self.address_hash = other.address_hash;
 		let mut cache = self.storage_cache.borrow_mut();
 		for (k, v) in other.storage_cache.into_inner().into_iter() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
@@ -454,10 +427,11 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-
 	use util::*;
 	use super::*;
 	use account_db::*;
+	use state::backend;
+	use tests::helpers;
 	use rlp::*;
 
 	#[test]
@@ -472,10 +446,13 @@ mod tests {
 
 	#[test]
 	fn storage_at() {
-		let mut db = MemoryDB::new();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let db = helpers::get_temp_state_db();
+		let mut db = db.boxed_clone();
+		let addr = Address::new();
+
 		let rlp = {
 			let mut a = Account::new_contract(69.into(), 0.into());
+			let mut db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
 			a.set_storage(H256::from(&U256::from(0x00u64)), H256::from(&U256::from(0x1234u64)));
 			a.commit_storage(&Default::default(), &mut db);
 			a.init_code(vec![]);
@@ -484,25 +461,29 @@ mod tests {
 		};
 
 		let a = Account::from_rlp(&rlp);
+		let back = backend::Database::new(db, Default::default(), Default::default());
 		assert_eq!(a.storage_root().unwrap().hex(), "c57e1afb758b07f8d2c8f13a3b6e44fa5ff94ab266facc5a4fd3f062426e50b2");
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
-		assert_eq!(a.storage_at(&db.immutable(), &H256::from(&U256::from(0x01u64))), H256::new());
+		assert_eq!(a.storage_at(&back, addr, &H256::from(&U256::from(0x00u64))), H256::from(&U256::from(0x1234u64)));
+		assert_eq!(a.storage_at(&back, addr, &H256::from(&U256::from(0x01u64))), H256::new());
 	}
 
 	#[test]
 	fn note_code() {
-		let mut db = MemoryDB::new();
-		let mut db = AccountDBMut::new(&mut db, &Address::new());
+		let db = helpers::get_temp_state_db();
+		let mut db = db.boxed_clone();
+		let addr = Address::new();
 
 		let rlp = {
+			let mut db = AccountDBMut::new(db.as_hashdb_mut(), &addr);
 			let mut a = Account::new_contract(69.into(), 0.into());
 			a.init_code(vec![0x55, 0x44, 0xffu8]);
 			a.commit_code(&mut db);
 			a.rlp()
 		};
 
+		let back = backend::Database::new(db, Default::default(), Default::default());
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db.immutable()));
+		assert!(a.cache_code(&back, &addr));
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));

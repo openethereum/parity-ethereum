@@ -21,7 +21,7 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
-use state::State;
+use state;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
@@ -237,7 +237,7 @@ impl Miner {
 	}
 
 	/// Get `Some` `clone()` of the current pending block's state or `None` if we're not sealing.
-	pub fn pending_state(&self) -> Option<State> {
+	pub fn pending_state(&self) -> Option<state::DiskBacked> {
 		self.sealing_work.lock().queue.peek_last_ref().map(|b| b.block().fields().state.clone())
 	}
 

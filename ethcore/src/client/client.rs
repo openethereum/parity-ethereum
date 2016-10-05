@@ -33,7 +33,7 @@ use io::*;
 use views::{HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
-use state::State;
+use state::{self, State};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -489,7 +489,7 @@ impl Client {
 	///
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at(&self, id: BlockID) -> Option<State> {
+	pub fn state_at(&self, id: BlockID) -> Option<state::DiskBacked> {
 		// fast path for latest state.
 		match id.clone() {
 			BlockID::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
@@ -520,7 +520,7 @@ impl Client {
 	///
 	/// This will not fail if given BlockID::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at_beginning(&self, id: BlockID) -> Option<State> {
+	pub fn state_at_beginning(&self, id: BlockID) -> Option<state::DiskBacked> {
 		// fast path for latest state.
 		match id {
 			BlockID::Pending => self.state_at(BlockID::Latest),
@@ -532,7 +532,7 @@ impl Client {
 	}
 
 	/// Get a copy of the best block's state.
-	pub fn state(&self) -> State {
+	pub fn state(&self) -> state::DiskBacked {
 		State::from_existing(
 			self.state_db.lock().boxed_clone(),
 			HeaderView::new(&self.best_block_header()).state_root(),
