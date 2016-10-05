@@ -19,6 +19,7 @@
 mod message;
 mod timeout;
 mod params;
+mod vote;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use common::*;
@@ -28,20 +29,22 @@ use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::{Engine, EngineError, ProposeCollect};
+use blockchain::extras::BlockDetails;
 use evm::Schedule;
 use io::IoService;
 use self::message::ConsensusMessage;
 use self::timeout::{TimerHandler, NextStep};
 use self::params::TendermintParams;
+use self::vote::Vote;
 
 #[derive(Debug)]
 enum Step {
 	Propose,
 	Prevote(ProposeCollect),
 	/// Precommit step storing the precommit vote and accumulating seal.
-	Precommit(ProposeCollect, Seal),
+	Precommit(ProposeCollect, Signatures),
 	/// Commit step storing a complete valid seal.
-	Commit(BlockHash, Seal)
+	Commit(BlockHash, Signatures)
 }
 
 pub type Height = usize;
@@ -49,7 +52,7 @@ pub type Round = usize;
 pub type BlockHash = H256;
 
 pub type AtomicMs = AtomicUsize;
-type Seal = Vec<Bytes>;
+type Signatures = Vec<Bytes>;
 
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
@@ -57,6 +60,8 @@ pub struct Tendermint {
 	our_params: TendermintParams,
 	builtins: BTreeMap<Address, Builtin>,
 	timeout_service: IoService<NextStep>,
+	/// Address to be used as authority.
+	authority: RwLock<Address>,
 	/// Consensus round.
 	r: AtomicUsize,
 	/// Consensus step.
@@ -77,6 +82,7 @@ impl Tendermint {
 				our_params: our_params,
 				builtins: builtins,
 				timeout_service: IoService::<NextStep>::start().expect("Error creating engine timeout service"),
+				authority: RwLock::new(Address::default()),
 				r: AtomicUsize::new(0),
 				s: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0)
@@ -86,22 +92,26 @@ impl Tendermint {
 		engine
 	}
 
-	fn proposer(&self) -> Address {
-		let ref p = self.our_params;
-		p.validators.get(self.proposer_nonce.load(AtomicOrdering::Relaxed)%p.validator_n).unwrap().clone()
-	}
-
 	fn is_proposer(&self, address: &Address) -> bool {
-		self.proposer() == *address
+		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
 	}
 
-	fn is_validator(&self, address: &Address) -> bool {
-		self.our_params.validators.contains(address)
+	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
+		let ref p = self.our_params;
+		p.authorities.get(proposer_nonce%p.authority_n).unwrap()
+	}
+
+	fn is_nonce_proposer(&self, proposer_nonce: usize, address: &Address) -> bool {
+		self.nonce_proposer(proposer_nonce) == address
+	}
+
+	fn is_authority(&self, address: &Address) -> bool {
+		self.our_params.authorities.contains(address)
 	}
 
 	fn new_vote(&self, proposal: BlockHash) -> ProposeCollect {
 		ProposeCollect::new(proposal,
-							self.our_params.validators.iter().cloned().collect(),
+							self.our_params.authorities.iter().cloned().collect(),
 							self.threshold())
 	}
 
@@ -192,7 +202,7 @@ impl Tendermint {
 	}
 
 	fn threshold(&self) -> usize {
-		self.our_params.validator_n*2/3
+		self.our_params.authority_n*2/3
 	}
 
 	fn next_timeout(&self) -> u64 {
@@ -203,8 +213,8 @@ impl Tendermint {
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-	/// Possibly signatures of all validators.
-	fn seal_fields(&self) -> usize { 2 }
+	/// (consensus round, proposal signature, authority signatures)
+	fn seal_fields(&self) -> usize { 3 }
 
 	fn params(&self) -> &CommonParams { &self.params }
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
@@ -229,34 +239,62 @@ impl Engine for Tendermint {
 		});
 	}
 
-	/// Apply the block reward on finalisation of the block.
+	/// Get the address to be used as authority.
+	fn on_new_block(&self, block: &mut ExecutedBlock) {
+		if let Some(mut authority) = self.authority.try_write()	{
+			*authority = *block.header().author()
+		}
+	}
+
+	/// Set author to proposer.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	/// Attempt to seal the block internally using all available signatures.
 	///
 	/// None is returned if not enough signatures can be collected.
-	fn generate_seal(&self, block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		self.s.try_read().and_then(|s| match *s {
-			Step::Commit(hash, ref seal) if hash == block.header().bare_hash() => Some(seal.clone()),
-			_ => None,
-		})
+	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+		if let (Some(ap), Some(step)) = (accounts, self.s.try_read()) {
+			let header = block.header();
+			let author = header.author();
+			match *step {
+				Step::Commit(hash, ref seal) if hash == header.bare_hash() =>
+					// Commit the block using a complete signature set.
+					return Some(seal.clone()),
+				Step::Propose if self.is_proposer(header.author()) =>
+					// Seal block with propose signature.
+					if let Some(proposal) = Vote::propose(header, &ap) {
+						return Some(vec![::rlp::encode(&proposal).to_vec(), Vec::new()])
+					} else {
+						trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
+					},
+				_ => {},
+			}
+		} else {
+			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
+		}
+		None
 	}
 
 	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
-		let c: ConsensusMessage = try!(message.as_val());
-		println!("{:?}", c);
+		let message: ConsensusMessage = try!(message.as_val());
+		try!(Err(EngineError::UnknownStep))
+		//match message {
+		//	ConsensusMessage::Prevote 
+		//}
+
+
 		// Check if correct round.
-		if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {
-			try!(Err(EngineError::WrongRound))
-		}
+		//if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {
+		//	try!(Err(EngineError::WrongRound))
+		//}
 		// Handle according to step.
-		match try!(message.val_at(1)) {
-			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
-			1 if self.is_validator(&sender) => self.prevote_message(sender, try!(message.at(2))),
-			2 if self.is_validator(&sender) => self.precommit_message(sender, signature, try!(message.at(2))),
-			_ => try!(Err(EngineError::UnknownStep)),
-		}
+//		match try!(message.val_at(1)) {
+//			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
+//			1 if self.is_authority(&sender) => self.prevote_message(sender, try!(message.at(2))),
+//			2 if self.is_authority(&sender) => self.precommit_message(sender, signature, try!(message.at(2))),
+//			_ => try!(Err(EngineError::UnknownStep)),
+//		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -270,18 +308,19 @@ impl Engine for Tendermint {
 		}
 	}
 
+	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let to_address = |b: &Vec<u8>| {
 			let sig: H520 = try!(UntrustedRlp::new(b.as_slice()).as_val());
 			Ok(public_to_address(&try!(recover(&sig.into(), &header.bare_hash()))))
 		};
-		let validator_set = self.our_params.validators.iter().cloned().collect();
+		let authority_set = self.our_params.authorities.iter().cloned().collect();
 		let seal_set = try!(header
 							.seal()
 							.iter()
 							.map(to_address)
 							.collect::<Result<HashSet<_>, Error>>());
-		if seal_set.intersection(&validator_set).count() <= self.threshold() {
+		if seal_set.intersection(&authority_set).count() <= self.threshold() {
 			try!(Err(BlockError::InvalidSeal))
 		} else {
 			Ok(())
@@ -314,6 +353,10 @@ impl Engine for Tendermint {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		new_header.seal().get(1).expect("Tendermint seal should have two elements.").len() > best_header.seal().get(1).expect("Tendermint seal should have two elements.").len()
 	}
 }
 
@@ -465,9 +508,9 @@ mod tests {
 		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new());
 
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
@@ -484,8 +527,8 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let r = 0;
 
-		let not_validator_addr = tap.insert_account("101".sha3(), "101").unwrap();
-		assert!(propose_default(&engine, r, not_validator_addr).is_err());
+		let not_authority_addr = tap.insert_account("101".sha3(), "101").unwrap();
+		assert!(propose_default(&engine, r, not_authority_addr).is_err());
 
 		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
 		assert!(propose_default(&engine, r, not_proposer_addr).is_err());
