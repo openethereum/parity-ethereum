@@ -23,7 +23,9 @@ import styles from './deployment.css';
 
 const ERRORS = {
   name: 'specify a valid name >2 & <32 characters',
-  tla: 'specify a valid TLA, 3 characters in length'
+  tla: 'specify a valid TLA, 3 characters in length',
+  usedtla: 'the TLA used is not available for registration',
+  supply: 'supply needs to be valid >999 & <1 trillion'
 };
 
 export default class Deployment extends Component {
@@ -161,7 +163,7 @@ export default class Deployment extends Component {
             <input
               type='number'
               min='1000'
-              max='999999999'
+              max='999999999999'
               name='totalSupply'
               value={ totalSupply }
               onChange={ this.onChangeSupply } />
@@ -211,13 +213,16 @@ export default class Deployment extends Component {
   }
 
   onChangeRegistrar = (event) => {
-    this.setState({ globalReg: event.target.value === 'yes' });
+    this.setState({ globalReg: event.target.value === 'yes' }, this.testTlaAvailability);
   }
 
   onChangeSupply = (event) => {
-    const totalSupply = event.target.value;
+    const totalSupply = parseInt(event.target.value, 10);
+    const totalSupplyError = isFinite(totalSupply) && totalSupply > 999
+      ? null
+      : ERRORS.supply;
 
-    this.setState({ totalSupply });
+    this.setState({ totalSupply, totalSupplyError });
   }
 
   onChangeTla = (event) => {
@@ -229,7 +234,30 @@ export default class Deployment extends Component {
       ? null
       : ERRORS.tla;
 
-    this.setState({ tla, tlaError });
+    this.setState({ tla, tlaError }, this.testTlaAvailability);
+  }
+
+  testTlaAvailability = () => {
+    const { registryInstance, tokenregInstance } = this.context;
+    const { globalReg, tla, tlaError } = this.state;
+    const tokenreg = globalReg ? tokenregInstance : registryInstance;
+
+    if (tlaError && tlaError !== ERRORS.usedtla) {
+      return;
+    }
+
+    tokenreg
+      .fromTLA.call({}, [tla])
+      .then(([id, addr, base, name, owner]) => {
+        if (owner !== '0x0000000000000000000000000000000000000000') {
+          this.setState({ tlaError: ERRORS.usedtla });
+        } else if (tlaError === ERRORS.usedtla) {
+          this.setState({ tlaError: null });
+        }
+      })
+      .catch((error) => {
+        console.log('testTlaAvailability', error);
+      });
   }
 
   onDeploy = () => {

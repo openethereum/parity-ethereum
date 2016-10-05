@@ -70,12 +70,13 @@ a.link, a.link:hover, a.link:visited {
 
 .form input.small {
   width: 9em;
-  margin-right: 10em;
+  margin-right: 9.5em;
 }
 
 .form .error input {
   border: 1px solid rgba(255, 0, 0, 0.5);
   color: red;
+  background: rgba(255, 0, 0, 0.1);
 }
 
 .form .error label {
