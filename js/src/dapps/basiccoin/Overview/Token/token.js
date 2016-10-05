@@ -45,7 +45,10 @@ export default class Token extends Component {
       <div className={ styles.info }>
         <div className={ styles.tla }>{ coin.tla }</div>
         <div className={ styles.name }>{ coin.name }</div>
-        <div className={ styles.supply }>{ totalSupply.div(1000000).toFormat(0) }</div>
+        <div className={ styles.supply }>
+          <div>{ totalSupply.div(1000000).toFormat(0) }</div>
+          <div className={ styles.info }>total supply</div>
+        </div>
         <div className={ styles.global }>{ coin.isGlobal ? 'global' : 'local' }</div>
       </div>
     );
