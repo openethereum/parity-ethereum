@@ -38,7 +38,6 @@ use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -111,6 +110,9 @@ pub trait BlockChainClient : Sync + Send {
 			.expect("storage_at will return Some if given BlockID::Latest. storage_at was given BlockID::Latest. \
 			Therefore storage_at has returned Some; qed")
 	}
+
+	/// Get a list of all accounts in the block `id`, if fat DB is in operation, otherwise `None`.
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>>;
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;

@@ -16,25 +16,17 @@
 
 //! Rust VM implementation
 
-#[cfg(not(feature = "evm-debug"))]
-macro_rules! evm_debug {
-	($x: expr) => {}
-}
-
-#[cfg(feature = "evm-debug")]
-macro_rules! evm_debug {
-	($x: expr) => {
-		$x
-	}
-}
-
+#[macro_use]
+mod informant;
 mod gasometer;
 mod stack;
 mod memory;
+mod shared_cache;
 
 use self::gasometer::Gasometer;
 use self::stack::{Stack, VecStack};
 use self::memory::Memory;
+pub use self::shared_cache::SharedCache;
 
 use std::marker::PhantomData;
 use common::*;
@@ -42,13 +34,6 @@ use types::executed::CallType;
 use super::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
 use bit_set::BitSet;
-
-#[cfg(feature = "evm-debug")]
-fn color(instruction: Instruction, name: &'static str) -> String {
-	let c = instruction as usize % 6;
-	let colors = [31, 34, 33, 32, 35, 36];
-	format!("\x1B[1;{}m{}\x1B[0m", colors[c], name)
-}
 
 type CodePosition = usize;
 type ProgramCounter = usize;
@@ -72,6 +57,15 @@ struct CodeReader<'a> {
 
 #[cfg_attr(feature="dev", allow(len_without_is_empty))]
 impl<'a> CodeReader<'a> {
+
+	/// Create new code reader - starting at position 0.
+	fn new(code: &'a Bytes) -> Self {
+		CodeReader {
+			position: 0,
+			code: code,
+		}
+	}
+
 	/// Get `no_of_bytes` from code and convert to U256. Move PC
 	fn read(&mut self, no_of_bytes: usize) -> U256 {
 		let pos = self.position;
@@ -98,9 +92,9 @@ enum InstructionResult<Gas> {
 
 
 /// Intepreter EVM implementation
-#[derive(Default)]
 pub struct Interpreter<Cost: CostType> {
 	mem: Vec<u8>,
+	cache: Arc<SharedCache>,
 	_type: PhantomData<Cost>,
 }
 
@@ -108,15 +102,14 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 	fn exec(&mut self, params: ActionParams, ext: &mut evm::Ext) -> evm::Result<GasLeft> {
 		self.mem.clear();
 
+		let mut informant = informant::EvmInformant::new(ext.depth());
+
 		let code = &params.code.as_ref().unwrap();
-		let valid_jump_destinations = self.find_jump_destinations(code);
+		let valid_jump_destinations = self.cache.jump_destinations(&params.code_hash, code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
-		let mut reader = CodeReader {
-			position: 0,
-			code: code
-		};
+		let mut reader = CodeReader::new(code);
 		let infos = &*instructions::INSTRUCTIONS;
 
 		while reader.position < code.len() {
@@ -136,15 +129,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			gasometer.current_mem_gas = mem_gas;
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
-			evm_debug!({
-				println!("[0x{:x}][{}(0x{:x}) Gas: {:?}\n  Gas Before: {:?}",
-					reader.position,
-					color(instruction, info.name),
-					instruction,
-					gas_cost,
-					gasometer.current_gas + gas_cost
-				);
-			});
+			evm_debug!({ informant.before_instruction(reader.position, instruction, &info, &gasometer.current_gas, &stack) });
 
 			let (mem_written, store_written) = match trace_executed {
 				true => (Self::mem_written(instruction, &stack), Self::store_written(instruction, &stack)),
@@ -155,6 +140,8 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			let result = try!(self.exec_instruction(
 				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack
 			));
+
+			evm_debug!({ informant.after_instruction(instruction) });
 
 			if trace_executed {
 				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
@@ -177,17 +164,26 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 					reader.position = pos;
 				},
 				InstructionResult::StopExecutionNeedsReturn(gas, off, size) => {
+					informant.done();
 					return Ok(GasLeft::NeedsReturn(gas.as_u256(), self.mem.read_slice(off, size)));
 				},
 				InstructionResult::StopExecution => break,
 			}
 		}
-
+		informant.done();
 		Ok(GasLeft::Known(gasometer.current_gas.as_u256()))
 	}
 }
 
 impl<Cost: CostType> Interpreter<Cost> {
+	/// Create a new `Interpreter` instance with shared cache.
+	pub fn new(cache: Arc<SharedCache>) -> Interpreter<Cost> {
+		Interpreter {
+			mem: Vec::new(),
+			cache: cache,
+			_type: PhantomData::default(),
+		}
+	}
 
 	fn verify_instruction(&self, ext: &evm::Ext, instruction: Instruction, info: &InstructionInfo, stack: &Stack<U256>) -> evm::Result<()> {
 		let schedule = ext.schedule();
@@ -486,10 +482,10 @@ impl<Cost: CostType> Interpreter<Cost> {
 				stack.push(U256::from(len));
 			},
 			instructions::CALLDATACOPY => {
-				self.copy_data_to_memory(stack, &params.data.clone().unwrap_or_else(|| vec![]));
+				self.copy_data_to_memory(stack, params.data.as_ref().map_or_else(|| &[] as &[u8], |d| &*d as &[u8]));
 			},
 			instructions::CODECOPY => {
-				self.copy_data_to_memory(stack, &params.code.clone().unwrap_or_else(|| vec![]));
+				self.copy_data_to_memory(stack, params.code.as_ref().map_or_else(|| &[] as &[u8], |c| &**c as &[u8]));
 			},
 			instructions::EXTCODECOPY => {
 				let address = u256_to_address(&stack.pop_back());
@@ -790,23 +786,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 		Ok(())
 	}
 
-	fn find_jump_destinations(&self, code: &[u8]) -> BitSet {
-		let mut jump_dests = BitSet::with_capacity(code.len());
-		let mut position = 0;
-
-		while position < code.len() {
-			let instruction = code[position];
-
-			if instruction == instructions::JUMPDEST {
-				jump_dests.insert(position);
-			} else if instructions::is_push(instruction) {
-				position += instructions::get_push_bytes(instruction);
-			}
-			position += 1;
-		}
-
-		jump_dests
-	}
 }
 
 fn get_and_reset_sign(value: U256) -> (U256, bool) {
@@ -833,15 +812,3 @@ fn address_to_u256(value: Address) -> U256 {
 	U256::from(&*H256::from(value))
 }
 
-#[test]
-fn test_find_jump_destinations() {
-	// given
-	let interpreter = Interpreter::<U256>::default();
-	let code = "7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff5b01600055".from_hex().unwrap();
-
-	// when
-	let valid_jump_destinations = interpreter.find_jump_destinations(&code);
-
-	// then
-	assert!(valid_jump_destinations.contains(66));
-}

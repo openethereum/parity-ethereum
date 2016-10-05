@@ -31,16 +31,32 @@ use serde::{Serialize, Deserialize};
 /// function `to_delegate` which will automatically wrap each strongly-typed
 /// function in a wrapper which handles parameter and output type serialization.
 ///
-/// Every function must have a `#[name("rpc_nameHere")]` attribute after
-/// its documentation, and no other attributes. All function names are
-/// allowed except for `to_delegate`, which is auto-generated.
+/// RPC functions may come in a couple forms: async and synchronous.
+/// These are parsed with the custom `#[rpc]` attribute, which must follow
+/// documentation.
+///
+/// ## The #[rpc] attribute
+///
+/// Valid forms:
+///  - `#[rpc(name = "name_here")]` (a synchronous rpc function which should be bound to the given name)
+///  - `#[rpc(async, name = "name_here")]` (an async rpc function which should be bound to the given name)
+///
+/// Synchronous function format:
+/// `fn foo(&self, Param1, Param2, Param3) -> Out`.
+///
+/// Asynchronous RPC functions must come in this form:
+/// `fn foo(&self, Param1, Param2, Param3, Ready<Out>);
+///
+/// Anything else will be rejected by the code generator.
 macro_rules! build_rpc_trait {
+	// entry-point. todo: make another for traits w/ bounds.
 	(
 		$(#[$t_attr: meta])*
 		pub trait $name: ident {
 			$(
-				$(#[doc=$m_doc: expr])* #[name($rpc_name: expr)]
-				fn $method: ident (&self $(, $param: ty)*) -> $out: ty;
+				$( #[doc=$m_doc:expr] )*
+				#[ rpc( $($t:tt)* ) ]
+				fn $m_name: ident ( $($p: tt)* ) $( -> Result<$out: ty, Error> )* ;
 			)*
 		}
 	) => {
@@ -48,7 +64,7 @@ macro_rules! build_rpc_trait {
 		pub trait $name: Sized + Send + Sync + 'static {
 			$(
 				$(#[doc=$m_doc])*
-				fn $method(&self $(, $param)*) -> $out;
+				fn $m_name ( $($p)* ) $( -> Result<$out, Error> )* ;
 			)*
 
 			/// Transform this into an `IoDelegate`, automatically wrapping
@@ -56,14 +72,33 @@ macro_rules! build_rpc_trait {
 			fn to_delegate(self) -> ::jsonrpc_core::IoDelegate<Self> {
 				let mut del = ::jsonrpc_core::IoDelegate::new(self.into());
 				$(
-					del.add_method($rpc_name, move |base, params| {
-						($name::$method as fn(&_ $(, $param)*) -> $out).wrap_rpc(base, params)
-					});
+					build_rpc_trait!(WRAP del =>
+						( $($t)* )
+						fn $m_name ( $($p)* ) $( -> Result<$out, Error> )*
+					);
 				)*
 				del
 			}
 		}
-	}
+	};
+
+	( WRAP $del: expr =>
+		(name = $name: expr)
+		fn $method: ident (&self $(, $param: ty)*) -> Result<$out: ty, Error>
+	) => {
+		$del.add_method($name, move |base, params| {
+			(Self::$method as fn(&_ $(, $param)*) -> Result<$out, Error>).wrap_rpc(base, params)
+		})
+	};
+
+	( WRAP $del: expr =>
+		(async, name = $name: expr)
+		fn $method: ident (&self, Ready<$out: ty> $(, $param: ty)*)
+	) => {
+		$del.add_async_method($name, move |base, params, ready| {
+			(Self::$method as fn(&_, Ready<$out> $(, $param)*)).wrap_rpc(base, params, ready)
+		})
+	};
 }
 
 /// A wrapper type without an implementation of `Deserialize`
@@ -71,9 +106,33 @@ macro_rules! build_rpc_trait {
 /// that take a trailing default parameter.
 pub struct Trailing<T: Default + Deserialize>(pub T);
 
+/// A wrapper type for `jsonrpc_core`'s weakly-typed `Ready` struct.
+pub struct Ready<T: Serialize> {
+	inner: ::jsonrpc_core::Ready,
+	_marker: ::std::marker::PhantomData<T>,
+}
+
+impl<T: Serialize> From<::jsonrpc_core::Ready> for Ready<T> {
+	fn from(ready: ::jsonrpc_core::Ready) -> Self {
+		Ready { inner: ready, _marker: ::std::marker::PhantomData }
+	}
+}
+
+impl<T: Serialize> Ready<T> {
+	/// Respond withthe asynchronous result.
+	pub fn ready(self, result: Result<T, Error>) {
+		self.inner.ready(result.map(to_value))
+	}
+}
+
 /// Wrapper trait for synchronous RPC functions.
 pub trait Wrap<B: Send + Sync + 'static> {
 	fn wrap_rpc(&self, base: &B, params: Params) -> Result<Value, Error>;
+}
+
+/// Wrapper trait for asynchronous RPC functions.
+pub trait WrapAsync<B: Send + Sync + 'static> {
+	fn wrap_rpc(&self, base: &B, params: Params, ready: ::jsonrpc_core::Ready);
 }
 
 // special impl for no parameters.
@@ -87,10 +146,23 @@ impl<B, OUT> Wrap<B> for fn(&B) -> Result<OUT, Error>
 	}
 }
 
+impl<B, OUT> WrapAsync<B> for fn(&B, Ready<OUT>)
+	where B: Send + Sync + 'static, OUT: Serialize
+{
+	fn wrap_rpc(&self, base: &B, params: Params, ready: ::jsonrpc_core::Ready) {
+		match ::v1::helpers::params::expect_no_params(params) {
+			Ok(()) => (self)(base, ready.into()),
+			Err(e) => ready.ready(Err(e)),
+		}
+	}
+}
+
 // creates a wrapper implementation which deserializes the parameters,
 // calls the function with concrete type, and serializes the output.
 macro_rules! wrap {
 	($($x: ident),+) => {
+
+		// synchronous implementation
 		impl <
 			BASE: Send + Sync + 'static,
 			OUT: Serialize,
@@ -100,6 +172,20 @@ macro_rules! wrap {
 				from_params::<($($x,)+)>(params).and_then(|($($x,)+)| {
 					(self)(base, $($x,)+)
 				}).map(to_value)
+			}
+		}
+
+		// asynchronous implementation
+		impl <
+			BASE: Send + Sync + 'static,
+			OUT: Serialize,
+			$($x: Deserialize,)+
+		> WrapAsync<BASE> for fn(&BASE, Ready<OUT>, $($x,)+ ) {
+			fn wrap_rpc(&self, base: &BASE, params: Params, ready: ::jsonrpc_core::Ready) {
+				match from_params::<($($x,)+)>(params) {
+					Ok(($($x,)+)) => (self)(base, ready.into(), $($x,)+),
+					Err(e) => ready.ready(Err(e)),
+				}
 			}
 		}
 	}
@@ -126,10 +212,34 @@ impl<B, OUT, T> Wrap<B> for fn(&B, Trailing<T>) -> Result<OUT, Error>
 	}
 }
 
+impl<B, OUT, T> WrapAsync<B> for fn(&B, Ready<OUT>, Trailing<T>)
+	where B: Send + Sync + 'static, OUT: Serialize, T: Default + Deserialize
+{
+	fn wrap_rpc(&self, base: &B, params: Params, ready: ::jsonrpc_core::Ready) {
+		let len = match params {
+			Params::Array(ref v) => v.len(),
+			Params::None => 0,
+			_ => return ready.ready(Err(errors::invalid_params("not an array", ""))),
+		};
+
+		let id = match len {
+			0 => Ok((T::default(),)),
+			1 => from_params::<(T,)>(params),
+			_ => Err(Error::invalid_params()),
+		};
+
+		match id {
+			Ok((id,)) => (self)(base, ready.into(), Trailing(id)),
+			Err(e) => ready.ready(Err(e)),
+		}
+	}
+}
+
 // similar to `wrap!`, but handles a single default trailing parameter
 // accepts an additional argument indicating the number of non-trailing parameters.
 macro_rules! wrap_with_trailing {
 	($num: expr, $($x: ident),+) => {
+		// synchronous implementation
 		impl <
 			BASE: Send + Sync + 'static,
 			OUT: Serialize,
@@ -153,6 +263,35 @@ macro_rules! wrap_with_trailing {
 
 				let ($($x,)+ id) = try!(params);
 				(self)(base, $($x,)+ Trailing(id)).map(to_value)
+			}
+		}
+
+		// asynchronous implementation
+		impl <
+			BASE: Send + Sync + 'static,
+			OUT: Serialize,
+			$($x: Deserialize,)+
+			TRAILING: Default + Deserialize,
+		> WrapAsync<BASE> for fn(&BASE, Ready<OUT>, $($x,)+ Trailing<TRAILING>) {
+			fn wrap_rpc(&self, base: &BASE, params: Params, ready: ::jsonrpc_core::Ready) {
+				let len = match params {
+					Params::Array(ref v) => v.len(),
+					Params::None => 0,
+					_ => return ready.ready(Err(errors::invalid_params("not an array", ""))),
+				};
+
+				let params = match len - $num {
+					0 => from_params::<($($x,)+)>(params)
+						.map(|($($x,)+)| ($($x,)+ TRAILING::default())),
+					1 => from_params::<($($x,)+ TRAILING)>(params)
+						.map(|($($x,)+ id)| ($($x,)+ id)),
+					_ => Err(Error::invalid_params()),
+				};
+
+				match params {
+					Ok(($($x,)+ id)) => (self)(base, ready.into(), $($x,)+ Trailing(id)),
+					Err(e) => ready.ready(Err(e))
+				}
 			}
 		}
 	}

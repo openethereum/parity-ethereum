@@ -43,6 +43,8 @@ use self::account::Account;
 use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
 
+use super::state_db::StateDB;
+
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
@@ -454,6 +456,10 @@ impl StateRebuilder {
 			self.code_map.insert(code_hash, code);
 		}
 
+		let backing = self.db.backing().clone();
+
+		// bloom has to be updated
+		let mut bloom = StateDB::load_bloom(&backing);
 
 		// batch trie writes
 		{
@@ -464,12 +470,14 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
+				bloom.set(&*hash);
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let backing = self.db.backing().clone();
+		let bloom_journal = bloom.drain_journal();
 		let mut batch = backing.transaction();
+		try!(StateDB::commit_bloom(&mut batch, bloom_journal));
 		try!(self.db.inject(&mut batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);

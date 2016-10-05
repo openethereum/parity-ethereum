@@ -249,7 +249,7 @@ impl MinerService for TestMinerService {
 	}
 
 	fn code(&self, _chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
-		self.latest_closed_block.lock().as_ref().map_or(None, |b| b.block().fields().state.code(address).clone())
+		self.latest_closed_block.lock().as_ref().map_or(None, |b| b.block().fields().state.code(address).map(|c| (*c).clone()))
 	}
 
 }

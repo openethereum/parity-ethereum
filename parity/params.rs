@@ -142,7 +142,6 @@ impl str::FromStr for ResealPolicy {
 #[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
 	pub iterations: u32,
-	pub import_keys: bool,
 	pub testnet: bool,
 	pub password_files: Vec<String>,
 	pub unlocked_accounts: Vec<Address>,
@@ -152,7 +151,6 @@ impl Default for AccountsConfig {
 	fn default() -> Self {
 		AccountsConfig {
 			iterations: 10240,
-			import_keys: false,
 			testnet: false,
 			password_files: Vec::new(),
 			unlocked_accounts: Vec::new(),
@@ -250,6 +248,20 @@ pub fn tracing_switch_to_bool(switch: Switch, user_defaults: &UserDefaults) -> R
 		(_, Switch::Off, _) => Ok(false),
 		(_, Switch::Auto, def) => Ok(def),
 	}
+}
+
+pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, algorithm: Algorithm) -> Result<bool, String> {
+	let result = match (user_defaults.is_first_launch, switch, user_defaults.fat_db) {
+		(false, Switch::On, false) => Err("FatDB resync required".into()),
+		(_, Switch::On, _) => Ok(true),
+		(_, Switch::Off, _) => Ok(false),
+		(_, Switch::Auto, def) => Ok(def),
+	};
+
+	if result.clone().unwrap_or(false) && algorithm != Algorithm::Archive {
+		return Err("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`".into());
+	}
+	result
 }
 
 #[cfg(test)]

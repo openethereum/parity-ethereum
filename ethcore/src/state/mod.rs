@@ -300,7 +300,10 @@ impl State {
 				}
 			}
 		}
-		
+
+		// check bloom before any requests to trie
+		if !self.db.check_account_bloom(address) { return H256::zero() }
+
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
@@ -319,9 +322,14 @@ impl State {
 	}
 
 	/// Get accounts' code.
-	pub fn code(&self, a: &Address) -> Option<Bytes> {
+	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
 		self.ensure_cached(a, RequireCache::Code,
-			|a| a.as_ref().map_or(None, |a| a.code().map(|x|x.to_vec())))
+			|a| a.as_ref().map_or(None, |a| a.code().clone()))
+	}
+
+	pub fn code_hash(&self, a: &Address) -> H256 {
+		self.ensure_cached(a, RequireCache::None,
+			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
@@ -400,6 +408,7 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut() {
 			match a {
 				&mut&mut AccountEntry::Cached(ref mut account) if account.is_dirty() => {
+					db.note_account_bloom(&address);
 					let addr_hash = account.address_hash(address);
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
 					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
@@ -463,6 +472,7 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
+			self.db.note_account_bloom(&add);
 			self.cache.borrow_mut().insert(add, AccountEntry::Cached(Account::from_pod(acc)));
 		}
 	}
@@ -538,6 +548,9 @@ impl State {
 		match result {
 			Some(r) => r,
 			None => {
+				// first check bloom if it is not in database for sure
+				if !self.db.check_account_bloom(a) { return f(None); }
+
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
@@ -574,11 +587,17 @@ impl State {
 				Some(Some(acc)) => self.insert_cache(a, AccountEntry::Cached(acc)),
 				Some(None) => self.insert_cache(a, AccountEntry::Missing),
 				None => {
-					let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-					let maybe_acc = match db.get(a) {
-						Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
-						Ok(None) => AccountEntry::Missing,
-						Err(e) => panic!("Potential DB corruption encountered: {}", e),
+					let maybe_acc = if self.db.check_account_bloom(a) {
+						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
+						let maybe_acc = match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::Cached(Account::from_rlp(acc)),
+							Ok(None) => AccountEntry::Missing,
+							Err(e) => panic!("Potential DB corruption encountered: {}", e),
+						};
+						maybe_acc
+					}
+					else {
+						AccountEntry::Missing
 					};
 					self.insert_cache(a, maybe_acc);
 				}
@@ -640,6 +659,7 @@ impl Clone for State {
 #[cfg(test)]
 mod tests {
 
+use std::sync::Arc;
 use std::str::FromStr;
 use rustc_serialize::hex::FromHex;
 use super::*;
@@ -1504,14 +1524,14 @@ fn code_from_database() {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.require_or_from(&a, false, ||Account::new_contract(42.into(), 0.into()), |_|{});
 		state.init_code(&a, vec![1, 2, 3]);
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 		state.commit().unwrap();
-		assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+		assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 		state.drop()
 	};
 
 	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
-	assert_eq!(state.code(&a), Some([1u8, 2, 3].to_vec()));
+	assert_eq!(state.code(&a), Some(Arc::new([1u8, 2, 3].to_vec())));
 }
 
 #[test]
