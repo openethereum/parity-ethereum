@@ -54,6 +54,10 @@ export default class Event extends Component {
           <div>{ isPending ? 'Pending' : event.blockNumber.toFormat() }</div>
         </td>
         <td>{ event.event }</td>
+        <td className={ styles.description }>
+          <div>{ isPending ? '' : token.coin.tla }</div>
+          <div>{ isPending ? '' : token.coin.name }</div>
+        </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.from) }
         </td>
@@ -64,10 +68,6 @@ export default class Event extends Component {
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.to) }
-        </td>
-        <td className={ styles.description }>
-          <div>{ isPending ? '' : token && token.coin.tla }</div>
-          <div>{ isPending ? '' : token && token.coin.name }</div>
         </td>
       </tr>
     );

@@ -55,13 +55,13 @@ export default class Event extends Component {
           <div>{ isPending ? 'Pending' : event.blockNumber.toFormat() }</div>
         </td>
         <td>{ event.event }</td>
-        <td className={ styles.address }>
-          { this.renderAddress(event.params.owner) }
-          <div>{ this.renderHash(event.transactionHash) }</div>
-        </td>
         <td className={ styles.description }>
           <div>{ isPending ? '' : coin.tla }</div>
           <div>{ isPending ? '' : coin.name }</div>
+        </td>
+        <td className={ styles.address }>
+          { this.renderAddress(event.params.owner) }
+          <div>{ this.renderHash(event.transactionHash) }</div>
         </td>
         <td>{ isPending || !coin.isGlobal ? '' : 'global' }</td>
       </tr>

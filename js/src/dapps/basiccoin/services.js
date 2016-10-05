@@ -31,15 +31,16 @@ export function subscribeEvents (addresses, callback) {
   const subscriptionId = nextSubscriptionId++;
   const contract = api.newContract(abis.eip20);
   const event = contract.events.filter((evt) => evt.name === 'Transfer');
+  const options = {
+    address: addresses,
+    fromBlock: 0,
+    toBlock: 'pending',
+    limit: 50,
+    topics: [event.signature]
+  };
 
   return api.eth
-    .newFilter({
-      address: addresses,
-      fromBlock: 0,
-      toBlock: 'pending',
-      limit: 50,
-      topics: [event.signature]
-    })
+    .newFilter(options)
     .then((filterId) => {
       subscriptions[subscriptionId] = { subscriptionId, filterId, addresses, callback, contract };
 
