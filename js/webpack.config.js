@@ -80,7 +80,6 @@ module.exports = {
           'less'
         ]
       },
-
       {
         test: /\.(png|jpg|)$/,
         loader: 'file-loader'
