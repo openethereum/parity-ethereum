@@ -191,7 +191,7 @@ impl StateDB {
 		for (address, account) in self.cache_overlay.drain(..) {
 			if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&address) {
 				if let Some(new) = account {
-					existing.replace_with(new);
+					existing.overwrite_with(new);
 					continue;
 				}
 			}
