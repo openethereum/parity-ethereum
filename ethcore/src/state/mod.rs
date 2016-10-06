@@ -108,6 +108,20 @@ impl AccountEntry {
 			state: AccountState::Clean,
 		}
 	}
+
+	// Replace data with another entry but preserve storage cache
+	fn merge_snapshot(&mut self, other: AccountEntry) {
+		self.state = other.state;
+		match other.account {
+			None => self.account = None,
+			Some(acc) => match self.account {
+				Some(ref mut ours) => {
+					ours.merge_with(acc);
+				},
+				None => {},
+			},
+		}
+	}
 }
 
 /// Representation of the entire state of all accounts in the system.
@@ -210,8 +224,12 @@ impl State {
 		let last = self.snapshots.borrow_mut().pop();
 		if let Some(mut snapshot) = last {
 			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
-				for (k, v) in snapshot.drain() {
-					prev.entry(k).or_insert(v);
+				if prev.is_empty() {
+					**prev = snapshot;
+				} else {
+					for (k, v) in snapshot.drain() {
+						prev.entry(k).or_insert(v);
+					}
 				}
 			}
 		}
@@ -223,7 +241,16 @@ impl State {
 			for (k, v) in snapshot.drain() {
 				match v {
 					Some(v) => {
-						self.cache.borrow_mut().insert(k, v);
+						match self.cache.borrow_mut().entry(k) {
+							Entry::Occupied(mut e) => {
+								// Merge snapshotted changes back into the main account
+								// storage preserving the cache.
+								e.get_mut().merge_snapshot(v);
+							},
+							Entry::Vacant(e) => {
+								e.insert(v);
+							}
+						}
 					},
 					None => {
 						match self.cache.borrow_mut().entry(k) {
