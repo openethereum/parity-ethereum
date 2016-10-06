@@ -51,7 +51,7 @@ use rand::{Rng, OsRng};
 pub use self::error::Error;
 
 pub use self::service::{Service, DatabaseRestore};
-pub use self::traits::{SnapshotService, RemoteSnapshotService};
+pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
@@ -66,6 +66,12 @@ mod watcher;
 
 #[cfg(test)]
 mod tests;
+
+/// IPC interfaces
+#[cfg(feature="ipc")]
+pub mod remote {
+	pub use super::traits::RemoteSnapshotService;
+}
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues

@@ -57,7 +57,11 @@ fn should_return_registrar() {
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
-	assert_eq!(client.additional_params().get("registrar"), Some(&"52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d".to_owned()));
+	let params = client.additional_params();
+	let address = params.get("registrar").unwrap();
+
+	assert_eq!(address.len(), 40);
+	assert!(U256::from_str(address).is_ok());
 }
 
 #[test]
