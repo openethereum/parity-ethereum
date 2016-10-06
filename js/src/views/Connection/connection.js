@@ -28,22 +28,17 @@ class Connection extends Component {
   }
 
   static propTypes = {
-    secureToken: PropTypes.string,
-    isApiConnected: PropTypes.bool,
-    isPingConnected: PropTypes.bool
-  }
-
-  state = {
-    generatingToken: false,
-    manualToken: false
+    isConnected: PropTypes.bool,
+    isConnecting: PropTypes.bool,
+    isPingable: PropTypes.bool,
+    needsToken: PropTypes.bool
   }
 
   render () {
-    const { isApiConnected, isPingConnected, secureToken } = this.props;
-    const isSecured = secureToken && secureToken !== 'initial';
-    const isConnected = isApiConnected && isPingConnected && isSecured;
+    const { isConnected, isConnecting, isPingable } = this.props;
+    const isOk = isConnected && !isConnecting && isPingable;
 
-    if (isConnected) {
+    if (isOk) {
       return null;
     }
 
@@ -53,10 +48,10 @@ class Connection extends Component {
         <div style={ styles.modal }>
           <div style={ styles.body }>
             <div style={ styles.icons }>
-              { this.renderIcon(isPingConnected, 'Node') }
-              { this.renderIcon(isApiConnected, 'API') }
+              { this.renderIcon(isPingable, 'Node') }
+              { this.renderIcon(isConnected, 'API') }
             </div>
-            { isPingConnected ? this.renderSigner() : this.renderPing() }
+            { isPingable ? this.renderSigner() : this.renderPing() }
           </div>
         </div>
       </div>
@@ -64,7 +59,7 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    const { isApiConnected, secureToken } = this.props;
+    // const { isConnected } = this.props;
     let details = null;
 
     return (
@@ -99,13 +94,9 @@ class Connection extends Component {
 }
 
 function mapStateToProps (state) {
-  const { secureToken, isApiConnected, isPingConnected } = state.nodeStatus;
+  const { isConnected, isConnecting, isPingable, needsToken } = state.nodeStatus;
 
-  return {
-    secureToken,
-    isApiConnected,
-    isPingConnected
-  };
+  return { isConnected, isConnecting, isPingable, needsToken };
 }
 
 function mapDispatchToProps (dispatch) {

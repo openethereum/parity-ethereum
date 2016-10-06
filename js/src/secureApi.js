@@ -16,31 +16,40 @@
 
 import Api from './api';
 
+const sysuiToken = window.localStorage.getItem('sysuiToken');
+
 export default class SecureApi extends Api {
-  constructor (url, token) {
-    super(new Api.Transport.Ws(url, token));
+  constructor (url, updateTokenCallback) {
+    super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
     this._connectState = 0;
     this._needsToken = false;
+    this._updateTokenCallback = (token) => updateTokenCallback(token);
 
     this._followConnection();
   }
 
   _followConnection = () => {
     const nextTick = () => setTimeout(this._followConnection, 250);
+    const setToken = () => {
+      window.localStorage.setItem('sysuiToken', this._transport.token);
+      this._updateTokenCallback(this._transport.token);
+    };
+    const setManual = () => {
+      this._connectedState = 100;
+      this._needsToken = true;
+      this._isConnecting = false;
+    };
     const lastError = this._transport.lastError;
     const isConnected = this._transport.isConnected;
-    const isConnecting = this._transport.isConnecting;
-
-    console.log('_followConnection', isConnected, this._connectState);
 
     switch (this._connectState) {
       // token = <passed via constructor>
       case 0:
         if (isConnected) {
           this._isConnecting = false;
-          return;
+          return setToken();
         } else if (lastError) {
           this.updateToken('initial', 1);
         }
@@ -49,35 +58,29 @@ export default class SecureApi extends Api {
       // token = 'initial'
       case 1:
         if (isConnected) {
+          this._connectState = 2;
           this.personal
             .generateAuthorizationToken()
             .then((token) => {
-              console.log('token', token);
-              this.updateToken(token, 2);
+              this.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''), 2);
             })
             .catch((error) => {
               console.error('_followConnection', error);
-              this._isConnecting = false;
+              setManual();
             });
           return;
         } else if (lastError) {
-          this._connectedState = 100;
-          this._needsToken = true;
-          this._isConnecting = false;
-          return;
+          return setManual();
         }
         break;
 
-      // token = <generated from initial>
+      // token = <personal_generateAuthorizationToken>
       case 2:
         if (isConnected) {
           this._isConnecting = false;
-          return;
+          return setToken();
         } else if (lastError) {
-          this._connectedState = 100;
-          this._needsToken = true;
-          this._isConnecting = false;
-          return;
+          return setManual();
         }
         break;
     }
@@ -97,6 +100,10 @@ export default class SecureApi extends Api {
 
   get isConnected () {
     return this._transport.isConnected;
+  }
+
+  get needsToken () {
+    return this._needsToken;
   }
 
   get secureToken () {

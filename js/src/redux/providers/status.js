@@ -45,7 +45,7 @@ export default class Status {
 
   _pollPing = () => {
     const dispatch = (status, timeout = 500) => {
-      this._store.dispatch(statusCollection({ isPingConnected: status }));
+      this._store.dispatch(statusCollection({ isPingable: status }));
       setTimeout(this._pollPing, timeout);
     };
 
@@ -56,9 +56,9 @@ export default class Status {
 
   _pollStatus = () => {
     const nextTimeout = (timeout = 1000) => setTimeout(this._pollStatus, timeout);
-    const { token, isConnected } = this._api.transport;
+    const { secureToken, isConnected, isConnecting, needsToken } = this._api;
 
-    this._store.dispatch(statusCollection({ isApiConnected: isConnected, secureToken: token }));
+    this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
     if (!isConnected) {
       nextTimeout(250);
     }
