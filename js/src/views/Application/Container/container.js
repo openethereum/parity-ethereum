@@ -32,16 +32,14 @@ export default class Container extends Component {
   };
 
   render () {
-    const { children, isApiConnected, isPingConnected, showFirstRun, onCloseFirstRun } = this.props;
+    const { children, showFirstRun, onCloseFirstRun } = this.props;
 
     return (
       <ParityBackground className={ styles.container }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
-        <Connection
-          isApiConnected={ isApiConnected }
-          isPingConnected={ isPingConnected } />
+        <Connection />
         <Tooltips />
         <Errors />
         { children }

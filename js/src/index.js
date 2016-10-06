@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'babel-polyfill';
-import 'isomorphic-fetch';
+import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
@@ -28,7 +28,7 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 
 import Web3 from 'web3';
 
-import Api from './api';
+import SecureApi from './secureApi';
 import ContractInstances from './contracts';
 
 import { initStore } from './redux';
@@ -47,7 +47,7 @@ import './index.html';
 
 injectTapEventPlugin();
 
-const initToken = window.localStorage.getItem('sysuiToken') || 'initial';
+const initToken = window.localStorage.getItem('sysuiToken');
 const parityUrl = process.env.PARITY_URL ||
   (
     process.env.NODE_ENV === 'production'
@@ -55,7 +55,7 @@ const parityUrl = process.env.PARITY_URL ||
     : '127.0.0.1:8180'
   );
 
-const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
+const api = new SecureApi(`ws://${parityUrl}`, initToken);
 ContractInstances.create(api);
 
 // signer

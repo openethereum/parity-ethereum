@@ -15,53 +15,33 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import ActionDone from 'material-ui/svg-icons/action/done';
+import ContentClear from 'material-ui/svg-icons/content/clear';
 
-const styleOverlay = {
-  position: 'fixed',
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  background: 'rgba(255, 255, 255, 0.75)',
-  zIndex: 20000
-};
+import * as styles from './styles';
 
-const styleModal = {
-  position: 'fixed',
-  top: 0,
-  right: 0,
-  bottom: 0,
-  left: 0,
-  zIndex: 20001
-};
+class Connection extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
 
-const styleBody = {
-  margin: '0 auto',
-  padding: '3em 2em',
-  textAlign: 'center',
-  maxWidth: '40em',
-  background: 'rgba(25, 25, 25, 0.75)',
-  color: 'rgb(208, 208, 208)',
-  boxShadow: 'rgba(0, 0, 0, 0.25) 0px 14px 45px, rgba(0, 0, 0, 0.22) 0px 10px 18px'
-};
-
-const styleHeader = {
-  fontSize: '1.25em',
-  margin: '0 0 0.5em 0'
-};
-
-const styleContent = {
-};
-
-export default class Connection extends Component {
   static propTypes = {
+    secureToken: PropTypes.string,
     isApiConnected: PropTypes.bool,
     isPingConnected: PropTypes.bool
   }
 
+  state = {
+    generatingToken: false,
+    manualToken: false
+  }
+
   render () {
-    const { isApiConnected, isPingConnected } = this.props;
-    const isConnected = isApiConnected && isPingConnected;
+    const { isApiConnected, isPingConnected, secureToken } = this.props;
+    const isSecured = secureToken && secureToken !== 'initial';
+    const isConnected = isApiConnected && isPingConnected && isSecured;
 
     if (isConnected) {
       return null;
@@ -69,18 +49,70 @@ export default class Connection extends Component {
 
     return (
       <div>
-        <div style={ styleOverlay } />
-        <div style={ styleModal }>
-          <div style={ styleBody }>
-            <div style={ styleHeader }>
-              Connecting to Parity
+        <div style={ styles.overlay } />
+        <div style={ styles.modal }>
+          <div style={ styles.body }>
+            <div style={ styles.icons }>
+              { this.renderIcon(isPingConnected, 'Node') }
+              { this.renderIcon(isApiConnected, 'API') }
             </div>
-            <div style={ styleContent }>
-              If this message persists, please check that your Parity node is running.
-            </div>
+            { isPingConnected ? this.renderSigner() : this.renderPing() }
           </div>
         </div>
       </div>
     );
   }
+
+  renderSigner () {
+    const { isApiConnected, secureToken } = this.props;
+    let details = null;
+
+    return (
+      <div style={ styles.info }>
+        Connecting to the Parity Secure API. { details }
+      </div>
+    );
+  }
+
+  renderPing () {
+    return (
+      <div style={ styles.info }>
+        Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.
+      </div>
+    );
+  }
+
+  renderIcon (connected, name) {
+    const icon = connected
+      ? <ActionDone style={ styles.iconSvg } />
+      : <ContentClear style={ styles.iconSvg } />;
+
+    return (
+      <div style={ styles.icon }>
+        { icon }
+        <div style={ styles.iconName }>
+          { name }
+        </div>
+      </div>
+    );
+  }
 }
+
+function mapStateToProps (state) {
+  const { secureToken, isApiConnected, isPingConnected } = state.nodeStatus;
+
+  return {
+    secureToken,
+    isApiConnected,
+    isPingConnected
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Connection);

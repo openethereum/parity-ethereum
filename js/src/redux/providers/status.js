@@ -24,6 +24,7 @@ export default class Status {
 
   start () {
     this._subscribeBlockNumber();
+    this._pollPing();
     this._pollStatus();
     this._pollLogs();
   }
@@ -42,13 +43,24 @@ export default class Status {
       });
   }
 
+  _pollPing = () => {
+    const dispatch = (status, timeout = 500) => {
+      this._store.dispatch(statusCollection({ isPingConnected: status }));
+      setTimeout(this._pollPing, timeout);
+    };
+
+    fetch(`http://${window.location.host}/api/ping`, { method: 'GET' })
+      .then((response) => dispatch(!!response.ok))
+      .catch(() => dispatch(false));
+  }
+
   _pollStatus = () => {
     const nextTimeout = (timeout = 1000) => setTimeout(this._pollStatus, timeout);
-    const isApiConnected = this._api.transport.isConnected;
+    const { token, isConnected } = this._api.transport;
 
-    this._store.dispatch(statusCollection({ isApiConnected }));
-    if (!isApiConnected) {
-      nextTimeout(100);
+    this._store.dispatch(statusCollection({ isApiConnected: isConnected, secureToken: token }));
+    if (!isConnected) {
+      nextTimeout(250);
     }
 
     Promise
