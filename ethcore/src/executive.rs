@@ -149,12 +149,13 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let gas_cost = t.gas.full_mul(t.gas_price);
 		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+		let balance512 = U512::from(balance);
+		if balance512 < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -416,7 +417,7 @@ impl<'a> Executive<'a> {
 
 		// real ammount to refund
 		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
-		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
+		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
 		let gas_used = t.gas - gas_left;
