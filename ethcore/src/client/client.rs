@@ -442,8 +442,8 @@ impl Client {
 			.collect();
 
 		//let traces = From::from(block.traces().clone().unwrap_or_else(Vec::new));
-		let mut batch = DBTransaction::new(&self.db.read());
 
+		let mut batch = DBTransaction::new(&self.db.read());
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
@@ -458,8 +458,8 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
-		let is_canon = route.omitted.len() == 0;
-		state.update_cache(&route.enacted, &route.retracted, is_canon);
+		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
+		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
 		self.db.read().write_buffered(batch);
 		chain.commit();
