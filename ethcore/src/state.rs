@@ -513,7 +513,7 @@ impl State {
 		let mut addresses = self.cache.borrow_mut();
 		trace!("Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| !a.is_dirty()) {
-			self.db.cache_account(address, a.account);
+			self.db.cache_account(address, a.account, a.state == AccountState::Commited);
 		}
 	}
 
