@@ -155,10 +155,11 @@ struct TransactionOrder {
 impl TransactionOrder {
 
 	fn for_transaction(tx: &VerifiedTransaction, base_nonce: U256, min_gas_price: U256, strategy: PrioritizationStrategy) -> Self {
+		let factor = (tx.transaction.gas >> 15) * min_gas_price;
 		TransactionOrder {
 			nonce_height: tx.nonce() - base_nonce,
 			gas_price: tx.transaction.gas_price,
-			gas_factor: (tx.transaction.gas >> 15) * min_gas_price,
+			gas_factor: factor,
 			strategy: strategy,
 			hash: tx.hash(),
 			origin: tx.origin,
@@ -209,12 +210,12 @@ impl Ord for TransactionOrder {
 
 		if self.strategy == PrioritizationStrategy::GasFactorAndGasPrice {
 			// avoiding overflows
-			// (gp1 - g1) > (gp2 - g2)
+			// (gp1 - g1) > (gp2 - g2) <=>
 			// (gp1 + g2) > (gp2 + g1)
-			let f1 = self.gas_price + b.gas_factor;
-			let f2 = b.gas_price + self.gas_factor;
-			if f1 != f2 {
-				return f1.cmp(&f2);
+			let f_a = self.gas_price + b.gas_factor;
+			let f_b = b.gas_price + self.gas_factor;
+			if f_a != f_b {
+				return f_b.cmp(&f_a);
 			}
 		}
 
@@ -1166,13 +1167,14 @@ mod test {
 	}
 
 	#[test]
-	fn should_order_by_gas() {
+	fn should_order_by_gas_factor() {
 		// given
-		let mut txq = TransactionQueue::default();
-		let tx1 = new_tx_with_gas(50000.into(), 40.into());
-		let tx2 = new_tx_with_gas(40000.into(), 30.into());
-		let tx3 = new_tx_with_gas(30000.into(), 10.into());
-		let tx4 = new_tx_with_gas(50000.into(), 20.into());
+		let mut txq = TransactionQueue::new(PrioritizationStrategy::GasFactorAndGasPrice);
+
+		let tx1 = new_tx_with_gas(150_000.into(), 40.into());
+		let tx2 = new_tx_with_gas(40_000.into(), 16.into());
+		let tx3 = new_tx_with_gas(30_000.into(), 15.into());
+		let tx4 = new_tx_with_gas(150_000.into(), 62.into());
 		txq.set_minimal_gas_price(15.into());
 
 		// when
@@ -1184,18 +1186,19 @@ mod test {
 		// then
 		assert_eq!(res1.unwrap(), TransactionImportResult::Current);
 		assert_eq!(res2.unwrap(), TransactionImportResult::Current);
-		assert_eq!(unwrap_tx_err(res3), TransactionError::InsufficientGasPrice {
-			minimal: U256::from(15),
-			got: U256::from(10),
-		});
+		assert_eq!(res3.unwrap(), TransactionImportResult::Current);
 		assert_eq!(res4.unwrap(), TransactionImportResult::Current);
 		let stats = txq.status();
-		assert_eq!(stats.pending, 3);
-		assert_eq!(txq.top_transactions()[0].gas, 40000.into());
-		assert_eq!(txq.top_transactions()[1].gas, 50000.into());
-		assert_eq!(txq.top_transactions()[2].gas, 50000.into());
-		assert_eq!(txq.top_transactions()[1].gas_price, 40.into());
-		assert_eq!(txq.top_transactions()[2].gas_price, 20.into());
+		assert_eq!(stats.pending, 4);
+		println!("{:?}", txq.top_transactions());
+		assert_eq!(txq.top_transactions()[0].gas, 30_000.into());
+		assert_eq!(txq.top_transactions()[1].gas, 150_000.into());
+		assert_eq!(txq.top_transactions()[2].gas, 40_000.into());
+		assert_eq!(txq.top_transactions()[3].gas, 150_000.into());
+		assert_eq!(txq.top_transactions()[0].gas_price, 15.into());
+		assert_eq!(txq.top_transactions()[1].gas_price, 62.into());
+		assert_eq!(txq.top_transactions()[2].gas_price, 16.into());
+		assert_eq!(txq.top_transactions()[3].gas_price, 40.into());
 	}
 
 	#[test]

@@ -194,6 +194,12 @@ Sealing/Mining Options:
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) [default: 1024].
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas_price - Prioritize txs with high gas price,
+                           gas_factor - Prioritize transactions with high
+                           gas price relative to utilized gas,
+                           [default: gas_factor].
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -372,12 +378,13 @@ pub struct Args {
 	pub flag_gas_cap: String,
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
+	pub flag_tx_queue_strategy: String,
 	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
 	pub flag_from: String,
 	pub flag_to: String,
-  pub flag_at: String,
+	pub flag_at: String,
 	pub flag_format: Option<String>,
 	pub flag_jitvm: bool,
 	pub flag_log_file: Option<String>,
