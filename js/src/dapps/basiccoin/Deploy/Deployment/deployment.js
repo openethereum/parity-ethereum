@@ -123,10 +123,21 @@ export default class Deployment extends Component {
 
   renderForm () {
     const { accounts } = this.context;
-    const { baseText, globalFeeText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
+    const { baseText, name, nameError, tla, tlaError, totalSupply, totalSupplyError } = this.state;
     const hasError = !!(nameError || tlaError || totalSupplyError);
     const error = `${styles.input} ${styles.error}`;
     const addresses = Object.keys(accounts).filter((address) => accounts[address].uuid);
+
+    // <div className={ styles.input }>
+    //   <label>global registration</label>
+    //   <select onChange={ this.onChangeRegistrar }>
+    //     <option value='no'>No, only for me</option>
+    //     <option value='yes'>Yes, for everybody</option>
+    //   </select>
+    //   <div className={ styles.hint }>
+    //     register on network (fee: { globalFeeText }ETH)
+    //   </div>
+    // </div>
 
     return (
       <Container>
@@ -169,16 +180,6 @@ export default class Deployment extends Component {
               onChange={ this.onChangeSupply } />
             <div className={ styles.hint }>
               { totalSupplyError || `number of tokens (base: ${baseText})` }
-            </div>
-          </div>
-          <div className={ styles.input }>
-            <label>global registration</label>
-            <select onChange={ this.onChangeRegistrar }>
-              <option value='no'>No, only for me</option>
-              <option value='yes'>Yes, for everybody</option>
-            </select>
-            <div className={ styles.hint }>
-              register on network (fee: { globalFeeText }ETH)
             </div>
           </div>
           <div className={ styles.input }>

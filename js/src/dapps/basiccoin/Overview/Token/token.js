@@ -49,7 +49,6 @@ export default class Token extends Component {
           <div>{ totalSupply.div(1000000).toFormat(0) }</div>
           <div className={ styles.info }>total supply</div>
         </div>
-        <div className={ styles.global }>{ coin.isGlobal ? 'global' : 'local' }</div>
       </div>
     );
   }

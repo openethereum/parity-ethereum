@@ -19,8 +19,6 @@ import React, { Component, PropTypes } from 'react';
 import PAGES from '../pages';
 import styles from './header.css';
 
-const colors = ['#622', '#733', '#844'];
-
 export default class Header extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
@@ -50,11 +48,12 @@ export default class Header extends Component {
   renderHeader (position, offset) {
     const index = (position + offset) % PAGES.length;
     const page = PAGES[index];
+    const background = `rgba(102, 34, 34, ${1 - (0.1 * position)})`;
 
     return (
       <td
         className={ position ? styles.navNext : styles.navCurrent }
-        style={ { background: colors[position] } }
+        style={ { background } }
         colSpan={ position ? 1 : 2 }
         rowSpan={ position ? 1 : 2 }
         onClick={ this.onNavigate(page.path) }>

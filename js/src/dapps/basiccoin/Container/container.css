@@ -22,6 +22,6 @@
 }
 
 .content:nth-child(odd) {
-  background: whitesmoke;
-  border: 1px solid #eee;
+  background: rgba(102, 34, 34, 0.05);
+  border: 1px solid rgba(102, 34, 34, 0.075);
 }
