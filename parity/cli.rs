@@ -196,9 +196,10 @@ Sealing/Mining Options:
                            to be included in next block) [default: 1024].
   --tx-queue-strategy S    Prioritization strategy used to order transactions
                            in the queue. S may be:
+						   gas - Prioritize txs with low gas limit,
                            gas_price - Prioritize txs with high gas price,
-                           gas_factor - Prioritize transactions with high
-                           gas price relative to utilized gas,
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio,
                            [default: gas_factor].
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly

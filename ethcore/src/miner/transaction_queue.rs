@@ -134,14 +134,16 @@ struct TransactionOrder {
 	/// Gas Price of the transaction.
 	/// Low gas price = Low priority (processed later)
 	gas_price: U256,
-	/// Gas usage priority factor.
+	/// Gas usage priority factor. Usage depends on strategy.
 	/// Represents the linear increment in required gas price for heavy transactions.
 	///
 	/// High gas limit + Low gas price = Low priority
 	/// High gas limit + High gas price = High priority
 	gas_factor: U256,
-	/// Gas (limit) ordering enabled.
-	/// When `false` gas limit is not used to prioritize
+	/// Gas (limit) of the transaction. Usage depends on strategy.
+	/// Low gas limit = High priority (processed earlier)
+	gas: U256,
+	/// Transaction ordering strategy
 	strategy: PrioritizationStrategy,
 	/// Hash to identify associated transaction
 	hash: H256,
@@ -159,6 +161,7 @@ impl TransactionOrder {
 		TransactionOrder {
 			nonce_height: tx.nonce() - base_nonce,
 			gas_price: tx.transaction.gas_price,
+			gas: tx.transaction.gas,
 			gas_factor: factor,
 			strategy: strategy,
 			hash: tx.hash(),
@@ -208,22 +211,28 @@ impl Ord for TransactionOrder {
 			return self.origin.cmp(&b.origin);
 		}
 
-		if self.strategy == PrioritizationStrategy::GasFactorAndGasPrice {
-			// avoiding overflows
-			// (gp1 - g1) > (gp2 - g2) <=>
-			// (gp1 + g2) > (gp2 + g1)
-			let f_a = self.gas_price + b.gas_factor;
-			let f_b = b.gas_price + self.gas_factor;
-			if f_a != f_b {
-				return f_b.cmp(&f_a);
-			}
+		match self.strategy {
+			PrioritizationStrategy::GasAndGasPrice => {
+				if self.gas != b.gas {
+					return self.gas.cmp(&b.gas);
+				}
+			},
+			PrioritizationStrategy::GasFactorAndGasPrice => {
+				// avoiding overflows
+				// (gp1 - g1) > (gp2 - g2) <=>
+				// (gp1 + g2) > (gp2 + g1)
+				let f_a = self.gas_price + b.gas_factor;
+				let f_b = b.gas_price + self.gas_factor;
+				if f_a != f_b {
+					return f_b.cmp(&f_a);
+				}
+			},
+			PrioritizationStrategy::GasPriceOnly => {},
 		}
 
 		// Then compare gas_prices
-		let a_gas_price = self.gas_price;
-		let b_gas_price = b.gas_price;
-		if a_gas_price != b_gas_price {
-			return b_gas_price.cmp(&a_gas_price);
+		if self.gas_price != b.gas_price {
+			return b.gas_price.cmp(&self.gas_price);
 		}
 
 		// Compare hashes
@@ -369,6 +378,9 @@ pub enum PrioritizationStrategy {
 	/// Use only gas price. Disregards the actual computation cost of the transaction.
 	/// i.e. Higher gas price = Higher priority
 	GasPriceOnly,
+	/// Use gas limit and then gas price.
+	/// i.e. Higher gas limit = Lower priority
+	GasAndGasPrice,
 	/// Calculate and use priority based on gas and gas price.
 	/// PRIORITY = GAS_PRICE - GAS/2^15 * MIN_GAS_PRICE
 	///
@@ -1164,6 +1176,39 @@ mod test {
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		let stats = txq.status();
 		assert_eq!(stats.pending, 1);
+	}
+
+	#[test]
+	fn should_order_by_gas() {
+		// given
+		let mut txq = TransactionQueue::new(PrioritizationStrategy::GasAndGasPrice);
+		let tx1 = new_tx_with_gas(50000.into(), 40.into());
+		let tx2 = new_tx_with_gas(40000.into(), 30.into());
+		let tx3 = new_tx_with_gas(30000.into(), 10.into());
+		let tx4 = new_tx_with_gas(50000.into(), 20.into());
+		txq.set_minimal_gas_price(15.into());
+
+		// when
+		let res1 = txq.add(tx1, &default_nonce, TransactionOrigin::External);
+		let res2 = txq.add(tx2, &default_nonce, TransactionOrigin::External);
+		let res3 = txq.add(tx3, &default_nonce, TransactionOrigin::External);
+		let res4 = txq.add(tx4, &default_nonce, TransactionOrigin::External);
+
+		// then
+		assert_eq!(res1.unwrap(), TransactionImportResult::Current);
+		assert_eq!(res2.unwrap(), TransactionImportResult::Current);
+		assert_eq!(unwrap_tx_err(res3), TransactionError::InsufficientGasPrice {
+			minimal: U256::from(15),
+			got: U256::from(10),
+		});
+		assert_eq!(res4.unwrap(), TransactionImportResult::Current);
+		let stats = txq.status();
+		assert_eq!(stats.pending, 3);
+		assert_eq!(txq.top_transactions()[0].gas, 40000.into());
+		assert_eq!(txq.top_transactions()[1].gas, 50000.into());
+		assert_eq!(txq.top_transactions()[2].gas, 50000.into());
+		assert_eq!(txq.top_transactions()[1].gas_price, 40.into());
+		assert_eq!(txq.top_transactions()[2].gas_price, 20.into());
 	}
 
 	#[test]

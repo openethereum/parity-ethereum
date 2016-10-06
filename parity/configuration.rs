@@ -321,6 +321,7 @@ impl Configuration {
 
 	fn transaction_queue_strategy(&self) -> Result<PrioritizationStrategy, String> {
 		match self.args.flag_tx_queue_strategy.as_str() {
+			"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
 			"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
 			"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
 			_ => Err(format!("Invalid queue strategy: {}", self.args.flag_tx_queue_strategy)),
@@ -796,6 +797,7 @@ mod tests {
 		let conf0 = parse(&["parity"]);
 		let conf1 = parse(&["parity", "--tx-queue-strategy", "gas_factor"]);
 		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
+		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
 
 		// then
 		assert_eq!(conf0.miner_options().unwrap(), mining_options);
@@ -803,6 +805,8 @@ mod tests {
 		assert_eq!(conf1.miner_options().unwrap(), mining_options);
 		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
 		assert_eq!(conf2.miner_options().unwrap(), mining_options);
+		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
+		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]
