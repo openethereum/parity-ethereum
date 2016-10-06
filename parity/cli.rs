@@ -193,7 +193,7 @@ Sealing/Mining Options:
   --extra-data STRING      Specify a custom extra-data for authored blocks, no
                            more than 32 characters.
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
-                           to be included in next block) [default: 1024].
+                           to be included in next block) [default: 2048].
   --tx-queue-strategy S    Prioritization strategy used to order transactions
                            in the queue. S may be:
                            gas - Prioritize txs with low gas limit;
