@@ -303,7 +303,7 @@ impl State {
 
 	/// Destroy the current object and return root and database.
 	pub fn drop(mut self) -> (H256, StateDB) {
-		self.commit_cache();
+		self.update_shared_cache();
 		(self.root, self.db)
 	}
 
@@ -509,11 +509,12 @@ impl State {
 		Ok(())
 	}
 
-	fn commit_cache(&mut self) {
+	/// Merge local cache into shared canonical state cache.
+	fn update_shared_cache(&mut self) {
 		let mut addresses = self.cache.borrow_mut();
 		trace!("Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| !a.is_dirty()) {
-			self.db.cache_account(address, a.account, a.state == AccountState::Commited);
+			self.db.add_to_account_cache(address, a.account, a.state == AccountState::Commited);
 		}
 	}
 

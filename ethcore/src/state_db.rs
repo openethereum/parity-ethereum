@@ -30,26 +30,42 @@ const STATE_CACHE_ITEMS: usize = 65536;
 const STATE_CACHE_BLOCKS: usize = 8;
 
 
+pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
+
+pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
+
+/// Shared canonical state cache.
 struct AccountCache {
 	/// DB Account cache. `None` indicates that account is known to be missing.
 	accounts: LruCache<Address, Option<Account>>,
-	/// Accounts changed in recent blocks. Ordered by block number.
+	/// Accounts changed in recently committed blocks. Ordered by block number.
 	modifications: VecDeque<BlockChanges>,
 }
 
+/// Pending account cache item.
 struct CacheQueueItem {
+	/// Account address.
 	address: Address,
+	/// Acccount data or `None` if account does not exist.
 	account: Option<Account>,
+	/// Indicates that the account was modified before being
+	/// added to the cache.
 	modified: bool,
 }
 
 #[derive(Debug)]
-// Accumulates a list of accounts changed in a block.
+/// Accumulates a list of accounts changed in a block.
 struct BlockChanges {
+	/// Block number.
 	number: BlockNumber,
+	/// Block hash.
 	hash: H256,
+	/// Parent block hash.
 	parent: H256,
+	/// A set of modified account addresses.
 	accounts: HashSet<Address>,
+	/// Block is part of the canonical chain.
 	is_canon: bool,
 }
 
@@ -60,19 +76,20 @@ struct BlockChanges {
 /// on commit.
 /// For non-canonical clones cache is cleared on commit.
 pub struct StateDB {
-	// Backing database.
+	/// Backing database.
 	db: Box<JournalDB>,
-	// Shared canonical state cache.
+	/// Shared canonical state cache.
 	account_cache: Arc<Mutex<AccountCache>>,
-	// Local pending cache changes.
-	cache_overlay: Vec<CacheQueueItem>,
-	// Shared account bloom. Does not handle chain reorganizations.
+	/// Local pending cache changes.
+	pending_cache: Vec<CacheQueueItem>,
+	/// Shared account bloom. Does not handle chain reorganizations.
 	account_bloom: Arc<Mutex<Bloom>>,
-	// Hash of the block on top of which this instance was created
+	/// Hash of the block on top of which this instance was created or
+	/// `None` if cache is disabled
 	parent_hash: Option<H256>,
-	// Hash of the committing block
+	/// Hash of the committing block or `None` if not committed yet.
 	commit_hash: Option<H256>,
-	// Number of the committing block
+	/// Number of the committing block or `None` if not committed yet.
 	commit_number: Option<BlockNumber>,
 }
 
@@ -118,7 +135,7 @@ impl StateDB {
 				accounts: LruCache::new(STATE_CACHE_ITEMS),
 				modifications: VecDeque::new(),
 			})),
-			cache_overlay: Vec::new(),
+			pending_cache: Vec::new(),
 			account_bloom: Arc::new(Mutex::new(bloom)),
 			parent_hash: None,
 			commit_hash: None,
@@ -166,11 +183,14 @@ impl StateDB {
 		Ok(records)
 	}
 
-	/// Update canonical cache. This should be called after the block has been commited and the
-	/// blockchain route has ben calculated.
-	/// `retracted` is the list of the retracted block hashes.
-	pub fn update_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
-		trace!("commit id = (#{:?}, {:?}), parent={:?}, best={}", self.commit_number, self.commit_hash, self.parent_hash, is_best);
+	/// Apply pending cache changes and synchronize canonical
+	/// state cache with the best block state.
+	/// This function updates the cache by removing entries that are
+	/// invalidated by chain reorganization. `update_cache` should be
+	/// called after the block has been commited and the blockchain
+	/// route has ben calculated.
+	pub fn sync_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
+		trace!("sync_cache id = (#{:?}, {:?}), parent={:?}, best={}", self.commit_number, self.commit_hash, self.parent_hash, is_best);
 		let mut cache = self.account_cache.lock();
 		let mut cache = &mut *cache;
 
@@ -179,10 +199,10 @@ impl StateDB {
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(false, |p| *h != p)) {
 			clear = clear || {
 				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
-					trace!("reverting enacted block {:?}", block);
+					trace!("Reverting enacted block {:?}", block);
 					m.is_canon = true;
 					for a in &m.accounts {
-						trace!("reverting enacted address {:?}", a);
+						trace!("Reverting enacted address {:?}", a);
 						cache.accounts.remove(a);
 					}
 					false
@@ -195,10 +215,10 @@ impl StateDB {
 		for block in retracted {
 			clear = clear || {
 				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
-					trace!("retracting block {:?}", block);
+					trace!("Retracting block {:?}", block);
 					m.is_canon = false;
 					for a in &m.accounts {
-						trace!("retracted address {:?}", a);
+						trace!("Retracted address {:?}", a);
 						cache.accounts.remove(a);
 					}
 					false
@@ -209,7 +229,7 @@ impl StateDB {
 		}
 		if clear {
 			// We don't know anything about the block; clear everything
-			trace!("wiping cache");
+			trace!("Wiping cache");
 			cache.accounts.clear();
 			cache.modifications.clear();
 		}
@@ -222,8 +242,8 @@ impl StateDB {
 				cache.modifications.pop_back();
 			}
 			let mut modifications = HashSet::new();
-			trace!("committing {} cache entries", self.cache_overlay.len());
-			for account in self.cache_overlay.drain(..) {
+			trace!("committing {} cache entries", self.pending_cache.len());
+			for account in self.pending_cache.drain(..) {
 				if account.modified {
 					modifications.insert(account.address.clone());
 				}
@@ -273,7 +293,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
-			cache_overlay: Vec::new(),
+			pending_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			parent_hash: None,
 			commit_hash: None,
@@ -286,7 +306,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
-			cache_overlay: Vec::new(),
+			pending_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
@@ -309,26 +329,18 @@ impl StateDB {
 		&*self.db
 	}
 
-	/// Enqueue cache change.
-	pub fn cache_account(&mut self, addr: Address, data: Option<Account>, modified: bool) {
-		self.cache_overlay.push(CacheQueueItem {
+	/// Add pending cache change.
+	/// The change is queued to be applied in `commit`.
+	pub fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
+		self.pending_cache.push(CacheQueueItem {
 			address: addr,
 			account: data,
 			modified: modified,
 		})
 	}
 
-	/// Clear the cache.
-	pub fn clear_cache(&mut self) {
-		trace!("Clearing cache");
-		self.cache_overlay.clear();
-		let mut cache = self.account_cache.lock();
-		cache.accounts.clear();
-	}
-
 	/// Get basic copy of the cached account. Does not include storage.
-	/// Returns 'None' if the state is non-canonical and cache is disabled
-	/// or if the account is not cached.
+	/// Returns 'None' if cache is disabled or if the account is not cached.
 	pub fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
 		let mut cache = self.account_cache.lock();
 		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
@@ -338,8 +350,7 @@ impl StateDB {
 	}
 
 	/// Get value from a cached account.
-	/// Returns 'None' if the state is non-canonical and cache is disabled
-	/// or if the account is not cached.
+	/// Returns 'None' if cache is disabled or if the account is not cached.
 	pub fn get_cached<F, U>(&self, a: &Address, f: F) -> Option<U>
 		where F: FnOnce(Option<&mut Account>) -> U {
 		let mut cache = self.account_cache.lock();
@@ -349,12 +360,12 @@ impl StateDB {
 		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
 	}
 
-	// Check if the account can be returned from cache by matching current block parent hash against canonical
-	// state and filtering out account modified in later blocks.
+	/// Check if the account can be returned from cache by matching current block parent hash against canonical
+	/// state and filtering out account modified in later blocks.
 	fn is_allowed(addr: &Address, parent_hash: &Option<H256>, modifications: &VecDeque<BlockChanges>) -> bool {
 		let mut parent = match *parent_hash {
 			None => {
-				trace!("cache lookup skipped for {:?}: no parent hash", addr);
+				trace!("Cache lookup skipped for {:?}: no parent hash", addr);
 				return false;
 			}
 			Some(ref parent) => parent,
@@ -376,11 +387,11 @@ impl StateDB {
 				parent = &m.parent;
 			}
 			if m.accounts.contains(addr) {
-				trace!("cache lookup skipped for {:?}: modified in a later block", addr);
+				trace!("Cache lookup skipped for {:?}: modified in a later block", addr);
 				return false;
 			}
 		}
-		trace!("cache lookup skipped for {:?}: parent hash is unknown", addr);
+		trace!("Cache lookup skipped for {:?}: parent hash is unknown", addr);
 		return false;
 	}
 }

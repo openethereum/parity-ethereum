@@ -456,8 +456,8 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
-		let is_canon = route.omitted.len() == 0;
-		state.update_cache(&route.enacted, &route.retracted, is_canon);
+		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
+		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
 		self.db.write_buffered(batch).expect("DB write failed.");
 		self.chain.commit();
