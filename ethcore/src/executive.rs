@@ -28,7 +28,7 @@ pub use types::executed::{Executed, ExecutionResult};
 /// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
-const STACK_SIZE_PER_DEPTH: usize = 16*1024;
+const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
