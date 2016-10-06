@@ -396,3 +396,80 @@ impl StateDB {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+
+use util::{U256, H256, FixedHash, Address, DBTransaction};
+use tests::helpers::*;
+use state::Account;
+use util::log::init_log;
+
+#[test]
+fn state_db_smoke() {
+	init_log();
+
+	let mut state_db_result = get_temp_state_db();
+	let state_db = state_db_result.take();
+	let root_parent = H256::random();
+	let address = Address::random();
+	let h0 = H256::random();
+	let h1a = H256::random();
+	let h1b = H256::random();
+	let h2a = H256::random();
+	let h2b = H256::random();
+	let h3a = H256::random();
+	let h3b = H256::random();
+	let mut batch = DBTransaction::new(state_db.journal_db().backing());
+
+	// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
+    // balance [ 5     5     4  3  2     2 ]
+	let mut s = state_db.boxed_clone_canon(&root_parent);
+	s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
+	s.commit(&mut batch, 0, &h0, None).unwrap();
+	s.sync_cache(&[], &[], true);
+
+	let mut s = state_db.boxed_clone_canon(&h0);
+	s.commit(&mut batch, 1, &h1a, None).unwrap();
+	s.sync_cache(&[], &[], true);
+
+	let mut s = state_db.boxed_clone_canon(&h0);
+	s.add_to_account_cache(address, Some(Account::new_basic(3.into(), 0.into())), true);
+	s.commit(&mut batch, 1, &h1b, None).unwrap();
+	s.sync_cache(&[], &[], false);
+
+	let mut s = state_db.boxed_clone_canon(&h1b);
+	s.add_to_account_cache(address, Some(Account::new_basic(4.into(), 0.into())), true);
+	s.commit(&mut batch, 2, &h2b, None).unwrap();
+	s.sync_cache(&[], &[], false);
+
+	let mut s = state_db.boxed_clone_canon(&h1a);
+	s.add_to_account_cache(address, Some(Account::new_basic(5.into(), 0.into())), true);
+	s.commit(&mut batch, 2, &h2a, None).unwrap();
+	s.sync_cache(&[], &[], true);
+
+	let mut s = state_db.boxed_clone_canon(&h2a);
+	s.commit(&mut batch, 3, &h3a, None).unwrap();
+	s.sync_cache(&[], &[], true);
+
+	let s = state_db.boxed_clone_canon(&h3a);
+	assert_eq!(s.get_cached_account(&address).unwrap().unwrap().balance(), &U256::from(5));
+
+	let s = state_db.boxed_clone_canon(&h1a);
+	assert!(s.get_cached_account(&address).is_none());
+
+	let s = state_db.boxed_clone_canon(&h2b);
+	assert!(s.get_cached_account(&address).is_none());
+
+	let s = state_db.boxed_clone_canon(&h1b);
+	assert!(s.get_cached_account(&address).is_none());
+
+	// reorg to 3b
+	// blocks  [ 3b(c) 3a 2a 2b(c) 1b 1a 0 ]
+	let mut s = state_db.boxed_clone_canon(&h2b);
+	s.commit(&mut batch, 3, &h3b, None).unwrap();
+	s.sync_cache(&[h1b.clone(), h2b.clone(), h3b.clone()], &[h1a.clone(), h2a.clone(), h3a.clone()], true);
+	let s = state_db.boxed_clone_canon(&h3a);
+	assert!(s.get_cached_account(&address).is_none());
+}
+}
+
