@@ -147,6 +147,9 @@ export default class Deployment extends Component {
             <AddressSelect
               addresses={ addresses }
               onChange={ this.onChangeFrom } />
+            <div className={ styles.hint }>
+              the owner account to eploy from
+            </div>
           </div>
           <div className={ nameError ? error : styles.input }>
             <label>token name</label>
@@ -170,7 +173,7 @@ export default class Deployment extends Component {
             </div>
           </div>
           <div className={ totalSupplyError ? error : styles.input }>
-            <label>total number of tokens</label>
+            <label>token supply</label>
             <input
               type='number'
               min='1000'
