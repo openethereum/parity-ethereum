@@ -18,24 +18,30 @@ import React, { Component, PropTypes } from 'react';
 
 import { FirstRun } from '../../../modals';
 import { Errors, ParityBackground, Tooltips } from '../../../ui';
+import Connection from '../../Connection';
 
 import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
+    isApiConnected: PropTypes.bool,
+    isPingConnected: PropTypes.bool,
     showFirstRun: PropTypes.bool,
     onCloseFirstRun: PropTypes.func
   };
 
   render () {
-    const { children, showFirstRun, onCloseFirstRun } = this.props;
+    const { children, isApiConnected, isPingConnected, showFirstRun, onCloseFirstRun } = this.props;
 
     return (
       <ParityBackground className={ styles.container }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
+        <Connection
+          isApiConnected={ isApiConnected }
+          isPingConnected={ isPingConnected } />
         <Tooltips />
         <Errors />
         { children }

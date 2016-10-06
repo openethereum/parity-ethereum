@@ -44,6 +44,12 @@ export default class Status {
 
   _pollStatus = () => {
     const nextTimeout = (timeout = 1000) => setTimeout(this._pollStatus, timeout);
+    const isApiConnected = this._api.transport.isConnected;
+
+    this._store.dispatch(statusCollection({ isApiConnected }));
+    if (!isApiConnected) {
+      nextTimeout(100);
+    }
 
     Promise
       .all([
