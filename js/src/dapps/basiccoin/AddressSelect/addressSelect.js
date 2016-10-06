@@ -60,7 +60,7 @@ export default class AddressSelect extends Component {
     const { addresses } = this.props;
     const { selectedAddress } = this.state;
     const style = {
-      background: `transparent url(${api.util.createIdentityImg(selectedAddress, 3)}) no-repeat 98% center`
+      background: `rgba(255, 255, 255, 0.75) url(${api.util.createIdentityImg(selectedAddress, 3)}) no-repeat 98% center`
     };
 
     return (

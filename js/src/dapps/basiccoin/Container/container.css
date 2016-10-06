@@ -16,7 +16,11 @@
 */
 
 .content {
-  padding: 0 2em;
-  margin-bottom: 4em;
+  padding: 4em;
+  margin-bottom: 0.25em;
   text-align: center;
+}
+
+.content:nth-child(odd) {
+  background: rgba(102, 34, 34, 0.075);
 }

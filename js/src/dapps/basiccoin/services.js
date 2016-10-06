@@ -26,6 +26,7 @@ let registryInstance;
 const registries = {};
 const subscriptions = {};
 let nextSubscriptionId = 1000;
+let isTest = false;
 
 export function subscribeEvents (addresses, callback) {
   const subscriptionId = nextSubscriptionId++;
@@ -97,12 +98,17 @@ function pollEvents () {
 export function attachInstances () {
   pollEvents();
 
-  return api.ethcore
-    .registryAddress()
-    .then((registryAddress) => {
-      console.log(`contract was found at registry=${registryAddress}`);
-
+  return Promise
+    .all([
+      api.ethcore.registryAddress(),
+      api.ethcore.netChain()
+    ])
+    .then(([registryAddress, netChain]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
+      isTest = netChain === 'morden' || netChain === 'testnet';
+
+      console.log(`contract was found at registry=${registryAddress}`);
+      console.log(`running on ${netChain}, isTest=${isTest}`);
 
       return Promise
         .all([
@@ -257,4 +263,8 @@ export function loadTokenBalance (tokenAddress, address) {
       console.error('loadTokenBalance', error);
       throw error;
     });
+}
+
+export function txLink (txHash) {
+  return `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${txHash}`;
 }

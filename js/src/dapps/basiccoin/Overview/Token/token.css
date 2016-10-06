@@ -21,12 +21,15 @@
 .info>div {
   display: inline-block;
   padding: 0.25em 0.5em;
+  vertical-align: middle;
 }
 
 .address {
 }
 
 .tla {
+  background: #766;
+  border-radius: 1px;
 }
 
 .name {
@@ -35,5 +38,16 @@
 .supply {
 }
 
+.supply div {
+  display: block;
+  text-align: center;
+}
+
+.supply .info {
+  font-size: 0.75em;
+  opacity: 0.75;
+}
+
 .global {
+  font-size: 0.75em;
 }

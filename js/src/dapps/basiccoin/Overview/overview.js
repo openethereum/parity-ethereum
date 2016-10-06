@@ -59,13 +59,24 @@ export default class Overview extends Component {
 
   renderBody () {
     const { total } = this.state;
+    let owners = null;
+
+    if (total.gt(0)) {
+      owners = (
+        <table className={ styles.ownerTable }>
+          <tbody>
+            { this.renderOwners() }
+          </tbody>
+        </table>
+      );
+    }
 
     return (
       <div className={ styles.body }>
         <div className={ styles.statusHeader }>
           You have { total.toFormat(0) } tokens created by your accounts
         </div>
-        { this.renderOwners() }
+        { owners }
       </div>
     );
   }

@@ -142,7 +142,7 @@ export default class Send extends Component {
               { this.renderTokens() }
             </select>
             <div className={ styles.hint }>
-              The token type to transfer
+              type of token to transfer
             </div>
           </div>
           <div className={ styles.input }>
@@ -151,7 +151,7 @@ export default class Send extends Component {
               addresses={ fromAddresses }
               onChange={ this.onSelectFrom } />
             <div className={ styles.hint }>
-              The account to transfer from
+              account to transfer from
             </div>
           </div>
           <div className={ styles.input }>
@@ -168,7 +168,7 @@ export default class Send extends Component {
             <label />
             { toInput }
             <div className={ styles.hint }>
-              the account to transfer to
+              account to transfer to
             </div>
           </div>
           <div className={ amountError ? error : styles.input }>

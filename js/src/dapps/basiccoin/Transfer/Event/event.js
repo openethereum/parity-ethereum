@@ -19,6 +19,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
+import { txLink } from '../../services';
 import IdentityIcon from '../../IdentityIcon';
 import styles from '../../Deploy/Event/event.css';
 
@@ -64,7 +65,7 @@ export default class Event extends Component {
         <td className={ styles.value }>
           <div>{ event.params.value.div(1000000).toFormat(6) }</div>
           <div>⇒</div>
-          <div>{ this.renderHash(event.transactionHash) }</div>
+          <div><a href={ txLink(event.transactionHash) } target='_blank' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.to) }

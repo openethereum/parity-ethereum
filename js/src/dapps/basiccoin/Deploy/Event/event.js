@@ -18,7 +18,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import { api } from '../../parity';
-import { getCoin } from '../../services';
+import { getCoin, txLink } from '../../services';
 import IdentityIcon from '../../IdentityIcon';
 
 import styles from './event.css';
@@ -61,7 +61,7 @@ export default class Event extends Component {
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.owner) }
-          <div>{ this.renderHash(event.transactionHash) }</div>
+          <div><a href={ txLink(event.transactionHash) } target='_blank' className={ styles.link }>{ this.renderHash(event.transactionHash) }</a></div>
         </td>
         <td>{ isPending || !coin.isGlobal ? '' : 'global' }</td>
       </tr>

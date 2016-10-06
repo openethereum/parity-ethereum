@@ -19,11 +19,6 @@
   background: #622;
 }
 
-a.link, a.link:hover, a.link:visited {
-  color: #622;
-  cursor: pointer;
-}
-
 .form {
   text-align: left;
   margin: 0 auto;
@@ -55,7 +50,8 @@ a.link, a.link:hover, a.link:visited {
 .form input,
 .form select {
   width: 18em;
-  background: rgba(255, 255, 255, 0.25);
+  color: #444;
+  background: rgba(255, 255, 255, 0.75);
   border-radius: 1px;
   border: 1px solid rgba(0, 0, 0, 0.25);
   box-sizing: border-box;
