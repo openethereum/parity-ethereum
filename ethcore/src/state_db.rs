@@ -26,14 +26,8 @@ use bloomfilter::{Bloom, BloomJournal};
 use client::DB_COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
-const STATE_CACHE_ITEMS: usize = 65536;
+const STATE_CACHE_ITEMS: usize = 256000;
 const STATE_CACHE_BLOCKS: usize = 8;
-
-
-pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
-pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
-
-pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -196,7 +190,7 @@ impl StateDB {
 
 		// Clean changes from re-enacted and retracted blocks
 		let mut clear = false;
-		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(false, |p| *h != p)) {
+		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
 				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
 					trace!("Reverting enacted block {:?}", block);
