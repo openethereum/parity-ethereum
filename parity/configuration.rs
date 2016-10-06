@@ -125,7 +125,7 @@ impl Configuration {
 				ImportFromGethAccounts {
 					to: dirs.keys,
 					testnet: self.args.flag_testnet
-				} 
+				}
 			);
 			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
