@@ -265,7 +265,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -285,7 +285,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_snapshot();
+				self.state.revert_to_snapshot();
 
 				tracer.trace_failed_call(trace_info, vec![]);
 
@@ -331,7 +331,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -473,10 +473,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_snapshot();
+					self.state.revert_to_snapshot();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 				substate.accrue(un_substate);
 			}
 		}
