@@ -636,7 +636,7 @@ impl TransactionQueue {
 		};
 		for k in nonces_from_sender {
 			let order = self.future.drop(&sender, &k).unwrap();
-			self.current.insert(sender, k, order.penalize());
+			self.future.insert(sender, k, order.penalize());
 		}
 	}
 
@@ -729,6 +729,15 @@ impl TransactionQueue {
 	/// Returns top transactions from the queue ordered by priority.
 	pub fn top_transactions(&self) -> Vec<SignedTransaction> {
 		self.current.by_priority
+			.iter()
+			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
+			.map(|t| t.transaction.clone())
+			.collect()
+	}
+
+	#[cfg(test)]
+	fn future_transactions(&self) -> Vec<SignedTransaction> {
+		self.future.by_priority
 			.iter()
 			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
 			.map(|t| t.transaction.clone())
@@ -1462,6 +1471,36 @@ mod test {
 		assert_eq!(top[1], tx2);
 		assert_eq!(top.len(), 2);
 	}
+
+	#[test]
+	fn should_penalize_transactions_from_sender_in_future() {
+		// given
+		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_account_details(a).nonce - U256::one(), balance: !U256::zero() };
+		let mut txq = TransactionQueue::new();
+		// txa, txb - slightly bigger gas price to have consistent ordering
+		let (txa, txb) = new_tx_pair_default(1.into(), 0.into());
+		let (tx1, tx2) = new_tx_pair_with_gas_price_increment(3.into());
+
+		// insert everything
+		txq.add(txa.clone(), &prev_nonce, TransactionOrigin::External).unwrap();
+		txq.add(txb.clone(), &prev_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx1.clone(), &prev_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx2.clone(), &prev_nonce, TransactionOrigin::External).unwrap();
+
+		assert_eq!(txq.status().future, 4);
+
+		// when
+		txq.penalize(&tx1.hash());
+
+		// then
+		let top = txq.future_transactions();
+		assert_eq!(top[0], txa);
+		assert_eq!(top[1], txb);
+		assert_eq!(top[2], tx1);
+		assert_eq!(top[3], tx2);
+		assert_eq!(top.len(), 4);
+	}
+
 
 	#[test]
 	fn should_penalize_transactions_from_sender() {
