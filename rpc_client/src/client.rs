@@ -158,17 +158,14 @@ impl Rpc {
 			Err(e) => return done(Ok(Err(e))).boxed(),
 			Ok(code) => {
 				let url = String::from(url);
-				// The ws::connect takes a FnMut closure,
-				// which means c cannot be moved into it,
-				// since it's consumed on complete.
-				// Therefore we wrap it in an option
-				// and pick it out once.
+				// The ws::connect takes a FnMut closure, which means c cannot be
+				// moved into it, since it's consumed on complete.
+				// Therefore we wrap it in an option and pick it out once.
 				let mut once = Some(c);
 				thread::spawn(move || {
 					let conn = ws::connect(url, |out| {
-						// this will panic if the closure
-						// is called twice, which it should never
-						// be.
+						// this will panic if the closure is called twice,
+						// which it should never be.
 						let c = once.take().expect("connection closure called only once");
 						RpcHandler::new(out, code.clone(), c)
 					});
