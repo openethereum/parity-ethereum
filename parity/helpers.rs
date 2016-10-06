@@ -191,6 +191,7 @@ pub fn to_client_config(
 		cache_config: &CacheConfig,
 		mode: Mode,
 		tracing: bool,
+		fat_db: bool,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
 		vm_type: VMType,
@@ -217,6 +218,7 @@ pub fn to_client_config(
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
+	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;

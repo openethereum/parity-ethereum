@@ -29,6 +29,7 @@ use ethereum;
 use devtools::*;
 use miner::Miner;
 use rlp::{self, RlpStream, Stream};
+use db::COL_STATE;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -344,7 +345,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None);
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
 	StateDB::new(journal_db)
 }
 

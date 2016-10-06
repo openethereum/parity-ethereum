@@ -19,6 +19,7 @@ use std::fs::File;
 use std::io::{Read, Write, Error as IoError, ErrorKind};
 use std::path::{Path, PathBuf};
 use std::fmt::{Display, Formatter, Error as FmtError};
+use std::sync::Arc;
 use util::journaldb::Algorithm;
 use util::migration::{Manager as MigrationManager, Config as MigrationConfig, Error as MigrationError, Migration};
 use util::kvdb::{CompactionProfile, Database, DatabaseConfig};
@@ -29,7 +30,7 @@ use ethcore::migrations::Extract;
 /// Database is assumed to be at default version, when no version file is found.
 const DEFAULT_VERSION: u32 = 5;
 /// Current version of database models.
-const CURRENT_VERSION: u32 = 9;
+const CURRENT_VERSION: u32 = 10;
 /// First version of the consolidated database.
 const CONSOLIDATION_VERSION: u32 = 9;
 /// Defines how many items are migrated to the new version of database at once.
@@ -143,7 +144,8 @@ pub fn default_migration_settings(compaction_profile: &CompactionProfile) -> Mig
 
 /// Migrations on the consolidated database.
 fn consolidated_database_migrations(compaction_profile: &CompactionProfile) -> Result<MigrationManager, Error> {
-	let manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	let mut manager = MigrationManager::new(default_migration_settings(compaction_profile));
+	try!(manager.add_migration(migrations::ToV10::new()).map_err(|_| Error::MigrationImpossible));
 	Ok(manager)
 }
 
@@ -172,13 +174,13 @@ fn consolidate_database(
 	let old_path_str = try!(old_db_path.to_str().ok_or(Error::MigrationImpossible));
 	let new_path_str = try!(new_db_path.to_str().ok_or(Error::MigrationImpossible));
 
-	let cur_db = try!(Database::open(&db_config, old_path_str).map_err(db_error));
+	let cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(db_error)));
 	// open new DB with proper number of columns
 	db_config.columns = migration.columns();
 	let mut new_db = try!(Database::open(&db_config, new_path_str).map_err(db_error));
 
 	// Migrate to new database (default column only)
-	try!(migration.migrate(&cur_db, &config, &mut new_db, None));
+	try!(migration.migrate(cur_db, &config, &mut new_db, None));
 
 	Ok(())
 }

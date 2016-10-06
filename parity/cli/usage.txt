@@ -217,7 +217,10 @@ Footprint Options:
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs (default: {flag_db_compaction}).
-  --fat-db                 Fat database. (default: {flag_fat_db})
+  --fat-db BOOL            Build appropriate information to allow enumeration
+                           of all accounts and storage keys. Doubles the size
+                           of the state database. BOOL may be one of on, off
+                           or auto. (default: {flag_fat_db})
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or

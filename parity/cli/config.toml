@@ -49,7 +49,7 @@ cache_size_db = 128
 cache_size_blocks = 16
 cache_size_queue = 100
 db_compaction = "ssd"
-fat_db = true
+fat_db = "off"
 
 [snapshots]
 disable_periodic = true

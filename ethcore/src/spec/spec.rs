@@ -247,6 +247,7 @@ impl Spec {
 			}
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
+				db.note_account_bloom(address);
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));

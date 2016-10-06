@@ -12,25 +12,17 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-//! RPC interface.
+//! RPC Settings data.
 
-use jsonrpc_core::Error;
-
-use v1::helpers::auto_args::Wrap;
-
-use std::collections::BTreeMap;
-
-build_rpc_trait! {
-	/// RPC Interface.
-	pub trait Rpc {
-		/// Returns supported modules for Geth 1.3.6
-		#[rpc(name = "modules")]
-		fn modules(&self) -> Result<BTreeMap<String, String>, Error>;
-
-		/// Returns supported modules for Geth 1.4.0
-		#[rpc(name = "rpc_modules")]
-		fn rpc_modules(&self) -> Result<BTreeMap<String, String>, Error>;
-	}
+/// Values of RPC settings.
+#[derive(Serialize, Deserialize)]
+pub struct RpcSettings {
+	/// Whether RPC is enabled.
+	pub enabled: bool,
+	/// The interface being listened on.
+	pub interface: String,
+	/// The port being listened on.
+	pub port: u64,
 }

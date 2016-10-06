@@ -146,7 +146,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
-			code: Some(code.to_vec()),
+			code: Some(Arc::new(code.to_vec())),
+			code_hash: code.sha3(),
 			data: None,
 			call_type: CallType::None,
 		};
@@ -185,6 +186,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			code: self.state.code(code_address),
+			code_hash: self.state.code_hash(code_address),
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -201,8 +203,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes {
-		self.state.code(address).unwrap_or_else(|| vec![])
+	fn extcode(&self, address: &Address) -> Arc<Bytes> {
+		self.state.code(address).unwrap_or_else(|| Arc::new(vec![]))
 	}
 
 	fn extcodesize(&self, address: &Address) -> usize {
