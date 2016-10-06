@@ -93,19 +93,33 @@ impl AccountEntry {
 		}
 	}
 
-	// Create a new account entry and mark it as dirty
+	// Create a new account entry and mark it as dirty.
 	fn new_dirty(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
 			account: account,
 			state: AccountState::Dirty,
 		}
 	}
-	
-	// Create a new account entry and mark it as clean
+
+	// Create a new account entry and mark it as clean.
 	fn new_clean(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
 			account: account,
 			state: AccountState::Clean,
+		}
+	}
+
+	// Replace data with another entry but preserve storage cache.
+	fn overwrite_with(&mut self, other: AccountEntry) {
+		self.state = other.state;
+		match other.account {
+			Some(acc) => match self.account {
+				Some(ref mut ours) => {
+					ours.overwrite_with(acc);
+				},
+				None => {},
+			},
+			None => self.account = None,
 		}
 	}
 }
@@ -142,10 +156,24 @@ impl AccountEntry {
 ///
 /// Upon destruction all the local cache data merged into the global cache.
 /// The merge might be rejected if current state is non-canonical.
+///
+/// State snapshotting.
+///
+/// A new snapshot can be created with `snapshot()`. Snapshots can be
+/// created in a hierarchy.
+/// When a snapshot is active all changes are applied directly into
+/// `cache` and the original value is copied into an active snapshot.
+/// Reverting a snapshot with `revert_to_snapshot` involves copying
+/// original values from the latest snapshot back into `cache`. The code
+/// takes care not to overwrite cached storage while doing that.
+/// Snapshot can be discateded with `discard_snapshot`. All of the orignal
+/// backed-up values are moved into a parent snapshot (if any).
+///
 pub struct State {
 	db: StateDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
+	// The original account is preserved in
 	snapshots: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
@@ -199,31 +227,44 @@ impl State {
 		Ok(state)
 	}
 
-	/// Create a recoverable snaphot of this state
+	/// Create a recoverable snaphot of this state.
 	pub fn snapshot(&mut self) {
 		self.snapshots.borrow_mut().push(HashMap::new());
 	}
 
-	/// Merge last snapshot with previous
-	pub fn clear_snapshot(&mut self) {
+	/// Merge last snapshot with previous.
+	pub fn discard_snapshot(&mut self) {
 		// merge with previous snapshot
 		let last = self.snapshots.borrow_mut().pop();
 		if let Some(mut snapshot) = last {
 			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
-				for (k, v) in snapshot.drain() {
-					prev.entry(k).or_insert(v);
+				if prev.is_empty() {
+					**prev = snapshot;
+				} else {
+					for (k, v) in snapshot.drain() {
+						prev.entry(k).or_insert(v);
+					}
 				}
 			}
 		}
 	}
 
-	/// Revert to snapshot
-	pub fn revert_snapshot(&mut self) {
+	/// Revert to the last snapshot and discard it.
+	pub fn revert_to_snapshot(&mut self) {
 		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
 			for (k, v) in snapshot.drain() {
 				match v {
 					Some(v) => {
-						self.cache.borrow_mut().insert(k, v);
+						match self.cache.borrow_mut().entry(k) {
+							Entry::Occupied(mut e) => {
+								// Merge snapshotted changes back into the main account
+								// storage preserving the cache.
+								e.get_mut().overwrite_with(v);
+							},
+							Entry::Vacant(e) => {
+								e.insert(v);
+							}
+						}
 					},
 					None => {
 						match self.cache.borrow_mut().entry(k) {
@@ -1717,12 +1758,12 @@ fn snapshot_basic() {
 	state.snapshot();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
+	state.discard_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.snapshot();
 	state.add_balance(&a, &U256::from(1u64));
 	assert_eq!(state.balance(&a), U256::from(70u64));
-	state.revert_snapshot();
+	state.revert_to_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 }
 
@@ -1735,9 +1776,9 @@ fn snapshot_nested() {
 	state.snapshot();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.clear_snapshot();
+	state.discard_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.revert_snapshot();
+	state.revert_to_snapshot();
 	assert_eq!(state.balance(&a), U256::from(0));
 }
 

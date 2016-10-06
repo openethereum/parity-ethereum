@@ -394,7 +394,7 @@ impl Account {
 	/// Replace self with the data from other account merging storage cache.
 	/// Basic account data and all modifications are overwritten
 	/// with new values.
-	pub fn merge_with(&mut self, other: Account) {
+	pub fn overwrite_with(&mut self, other: Account) {
 		self.balance = other.balance;
 		self.nonce = other.nonce;
 		self.storage_root = other.storage_root;

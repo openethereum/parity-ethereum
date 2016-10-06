@@ -189,13 +189,13 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			AlreadyImported => "Transaction with the same hash was already imported.".into(),
 			Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 			TooCheapToReplace => {
-				"Transaction fee is too low. There is another transaction with same nonce in the queue. Try increasing the fee or incrementing the nonce.".into()
+				"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
 			},
 			LimitReached => {
 				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
+				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
 			},
 			InsufficientBalance { balance, cost } => {
 				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
