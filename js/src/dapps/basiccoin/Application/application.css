@@ -16,7 +16,7 @@
 */
 
 .container {
-  color: #333;
+  color: #444;
   font-family: 'Roboto';
   vertical-align: middle;
   min-height: 100vh;
@@ -24,5 +24,5 @@
 }
 
 .body {
-  padding: 0 4em;
+  padding: 0 0.25em;
 }
