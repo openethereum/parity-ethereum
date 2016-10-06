@@ -21,7 +21,7 @@ macro_rules! rpc_unimplemented {
 }
 
 use std::fmt;
-use ethcore::error::Error as EthcoreError;
+use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
@@ -219,4 +219,10 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 	}
 }
 
-
+pub fn from_call_error(error: CallError) -> Error {
+	match error {
+		CallError::StatePruned => state_pruned(),
+		CallError::Execution(e) => internal("Execution error {}: ", e),
+		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
+	}
+}
