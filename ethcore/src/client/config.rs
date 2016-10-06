@@ -96,7 +96,7 @@ pub struct ClientConfig {
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
-	/// State db cache-size if not default
+	/// RocksDB state column cache-size if not default
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
@@ -106,6 +106,8 @@ pub struct ClientConfig {
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+	/// State db cache-size.
+	pub state_cache_size: usize,
 }
 
 #[cfg(test)]

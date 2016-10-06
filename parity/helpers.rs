@@ -215,6 +215,7 @@ pub fn to_client_config(
 	client_config.tracing.max_cache_size = cache_config.traces() as usize * mb;
 	// in bytes
 	client_config.tracing.pref_cache_size = cache_config.traces() as usize * 3 / 4 * mb;
+	client_config.state_cache_size = cache_config.state() as usize;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;

@@ -289,7 +289,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	let temp = RandomTempPath::new();
 	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), temp.as_str()).unwrap();
 	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
-	let state_db = StateDB::new(journal_db);
+	let state_db = StateDB::new(journal_db, 1024 * 1024);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(state_db)

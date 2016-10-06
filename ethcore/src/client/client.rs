@@ -177,7 +177,7 @@ impl Client {
 		};
 
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
-		let mut state_db = StateDB::new(journal_db);
+		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
 		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db)) {
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
@@ -691,7 +691,8 @@ impl snapshot::DatabaseRestore for Client {
 		let db = self.db.write();
 		try!(db.restore(new_db));
 
-		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE));
+		let cache_size = state_db.cache_size();
+		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())

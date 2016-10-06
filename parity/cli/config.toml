@@ -48,6 +48,7 @@ pruning = "fast"
 cache_size_db = 128
 cache_size_blocks = 16
 cache_size_queue = 100
+cache_size_state = 25
 db_compaction = "ssd"
 fat_db = "off"
 

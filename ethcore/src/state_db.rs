@@ -24,8 +24,6 @@ use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
-const STATE_CACHE_ITEMS: usize = 65536;
-
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
@@ -33,6 +31,8 @@ pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
 struct AccountCache {
 	/// DB Account cache. `None` indicates that account is known to be missing.
+	// When changing the type of the values here, be sure to update `mem_used` and
+	// `new`.
 	accounts: LruCache<Address, Option<Account>>,
 }
 
@@ -48,19 +48,26 @@ pub struct StateDB {
 	cache_overlay: Vec<(Address, Option<Account>)>,
 	is_canon: bool,
 	account_bloom: Arc<Mutex<Bloom>>,
+	cache_size: usize,
 }
 
 impl StateDB {
 
-	/// Create a new instance wrapping `JournalDB`
-	pub fn new(db: Box<JournalDB>) -> StateDB {
+	/// Create a new instance wrapping `JournalDB` and the maximum allowed size
+	/// of the LRU cache in bytes. Actual used memory may (read: will) be higher due to bookkeeping.
+	// TODO: make the cache size actually accurate by moving the account storage cache
+	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
+	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
 		let bloom = Self::load_bloom(db.backing());
+		let cache_items = cache_size / ::std::mem::size_of::<Option<Account>>();
+
 		StateDB {
 			db: db,
-			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(STATE_CACHE_ITEMS) })),
+			account_cache: Arc::new(Mutex::new(AccountCache { accounts: LruCache::new(cache_items) })),
 			cache_overlay: Vec::new(),
 			is_canon: false,
 			account_bloom: Arc::new(Mutex::new(bloom)),
+			cache_size: cache_size,
 		}
 	}
 
@@ -151,6 +158,7 @@ impl StateDB {
 			cache_overlay: Vec::new(),
 			is_canon: false,
 			account_bloom: self.account_bloom.clone(),
+			cache_size: self.cache_size,
 		}
 	}
 
@@ -162,6 +170,7 @@ impl StateDB {
 			cache_overlay: Vec::new(),
 			is_canon: true,
 			account_bloom: self.account_bloom.clone(),
+			cache_size: self.cache_size,
 		}
 	}
 
@@ -172,7 +181,8 @@ impl StateDB {
 
 	/// Heap size used.
 	pub fn mem_used(&self) -> usize {
-		self.db.mem_used() //TODO: + self.account_cache.lock().heap_size_of_children()
+		// TODO: account for LRU-cache overhead; this is a close approximation.
+		self.db.mem_used() + self.account_cache.lock().accounts.len() * ::std::mem::size_of::<Option<Account>>()
 	}
 
 	/// Returns underlying `JournalDB`.
@@ -227,6 +237,11 @@ impl StateDB {
 		}
 		let mut cache = self.account_cache.lock();
 		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+	}
+
+	/// Query how much memory is set aside for the accounts cache (in bytes).
+	pub fn cache_size(&self) -> usize {
+		self.cache_size
 	}
 }
 

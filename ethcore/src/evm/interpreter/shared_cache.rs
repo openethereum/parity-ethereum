@@ -23,13 +23,13 @@ use super::super::instructions;
 
 const CACHE_CODE_ITEMS: usize = 4096;
 
-/// GLobal cache for EVM interpreter
+/// Global cache for EVM interpreter
 pub struct SharedCache {
 	jump_destinations: Mutex<LruCache<H256, Arc<BitSet>>>
 }
 
 impl SharedCache {
-	/// Get jump destincations bitmap for a contract.
+	/// Get jump destinations bitmap for a contract.
 	pub fn jump_destinations(&self, code_hash: &H256, code: &[u8]) -> Arc<BitSet> {
 		if code_hash == &SHA3_EMPTY {
 			return Self::find_jump_destinations(code);
