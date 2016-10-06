@@ -110,13 +110,13 @@ impl AccountEntry {
 	}
 
 	// Replace data with another entry but preserve storage cache
-	fn merge_snapshot(&mut self, other: AccountEntry) {
+	fn replace_with(&mut self, other: AccountEntry) {
 		self.state = other.state;
 		match other.account {
 			None => self.account = None,
 			Some(acc) => match self.account {
 				Some(ref mut ours) => {
-					ours.merge_with(acc);
+					ours.replace_with(acc);
 				},
 				None => {},
 			},
@@ -245,7 +245,7 @@ impl State {
 							Entry::Occupied(mut e) => {
 								// Merge snapshotted changes back into the main account
 								// storage preserving the cache.
-								e.get_mut().merge_snapshot(v);
+								e.get_mut().replace_with(v);
 							},
 							Entry::Vacant(e) => {
 								e.insert(v);
