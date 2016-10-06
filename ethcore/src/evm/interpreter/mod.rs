@@ -116,11 +116,11 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			let instruction = code[reader.position];
 			reader.position += 1;
 
-			let info = infos[instruction as usize];
-			try!(self.verify_instruction(ext, instruction, &info, &stack));
+			let info = &infos[instruction as usize];
+			try!(self.verify_instruction(ext, instruction, info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_gas, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, &info, &stack, self.mem.size()));
+			let (gas_cost, mem_gas, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
 
@@ -129,7 +129,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			gasometer.current_mem_gas = mem_gas;
 			gasometer.current_gas = gasometer.current_gas - gas_cost;
 
-			evm_debug!({ informant.before_instruction(reader.position, instruction, &info, &gasometer.current_gas, &stack) });
+			evm_debug!({ informant.before_instruction(reader.position, instruction, info, &gasometer.current_gas, &stack) });
 
 			let (mem_written, store_written) = match trace_executed {
 				true => (Self::mem_written(instruction, &stack), Self::store_written(instruction, &stack)),
