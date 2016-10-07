@@ -88,7 +88,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 		try!(expect_no_params(params));
 
 		let mut polls = self.polls.lock();
-		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
+		let best_block = take_weak!(self.client).chain_info().best_block_number;
+		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes(best_block);
 		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 
 		to_value(&RpcU256::from(id))
@@ -118,7 +119,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 						},
 						PollFilter::PendingTransaction(ref mut previous_hashes) => {
 							// get hashes of pending transactions
-							let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
+							let current_number = client.chain_info().best_block_number;
+							let current_hashes = take_weak!(self.miner).pending_transactions_hashes(current_number);
 
 							let new_hashes =
 							{
@@ -159,7 +161,7 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 
 							// additionally retrieve pending logs
 							if include_pending {
-								let pending_logs = pending_logs(&*take_weak!(self.miner), &filter);
+								let pending_logs = pending_logs(&*take_weak!(self.miner), current_number, &filter);
 
 								// remove logs about which client was already notified about
 								let new_pending_logs: Vec<_> = pending_logs.iter()
@@ -177,7 +179,6 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							// save the number of the next block as a first block from which
 							// we want to get logs
 							*block_number = current_number + 1;
-
 							to_value(&logs)
 						}
 					}
@@ -200,7 +201,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M> where
 							.collect::<Vec<Log>>();
 
 						if include_pending {
-							logs.extend(pending_logs(&*take_weak!(self.miner), &filter));
+							let best_block = take_weak!(self.client).chain_info().best_block_number;
+							logs.extend(pending_logs(&*take_weak!(self.miner), best_block, &filter));
 						}
 
 						to_value(&logs)

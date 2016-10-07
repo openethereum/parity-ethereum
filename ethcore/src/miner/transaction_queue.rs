@@ -1457,7 +1457,7 @@ mod test {
 	fn should_penalize_transactions_from_sender_in_future() {
 		// given
 		let prev_nonce = |a: &Address| AccountDetails{ nonce: default_nonce(a).nonce - U256::one(), balance: !U256::zero() };
-		let mut txq = TransactionQueue::new();
+		let mut txq = TransactionQueue::default();
 		// txa, txb - slightly bigger gas price to have consistent ordering
 		let (txa, txb) = new_txs(U256::from(1));
 		let (tx1, tx2) = new_txs_with_higher_gas_price(U256::from(3));
