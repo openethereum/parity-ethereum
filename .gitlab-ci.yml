@@ -307,10 +307,6 @@ js-build:
     - ./js/scripts/release.sh
   tags:
     - javascript
-  artifacts:
-    paths:
-    - js/build
-    name: "stable-javascript_parity"
 js-test:
   stage: test
   before_script:
@@ -319,5 +315,3 @@ js-test:
     - ./js/scripts/test.sh
   tags:
     - javascript-test
-  dependencies:
-    - js-build
