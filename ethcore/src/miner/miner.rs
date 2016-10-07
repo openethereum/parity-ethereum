@@ -83,7 +83,7 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 1024,
+			tx_queue_size: 2048,
 			tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
