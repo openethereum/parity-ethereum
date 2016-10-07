@@ -74,13 +74,20 @@ struct BlockChanges {
 /// For canonical clones cache changes are accumulated and applied
 /// on commit.
 /// For non-canonical clones cache is cleared on commit.
+///
+/// Global cache propagation.
+/// After a `State` object has been committed to the trie it
+/// propagates its local cache into the `StateDB` local cache
+/// using `add_to_account_cache` function.
+/// Then, after the block has been added to the chain the local cache in the
+/// `StateDB` is propagated into the global cache.
 pub struct StateDB {
 	/// Backing database.
 	db: Box<JournalDB>,
 	/// Shared canonical state cache.
 	account_cache: Arc<Mutex<AccountCache>>,
-	/// Local cache buffer.
-	cache_buffer: Vec<CacheQueueItem>,
+	/// Local dirty cache.
+	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
 	account_bloom: Arc<Mutex<Bloom>>,
 	/// Hash of the block on top of which this instance was created or
@@ -129,7 +136,7 @@ impl StateDB {
 				accounts: LruCache::new(STATE_CACHE_ITEMS),
 				modifications: VecDeque::new(),
 			})),
-			cache_buffer: Vec::new(),
+			local_cache: Vec::new(),
 			account_bloom: Arc::new(Mutex::new(bloom)),
 			parent_hash: None,
 			commit_hash: None,
@@ -176,18 +183,18 @@ impl StateDB {
 		Ok(records)
 	}
 
-	/// Apply buffered cache changes and synchronize canonical
-	/// state cache with the best block state.
-	/// This function updates the cache by removing entries that are
-	/// invalidated by chain reorganization. `sync_cache` should be
-	/// called after the block has been commited and the blockchain
-	/// route has ben calculated.
+	/// Propagate local cache into the global cache and synchonize
+	/// the global cache with the best block state.
+	/// This function updates the global cache by removing entries
+	/// that are invalidated by chain reorganization. `sync_cache`
+	/// should be called after the block has been committed and the
+	/// blockchain route has ben calculated.
 	pub fn sync_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
 		trace!("sync_cache id = (#{:?}, {:?}), parent={:?}, best={}", self.commit_number, self.commit_hash, self.parent_hash, is_best);
 		let mut cache = self.account_cache.lock();
 		let mut cache = &mut *cache;
 
-		// Clean changes from re-enacted and retracted blocks.
+		// Purge changes from re-enacted and retracted blocks.
 		// Filter out commiting block if any.
 		let mut clear = false;
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
@@ -228,7 +235,7 @@ impl StateDB {
 			cache.modifications.clear();
 		}
 
-		// Apply cache changes only if committing on top of the latest canonical state
+		// Propagate cache only if committing on top of the latest canonical state
 		// blocks are ordered by number and only one block with a given number is marked as canonical
 		// (contributed to canonical state cache)
 		if let (Some(ref number), Some(ref hash), Some(ref parent)) = (self.commit_number, self.commit_hash, self.parent_hash) {
@@ -236,8 +243,8 @@ impl StateDB {
 				cache.modifications.pop_back();
 			}
 			let mut modifications = HashSet::new();
-			trace!("committing {} cache entries", self.cache_buffer.len());
-			for account in self.cache_buffer.drain(..) {
+			trace!("committing {} cache entries", self.local_cache.len());
+			for account in self.local_cache.drain(..) {
 				if account.modified {
 					modifications.insert(account.address.clone());
 				}
@@ -287,7 +294,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
-			cache_buffer: Vec::new(),
+			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			parent_hash: None,
 			commit_hash: None,
@@ -300,7 +307,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
-			cache_buffer: Vec::new(),
+			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
@@ -323,10 +330,12 @@ impl StateDB {
 		&*self.db
 	}
 
-	/// Add pending cache change.
-	/// The change is queued to be applied in `commit`.
+	/// Add a local cache entry.
+	/// The entry will be propagated to the global cache in `sync_cache`.
+	/// `modified` indicates that the entry was changed since being read from disk or global cache.
+	/// `data` can be set to an existing (`Some`), or non-existing account (`None`).
 	pub fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {
-		self.cache_buffer.push(CacheQueueItem {
+		self.local_cache.push(CacheQueueItem {
 			address: addr,
 			account: data,
 			modified: modified,
