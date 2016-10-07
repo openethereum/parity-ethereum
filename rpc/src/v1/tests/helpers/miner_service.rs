@@ -21,6 +21,7 @@ use util::standard::*;
 use ethcore::error::{Error, CallError};
 use ethcore::client::{MiningBlockChainClient, Executed, CallAnalytics};
 use ethcore::block::{ClosedBlock, IsBlock};
+use ethcore::header::BlockNumber;
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::{Receipt, RichReceipt};
 use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult};
@@ -162,7 +163,7 @@ impl MinerService for TestMinerService {
 	}
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
+	fn pending_transactions_hashes(&self, _best_block: BlockNumber) -> Vec<H256> {
 		vec![]
 	}
 
@@ -186,7 +187,7 @@ impl MinerService for TestMinerService {
 		Some(f(&open_block.close()))
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, _best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
 		self.pending_transactions.lock().get(hash).cloned()
 	}
 
@@ -194,13 +195,13 @@ impl MinerService for TestMinerService {
 		self.pending_transactions.lock().values().cloned().collect()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	fn pending_transactions(&self, _best_block: BlockNumber) -> Vec<SignedTransaction> {
 		self.pending_transactions.lock().values().cloned().collect()
 	}
 
-	fn pending_receipt(&self, hash: &H256) -> Option<RichReceipt> {
+	fn pending_receipt(&self, _best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
 		// Not much point implementing this since the logic is complex and the only thing it relies on is pending_receipts, which is already tested.
-		self.pending_receipts().get(hash).map(|r|
+		self.pending_receipts(0).get(hash).map(|r|
 			RichReceipt {
 				transaction_hash: Default::default(),
 				transaction_index: Default::default(),
@@ -212,7 +213,7 @@ impl MinerService for TestMinerService {
 		)
 	}
 
-	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
+	fn pending_receipts(&self, _best_block: BlockNumber) -> BTreeMap<H256, Receipt> {
 		self.pending_receipts.lock().clone()
 	}
 
