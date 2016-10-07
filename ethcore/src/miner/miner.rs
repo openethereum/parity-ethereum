@@ -211,7 +211,7 @@ impl Miner {
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(
-			options.tx_queue_strategy, options.tx_queue_size, options.tx_gas_limit
+			options.tx_queue_strategy, options.tx_queue_size, !U256::zero(), options.tx_gas_limit
 		)));
 		Arc::new(Miner {
 			transaction_queue: txq,
@@ -401,6 +401,8 @@ impl Miner {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
+		// Set total qx queue gas limit to be 2x the block gas limit.
+		queue.set_total_gas_limit(gas_limit << 1);
 	}
 
 	/// Returns true if we had to prepare new pending block
