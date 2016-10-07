@@ -38,7 +38,8 @@ pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 struct AccountCache {
 	/// DB Account cache. `None` indicates that account is known to be missing.
 	accounts: LruCache<Address, Option<Account>>,
-	/// Accounts changed in recently committed blocks. Ordered by block number.
+	/// Information on the modifications in recently committed blocks; specifically which addresses
+	/// changed in which block. Ordered by block number.
 	modifications: VecDeque<BlockChanges>,
 }
 
@@ -69,11 +70,12 @@ struct BlockChanges {
 }
 
 /// State database abstraction.
-/// Manages shared global state cache.
+/// Manages shared global state cache which reflects the canonical
+/// state as it is on the disk. All the entries in the cache are clean.
 /// A clone of `StateDB` may be created as canonical or not.
-/// For canonical clones cache changes are accumulated and applied
-/// on commit.
-/// For non-canonical clones cache is cleared on commit.
+/// For canonical clones local cache is accumulated and applied
+/// in `sync_cache`
+/// For non-canonical clones local cache is dropped.
 ///
 /// Global cache propagation.
 /// After a `State` object has been committed to the trie it
