@@ -19,8 +19,11 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
 import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
+// import CommunicationVpnKey from 'material-ui/svg-icons/communication/vpn-key';
 import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
 import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
+
+import { Input } from '../../ui';
 
 import styles from './connection.css';
 
@@ -34,6 +37,11 @@ class Connection extends Component {
     isConnecting: PropTypes.bool,
     isPingable: PropTypes.bool,
     needsToken: PropTypes.bool
+  }
+
+  state = {
+    token: '',
+    validToken: false
   }
 
   render () {
@@ -76,12 +84,21 @@ class Connection extends Component {
 
   renderSigner () {
     const { api } = this.context;
+    const { token, validToken } = this.state;
     const { needsToken, isConnecting } = api;
 
     if (needsToken && !isConnecting) {
       return (
         <div className={ styles.info }>
-          You need a manual token.
+          <div>Unable to make a connection to the Parity Secure API. To update your secure token or to generate a new one, run <span className={ styles.console }>parity signer new-token</span> and supply the token below</div>
+          <div className={ styles.form }>
+            <Input
+              label='secure token'
+              hint='a generated token from Parity'
+              error={ validToken || (!token || !token.length) ? null : 'invalid signer token' }
+              value={ token }
+              onChange={ this.onChangeToken } />
+          </div>
         </div>
       );
     }
@@ -101,19 +118,19 @@ class Connection extends Component {
     );
   }
 
-  renderIcon (connected, name) {
-    const icon = connected
-      ? <ActionDone className={ styles.iconSvg } />
-      : <ContentClear className={ styles.iconSvg } />;
+  onChangeToken = (event, token) => {
+    const validToken = /[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}-[a-zA-Z0-9]{4}/.test(token);
+    this.setState({ token, validToken }, () => {
+      validToken && this.setToken();
+    });
+  }
 
-    return (
-      <div className={ styles.icon }>
-        { icon }
-        <div className={ styles.iconName }>
-          { name }
-        </div>
-      </div>
-    );
+  setToken = () => {
+    const { api } = this.context;
+    const { token } = this.state;
+
+    api.updateToken(token);
+    this.setState({ token: '', validToken: false });
   }
 }
 

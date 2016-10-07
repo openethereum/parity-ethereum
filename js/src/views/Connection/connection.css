@@ -53,6 +53,17 @@
   line-height: 1.618em
 }
 
+.form {
+  margin-top: 0.75em;
+  padding: 0 4em;
+  text-align: left;
+}
+
+.btnrow {
+  text-align: right;
+  padding: 0 4em;
+}
+
 .icons {
 }
 
@@ -74,6 +85,12 @@
 .iconSmall .svg {
   width: 3em !important;
   height: 3em !important;
+}
+
+.console {
+  font-family: 'Roboto Mono';
+  background: rgba(0, 0, 0, 0.25);
+  padding: 0 0.25em;
 }
 
 @keyframes pulse {

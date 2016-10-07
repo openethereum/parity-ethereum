@@ -62,7 +62,7 @@ export default class SecureApi extends Api {
           this.personal
             .generateAuthorizationToken()
             .then((token) => {
-              this.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''), 2);
+              this.updateToken(token, 2);
             })
             .catch((error) => {
               console.error('_followConnection', error);
@@ -90,7 +90,7 @@ export default class SecureApi extends Api {
 
   updateToken (token, connectedState = 0) {
     this._connectState = connectedState;
-    this._transport.updateToken(token);
+    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
   }
 
