@@ -395,7 +395,7 @@ mod tests {
 
 use util::{U256, H256, FixedHash, Address, DBTransaction};
 use tests::helpers::*;
-use state::Account;
+use account::Account;
 use util::log::init_log;
 
 #[test]
