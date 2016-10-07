@@ -300,6 +300,7 @@ impl Miner {
 		let mut transactions_to_penalize = HashSet::new();
 		let block_number = open_block.block().fields().header.number();
 
+		// TODO Push new uncles too.
 		for tx in transactions {
 			let hash = tx.hash();
 			let sender = tx.sender().expect("Sender is valid, because transaction was in the queue");
