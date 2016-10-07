@@ -179,7 +179,7 @@ impl StateDB {
 	/// Apply buffered cache changes and synchronize canonical
 	/// state cache with the best block state.
 	/// This function updates the cache by removing entries that are
-	/// invalidated by chain reorganization. `update_cache` should be
+	/// invalidated by chain reorganization. `sync_cache` should be
 	/// called after the block has been commited and the blockchain
 	/// route has ben calculated.
 	pub fn sync_cache(&mut self, enacted: &[H256], retracted: &[H256], is_best: bool) {
@@ -187,9 +187,10 @@ impl StateDB {
 		let mut cache = self.account_cache.lock();
 		let mut cache = &mut *cache;
 
-		// Clean changes from re-enacted and retracted blocks
+		// Clean changes from re-enacted and retracted blocks.
+		// Filter out commiting block if any.
 		let mut clear = false;
-		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(false, |p| *h != p)) {
+		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
 				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
 					trace!("Reverting enacted block {:?}", block);
