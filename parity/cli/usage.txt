@@ -44,7 +44,8 @@ Account Options:
                            ACCOUNTS is a comma-delimited list of addresses.
                            Implies --no-signer. (default: {flag_unlock:?})
   --password FILE          Provide a file containing a password for unlocking
-                           an account. (default: {flag_password:?})
+                           an account. Leading and trailing whitespace is trimmed.
+                           (default: {flag_password:?})
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) (default: {flag_keys_iterations}).

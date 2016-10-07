@@ -33,7 +33,7 @@ use util::{FromHex, Mutex};
 use rlp::{self, UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
-use ethcore::header::Header as BlockHeader;
+use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -198,8 +198,8 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	}
 }
 
-pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts();
+pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let receipts = miner.pending_receipts(best_block);
 
 	let pending_logs = receipts.into_iter()
 		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
@@ -426,7 +426,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		let hash: H256 = hash.into();
 		let miner = take_weak!(self.miner);
-		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(&hash).map(Into::into)))
+		let client = take_weak!(self.client);
+		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(client.chain_info().best_block_number, &hash).map(Into::into)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
@@ -445,8 +446,9 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 
 		let miner = take_weak!(self.miner);
+		let best_block = take_weak!(self.client).chain_info().best_block_number;
 		let hash: H256 = hash.into();
-		match (miner.pending_receipt(&hash), self.options.allow_pending_receipt_query) {
+		match (miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
 			(Some(receipt), true) => Ok(Some(receipt.into())),
 			_ => {
 				let client = take_weak!(self.client);
@@ -488,7 +490,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.collect::<Vec<Log>>();
 
 		if include_pending {
-			let pending = pending_logs(&*take_weak!(self.miner), &filter);
+			let best_block = take_weak!(self.client).chain_info().best_block_number;
+			let pending = pending_logs(&*take_weak!(self.miner), best_block, &filter);
 			logs.extend(pending);
 		}
 
