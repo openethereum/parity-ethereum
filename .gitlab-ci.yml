@@ -291,6 +291,14 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+js-test:
+  stage: test
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/test.sh
+  tags:
+    - javascript-test
 js-build:
   stage: build
   only:
@@ -311,13 +319,5 @@ js-build:
     paths:
     - js/build
     name: "stable-javascript_parity"
-js-test:
-  stage: test
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
-    - ./js/scripts/test.sh
-  tags:
-    - javascript-test
   dependencies:
-    - js-build
+    - js-test
