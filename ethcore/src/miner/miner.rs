@@ -1065,7 +1065,17 @@ mod tests {
 		// given
 		let client = TestBlockChainClient::default();
 		let miner = miner();
-		let transaction = transaction();
+		let transaction = {
+			let keypair = KeyPair::create().unwrap();
+			Transaction {
+				action: Action::Create,
+				value: U256::zero(),
+				data: "3331600055".from_hex().unwrap(),
+				gas: U256::from(100_000),
+				gas_price: U256::zero(),
+				nonce: U256::zero(),
+			}.sign(keypair.secret())
+		};
 		let best_block = 10;
 		// when
 		let res = miner.import_own_transaction(&client, transaction);
