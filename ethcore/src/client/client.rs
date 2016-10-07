@@ -1078,7 +1078,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 }
 

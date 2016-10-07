@@ -81,7 +81,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 		try!(self.active());
 
 		let mut polls = self.polls.lock();
-		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes();
+		let best_block = take_weak!(self.client).chain_info().best_block_number;
+		let pending_transactions = take_weak!(self.miner).pending_transactions_hashes(best_block);
 		let id = polls.create_poll(PollFilter::PendingTransaction(pending_transactions));
 		Ok(id.into())
 	}
@@ -108,7 +109,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 				},
 				PollFilter::PendingTransaction(ref mut previous_hashes) => {
 					// get hashes of pending transactions
-					let current_hashes = take_weak!(self.miner).pending_transactions_hashes();
+					let best_block = take_weak!(self.client).chain_info().best_block_number;
+					let current_hashes = take_weak!(self.miner).pending_transactions_hashes(best_block);
 
 					let new_hashes =
 					{
@@ -149,7 +151,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 
 					// additionally retrieve pending logs
 					if include_pending {
-						let pending_logs = pending_logs(&*take_weak!(self.miner), &filter);
+						let best_block = take_weak!(self.client).chain_info().best_block_number;
+						let pending_logs = pending_logs(&*take_weak!(self.miner), best_block, &filter);
 
 						// remove logs about which client was already notified about
 						let new_pending_logs: Vec<_> = pending_logs.iter()
@@ -190,7 +193,8 @@ impl<C, M> EthFilter for EthFilterClient<C, M>
 					.collect::<Vec<Log>>();
 
 				if include_pending {
-					logs.extend(pending_logs(&*take_weak!(self.miner), &filter));
+					let best_block = take_weak!(self.client).chain_info().best_block_number;
+					logs.extend(pending_logs(&*take_weak!(self.miner), best_block, &filter));
 				}
 
 				let logs = limit_logs(logs, filter.limit);
