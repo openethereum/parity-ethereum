@@ -13,16 +13,16 @@ git init
 
 # our user details
 git config push.default simple
+git config merge.ours.driver true
 git config user.email "jaco+gitlab@ethcore.io"
 git config user.name "GitLab Build Bot"
 
 # add local files and send it up
 git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git
-git fetch
-git checkout master
+git checkout -b $CI_BUILD_REF_NAME
 git add .
 git commit -m "$UTCDATE"
-git push origin master --force
+git push origin $CI_BUILD_REF_NAME --force
 
 # back to root
 popd
