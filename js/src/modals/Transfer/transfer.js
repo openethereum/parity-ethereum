@@ -49,6 +49,7 @@ export default class Transfer extends Component {
     account: PropTypes.object,
     balance: PropTypes.object,
     balances: PropTypes.object,
+    images: PropTypes.object.isRequired,
     onClose: PropTypes.func
   }
 
@@ -147,7 +148,7 @@ export default class Transfer extends Component {
   }
 
   renderDetailsPage () {
-    const { account, balance } = this.props;
+    const { account, balance, images } = this.props;
 
     return (
       <Details
@@ -155,6 +156,7 @@ export default class Transfer extends Component {
         all={ this.state.valueAll }
         balance={ balance }
         extras={ this.state.extras }
+        images={ images }
         recipient={ this.state.recipient }
         recipientError={ this.state.recipientError }
         tag={ this.state.tag }
