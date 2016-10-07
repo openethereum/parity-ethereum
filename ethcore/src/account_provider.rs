@@ -373,8 +373,8 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_err());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
 	}
 
 	#[test]
@@ -384,11 +384,11 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_permanently(kp.address(), "test1".into()).is_err());
 		assert!(ap.unlock_account_permanently(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		assert!(ap.unlock_account_temporarily(kp.address(), "test".into()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 	}
 
 	#[test]
@@ -398,8 +398,8 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 2000).is_err());
 		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 2000).is_ok());
-		assert!(ap.sign(kp.address(), Default::default()).is_ok());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		::std::thread::sleep(Duration::from_millis(2000));
-		assert!(ap.sign(kp.address(), Default::default()).is_err());
+		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
 	}
 }
