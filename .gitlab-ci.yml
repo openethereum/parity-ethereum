@@ -306,8 +306,7 @@ js-build:
     - ./js/scripts/build.sh
     - ./js/scripts/release.sh
   tags:
-    - rust
-    - rust-stable
+    - javascript
   artifacts:
     paths:
     - js/build
@@ -319,6 +318,6 @@ js-test:
   script:
     - ./js/scripts/test.sh
   tags:
-    - rust-test
+    - javascript
   dependencies:
     - js-build
