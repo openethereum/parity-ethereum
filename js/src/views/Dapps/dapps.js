@@ -59,6 +59,11 @@ class Dapps extends Component {
         name: 'Method Registry',
         description: 'A registry of method signatures for lookups on transactions',
         url: 'signaturereg'
+      },
+      {
+        name: 'GitHub Hint',
+        description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
+        url: 'githubhint'
       }
     ]
   }
