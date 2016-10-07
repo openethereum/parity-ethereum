@@ -47,12 +47,19 @@ export default class Ws extends JsonRpcBase {
     const sha3 = keccak_256(`${this._token}:${time}`);
     const hash = `${sha3}_${time}`;
 
+    if (this._ws) {
+      this._ws.onerror = null;
+      this._ws.onopen = null;
+      this._ws.onclose = null;
+      this._ws.onmessage = null;
+      this._ws = null;
+    }
+
     this._connecting = true;
     this._connected = false;
     this._lastError = null;
 
     this._ws = new WebSocket(this._url, hash);
-
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;

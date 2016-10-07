@@ -36,7 +36,7 @@ class Connection extends Component {
 
   render () {
     const { isConnected, isConnecting, isPingable } = this.props;
-    const isOk = isConnected && !isConnecting && isPingable;
+    const isOk = !isConnecting && isConnected && isPingable;
 
     if (isOk) {
       return null;
@@ -59,12 +59,20 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    // const { isConnected } = this.props;
-    let details = null;
+    const { api } = this.context;
+    const { needsToken, isConnecting } = api;
+
+    if (needsToken && !isConnecting) {
+      return (
+        <div style={ styles.info }>
+          You need a manual token.
+        </div>
+      );
+    }
 
     return (
       <div style={ styles.info }>
-        Connecting to the Parity Secure API. { details }
+        Connecting to the Parity Secure API.
       </div>
     );
   }
