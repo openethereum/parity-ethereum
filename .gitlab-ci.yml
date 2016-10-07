@@ -1,0 +1,293 @@
+stages:
+  - build
+  - test
+variables:
+  GIT_DEPTH: "3"
+  SIMPLECOV: "true" 
+  RUST_BACKTRACE: "1"
+cache:
+  key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+  untracked: true
+linux-stable:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - strip target/release/parity
+    - md5sum target/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/checksum --body checksum
+  tags:
+    - rust
+    - rust-stable
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "stable-x86_64-unknown-linux-gnu_parity"
+linux-stable-14.04:
+  stage: build
+  image: ethcore/rust-14.04:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - strip target/release/parity
+    - md5sum target/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/checksum --body checksum
+  tags:
+    - rust
+    - rust-14.04
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "stable-x86_64-unknown-ubuntu_14_04-gnu_parity"
+linux-beta:
+  stage: build
+  image: ethcore/rust:beta
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-beta
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "beta-x86_64-unknown-linux-gnu_parity"
+  allow_failure: true
+linux-nightly:
+  stage: build
+  image: ethcore/rust:nightly
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - strip target/release/parity
+  tags:
+    - rust
+    - rust-nightly
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "nigthly-x86_64-unknown-linux-gnu_parity"
+  allow_failure: true
+linux-centos:
+  stage: build
+  image: ethcore/rust-centos:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - export CXX="g++"
+    - export CC="gcc"
+    - cargo build --release --verbose
+    - strip target/release/parity
+    - md5sum target/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/checksum --body checksum
+  tags:
+    - rust
+    - rust-centos
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "x86_64-unknown-centos-gnu_parity"
+linux-armv7:
+  stage: build
+  image: ethcore/rust-armv7:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
+    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
+    - cat .cargo/config
+    - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
+    - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
+    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/checksum --body checksum
+  tags:
+    - rust
+    - rust-arm
+  artifacts:
+    paths:
+    - target/armv7-unknown-linux-gnueabihf/release/parity
+    name: "armv7_unknown_linux_gnueabihf_parity"
+  allow_failure: true
+linux-arm:
+  stage: build
+  image: ethcore/rust-arm:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
+    - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
+    - cat .cargo/config
+    - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
+    - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
+    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/checksum --body checksum
+  tags:
+    - rust
+    - rust-arm
+  artifacts:
+    paths:
+    - target/arm-unknown-linux-gnueabihf/release/parity
+    name: "arm-unknown-linux-gnueabihf_parity"
+  allow_failure: true
+linux-armv6:
+  stage: build
+  image: ethcore/rust-armv6:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
+    - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
+    - cat .cargo/config
+    - cargo build --target arm-unknown-linux-gnueabi --release --verbose
+    - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> checksum 
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/checksum --body checksum
+  tags:
+    - rust
+    - rust-arm
+  artifacts:
+    paths:
+    - target/arm-unknown-linux-gnueabi/release/parity
+    name: "arm-unknown-linux-gnueabi_parity"
+  allow_failure: true
+linux-aarch64:
+  stage: build
+  image: ethcore/rust-aarch64:latest
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
+    - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
+    - cat .cargo/config
+    - cargo build --target aarch64-unknown-linux-gnu --release --verbose
+    - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
+    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/checksum --body checksum
+  tags:
+    - rust
+    - rust-arm
+  artifacts:
+    paths:
+    - target/aarch64-unknown-linux-gnu/release/parity
+    name: "aarch64-unknown-linux-gnu_parity"
+  allow_failure: true
+darwin:
+  stage: build
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - cargo build --release --verbose
+    - md5sum target/release/parity >> checksum
+    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/checksum --body checksum
+  tags:
+    - osx
+  artifacts:
+    paths:
+    - target/release/parity
+    name: "x86_64-apple-darwin_parity"
+windows:
+  stage: build
+  only:
+    - master
+    - beta
+    - tags
+    - stable
+  script:
+    - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
+    - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
+    - set RUST_BACKTRACE=1
+    - set RUSTFLAGS=-Zorbit=off
+    - rustup default stable-x86_64-pc-windows-msvc
+    - cargo build --release --verbose
+    - cmd md5sum target\release\parity >> checksum
+    - aws configure set aws_access_key_id %s3_key%
+    - aws configure set aws_secret_access_key %s3_secret%
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.exe
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.pdb
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/checksum --body checksum
+  tags:
+   - rust-windows
+  artifacts:
+    paths:
+    - target/release/parity.exe
+    - target/release/parity.pdb
+    name: "x86_64-pc-windows-msvc_parity"
+test-linux:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - rust-test
+  dependencies:
+    - linux-stable
