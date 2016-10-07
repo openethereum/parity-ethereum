@@ -92,7 +92,6 @@ impl Into<EthFilter> for Filter {
 					iter.next().unwrap_or(None)
 				]
 			},
-			limit: self.limit,
 		}
 	}
 }
@@ -144,7 +143,6 @@ mod tests {
 				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".into()),
 				VariadicValue::Null,
 			]),
-			limit: None,
 		};
 
 		let eth_filter: EthFilter = filter.into();
@@ -158,7 +156,6 @@ mod tests {
 				None,
 				None,
 			],
-			limit: None,
 		});
 	}
 }
