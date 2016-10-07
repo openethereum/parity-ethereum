@@ -30,7 +30,7 @@ use transaction::{Action, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
-use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
+use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
@@ -76,6 +76,8 @@ pub struct MinerOptions {
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
+	/// Strategy to use for prioritizing transactions in the queue.
+	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
 	/// How many historical work packages can we store before running out?
@@ -94,12 +96,13 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 2048,
+			tx_queue_size: 1024,
+			tx_queue_gas_limit: GasLimit::Auto,
+			tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
-			tx_queue_gas_limit: GasLimit::Auto,
 		}
 	}
 }
@@ -212,7 +215,9 @@ impl Miner {
 			GasLimit::Fixed(ref limit) => *limit,
 			_ => !U256::zero(),
 		};
-		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, gas_limit, options.tx_gas_limit)));
+		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(
+			options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit
+		)));
 		Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -1029,7 +1034,7 @@ impl MinerService for Miner {
 mod tests {
 
 	use std::time::Duration;
-	use super::super::MinerService;
+	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use util::*;
 	use ethkey::{Generator, Random};
@@ -1083,6 +1088,7 @@ mod tests {
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
 				tx_queue_gas_limit: GasLimit::None,
+				tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 				pending_set: PendingSet::AlwaysSealing,
 				work_queue_size: 5,
 				enable_resubmission: true,
