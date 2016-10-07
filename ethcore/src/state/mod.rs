@@ -164,8 +164,8 @@ impl AccountEntry {
 /// use that.
 /// ****************************************************************************
 ///
-/// Upon destruction all the local cache data merged into the global cache.
-/// The merge might be rejected if current state is non-canonical.
+/// Upon destruction all the local cache data propagated into the global cache.
+/// Propagated items might be rejected if current state is non-canonical.
 ///
 /// State snapshotting.
 ///
@@ -318,7 +318,7 @@ impl State {
 
 	/// Destroy the current object and return root and database.
 	pub fn drop(mut self) -> (H256, StateDB) {
-		self.commit_cache();
+		self.propagate_to_global_cache();
 		(self.root, self.db)
 	}
 
@@ -533,11 +533,12 @@ impl State {
 		Ok(())
 	}
 
-	fn commit_cache(&mut self) {
+	/// Propagate local cache into shared canonical state cache.
+	fn propagate_to_global_cache(&mut self) {
 		let mut addresses = self.cache.borrow_mut();
 		trace!("Committing cache {:?} entries", addresses.len());
 		for (address, a) in addresses.drain().filter(|&(_, ref a)| a.state == AccountState::Committed || a.state == AccountState::CleanFresh) {
-			self.db.cache_account(address, a.account);
+			self.db.add_to_account_cache(address, a.account, a.state == AccountState::Committed);
 		}
 	}
 
