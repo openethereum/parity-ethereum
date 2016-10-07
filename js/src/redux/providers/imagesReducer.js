@@ -16,6 +16,8 @@
 
 import { handleActions } from 'redux-actions';
 
+const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
 const initialState = {
   images: {}
 };
@@ -24,6 +26,8 @@ export default handleActions({
   setAddressImage (state, action) {
     const { address, hash } = action;
 
-    return Object.assign({}, state, { [address]: hash });
+    return Object.assign({}, state, {
+      [address]: hash === ZERO ? null : hash
+    });
   }
 }, initialState);
