@@ -279,6 +279,7 @@ struct TransactionSet {
 	by_priority: BTreeSet<TransactionOrder>,
 	by_address: Table<Address, U256, TransactionOrder>,
 	limit: usize,
+	gas_limit: U256,
 }
 
 impl TransactionSet {
@@ -299,14 +300,18 @@ impl TransactionSet {
 	/// It drops transactions from this set but also removes associated `VerifiedTransaction`.
 	/// Returns addresses and lowest nonces of transactions removed because of limit.
 	fn enforce_limit(&mut self, by_hash: &mut HashMap<H256, VerifiedTransaction>) -> Option<HashMap<Address, U256>> {
-		let len = self.by_priority.len();
-		if len <= self.limit {
-			return None;
-		}
+		let mut count = 0;
+		let mut gas: U256 = 0.into();
 		let to_drop : Vec<(Address, U256)> = {
 			self.by_priority
 				.iter()
-				.skip(self.limit)
+				.skip_while(|order| {
+					count = count + 1;
+					let r = gas.overflowing_add(order.gas);
+					if r.1 { return false }
+					gas = r.0;
+					count <= self.limit && gas <= self.gas_limit
+				})
 				.map(|order| by_hash.get(&order.hash)
 					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
 				.map(|tx| (tx.sender(), tx.nonce()))
@@ -423,21 +428,23 @@ impl Default for TransactionQueue {
 impl TransactionQueue {
 	/// Creates new instance of this Queue
 	pub fn new(strategy: PrioritizationStrategy) -> Self {
-		Self::with_limits(strategy, 1024, !U256::zero())
+		Self::with_limits(strategy, 1024, !U256::zero(), !U256::zero())
 	}
 
 	/// Create new instance of this Queue with specified limits
-	pub fn with_limits(strategy: PrioritizationStrategy, limit: usize, tx_gas_limit: U256) -> Self {
+	pub fn with_limits(strategy: PrioritizationStrategy, limit: usize, gas_limit: U256, tx_gas_limit: U256) -> Self {
 		let current = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
 			limit: limit,
+			gas_limit: gas_limit,
 		};
 
 		let future = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
 			limit: limit,
+			gas_limit: gas_limit,
 		};
 
 		TransactionQueue {
@@ -486,6 +493,13 @@ impl TransactionQueue {
 			(_, true) => !U256::zero(),
 			(val, false) => val,
 		};
+	}
+
+	/// Sets new total gas limit.
+	pub fn set_total_gas_limit(&mut self, gas_limit: U256) {
+		self.future.gas_limit = gas_limit;
+		self.current.gas_limit = gas_limit;
+		self.future.enforce_limit(&mut self.by_hash);
 	}
 
 	/// Set the new limit for the amount of gas any individual transaction may have.
@@ -797,6 +811,16 @@ impl TransactionQueue {
 		let nonce = tx.nonce();
 		let hash = tx.hash();
 
+		{
+			// Rough size sanity check
+			let gas = &tx.transaction.gas;
+			if U256::from(tx.transaction.data.len()) > *gas {
+				// Droping transaction
+				trace!(target: "txqueue", "Dropping oversized transaction: {:?} (gas: {} < size {})", hash, gas, tx.transaction.data.len());
+				return Err(TransactionError::LimitReached);
+			}
+		}
+
 		// The transaction might be old, let's check that.
 		// This has to be the first test, otherwise calculating
 		// nonce height would result in overflow.
@@ -1049,7 +1073,8 @@ mod test {
 		let mut set = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: 1
+			limit: 1,
+			gas_limit: !U256::zero(),
 		};
 		let (tx1, tx2) = new_txs(U256::from(1));
 		let tx1 = VerifiedTransaction::new(tx1, TransactionOrigin::External).unwrap();
@@ -1088,7 +1113,8 @@ mod test {
 		let mut set = TransactionSet {
 			by_priority: BTreeSet::new(),
 			by_address: Table::new(),
-			limit: 1
+			limit: 1,
+			gas_limit: !U256::zero(),
 		};
 		// Create two transactions with same nonce
 		// (same hash)
@@ -1668,7 +1694,7 @@ mod test {
 	#[test]
 	fn should_drop_old_transactions_when_hitting_the_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero());
+		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero(), !U256::zero());
 		let (tx, tx2) = new_txs(U256::one());
 		let sender = tx.sender().unwrap();
 		let nonce = tx.nonce;
@@ -1690,7 +1716,7 @@ mod test {
 	#[test]
 	fn should_return_correct_nonces_when_dropped_because_of_limit() {
 		// given
-		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 2, !U256::zero());
+		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 2, !U256::zero(), !U256::zero());
 		let tx = new_tx();
 		let (tx1, tx2) = new_txs(U256::one());
 		let sender = tx1.sender().unwrap();
@@ -1711,7 +1737,7 @@ mod test {
 
 	#[test]
 	fn should_limit_future_transactions() {
-		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero());
+		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero(), !U256::zero());
 		txq.current.set_limit(10);
 		let (tx1, tx2) = new_txs_with_gas_price_diff(U256::from(4), U256::from(1));
 		let (tx3, tx4) = new_txs_with_gas_price_diff(U256::from(4), U256::from(2));
@@ -1726,6 +1752,16 @@ mod test {
 
 		// then
 		assert_eq!(txq.status().future, 1);
+	}
+
+	#[test]
+	fn should_limit_by_gas() {
+		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 100, default_gas_val() * U256::from(2), !U256::zero());
+		let (tx1, _) = new_txs_with_gas_price_diff(U256::from(4), U256::from(1));
+		let (tx3, _) = new_txs_with_gas_price_diff(U256::from(4), U256::from(2));
+		txq.add(tx1.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		txq.add(tx3.clone(), &default_nonce, TransactionOrigin::External).unwrap();
+		assert_eq!(txq.status().pending, 2);
 	}
 
 	#[test]
@@ -1971,7 +2007,7 @@ mod test {
 	#[test]
 	fn should_keep_right_order_in_future() {
 		// given
-		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero());
+		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 1, !U256::zero(), !U256::zero());
 		let (tx1, tx2) = new_txs(U256::from(1));
 		let prev_nonce = |a: &Address| AccountDetails { nonce: default_nonce(a).nonce - U256::one(), balance:
 			default_nonce(a).balance };
