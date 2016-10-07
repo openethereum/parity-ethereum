@@ -284,12 +284,41 @@ test-linux:
   stage: test
   before_script:
     - git submodule update --init --recursive
-    - ./js/scripts/install-deps.sh
   script:
-    - ./js/scripts/test.sh
     - export RUST_BACKTRACE=1
     - ./test.sh --verbose
   tags:
     - rust-test
   dependencies:
     - linux-stable
+js-build:
+  stage: build
+  only:
+    - js
+    - jg-gitlab-build
+    - master
+    - beta
+    - tags
+    - stable
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
+    - javascript-stable
+  artifacts:
+    paths:
+    - js/build
+    name: "stable-javascript_parity"
+js-test:
+  stage: test
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/test.sh
+  tags:
+    - javascript-test
+  dependencies:
+    - js-build
