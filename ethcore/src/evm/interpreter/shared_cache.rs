@@ -21,7 +21,7 @@ use util::sha3::*;
 use bit_set::BitSet;
 use super::super::instructions;
 
-const CACHE_CODE_ITEMS: usize = 4096;
+const CACHE_CODE_ITEMS: usize = 65536;
 
 /// GLobal cache for EVM interpreter
 pub struct SharedCache {

@@ -47,14 +47,16 @@ pub type ApplyResult = Result<ApplyOutcome, Error>;
 /// Account modification state. Used to check if the account was
 /// Modified in between commits and overall.
 enum AccountState {
-	/// Account was never modified in this state object.
-	Clean,
+	/// Account was loaded from disk and never modified in this state object.
+	CleanFresh,
+	/// Account was loaded from the global cache and never modified.
+	CleanCached,
 	/// Account has been modified and is not committed to the trie yet.
-	/// This is set than any of the account data is changed, including
+	/// This is set if any of the account data is changed, including
 	/// storage and code.
 	Dirty,
 	/// Account was modified and committed to the trie.
-	Commited,
+	Committed,
 }
 
 #[derive(Debug)]
@@ -105,7 +107,15 @@ impl AccountEntry {
 	fn new_clean(account: Option<Account>) -> AccountEntry {
 		AccountEntry {
 			account: account,
-			state: AccountState::Clean,
+			state: AccountState::CleanFresh,
+		}
+	}
+
+	// Create a new account entry and mark it as clean and cached.
+	fn new_clean_cached(account: Option<Account>) -> AccountEntry {
+		AccountEntry {
+			account: account,
+			state: AccountState::CleanCached,
 		}
 	}
 
@@ -508,7 +518,7 @@ impl State {
 		{
 			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root).unwrap();
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
-				a.state = AccountState::Commited;
+				a.state = AccountState::Committed;
 				match a.account {
 					Some(ref mut account) => {
 						try!(trie.insert(address, &account.rlp()));
@@ -526,7 +536,7 @@ impl State {
 	fn commit_cache(&mut self) {
 		let mut addresses = self.cache.borrow_mut();
 		trace!("Committing cache {:?} entries", addresses.len());
-		for (address, a) in addresses.drain().filter(|&(_, ref a)| !a.is_dirty()) {
+		for (address, a) in addresses.drain().filter(|&(_, ref a)| a.state == AccountState::Committed || a.state == AccountState::CleanFresh) {
 			self.db.cache_account(address, a.account);
 		}
 	}
@@ -638,10 +648,7 @@ impl State {
 					Self::update_account_cache(require, account, accountdb.as_hashdb());
 				}
 				let r = f(maybe_acc.as_ref());
-				match maybe_acc {
-					Some(account) => self.insert_cache(a, AccountEntry::new_clean(Some(account))),
-					None => self.insert_cache(a, AccountEntry::new_clean(None)),
-				}
+				self.insert_cache(a, AccountEntry::new_clean(maybe_acc));
 				r
 			}
 		}
@@ -660,8 +667,7 @@ impl State {
 		let contains_key = self.cache.borrow().contains_key(a);
 		if !contains_key {
 			match self.db.get_cached_account(a) {
-				Some(Some(acc)) => self.insert_cache(a, AccountEntry::new_clean(Some(acc))),
-				Some(None) => self.insert_cache(a, AccountEntry::new_clean(None)),
+				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
