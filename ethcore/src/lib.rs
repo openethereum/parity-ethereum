@@ -101,6 +101,7 @@ extern crate bit_set;
 extern crate rlp;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate byteorder;
+extern crate transient_hashmap;
 
 #[macro_use]
 extern crate log;
