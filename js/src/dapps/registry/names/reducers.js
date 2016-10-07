@@ -31,7 +31,7 @@ export default (state = initialState, action) => {
   if (action.type === 'names reserve success') {
     return {
       ...state, pending: false,
-      queue: state.queue.concat({action: 'reserve', name: action.name})
+      queue: state.queue.concat({ action: 'reserve', name: action.name })
     };
   }
   if (action.type === 'names reserve fail') {
@@ -44,7 +44,7 @@ export default (state = initialState, action) => {
   if (action.type === 'names drop success') {
     return {
       ...state, pending: false,
-      queue: state.queue.concat({action: 'drop', name: action.name})
+      queue: state.queue.concat({ action: 'drop', name: action.name })
     };
   }
   if (action.type === 'names drop fail') {

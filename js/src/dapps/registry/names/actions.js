@@ -17,7 +17,7 @@
 import { sha3, toWei } from '../parity.js';
 
 const alreadyQueued = (queue, action, name) =>
-  !!queue.find((entry) => entry.action === action && entry.name === name)
+  !!queue.find((entry) => entry.action === action && entry.name === name);
 
 export const reserveStart = (name) => ({ type: 'names reserve start', name });
 

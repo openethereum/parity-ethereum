@@ -22,12 +22,12 @@ import styles from './identityIcon.css';
 export default class IdentityIcon extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
-    className: PropTypes.string,
+    className: PropTypes.string
   }
 
   render () {
     const { address, className } = this.props;
-    const classes = `${styles.icon} ${className}`
+    const classes = `${styles.icon} ${className}`;
 
     return (
       <img

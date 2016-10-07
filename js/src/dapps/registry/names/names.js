@@ -26,16 +26,16 @@ import { fromWei } from '../parity.js';
 
 import styles from './names.css';
 
-const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>)
+const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
 
 const renderNames = (names) => {
-  const out = []
+  const out = [];
   for (let name of names) {
-    out.push((<code>{ name }</code>), ', ')
+    out.push((<code>{ name }</code>), ', ');
   }
-  out.pop()
-  return out
-}
+  out.pop();
+  return out;
+};
 
 const renderQueue = (queue) => {
   if (queue.length === 0) {
@@ -43,18 +43,18 @@ const renderQueue = (queue) => {
   }
 
   const grouped = queue.reduce((grouped, change) => {
-    const last = grouped[grouped.length - 1]
+    const last = grouped[grouped.length - 1];
     if (last && last.action === change.action) {
-      last.names.push(change.name)
+      last.names.push(change.name);
     } else {
-      grouped.push({action: change.action, names: [change.name]})
+      grouped.push({ action: change.action, names: [change.name] });
     }
-    return grouped
+    return grouped;
   }, []);
 
   return (
     <ul>
-      { grouped.map(({action, names}) => (
+      { grouped.map(({ action, names }) => (
         <li key={ action + '-' + names.join('-') }>
           { renderNames(names) }
           { ' will be ' }
@@ -63,7 +63,7 @@ const renderQueue = (queue) => {
       )) }
     </ul>
   );
-}
+};
 
 export default class Names extends Component {
 
@@ -92,8 +92,8 @@ export default class Names extends Component {
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
             : (action === 'reserve'
                 ? (<p className={ styles.noSpacing }>
-                    The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
-                  </p>)
+                  The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
+                </p>)
                 : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
               )
           }
