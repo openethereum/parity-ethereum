@@ -132,7 +132,6 @@ export default class Transaction extends Component {
           <IdentityIcon
             center
             className={ styles.icon }
-            tokens={ tokens }
             address={ address } />
         </div>
         <div className={ styles.center }>

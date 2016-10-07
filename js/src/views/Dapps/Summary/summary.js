@@ -32,7 +32,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { app, tokens } = this.props;
+    const { app } = this.props;
 
     if (!app) {
       return null;
@@ -43,8 +43,7 @@ export default class Summary extends Component {
     return (
       <Container>
         <IdentityIcon
-          address={ app.address }
-          tokens={ tokens } />
+          address={ app.address } />
         <Title
           title={ <Link to={ url }>{ app.name }</Link> }
           byline={ app.description } />

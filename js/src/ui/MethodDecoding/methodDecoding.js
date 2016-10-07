@@ -270,13 +270,12 @@ export default class Method extends Component {
   }
 
   renderAddressName (address, withName = true) {
-    const { tokens } = this.props;
     const account = this.getAccount(address);
     const name = account ? account.name.toUpperCase() : null;
 
     return (
       <span className={ styles.address }>
-        <IdentityIcon center inline address={ address } tokens={ tokens } className={ styles.identityicon } />
+        <IdentityIcon center inline address={ address } className={ styles.identityicon } />
         { withName ? (name || address) : address }
       </span>
     );

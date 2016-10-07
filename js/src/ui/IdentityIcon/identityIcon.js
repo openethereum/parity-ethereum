@@ -31,8 +31,7 @@ export default class IdentityIcon extends Component {
     center: PropTypes.bool,
     padded: PropTypes.bool,
     inline: PropTypes.bool,
-    tiny: PropTypes.bool,
-    tokens: PropTypes.object
+    tiny: PropTypes.bool
   }
 
   state = {
@@ -46,9 +45,9 @@ export default class IdentityIcon extends Component {
   }
 
   componentWillReceiveProps (newProps) {
-    const { address, tokens } = this.props;
+    const { address } = this.props;
 
-    if (newProps.address === address && newProps.tokens === tokens) {
+    if (newProps.address === address) {
       return;
     }
 
@@ -57,16 +56,16 @@ export default class IdentityIcon extends Component {
 
   updateIcon (_address) {
     const { api } = this.context;
-    const { button, tokens, inline, tiny } = this.props;
-    const token = (tokens || {})[_address];
-
-    if (token && token.image) {
-      this.setState({
-        iconsrc: token.image
-      });
-
-      return;
-    }
+    const { button, inline, tiny } = this.props;
+    // const token = (tokens || {})[_address];
+    //
+    // if (token && token.image) {
+    //   this.setState({
+    //     iconsrc: token.image
+    //   });
+    //
+    //   return;
+    // }
 
     let scale = 7;
     if (tiny) {
