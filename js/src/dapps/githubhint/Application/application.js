@@ -73,11 +73,11 @@ export default class Application extends Component {
             </div>
             <div className={ styles.capture }>
               <div>https://github.com/</div>
-              <input types='text' placeholder={ fileHash ? 'account/repo/filename' : 'account/repo' } />
+              <input types='text' placeholder='account/repo' />
             </div>
-            <div className={ styles.capture } disabled={ fileHash }>
-              <div>commit #</div>
-              <input types='text' placeholder='commit hash' disabled={ fileHash } />
+            <div className={ styles.capture }>
+              <div>{ fileHash ? '/' : 'commit #' }</div>
+              <input types='text' placeholder={ fileHash ? 'filename' : 'commit hash' } />
             </div>
             <div className={ styles.buttons }>
               <Button onClick={ this.onClickRegister }>register</Button>
