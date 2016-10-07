@@ -558,6 +558,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
 }

@@ -25,6 +25,7 @@ use state::State;
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
+use header::BlockNumber;
 use error::*;
 use transaction::{Action, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
@@ -449,6 +450,21 @@ impl Miner {
 
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock() }
+
+	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
+		where F: Fn() -> H, G: Fn(&ClosedBlock) -> H {
+		let sealing_work = self.sealing_work.lock();
+		sealing_work.queue.peek_last_ref().map_or_else(
+			|| from_chain(),
+			|b| {
+				if b.block().header().number() > latest_block_number {
+					map_block(b)
+				} else {
+					from_chain()
+				}
+			}
+		)
+	}
 }
 
 const SEALING_TIMEOUT_IN_BLOCKS : u64 = 5;
@@ -521,29 +537,35 @@ impl MinerService for Miner {
 	}
 
 	fn balance(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
-		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(
+		self.from_pending_block(
+			chain.chain_info().best_block_number,
 			|| chain.latest_balance(address),
 			|b| b.block().fields().state.balance(address)
 		)
 	}
 
 	fn storage_at(&self, chain: &MiningBlockChainClient, address: &Address, position: &H256) -> H256 {
-		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(
+		self.from_pending_block(
+			chain.chain_info().best_block_number,
 			|| chain.latest_storage_at(address, position),
 			|b| b.block().fields().state.storage_at(address, position)
 		)
 	}
 
 	fn nonce(&self, chain: &MiningBlockChainClient, address: &Address) -> U256 {
-		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(|| chain.latest_nonce(address), |b| b.block().fields().state.nonce(address))
+		self.from_pending_block(
+			chain.chain_info().best_block_number,
+			|| chain.latest_nonce(address),
+			|b| b.block().fields().state.nonce(address)
+		)
 	}
 
 	fn code(&self, chain: &MiningBlockChainClient, address: &Address) -> Option<Bytes> {
-		let sealing_work = self.sealing_work.lock();
-		sealing_work.queue.peek_last_ref().map_or_else(|| chain.latest_code(address), |b| b.block().fields().state.code(address).map(|c| (*c).clone()))
+		self.from_pending_block(
+			chain.chain_info().best_block_number,
+			|| chain.latest_code(address),
+			|b| b.block().fields().state.code(address).map(|c| (*c).clone())
+		)
 	}
 
 	fn set_author(&self, author: Address) {
@@ -688,50 +710,74 @@ impl MinerService for Miner {
 		queue.top_transactions()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
-		let sw = self.sealing_work.lock();
-		// TODO: should only use the sealing_work when it's current (it could be an old block)
-		let sealing_set = match sw.enabled {
-			true => sw.queue.peek_last_ref(),
-			false => None,
-		};
-		match (&self.options.pending_set, sealing_set) {
-			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.top_transactions(),
-			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().to_owned()),
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => queue.top_transactions(),
+			PendingSet::SealingOrElseQueue => {
+				self.from_pending_block(
+					best_block,
+					|| queue.top_transactions(),
+					|sealing| sealing.transactions().to_owned()
+				)
+			},
+			PendingSet::AlwaysSealing => {
+				self.from_pending_block(
+					best_block,
+					|| vec![],
+					|sealing| sealing.transactions().to_owned()
+				)
+			},
 		}
 	}
 
-	fn pending_transactions_hashes(&self) -> Vec<H256> {
+	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256> {
 		let queue = self.transaction_queue.lock();
-		let sw = self.sealing_work.lock();
-		let sealing_set = match sw.enabled {
-			true => sw.queue.peek_last_ref(),
-			false => None,
-		};
-		match (&self.options.pending_set, sealing_set) {
-			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.pending_hashes(),
-			(_, sealing) => sealing.map_or_else(Vec::new, |s| s.transactions().iter().map(|t| t.hash()).collect()),
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => queue.pending_hashes(),
+			PendingSet::SealingOrElseQueue => {
+				self.from_pending_block(
+					best_block,
+					|| queue.pending_hashes(),
+					|sealing| sealing.transactions().iter().map(|t| t.hash()).collect()
+				)
+			},
+			PendingSet::AlwaysSealing => {
+				self.from_pending_block(
+					best_block,
+					|| vec![],
+					|sealing| sealing.transactions().iter().map(|t| t.hash()).collect()
+				)
+			},
 		}
 	}
 
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction> {
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
-		let sw = self.sealing_work.lock();
-		let sealing_set = match sw.enabled {
-			true => sw.queue.peek_last_ref(),
-			false => None,
-		};
-		match (&self.options.pending_set, sealing_set) {
-			(&PendingSet::AlwaysQueue, _) | (&PendingSet::SealingOrElseQueue, None) => queue.find(hash),
-			(_, sealing) => sealing.and_then(|s| s.transactions().iter().find(|t| &t.hash() == hash).cloned()),
+		match self.options.pending_set {
+			PendingSet::AlwaysQueue => queue.find(hash),
+			PendingSet::SealingOrElseQueue => {
+				self.from_pending_block(
+					best_block,
+					|| queue.find(hash),
+					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned()
+				)
+			},
+			PendingSet::AlwaysSealing => {
+				self.from_pending_block(
+					best_block,
+					|| None,
+					|sealing| sealing.transactions().iter().find(|t| &t.hash() == hash).cloned()
+				)
+			},
 		}
 	}
 
-	fn pending_receipt(&self, hash: &H256) -> Option<RichReceipt> {
-		let sealing_work = self.sealing_work.lock();
-		match (sealing_work.enabled, sealing_work.queue.peek_last_ref()) {
-			(true, Some(pending)) => {
+	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt> {
+		self.from_pending_block(
+			best_block,
+			|| None,
+			|pending| {
 				let txs = pending.transactions();
 				txs.iter()
 					.map(|t| t.hash())
@@ -752,15 +798,15 @@ impl MinerService for Miner {
 							logs: receipt.logs.clone(),
 						}
 					})
-			},
-			_ => None
-		}
+			}
+		)
 	}
 
-	fn pending_receipts(&self) -> BTreeMap<H256, Receipt> {
-		let sealing_work = self.sealing_work.lock();
-		match (sealing_work.enabled, sealing_work.queue.peek_last_ref()) {
-			(true, Some(pending)) => {
+	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt> {
+		self.from_pending_block(
+			best_block,
+			|| BTreeMap::new(),
+			|pending| {
 				let hashes = pending.transactions()
 					.iter()
 					.map(|t| t.hash());
@@ -768,9 +814,8 @@ impl MinerService for Miner {
 				let receipts = pending.receipts().iter().cloned();
 
 				hashes.zip(receipts).collect()
-			},
-			_ => BTreeMap::new()
-		}
+			}
+		)
 	}
 
 	fn last_nonce(&self, address: &Address) -> Option<U256> {
@@ -1001,18 +1046,36 @@ mod tests {
 				nonce: U256::zero(),
 			}.sign(keypair.secret())
 		};
-
+		let best_block = 0;
 		// when
 		let res = miner.import_own_transaction(&client, transaction);
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(miner.all_transactions().len(), 1);
-		assert_eq!(miner.pending_transactions().len(), 1);
-		assert_eq!(miner.pending_transactions_hashes().len(), 1);
-		assert_eq!(miner.pending_receipts().len(), 1);
+		assert_eq!(miner.pending_transactions(best_block).len(), 1);
+		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 1);
+		assert_eq!(miner.pending_receipts(best_block).len(), 1);
 		// This method will let us know if pending block was created (before calling that method)
 		assert_eq!(miner.enable_and_prepare_sealing(&client), false);
+	}
+
+	#[test]
+	fn should_not_use_pending_block_if_best_block_is_higher() {
+		// given
+		let client = TestBlockChainClient::default();
+		let miner = miner();
+		let transaction = transaction();
+		let best_block = 10;
+		// when
+		let res = miner.import_own_transaction(&client, transaction);
+
+		// then
+		assert_eq!(res.unwrap(), TransactionImportResult::Current);
+		assert_eq!(miner.all_transactions().len(), 1);
+		assert_eq!(miner.pending_transactions(best_block).len(), 0);
+		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
+		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 	}
 
 	#[test]
@@ -1031,16 +1094,16 @@ mod tests {
 				nonce: U256::zero(),
 			}.sign(keypair.secret())
 		};
-
+		let best_block = 0;
 		// when
 		let res = miner.import_external_transactions(&client, vec![transaction]).pop().unwrap();
 
 		// then
 		assert_eq!(res.unwrap(), TransactionImportResult::Current);
 		assert_eq!(miner.all_transactions().len(), 1);
-		assert_eq!(miner.pending_transactions_hashes().len(), 0);
-		assert_eq!(miner.pending_transactions().len(), 0);
-		assert_eq!(miner.pending_receipts().len(), 0);
+		assert_eq!(miner.pending_transactions_hashes(best_block).len(), 0);
+		assert_eq!(miner.pending_transactions(best_block).len(), 0);
+		assert_eq!(miner.pending_receipts(best_block).len(), 0);
 		// This method will let us know if pending block was created (before calling that method)
 		assert_eq!(miner.enable_and_prepare_sealing(&client), true);
 	}
