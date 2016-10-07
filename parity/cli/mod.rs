@@ -193,7 +193,7 @@ usage! {
 			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
-		flag_tx_queue_size: usize = 1024usize,
+		flag_tx_queue_size: usize = 2048usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
@@ -522,7 +522,7 @@ mod tests {
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
-			flag_tx_queue_size: 1024usize,
+			flag_tx_queue_size: 2048usize,
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 

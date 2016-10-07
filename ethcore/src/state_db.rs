@@ -24,7 +24,7 @@ use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
-const STATE_CACHE_ITEMS: usize = 65536;
+const STATE_CACHE_ITEMS: usize = 256000;
 
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
@@ -191,7 +191,7 @@ impl StateDB {
 		for (address, account) in self.cache_overlay.drain(..) {
 			if let Some(&mut Some(ref mut existing)) = cache.accounts.get_mut(&address) {
 				if let Some(new) = account {
-					existing.merge_with(new);
+					existing.overwrite_with(new);
 					continue;
 				}
 			}
