@@ -194,7 +194,7 @@ impl Miner {
 			true => None,
 			false => Some(WorkPoster::new(&options.new_work_notify))
 		};
-		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
+		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, !U256::zero(), options.tx_gas_limit)));
 		Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -443,6 +443,8 @@ impl Miner {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
+		// Set total qx queue gas limit to be 2x the block gas limit.
+		queue.set_total_gas_limit(gas_limit << 1);
 	}
 
 	/// Returns true if we had to prepare new pending block.
