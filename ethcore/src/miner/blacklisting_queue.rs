@@ -26,7 +26,7 @@ use error::{Error, TransactionError};
 use util::{Uint, U256, H256, Address};
 
 type Count = usize;
-const ITEM_LIFETIME_SEC: u64 = 60;
+const BLACKLIST_LIFETIME_SEC: u64 = 60;
 
 /// Transaction queue with blacklist.
 pub struct BlacklistingTransactionQueue {
@@ -42,8 +42,8 @@ impl BlacklistingTransactionQueue {
 		BlacklistingTransactionQueue {
 			queue: queue,
 			blacklist_threshold: blacklist_threshold,
-			senders_blacklist: TransientHashMap::new(ITEM_LIFETIME_SEC),
-			_codes_blacklist: TransientHashMap::new(ITEM_LIFETIME_SEC),
+			senders_blacklist: TransientHashMap::new(BLACKLIST_LIFETIME_SEC),
+			_codes_blacklist: TransientHashMap::new(BLACKLIST_LIFETIME_SEC),
 		}
 	}
 
