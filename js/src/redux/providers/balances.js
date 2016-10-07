@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { getBalances, getTokens } from './balancesActions';
+import { setAddressImage } from './imagesActions';
 
 import * as abis from '../../contracts/abi';
 
 import imagesEthereum from '../../images/contracts/ethereum-56.png';
 import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
-import imagesUnknown from '../../images/contracts/unknown-56.png';
 
 // TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
 const images = {
@@ -89,18 +89,23 @@ export default class Balances {
         return tokenreg.instance.tokenCount
           .call()
           .then((numTokens) => {
-            const promises = [];
+            const promisesTokens = [];
+            const promisesImages = [];
 
-            while (promises.length < numTokens.toNumber()) {
-              promises.push(tokenreg.instance.token.call({}, [promises.length]));
+            while (promisesTokens.length < numTokens.toNumber()) {
+              promisesTokens.push(tokenreg.instance.token.call({}, [promisesTokens.length]));
+              promisesImages.push(tokenreg.instance.meta.call({}, [promisesImages.length, 'IMG']));
             }
 
-            return Promise.all(promises);
+            return Promise.all([
+              Promise.all(promisesTokens),
+              Promise.all(promisesImages)
+            ]);
           });
       })
-      .then((_tokens) => {
+      .then(([_tokens, images]) => {
         const tokens = {};
-        this._tokens = _tokens.map((_token) => {
+        this._tokens = _tokens.map((_token, index) => {
           const [address, tag, format, name] = _token;
 
           const token = {
@@ -108,10 +113,10 @@ export default class Balances {
             name,
             tag,
             format: format.toString(),
-            image: images[name.toLowerCase()] || imagesUnknown,
             contract: this._api.newContract(abis.eip20, address)
           };
           tokens[address] = token;
+          this._store.dispatch(setAddressImage(address, images[index]));
 
           return token;
         });
