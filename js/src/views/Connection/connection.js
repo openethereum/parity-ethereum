@@ -17,10 +17,12 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ActionDone from 'material-ui/svg-icons/action/done';
-import ContentClear from 'material-ui/svg-icons/content/clear';
+import ActionCompareArrows from 'material-ui/svg-icons/action/compare-arrows';
+import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
+import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
+import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
 
-import * as styles from './styles';
+import styles from './connection.css';
 
 class Connection extends Component {
   static contextTypes = {
@@ -42,16 +44,30 @@ class Connection extends Component {
       return null;
     }
 
+    const typeIcon = isPingable
+      ? <NotificationVpnLock className={ styles.svg } />
+      : <ActionDashboard className={ styles.svg } />;
+    const description = isPingable
+      ? this.renderSigner()
+      : this.renderPing();
+
     return (
       <div>
-        <div style={ styles.overlay } />
-        <div style={ styles.modal }>
-          <div style={ styles.body }>
-            <div style={ styles.icons }>
-              { this.renderIcon(isPingable, 'Node') }
-              { this.renderIcon(isConnected, 'API') }
+        <div className={ styles.overlay } />
+        <div className={ styles.modal }>
+          <div className={ styles.body }>
+            <div className={ styles.icons }>
+              <div className={ styles.icon }>
+                <HardwareDesktopMac className={ styles.svg } />
+              </div>
+              <div className={ styles.iconSmall }>
+                <ActionCompareArrows className={ styles.svg + ' ' + styles.pulse } />
+              </div>
+              <div className={ styles.icon }>
+                { typeIcon }
+              </div>
             </div>
-            { isPingable ? this.renderSigner() : this.renderPing() }
+            { description }
           </div>
         </div>
       </div>
@@ -64,14 +80,14 @@ class Connection extends Component {
 
     if (needsToken && !isConnecting) {
       return (
-        <div style={ styles.info }>
+        <div className={ styles.info }>
           You need a manual token.
         </div>
       );
     }
 
     return (
-      <div style={ styles.info }>
+      <div className={ styles.info }>
         Connecting to the Parity Secure API.
       </div>
     );
@@ -79,7 +95,7 @@ class Connection extends Component {
 
   renderPing () {
     return (
-      <div style={ styles.info }>
+      <div className={ styles.info }>
         Connecting to the Parity Node. If this informational message persists, please ensure that your Parity node is running and reachable on the network.
       </div>
     );
@@ -87,13 +103,13 @@ class Connection extends Component {
 
   renderIcon (connected, name) {
     const icon = connected
-      ? <ActionDone style={ styles.iconSvg } />
-      : <ContentClear style={ styles.iconSvg } />;
+      ? <ActionDone className={ styles.iconSvg } />
+      : <ContentClear className={ styles.iconSvg } />;
 
     return (
-      <div style={ styles.icon }>
+      <div className={ styles.icon }>
         { icon }
-        <div style={ styles.iconName }>
+        <div className={ styles.iconName }>
           { name }
         </div>
       </div>
