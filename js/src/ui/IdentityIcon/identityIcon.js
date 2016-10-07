@@ -15,11 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 
 import styles from './identityIcon.css';
 
-export default class IdentityIcon extends Component {
+class IdentityIcon extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -31,7 +33,8 @@ export default class IdentityIcon extends Component {
     center: PropTypes.bool,
     padded: PropTypes.bool,
     inline: PropTypes.bool,
-    tiny: PropTypes.bool
+    tiny: PropTypes.bool,
+    images: PropTypes.object.isRequired
   }
 
   state = {
@@ -39,33 +42,29 @@ export default class IdentityIcon extends Component {
   }
 
   componentDidMount () {
-    const { address } = this.props;
-
-    this.updateIcon(address);
+    this.updateIcon(this.props.address, this.props.images);
   }
 
   componentWillReceiveProps (newProps) {
-    const { address } = this.props;
+    const sameAddress = newProps.address === this.props.address;
+    const sameImages = Object.keys(newProps.images).length === Object.keys(this.props.images).length;
 
-    if (newProps.address === address) {
+    if (sameAddress && sameImages) {
       return;
     }
 
-    this.updateIcon(newProps.address);
+    this.updateIcon(newProps.address, newProps.images);
   }
 
-  updateIcon (_address) {
+  updateIcon (_address, images) {
     const { api } = this.context;
     const { button, inline, tiny } = this.props;
-    // const token = (tokens || {})[_address];
-    //
-    // if (token && token.image) {
-    //   this.setState({
-    //     iconsrc: token.image
-    //   });
-    //
-    //   return;
-    // }
+    const imageHash = images[_address];
+
+    if (imageHash) {
+      this.setState({ iconsrc: `/api/content/${imageHash}` });
+      return;
+    }
 
     let scale = 7;
     if (tiny) {
@@ -120,3 +119,18 @@ export default class IdentityIcon extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { images } = state;
+
+  return { images };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(IdentityIcon);
