@@ -197,7 +197,7 @@ impl Client {
 		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
 
 		let factories = Factories {
-			vm: EvmFactory::new(config.vm_type.clone()),
+			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
 			trie: TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		};

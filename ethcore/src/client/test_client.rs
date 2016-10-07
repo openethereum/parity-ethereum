@@ -122,7 +122,7 @@ impl TestBlockChainClient {
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
-			vm_factory: EvmFactory::new(VMType::Interpreter),
+			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block

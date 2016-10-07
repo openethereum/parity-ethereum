@@ -95,7 +95,12 @@ impl CacheConfig {
 
 	/// Size of the state cache.
 	pub fn state(&self) -> u32 {
-		self.state
+		self.state * 3 / 4
+	}
+
+	/// Size of the jump-tables cache.
+	pub fn jump_tables(&self) -> u32 {
+		self.state / 4
 	}
 }
 
@@ -109,7 +114,8 @@ mod tests {
 		assert_eq!(config.db, 140);
 		assert_eq!(config.blockchain(), 20);
 		assert_eq!(config.queue(), 50);
-		assert_eq!(config.state(), 40);
+		assert_eq!(config.state(), 30);
+		assert_eq!(config.jump_tables(), 10);
 	}
 
 	#[test]

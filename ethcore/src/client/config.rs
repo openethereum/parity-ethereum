@@ -108,6 +108,8 @@ pub struct ClientConfig {
 	pub verifier_type: VerifierType,
 	/// State db cache-size.
 	pub state_cache_size: usize,
+	/// EVM jump-tables cache size.
+	pub jump_table_size: usize,
 }
 
 #[cfg(test)]
