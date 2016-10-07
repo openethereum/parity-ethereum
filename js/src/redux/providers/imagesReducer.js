@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
+import { bytesToHex } from '../../api/util/format';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
@@ -24,7 +25,8 @@ const initialState = {
 
 export default handleActions({
   setAddressImage (state, action) {
-    const { address, hash } = action;
+    const { address, hashArray } = action;
+    const hash = hashArray ? bytesToHex(hashArray) : ZERO;
 
     return Object.assign({}, state, {
       [address]: hash === ZERO ? null : hash

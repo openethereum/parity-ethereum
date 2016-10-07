@@ -19,19 +19,12 @@ import { setAddressImage } from './imagesActions';
 
 import * as abis from '../../contracts/abi';
 
-import imagesEthereum from '../../images/contracts/ethereum-56.png';
-import imagesGavcoin from '../../images/contracts/gavcoin-56.png';
-
-// TODO: Images should not be imported like this, should be via the content from GitHubHint contract (here until it is ready)
-const images = {
-  ethereum: imagesEthereum,
-  gavcoin: imagesGavcoin
-};
+import imagesEthereum from '../../images/contracts/ethereum-black-64x64.png';
 
 const ETH = {
   name: 'Ethereum',
   tag: 'ΞTH',
-  image: images.ethereum
+  image: imagesEthereum
 };
 
 export default class Balances {
