@@ -318,6 +318,6 @@ js-test:
   script:
     - ./js/scripts/test.sh
   tags:
-    - javascript
+    - javascript-test
   dependencies:
     - js-build
