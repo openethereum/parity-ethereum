@@ -25,7 +25,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet};
+use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
@@ -59,6 +59,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			reseal_on_own_tx: true,
 			tx_queue_size: 1024,
 			tx_gas_limit: !U256::zero(),
+			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
