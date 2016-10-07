@@ -85,8 +85,14 @@ impl Into<EthFilter> for Filter {
 					VariadicValue::Null => None,
 					VariadicValue::Single(t) => Some(vec![t.into()]),
 					VariadicValue::Multiple(t) => Some(t.into_iter().map(Into::into).collect())
-				}).filter_map(|m| m).collect()).into_iter();
-				vec![iter.next(), iter.next(), iter.next(), iter.next()]
+				}).collect()).into_iter();
+
+				vec![
+					iter.next().unwrap_or(None),
+					iter.next().unwrap_or(None),
+					iter.next().unwrap_or(None),
+					iter.next().unwrap_or(None)
+				]
 			},
 			limit: self.limit,
 		}
@@ -121,6 +127,8 @@ mod tests {
 	use util::hash::*;
 	use super::*;
 	use v1::types::BlockNumber;
+	use ethcore::filter::Filter as EthFilter;
+	use ethcore::client::BlockID;
 
 	#[test]
 	fn topic_deserialization() {
@@ -145,6 +153,35 @@ mod tests {
 			to_block: Some(BlockNumber::Latest),
 			address: None,
 			topics: None,
+			limit: None,
+		});
+	}
+
+	#[test]
+	fn filter_conversion() {
+		let filter = Filter {
+			from_block: Some(BlockNumber::Earliest),
+			to_block: Some(BlockNumber::Latest),
+			address: Some(VariadicValue::Multiple(vec![])),
+			topics: Some(vec![
+				VariadicValue::Null,
+				VariadicValue::Single("000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".into()),
+				VariadicValue::Null,
+			]),
+			limit: None,
+		};
+
+		let eth_filter: EthFilter = filter.into();
+		assert_eq!(eth_filter, EthFilter {
+			from_block: BlockID::Earliest,
+			to_block: BlockID::Latest,
+			address: Some(vec![]),
+			topics: vec![
+				None,
+				Some(vec!["000000000000000000000000a94f5374fce5edbc8e2a8697c15331677e6ebf0b".into()]),
+				None,
+				None,
+			],
 			limit: None,
 		});
 	}
