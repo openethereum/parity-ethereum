@@ -14,11 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Web3 from 'web3';
-
-import './web3.html';
-
-const http = new Web3.providers.HttpProvider('/rpc/');
-const web3 = new Web3(http);
-
-window.web3 = web3;
+export default from './connection';

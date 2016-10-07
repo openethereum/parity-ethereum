@@ -18,12 +18,15 @@ import React, { Component, PropTypes } from 'react';
 
 import { FirstRun } from '../../../modals';
 import { Errors, ParityBackground, Tooltips } from '../../../ui';
+import Connection from '../../Connection';
 
 import styles from '../application.css';
 
 export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node.isRequired,
+    isApiConnected: PropTypes.bool,
+    isPingConnected: PropTypes.bool,
     showFirstRun: PropTypes.bool,
     onCloseFirstRun: PropTypes.func
   };
@@ -36,6 +39,7 @@ export default class Container extends Component {
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />
+        <Connection />
         <Tooltips />
         <Errors />
         { children }

@@ -40,6 +40,8 @@ class Application extends Component {
   static propTypes = {
     children: PropTypes.node,
     netChain: PropTypes.string,
+    isApiConnected: PropTypes.bool,
+    isPingConnected: PropTypes.bool,
     isTest: PropTypes.bool,
     pending: PropTypes.array
   }
@@ -71,11 +73,13 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { children, pending, netChain, isTest } = this.props;
+    const { children, pending, netChain, isApiConnected, isPingConnected, isTest } = this.props;
     const { showFirstRun } = this.state;
 
     return (
       <Container
+        isApiConnected={ isApiConnected }
+        isPingConnected={ isPingConnected }
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
         <TabBar
@@ -122,13 +126,15 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest } = state.nodeStatus;
+  const { netChain, isApiConnected, isPingConnected, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signerRequests;
 
   return {
     hasAccounts,
     netChain,
+    isApiConnected,
+    isPingConnected,
     isTest,
     pending
   };

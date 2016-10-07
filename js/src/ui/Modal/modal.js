@@ -77,11 +77,12 @@ class Modal extends Component {
         modal
         open={ visible }
         overlayClassName={ styles.overlay }
+        overlayStyle={ { transition: 'none' } }
         repositionOnUpdate={ false }
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light>
+        <Container light style={ { transition: 'none' } }>
           { children }
         </Container>
       </Dialog>

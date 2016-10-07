@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import 'babel-polyfill';
-import 'isomorphic-fetch';
+import 'whatwg-fetch';
 
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
@@ -28,7 +28,7 @@ import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 
 import Web3 from 'web3';
 
-import Api from './api';
+import SecureApi from './secureApi';
 import ContractInstances from './contracts';
 
 import { initStore } from './redux';
@@ -47,7 +47,6 @@ import './index.html';
 
 injectTapEventPlugin();
 
-const initToken = window.localStorage.getItem('sysuiToken') || 'initial';
 const parityUrl = process.env.PARITY_URL ||
   (
     process.env.NODE_ENV === 'production'
@@ -55,7 +54,8 @@ const parityUrl = process.env.PARITY_URL ||
     : '127.0.0.1:8180'
   );
 
-const api = new Api(new Api.Transport.Ws(`ws://${parityUrl}`, initToken)); // new Api.Transport.Http('/rpc/'));
+const ws = new Ws(parityUrl);
+const api = new SecureApi(`ws://${parityUrl}`, ws.init);
 ContractInstances.create(api);
 
 // signer
@@ -63,7 +63,6 @@ function tokenSetter (token, cb) {
   window.localStorage.setItem('sysuiToken', token);
 }
 
-const ws = new Ws(parityUrl);
 const web3ws = new Web3(new WebSocketsProvider(ws));
 statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
 
@@ -73,7 +72,6 @@ store.dispatch({ type: 'initAll', api });
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new
 new SignerDataProvider(store, ws); // eslint-disable-line no-new
-ws.init(initToken);
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 
