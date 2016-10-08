@@ -18,13 +18,18 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import ParityBar from '../ParityBar';
+
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
 import Status from './Status';
 import TabBar from './TabBar';
 
+import styles from './application.css';
+
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
+const showFirstRun = window.localStorage.getItem('showFirstRun') === '1';
 
 class Application extends Component {
   static contextTypes = {
@@ -35,6 +40,8 @@ class Application extends Component {
   static propTypes = {
     children: PropTypes.node,
     netChain: PropTypes.string,
+    isApiConnected: PropTypes.bool,
+    isPingConnected: PropTypes.bool,
     isTest: PropTypes.bool,
     pending: PropTypes.array
   }
@@ -48,24 +55,31 @@ class Application extends Component {
   }
 
   render () {
-    const { children, pending, netChain, isTest } = this.props;
-    const { showFirstRun } = this.state;
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
+    const isDapp = root === 'app';
 
     if (inFrame) {
       return (
         <FrameError />
       );
-    } else if (root === 'app') {
-      return (
-        <DappContainer>
-          { children }
-        </DappContainer>
-      );
     }
 
     return (
+      <div className={ styles.outer }>
+        { isDapp ? this.renderDapp() : this.renderApp() }
+        <ParityBar dapp={ isDapp } />
+      </div>
+    );
+  }
+
+  renderApp () {
+    const { children, pending, netChain, isApiConnected, isPingConnected, isTest } = this.props;
+    const { showFirstRun } = this.state;
+
+    return (
       <Container
+        isApiConnected={ isApiConnected }
+        isPingConnected={ isPingConnected }
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
         <TabBar
@@ -78,6 +92,16 @@ class Application extends Component {
     );
   }
 
+  renderDapp () {
+    const { children } = this.props;
+
+    return (
+      <DappContainer>
+        { children }
+      </DappContainer>
+    );
+  }
+
   checkAccounts () {
     const { api } = this.context;
 
@@ -85,7 +109,7 @@ class Application extends Component {
       .listAccounts()
       .then((accounts) => {
         this.setState({
-          showFirst: accounts.length === 0
+          showFirstRun: showFirstRun || accounts.length === 0
         });
       })
       .catch((error) => {
@@ -94,6 +118,7 @@ class Application extends Component {
   }
 
   onCloseFirstRun = () => {
+    window.localStorage.setItem('showFirstRun', '0');
     this.setState({
       showFirstRun: false
     });
@@ -101,13 +126,15 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest } = state.nodeStatus;
+  const { netChain, isApiConnected, isPingConnected, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signerRequests;
 
   return {
     hasAccounts,
     netChain,
+    isApiConnected,
+    isPingConnected,
     isTest,
     pending
   };

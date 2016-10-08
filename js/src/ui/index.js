@@ -24,12 +24,14 @@ import ContextProvider from './ContextProvider';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
-import Modal from './Modal';
+import MethodDecoding from './MethodDecoding';
+import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
 import Tooltips, { Tooltip } from './Tooltips';
+import TxHash from './TxHash';
 
 export {
   Actionbar,
@@ -50,11 +52,15 @@ export {
   InputInline,
   Select,
   IdentityIcon,
+  MethodDecoding,
   Modal,
+  BusyStep,
+  CompletedStep,
   muiTheme,
   Page,
   ParityBackground,
   SignerIcon,
   Tooltip,
-  Tooltips
+  Tooltips,
+  TxHash
 };

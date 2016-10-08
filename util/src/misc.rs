@@ -23,7 +23,7 @@ use target_info::Target;
 include!(concat!(env!("OUT_DIR"), "/version.rs"));
 include!(concat!(env!("OUT_DIR"), "/rustc_version.rs"));
 
-#[derive(PartialEq,Eq,Clone,Copy)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 /// Boolean type for clean/dirty status.
 pub enum Filth {
 	/// Data has not been changed.

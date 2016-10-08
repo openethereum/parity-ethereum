@@ -21,9 +21,11 @@ export function eventSignature (name, params) {
   const types = (params || []).map(fromParamType).join(',');
   const id = `${name || ''}(${types})`;
 
-  return keccak_256(id);
+  return { id, signature: keccak_256(id) };
 }
 
 export function methodSignature (name, params) {
-  return eventSignature(name, params).substr(0, 8);
+  const { id, signature } = eventSignature(name, params);
+
+  return { id, signature: signature.substr(0, 8) };
 }

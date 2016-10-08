@@ -40,7 +40,7 @@ const renderStatus = (timestamp, isPending) => {
       <abbr title={ timestamp.format('MMMM Do YYYY, h:mm:ss a') }>{ timestamp.fromNow() }</abbr>
     </time>
   );
-}
+};
 
 const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
   const classes = e.state === 'pending'
@@ -57,12 +57,13 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
 };
 
 const renderDataChanged = (e, accounts, contacts) => {
+  let classNames = styles.dataChanged;
   if (e.state === 'pending') {
     classNames += ' ' + styles.pending;
   }
 
   return (
-    <div key={ e.key } className={ styles.dataChanged }>
+    <div key={ e.key } className={ classNames }>
       { renderAddress(e.parameters.owner, accounts, contacts) }
       { ' ' }<abbr title={ e.transaction }>updated</abbr>
       key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code>

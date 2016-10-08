@@ -27,7 +27,8 @@
 
 .tabs button,
 .settings,
-.logo {
+.logo,
+.last {
   background: rgba(0, 0, 0, 0.5) !important; /* rgba(0, 0, 0, 0.25) !important; */
 }
 
@@ -76,32 +77,8 @@ button.tabactive:hover {
   letter-spacing: 0.2em;
 }
 
-.signerIcon {
-  width: 24px;
-  height: 24px;
-  margin-bottom: 5px;
-}
-
-.settings {
+.last {
   margin: 0 -24px 0 0;
-  padding: 12px 24px;
-}
-
-.settings svg {
-  fill: rgba(255, 255, 255, 0.5) !important;
-}
-
-svg.optionSelected {
-  fill: rgb(250, 250, 250) !important;
-}
-
-svg.optionUnselected  {
-  opacity: 0.1;
-}
-
-.menuEnabled {
-}
-
-.menuDisabled svg.optionSelected {
-  fill: rgba(255, 255, 255, 0.3) !important;
+  padding: 22px 12px 0 12px;
+  white-space: nowrap;
 }

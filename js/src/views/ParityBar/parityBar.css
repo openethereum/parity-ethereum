@@ -20,6 +20,16 @@
   right: 0;
   font-size: 16px;
   font-family: 'Roboto', sans-serif;
+  z-index: 10001;
+}
+
+.overlay {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: rgba(255, 255, 255, 0.5);
   z-index: 10000;
 }
 
@@ -33,12 +43,16 @@
 .expanded {
   right: 16px;
   width: 964px;
-  height: 296px;
+  height: 288px;
   border-radius: 4px 4px 0 0;
-  overflow-y: scroll;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .expanded .content {
+  flex: 1;
+  overflow: auto;
 }
 
 .corner {
@@ -96,7 +110,7 @@
   height: 36px;
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
-  margin-bottom: 0.25em;
+  margin-bottom: 0;
 }
 
 .header:after {

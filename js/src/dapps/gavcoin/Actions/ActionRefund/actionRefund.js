@@ -21,7 +21,6 @@ import { Dialog, FlatButton, TextField } from 'material-ui';
 
 import { api } from '../../parity';
 import AccountSelector from '../../AccountSelector';
-import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 import styles from '../actions.css';
@@ -52,13 +51,19 @@ export default class ActionRefund extends Component {
   }
 
   render () {
+    const { complete } = this.state;
+
+    if (complete) {
+      return null;
+    }
+
     return (
       <Dialog
         title='return coins for a refund'
         modal open
         className={ styles.dialog }
         actions={ this.renderActions() }>
-        { this.state.complete ? <StepComplete /> : this.renderFields() }
+        { this.renderFields() }
       </Dialog>
     );
   }
@@ -170,6 +175,7 @@ export default class ActionRefund extends Component {
         return instance.refund.postTransaction(options, values);
       })
       .then(() => {
+        this.props.onClose();
         this.setState({
           sending: false,
           complete: true

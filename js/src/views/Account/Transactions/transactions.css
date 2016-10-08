@@ -31,6 +31,7 @@
 
 .transactions table {
   width: 100%;
+  border-collapse: collapse;
 }
 
 .transactions tr {
@@ -38,20 +39,22 @@
   vertical-align: top;
 }
 
-.transactions th {
-  color: #aaa;
+.transactions tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.transactions tr td {
+.transactions th {
+  color: #aaa;
+  text-align: center;
+}
+
+.transactions td {
   vertical-align: top;
+  padding: 0.75em 0.75em;
 }
 
 .transactions .link {
   vertical-align: top;
-}
-
-.value {
-  text-align: right;
 }
 
 .infonone {
@@ -63,4 +66,36 @@
   padding-top: 1em;
   font-size: 0.75em;
   color: #aaa;
+}
+
+.address {
+  text-align: center;
+}
+
+.transaction {
+  text-align: center;
+}
+
+.transactions td.transaction {
+  padding-top: 1.5em;
+}
+
+.transaction div {
+  line-height: 1.25em;
+  min-height: 1.25em;
+}
+
+.icon {
+  margin: 0;
+}
+
+.method {
+  width: 40%;
+}
+
+.transactions td.timestamp {
+  padding-top: 1.5em;
+  text-align: right;
+  line-height: 1.5em;
+  opacity: 0.5;
 }

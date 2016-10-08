@@ -31,6 +31,7 @@ export default class AddressSelect extends Component {
     hint: PropTypes.string,
     error: PropTypes.string,
     value: PropTypes.string,
+    tokens: PropTypes.object,
     onChange: PropTypes.func.isRequired
   }
 
@@ -62,11 +63,14 @@ export default class AddressSelect extends Component {
   }
 
   renderSelectEntry = (entry) => {
+    const { tokens } = this.props;
+
     const item = (
       <div className={ styles.account }>
         <div className={ styles.image }>
           <IdentityIcon
             inline center
+            tokens={ tokens }
             address={ entry.address } />
         </div>
         <div className={ styles.details }>

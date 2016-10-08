@@ -14,57 +14,36 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import moment from 'moment';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import util from '../../../api/util';
 import etherscan from '../../../3rdparty/etherscan';
-import { Container, IdentityIcon } from '../../../ui';
+import { Container, ContainerTitle } from '../../../ui';
+
+import Transaction from './Transaction';
 
 import styles from './transactions.css';
 
-function formatHash (hash) {
-  if (!hash || hash.length <= 21) {
-    return hash;
-  }
-
-  return `${hash.substr(2, 9)}...${hash.slice(-9)}`;
-}
-
-function formatNumber (number) {
-  return new BigNumber(number).toFormat();
-}
-
-function formatTime (time) {
-  return moment(parseInt(time, 10) * 1000).fromNow(true);
-}
-
-function formatEther (value) {
-  const ether = util.fromWei(value);
-
-  if (ether.gt(0)) {
-    return `${ether.toFormat(5)}`;
-  }
-
-  return null;
-}
-
 class Transactions extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     address: PropTypes.string.isRequired,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool
   }
 
   state = {
     transactions: [],
-    loading: true
+    loading: true,
+    callInfo: {}
   }
 
   componentDidMount () {
@@ -74,37 +53,13 @@ class Transactions extends Component {
   render () {
     return (
       <Container>
+        <ContainerTitle title='transactions' />
         { this.renderTransactions() }
       </Container>
     );
   }
 
-  renderAddress (prefix, address) {
-    const { accounts, contacts, tokens } = this.props;
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
-    const link = `${prefix}address/${address}`;
-    const name = account
-      ? account.name.toUpperCase()
-      : formatHash(address);
-
-    return (
-      <td className={ styles.left }>
-        <IdentityIcon
-          inline center
-          tokens={ tokens }
-          address={ address } />
-        <a
-          href={ link }
-          target='_blank'
-          className={ styles.link }>
-          { name }
-        </a>
-      </td>
-    );
-  }
-
   renderTransactions () {
-    const { isTest } = this.props;
     const { loading, transactions } = this.state;
 
     if (loading) {
@@ -119,54 +74,11 @@ class Transactions extends Component {
       );
     }
 
-    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    const rows = (transactions || []).map((tx) => {
-      const hashLink = `${prefix}tx/${tx.hash}`;
-      const value = formatEther(tx.value);
-      const token = value ? 'ΞTH' : null;
-      const tosection = (tx.to && tx.to.length)
-        ? this.renderAddress(prefix, tx.to)
-        : (<td className={ `${styles.center}` }></td>);
-
-      return (
-        <tr key={ tx.hash }>
-          <td className={ styles.center }></td>
-          { this.renderAddress(prefix, tx.from) }
-          { tosection }
-          <td className={ styles.center }>
-            <a href={ hashLink } target='_blank' className={ styles.link }>
-              { formatHash(tx.hash) }
-            </a>
-          </td>
-          <td className={ styles.right }>
-            { formatNumber(tx.blockNumber) }
-          </td>
-          <td className={ styles.right }>
-            { formatTime(tx.timeStamp) }
-          </td>
-          <td className={ styles.value }>
-            { formatEther(tx.value) }<small> { token }</small>
-          </td>
-        </tr>
-      );
-    });
-
     return (
       <div className={ styles.transactions }>
         <table>
-          <thead>
-            <tr className={ styles.info }>
-              <th>&nbsp;</th>
-              <th className={ styles.left }>from</th>
-              <th className={ styles.left }>to</th>
-              <th className={ styles.center }>transaction</th>
-              <th className={ styles.right }>block</th>
-              <th className={ styles.right }>age</th>
-              <th className={ styles.right }>value</th>
-            </tr>
-          </thead>
           <tbody>
-            { rows }
+            { this.renderRows() }
           </tbody>
         </table>
         <div className={ styles.etherscan }>
@@ -174,6 +86,25 @@ class Transactions extends Component {
         </div>
       </div>
     );
+  }
+
+  renderRows () {
+    const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
+    const { transactions } = this.state;
+
+    return (transactions || []).map((transaction, index) => {
+      return (
+        <Transaction
+          key={ index }
+          transaction={ transaction }
+          address={ address }
+          accounts={ accounts }
+          contacts={ contacts }
+          contracts={ contracts }
+          tokens={ tokens }
+          isTest={ isTest } />
+      );
+    });
   }
 
   getTransactions = () => {
@@ -195,13 +126,14 @@ class Transactions extends Component {
 
 function mapStateToProps (state) {
   const { isTest } = state.nodeStatus;
-  const { accounts, contacts } = state.personal;
+  const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
 
   return {
     isTest,
     accounts,
     contacts,
+    contracts,
     tokens
   };
 }

@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::{str, io};
 use std::net::SocketAddr;
-use std::io;
 use std::sync::*;
 use mio::*;
 use mio::tcp::*;
@@ -63,7 +63,7 @@ pub enum SessionData {
 		/// Packet data
 		data: Vec<u8>,
 		/// Packet protocol ID
-		protocol: &'static str,
+		protocol: [u8; 3],
 		/// Zero based packet ID
 		packet_id: u8,
 	},
@@ -89,15 +89,21 @@ pub struct SessionInfo {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct PeerCapabilityInfo {
-	pub protocol: String,
+	pub protocol: ProtocolId,
 	pub version: u8,
 }
 
 impl Decodable for PeerCapabilityInfo {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let c = decoder.as_rlp();
+		let p: Vec<u8> = try!(c.val_at(0));
+		if p.len() != 3 {
+			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
+		}
+		let mut p2: ProtocolId = [0u8; 3];
+		p2.clone_from_slice(&p);
 		Ok(PeerCapabilityInfo {
-			protocol: try!(c.val_at(0)),
+			protocol: p2,
 			version: try!(c.val_at(1))
 		})
 	}
@@ -105,7 +111,7 @@ impl Decodable for PeerCapabilityInfo {
 
 #[derive(Debug)]
 struct SessionCapabilityInfo {
-	pub protocol: &'static str,
+	pub protocol: [u8; 3],
 	pub version: u8,
 	pub packet_count: u8,
 	pub id_offset: u8,
@@ -239,12 +245,12 @@ impl Session {
 	}
 
 	/// Checks if peer supports given capability
-	pub fn have_capability(&self, protocol: &str) -> bool {
+	pub fn have_capability(&self, protocol: [u8; 3]) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
 	/// Checks if peer supports given capability
-	pub fn capability_version(&self, protocol: &str) -> Option<u8> {
+	pub fn capability_version(&self, protocol: [u8; 3]) -> Option<u8> {
 		self.info.capabilities.iter().filter_map(|c| if c.protocol == protocol { Some(c.version) } else { None }).max()
 	}
 
@@ -270,10 +276,10 @@ impl Session {
 	}
 
 	/// Send a protocol packet to peer.
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), NetworkError>
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: [u8; 3], packet_id: u8, data: &[u8]) -> Result<(), NetworkError>
         where Message: Send + Sync + Clone {
 		if self.info.capabilities.is_empty() || !self.had_hello {
-			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), protocol, packet_id);
+			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), str::from_utf8(&protocol[..]).unwrap_or("??"), packet_id);
 			return Err(From::from(NetworkError::BadProtocol));
 		}
 		if self.expired() {

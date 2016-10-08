@@ -20,7 +20,7 @@ import styles from '../deployContract.css';
 
 export default class ErrorStep extends Component {
   static propTypes = {
-    error: PropTypes.string
+    error: PropTypes.object
   }
 
   render () {
@@ -28,7 +28,7 @@ export default class ErrorStep extends Component {
 
     return (
       <div className={ styles.center }>
-        The contract deployment failed: { error }
+        The contract deployment failed: { error.message }
       </div>
     );
   }

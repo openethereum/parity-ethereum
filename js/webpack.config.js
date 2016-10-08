@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+const HappyPack = require('happypack');
+const path = require('path');
+const postcssImport = require('postcss-import');
+const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const webpack = require('webpack');
-const path = require('path');
-const HappyPack = require('happypack');
-
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 
 const ENV = process.env.NODE_ENV || 'development';
@@ -31,8 +32,11 @@ module.exports = {
   context: path.join(__dirname, './src'),
   entry: {
     // dapps
+    'basiccoin': ['./dapps/basiccoin.js'],
     'gavcoin': ['./dapps/gavcoin.js'],
+    'githubhint': ['./dapps/githubhint.js'],
     'registry': ['./dapps/registry.js'],
+    'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],
@@ -77,7 +81,6 @@ module.exports = {
           'less'
         ]
       },
-
       {
         test: /\.(png|jpg|)$/,
         loader: 'file-loader'
@@ -106,6 +109,14 @@ module.exports = {
     fallback: path.join(__dirname, 'node_modules')
   },
   postcss: [
+    postcssImport({
+      addDependencyTo: webpack
+    }),
+    postcssVars({
+      unknown: function (node, name, result) {
+        node.warn(result, `Unknown variable ${name}`);
+      }
+    }),
     rucksack({
       autoprefixer: true
     })

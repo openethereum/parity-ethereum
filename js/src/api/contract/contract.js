@@ -65,6 +65,7 @@ export default class Contract {
   }
 
   get instance () {
+    this._instance.address = this._address;
     return this._instance;
   }
 
@@ -118,11 +119,11 @@ export default class Contract {
 
         setState({ state: 'hasReceipt', receipt });
         this._address = receipt.contractAddress;
-        return receipt.contractAddress;
+        return this._address;
       })
       .then((address) => {
         setState({ state: 'getCode' });
-        return this._api.eth.getCode(address);
+        return this._api.eth.getCode(this._address);
       })
       .then((code) => {
         if (code === '0x') {
@@ -146,7 +147,6 @@ export default class Contract {
       const decoded = event.decodeLog(log.topics, log.data);
 
       log.params = {};
-      log.address = decoded.address;
       log.event = event.name;
 
       decoded.params.forEach((param) => {
@@ -163,34 +163,13 @@ export default class Contract {
     return receipt;
   }
 
-  _pollEthMethod (method, input, validate) {
-    return new Promise((resolve, reject) => {
-      const timeout = () => {
-        this._api.eth[method](input)
-          .then((result) => {
-            if (validate(result)) {
-              resolve(result);
-            } else {
-              setTimeout(timeout, 500);
-            }
-          })
-          .catch((error) => {
-            console.error('_pollEthEndpoint', error);
-            reject(error);
-          });
-      };
-
-      timeout();
-    });
-  }
-
   _pollCheckRequest = (requestId) => {
-    return this._pollEthMethod('checkRequest', requestId, (txhash) => txhash);
+    return this._api.pollMethod('eth_checkRequest', requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
-    return this._pollEthMethod('getTransactionReceipt', txhash, (receipt) => {
-      if (!receipt || receipt.blockNumber.eq(0)) {
+    return this.api.pollMethod('eth_getTransactionReceipt', txhash, (receipt) => {
+      if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
         return false;
       }
 

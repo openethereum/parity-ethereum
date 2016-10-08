@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
@@ -70,7 +71,7 @@ class Embedded extends Component {
 
   renderPending = (data) => {
     const { actions } = this.props;
-    const { payload, id, isSending } = data;
+    const { payload, id, isSending, date } = data;
 
     return (
       <RequestPendingWeb3
@@ -81,8 +82,13 @@ class Embedded extends Component {
         key={ id }
         id={ id }
         payload={ payload }
+        date={ date }
       />
     );
+  }
+
+  _sortRequests = (a, b) => {
+    return new BigNumber(b.id).cmp(a.id);
   }
 }
 

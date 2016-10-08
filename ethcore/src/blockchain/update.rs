@@ -17,8 +17,8 @@ pub struct ExtrasUpdate<'a> {
 	pub block_details: HashMap<H256, BlockDetails>,
 	/// Modified block receipts.
 	pub block_receipts: HashMap<H256, BlockReceipts>,
-	/// Modified transaction addresses.
-	pub transactions_addresses: HashMap<H256, TransactionAddress>,
 	/// Modified blocks blooms.
 	pub blocks_blooms: HashMap<LogGroupPosition, BloomGroup>,
+	/// Modified transaction addresses (None signifies removed transactions).
+	pub transactions_addresses: HashMap<H256, Option<TransactionAddress>>,
 }

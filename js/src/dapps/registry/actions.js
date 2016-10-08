@@ -14,17 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { registry as registryAbi } from '../../json';
+import { registry as registryAbi } from '../../contracts/abi';
 
 import { newContract, ethcore } from './parity.js';
 import * as addresses from './addresses/actions.js';
 import * as accounts from './accounts/actions.js';
 import * as lookup from './Lookup/actions.js';
 import * as events from './events/actions.js';
-import * as register from './register/actions.js';
-import * as records from './records/actions.js';
+import * as names from './names/actions.js';
 
-export { addresses, accounts, lookup, events, register, records };
+export { addresses, accounts, lookup, events, names };
 
 export const setContract = (contract) => ({ type: 'set contract', contract });
 

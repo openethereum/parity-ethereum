@@ -14,21 +14,23 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.contracts {
+.list {
   display: flex;
   flex-wrap: wrap;
 }
 
-.contract {
+.item {
   flex: 0 1 50%;
   width: 50%;
   position: relative;
+  box-sizing: border-box;
+  padding-bottom: 0.25em;
 }
 
-.contract:nth-child(odd)>div {
-  padding-right: 0.125em !important;
+.item:nth-child(odd) {
+  padding-right: 0.125em;
 }
 
-.contract:nth-child(even)>div {
-  padding-left: 0.125em !important;
+.item:nth-child(even) {
+  padding-left: 0.125em;
 }

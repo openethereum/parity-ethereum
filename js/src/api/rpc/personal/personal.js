@@ -28,6 +28,11 @@ export default class Personal {
       .then(outAccountInfo);
   }
 
+  generateAuthorizationToken () {
+    return this._transport
+      .execute('personal_generateAuthorizationToken');
+  }
+
   listAccounts () {
     return this._transport
       .execute('personal_listAccounts')

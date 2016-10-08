@@ -22,6 +22,7 @@ import styles from '../modal.css';
 
 export default class Title extends Component {
   static propTypes = {
+    busy: PropTypes.bool,
     current: PropTypes.number,
     steps: PropTypes.array,
     waiting: PropTypes.array,
@@ -75,8 +76,8 @@ export default class Title extends Component {
   }
 
   renderWaiting () {
-    const { current, waiting } = this.props;
-    const isWaiting = (waiting || []).includes(current);
+    const { current, busy, waiting } = this.props;
+    const isWaiting = busy || (waiting || []).includes(current);
 
     if (!isWaiting) {
       return null;

@@ -38,8 +38,9 @@
   margin: 1em 0 0 0;
 }
 
-.inline {
-  display: inline;
+.inline,
+.tiny {
+  display: inline-block;
   margin-right: 0.75em;
 }
 

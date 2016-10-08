@@ -19,7 +19,7 @@
 //! are performed in temp sub-directories.
 
 use common::*;
-use migration::{Config, SimpleMigration, Manager};
+use migration::{Batch, Config, Error, SimpleMigration, Migration, Manager};
 use kvdb::Database;
 
 use devtools::RandomTempPath;
@@ -62,11 +62,10 @@ impl SimpleMigration for Migration0 {
 
 	fn version(&self) -> u32 { 1 }
 
-	fn simple_migrate(&mut self, key: Vec<u8>, value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
-		let mut key = key;
+	fn simple_migrate(&mut self, mut key: Vec<u8>, mut value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		key.push(0x11);
-		let mut value = value;
 		value.push(0x22);
+
 		Some((key, value))
 	}
 }
@@ -80,6 +79,31 @@ impl SimpleMigration for Migration1 {
 
 	fn simple_migrate(&mut self, key: Vec<u8>, _value: Vec<u8>) -> Option<(Vec<u8>, Vec<u8>)> {
 		Some((key, vec![]))
+	}
+}
+
+struct AddsColumn;
+
+impl Migration for AddsColumn {
+	fn pre_columns(&self) -> Option<u32> { None }
+
+	fn columns(&self) -> Option<u32> { Some(1) }
+
+	fn version(&self) -> u32 { 1 }
+
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+		let mut batch = Batch::new(config, col);
+
+		for (key, value) in source.iter(col) {
+			try!(batch.insert(key.to_vec(), value.to_vec(), dest));
+		}
+
+
+		if col == Some(1) {
+			try!(batch.insert(vec![1, 2, 3], vec![4, 5, 6], dest));
+		}
+
+		batch.commit(dest)
 	}
 }
 
@@ -188,4 +212,17 @@ fn is_migration_needed() {
 	assert!(manager.is_needed(0));
 	assert!(manager.is_needed(1));
 	assert!(!manager.is_needed(2));
+}
+
+#[test]
+fn pre_columns() {
+	let mut manager = Manager::new(Config::default());
+	manager.add_migration(AddsColumn).unwrap();
+
+	let dir = RandomTempPath::create_dir();
+	let db_path = db_path(dir.as_path());
+
+	// this shouldn't fail to open the database even though it's one column
+	// short of the one before it.
+	manager.execute(&db_path, 0).unwrap();
 }

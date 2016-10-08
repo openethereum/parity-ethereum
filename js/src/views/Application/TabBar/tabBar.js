@@ -15,18 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { IconButton, IconMenu, MenuItem } from 'material-ui';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
-import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
-import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
-import ActionSettings from 'material-ui/svg-icons/action/settings';
-import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
-import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
-import NavigationApps from 'material-ui/svg-icons/navigation/apps';
-import RemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
-import { Badge, ParityBackground, SignerIcon, Tooltip } from '../../../ui';
+import { Badge, ParityBackground, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../images/ethcore-block.png';
@@ -37,9 +31,8 @@ const TABMAP = {
   apps: 'app',
   contracts: 'contract'
 };
-const LS_VIEWS = 'views';
 
-export default class TabBar extends Component {
+class TabBar extends Component {
   static contextTypes = {
     router: PropTypes.object.isRequired
   }
@@ -47,20 +40,12 @@ export default class TabBar extends Component {
   static propTypes = {
     pending: PropTypes.array,
     isTest: PropTypes.bool,
-    netChain: PropTypes.string
+    netChain: PropTypes.string,
+    settings: PropTypes.object.isRequired
   }
 
   state = {
-    accountsVisible: true,
-    addressesVisible: true,
-    appsVisible: true,
-    statusVisible: true,
-    signerVisible: true,
     activeRoute: '/accounts'
-  }
-
-  componentDidMount () {
-    this.loadViews();
   }
 
   render () {
@@ -70,7 +55,7 @@ export default class TabBar extends Component {
           className={ styles.toolbar }>
           { this.renderLogo() }
           { this.renderTabs() }
-          { this.renderSettingsMenu() }
+          { this.renderLast() }
         </Toolbar>
       </ParityBackground>
     );
@@ -87,65 +72,47 @@ export default class TabBar extends Component {
     );
   }
 
-  renderSettingsMenu () {
-    const items = Object.keys(this.tabs).map((id) => {
-      const tab = this.tabs[id];
-      const isActive = this.state[this.visibleId(id)];
-      const icon = (
-        <RemoveRedEye className={ isActive ? styles.optionSelected : styles.optionUnselected } />
-      );
-
-      return (
-        <MenuItem
-          className={ tab.fixed ? styles.menuDisabled : styles.menuEnabled }
-          leftIcon={ icon }
-          key={ id }
-          data-id={ id }
-          disabled={ tab.fixed }
-          primaryText={ tab.label } />
-      );
-    });
-
+  renderLast () {
     return (
       <ToolbarGroup>
-        <IconMenu
-          className={ styles.settings }
-          iconButtonElement={ <IconButton><ActionSettings /></IconButton> }
-          anchorOrigin={ { horizontal: 'right', vertical: 'bottom' } }
-          targetOrigin={ { horizontal: 'right', vertical: 'bottom' } }
-          touchTapCloseDelay={ 0 }
-          onItemTouchTap={ this.toggleMenu }>
-          { items }
-        </IconMenu>
+        <div className={ styles.last }>
+          <div></div>
+        </div>
       </ToolbarGroup>
     );
   }
 
   renderTabs () {
+    const { settings } = this.props;
     const windowHash = (window.location.hash || '').split('?')[0].split('/')[1];
     const hash = TABMAP[windowHash] || windowHash;
 
-    const items = Object.keys(this.tabs)
-      .filter((id) => {
-        const tab = this.tabs[id];
-        const isFixed = tab.fixed;
-        const isVisible = this.state[this.visibleId(id)];
-
-        return isFixed || isVisible;
-      })
+    const items = Object.keys(settings.views)
+      .filter((id) => settings.views[id].fixed || settings.views[id].active)
       .map((id) => {
-        const tab = this.tabs[id];
-        const onActivate = () => this.onActivate(tab.route);
+        const view = settings.views[id];
+        let label = this.renderLabel(view.label);
+        let body = null;
+
+        if (id === 'accounts') {
+          body = (
+            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+          );
+        } else if (id === 'signer') {
+          label = this.renderSignerLabel(label);
+        } else if (id === 'status') {
+          label = this.renderStatusLabel(label);
+        }
 
         return (
           <Tab
-            className={ hash === tab.value ? styles.tabactive : '' }
-            value={ tab.value }
-            icon={ tab.icon }
+            className={ hash === view.value ? styles.tabactive : '' }
+            value={ view.value }
+            icon={ view.icon }
             key={ id }
-            label={ tab.renderLabel ? tab.renderLabel(tab.label) : this.renderLabel(tab.label) }
-            onActive={ onActivate }>
-            { tab.body }
+            label={ label }
+            onActive={ this.onActivate(view.route) }>
+            { body }
           </Tab>
         );
       });
@@ -196,122 +163,27 @@ export default class TabBar extends Component {
     return this.renderLabel(label, bubble);
   }
 
-  visibleId (id) {
-    return `${id}Visible`;
-  }
-
   onActivate = (activeRoute) => {
     const { router } = this.context;
 
-    router.push(activeRoute);
-    this.setState(activeRoute);
-  }
-
-  toggleMenu = (event, menu) => {
-    const id = menu.props['data-id'];
-    const toggle = this.visibleId(id);
-    const isActive = this.state[toggle];
-
-    if (this.tabs[id].fixed) {
-      return;
-    }
-
-    this.setState({
-      [toggle]: !isActive
-    }, this.saveViews);
-  }
-
-  getDefaultViews () {
-    const views = {};
-
-    Object.keys(this.tabs).forEach((id) => {
-      const tab = this.tabs[id];
-
-      views[id] = {
-        active: tab.active || false
-      };
-    });
-
-    return views;
-  }
-
-  loadViews () {
-    const defaults = this.getDefaultViews();
-    const state = {};
-    let lsdata;
-
-    try {
-      const json = window.localStorage.getItem(LS_VIEWS) || {};
-
-      lsdata = Object.assign(defaults, JSON.parse(json));
-    } catch (e) {
-      lsdata = defaults;
-    }
-
-    Object.keys(lsdata).forEach((id) => {
-      state[this.visibleId(id)] = lsdata[id].active;
-    });
-
-    this.setState(state, this.saveViews);
-  }
-
-  saveViews = () => {
-    const lsdata = this.getDefaultViews();
-
-    Object.keys(lsdata).forEach((id) => {
-      lsdata[id].active = this.state[this.visibleId(id)];
-    });
-
-    window.localStorage.setItem(LS_VIEWS, JSON.stringify(lsdata));
-  }
-
-  tabs = {
-    accounts: {
-      active: true,
-      fixed: true,
-      icon: <ActionAccountBalanceWallet />,
-      label: 'Accounts',
-      route: '/accounts',
-      value: 'account',
-      body: <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
-    },
-    addresses: {
-      active: true,
-      icon: <CommunicationContacts />,
-      label: 'Addressbook',
-      route: '/addresses',
-      value: 'address'
-    },
-    apps: {
-      active: true,
-      icon: <NavigationApps />,
-      label: 'Applications',
-      route: '/apps',
-      value: 'app'
-    },
-    contracts: {
-      active: false,
-      icon: <ImageGridOn />,
-      label: 'Contracts',
-      route: '/contracts',
-      value: 'contract'
-    },
-    status: {
-      active: true,
-      icon: <ActionTrackChanges />,
-      label: 'Status',
-      renderLabel: this.renderStatusLabel,
-      route: '/status',
-      value: 'status'
-    },
-    signer: {
-      active: true,
-      fixed: true,
-      icon: <SignerIcon className={ styles.signerIcon } />,
-      label: 'Signer',
-      renderLabel: this.renderSignerLabel,
-      route: '/signer',
-      value: 'signer'
-    }
+    return (event) => {
+      router.push(activeRoute);
+      this.setState({ activeRoute });
+    };
   }
 }
+
+function mapStateToProps (state) {
+  const { settings } = state;
+
+  return { settings };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(TabBar);

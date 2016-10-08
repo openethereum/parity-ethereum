@@ -91,10 +91,10 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
 		let with_color = if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", Colour::Black.bold().paint(timestamp), record.args())
+			format!("{} {}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
 			let name = thread::current().name().map_or_else(Default::default, |x| format!("{}", Colour::Blue.bold().paint(x)));
-			format!("{}{} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
+			format!("{} {} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
 		};
 
 		let removed_color = kill_color(with_color.as_ref());

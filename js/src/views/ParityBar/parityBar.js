@@ -28,11 +28,27 @@ import styles from './parityBar.css';
 
 class ParityBar extends Component {
   static propTypes = {
-    pending: PropTypes.array
+    pending: PropTypes.array,
+    dapp: PropTypes.bool
   }
 
   state = {
     opened: false
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const count = this.props.pending.length;
+    const newCount = nextProps.pending.length;
+
+    if (count === newCount) {
+      return;
+    }
+
+    if (count < newCount) {
+      this.setState({ opened: true });
+    } else if (newCount === 0 && count === 1) {
+      this.setState({ opened: false });
+    }
   }
 
   render () {
@@ -44,6 +60,12 @@ class ParityBar extends Component {
   }
 
   renderBar () {
+    const { dapp } = this.props;
+
+    if (!dapp) {
+      return null;
+    }
+
     const parityIcon = (
       <img
         src={ imagesEthcoreBlock }
@@ -73,22 +95,24 @@ class ParityBar extends Component {
 
   renderExpanded () {
     return (
-      <ParityBackground className={ styles.expanded }>
-        <div className={ styles.header }>
-          <div className={ styles.title }>
-            <ContainerTitle title='Parity Signer: Pending' />
+      <div className={ styles.overlay }>
+        <ParityBackground className={ styles.expanded }>
+          <div className={ styles.header }>
+            <div className={ styles.title }>
+              <ContainerTitle title='Parity Signer: Pending' />
+            </div>
+            <div className={ styles.actions }>
+              <Button
+                icon={ <ContentClear /> }
+                label='Close'
+                onClick={ this.toggleDisplay } />
+            </div>
           </div>
-          <div className={ styles.actions }>
-            <Button
-              icon={ <ContentClear /> }
-              label='Close'
-              onClick={ this.toggleDisplay } />
+          <div className={ styles.content }>
+            <Signer />
           </div>
-        </div>
-        <div className={ styles.content }>
-          <Signer />
-        </div>
-      </ParityBackground>
+        </ParityBackground>
+      </div>
     );
   }
 

@@ -34,6 +34,7 @@ class InputAddressSelect extends Component {
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
+    tokens: PropTypes.object,
     onChange: PropTypes.func
   };
 
@@ -59,7 +60,7 @@ class InputAddressSelect extends Component {
   }
 
   renderInput () {
-    const { disabled, error, hint, label, value } = this.props;
+    const { disabled, error, hint, label, value, tokens } = this.props;
 
     return (
       <InputAddress
@@ -68,12 +69,13 @@ class InputAddressSelect extends Component {
         hint={ hint }
         label={ label }
         value={ value }
+        tokens={ tokens }
         onChange={ this.onChangeInput } />
     );
   }
 
   renderSelect () {
-    const { accounts, contacts, disabled, error, hint, label, value } = this.props;
+    const { accounts, contacts, disabled, error, hint, label, value, tokens } = this.props;
 
     return (
       <AddressSelect
@@ -84,6 +86,7 @@ class InputAddressSelect extends Component {
         hint={ hint }
         error={ error }
         value={ value }
+        tokens={ tokens }
         onChange={ this.onChangeSelect } />
     );
   }

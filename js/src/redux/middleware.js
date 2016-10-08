@@ -15,18 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import ErrorsMiddleware from '../ui/Errors/middleware';
+import SettingsMiddleware from '../views/Settings/middleware';
 
 import signerMiddleware from '../views/Signer/middleware';
 import statusMiddleware from '../views/Status/middleware';
 
 export default function (signerWs, signerTokenSetter, statusWeb3) {
   const errors = new ErrorsMiddleware();
+  const settings = new SettingsMiddleware();
 
   const signer = signerMiddleware(signerWs, signerTokenSetter);
   const status = statusMiddleware(statusWeb3);
 
   const middleware = [
-    errors.toMiddleware()
+    errors.toMiddleware(),
+    settings.toMiddleware()
   ];
 
   return middleware.concat(signer).concat(status);

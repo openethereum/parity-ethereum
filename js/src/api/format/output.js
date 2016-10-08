@@ -134,6 +134,7 @@ export function outTransaction (tx) {
           tx[key] = outNumber(tx[key]);
           break;
 
+        case 'creates':
         case 'from':
         case 'to':
           tx[key] = outAddress(tx[key]);

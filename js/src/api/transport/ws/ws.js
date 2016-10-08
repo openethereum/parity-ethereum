@@ -28,30 +28,49 @@ export default class Ws extends JsonRpcBase {
     this._token = token;
     this._messages = {};
 
+    this._connecting = true;
+    this._lastError = null;
+    this._autoConnect = false;
+
     this._connect();
   }
 
-  _hash () {
-    const time = parseInt(new Date().getTime() / 1000, 10);
-    const sha3 = keccak_256(`${this._token}:${time}`);
+  updateToken (token) {
+    this._token = token;
+    this._autoConnect = false;
 
-    return `${sha3}_${time}`;
+    this._connect();
   }
 
   _connect () {
-    this._ws = new WebSocket(this._url, this._hash());
+    const time = parseInt(new Date().getTime() / 1000, 10);
+    const sha3 = keccak_256(`${this._token}:${time}`);
+    const hash = `${sha3}_${time}`;
 
+    if (this._ws) {
+      this._ws.onerror = null;
+      this._ws.onopen = null;
+      this._ws.onclose = null;
+      this._ws.onmessage = null;
+      this._ws = null;
+    }
+
+    this._connecting = true;
+    this._connected = false;
+    this._lastError = null;
+
+    this._ws = new WebSocket(this._url, hash);
     this._ws.onerror = this._onError;
     this._ws.onopen = this._onOpen;
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
-
-    this._connected = false;
   }
 
   _onOpen = (event) => {
     console.log('ws:onOpen', event);
     this._connected = true;
+    this._connecting = false;
+    this._autoConnect = true;
 
     Object.keys(this._messages)
       .filter((id) => this._messages[id].queued)
@@ -61,11 +80,16 @@ export default class Ws extends JsonRpcBase {
   _onClose = (event) => {
     console.log('ws:onClose', event);
     this._connected = false;
-    this._connect();
+    this._connecting = false;
+
+    if (this._autoConnect) {
+      this._connect();
+    }
   }
 
   _onError = (event) => {
     console.error('ws:onError', event);
+    this._lastError = event;
   }
 
   _onMessage = (event) => {
@@ -106,8 +130,19 @@ export default class Ws extends JsonRpcBase {
     });
   }
 
-  updateToken (token) {
-    this._token = token;
-    this._connect();
+  get token () {
+    return this._token;
+  }
+
+  get isAutoConnect () {
+    return this._autoConnect;
+  }
+
+  get isConnecting () {
+    return this._connecting;
+  }
+
+  get lastError () {
+    return this._lastError;
   }
 }

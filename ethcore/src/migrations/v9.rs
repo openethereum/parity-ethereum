@@ -20,6 +20,7 @@
 use rlp::{Rlp, RlpStream, View, Stream};
 use util::kvdb::Database;
 use util::migration::{Batch, Config, Error, Migration, Progress};
+use std::sync::Arc;
 
 /// Which part of block to preserve
 pub enum Extract {
@@ -55,7 +56,7 @@ impl Migration for ToV9 {
 
 	fn version(&self) -> u32 { 9 }
 
-	fn migrate(&mut self, source: &Database, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
+	fn migrate(&mut self, source: Arc<Database>, config: &Config, dest: &mut Database, col: Option<u32>) -> Result<(), Error> {
 		let mut batch = Batch::new(config, self.column);
 
 		for (key, value) in source.iter(col) {

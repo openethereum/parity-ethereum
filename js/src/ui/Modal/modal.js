@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import { Dialog } from 'material-ui';
 
 import Container from '../Container';
@@ -26,13 +28,14 @@ const DIALOG_STYLE = { paddingTop: '1px' };
 
 import styles from './modal.css';
 
-export default class Modal extends Component {
+class Modal extends Component {
   static contextTypes = {
     muiTheme: PropTypes.object.isRequired
   }
 
   static propTypes = {
     actions: PropTypes.node,
+    busy: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
     current: PropTypes.number,
@@ -42,15 +45,18 @@ export default class Modal extends Component {
     title: React.PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
     ]),
-    visible: PropTypes.bool.isRequired
+    visible: PropTypes.bool.isRequired,
+    settings: PropTypes.object.isRequired
   }
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, className, current, children, scroll, steps, waiting, title, visible } = this.props;
+    const { actions, busy, className, current, children, scroll, steps, waiting, title, visible, settings } = this.props;
+    const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
         current={ current }
+        busy={ busy }
         waiting={ waiting }
         steps={ steps }
         title={ title } />
@@ -67,17 +73,34 @@ export default class Modal extends Component {
         actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
         contentClassName={ styles.content }
-        contentStyle={ muiTheme.parity.getBackgroundStyle() }
+        contentStyle={ contentStyle }
         modal
         open={ visible }
+        overlayClassName={ styles.overlay }
+        overlayStyle={ { transition: 'none' } }
         repositionOnUpdate={ false }
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light>
+        <Container light style={ { transition: 'none' } }>
           { children }
         </Container>
       </Dialog>
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { settings } = state;
+
+  return { settings };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Modal);

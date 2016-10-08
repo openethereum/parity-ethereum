@@ -43,13 +43,15 @@ use self::account::Account;
 use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
 
+use super::state_db::StateDB;
+
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
 
 pub use self::service::{Service, DatabaseRestore};
-pub use self::traits::{SnapshotService, RemoteSnapshotService};
+pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
@@ -64,6 +66,12 @@ mod watcher;
 
 #[cfg(test)]
 mod tests;
+
+/// IPC interfaces
+#[cfg(feature="ipc")]
+pub mod remote {
+	pub use super::traits::RemoteSnapshotService;
+}
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
@@ -454,6 +462,10 @@ impl StateRebuilder {
 			self.code_map.insert(code_hash, code);
 		}
 
+		let backing = self.db.backing().clone();
+
+		// bloom has to be updated
+		let mut bloom = StateDB::load_bloom(&backing);
 
 		// batch trie writes
 		{
@@ -464,12 +476,14 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
+				bloom.set(&*hash);
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let backing = self.db.backing().clone();
+		let bloom_journal = bloom.drain_journal();
 		let mut batch = backing.transaction();
+		try!(StateDB::commit_bloom(&mut batch, bloom_journal));
 		try!(self.db.inject(&mut batch));
 		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);

@@ -21,7 +21,6 @@ import { Dialog, FlatButton, TextField, Toggle } from 'material-ui';
 
 import AccountSelector from '../../AccountSelector';
 import AccountSelectorText from '../../AccountSelectorText';
-import StepComplete from '../StepComplete';
 import { ERRORS, validateAccount, validatePositiveNumber } from '../validation';
 
 import styles from '../actions.css';
@@ -53,13 +52,19 @@ export default class ActionTransfer extends Component {
   }
 
   render () {
+    const { complete } = this.state;
+
+    if (complete) {
+      return null;
+    }
+
     return (
       <Dialog
         title='send coins to another account'
         modal open
         className={ styles.dialog }
         actions={ this.renderActions() }>
-        { this.state.complete ? <StepComplete /> : this.renderFields() }
+        { this.renderFields() }
       </Dialog>
     );
   }
@@ -199,6 +204,7 @@ export default class ActionTransfer extends Component {
         return instance.transfer.postTransaction(options, values);
       })
       .then(() => {
+        this.props.onClose();
         this.setState({
           sending: false,
           complete: true

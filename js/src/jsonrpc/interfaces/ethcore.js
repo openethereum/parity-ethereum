@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Address, Data, Quantity } from '../types';
+import { Address, Data, Hash, Quantity } from '../types';
 
 export default {
   acceptNonReservedPeers: {
@@ -101,6 +101,20 @@ export default {
     returns: {
       type: String,
       desc: 'The secret phrase'
+    }
+  },
+
+  hashContent: {
+    desc: 'Creates a hash of the file as retrieved',
+    params: [
+      {
+        type: String,
+        desc: 'The url of the content'
+      }
+    ],
+    returns: {
+      types: Hash,
+      desc: 'The hash of the content'
     }
   },
 

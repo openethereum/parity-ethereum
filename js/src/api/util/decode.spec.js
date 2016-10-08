@@ -31,10 +31,6 @@ describe('api/util/decode', () => {
       expect(() => decodeCallData(METH.slice(-6))).to.throw(/should be method signature/);
     });
 
-    it('throws when invalid data length', () => {
-      expect(() => decodeCallData(`${ENCO.slice(-32)}`)).to.throw(/not a multiple of/);
-    });
-
     it('splits valid inputs properly', () => {
       expect(decodeCallData(ENCO)).to.deep.equal({
         signature: METH,

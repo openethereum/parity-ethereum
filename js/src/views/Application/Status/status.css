@@ -16,7 +16,7 @@
 */
 .status {
   clear: both;
-  padding: 0.25em 0.5em 1.5em 0.5em;
+  padding: 1.5em;
   text-align: right;
   color: #ddd;
 }

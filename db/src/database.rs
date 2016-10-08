@@ -157,7 +157,7 @@ impl Drop for Database {
 	}
 }
 
-#[derive(Ipc)]
+#[ipc]
 impl DatabaseService for Database {
 	fn open(&self, config: DatabaseConfig, path: String) -> Result<(), Error> {
 		let mut db = self.db.write();

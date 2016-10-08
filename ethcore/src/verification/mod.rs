@@ -16,6 +16,7 @@
 
 pub mod verification;
 pub mod verifier;
+pub mod queue;
 mod canon_verifier;
 mod noop_verifier;
 
@@ -23,6 +24,7 @@ pub use self::verification::*;
 pub use self::verifier::Verifier;
 pub use self::canon_verifier::CanonVerifier;
 pub use self::noop_verifier::NoopVerifier;
+pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, QueueInfo};
 
 /// Verifier type.
 #[derive(Debug, PartialEq, Clone)]

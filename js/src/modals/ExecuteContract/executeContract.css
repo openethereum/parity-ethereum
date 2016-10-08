@@ -29,3 +29,7 @@
 .paramname {
   color: #aaa;
 }
+
+.txhash {
+  word-break: break-all;
+}

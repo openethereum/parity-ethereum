@@ -67,7 +67,7 @@ usd_per_eth = "auto"
 price_update_period = "hourly"
 gas_floor_target = "4700000"
 gas_cap = "6283184"
-tx_queue_size = 1024
+tx_queue_size = 2048
 tx_gas_limit = "6283184"
 extra_data = "Parity"
 remove_solved = false
@@ -82,7 +82,7 @@ cache_size_queue = 50
 cache_size = 128 # Overrides above caches with total size
 fast_and_loose = false
 db_compaction = "ssd"
-fat_db = false
+fat_db = "auto"
 
 [snapshots]
 disable_periodic = false

@@ -1,5 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import { Card, CardHeader, CardText } from 'material-ui/Card';
+import { Card, CardHeader } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SaveIcon from 'material-ui/svg-icons/content/save';

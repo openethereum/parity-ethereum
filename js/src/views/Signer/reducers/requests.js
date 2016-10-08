@@ -33,9 +33,21 @@ export default handleActions({
   },
 
   'update pendingRequests' (state, action) {
+    // Keep the date from the state
+    const pending = action.payload.map(request => {
+      const { id } = request;
+      const oldRequest = state.pending.find(r => r.id === id);
+
+      request.date = (oldRequest && oldRequest.date)
+        ? oldRequest.date
+        : new Date();
+
+      return request;
+    });
+
     return {
       ...state,
-      pending: action.payload.map(r => addTimestamp(r))
+      pending
     };
   },
 
@@ -107,9 +119,4 @@ function setIsSending (pending, id, isSending) {
     }
     return p;
   }).slice();
-}
-
-function addTimestamp (request) {
-  request.date = new Date();
-  return request;
 }

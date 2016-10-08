@@ -36,8 +36,12 @@ class Container extends Component {
   };
 
   componentDidMount () {
-    this.props.actions.addresses.fetch();
-    this.props.actions.fetchContract();
+    Promise.all([
+      this.props.actions.addresses.fetch(),
+      this.props.actions.fetchContract()
+    ]).then(() => {
+      this.props.actions.events.subscribe('Reserved');
+    });
   }
 
   render () {
@@ -55,8 +59,7 @@ export default connect(
     bound.accounts = bindActionCreators(actions.accounts, dispatch);
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
-    bound.register = bindActionCreators(actions.register, dispatch);
-    bound.records = bindActionCreators(actions.records, dispatch);
+    bound.names = bindActionCreators(actions.names, dispatch);
     return { actions: bound };
   }
 )(Container);

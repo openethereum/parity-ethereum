@@ -22,13 +22,13 @@ use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
 use util::Mutex;
+use fetch::{Client, Fetch, FetchResult};
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
 use handlers::{ContentHandler, Redirection};
-use handlers::client::{Client, FetchResult};
 use apps::redirection_address;
 use page::LocalPageEndpoint;
 
@@ -159,7 +159,7 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 		handler: H) -> (Self, Arc<FetchControl>) {
 
 		let fetch_control = Arc::new(FetchControl::default());
-		let client = Client::new();
+		let client = Client::default();
 		let handler = ContentFetcherHandler {
 			fetch_control: fetch_control.clone(),
 			control: Some(control),

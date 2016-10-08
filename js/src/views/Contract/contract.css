@@ -17,16 +17,66 @@
 .contract {
 }
 
-.methods {
+.vMethods, .hMethods, .methods {
   display: flex;
   flex-wrap: wrap;
 }
 
+.vMethods {
+  flex-direction: column;
+}
+
+.hMethods {
+  flex: 1;
+  flex-direction: row;
+  justify-content: space-around;
+}
+
 .method {
-  flex: 0 1 20%;
-  width: 20%;
-  position: relative;
-  margin-top: 0.5em;
+  background-color: rgba(255, 255, 255, 0.05) !important;
+  margin: 1rem;
+  align-items: flex-start;
+}
+
+.methodTitle {
+  padding-bottom: 8px !important;
+  padding-top: 8px !important;
+}
+
+.methodContent {
+  padding-top: 0 !important;
+  padding-bottom: 8px !important;
+}
+
+.methodResults {
+  display: flex;
+  flex-wrap: wrap;
+  max-width: 24rem;
+  justify-content: space-around;
+}
+
+.methodResults > div {
+  margin: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+}
+
+.queryValue, .queryValue * {
+  user-select: text !important;
+  max-width: 100%;
+  box-sizing: border-box;
+  white-space: normal !important;
+  overflow-wrap: break-word !important;
+}
+
+.queryValue:hover {
+  cursor: text !important;
+}
+
+.queryResultName {
+  margin-bottom: 0.25rem;
 }
 
 .events {
