@@ -33,6 +33,6 @@
 }
 .menuText {
   display: inline-block;
-  line-height: 20px;
-  vertical-align: middle;
+  line-height: 24px;
+  vertical-align: top;
 }

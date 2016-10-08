@@ -19,9 +19,9 @@ import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
-import { bytesToHex } from '../parity.js';
-import renderHash from '../ui/hash.js';
-import renderAddress from '../ui/address.js';
+import { bytesToHex } from '../parity';
+import renderHash from '../ui/hash';
+import renderAddress from '../ui/address';
 import styles from './events.css';
 
 const inlineButton = {

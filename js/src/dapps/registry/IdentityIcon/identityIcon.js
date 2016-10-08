@@ -21,15 +21,18 @@ import styles from './identityIcon.css';
 
 export default class IdentityIcon extends Component {
   static propTypes = {
-    address: PropTypes.string.isRequired
+    address: PropTypes.string.isRequired,
+    className: PropTypes.string,
+    style: PropTypes.object
   }
 
   render () {
-    const { address } = this.props;
+    const { address, className, style } = this.props;
 
     return (
       <img
-        className={ styles.icon }
+        className={ styles.icon + ' ' + className }
+        style={ style }
         src={ api.util.createIdentityImg(address, 3) } />
     );
   }
