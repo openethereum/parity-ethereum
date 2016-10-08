@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import renderHash from './hash.js';
-import { IdentityIcon } from '../parity.js';
+import renderHash from './hash';
+import IdentityIcon from '../IdentityIcon';
 
 const container = {
   display: 'inline-block'
@@ -38,7 +38,7 @@ export default (address, accounts, contacts, shortenHash = true) => {
   }
   return (
     <div style={ container }>
-      <IdentityIcon inline center address={ address } style={ align } />
+      <IdentityIcon address={ address } />
       { caption }
     </div>
   );

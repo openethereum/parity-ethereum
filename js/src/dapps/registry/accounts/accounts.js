@@ -19,7 +19,7 @@ import IconMenu from 'material-ui/IconMenu';
 import IconButton from 'material-ui/IconButton/IconButton';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
 import MenuItem from 'material-ui/MenuItem';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import IdentityIcon from '../IdentityIcon';
 
 import styles from './accounts.css';
 
@@ -30,7 +30,7 @@ const renderAccount = (active) => (account) => {
       key={ account.address } value={ account.address }
       checked={ selected } insetChildren={ !selected }
     >
-      <IdentityIcon className={ styles.menuIcon } inline center address={ account.address } />
+      <IdentityIcon className={ styles.menuIcon } address={ account.address } />
       <span className={ styles.menuText }>{ account.name }</span>
     </MenuItem>
   );

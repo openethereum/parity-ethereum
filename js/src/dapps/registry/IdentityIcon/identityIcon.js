@@ -14,17 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
-import 'whatwg-fetch';
+import React, { Component, PropTypes } from 'react';
 
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
+import { api } from '../parity';
+import styles from './identityIcon.css';
 
-import Api from './api';
+export default class IdentityIcon extends Component {
+  static propTypes = {
+    address: PropTypes.string.isRequired
+  }
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
+  render () {
+    const { address } = this.props;
 
-window.parity = {
-  Api,
-  api
-};
+    return (
+      <img
+        className={ styles.icon }
+        src={ api.util.createIdentityImg(address, 3) } />
+    );
+  }
+}
