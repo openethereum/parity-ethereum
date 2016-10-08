@@ -35,6 +35,7 @@
   padding: 2em;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 5px;
+  margin-bottom: 2em;
 }
 
 .buttons {
@@ -56,13 +57,9 @@
 .capture {
 }
 
-.capture+.capture {
-  margin-top: 1em;
-}
-
 .capture * {
   display: inline-block;
-  padding: 0.5em 0.5em;
+  padding: 0.75em;
   vertical-align: middle;
   box-sizing: border-box;
   width: 20em;
@@ -73,10 +70,28 @@
   background: #eee;
   border: none;
   border-radius: 5px;
-  width: 20em;
+  width: 100%;
   font-size: 1em;
+}
+
+.capture input.error {
+  background: #fcc;
 }
 
 .capture[disabled] {
   opacity: 0.15;
+}
+
+.hashError {
+  padding-top: 0.5em;
+  color: #f66;
+  text-align: center;
+  font-size: 0.75em;
+}
+
+.hashOk {
+  padding-top: 0.5em;
+  opacity: 0.5;
+  text-align: center;
+  font-size: 0.75em;
 }

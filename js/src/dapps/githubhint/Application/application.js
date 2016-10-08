@@ -16,29 +16,29 @@
 
 import React, { Component } from 'react';
 
+import { api } from '../parity';
 import { attachInterface } from '../services';
 import Button from '../Button';
 import Loading from '../Loading';
 
 import styles from './application.css';
 
+const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+
 export default class Application extends Component {
   state = {
     loading: true,
-    fileHash: false
+    url: '',
+    urlError: null,
+    contentHash: null,
+    contentHashError: null
   }
 
   componentDidMount () {
     attachInterface()
-      .then((accounts, address, accountsInfo, contract, instance, fromAddress) => {
-        this.setState({
-          accounts,
-          address,
-          accountsInfo,
-          contract,
-          instance,
-          fromAddress,
-          loading: false
+      .then((state) => {
+        this.setState(state, () => {
+          this.setState({ loading: false });
         });
       });
   }
@@ -58,29 +58,30 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { fileHash } = this.state;
+    const { url, urlError, contentHash, contentHashError } = this.state;
 
     return (
       <div className={ styles.container }>
-        <div className={ styles.buttons }>
-          <Button invert={ fileHash } first onClick={ this.onClickContentHash }>commit</Button>
-          <Button invert={ !fileHash } last onClick={ this.onClickFileHash }>file</Button>
-        </div>
         <div className={ styles.form }>
           <div className={ styles.box }>
             <div className={ styles.description }>
-              Provide a valid GitHub account, repo and { fileHash ? 'filename' : 'commit' } to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
+              Provide a valid URL to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
             </div>
             <div className={ styles.capture }>
-              <div>https://github.com/</div>
-              <input types='text' placeholder='account/repo' />
+              <input
+                type='text'
+                placeholder='http://domain/filename'
+                value={ url }
+                className={ urlError ? styles.error : null }
+                onChange={ this.onChangeUrl } />
             </div>
-            <div className={ styles.capture }>
-              <div>{ fileHash ? '/' : 'commit #' }</div>
-              <input types='text' placeholder={ fileHash ? 'filename' : 'commit hash' } />
+            <div className={ contentHashError ? styles.hashError : styles.hashOk }>
+              { contentHashError || contentHash }
             </div>
             <div className={ styles.buttons }>
-              <Button onClick={ this.onClickRegister }>register</Button>
+              <Button
+                onClick={ this.onClickRegister }
+                disabled={ !!contentHashError || !!urlError || url.length === 0 }>register</Button>
             </div>
           </div>
         </div>
@@ -89,10 +90,48 @@ export default class Application extends Component {
   }
 
   onClickContentHash = () => {
-    this.setState({ fileHash: false });
+    this.setState({ fileHash: false, commit: '' });
   }
 
   onClickFileHash = () => {
-    this.setState({ fileHash: true });
+    this.setState({ fileHash: true, commit: 0 });
+  }
+
+  onChangeUrl = (event) => {
+    const url = event.target.value;
+    let urlError = null;
+
+    if (url && url.length) {
+      var re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g;
+      urlError = re.test(url)
+        ? null
+        : 'not matching rexex';
+    }
+
+    this.setState({ url, urlError, contentHashError: 'hash lookup in progress' }, () => {
+      this.lookupHash();
+    });
+  }
+
+  onClickRegister = (event) => {
+  }
+
+  lookupHash () {
+    const { url } = this.state;
+
+    api.ethcore
+      .hashContent(url)
+      .then((contentHash) => {
+        console.log('lookupHash', contentHash);
+        if (contentHash === INVALID_URL_HASH) {
+          this.setState({ contentHashError: 'invalid url endpoint', contentHash });
+        } else {
+          this.setState({ contentHashError: null, contentHash });
+        }
+      })
+      .catch((error) => {
+        console.error('lookupHash', error);
+        this.setState({ contentHashError: error.message, contentHash: null });
+      });
   }
 }
