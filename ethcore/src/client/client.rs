@@ -1095,7 +1095,7 @@ impl MiningBlockChainClient for Client {
 			engine,
 			self.factories.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().boxed_clone(),
+			self.state_db.lock().boxed_clone_canon(&h),
 			&chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
