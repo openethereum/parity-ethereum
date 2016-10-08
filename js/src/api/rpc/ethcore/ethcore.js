@@ -68,6 +68,11 @@ export default class Ethcore {
       .execute('ethcore_generateSecretPhrase');
   }
 
+  hashContent (url) {
+    return this._transport
+      .execute('ethcore_hashContent', url);
+  }
+
   minGasPrice () {
     return this._transport
       .execute('ethcore_minGasPrice')
