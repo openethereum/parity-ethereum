@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { personal } from '../parity.js';
+import { api } from '../parity';
 
 export const set = (addresses) => ({ type: 'addresses set', addresses });
 
 export const fetch = () => (dispatch) => {
-  return Promise.all([ personal.listAccounts(), personal.accountsInfo() ])
+  return Promise.all([ api.personal.listAccounts(), api.personal.accountsInfo() ])
   .then(([ accounts, data ]) => {
     const addresses = Object.keys(data)
       .filter((address) => data[address] && !data[address].meta.deleted)
