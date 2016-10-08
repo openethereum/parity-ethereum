@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { getBlockByNumber } from '../parity.js';
+import { api } from '../parity.js';
 
 export const start = (name, from, to) => ({ type: 'events subscribe start', name, from, to });
 export const fail = (name) => ({ type: 'events subscribe fail', name });
@@ -38,7 +38,7 @@ export const subscribe = (name, from = 0, to = 'pending') =>
         }
 
         events.forEach((e) => {
-          getBlockByNumber(e.blockNumber)
+          api.eth.getBlockByNumber(e.blockNumber)
           .then((block) => {
             const data = {
               type: name,

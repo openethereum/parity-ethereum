@@ -113,7 +113,7 @@ export default {
       }
     ],
     returns: {
-      types: Hash,
+      type: Hash,
       desc: 'The hash of the content'
     }
   },
