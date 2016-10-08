@@ -1,5 +1,5 @@
 import React, { Component, PropTypes } from 'react';
-import { Card, CardHeader } from 'material-ui/Card';
+import { Card, CardHeader, CardText } from 'material-ui/Card';
 import TextField from 'material-ui/TextField';
 import RaisedButton from 'material-ui/RaisedButton';
 import SaveIcon from 'material-ui/svg-icons/content/save';
@@ -29,7 +29,7 @@ export default class Records extends Component {
     return (
       <Card className={ styles.records }>
         <CardHeader title={ 'Manage Entries of a Name' } />
-        <div className={ styles.box }>
+        <CardText>
           { !hasAccount
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
             : (<p className={ styles.noSpacing }>You can only modify entries of names that you previously registered.</p>)
@@ -55,7 +55,7 @@ export default class Records extends Component {
             icon={ <SaveIcon /> }
             onClick={ this.onSaveClick }
           />
-        </div>
+        </CardText>
       </Card>
     );
   }

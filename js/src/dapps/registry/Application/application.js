@@ -23,9 +23,10 @@ const muiTheme = getMuiTheme(lightBaseTheme);
 import CircularProgress from 'material-ui/CircularProgress';
 import styles from './application.css';
 import Accounts from '../Accounts';
+import Events from '../Events';
 import Lookup from '../Lookup';
 import Names from '../Names';
-import Events from '../Events';
+import Records from '../Records';
 
 const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
@@ -46,7 +47,8 @@ export default class Application extends Component {
     fee: nullable(PropTypes.object.isRequired),
     lookup: PropTypes.object.isRequired,
     events: PropTypes.object.isRequired,
-    names: PropTypes.object.isRequired
+    names: PropTypes.object.isRequired,
+    records: PropTypes.object.isRequired
   };
 
   render () {
@@ -56,7 +58,8 @@ export default class Application extends Component {
       contract, fee,
       lookup,
       events,
-      names
+      names,
+      records
     } = this.props;
 
     return (
@@ -69,6 +72,7 @@ export default class Application extends Component {
           <div>
             <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
             <Names { ...names } fee={ fee } actions={ actions.names } />
+            <Records { ...records } actions={ actions.records } />
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
             <p className={ styles.address }>
               The Registry is provided by the contract at <code>{ contract.address }.</code>
