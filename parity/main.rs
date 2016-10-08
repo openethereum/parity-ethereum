@@ -117,6 +117,8 @@ fn start() -> Result<String, String> {
 }
 
 fn main() {
+	// Always print backtrace on panic.
+	::std::env::set_var("RUST_BACKTRACE", "1");
 	// just redirect to the sync::main()
 	if std::env::args().nth(1).map_or(false, |arg| arg == "sync") {
 		sync::main();
