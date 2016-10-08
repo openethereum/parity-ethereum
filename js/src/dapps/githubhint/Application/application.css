@@ -1,0 +1,121 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.container {
+  background: #333;
+  font-family: 'Roboto';
+  vertical-align: middle;
+  padding: 4em 0;
+  text-align: center;
+}
+
+.form {
+  text-align: right;
+  margin: 0 auto;
+  border-radius: 5px;
+  width: 44em;
+  color: #eee;
+}
+
+.box {
+  padding: 2em;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  margin-bottom: 2em;
+}
+
+.buttons {
+  text-align: center;
+  margin: 0 auto 2em auto;
+}
+
+.box .buttons {
+  text-align: right;
+  margin: 2em 0 0 0;
+  position: relative;
+}
+
+.box .buttons .addressSelect {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.box .description {
+  margin: 0 0 2em 0;
+  text-align: center;
+  opacity: 0.75;
+}
+
+.progress {
+  margin: 2em 0 0 0;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.statusHeader {
+  font-size: 1em;
+}
+
+.statusState, .statusError {
+  padding: 1em 0 0 0;
+}
+
+.statusError {
+  color: #f66;
+}
+
+.capture {
+}
+
+.capture * {
+  display: inline-block;
+  padding: 0.75em;
+  vertical-align: middle;
+  box-sizing: border-box;
+  width: 20em;
+}
+
+.capture input {
+  color: #333;
+  background: #eee;
+  border: none;
+  border-radius: 5px;
+  width: 100%;
+  font-size: 1em;
+  text-align: center;
+}
+
+.capture input[disabled] {
+  opacity: 0.5;
+}
+
+.capture input.error {
+  background: #fcc;
+}
+
+.hashError {
+  padding-top: 0.5em;
+  color: #f66;
+  text-align: center;
+}
+
+.hashOk {
+  padding-top: 0.5em;
+  opacity: 0.5;
+  text-align: center;
+}
