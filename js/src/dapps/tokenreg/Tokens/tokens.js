@@ -28,12 +28,12 @@ export default class Tokens extends Component {
     handleMetaLookup: PropTypes.func.isRequired,
     isOwner: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool.isRequired,
-    tokens: PropTypes.array
+    tokens: PropTypes.array,
+    accounts: PropTypes.array
   };
 
   render () {
     const { isLoading, tokens } = this.props;
-
     const loading = isLoading ? (<Loading size={ 2 } />) : null;
 
     return (
@@ -45,8 +45,14 @@ export default class Tokens extends Component {
   }
 
   renderTokens (tokens) {
+    const { accounts } = this.props;
+
     return tokens.map((token, index) => {
-      if (!token || !token.tla) return null;
+      if (!token || !token.tla) {
+        return null;
+      }
+
+      const isTokenOwner = !!accounts.find((account) => account.address === token.owner);
 
       return (
         <Token
@@ -55,7 +61,7 @@ export default class Tokens extends Component {
           handleMetaLookup={ this.props.handleMetaLookup }
           handleAddMeta={ this.props.handleAddMeta }
           key={ index }
-          isOwner={ this.props.isOwner } />
+          isTokenOwner={ isTokenOwner } />
       );
     });
   }

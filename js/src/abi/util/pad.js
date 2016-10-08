@@ -52,11 +52,11 @@ export function padFixedBytes (input) {
   let sinput;
 
   if (isArray(input)) {
-    sinput = input.map((code) => code.toString(16)).join('');
+    sinput = input.map((code) => `0${code.toString(16)}`.slice(-2)).join('');
   } else if (input.substr(0, 2) === '0x') {
-    sinput = `${input.substr(2)}`;
+    return padFixedBytes(`${input.substr(2)}`.match(/.{1,2}/g).map((value) => parseInt(value, 16)));
   } else {
-    sinput = `${input}`;
+    return padFixedBytes(input.split('').map((char) => char.charCodeAt(0)));
   }
 
   const max = Math.floor((sinput.length + 63) / 64) * 64;
@@ -65,10 +65,9 @@ export function padFixedBytes (input) {
 }
 
 export function padString (input) {
-  const encoded = utf8.encode(input)
+  const array = utf8.encode(input)
     .split('')
-    .map((char) => char.charCodeAt(0).toString(16))
-    .join('');
+    .map((char) => char.charCodeAt(0));
 
-  return padBytes(encoded);
+  return padBytes(array);
 }
