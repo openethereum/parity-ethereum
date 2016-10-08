@@ -15,7 +15,7 @@ export const update = (name, key, value) => (dispatch, getState) => {
 
   name = name.toLowerCase();
   const options = { from: account.address };
-  const values = [ sha3(name), key, key.toLowerCase() === 'a' ? value : sha3(value) ];
+  const values = [ sha3(name), key, value ];
 
   dispatch(start(name, key, value));
   fn.estimateGas(options, values)
