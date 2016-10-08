@@ -289,6 +289,5 @@ test-linux:
     - ./test.sh --verbose
   tags:
     - rust-test
-    - javascript
   dependencies:
     - linux-stable
