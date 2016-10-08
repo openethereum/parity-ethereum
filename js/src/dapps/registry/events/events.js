@@ -19,9 +19,9 @@ import { Card, CardHeader, CardActions, CardText } from 'material-ui/Card';
 import Toggle from 'material-ui/Toggle';
 import moment from 'moment';
 
-import { bytesToHex } from '../parity.js';
-import renderHash from '../ui/hash.js';
-import renderAddress from '../ui/address.js';
+import { bytesToHex } from '../parity';
+import renderHash from '../ui/hash';
+import renderAddress from '../ui/address';
 import styles from './events.css';
 
 const inlineButton = {
@@ -47,12 +47,12 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
     ? classNames + ' ' + styles.pending : classNames;
 
   return (
-    <div key={ e.key } className={ classes }>
-      { renderAddress(e.parameters.owner, accounts, contacts) }
-      { ' ' }<abbr title={ e.transaction }>{ verb }</abbr>
-      { ' ' }<code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
-    </div>
+    <tr key={ e.key } className={ classes }>
+      <td>{ renderAddress(e.parameters.owner, accounts, contacts) }</td>
+      <td><abbr title={ e.transaction }>{ verb }</abbr></td>
+      <td><code>{ renderHash(bytesToHex(e.parameters.name)) }</code></td>
+      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+    </tr>
   );
 };
 
@@ -63,13 +63,14 @@ const renderDataChanged = (e, accounts, contacts) => {
   }
 
   return (
-    <div key={ e.key } className={ classNames }>
-      { renderAddress(e.parameters.owner, accounts, contacts) }
-      { ' ' }<abbr title={ e.transaction }>updated</abbr>
-      key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code>
-      of <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
-      { ' ' }{ renderStatus(e.timestamp, e.state === 'pending') }
-    </div>
+    <tr key={ e.key } className={ classNames }>
+      <td>{ renderAddress(e.parameters.owner, accounts, contacts) }</td>
+      <td><abbr title={ e.transaction }>updated</abbr></td>
+      <td>
+        key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code> of <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+      </td>
+      <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
+    </tr>
   );
 };
 
@@ -118,11 +119,17 @@ export default class Events extends Component {
             style={ inlineButton }
           />
         </CardActions>
-        <CardText>{
-          this.props.events
-            .filter((e) => eventTypes[e.type])
-            .map((e) => eventTypes[e.type](e, accounts, contacts))
-        }</CardText>
+        <CardText>
+          <table className={ styles.eventsList }>
+            <tbody>
+              {
+                this.props.events
+                  .filter((e) => eventTypes[e.type])
+                  .map((e) => eventTypes[e.type](e, accounts, contacts))
+              }
+            </tbody>
+          </table>
+        </CardText>
       </Card>
     );
   }

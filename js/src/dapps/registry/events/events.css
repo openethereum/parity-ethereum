@@ -24,11 +24,6 @@
 }
 
 .reserved, .dropped, .dataChanged {
-  margin: .5em 0;
-  display: flex;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  align-items: center;
 }
 
 .reserved abbr, .dropped abbr {
@@ -44,4 +39,13 @@
   vertical-align: top;
   line-height: 32px;
   word-wrap: break-word;
+}
+
+.eventsList {
+  width: 100%;
+  boder: none;
+}
+
+.eventsList td {
+  padding: 0.25em 0.5em;
 }
