@@ -19,19 +19,24 @@ import React, { Component } from 'react';
 import { api } from '../parity';
 import { attachInterface } from '../services';
 import Button from '../Button';
+import IdentityIcon from '../IdentityIcon';
 import Loading from '../Loading';
 
 import styles from './application.css';
 
 const INVALID_URL_HASH = '0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470';
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export default class Application extends Component {
   state = {
     loading: true,
     url: '',
     urlError: null,
-    contentHash: null,
-    contentHashError: null
+    contentHash: '',
+    contentHashError: null,
+    registerBusy: false,
+    registerError: null,
+    registerState: ''
   }
 
   componentDidMount () {
@@ -58,7 +63,7 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { url, urlError, contentHash, contentHashError } = this.state;
+    const { registerBusy, url, urlError, contentHash, contentHashError } = this.state;
 
     return (
       <div className={ styles.container }>
@@ -71,6 +76,7 @@ export default class Application extends Component {
               <input
                 type='text'
                 placeholder='http://domain/filename'
+                disabled={ registerBusy }
                 value={ url }
                 className={ urlError ? styles.error : null }
                 onChange={ this.onChangeUrl } />
@@ -78,12 +84,55 @@ export default class Application extends Component {
             <div className={ contentHashError ? styles.hashError : styles.hashOk }>
               { contentHashError || contentHash }
             </div>
-            <div className={ styles.buttons }>
-              <Button
-                onClick={ this.onClickRegister }
-                disabled={ !!contentHashError || !!urlError || url.length === 0 }>register</Button>
-            </div>
+            { registerBusy ? this.renderProgress() : this.renderButtons() }
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  renderButtons () {
+    const { accounts, fromAddress, url, urlError, contentHashError } = this.state;
+    const account = accounts[fromAddress];
+
+    return (
+      <div className={ styles.buttons }>
+        <div className={ styles.addressSelect }>
+          <Button invert onClick={ this.onSelectFromAddress }>
+            <IdentityIcon address={ account.address } />
+            <div>{ account.name || account.address }</div>
+          </Button>
+        </div>
+        <Button
+          onClick={ this.onClickRegister }
+          disabled={ !!contentHashError || !!urlError || url.length === 0 }>register url</Button>
+      </div>
+    );
+  }
+
+  renderProgress () {
+    const { registerError, registerState } = this.state;
+
+    if (registerError) {
+      return (
+        <div className={ styles.progress }>
+          <div className={ styles.statusHeader }>
+            Your registration has encountered an error
+          </div>
+          <div className={ styles.statusError }>
+            { registerError }
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.progress }>
+        <div className={ styles.statusHeader }>
+          Your URL is being registered
+        </div>
+        <div className={ styles.statusState }>
+          { registerState }
         </div>
       </div>
     );
@@ -113,21 +162,94 @@ export default class Application extends Component {
     });
   }
 
-  onClickRegister = (event) => {
+  onClickRegister = () => {
+    const { url, urlError, contentHash, contentHashError, fromAddress, instance } = this.state;
+
+    if (!!contentHashError || !!urlError || url.length === 0) {
+      return;
+    }
+
+    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
+
+    const values = [contentHash, url];
+    const options = { from: fromAddress };
+
+    instance
+      .hintURL.estimateGas(options, values)
+      .then((gas) => {
+        this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
+
+        const gasPassed = gas.mul(1.2);
+        options.gas = gasPassed.toFixed(0);
+        console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
+
+        return instance.hintURL.postTransaction(options, values);
+      })
+      .then((signerRequestId) => {
+        this.setState({ signerRequestId, registerState: 'Transaction posted, Waiting for transaction authorization' });
+
+        return api.pollMethod('eth_checkRequest', signerRequestId);
+      })
+      .then((txHash) => {
+        this.setState({ txHash, registerState: 'Transaction authorized, Waiting for network confirmations' });
+
+        return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
+          if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+            return false;
+          }
+
+          return true;
+        });
+      })
+      .then((txReceipt) => {
+        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', contentHash: '' });
+      })
+      .catch((error) => {
+        console.error('onSend', error);
+        this.setState({ registerError: error.message });
+      });
+  }
+
+  onSelectFromAddress = () => {
+    const { accounts, fromAddress } = this.state;
+    const addresses = Object.keys(accounts);
+    let index = 0;
+
+    addresses.forEach((address, _index) => {
+      if (address === fromAddress) {
+        index = _index;
+      }
+    });
+
+    index++;
+    if (index >= addresses.length) {
+      index = 0;
+    }
+
+    this.setState({ fromAddress: addresses[index] });
   }
 
   lookupHash () {
-    const { url } = this.state;
+    const { url, instance } = this.state;
 
     api.ethcore
       .hashContent(url)
       .then((contentHash) => {
         console.log('lookupHash', contentHash);
         if (contentHash === INVALID_URL_HASH) {
-          this.setState({ contentHashError: 'invalid url endpoint', contentHash });
-        } else {
-          this.setState({ contentHashError: null, contentHash });
+          this.setState({ contentHashError: 'invalid url endpoint', contentHash: null });
+          return;
         }
+
+        instance.entries
+          .call({}, [contentHash])
+          .then(([accountSlashRepo, commit, owner]) => {
+            if (owner !== ZERO_ADDRESS) {
+              this.setState({ contentHashError: contentHash, contentHash: null });
+            } else {
+              this.setState({ contentHashError: null, contentHash });
+            }
+          });
       })
       .catch((error) => {
         console.error('lookupHash', error);

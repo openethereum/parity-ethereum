@@ -46,12 +46,37 @@
 .box .buttons {
   text-align: right;
   margin: 2em 0 0 0;
+  position: relative;
+}
+
+.box .buttons .addressSelect {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .box .description {
   margin: 0 0 2em 0;
   text-align: center;
   opacity: 0.75;
+}
+
+.progress {
+  margin: 2em 0 0 0;
+  opacity: 0.75;
+  text-align: center;
+}
+
+.statusHeader {
+  font-size: 1em;
+}
+
+.statusState, .statusError {
+  padding: 1em 0 0 0;
+}
+
+.statusError {
+  color: #f66;
 }
 
 .capture {
@@ -72,26 +97,25 @@
   border-radius: 5px;
   width: 100%;
   font-size: 1em;
+  text-align: center;
+}
+
+.capture input[disabled] {
+  opacity: 0.5;
 }
 
 .capture input.error {
   background: #fcc;
 }
 
-.capture[disabled] {
-  opacity: 0.15;
-}
-
 .hashError {
   padding-top: 0.5em;
   color: #f66;
   text-align: center;
-  font-size: 0.75em;
 }
 
 .hashOk {
   padding-top: 0.5em;
   opacity: 0.5;
   text-align: center;
-  font-size: 0.75em;
 }
