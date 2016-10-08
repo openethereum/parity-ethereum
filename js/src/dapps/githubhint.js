@@ -14,17 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
-import 'whatwg-fetch';
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
-import Api from './api';
+import Application from './githubhint/Application';
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
+import './style.css';
+import './githubhint.html';
 
-window.parity = {
-  Api,
-  api
-};
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);

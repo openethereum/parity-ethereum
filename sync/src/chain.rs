@@ -123,6 +123,7 @@ const MAX_ROUND_PARENTS: usize = 32;
 const MAX_NEW_HASHES: usize = 64;
 const MAX_TX_TO_IMPORT: usize = 512;
 const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
+const MAX_TRANSACTION_SIZE: usize = 300*1024;
 
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
@@ -1261,7 +1262,12 @@ impl ChainSync {
 		item_count = min(item_count, MAX_TX_TO_IMPORT);
 		let mut transactions = Vec::with_capacity(item_count);
 		for i in 0 .. item_count {
-			let tx = try!(r.at(i)).as_raw().to_vec();
+			let rlp = try!(r.at(i));
+			if rlp.as_raw().len() > MAX_TRANSACTION_SIZE {
+				debug!("Skipped oversized transaction of {} bytes", rlp.as_raw().len());
+				continue;
+			}
+			let tx = rlp.as_raw().to_vec();
 			transactions.push(tx);
 		}
 		io.chain().queue_transactions(transactions);

@@ -60,6 +60,7 @@ export default connect(
     bound.lookup = bindActionCreators(actions.lookup, dispatch);
     bound.events = bindActionCreators(actions.events, dispatch);
     bound.names = bindActionCreators(actions.names, dispatch);
+    bound.records = bindActionCreators(actions.records, dispatch);
     return { actions: bound };
   }
 )(Container);

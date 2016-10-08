@@ -16,23 +16,41 @@
 */
 
 .button {
-  /* TODO remove !important once material design lite is used */
-  padding: 0 !important;
-}
-
-.icon {
-  /* TODO remove !important once material design lite is used */
-  margin: 0 !important;
-  width: 30px !important;
-  height: 30px !important;
-}
-
-.menuIcon {
-  display: inline-block;
-  vertical-align: middle;
-}
-.menuText {
-  display: inline-block;
+  background: #08a;
+  color: white;
+  border-radius: 5px;
+  font-size: 1em;
   line-height: 24px;
+  height: 24px;
+  padding: 0.75em 1.5em;
+  cursor: pointer;
+  display: inline-block;
+  text-align: center;
+}
+
+.button.first {
+  border-radius: 5px 0 0 5px;
+}
+
+.button.middle {
+  border-radius: 0;
+}
+
+.button.last {
+  border-radius: 0 5px 5px 0;
+}
+
+.button.disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.button.inverse {
+  color: #08a;
+  background: white;
+}
+
+.button * {
+  display: inline-block;
   vertical-align: top;
 }

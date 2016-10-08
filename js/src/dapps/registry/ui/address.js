@@ -15,16 +15,18 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React from 'react';
-import renderHash from './hash.js';
-import { IdentityIcon } from '../parity.js';
+import renderHash from './hash';
+import IdentityIcon from '../IdentityIcon';
 
 const container = {
-  display: 'inline-block'
+  display: 'inline-block',
+  verticalAlign: 'middle',
+  height: '24px'
 };
 const align = {
   display: 'inline-block',
   verticalAlign: 'top',
-  lineHeight: '32px'
+  lineHeight: '24px'
 };
 
 export default (address, accounts, contacts, shortenHash = true) => {
@@ -38,7 +40,7 @@ export default (address, accounts, contacts, shortenHash = true) => {
   }
   return (
     <div style={ container }>
-      <IdentityIcon inline center address={ address } style={ align } />
+      <IdentityIcon address={ address } style={ align } />
       { caption }
     </div>
   );

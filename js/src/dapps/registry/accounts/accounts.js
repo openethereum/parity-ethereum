@@ -19,22 +19,11 @@ import IconMenu from 'material-ui/IconMenu';
 import IconButton from 'material-ui/IconButton/IconButton';
 import AccountIcon from 'material-ui/svg-icons/action/account-circle';
 import MenuItem from 'material-ui/MenuItem';
-import IdentityIcon from '../../../ui/IdentityIcon';
+
+import IdentityIcon from '../IdentityIcon';
+import renderAddress from '../ui/address';
 
 import styles from './accounts.css';
-
-const renderAccount = (active) => (account) => {
-  const selected = active && active.address === account.address;
-  return (
-    <MenuItem
-      key={ account.address } value={ account.address }
-      checked={ selected } insetChildren={ !selected }
-    >
-      <IdentityIcon className={ styles.menuIcon } inline center address={ account.address } />
-      <span className={ styles.menuText }>{ account.name }</span>
-    </MenuItem>
-  );
-};
 
 export default class Accounts extends Component {
 
@@ -50,22 +39,36 @@ export default class Accounts extends Component {
     const accountsButton = (
       <IconButton className={ styles.button }>
         { selected
-          ? (<IdentityIcon className={ styles.icon } center address={ selected.address } />)
+          ? (<IdentityIcon className={ styles.icon } address={ selected.address } />)
           : (<AccountIcon className={ styles.icon } color='white' />)
         }
       </IconButton>);
 
     return (
       <IconMenu
-        value={ selected ? renderAccount(selected)(selected) : null }
+        value={ selected ? this.renderAccount(selected) : null }
         onChange={ this.onAccountSelect }
         iconButtonElement={ accountsButton }
         animated={ false }
       >
-        { Object.values(all).map(renderAccount(selected)) }
+        { Object.values(all).map(this.renderAccount) }
       </IconMenu>
     );
   }
+
+  renderAccount = (account) => {
+    const { all, selected } = this.props;
+    const isSelected = selected && selected.address === account.address;
+
+    return (
+      <MenuItem
+        key={ account.address } value={ account.address }
+        checked={ isSelected } insetChildren={ !isSelected }
+      >
+        { renderAddress(account.address, all, {}) }
+      </MenuItem>
+    );
+  };
 
   onAccountSelect = (e, address) => {
     this.props.actions.select(address);
