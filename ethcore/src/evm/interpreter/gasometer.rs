@@ -83,6 +83,11 @@ impl<Gas: CostType> Gasometer<Gas> {
 	}
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	/// Determine how much gas is used by the given instruction, given the machine's state.
+	/// 
+	/// We guarantee that the final element of the returned tuple (`provided`) will be `Some`
+	/// iff the `instruction` is one of `CREATE`, or any of the `CALL` variants. In this case,
+	/// it will be the amount of gas that the current context provides to the child context. 
 	pub fn get_gas_cost_mem(
 		&mut self,
 		ext: &evm::Ext,
