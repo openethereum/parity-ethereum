@@ -28,10 +28,16 @@
 }
 
 .addressline,
-.infoline {
+.infoline,
+.uuidline {
   line-height: 1.618em;
 }
 
-.infoline {
-  color: #aaa;
+.infoline,
+.uuidline {
+  opacity: 0.25;
+}
+
+.uuidline {
+  display: inline-block;
 }
