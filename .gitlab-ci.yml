@@ -293,6 +293,7 @@ test-linux:
     - linux-stable
 js-build:
   stage: build
+  image: ethcore/javascript:latest
   only:
     - js
     - jg-gitlab-build
@@ -309,6 +310,7 @@ js-build:
     - javascript
 js-test:
   stage: test
+  image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
   script:
