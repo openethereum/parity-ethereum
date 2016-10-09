@@ -25,8 +25,13 @@ import styles from '../createAccount.css';
 
 const ERRORS = {
   noName: 'you need to specify a valid name for the account',
+  noPhrase: 'you need to specify the recovery phrase',
   invalidPassword: 'you need to specify a password >= 8 characters',
   noMatchPassword: 'the supplied passwords does not match'
+};
+
+export {
+  ERRORS
 };
 
 export default class CreateAccount extends Component {

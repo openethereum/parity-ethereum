@@ -16,9 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input, IdentityIcon } from '../../../ui';
-
-import styles from './accountDetails.css';
+import { Form, Input, InputAddress } from '../../../ui';
 
 export default class AccountDetails extends Component {
   static propTypes = {
@@ -32,22 +30,17 @@ export default class AccountDetails extends Component {
 
     return (
       <Form>
-        <IdentityIcon
-          className={ styles.icon }
-          address={ address } />
-        <div className={ styles.details }>
-          <Input
-            disabled
-            hint='a descriptive name for the account'
-            label='account name'
-            value={ name } />
-          <Input
-            disabled
-            hint='the network address for the account'
-            label='address'
-            value={ address } />
-          { this.renderPhrase() }
-        </div>
+        <Input
+          disabled
+          hint='a descriptive name for the account'
+          label='account name'
+          value={ name } />
+        <InputAddress
+          disabled
+          hint='the network address for the account'
+          label='address'
+          value={ address } />
+        { this.renderPhrase() }
       </Form>
     );
   }
