@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import Connection from '../Connection';
 import ParityBar from '../ParityBar';
 
 import Container from './Container';
@@ -40,8 +41,6 @@ class Application extends Component {
   static propTypes = {
     children: PropTypes.node,
     netChain: PropTypes.string,
-    isApiConnected: PropTypes.bool,
-    isPingConnected: PropTypes.bool,
     isTest: PropTypes.bool,
     pending: PropTypes.array
   }
@@ -67,19 +66,18 @@ class Application extends Component {
     return (
       <div className={ styles.outer }>
         { isDapp ? this.renderDapp() : this.renderApp() }
+        <Connection />
         <ParityBar dapp={ isDapp } />
       </div>
     );
   }
 
   renderApp () {
-    const { children, pending, netChain, isApiConnected, isPingConnected, isTest } = this.props;
+    const { children, pending, netChain, isTest } = this.props;
     const { showFirstRun } = this.state;
 
     return (
       <Container
-        isApiConnected={ isApiConnected }
-        isPingConnected={ isPingConnected }
         showFirstRun={ showFirstRun }
         onCloseFirstRun={ this.onCloseFirstRun }>
         <TabBar
@@ -126,15 +124,13 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isApiConnected, isPingConnected, isTest } = state.nodeStatus;
+  const { netChain, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signerRequests;
 
   return {
     hasAccounts,
     netChain,
-    isApiConnected,
-    isPingConnected,
     isTest,
     pending
   };
