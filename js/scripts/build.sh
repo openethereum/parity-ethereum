@@ -6,7 +6,7 @@ cd ..
 
 # run build (production) and store the exit code
 EXITCODE=0
-NODE_ENV=production npm run build || EXITCODE=1
+npm run ci:build || EXITCODE=1
 
 # back to root
 popd
