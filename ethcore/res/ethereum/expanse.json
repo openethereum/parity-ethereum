@@ -14,7 +14,8 @@
 				"frontierCompatibilityModeLimit": "0x30d40",
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
-				"bombDefuseTransition": "0x30d40"
+				"bombDefuseTransition": "0x30d40",
+				"badGasCompatibilityModeLimit": "0x7fffffffffffffff"				
 			}
 		}
 	},

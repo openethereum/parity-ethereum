@@ -66,6 +66,10 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="bombDefuseTransition")]
 	pub bomb_defuse_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="badGasCompatibilityModeLimit")]
+	pub bad_gas_compatibility_mode_limit: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -117,7 +121,8 @@ mod tests {
 				],
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
-				"bombDefuseTransition": "0x42"
+				"bombDefuseTransition": "0x42",
+				"badGasCompatibilityModeLimit": "0x42"
 			}
 		}"#;
 

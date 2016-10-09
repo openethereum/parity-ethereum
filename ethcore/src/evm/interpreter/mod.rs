@@ -82,7 +82,6 @@ impl<'a> CodeReader<'a> {
 enum InstructionResult<Gas> {
 	Ok,
 	UseAllGas,
-	GasLeft(Gas),
 	UnusedGas(Gas),
 	JumpToPosition(U256),
 	// gas left, init_orf, init_size
@@ -120,7 +119,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			try!(self.verify_instruction(ext, instruction, info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_gas, mem_size) = try!(gasometer.get_gas_cost_mem(ext, instruction, info, &stack, self.mem.size()));
+			let (gas_cost, mem_gas, mem_size, provided) = try!(gasometer.get_gas_cost_mem(ext, instruction, info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
 
@@ -138,7 +137,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
-				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack
+				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack, provided
 			));
 
 			evm_debug!({ informant.after_instruction(instruction) });
@@ -155,9 +154,6 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 				},
 				InstructionResult::UseAllGas => {
 					gasometer.current_gas = Cost::from(0);
-				},
-				InstructionResult::GasLeft(gas_left) => {
-					gasometer.current_gas = gas_left;
 				},
 				InstructionResult::JumpToPosition(position) => {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
@@ -250,7 +246,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 		ext: &mut evm::Ext,
 		instruction: Instruction,
 		code: &mut CodeReader,
-		stack: &mut Stack<U256>
+		stack: &mut Stack<U256>,
+		provided: Option<Cost>
 	) -> evm::Result<InstructionResult<Cost>> {
 		match instruction {
 			instructions::JUMP => {
@@ -284,11 +281,12 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::Ok);
 				}
 
-				let create_result = ext.create(&gas.as_u256(), &endowment, contract_code);
+				let create_gas = provided.expect("`provided` some through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
+				let create_result = ext.create(&gas.as_u256(), &create_gas.as_u256(), contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
-						Ok(InstructionResult::GasLeft(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
+						Ok(InstructionResult::UnusedGas(Cost::from_u256(gas_left).expect("Gas left cannot be greater.")))
 					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
@@ -299,7 +297,8 @@ impl<Cost: CostType> Interpreter<Cost> {
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
 				assert!(ext.schedule().call_value_transfer_gas > ext.schedule().call_stipend, "overflow possible");
-				let call_gas = Cost::from_u256(stack.pop_back()).expect("Gas is already validated.");
+				stack.pop_back();
+				let call_gas = provided.expect("`provided` some through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is one of `CALL`/`CALLCODE`/`DELEGATECALL`; qed");
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
@@ -317,7 +316,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Add stipend (only CALL|CALLCODE when value > 0)
 				let call_gas = call_gas + value.map_or_else(|| Cost::from(0), |val| match val.is_zero() {
 					false => Cost::from(ext.schedule().call_stipend),
-					true => Cost::from(0)
+					true => Cost::from(0),
 				});
 
 				// Get sender & receive addresses, check if we have balance
