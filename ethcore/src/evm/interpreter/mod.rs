@@ -281,7 +281,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::Ok);
 				}
 
-				let create_gas = provided.expect("`provided` some through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
+				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 				let create_result = ext.create(&gas.as_u256(), &create_gas.as_u256(), contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
@@ -298,7 +298,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
 				assert!(ext.schedule().call_value_transfer_gas > ext.schedule().call_stipend, "overflow possible");
 				stack.pop_back();
-				let call_gas = provided.expect("`provided` some through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is one of `CALL`/`CALLCODE`/`DELEGATECALL`; qed");
+				let call_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is one of `CALL`/`CALLCODE`/`DELEGATECALL`; qed");
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
