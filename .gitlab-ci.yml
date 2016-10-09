@@ -296,7 +296,6 @@ js-build:
   image: ethcore/javascript:latest
   only:
     - js
-    - jg-gitlab-build
     - master
     - beta
     - tags
