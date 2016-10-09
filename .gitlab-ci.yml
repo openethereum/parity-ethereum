@@ -313,6 +313,7 @@ js-test:
   before_script:
     - ./js/scripts/install-deps.sh
   script:
+    - ./js/scripts/build.sh
     - ./js/scripts/test.sh
   tags:
     - javascript-test
