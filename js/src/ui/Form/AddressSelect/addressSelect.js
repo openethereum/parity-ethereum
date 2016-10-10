@@ -63,14 +63,11 @@ export default class AddressSelect extends Component {
   }
 
   renderSelectEntry = (entry) => {
-    const { tokens } = this.props;
-
     const item = (
       <div className={ styles.account }>
         <div className={ styles.image }>
           <IdentityIcon
             inline center
-            tokens={ tokens }
             address={ entry.address } />
         </div>
         <div className={ styles.details }>

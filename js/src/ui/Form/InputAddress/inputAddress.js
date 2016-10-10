@@ -56,7 +56,7 @@ export default class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, tokens } = this.props;
+    const { value } = this.props;
 
     if (!value || !value.length) {
       return null;
@@ -66,7 +66,6 @@ export default class InputAddress extends Component {
       <div className={ styles.icon }>
         <IdentityIcon
           inline center
-          tokens={ tokens }
           address={ value } />
       </div>
     );

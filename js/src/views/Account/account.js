@@ -35,6 +35,7 @@ class Account extends Component {
     params: PropTypes.object,
     accounts: PropTypes.object,
     balances: PropTypes.object,
+    images: PropTypes.object.isRequired,
     isTest: PropTypes.bool
   }
 
@@ -141,7 +142,7 @@ class Account extends Component {
     }
 
     const { address } = this.props.params;
-    const { accounts, balances } = this.props;
+    const { accounts, balances, images } = this.props;
     const account = accounts[address];
     const balance = balances[address];
 
@@ -150,6 +151,7 @@ class Account extends Component {
         account={ account }
         balance={ balance }
         balances={ balances }
+        images={ images }
         onClose={ this.onTransferClose } />
     );
   }
@@ -184,12 +186,14 @@ class Account extends Component {
 function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
+  const { images } = state;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
     accounts,
-    balances
+    balances,
+    images
   };
 }
 

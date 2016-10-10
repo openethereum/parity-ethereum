@@ -20,6 +20,7 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
 
+import imageUnknown from '../../../images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';
 
 const CHECK_STYLE = {
@@ -38,6 +39,7 @@ export default class Details extends Component {
     balance: PropTypes.object,
     all: PropTypes.bool,
     extras: PropTypes.bool,
+    images: PropTypes.object.isRequired,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
     tag: PropTypes.string,
@@ -114,13 +116,14 @@ export default class Details extends Component {
 
   renderTokenSelect () {
     const { api } = this.context;
-    const { balance, tag } = this.props;
+    const { balance, images, tag } = this.props;
 
     const items = balance.tokens
       .filter((token) => token.value.gt(0))
       .map((balance, idx) => {
         const token = balance.token;
         const isEth = idx === 0;
+        const imagesrc = token.image || images[token.address] || imageUnknown;
         let value = 0;
 
         if (isEth) {
@@ -131,7 +134,7 @@ export default class Details extends Component {
 
         const label = (
           <div className={ styles.token }>
-            <img src={ token.image } />
+            <img src={ imagesrc } />
             <div className={ styles.tokenname }>
               { token.name }
             </div>

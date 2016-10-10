@@ -14,15 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '../ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { clearStatusLogs, toggleStatusLogs } from './providers/statusActions';
-import { toggleView } from '../views/Settings';
-
-export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  toggleStatusLogs,
-  toggleView
-};
+export function setAddressImage (address, hashArray) {
+  return {
+    type: 'setAddressImage',
+    address,
+    hashArray
+  };
+}

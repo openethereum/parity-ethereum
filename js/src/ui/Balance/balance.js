@@ -16,21 +16,25 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import unknownImage from '../../images/contracts/unknown-64x64.png';
 import styles from './balance.css';
 
-export default class Balance extends Component {
+class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
 
   static propTypes = {
-    balance: PropTypes.object
+    balance: PropTypes.object,
+    images: PropTypes.object.isRequired
   }
 
   render () {
     const { api } = this.context;
-    const { balance } = this.props;
+    const { balance, images } = this.props;
 
     if (!balance) {
       return null;
@@ -43,13 +47,14 @@ export default class Balance extends Component {
         const value = token.format
           ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
           : api.util.fromWei(balance.value).toFormat(3);
+        const imagesrc = token.image || images[token.address] || unknownImage;
 
         return (
           <div
             className={ styles.balance }
             key={ token.tag }>
             <img
-              src={ token.image }
+              src={ imagesrc }
               alt={ token.name } />
             <div>{ value }<small> { token.tag }</small></div>
           </div>
@@ -71,3 +76,18 @@ export default class Balance extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { images } = state;
+
+  return { images };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Balance);

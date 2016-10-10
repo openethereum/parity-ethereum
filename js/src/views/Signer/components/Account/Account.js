@@ -56,15 +56,14 @@ class Account extends Component {
   }
 
   render () {
-    const { address, chain, className, tokens } = this.props;
+    const { address, chain, className } = this.props;
 
     return (
       <div className={ `${styles.acc} ${className}` } title={ this.renderTitle() }>
         <AccountLink address={ address } chain={ chain }>
           <IdentityIcon
             center
-            address={ address }
-            tokens={ tokens } />
+            address={ address } />
         </AccountLink>
         { this.renderName() }
         { this.renderBalance() }
