@@ -326,7 +326,7 @@ js-test:
   tags:
     - javascript-test
 js-pack:
-  stage: build
+  stage: test
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
