@@ -122,7 +122,7 @@ impl<R: URLHint> ContentFetcher<R> {
 				},
 				// We need to start fetching app
 				None => {
-					trace!(target: "dapps", "Content unavailable. Fetching...");
+					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
 					let content = self.resolver.resolve(content_hex);
 
@@ -415,4 +415,3 @@ mod tests {
 		assert_eq!(fetcher.contains("test3"), false);
 	}
 }
-
