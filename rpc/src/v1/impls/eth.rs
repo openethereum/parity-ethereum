@@ -593,7 +593,10 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-		Ok(r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
+		match r {
+			Ok(b) => Ok(Bytes(b.output)),
+			Err(e) => Err(errors::from_call_error(e)),
+		}
 	}
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {

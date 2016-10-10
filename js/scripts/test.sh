@@ -5,8 +5,9 @@ pushd `dirname $0`
 cd ..
 
 # run lint & tests and store the exit code
-npm run lint && npm run test
-EXICCODE=$?
+EXITCODE=0
+npm run lint || EXITCODE=1
+npm run test || EXITCODE=1
 
 # back to root
 popd

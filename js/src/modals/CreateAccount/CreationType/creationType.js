@@ -39,6 +39,9 @@ export default class CreationType extends Component {
             label='Create new account manually'
             value='fromNew' />
           <RadioButton
+            label='Recover account from recovery phrase'
+            value='fromPhrase' />
+          <RadioButton
             label='Import accounts from Geth keystore'
             value='fromGeth' />
           <RadioButton

@@ -15,9 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import ReactTooltip from 'react-tooltip';
-import TimeIcon from 'material-ui/svg-icons/device/access-time';
-import moment from 'moment';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TxHashLink from '../TxHashLink';

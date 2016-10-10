@@ -1,29 +1,31 @@
 #!/bin/bash
 
-set -o errexit
+# change into the js directory (one down from scripts)
+pushd `dirname $0`
+cd ../build
 
-if [[ ("$TRAVIS_PULL_REQUEST" != "false") || ("$TRAVIS_BRANCH" != "master") ]]; then
-  exit 0
-fi
+# variables
+UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 
-git config --global user.email "admin@travis-ci.org"
-git config --global user.name "Travis CI"
-git config --global push.default simple
-git config credential.helper "store --file=.git/credentials"
-echo "https://${GITHUB_TOKEN}:@github.com" > .git/credentials
-git checkout master
+# init git
+rm -rf ./.git
+git init
 
-DATE=`date`
+# our user details
+git config push.default simple
+git config merge.ours.driver true
+git config user.email "jaco+gitlab@ethcore.io"
+git config user.name "GitLab Build Bot"
 
-npm run build
-echo "/* ${DATE} */" >> ./index.js
+# add local files and send it up
+git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git
+git checkout -b $CI_BUILD_REF_NAME
+git add .
+git commit -m "$UTCDATE"
+git push origin $CI_BUILD_REF_NAME --force
 
-git add --force index.js
-git commit --message "[CI skip] ${DATE}"
+# back to root
+popd
 
-npm version patch --message "[CI skip] ${DATE} %s"
-git push
-git push --tags
-
-echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
-npm publish
+# exit with exit code
+exit 0
