@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Balance, Container, ContainerTitle, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -49,7 +49,7 @@ export default class Summary extends Component {
         <IdentityIcon
           address={ account.address } />
         <ContainerTitle
-          title={ <Link to={ viewLink }>{ account.name || 'Unnamed' }</Link> }
+          title={ <Link to={ viewLink }>{ <IdentityName address={ account.address } unknown /> }</Link> }
           byline={ account.address } />
         <Balance
           balance={ balance } />

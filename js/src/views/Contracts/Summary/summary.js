@@ -17,8 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import Container, { Title } from '../../../ui/Container';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -43,8 +42,8 @@ export default class Summary extends Component {
       <Container>
         <IdentityIcon
           address={ contract.address } />
-        <Title
-          title={ <Link to={ viewLink }>{ contract.name || 'Unnamed' }</Link> }
+        <ContainerTitle
+          title={ <Link to={ viewLink }>{ <IdentityName address={ contract.address } unknown /> }</Link> }
           byline={ contract.address } />
         { this.props.children }
       </Container>

@@ -16,9 +16,12 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import Contracts from '../../contracts';
 import IdentityIcon from '../IdentityIcon';
+import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
@@ -28,16 +31,13 @@ const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
 
-export default class Method extends Component {
+class Method extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    contracts: PropTypes.object,
     tokens: PropTypes.object,
     transaction: PropTypes.object,
     historic: PropTypes.bool
@@ -209,17 +209,13 @@ export default class Method extends Component {
     return methodInputs.map((input, index) => {
       switch (input.type) {
         case 'address':
-          const address = input.value;
-          const account = this.getAccount(address);
-          const name = account ? account.name.toUpperCase() : null;
-
           return (
             <InputAddress
               disabled
+              text
               key={ index }
               className={ styles.input }
               value={ input.value }
-              nameValue={ name }
               label={ input.type } />
           );
 
@@ -270,24 +266,12 @@ export default class Method extends Component {
   }
 
   renderAddressName (address, withName = true) {
-    const account = this.getAccount(address);
-    const name = account ? account.name.toUpperCase() : null;
-
     return (
       <span className={ styles.address }>
         <IdentityIcon center inline address={ address } className={ styles.identityicon } />
-        { withName ? (name || address) : address }
+        { withName ? <IdentityName address={ address } /> : address }
       </span>
     );
-  }
-
-  getAccount (address) {
-    const { accounts, contacts, contracts, tokens } = this.props;
-
-    return (accounts || {})[address] ||
-      (contacts || {})[address] ||
-      (tokens || {})[address] ||
-      (contracts || {})[address];
   }
 
   lookup (transaction) {
@@ -346,3 +330,20 @@ export default class Method extends Component {
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { tokens } = state.balances;
+
+  return {
+    tokens
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Method);

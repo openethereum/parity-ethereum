@@ -24,6 +24,7 @@ import ContextProvider from './ContextProvider';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
+import IdentityName from './IdentityName';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
@@ -52,6 +53,7 @@ export {
   InputInline,
   Select,
   IdentityIcon,
+  IdentityName,
   MethodDecoding,
   Modal,
   BusyStep,
