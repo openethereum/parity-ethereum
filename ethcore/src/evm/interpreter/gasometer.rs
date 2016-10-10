@@ -195,7 +195,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), Some(try!(Gas::from_u256(*stack.peek(0)))));
 				gas = overflowing!(gas.overflow_add(provided));
 
-				InstructionCost::GasMem(gas, mem, None)
+				InstructionCost::GasMem(gas, mem, Some(provided))
 			},
 			instructions::CREATE => {
 				let mut gas = Gas::from(schedule.create_gas);
@@ -207,7 +207,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), None);
 				gas = overflowing!(gas.overflow_add(provided));
 
-				InstructionCost::GasMem(gas, mem, None)
+				InstructionCost::GasMem(gas, mem, Some(provided))
 			},
 			instructions::EXP => {
 				let expon = stack.peek(1);
