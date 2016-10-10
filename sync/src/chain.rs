@@ -143,7 +143,7 @@ const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 
 const HEADERS_TIMEOUT_SEC: f64 = 15f64;
-const BODIES_TIMEOUT_SEC: f64 = 5f64;
+const BODIES_TIMEOUT_SEC: f64 = 10f64;
 const FORK_HEADER_TIMEOUT_SEC: f64 = 3f64;
 const SNAPSHOT_MANIFEST_TIMEOUT_SEC: f64 = 3f64;
 const SNAPSHOT_DATA_TIMEOUT_SEC: f64 = 10f64;
@@ -393,6 +393,8 @@ impl ChainSync {
 		}
 		self.syncing_difficulty = From::from(0u64);
 		self.state = SyncState::Idle;
+		// Reactivate peers only if some progress has been made
+		// since the last sync round of if starting fresh.
 		self.active_peers = self.peers.keys().cloned().collect();
 	}
 
@@ -404,7 +406,8 @@ impl ChainSync {
 		self.continue_sync(io);
 	}
 
-	/// Remove peer from active peer set
+	/// Remove peer from active peer set. Peer will be reactivated on the next sync
+	/// round.
 	fn deactivate_peer(&mut self, io: &mut SyncIo, peer_id: PeerId) {
 		trace!(target: "sync", "Deactivating peer {}", peer_id);
 		self.active_peers.remove(&peer_id);
@@ -477,7 +480,11 @@ impl ChainSync {
 		}
 
 		self.peers.insert(peer_id.clone(), peer);
-		self.active_peers.insert(peer_id.clone());
+		// Don't activate peer immediatelly when searching for common block.
+		// Let the current sync round complete first.
+		if self.state != SyncState::ChainHead {
+			self.active_peers.insert(peer_id.clone());
+		}
 		debug!(target: "sync", "Connected {}:{}", peer_id, io.peer_info(peer_id));
 		if let Some((fork_block, _)) = self.fork_block {
 			self.request_headers_by_number(io, peer_id, fork_block, 1, 0, false, PeerAsking::ForkHeader);
@@ -592,9 +599,9 @@ impl ChainSync {
 		}
 
 		if headers.is_empty() {
-			// Peer does not have any new subchain heads, deactivate it nd try with another
+			// Peer does not have any new subchain heads, deactivate it and try with another.
 			trace!(target: "sync", "{} Disabled for no data", peer_id);
-			io.disable_peer(peer_id);
+			self.deactivate_peer(io, peer_id);
 		}
 		match self.state {
 			SyncState::ChainHead => {
