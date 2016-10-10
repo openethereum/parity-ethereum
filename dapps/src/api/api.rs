@@ -92,11 +92,14 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		}
 
 		let url = url.expect("Check for None early-exists above; qed");
-		let path = self.path.take().expect("on_request called only once, and path is always defined in new; qed");
+		let mut path = self.path.take().expect("on_request called only once, and path is always defined in new; qed");
 		let control = self.control.take().expect("on_request called only once, and control is always defined in new; qed");
 
 		let endpoint = url.path.get(1).map(|v| v.as_str());
 		let hash = url.path.get(2).map(|v| v.as_str());
+		// at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
+		// we will try and retrieve 'api' as the hash when doing the /api/content route
+		if let Some(hash) = hash.clone() { path.app_id = hash.to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
 			"apps" => Some(as_json(&self.api.list_apps())),
