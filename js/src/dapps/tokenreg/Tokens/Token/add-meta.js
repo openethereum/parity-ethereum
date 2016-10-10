@@ -19,6 +19,7 @@ import { Dialog, RaisedButton, FlatButton, SelectField, MenuItem } from 'materia
 import AddIcon from 'material-ui/svg-icons/content/add';
 
 import InputText from '../../Inputs/Text';
+import { ADDRESS_TYPE } from '../../Inputs/validation';
 
 import styles from './token.css';
 
@@ -133,7 +134,7 @@ export default class AddMeta extends Component {
         <InputText
           key={ selectedMeta.value }
           floatingLabelText={ `${selectedMeta.label} value` }
-          hintText={ `The value of the ${selectedMeta.label.toLowerCase()} meta-data` }
+          hintText={ `The value of the ${selectedMeta.label.toLowerCase()} (${selectedMeta.validation === ADDRESS_TYPE ? 'Address' : 'Url Hint'})` }
 
           validationType={ selectedMeta.validation }
           onChange={ this.onChange } />

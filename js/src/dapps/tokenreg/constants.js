@@ -14,13 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { URL_TYPE, ADDRESS_TYPE } from './Inputs/validation';
+import { HEX_TYPE, ADDRESS_TYPE } from './Inputs/validation';
 
 export const metaDataKeys = [
   {
     label: 'Image',
     value: 'IMG',
-    validation: URL_TYPE
+    validation: HEX_TYPE
   },
   {
     label: 'Address',
