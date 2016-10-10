@@ -16,7 +16,7 @@
 
 import etherscan from './';
 
-describe('etherscan/stats', () => {
+describe.skip('etherscan/stats', () => {
   it('retrieves the latest price', () => {
     return etherscan.stats
       .price()

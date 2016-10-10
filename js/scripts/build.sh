@@ -5,8 +5,8 @@ pushd `dirname $0`
 cd ..
 
 # run build (production) and store the exit code
-NODE_ENV=production npm run build
-EXICCODE=$?
+EXITCODE=0
+npm run ci:build || EXITCODE=1
 
 # back to root
 popd

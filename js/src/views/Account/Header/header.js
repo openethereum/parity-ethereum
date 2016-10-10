@@ -47,12 +47,16 @@ export default class Header extends Component {
 
   render () {
     const { account, balance } = this.props;
-    const { address, meta } = account;
+    const { address, meta, uuid } = account;
     const { name } = this.state;
 
     if (!account) {
       return null;
     }
+
+    const uuidText = !uuid
+      ? null
+      : <div className={ styles.uuidline }>uuid: { uuid }</div>;
 
     return (
       <Container>
@@ -63,6 +67,7 @@ export default class Header extends Component {
           <div className={ styles.addressline }>
             { address }
           </div>
+          { uuidText }
           <div className={ styles.infoline }>
             { meta.description }
           </div>

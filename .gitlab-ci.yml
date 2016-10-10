@@ -284,12 +284,36 @@ test-linux:
   stage: test
   before_script:
     - git submodule update --init --recursive
-    - ./js/scripts/install-deps.sh
   script:
-    - ./js/scripts/test.sh
     - export RUST_BACKTRACE=1
     - ./test.sh --verbose
   tags:
     - rust-test
   dependencies:
     - linux-stable
+js-build:
+  stage: build
+  image: ethcore/javascript:latest
+  only:
+    - js
+    - master
+    - beta
+    - tags
+    - stable
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
+js-test:
+  stage: test
+  image: ethcore/javascript:latest
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/test.sh
+    - ./js/scripts/build.sh
+  tags:
+    - javascript-test

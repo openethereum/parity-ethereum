@@ -5,8 +5,8 @@ pushd `dirname $0`
 cd ..
 
 # install deps and store the exit code
-npm install
-EXICCODE=$?
+EXITCODE=0
+npm install --progress=false || EXITCODE=1
 
 # back to root
 popd

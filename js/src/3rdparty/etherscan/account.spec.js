@@ -18,7 +18,7 @@ import etherscan from './';
 
 const TESTADDR = '0xbf885e2b55c6bcc84556a3c5f07d3040833c8d00';
 
-describe('etherscan/account', () => {
+describe.skip('etherscan/account', () => {
   const checkBalance = function (balance, addr) {
     expect(balance).to.be.ok;
     expect(balance.account).to.equal(addr);

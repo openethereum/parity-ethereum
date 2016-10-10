@@ -29,6 +29,7 @@ import CreationType from './CreationType';
 import NewAccount from './NewAccount';
 import NewGeth from './NewGeth';
 import NewImport from './NewImport';
+import RecoveryPhrase from './RecoveryPhrase';
 
 const TITLES = {
   type: 'creation type',
@@ -103,6 +104,11 @@ export default class CreateAccount extends Component {
             <NewGeth
               accounts={ accounts }
               onChange={ this.onChangeGeth } />
+          );
+        } else if (createType === 'fromPhrase') {
+          return (
+            <RecoveryPhrase
+              onChange={ this.onChangeDetails } />
           );
         }
 
@@ -194,10 +200,11 @@ export default class CreateAccount extends Component {
       canCreate: false
     });
 
-    if (createType === 'fromNew') {
+    if (createType === 'fromNew' || createType === 'fromPhrase') {
       return api.personal
         .newAccountFromPhrase(this.state.phrase, this.state.password)
         .then((address) => {
+          this.setState({ address });
           return api.personal
             .setAccountName(address, this.state.name)
             .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
