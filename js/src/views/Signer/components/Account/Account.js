@@ -15,20 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
+
+import { IdentityIcon, IdentityName } from '../../../../ui';
+import AccountLink from './AccountLink';
 
 import styles from './Account.css';
 
-import { IdentityIcon } from '../../../../ui';
-import AccountLink from './AccountLink';
-
-class Account extends Component {
+export default class Account extends Component {
   static propTypes = {
     className: PropTypes.string,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    tokens: PropTypes.object,
     address: PropTypes.string.isRequired,
     chain: PropTypes.string.isRequired,
     balance: PropTypes.object // eth BigNumber, not required since it mght take time to fetch
@@ -59,7 +54,7 @@ class Account extends Component {
     const { address, chain, className } = this.props;
 
     return (
-      <div className={ `${styles.acc} ${className}` } title={ this.renderTitle() }>
+      <div className={ `${styles.acc} ${className}` }>
         <AccountLink address={ address } chain={ chain }>
           <IdentityIcon
             center
@@ -71,17 +66,6 @@ class Account extends Component {
     );
   }
 
-  renderTitle () {
-    const { address } = this.props;
-    const name = this._retrieveName();
-
-    if (name) {
-      return address + ' ' + name;
-    }
-
-    return address;
-  }
-
   renderBalance () {
     const { balanceDisplay } = this.state;
     return (
@@ -91,7 +75,7 @@ class Account extends Component {
 
   renderName () {
     const { address } = this.props;
-    const name = this._retrieveName();
+    const name = <IdentityName address={ address } empty />;
 
     if (!name) {
       return (
@@ -111,15 +95,6 @@ class Account extends Component {
     );
   }
 
-  _retrieveName () {
-    const { address, accounts, contacts, tokens } = this.props;
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address];
-
-    return account
-      ? account.name
-      : null;
-  }
-
   tinyAddress () {
     const { address } = this.props;
     const len = address.length;
@@ -132,23 +107,3 @@ class Account extends Component {
     return address.slice(2, 8) + '..' + address.slice(len - 7);
   }
 }
-
-function mapStateToProps (state) {
-  const { accounts, contacts } = state.personal;
-  const { tokens } = state.balances;
-
-  return {
-    accounts,
-    contacts,
-    tokens
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Account);

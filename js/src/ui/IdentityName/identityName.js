@@ -21,21 +21,26 @@ import { bindActionCreators } from 'redux';
 class IdentityName extends Component {
   static propTypes = {
     address: PropTypes.string,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    contracts: PropTypes.object,
+    accountsInfo: PropTypes.object,
     tokens: PropTypes.object,
+    empty: PropTypes.bool,
     shorten: PropTypes.bool,
     unknown: PropTypes.bool
   }
 
   render () {
-    const { address, accounts, contacts, contracts, tokens, shorten, unknown } = this.props;
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address] || (contracts || {})[address];
+    const { address, accountsInfo, tokens, empty, shorten, unknown } = this.props;
+    const account = accountsInfo[address] || tokens[address];
+    const hasAccount = account && (!account.meta || !account.meta.deleted);
+
+    if (!hasAccount && empty) {
+      return null;
+    }
+
     const addressFallback = shorten ? this.formatHash(address) : address;
     const fallback = unknown ? 'UNNAMED' : addressFallback;
-    const isUuid = account && account.name === account.uuid;
-    const name = account && !isUuid
+    const isUuid = hasAccount && account.name === account.uuid;
+    const name = hasAccount && !isUuid
       ? account.name.toUpperCase()
       : fallback;
 
@@ -54,13 +59,11 @@ class IdentityName extends Component {
 }
 
 function mapStateToProps (state) {
-  const { accounts, contacts, contracts } = state.personal;
+  const { accountsInfo } = state.personal;
   const { tokens } = state.balances;
 
   return {
-    accounts,
-    contacts,
-    contracts,
+    accountsInfo,
     tokens
   };
 }

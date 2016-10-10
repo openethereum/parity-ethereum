@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
 import IdentityIcon from '../../IdentityIcon';
+import IdentityName from '../../IdentityName';
 import Select from '../Select';
 
 import styles from './addressSelect.css';
@@ -72,7 +73,7 @@ export default class AddressSelect extends Component {
         </div>
         <div className={ styles.details }>
           <div className={ styles.name }>
-            { entry.name || 'Unnamed' }
+            <IdentityName address={ entry.address } />
           </div>
         </div>
       </div>

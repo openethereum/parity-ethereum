@@ -209,15 +209,13 @@ class Method extends Component {
     return methodInputs.map((input, index) => {
       switch (input.type) {
         case 'address':
-          const address = input.value;
-
           return (
             <InputAddress
               disabled
+              text
               key={ index }
               className={ styles.input }
               value={ input.value }
-              nameValue={ <IdentityName address={ address } /> }
               label={ input.type } />
           );
 
