@@ -137,6 +137,7 @@ fn net_hard_fork() {
 
 #[test]
 fn restart() {
+	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
