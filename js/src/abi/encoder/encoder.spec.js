@@ -192,9 +192,9 @@ describe('abi/encoder/Encoder', () => {
     });
 
     describe('bytes', () => {
-      const bytes1 = '1234';
-      const bytes2 = '10000000000000000000000000000000000000000000000000000000000002';
-      const bytes3 = '1000000000000000000000000000000000000000000000000000000000000000';
+      const bytes1 = '0x1234';
+      const bytes2 = '0x10000000000000000000000000000000000000000000000000000000000002';
+      const bytes3 = '0x1000000000000000000000000000000000000000000000000000000000000000';
 
       it('encodes fixed bytes', () => {
         const token = new Token('fixedBytes', bytes1);
@@ -215,15 +215,15 @@ describe('abi/encoder/Encoder', () => {
       });
 
       it('encodes bytes (two blocks)', () => {
-        const input = `${bytes3}${bytes3}`;
+        const input = `${bytes3}${bytes3.slice(-64)}`;
         const token = new Token('bytes', input);
 
         expect(Encoder.encode([token])).to.equal(`${padU32(0x20)}${padU32(0x40)}${padFixedBytes(input)}`);
       });
 
       it('encodes two consecutive bytes', () => {
-        const in1 = '10000000000000000000000000000000000000000000000000000000000002';
-        const in2 = '0010000000000000000000000000000000000000000000000000000000000002';
+        const in1 = '0x10000000000000000000000000000000000000000000000000000000000002';
+        const in2 = '0x0010000000000000000000000000000000000000000000000000000000000002';
         const tokens = [new Token('bytes', in1), new Token('bytes', in2)];
 
         expect(Encoder.encode(tokens)).to.equal(`${padU32(0x40)}${padU32(0x80)}${padU32(0x1f)}${padFixedBytes(in1)}${padU32(0x20)}${padFixedBytes(in2)}`);
@@ -233,7 +233,7 @@ describe('abi/encoder/Encoder', () => {
     describe('string', () => {
       it('encodes a string', () => {
         const string = 'gavofyork';
-        const stringEnc = padFixedBytes('6761766f66796f726b');
+        const stringEnc = padFixedBytes('0x6761766f66796f726b');
         const token = new Token('string', string);
 
         expect(Encoder.encode([token])).to.equal(`${padU32(0x20)}${padU32(string.length.toString(16))}${stringEnc}`);
@@ -272,16 +272,16 @@ describe('abi/encoder/Encoder', () => {
 
     describe('comprehensive test', () => {
       it('encodes a complex sequence', () => {
-        const bytes = '131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b';
+        const bytes = '0x131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b131a3afc00d1b1e3461b955e53fc866dcf303b3eb9f4c16f89e388930f48134b';
         const tokens = [new Token('int', 5), new Token('bytes', bytes), new Token('int', 3), new Token('bytes', bytes)];
 
-        expect(Encoder.encode(tokens)).to.equal(`${padU32(5)}${padU32(0x80)}${padU32(3)}${padU32(0xe0)}${padU32(0x40)}${bytes}${padU32(0x40)}${bytes}`);
+        expect(Encoder.encode(tokens)).to.equal(`${padU32(5)}${padU32(0x80)}${padU32(3)}${padU32(0xe0)}${padU32(0x40)}${bytes.substr(2)}${padU32(0x40)}${bytes.substr(2)}`);
       });
 
       it('encodes a complex sequence (nested)', () => {
         const array = [new Token('int', 5), new Token('int', 6), new Token('int', 7)];
         const tokens = [new Token('int', 1), new Token('string', 'gavofyork'), new Token('int', 2), new Token('int', 3), new Token('int', 4), new Token('array', array)];
-        const stringEnc = padFixedBytes('6761766f66796f726b');
+        const stringEnc = padFixedBytes('0x6761766f66796f726b');
 
         expect(Encoder.encode(tokens)).to.equal(`${padU32(1)}${padU32(0xc0)}${padU32(2)}${padU32(3)}${padU32(4)}${padU32(0x100)}${padU32(9)}${stringEnc}${padU32(3)}${padU32(5)}${padU32(6)}${padU32(7)}`);
       });
