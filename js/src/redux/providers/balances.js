@@ -86,8 +86,10 @@ export default class Balances {
             const promisesImages = [];
 
             while (promisesTokens.length < numTokens.toNumber()) {
-              promisesTokens.push(tokenreg.instance.token.call({}, [promisesTokens.length]));
-              promisesImages.push(tokenreg.instance.meta.call({}, [promisesImages.length, 'IMG']));
+              const index = promisesTokens.length;
+
+              promisesTokens.push(tokenreg.instance.token.call({}, [index]));
+              promisesImages.push(tokenreg.instance.meta.call({}, [index, 'IMG']));
             }
 
             return Promise.all([

@@ -59,10 +59,10 @@ class IdentityIcon extends Component {
   updateIcon (_address, images) {
     const { api } = this.context;
     const { button, inline, tiny } = this.props;
-    const imageHash = images[_address];
+    const iconsrc = images[_address];
 
-    if (imageHash) {
-      this.setState({ iconsrc: `/api/content/${imageHash}` });
+    if (iconsrc) {
+      this.setState({ iconsrc });
       return;
     }
 

@@ -29,7 +29,7 @@ export default handleActions({
     const hash = hashArray ? bytesToHex(hashArray) : ZERO;
 
     return Object.assign({}, state, {
-      [address]: hash === ZERO ? null : hash
+      [address]: hash === ZERO ? null : `/api/content/${hash.substr(2)}`
     });
   }
 }, initialState);
