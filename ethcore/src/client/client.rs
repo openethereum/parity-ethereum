@@ -413,7 +413,7 @@ impl Client {
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
 			let n = number - HISTORY;
-			Some((n, chain.block_hash(n).expect("Commited block has no hash.")))
+			Some((n, chain.block_hash(n).expect("only verified blocks can be commited; verified block has hash; qed")))
 		} else {
 			None
 		};
