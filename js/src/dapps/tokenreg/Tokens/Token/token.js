@@ -55,8 +55,7 @@ export default class Token extends Component {
     metaMined: PropTypes.bool,
     isLoading: PropTypes.bool,
     isPending: PropTypes.bool,
-    isOwner: PropTypes.bool,
-    isTokenOwner: PropTypes.bool,
+    isTokenOwner: PropTypes.bool.isRequired,
 
     fullWidth: PropTypes.bool
   };
@@ -197,7 +196,9 @@ export default class Token extends Component {
   renderIsPending () {
     const { isPending } = this.props;
 
-    if (!isPending) return null;
+    if (!isPending) {
+      return null;
+    }
 
     return (
       <div className={ styles.pending } />
@@ -205,6 +206,10 @@ export default class Token extends Component {
   }
 
   renderAddMeta () {
+    if (!this.props.isTokenOwner) {
+      return null;
+    }
+
     return (
       <AddMeta
         handleAddMeta={ this.props.handleAddMeta }
@@ -214,7 +219,9 @@ export default class Token extends Component {
   }
 
   renderUnregister () {
-    if (!this.props.isOwner) return null;
+    if (!this.props.isTokenOwner) {
+      return null;
+    }
 
     return (
       <RaisedButton

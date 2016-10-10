@@ -244,6 +244,8 @@ export default class Application extends Component {
         instance.entries
           .call({}, [contentHash])
           .then(([accountSlashRepo, commit, owner]) => {
+            console.log('lookupHash', accountSlashRepo, api.util.bytesToHex(commit), owner);
+
             if (owner !== ZERO_ADDRESS) {
               this.setState({ contentHashError: contentHash, contentHash: null });
             } else {

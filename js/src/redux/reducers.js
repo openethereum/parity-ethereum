@@ -17,7 +17,7 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { balancesReducer, personalReducer, statusReducer as nodeStatusReducer } from './providers';
+import { balancesReducer, imagesReducer, personalReducer, statusReducer as nodeStatusReducer } from './providers';
 
 import { errorReducer } from '../ui/Errors';
 import { settingsReducer } from '../views/Settings';
@@ -36,6 +36,7 @@ export default function () {
     settings: settingsReducer,
 
     balances: balancesReducer,
+    images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
 

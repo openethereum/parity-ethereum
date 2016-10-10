@@ -14,15 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '../ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { clearStatusLogs, toggleStatusLogs } from './providers/statusActions';
-import { toggleView } from '../views/Settings';
+import { handleActions } from 'redux-actions';
+import { bytesToHex } from '../../api/util/format';
 
-export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  toggleStatusLogs,
-  toggleView
+const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
+
+const initialState = {
+  images: {}
 };
+
+export default handleActions({
+  setAddressImage (state, action) {
+    const { address, hashArray } = action;
+    const hash = hashArray ? bytesToHex(hashArray) : ZERO;
+
+    return Object.assign({}, state, {
+      [address]: hash === ZERO ? null : `/api/content/${hash.substr(2)}`
+    });
+  }
+}, initialState);

@@ -27,7 +27,8 @@ class TokensContainer extends Component {
     isLoading: PropTypes.bool,
     tokens: PropTypes.array,
     tokenCount: PropTypes.number,
-    onLoadTokens: PropTypes.func
+    onLoadTokens: PropTypes.func,
+    accounts: PropTypes.array
   };
 
   componentDidMount () {
@@ -35,17 +36,22 @@ class TokensContainer extends Component {
   }
 
   render () {
-    return (<Tokens
-      { ...this.props }
-    />);
+    console.log(this.props);
+    return (
+      <Tokens
+        { ...this.props }
+      />
+    );
   }
 }
 
 const mapStateToProps = (state) => {
+  const { list } = state.accounts;
   const { isLoading, tokens, tokenCount } = state.tokens;
+
   const { isOwner } = state.status.contract;
 
-  return { isLoading, tokens, tokenCount, isOwner };
+  return { isLoading, tokens, tokenCount, isOwner, accounts: list };
 };
 
 const mapDispatchToProps = (dispatch) => {
