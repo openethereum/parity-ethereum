@@ -46,7 +46,6 @@ export default class Header extends Component {
   render () {
     const { account, balance } = this.props;
     const { address, meta, uuid } = account;
-    const { name } = this.state;
 
     if (!account) {
       return null;

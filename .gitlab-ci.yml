@@ -313,6 +313,7 @@ js-test:
   before_script:
     - ./js/scripts/install-deps.sh
   script:
+    - ./js/scripts/lint.sh
     - ./js/scripts/test.sh
     - ./js/scripts/build.sh
   tags:
