@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { ConfirmDialog, IdentityIcon } from '../../../ui';
+import { ConfirmDialog, IdentityIcon, IdentityName } from '../../../ui';
 import { newError } from '../../../redux/actions';
 
 import styles from '../address.css';
@@ -61,7 +61,7 @@ class Delete extends Component {
             address={ account.address } />
           <div className={ styles.nameinfo }>
             <div className={ styles.header }>
-              { account.name || 'Unnamed' }
+              <IdentityName address={ account.address } unknown />
             </div>
             <div className={ styles.address }>
               { account.address }

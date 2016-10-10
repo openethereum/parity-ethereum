@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 
-import { IdentityIcon, MethodDecoding } from '../../../../ui';
+import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
 
 import styles from '../transactions.css';
 
@@ -30,10 +30,6 @@ export default class Transaction extends Component {
   static propTypes = {
     transaction: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    contracts: PropTypes.object,
-    tokens: PropTypes.object,
     isTest: PropTypes.bool.isRequired
   }
 
@@ -72,7 +68,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address, accounts, contacts, contracts, tokens } = this.props;
+    const { address } = this.props;
     const { info } = this.state;
 
     if (!info) {
@@ -83,10 +79,6 @@ export default class Transaction extends Component {
       <MethodDecoding
         historic
         address={ address }
-        accounts={ accounts }
-        contacts={ contacts }
-        contracts={ contracts }
-        tokens={ tokens }
         transaction={ info } />
     );
   }
@@ -111,18 +103,12 @@ export default class Transaction extends Component {
   }
 
   renderAddress (prefix, address) {
-    const { accounts, contacts, contracts, tokens } = this.props;
-
-    const account = (accounts || {})[address] || (contacts || {})[address] || (tokens || {})[address] || (contracts || {})[address];
-    const name = account
-      ? account.name.toUpperCase()
-      : this.formatHash(address);
     const eslink = address ? (
       <a
         href={ `${prefix}address/${address}` }
         target='_blank'
         className={ styles.link }>
-        { name }
+        <IdentityName address={ address } shorten />
       </a>
     ) : 'DEPLOY';
 
@@ -132,7 +118,6 @@ export default class Transaction extends Component {
           <IdentityIcon
             center
             className={ styles.icon }
-            tokens={ tokens }
             address={ address } />
         </div>
         <div className={ styles.center }>
