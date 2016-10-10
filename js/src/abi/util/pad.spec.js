@@ -74,7 +74,7 @@ describe('abi/util/pad', () => {
 
   describe('padFixedBytes', () => {
     it('right pads length < 64 bytes to 64 bytes (string)', () => {
-      expect(padFixedBytes(SHORT15)).to.equal(LONG15);
+      expect(padFixedBytes(`0x${SHORT15}`)).to.equal(LONG15);
     });
 
     it('right pads length < 64 bytes to 64 bytes (array)', () => {
@@ -82,7 +82,7 @@ describe('abi/util/pad', () => {
     });
 
     it('right pads length > 64 bytes (64 byte multiples)', () => {
-      expect(padFixedBytes(`${LONG15}${SHORT15}`)).to.equal(`${LONG15}${LONG15}`);
+      expect(padFixedBytes(`0x${LONG15}${SHORT15}`)).to.equal(`${LONG15}${LONG15}`);
     });
 
     it('strips leading 0x when passed in', () => {
@@ -92,7 +92,7 @@ describe('abi/util/pad', () => {
 
   describe('padBytes', () => {
     it('right pads length < 64, adding the length (string)', () => {
-      const result = padBytes(SHORT15);
+      const result = padBytes(`0x${SHORT15}`);
 
       expect(result.length).to.equal(128);
       expect(result).to.equal(`${padU32(8)}${LONG15}`);
@@ -106,7 +106,7 @@ describe('abi/util/pad', () => {
     });
 
     it('right pads length > 64, adding the length', () => {
-      const result = padBytes(`${LONG15}${SHORT15}`);
+      const result = padBytes(`0x${LONG15}${SHORT15}`);
 
       expect(result.length).to.equal(192);
       expect(result).to.equal(`${padU32(0x28)}${LONG15}${LONG15}`);
@@ -118,7 +118,7 @@ describe('abi/util/pad', () => {
       const result = padString('gavofyork');
 
       expect(result.length).to.equal(128);
-      expect(result).to.equal(padBytes('6761766f66796f726b'));
+      expect(result).to.equal(padBytes('0x6761766f66796f726b'));
     });
   });
 });

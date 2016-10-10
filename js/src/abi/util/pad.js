@@ -42,23 +42,25 @@ export function padU32 (input) {
   return `${ZERO_64}${bn.toString(16)}`.slice(-64);
 }
 
-export function padBytes (input) {
-  const length = isArray(input) ? input.length : (`${input}`.length / 2);
-
-  return `${padU32(length)}${padFixedBytes(input)}`;
+function stringToBytes (input) {
+  if (isArray(input)) {
+    return input;
+  } else if (input.substr(0, 2) === '0x') {
+    return input.substr(2).match(/.{1,2}/g).map((value) => parseInt(value, 16));
+  } else {
+    return input.split('').map((char) => char.charCodeAt(0));
+  }
 }
 
-export function padFixedBytes (input) {
-  let sinput;
+export function padBytes (_input) {
+  const input = stringToBytes(_input);
 
-  if (isArray(input)) {
-    sinput = input.map((code) => `0${code.toString(16)}`.slice(-2)).join('');
-  } else if (input.substr(0, 2) === '0x') {
-    return padFixedBytes(`${input.substr(2)}`.match(/.{1,2}/g).map((value) => parseInt(value, 16)));
-  } else {
-    return padFixedBytes(input.split('').map((char) => char.charCodeAt(0)));
-  }
+  return `${padU32(input.length)}${padFixedBytes(input)}`;
+}
 
+export function padFixedBytes (_input) {
+  const input = stringToBytes(_input);
+  const sinput = input.map((code) => `0${code.toString(16)}`.slice(-2)).join('');
   const max = Math.floor((sinput.length + 63) / 64) * 64;
 
   return `${sinput}${ZERO_64}`.substr(0, max);
