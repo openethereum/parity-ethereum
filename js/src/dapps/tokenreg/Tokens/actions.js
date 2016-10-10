@@ -16,7 +16,7 @@
 
 import { getTokenTotalSupply } from '../utils';
 
-const { sha3, bytesToHex } = window.parity.api.util;
+const { bytesToHex } = window.parity.api.util;
 
 export const SET_TOKENS_LOADING = 'SET_TOKENS_LOADING';
 export const setTokensLoading = (isLoading) => ({
@@ -164,17 +164,15 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
   const state = getState();
   const contractInstance = state.status.contract.instance;
 
-  const key = sha3(query);
-
   const startDate = Date.now();
   dispatch(setTokenMetaLoading(index, true));
 
   contractInstance
     .meta
-    .call({}, [ index, key ])
+    .call({}, [ index, query ])
     .then((value) => {
       const meta = {
-        key, query,
+        query,
         value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };
 
@@ -195,35 +193,22 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
 
   const state = getState();
   const contractInstance = state.status.contract.instance;
-
   const token = state.tokens.tokens.find(t => t.index === index);
-  const keyHash = sha3(key);
 
-  const options = {
-    from: token.owner
-  };
-
-  let values;
-
-  if (key === 'IMG') {
-    const valueHash = sha3(value);
-    dispatch(addGithubhintURL(token.owner, valueHash, value));
-    values = [ index, keyHash, valueHash ];
-  } else {
-    values = [ index, keyHash, value ];
-  }
+  const options = { from: token.owner };
+  const values = [ index, key, value ];
 
   contractInstance
     .setMeta
     .estimateGas(options, values)
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
+      console.log(`addTokenMeta: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
 
       return contractInstance.setMeta.postTransaction(options, values);
     })
     .catch((e) => {
-      console.error(`addTokenMeta #${index} error`, e);
+      console.error(`addTokenMeta: #${index} error`, e);
     });
 };
 
