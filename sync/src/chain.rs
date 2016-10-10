@@ -389,7 +389,7 @@ impl ChainSync {
 						capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
 						remote_address: session_info.remote_address,
 						local_address: session_info.local_address,
-						eth_version: peer_data.protocol_version,
+						eth_version: peer_data.protocol_version as u32,
 						eth_difficulty: peer_data.difficulty,
 						eth_head: peer_data.latest_hash,
 				})

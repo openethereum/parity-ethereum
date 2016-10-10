@@ -128,8 +128,7 @@ impl BlockCollection {
 		for b in bodies.into_iter() {
 			if let Err(e) =  self.insert_body(b) {
 				trace!(target: "sync", "Ignored invalid body: {:?}", e);
-			}
-			else {
+			} else {
 				inserted += 1;
 			}
 		}
@@ -145,8 +144,7 @@ impl BlockCollection {
 		for r in receipts.into_iter() {
 			if let Err(e) =  self.insert_receipt(r) {
 				trace!(target: "sync", "Ignored invalid receipt: {:?}", e);
-			}
-			else {
+			} else {
 				inserted += 1;
 			}
 		}

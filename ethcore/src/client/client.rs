@@ -410,6 +410,9 @@ impl Client {
 		imported
 	}
 
+	/// Import a block with transaction receipts.
+	/// The block is guaranteed to be the next best blocks in the first block sequence.
+	/// Does no sealing or transaction validation.
 	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> H256 {
 		let block = BlockView::new(&block_bytes);
 		let hash = block.header().hash();
@@ -991,6 +994,7 @@ impl BlockChainClient for Client {
 
 	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
 		{
+			// check block order
 			let header = BlockView::new(&block_bytes).header_view();
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
@@ -1146,6 +1150,7 @@ impl MiningBlockChainClient for Client {
 		let h = block.header().hash();
 		let start = precise_time_ns();
 		let route = {
+			// scope for self.import_lock
 			let _import_lock = self.import_lock.lock();
 			let _timer = PerfTimer::new("import_sealed_block");
 
@@ -1155,7 +1160,6 @@ impl MiningBlockChainClient for Client {
 			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
 			self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
 			route
-
 		};
 		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);

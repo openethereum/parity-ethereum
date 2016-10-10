@@ -131,7 +131,7 @@ impl SyncProvider for EthSync {
 	/// Get sync peers
 	fn peers(&self) -> Vec<PeerInfo> {
 		self.network.with_context_eval(self.subprotocol_name, |context| {
-			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().peers(&sync_io)
 		}).unwrap_or(Vec::new())
 	}

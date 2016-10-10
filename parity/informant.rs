@@ -101,7 +101,7 @@ impl Informant {
 			match s.status() {
 				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
 					(true, state_chunks_done + block_chunks_done, state_chunks + block_chunks),
-				_ => (false, 0, 0)
+				_ => (false, 0, 0),
 			}
 		);
 

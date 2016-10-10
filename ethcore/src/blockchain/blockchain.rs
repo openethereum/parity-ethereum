@@ -512,7 +512,7 @@ impl BlockChain {
 				},
 				Some(raw_first) => {
 					bc.first_block = Some(H256::from_slice(&raw_first));
-				}
+				},
 			}
 
 			// and write them
@@ -684,8 +684,9 @@ impl BlockChain {
 	/// Inserts a verified, known block from the canonical chain.
 	///
 	/// Can be performed out-of-order, but care must be taken that the final chain is in a correct state.
-	/// This is used by snapshot restoration.
-	///
+	/// This is used by snapshot restoration and when downloading missing blocks for the chain gap.
+	/// `is_best` forces the best block to be updated to this block.
+	/// `is_ancient` forces the best block of the first block sequence to be updated to this block.
 	/// Supply a dummy parent total difficulty when the parent block may not be in the chain.
 	/// Returns true if the block is disconnected.
 	pub fn insert_unordered_block(&self, batch: &mut DBTransaction, bytes: &[u8], receipts: Vec<Receipt>, parent_td: Option<U256>, is_best: bool, is_ancient: bool) -> bool {

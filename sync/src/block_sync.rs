@@ -474,7 +474,4 @@ impl BlockDownloader {
 	}
 }
 
-#[cfg(test)]
-mod tests {
-}
-
+//TODO: module tests
