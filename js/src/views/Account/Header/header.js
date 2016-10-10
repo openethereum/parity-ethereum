@@ -16,11 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Balance, Container, ContainerTitle, IdentityIcon } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
 
 import styles from './header.css';
-
-const DEFAULT_NAME = 'Unnamed';
 
 export default class Header extends Component {
   static contextTypes = {
@@ -63,7 +61,7 @@ export default class Header extends Component {
         <IdentityIcon
           address={ address } />
         <div className={ styles.floatleft }>
-          <ContainerTitle title={ name || DEFAULT_NAME } />
+          <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
           <div className={ styles.addressline }>
             { address }
           </div>

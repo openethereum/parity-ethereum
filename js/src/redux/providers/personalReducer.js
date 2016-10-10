@@ -17,6 +17,7 @@
 import { handleActions } from 'redux-actions';
 
 const initialState = {
+  accountsInfo: {},
   accounts: {},
   hasAccounts: false,
   contacts: {},
@@ -46,6 +47,7 @@ export default handleActions({
       });
 
     return Object.assign({}, state, {
+      accountsInfo,
       accounts,
       hasAccounts: Object.keys(accounts).length !== 0,
       contacts,

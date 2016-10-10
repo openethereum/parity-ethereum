@@ -15,13 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import Input from '../Input';
 import IdentityIcon from '../../IdentityIcon';
 
 import styles from './inputAddress.css';
 
-export default class InputAddress extends Component {
+class InputAddress extends Component {
   static propTypes = {
     className: PropTypes.string,
     disabled: PropTypes.bool,
@@ -29,15 +31,18 @@ export default class InputAddress extends Component {
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
-    nameValue: PropTypes.string,
+    accountsInfo: PropTypes.object,
     tokens: PropTypes.object,
+    text: PropTypes.bool,
     onChange: PropTypes.func,
     onSubmit: PropTypes.func
   };
 
   render () {
-    const { className, disabled, error, label, hint, value, nameValue, onChange, onSubmit } = this.props;
+    const { className, disabled, error, label, hint, value, text, onChange, onSubmit, accountsInfo, tokens } = this.props;
     const classes = `${styles.input} ${className}`;
+    const account = accountsInfo[value] || tokens[value];
+    const hasAccount = account && !account.meta.deleted;
 
     return (
       <div className={ styles.container }>
@@ -47,7 +52,7 @@ export default class InputAddress extends Component {
           label={ label }
           hint={ hint }
           error={ error }
-          value={ nameValue || value }
+          value={ text && hasAccount ? account.name : value }
           onChange={ onChange }
           onSubmit={ onSubmit } />
         { this.renderIcon() }
@@ -71,3 +76,22 @@ export default class InputAddress extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  const { accountsInfo } = state.personal;
+  const { tokens } = state.balances;
+
+  return {
+    accountsInfo,
+    tokens
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(InputAddress);
