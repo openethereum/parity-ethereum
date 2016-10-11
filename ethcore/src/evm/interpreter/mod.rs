@@ -141,16 +141,16 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 			evm_debug!({ informant.after_instruction(instruction) });
 
+			if let InstructionResult::UnusedGas(ref gas) = result {
+				gasometer.current_gas = gasometer.current_gas + *gas;
+			}
+
 			if trace_executed {
 				ext.trace_executed(gasometer.current_gas.as_u256(), stack.peek_top(info.ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
 			}
 
 			// Advance
 			match result {
-				InstructionResult::Ok => {},
-				InstructionResult::UnusedGas(gas) => {
-					gasometer.current_gas = gasometer.current_gas + gas;
-				},
 				InstructionResult::JumpToPosition(position) => {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
@@ -160,6 +160,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 					return Ok(GasLeft::NeedsReturn(gas.as_u256(), self.mem.read_slice(off, size)));
 				},
 				InstructionResult::StopExecution => break,
+				_ => {},
 			}
 		}
 		informant.done();

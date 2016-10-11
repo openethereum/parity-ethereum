@@ -212,7 +212,6 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
 				// Just like CALL, we add the amount of gas we give to the sub-context to our bill, then refund later. 
 				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), None);
-				flushln!("Gas provided: {:?}", provided);
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
