@@ -36,7 +36,14 @@ export default class Eth {
   }
 
   _blockNumber = () => {
-    const nextTimeout = () => setTimeout(() => this._blockNumber(), 1000);
+    const nextTimeout = (timeout = 1000) => {
+      setTimeout(() => this._blockNumber(), timeout);
+    };
+
+    if (!this._api.transport.isConnected()) {
+      nextTimeout(500);
+      return;
+    }
 
     return this._api.eth
       .blockNumber()
