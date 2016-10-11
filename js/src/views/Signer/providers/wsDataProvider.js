@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { isEqual } from 'lodash';
-import logger from '../utils/logger';
 import { updatePendingRequests, updateCompatibilityMode } from '../actions/requests';
 
 export default class WsDataProvider {
@@ -52,7 +51,7 @@ export default class WsDataProvider {
           return;
         }
 
-        logger.warn('[WS Provider] error fetching pending requests', err);
+        console.warn('[WS Provider] error fetching pending requests', err);
         return;
       }
 
@@ -61,7 +60,7 @@ export default class WsDataProvider {
         return;
       }
 
-      logger.log('[WS Provider] requests changed ', txsWs);
+      console.log('[WS Provider] requests changed ', txsWs);
       this.store.dispatch(updatePendingRequests(txsWs));
     });
   }
@@ -75,7 +74,7 @@ export default class WsDataProvider {
           this.fetchPendingRequests();
           return;
         }
-        logger.warn('[WS Provider] error fetching pending transactions', err);
+        console.warn('[WS Provider] error fetching pending transactions', err);
         return;
       }
 
@@ -92,7 +91,7 @@ export default class WsDataProvider {
         return;
       }
 
-      logger.log('[WS Provider] transactions changed ', txsWs);
+      console.log('[WS Provider] transactions changed ', txsWs);
       this.store.dispatch(updatePendingRequests(txsWs));
     });
   }

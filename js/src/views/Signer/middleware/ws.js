@@ -14,11 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import logger from '../utils/logger';
 import * as actions from '../actions/requests';
 
 export default class LocalstorageMiddleware {
-
   constructor (ws, setToken) {
     this.setToken = setToken;
     this.ws = ws;
@@ -57,7 +55,7 @@ export default class LocalstorageMiddleware {
     const method = store.getState().signerRequests.compatibilityMode ? 'personal_confirmTransaction' : 'personal_confirmRequest';
 
     this.send(method, [ id, {}, password ], (err, txHash) => {
-      logger.log('[WS MIDDLEWARE] confirm request cb:', err, txHash);
+      console.log('[WS MIDDLEWARE] confirm request cb:', err, txHash);
       if (err || !txHash) {
         store.dispatch(actions.errorConfirmRequest({ id, err: err ? err.message : 'Unable to confirm.' }));
         return;
@@ -75,7 +73,7 @@ export default class LocalstorageMiddleware {
     const method = store.getState().signerRequests.compatibilityMode ? 'personal_rejectTransaction' : 'personal_rejectRequest';
 
     this.send(method, [ id ], (err, res) => {
-      logger.log('[WS MIDDLEWARE] reject request cb:', err, res);
+      console.log('[WS MIDDLEWARE] reject request cb:', err, res);
       if (err) {
         store.dispatch(actions.errorRejectRequest({ id, err: err.message }));
         return;

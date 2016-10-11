@@ -15,10 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
-import logger from './logger';
 
 export default class Ws {
-
   constructor (path = window.location.host, reconnectDelay = 5000) {
     this._path = path;
     this._reconnectTimeout = reconnectDelay;
@@ -39,7 +37,7 @@ export default class Ws {
       const hash = token ? this._hash(token) : null;
       this._ws = new global.WebSocket(`ws://${this._path}`, hash);
     } catch (err) {
-      logger.warn('[WS] error connecting to ws', err); // throws when port is blocked, not when hash is incorrect
+      console.warn('[WS] error connecting to ws', err); // throws when port is blocked, not when hash is incorrect
     }
 
     this._ws.addEventListener('open', this._onOpen);
@@ -48,7 +46,7 @@ export default class Ws {
 
   send (payload, callback) {
     if (!this._isConnected) {
-      logger.log('[WS] not connected. incoming msg added to queue');
+      console.log('[WS] not connected. incoming msg added to queue');
       this._queue.push({ payload, callback });
       return;
     }
@@ -61,7 +59,7 @@ export default class Ws {
   }
 
   _onOpen = () => {
-    logger.log('[WS] connected');
+    console.log('[WS] connected');
     this._ws.addEventListener('close', this._onClose);
     this._ws.addEventListener('message', this._onMsg);
     this._isConnected = true;
@@ -74,7 +72,7 @@ export default class Ws {
     try {
       msg = JSON.parse(msg.data);
     } catch (err) {
-      return logger.warn('[WS] unknown msg from server: ', msg, err);
+      return console.warn('[WS] unknown msg from server: ', msg, err);
     }
     const cb = this._callbacks[msg.id];
     delete this._callbacks[msg.id];
@@ -87,7 +85,7 @@ export default class Ws {
   }
 
   _onClose = () => {
-    logger.warn('[WS] closed');
+    console.warn('[WS] closed');
     this._executeCbsWithError();
     this._isConnected = false;
     this._triggerEvent(this.onClose);
@@ -95,7 +93,7 @@ export default class Ws {
   }
 
   _onError = err => {
-    logger.warn('[WS] error', err);
+    console.warn('[WS] error', err);
     this._triggerEvent(this.onError, err);
     this._initTimeout = this._initWithTimeout();
   }
@@ -109,7 +107,7 @@ export default class Ws {
   }
 
   _executeQueue () {
-    logger.log('[WS] executing queue: ', this._queue);
+    console.log('[WS] executing queue: ', this._queue);
     this._queue.forEach(call => {
       this.send(call.payload, call.callback);
     });
@@ -117,7 +115,7 @@ export default class Ws {
   }
 
   _executeCbsWithError () {
-    logger.log('[WS] executing callbacks with error: ', this._callbacks);
+    console.log('[WS] executing callbacks with error: ', this._callbacks);
     for (const msgId in this._callbacks) {
       const cb = this._callbacks[msgId];
       cb('[WS] disconnected, cb cannot be called');

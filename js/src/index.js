@@ -38,7 +38,7 @@ import { Accounts, Account, Addresses, Address, Application, Contract, Contracts
 // TODO: This is VERY messy, just dumped here to get the Signer going
 import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
 import { WebSocketsProvider, Ws } from './views/Signer/utils';
-import { SignerDataProvider, WsDataProvider } from './views/Signer/providers';
+import { WsDataProvider } from './views/Signer/providers';
 
 import './environment';
 
@@ -71,7 +71,6 @@ store.dispatch({ type: 'initAll', api });
 
 // signer
 new WsDataProvider(store, ws); // eslint-disable-line no-new
-new SignerDataProvider(store, ws); // eslint-disable-line no-new
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 

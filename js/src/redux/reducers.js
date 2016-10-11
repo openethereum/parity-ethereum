@@ -23,10 +23,7 @@ import { errorReducer } from '../ui/Errors';
 import { settingsReducer } from '../views/Settings';
 import { tooltipReducer } from '../ui/Tooltips';
 
-import {
-  signer as signerReducer,
-  requests as signerRequestsReducer
-} from '../views/Signer/reducers';
+import { requests as signerRequestsReducer } from '../views/Signer/reducers';
 
 export default function () {
   return combineReducers({
@@ -40,7 +37,6 @@ export default function () {
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
 
-    signer: signerReducer,
     signerRequests: signerRequestsReducer
   });
 }

@@ -14,15 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
-
-export default class Eth {
-  constructor (updateSubscriptions, api) {
+export default class Signer {
+  constructor (updateSubscriptions, api, subscriber) {
+    this._subscriber = subscriber;
     this._api = api;
     this._updateSubscriptions = updateSubscriptions;
     this._started = false;
-
-    this._lastBlock = new BigNumber(-1);
   }
 
   get isStarted () {
@@ -32,29 +29,33 @@ export default class Eth {
   start () {
     this._started = true;
 
-    return this._blockNumber();
+    return Promise.all([
+      this._listRequests(),
+      this._loggingSubscribe()
+    ]);
   }
 
-  _blockNumber = () => {
-    const nextTimeout = (timeout = 1000) => {
-      setTimeout(() => this._blockNumber(), timeout);
-    };
+  _listRequests = () => {
+    return this._api.personal
+      .requestsToConfirm()
+      .then((requests) => {
+        this._updateSubscriptions('personal_requestsToConfirm', null, requests);
+      });
+  }
 
-    if (!this._api.transport.isConnected()) {
-      nextTimeout(500);
-      return;
-    }
+  _loggingSubscribe () {
+    return this._subscriber.subscribe('logging', (error, data) => {
+      if (error || !data) {
+        return;
+      }
 
-    return this._api.eth
-      .blockNumber()
-      .then((blockNumber) => {
-        if (!blockNumber.eq(this._lastBlock)) {
-          this._lastBlock = blockNumber;
-          this._updateSubscriptions('eth_blockNumber', null, blockNumber);
-        }
-
-        nextTimeout();
-      })
-      .catch(nextTimeout);
+      switch (data.method) {
+        case 'eth_postTransaction':
+        case 'eth_sendTranasction':
+        case 'eth_sendRawTransaction':
+          this._listRequests();
+          return;
+      }
+    });
   }
 }
