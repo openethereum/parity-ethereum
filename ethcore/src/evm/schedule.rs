@@ -145,7 +145,7 @@ impl Schedule {
 			extcodecopy_base_gas: 700, 
 			balance_gas: 400, 
 			suicide_gas: 5000,
-			suicide_to_new_account_cost: 25000,
+			suicide_to_new_account_cost: 0,
 			sub_gas_cap_divisor: Some(64),
 		}
 	}
