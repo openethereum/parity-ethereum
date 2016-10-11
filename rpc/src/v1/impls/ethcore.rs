@@ -165,13 +165,16 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 	fn net_peers(&self) -> Result<Peers, Error> {
 		try!(self.active());
 
-		let sync_status = take_weak!(self.sync).status();
+		let sync = take_weak!(self.sync);
+		let sync_status = sync.status();
 		let net_config = take_weak!(self.net).network_config();
+		let peers = sync.peers().into_iter().map(|s| s.into()).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
 			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+			peers: peers
 		})
 	}
 

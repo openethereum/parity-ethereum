@@ -72,6 +72,7 @@ pub enum SessionData {
 }
 
 /// Shared session information
+#[derive(Clone)]
 pub struct SessionInfo {
 	/// Peer public key
 	pub id: Option<NodeId>,
@@ -79,15 +80,21 @@ pub struct SessionInfo {
 	pub client_version: String,
 	/// Peer RLPx protocol version
 	pub protocol_version: u32,
+	/// Session protocol capabilities
+	pub capabilities: Vec<SessionCapabilityInfo>,
 	/// Peer protocol capabilities
-	capabilities: Vec<SessionCapabilityInfo>,
+	pub peer_capabilities: Vec<PeerCapabilityInfo>,
 	/// Peer ping delay in milliseconds
 	pub ping_ms: Option<u64>,
 	/// True if this session was originated by us.
 	pub originated: bool,
+	/// Remote endpoint address of the session
+	pub remote_address: String,
+	/// Local endpoint address of the session
+	pub local_address: String
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PeerCapabilityInfo {
 	pub protocol: ProtocolId,
 	pub version: u8,
@@ -109,8 +116,14 @@ impl Decodable for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug)]
-struct SessionCapabilityInfo {
+impl ToString for PeerCapabilityInfo {
+	fn to_string(&self) -> String {
+		format!("{}/{}", str::from_utf8(&self.protocol[..]).unwrap_or("???"), self.version)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionCapabilityInfo {
 	pub protocol: [u8; 3],
 	pub version: u8,
 	pub packet_count: u8,
@@ -134,6 +147,7 @@ impl Session {
 		where Message: Send + Clone {
 		let originated = id.is_some();
 		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
+		let local_addr = handshake.connection.local_addr_str();
 		try!(handshake.start(io, host, originated));
 		Ok(Session {
 			state: State::Handshake(handshake),
@@ -143,8 +157,11 @@ impl Session {
 				client_version: String::new(),
 				protocol_version: 0,
 				capabilities: Vec::new(),
+				peer_capabilities: Vec::new(),
 				ping_ms: None,
 				originated: originated,
+				remote_address: "Handshake".to_owned(),
+				local_address: local_addr,
 			},
 			ping_time_ns: 0,
 			pong_time_ns: None,
@@ -155,6 +172,7 @@ impl Session {
 	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
 		let connection = if let State::Handshake(ref mut h) = self.state {
 			self.info.id = Some(h.id.clone());
+			self.info.remote_address = h.connection.remote_addr_str();
 			try!(EncryptedConnection::new(h))
 		} else {
 			panic!("Unexpected state");
@@ -431,8 +449,10 @@ impl Session {
 			i += 1;
 		}
 		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
+		self.info.peer_capabilities = peer_caps; 
 		if self.info.capabilities.is_empty() {
 			trace!(target: "network", "No common capabilities with peer.");
 			return Err(From::from(self.disconnect(io, DisconnectReason::UselessPeer)));

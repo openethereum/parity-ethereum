@@ -42,7 +42,7 @@ pub use self::filter::{Filter, FilterChanges};
 pub use self::hash::{H64, H160, H256, H512, H520, H2048};
 pub use self::index::Index;
 pub use self::log::Log;
-pub use self::sync::{SyncStatus, SyncInfo, Peers};
+pub use self::sync::{SyncStatus, SyncInfo, Peers, PeerInfo, PeerNetworkInfo, PeerProtocolsInfo, PeerEthereumProtocolInfo};
 pub use self::transaction::Transaction;
 pub use self::transaction_request::TransactionRequest;
 pub use self::receipt::Receipt;
