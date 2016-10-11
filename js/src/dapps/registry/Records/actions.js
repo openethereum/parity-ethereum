@@ -10,8 +10,13 @@ export const update = (name, key, value) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
-  if (!contract || !account) return;
-  const fn = contract.functions.find((f) => f.name === 'set');
+
+  if (!contract || !account) {
+    return;
+  }
+
+  const fnName = key === 'A' ? 'setAddress' : 'set';
+  const fn = contract.functions.find((f) => f.name === fnName);
 
   name = name.toLowerCase();
   const options = { from: account.address };
