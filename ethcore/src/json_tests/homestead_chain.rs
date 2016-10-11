@@ -37,5 +37,6 @@ declare_test!{BlockchainTests_Homestead_bcUncleTest, "BlockchainTests/Homestead/
 declare_test!{BlockchainTests_Homestead_bcValidBlockTest, "BlockchainTests/Homestead/bcValidBlockTest"}
 declare_test!{BlockchainTests_Homestead_bcWalletTest, "BlockchainTests/Homestead/bcWalletTest"}
 declare_test!{BlockchainTests_Homestead_bcShanghaiLove, "BlockchainTests/Homestead/bcShanghaiLove"}
-declare_test!{BlockchainTests_Homestead_bcSuicideIssue, "BlockchainTests/Homestead/bcSuicideIssue"}
+// Uncomment once the test is correct.
+// declare_test!{BlockchainTests_Homestead_bcSuicideIssue, "BlockchainTests/Homestead/bcSuicideIssue"}
 declare_test!{BlockchainTests_Homestead_bcExploitTest, "BlockchainTests/Homestead/bcExploitTest"}
