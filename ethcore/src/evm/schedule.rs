@@ -108,6 +108,7 @@ impl Schedule {
 
 	/// Schedule for the Homestead-era of the Ethereum main net.
 	pub fn new_homestead_gas_fix() -> Schedule {
+		flushln!("Creating new EIP150 schedule.");
 		Schedule{
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,

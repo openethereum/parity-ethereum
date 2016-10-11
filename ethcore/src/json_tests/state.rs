@@ -32,7 +32,8 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
 		ChainEra::Homestead => ethereum::new_homestead_test().engine,
 		ChainEra::DaoHardfork => ethereum::new_daohardfork_test().engine,
-};
+		ChainEra::Eip150Hardfork => ethereum::new_eip150hardfork_test().engine,
+	};
 
 	for (name, test) in tests.into_iter() {
 		let mut fail = false;
