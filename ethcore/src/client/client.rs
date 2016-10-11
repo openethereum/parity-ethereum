@@ -354,7 +354,11 @@ impl Client {
 			for block in blocks {
 				let header = &block.header;
 				let is_invalid = invalid_blocks.contains(header.parent_hash());
-				if let (false, Ok(closed_block)) = (is_invalid, self.check_and_close_block(&block)) {
+				if is_invalid {
+					invalid_blocks.insert(header.hash());
+					continue;
+				}
+				if let Ok(closed_block) = self.check_and_close_block(&block) {
 					imported_blocks.push(header.hash());
 
 					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
