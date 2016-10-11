@@ -92,7 +92,7 @@ export default class Names extends Component {
             ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
             : (action === 'reserve'
                 ? (<p className={ styles.noSpacing }>
-                  The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ΞTH.
+                  The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ETH.
                 </p>)
                 : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
               )

@@ -93,7 +93,7 @@ class Method extends Component {
 
     return (
       <div className={ styles.gasDetails }>
-        { historic ? 'Used' : 'Will use' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ΞTH</small>)</span> for a total transaction cost of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        { historic ? 'Used' : 'Will use' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)</span> for a total transaction cost of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
       </div>
     );
   }
@@ -260,7 +260,7 @@ class Method extends Component {
 
     return (
       <span className={ styles.etherValue }>
-        { ether.toFormat(5) }<small>ΞTH</small>
+        { ether.toFormat(5) }<small>ETH</small>
       </span>
     );
   }

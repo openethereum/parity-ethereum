@@ -54,7 +54,7 @@ export default class DetailsStep extends Component {
         { this.renderFunctionSelect() }
         { this.renderParameters() }
         <Input
-          label='transaction value (in ΞTH)'
+          label='transaction value (in ETH)'
           hint='the amount to send to with the transaction'
           value={ amount }
           error={ amountError }

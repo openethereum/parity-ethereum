@@ -94,7 +94,7 @@ export default class ActionRefund extends Component {
   }
 
   renderFields () {
-    const priceLabel = `price in ΞTH (current ${api.util.fromWei(this.props.price).toFormat(3)})`;
+    const priceLabel = `price in ETH (current ${api.util.fromWei(this.props.price).toFormat(3)})`;
 
     return (
       <div>
@@ -111,7 +111,7 @@ export default class ActionRefund extends Component {
           floatingLabelFixed
           floatingLabelText='number of coins'
           fullWidth
-          hintText='the number of coins to exchange for an ΞTH refund'
+          hintText='the number of coins to exchange for an ETH refund'
           errorText={ this.state.amountError }
           name={ NAME_ID }
           id={ NAME_ID }

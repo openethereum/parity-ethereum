@@ -38,7 +38,7 @@ export default class Value extends Component {
 
     return (
       <div className={ styles.body }>
-        <span>{ value }</span><small>{ symbol || 'ΞTH' }</small>
+        <span>{ value }</span><small>{ symbol || 'ETH' }</small>
       </div>
     );
   }

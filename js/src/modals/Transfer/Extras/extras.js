@@ -69,7 +69,7 @@ export default class Extras extends Component {
               label='total transaction amount'
               hint='the total amount of the transaction'
               error={ totalError }
-              value={ `${total} ΞTH` } />
+              value={ `${total} ETH` } />
           </div>
         </div>
       </Form>

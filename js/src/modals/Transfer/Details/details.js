@@ -83,7 +83,7 @@ export default class Details extends Component {
               label='total transaction amount'
               error={ totalError }>
               <div className={ styles.inputoverride }>
-                { total }<small> ΞTH</small>
+                { total }<small> ETH</small>
               </div>
             </Input>
           </div>

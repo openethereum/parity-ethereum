@@ -40,7 +40,7 @@ export default class AccountItem extends Component {
     } else {
       if (account.ethBalance) {
         balance = account.ethBalance;
-        token = 'ΞTH';
+        token = 'ETH';
       }
     }
 
