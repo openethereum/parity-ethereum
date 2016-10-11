@@ -46,7 +46,7 @@ pub struct Peers {
 }
 
 /// Peer connection information
-#[derive(Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
@@ -61,7 +61,7 @@ pub struct PeerInfo {
 }
 
 /// Peer network information
-#[derive(Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct PeerNetworkInfo {
 	/// Remote endpoint address
 	#[serde(rename="remoteAddress")]
@@ -72,14 +72,14 @@ pub struct PeerNetworkInfo {
 }
 
 /// Peer protocols information
-#[derive(Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
 	pub eth: PeerEthereumProtocolInfo
 }
 
 /// Peer Ethereum protocol information
-#[derive(Serialize)]
+#[derive(Default, Debug, Serialize)]
 pub struct PeerEthereumProtocolInfo {
 	/// Negotiated ethereum protocol version
 	pub version: u32,
