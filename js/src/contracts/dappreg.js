@@ -65,4 +65,8 @@ export default class DappReg {
       return instance.meta.call({}, [id, key]);
     });
   }
+
+  getImage (id) {
+    return this.meta(id, 'IMG');
+  }
 }

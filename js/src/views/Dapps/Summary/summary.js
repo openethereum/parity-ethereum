@@ -43,7 +43,7 @@ export default class Summary extends Component {
     return (
       <Container>
         <IdentityIcon
-          address={ app.address } />
+          address={ app.id } />
         <Title
           title={ <Link to={ url }>{ app.name }</Link> }
           byline={ app.description } />

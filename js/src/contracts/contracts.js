@@ -37,7 +37,7 @@ export default class Contracts {
   }
 
   get dappReg () {
-    return this._dappReg;
+    return this._dappreg;
   }
 
   get signatureReg () {

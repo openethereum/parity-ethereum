@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { sha3 } from '../../api/util/sha3';
+import Contracts from '../../contracts';
+import { setAddressImage } from '../../redux/actions';
 import { Actionbar, Page } from '../../ui';
 
 import Summary from './Summary';
@@ -69,11 +71,16 @@ class Dapps extends Component {
   }
 
   static propTypes = {
-    tokens: PropTypes.object
+    tokens: PropTypes.object,
+    setAddressImage: PropTypes.func.isRequired
   }
 
   state = {
     apps: APPS
+  }
+
+  componentDidMount () {
+    this.loadImages();
   }
 
   render () {
@@ -106,6 +113,24 @@ class Dapps extends Component {
       );
     });
   }
+
+  loadImages () {
+    const { setAddressImage } = this.props;
+    const { apps } = this.state;
+    const { dappReg } = Contracts.get();
+
+    Promise
+      .all(apps.map((app) => dappReg.getImage(app.id)))
+      .then((images) => {
+        apps.forEach((app, index) => {
+          setAddressImage(app.id, images[index]);
+        });
+        this.setState({ apps });
+      })
+      .catch((error) => {
+        console.error('loadImages', error);
+      });
+  }
 }
 
 function mapStateToProps (state) {
@@ -117,7 +142,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({ setAddressImage }, dispatch);
 }
 
 export default connect(
