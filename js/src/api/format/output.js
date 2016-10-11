@@ -121,6 +121,24 @@ export function outReceipt (receipt) {
   return receipt;
 }
 
+export function outSignerRequest (request) {
+  if (request) {
+    Object.keys(request).forEach((key) => {
+      switch (key) {
+        case 'id':
+          request[key] = outNumber(request[key]);
+          break;
+
+        case 'payload':
+          request[key].transaction = outTransaction(request[key].transaction);
+          break;
+      }
+    });
+  }
+
+  return request;
+}
+
 export function outTransaction (tx) {
   if (tx) {
     Object.keys(tx).forEach((key) => {

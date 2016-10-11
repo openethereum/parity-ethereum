@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inNumber10, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress } from '../../format/output';
+import { outAccountInfo, outAddress, outSignerRequest } from '../../format/output';
 
 export default class Personal {
   constructor (transport) {
@@ -81,7 +81,8 @@ export default class Personal {
 
   requestsToConfirm () {
     return this._transport
-      .execute('personal_requestsToConfirm');
+      .execute('personal_requestsToConfirm')
+      .then((requests) => (requests || []).map(outSignerRequest));
   }
 
   setAccountName (address, name) {

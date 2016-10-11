@@ -19,6 +19,7 @@ import { isError } from '../util/types';
 import Eth from './eth';
 import Logging from './logging';
 import Personal from './personal';
+import Signer from './signer';
 
 const events = [
   'logging',
@@ -48,6 +49,7 @@ export default class Manager {
     this._logging = new Logging(this._updateSubscriptions);
     this._eth = new Eth(this._updateSubscriptions, api);
     this._personal = new Personal(this._updateSubscriptions, api, this);
+    this._signer = new Signer(this._updateSubscriptions, api, this);
   }
 
   _validateType (_subscriptionName) {
