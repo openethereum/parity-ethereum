@@ -75,9 +75,8 @@ export default class Queries extends Component {
     const { contract } = this.props;
 
     return (
-      <div className={ styles.container }>
+      <div className={ styles.container } key={ fn.signature }>
         <InputQuery
-          key={ fn.signature }
           className={ styles.method }
           inputs={ abi.inputs }
           outputs={ abi.outputs }
@@ -92,10 +91,8 @@ export default class Queries extends Component {
     const { values } = this.props;
 
     return (
-      <div className={ styles.container }>
-        <Card
-          className={ styles.method }
-          key={ fn.signature }>
+      <div className={ styles.container } key={ fn.signature }>
+        <Card className={ styles.method }>
           <CardTitle
             className={ styles.methodTitle }
             title={ fn.name }
