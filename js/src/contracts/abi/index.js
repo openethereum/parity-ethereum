@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import basiccoinmanager from './basiccoinmanager.json';
+import dappreg from './dappreg.json';
 import eip20 from './eip20.json';
 import gavcoin from './gavcoin.json';
 import githubhint from './githubhint.json';
@@ -25,6 +26,7 @@ import tokenreg from './tokenreg.json';
 
 export {
   basiccoinmanager,
+  dappreg,
   eip20,
   gavcoin,
   githubhint,

@@ -20,6 +20,7 @@ import styles from './title.css';
 
 export default class Title extends Component {
   static propTypes = {
+    className: PropTypes.string,
     title: PropTypes.oneOfType([
       PropTypes.string, PropTypes.node
     ]),
@@ -31,8 +32,10 @@ export default class Title extends Component {
   }
 
   render () {
+    const { className } = this.props;
+
     return (
-      <div>
+      <div className={ className }>
         <h3 className={ styles.title }>
           { this.props.title }
         </h3>

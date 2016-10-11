@@ -203,6 +203,7 @@ export default class ExecuteContract extends Component {
       .estimateGas(options, values)
       .then((gas) => {
         options.gas = gas.mul(1.2).toFixed(0);
+        console.log(`estimateGas: received ${gas.toFormat(0)}, adjusted to ${gas.mul(1.2).toFormat(0)}`);
         return func.postTransaction(options, values);
       })
       .then((requestId) => {

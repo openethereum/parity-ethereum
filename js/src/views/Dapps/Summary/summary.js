@@ -17,8 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import Container, { Title } from '../../../ui/Container';
-import IdentityIcon from '../../../ui/IdentityIcon';
+import { Container, ContainerTitle } from '../../../ui';
+
+import styles from './summary.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -27,7 +28,6 @@ export default class Summary extends Component {
 
   static propTypes = {
     app: PropTypes.object.isRequired,
-    tokens: PropTypes.object,
     children: PropTypes.node
   }
 
@@ -38,16 +38,22 @@ export default class Summary extends Component {
       return null;
     }
 
-    const url = `/app/${app.url}`;
+    const url = `/app/${app.local ? 'local' : 'global'}/${app.url}`;
+    const image = app.image
+      ? <img src={ app.image } className={ styles.image } />
+      : <div className={ styles.image }>&nbsp;</div>;
 
     return (
-      <Container>
-        <IdentityIcon
-          address={ app.address } />
-        <Title
-          title={ <Link to={ url }>{ app.name }</Link> }
-          byline={ app.description } />
-        { this.props.children }
+      <Container className={ styles.container }>
+        { image }
+        <div className={ styles.description }>
+          <ContainerTitle
+            className={ styles.title }
+            title={ <Link to={ url }>{ app.name }</Link> }
+            byline={ app.description } />
+          <div className={ styles.author }>{ app.author }, v{ app.version }</div>
+          { this.props.children }
+        </div>
       </Container>
     );
   }

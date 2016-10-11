@@ -23,13 +23,18 @@ const initialState = {
   images: {}
 };
 
+export function hashToImageUrl (hashArray) {
+  const hash = hashArray ? bytesToHex(hashArray) : ZERO;
+
+  return hash === ZERO ? null : `/api/content/${hash.substr(2)}`;
+}
+
 export default handleActions({
   setAddressImage (state, action) {
     const { address, hashArray } = action;
-    const hash = hashArray ? bytesToHex(hashArray) : ZERO;
 
     return Object.assign({}, state, {
-      [address]: hash === ZERO ? null : `/api/content/${hash.substr(2)}`
+      [address]: hashToImageUrl(hashArray)
     });
   }
 }, initialState);
