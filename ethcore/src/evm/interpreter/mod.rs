@@ -268,16 +268,16 @@ impl<Cost: CostType> Interpreter<Cost> {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
+				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address) >= endowment && ext.depth() < ext.schedule().max_depth;
 
 				if !can_create {
 					stack.push(U256::zero());
-					return Ok(InstructionResult::Ok);
+					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
 
-				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 				let create_result = ext.create(&gas.as_u256(), &create_gas.as_u256(), contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
@@ -286,7 +286,6 @@ impl<Cost: CostType> Interpreter<Cost> {
 					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
-						// TODO [todr] Should we just StopExecution here?
 						Ok(InstructionResult::Ok)
 					}
 				};

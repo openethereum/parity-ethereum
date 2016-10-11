@@ -128,7 +128,14 @@ impl<Gas: CostType> Gasometer<Gas> {
 				InstructionCost::Gas(Gas::from(schedule.extcodesize_gas))
 			},
 			instructions::SUICIDE => {
-				InstructionCost::Gas(Gas::from(schedule.suicide_gas))
+				let mut gas = Gas::from(schedule.suicide_gas);
+
+				let address = u256_to_address(stack.peek(0));
+				if !ext.exists(&address) {
+					gas = overflowing!(gas.overflow_add(schedule.suicide_to_new_account_cost.into()));
+				}
+
+				InstructionCost::Gas(gas)
 			},
 			instructions::MSTORE | instructions::MLOAD => {
 				InstructionCost::GasMem(default_gas, try!(mem_needed_const(stack.peek(0), 32)), None)
@@ -205,6 +212,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
 				// Just like CALL, we add the amount of gas we give to the sub-context to our bill, then refund later. 
 				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), None);
+				flushln!("Gas provided: {:?}", provided);
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
