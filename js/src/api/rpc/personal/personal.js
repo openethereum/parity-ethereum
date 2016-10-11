@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inNumber10, inOptions } from '../../format/input';
+import { inAddress, inNumber10, inNumber16, inOptions } from '../../format/input';
 import { outAccountInfo, outAddress } from '../../format/output';
 
 export default class Personal {
@@ -26,6 +26,11 @@ export default class Personal {
     return this._transport
       .execute('personal_accountsInfo')
       .then(outAccountInfo);
+  }
+
+  confirmRequest (requestId) {
+    return this._transport
+      .execute('personal_confirmRequest', inNumber16(requestId));
   }
 
   generateAuthorizationToken () {
@@ -67,6 +72,16 @@ export default class Personal {
     return this._transport
       .execute('personal_newAccountFromWallet', json, password)
       .then(outAddress);
+  }
+
+  rejectRequest (requestId) {
+    return this._transport
+      .execute('personal_rejectRequest', inNumber16(requestId));
+  }
+
+  requestsToConfirm () {
+    return this._transport
+      .execute('personal_requestsToConfirm');
   }
 
   setAccountName (address, name) {
