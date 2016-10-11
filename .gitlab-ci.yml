@@ -268,8 +268,8 @@ windows:
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
     - cmd md5sum target\release\parity >> checksum
-    - powershell Start-FileDownload "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -FileName nsis\SimpleFC.dll
-    - powershell Start-FileDownload "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -FileName nsis\vc_redist.x64.exe
+    - cmd curl -L --url https://github.com/ethcore/win-build/raw/master/SimpleFC.dll -o nsis\SimpleFC.dll
+    - cmd curl -L --url https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe -o nsis\vc_redist.x64.exe
     - cmd signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - cmd C:\NSIS\makensis.exe nsis\installer.nsi
     - cmd signtool sign /f %keyfile% /p %certpass% nsis\installer.exe
