@@ -249,6 +249,7 @@ impl Miner {
 	fn prepare_sealing(&self, chain: &MiningBlockChainClient) {
 		trace!(target: "miner", "prepare_sealing: entering");
 
+		let _timer = PerfTimer::new("prepare_sealing");
 		{
 			trace!(target: "miner", "recalibrating...");
 			let txq = self.transaction_queue.clone();
