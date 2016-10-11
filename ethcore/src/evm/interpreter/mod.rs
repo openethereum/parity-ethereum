@@ -278,7 +278,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
 
-				let create_result = ext.create(&gas.as_u256(), &create_gas.as_u256(), contract_code);
+				let create_result = ext.create(&create_gas.as_u256(), &endowment, contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
