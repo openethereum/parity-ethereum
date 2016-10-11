@@ -459,9 +459,7 @@ impl Configuration {
 		ret.min_peers = self.min_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
-		let net_specific_path = net_path.join(&try!(self.network_specific_path()));
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.net_config_path = Some(net_specific_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
