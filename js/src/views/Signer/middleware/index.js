@@ -14,19 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// Middleware classes (except logger)
 import Ws from './ws';
-import Signer from './signer';
-import logger from './logger';
 
 export default function middlewares (ws, setToken) {
   // Middleware instances
   const wsMiddleware = new Ws(ws, setToken);
-  const signer = new Signer();
 
   return [
-    logger,
-    wsMiddleware.toMiddleware(),
-    signer.toMiddleware()
+    wsMiddleware.toMiddleware()
   ];
 }
