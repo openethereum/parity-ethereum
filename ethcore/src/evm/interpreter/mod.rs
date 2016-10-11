@@ -81,7 +81,6 @@ impl<'a> CodeReader<'a> {
 
 enum InstructionResult<Gas> {
 	Ok,
-	UseAllGas,
 	UnusedGas(Gas),
 	JumpToPosition(U256),
 	// gas left, init_orf, init_size
@@ -151,9 +150,6 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 				InstructionResult::Ok => {},
 				InstructionResult::UnusedGas(gas) => {
 					gasometer.current_gas = gasometer.current_gas + gas;
-				},
-				InstructionResult::UseAllGas => {
-					gasometer.current_gas = Cost::from(0);
 				},
 				InstructionResult::JumpToPosition(position) => {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
@@ -291,7 +287,7 @@ impl<Cost: CostType> Interpreter<Cost> {
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
 						// TODO [todr] Should we just StopExecution here?
-						Ok(InstructionResult::UseAllGas)
+						Ok(InstructionResult::Ok)
 					}
 				};
 			},
