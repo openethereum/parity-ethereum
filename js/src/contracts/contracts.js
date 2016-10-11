@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import DappReg from './dappreg';
 import Registry from './registry';
 import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
@@ -26,12 +27,17 @@ export default class Contracts {
 
     this._api = api;
     this._registry = new Registry(api);
+    this._dappreg = new DappReg(api, this._registry);
     this._signaturereg = new SignatureReg(api, this._registry);
     this._tokenreg = new TokenReg(api, this._registry);
   }
 
   get registry () {
     return this._registry;
+  }
+
+  get dappReg () {
+    return this._dappReg;
   }
 
   get signatureReg () {
