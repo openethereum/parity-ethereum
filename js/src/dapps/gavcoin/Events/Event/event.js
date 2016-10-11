@@ -102,7 +102,7 @@ export default class Event extends Component {
 
     return (
       <td className={ styles.ethvalue }>
-        { formatEth(price) }<small> ΞTH</small>
+        { formatEth(price) }<small> ETH</small>
       </td>
     );
   }

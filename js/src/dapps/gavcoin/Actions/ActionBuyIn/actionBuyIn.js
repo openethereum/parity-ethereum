@@ -96,7 +96,7 @@ export default class ActionBuyIn extends Component {
   }
 
   renderFields () {
-    const maxPriceLabel = `maximum price in ΞTH (current ${api.util.fromWei(this.props.price).toFormat(3)})`;
+    const maxPriceLabel = `maximum price in ETH (current ${api.util.fromWei(this.props.price).toFormat(3)})`;
 
     return (
       <div>
@@ -110,9 +110,9 @@ export default class ActionBuyIn extends Component {
         <TextField
           autoComplete='off'
           floatingLabelFixed
-          floatingLabelText='amount in ΞTH'
+          floatingLabelText='amount in ETH'
           fullWidth
-          hintText='the amount of ΞTH you wish to spend'
+          hintText='the amount of ETH you wish to spend'
           errorText={ this.state.amountError }
           name={ NAME_ID }
           id={ NAME_ID }

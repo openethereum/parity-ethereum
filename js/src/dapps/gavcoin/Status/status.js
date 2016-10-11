@@ -46,7 +46,7 @@ export default class Status extends Component {
             { formatCoins(remaining, -1) }
           </div>
           <div className={ styles.byline }>
-            available for { formatEth(price) }ΞTH
+            available for { formatEth(price) }ETH
           </div>
         </div>
         <div className={ styles.item }>

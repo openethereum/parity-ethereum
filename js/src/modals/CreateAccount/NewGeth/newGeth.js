@@ -57,7 +57,7 @@ export default class NewGeth extends Component {
           </div>
           <div className={ styles.detail }>
             <div className={ styles.address }>{ account.address }</div>
-            <div className={ styles.balance }>{ account.balance } ΞTH</div>
+            <div className={ styles.balance }>{ account.balance } ETH</div>
           </div>
         </div>
       );

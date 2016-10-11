@@ -66,7 +66,7 @@ export default class Transfer extends Component {
     recipient: '',
     recipientError: ERRORS.requireRecipient,
     sending: false,
-    tag: 'ΞTH',
+    tag: 'ETH',
     total: '0.0',
     totalError: null,
     value: '0.0',

@@ -23,7 +23,7 @@ import imagesEthereum from '../../images/contracts/ethereum-black-64x64.png';
 
 const ETH = {
   name: 'Ethereum',
-  tag: 'ΞTH',
+  tag: 'ETH',
   image: imagesEthereum
 };
 

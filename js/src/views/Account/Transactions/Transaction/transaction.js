@@ -143,7 +143,7 @@ export default class Transaction extends Component {
 
     return (
       <div className={ styles.value }>
-        { value.toFormat(5) }<small>ΞTH</small>
+        { value.toFormat(5) }<small>ETH</small>
       </div>
     );
   }
