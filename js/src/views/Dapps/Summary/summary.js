@@ -18,7 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
 import Container, { Title } from '../../../ui/Container';
-import IdentityIcon from '../../../ui/IdentityIcon';
+
+import styles from './summary.css';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -39,11 +40,13 @@ export default class Summary extends Component {
     }
 
     const url = `/app/${app.url}`;
+    const image = app.image
+      ? <img src={ app.image } className={ styles.image } />
+      : <div className={ styles.image }>&nbsp;</div>;
 
     return (
       <Container>
-        <IdentityIcon
-          address={ app.id } />
+        { image }
         <Title
           title={ <Link to={ url }>{ app.name }</Link> }
           byline={ app.description } />

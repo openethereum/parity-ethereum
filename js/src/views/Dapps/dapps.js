@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 
 import { sha3 } from '../../api/util/sha3';
 import Contracts from '../../contracts';
-import { setAddressImage } from '../../redux/actions';
+import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
 
 import Summary from './Summary';
@@ -71,15 +71,16 @@ class Dapps extends Component {
   }
 
   static propTypes = {
-    tokens: PropTypes.object,
-    setAddressImage: PropTypes.func.isRequired
+    tokens: PropTypes.object
   }
 
   state = {
-    apps: APPS
+    apps: APPS,
+    local: []
   }
 
   componentDidMount () {
+    this.loadLocalApps();
     this.loadImages();
   }
 
@@ -114,8 +115,18 @@ class Dapps extends Component {
     });
   }
 
+  loadLocalApps () {
+    fetch(`http://${window.location.host}/api/apps`, { method: 'GET' })
+      .then((response) => response.ok ? response.json() : [])
+      .then((apps) => {
+        console.log('loadLocalApps', apps);
+      })
+      .catch((error) => {
+        console.error('loadLocalApps', error);
+      });
+  }
+
   loadImages () {
-    const { setAddressImage } = this.props;
     const { apps } = this.state;
     const { dappReg } = Contracts.get();
 
@@ -123,7 +134,7 @@ class Dapps extends Component {
       .all(apps.map((app) => dappReg.getImage(app.id)))
       .then((images) => {
         apps.forEach((app, index) => {
-          setAddressImage(app.id, images[index]);
+          app.image = hashToImageUrl(images[index]);
         });
         this.setState({ apps });
       })
@@ -142,7 +153,7 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ setAddressImage }, dispatch);
+  return bindActionCreators({}, dispatch);
 }
 
 export default connect(
