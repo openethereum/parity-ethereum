@@ -129,7 +129,10 @@ impl Informant {
 				(&Some(ref sync_info), &Some(ref net_config)) => format!("{}{}/{}/{} peers",
 					match importing {
 						true => format!("{}   ", paint(Green.bold(), format!("{:>8}", format!("#{}", sync_info.last_imported_block_number.unwrap_or(chain_info.best_block_number))))),
-						false => String::new(),
+						false => match sync_info.last_imported_old_block_number {
+							Some(number) => format!("{}   ", paint(Yellow.bold(), format!("{:>8}", format!("#{}", number)))),
+							None => String::new(),
+						}
 					},
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_active_peers)),
 					paint(Cyan.bold(), format!("{:2}", sync_info.num_peers)),

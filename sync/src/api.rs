@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::str;
+use std::collections::HashMap;
+use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
 use util::{U256, H256};
@@ -104,7 +105,12 @@ impl EthSync {
 		let service = try!(NetworkService::new(try!(network_config.into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
-			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain, snapshot_service: snapshot_service }),
+			handler: Arc::new(SyncProtocolHandler {
+				sync: RwLock::new(chain_sync),
+				chain: chain,
+				snapshot_service: snapshot_service,
+				overlay: RwLock::new(HashMap::new()),
+			}),
 			subprotocol_name: config.subprotocol_name,
 		});
 
@@ -135,6 +141,8 @@ struct SyncProtocolHandler {
 	snapshot_service: Arc<SnapshotService>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>,
+	/// Chain overlay used to cache data such as fork block.
+	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
@@ -143,21 +151,21 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
+		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
+		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
-		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
-		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
-		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
+		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
+		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
+		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
 	}
 }
 
@@ -171,7 +179,7 @@ impl ChainNotify for EthSync {
 		_duration: u64)
 	{
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
@@ -239,7 +247,7 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().abort(&mut sync_io);
 		});
 		self.stop();
