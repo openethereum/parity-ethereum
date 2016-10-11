@@ -38,7 +38,7 @@ pub trait SyncIo {
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
-	/// Returns peer client identifier string
+	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
 	/// Maximum mutuallt supported ETH protocol version
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;

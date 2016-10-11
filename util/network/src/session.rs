@@ -72,7 +72,7 @@ pub enum SessionData {
 }
 
 /// Shared session information
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct SessionInfo {
 	/// Peer public key
 	pub id: Option<NodeId>,

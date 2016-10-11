@@ -372,9 +372,9 @@ impl ChainSync {
 	/// @returns Information on peers connections
 	pub fn peers(&self, io: &SyncIo) -> Vec<PeerInfoDigest> {
 		self.peers.iter()
-			.filter_map(|(&peer_id, ref peer_data)| {
-				if let Some(session_info) = io.peer_session_info(peer_id) {
-					return Some(PeerInfoDigest {
+			.filter_map(|(&peer_id, ref peer_data)|
+				io.peer_session_info(peer_id).map(|session_info|
+					PeerInfoDigest {
 						id: session_info.id.map(|id| id.hex()),
 						client_version: session_info.client_version,
 						capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
@@ -383,10 +383,8 @@ impl ChainSync {
 						eth_version: peer_data.protocol_version,
 						eth_difficulty: peer_data.difficulty,
 						eth_head: peer_data.latest_hash
-					})
-				};
-				None
-			})
+				})
+			)
 			.collect()
 	}
 

@@ -168,7 +168,7 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 		let sync = take_weak!(self.sync);
 		let sync_status = sync.status();
 		let net_config = take_weak!(self.net).network_config();
-		let peers = sync.peers().into_iter().map(|s| s.into()).collect();
+		let peers = sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,

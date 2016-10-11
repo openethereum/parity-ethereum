@@ -67,18 +67,18 @@ pub trait SyncProvider: Send + Sync {
 }
 
 /// Peer connection information
-#[derive(Binary)]
+#[derive(Debug, Binary)]
 pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
 	/// Node client ID
-    pub client_version: String,
+	pub client_version: String,
 	/// Capabilities
 	pub capabilities: Vec<String>, 
 	/// Remote endpoint address
-    pub remote_address: String,
+	pub remote_address: String,
 	/// Local endpoint address
-    pub local_address: String,
+	pub local_address: String,
 	/// Ethereum protocol version
 	pub eth_version: u32,
 	/// SHA3 of peer best block hash

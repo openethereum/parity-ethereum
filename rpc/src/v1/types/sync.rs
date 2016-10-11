@@ -51,7 +51,7 @@ pub struct PeerInfo {
 	/// Public node id
 	pub id: Option<String>,
 	/// Node client ID
-    pub name: String,
+	pub name: String,
 	/// Capabilities
 	pub caps: Vec<String>, 
 	/// Network information
@@ -65,10 +65,10 @@ pub struct PeerInfo {
 pub struct PeerNetworkInfo {
 	/// Remote endpoint address
 	#[serde(rename="remoteAddress")]
-    pub remote_address: String,
+	pub remote_address: String,
 	/// Local endpoint address
 	#[serde(rename="localAddress")]
-    pub local_address: String
+	pub local_address: String
 }
 
 /// Peer protocols information
