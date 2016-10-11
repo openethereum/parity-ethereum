@@ -19,10 +19,10 @@ import React, { Component, PropTypes } from 'react';
 import Chip from 'material-ui/Chip';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
-import InputQueries from './inputQueries';
+import InputQuery from './inputQuery';
 import { Container, ContainerTitle } from '../../../ui';
 
-import styles from '../contract.css';
+import styles from './queries.css';
 
 export default class Queries extends Component {
   static contextTypes = {
@@ -75,14 +75,16 @@ export default class Queries extends Component {
     const { contract } = this.props;
 
     return (
-      <InputQueries
-        key={ fn.signature }
-        className={ styles.method }
-        inputs={ abi.inputs }
-        outputs={ abi.outputs }
-        name={ name }
-        contract={ contract }
-      />
+      <div className={ styles.container }>
+        <InputQuery
+          key={ fn.signature }
+          className={ styles.method }
+          inputs={ abi.inputs }
+          outputs={ abi.outputs }
+          name={ name }
+          contract={ contract }
+        />
+      </div>
     );
   }
 
@@ -90,19 +92,21 @@ export default class Queries extends Component {
     const { values } = this.props;
 
     return (
-      <Card
-        className={ styles.method }
-        key={ fn.signature }>
-        <CardTitle
-          className={ styles.methodTitle }
-          title={ fn.name }
-        />
-        <CardText
-          className={ styles.methodContent }
-        >
-          { this.renderValue(values[fn.name]) }
-        </CardText>
-      </Card>
+      <div className={ styles.container }>
+        <Card
+          className={ styles.method }
+          key={ fn.signature }>
+          <CardTitle
+            className={ styles.methodTitle }
+            title={ fn.name }
+          />
+          <CardText
+            className={ styles.methodContent }
+          >
+            { this.renderValue(values[fn.name]) }
+          </CardText>
+        </Card>
+      </div>
     );
   }
 

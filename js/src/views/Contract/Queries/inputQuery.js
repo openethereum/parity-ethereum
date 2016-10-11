@@ -22,9 +22,9 @@ import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
 import { Button, Input } from '../../../ui';
 
-import styles from '../contract.css';
+import styles from './queries.css';
 
-export default class InputQueries extends Component {
+export default class InputQuery extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
@@ -67,22 +67,24 @@ export default class InputQueries extends Component {
     const inputsFields = inputs
       .map(input => this.renderInput(input));
 
-    return (<div>
-      <CardText
-        className={ styles.methodContent }
-      >
-        <div className={ styles.methodResults }>
-          { this.renderResults() }
-        </div>
-        { inputsFields }
-      </CardText>
-      <CardActions>
-        <Button
-          label='Execute'
-          disabled={ !isValid }
-          onClick={ this.onClick } />
-      </CardActions>
-    </div>);
+    return (
+      <div>
+        <CardText
+          className={ styles.methodContent }
+        >
+          <div className={ styles.methodResults }>
+            { this.renderResults() }
+          </div>
+          { inputsFields }
+        </CardText>
+        <CardActions>
+          <Button
+            label='Execute'
+            disabled={ !isValid }
+            onClick={ this.onClick } />
+        </CardActions>
+      </div>
+    );
   }
 
   renderResults () {
