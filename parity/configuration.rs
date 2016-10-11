@@ -30,7 +30,7 @@ use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
@@ -348,6 +348,7 @@ impl Configuration {
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
+			tx_queue_gas_limit: try!(to_gas_limit(&self.args.flag_tx_queue_gas)),
 			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
