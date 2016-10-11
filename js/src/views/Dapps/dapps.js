@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 import { sha3 } from '../../api/util/sha3';
 import Contracts from '../../contracts';
@@ -31,32 +29,44 @@ const APPS = [
   {
     name: 'Token Deployment',
     description: 'Deploy new basic tokens that you are able to send around',
-    url: 'basiccoin'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'basiccoin',
+    version: '1.0.0'
   },
   {
     name: 'GAVcoin',
     description: 'Manage your GAVcoins, the hottest new property in crypto',
-    url: 'gavcoin'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'gavcoin',
+    version: '1.0.0'
   },
   {
     name: 'Registry',
     description: 'A global registry of addresses on the network',
-    url: 'registry'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'registry',
+    version: '1.0.0'
   },
   {
     name: 'Token Registry',
     description: 'A registry of transactable tokens on the network',
-    url: 'tokenreg'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'tokenreg',
+    version: '1.0.0'
   },
   {
     name: 'Method Registry',
     description: 'A registry of method signatures for lookups on transactions',
-    url: 'signaturereg'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'signaturereg',
+    version: '1.0.0'
   },
   {
     name: 'GitHub Hint',
     description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
-    url: 'githubhint'
+    author: 'Ethcore <admin@ethcore.io>',
+    url: 'githubhint',
+    version: '1.0.0'
   }
 ];
 
@@ -65,18 +75,14 @@ APPS.forEach((app) => {
   console.log(`dapps ${app.id} -> ${app.url}`);
 });
 
-class Dapps extends Component {
+export default class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
-  static propTypes = {
-    tokens: PropTypes.object
-  }
-
   state = {
-    apps: APPS,
-    local: []
+    globalApps: APPS,
+    localApps: []
   }
 
   componentDidMount () {
@@ -91,35 +97,50 @@ class Dapps extends Component {
           title='Decentralized Applications' />
         <Page>
           <div className={ styles.list }>
-            { this.renderApps() }
+            { this.renderGlobalApps() }
+          </div>
+          <div className={ styles.list }>
+            { this.renderLocalApps() }
           </div>
         </Page>
       </div>
     );
   }
 
-  renderApps () {
-    const { tokens } = this.props;
-    const { apps } = this.state;
+  renderApp = (app) => {
+    return (
+      <div
+        className={ styles.item }
+        key={ app.url }>
+        <Summary app={ app } />
+      </div>
+    );
+  }
 
-    return apps.map((app, idx) => {
-      return (
-        <div
-          className={ styles.item }
-          key={ app.url }>
-          <Summary
-            app={ app }
-            tokens={ tokens } />
-        </div>
-      );
-    });
+  renderGlobalApps () {
+    const { globalApps } = this.state;
+
+    return globalApps.map(this.renderApp);
+  }
+
+  renderLocalApps () {
+    const { localApps } = this.state;
+
+    return localApps.map(this.renderApp);
   }
 
   loadLocalApps () {
     fetch(`http://${window.location.host}/api/apps`, { method: 'GET' })
       .then((response) => response.ok ? response.json() : [])
-      .then((apps) => {
-        console.log('loadLocalApps', apps);
+      .then((_localApps) => {
+        const localApps = _localApps.map((app) => {
+          app.image = `/app/${app.id}/${app.iconUrl}`;
+          app.url = app.id;
+          app.local = true;
+          return app;
+        });
+        console.log('loadLocalApps', localApps);
+        this.setState({ localApps });
       })
       .catch((error) => {
         console.error('loadLocalApps', error);
@@ -127,36 +148,19 @@ class Dapps extends Component {
   }
 
   loadImages () {
-    const { apps } = this.state;
+    const { globalApps } = this.state;
     const { dappReg } = Contracts.get();
 
     Promise
-      .all(apps.map((app) => dappReg.getImage(app.id)))
+      .all(globalApps.map((app) => dappReg.getImage(app.id)))
       .then((images) => {
-        apps.forEach((app, index) => {
+        globalApps.forEach((app, index) => {
           app.image = hashToImageUrl(images[index]);
         });
-        this.setState({ apps });
+        this.setState({ globalApps });
       })
       .catch((error) => {
         console.error('loadImages', error);
       });
   }
 }
-
-function mapStateToProps (state) {
-  const { tokens } = state.balances;
-
-  return {
-    tokens
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Dapps);

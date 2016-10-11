@@ -19,6 +19,10 @@
   flex-wrap: wrap;
 }
 
+.list+.list {
+  margin-top: -0.25em;
+}
+
 .item {
   flex: 0 1 50%;
   width: 50%;
