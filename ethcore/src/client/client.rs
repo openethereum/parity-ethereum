@@ -149,13 +149,6 @@ pub struct Client {
 /// assume finality of a given candidate.
 pub const HISTORY: u64 = 1200;
 
-/// Append a path element to the given path and return the string.
-pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
-	let mut p = path.as_ref().to_path_buf();
-	p.push(item);
-	p.to_str().unwrap().to_owned()
-}
-
 impl Client {
 	/// Create a new client with given spec and DB path and custom verifier.
 	pub fn new(
@@ -169,7 +162,7 @@ impl Client {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 
-		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
+		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
@@ -298,31 +291,27 @@ impl Client {
 
 		// Check if Parent is in chain
 		let chain_has_parent = chain.block_header(header.parent_hash());
-		if let None = chain_has_parent {
+		if let Some(parent) = chain_has_parent {
+			// Enact Verified Block
+			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+			let db = self.state_db.lock().boxed_clone_canon(&header.parent_hash());
+
+			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
+			let locked_block = try!(enact_result.map_err(|e| {
+				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			}));
+
+			// Final Verification
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				return Err(());
+			}
+
+			Ok(locked_block)
+		} else {
 			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-			return Err(());
-		};
-
-		// Enact Verified Block
-		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-		let is_canon = header.parent_hash() == &chain.best_block_hash();
-		let db = if is_canon { self.state_db.lock().boxed_clone_canon() } else { self.state_db.lock().boxed_clone() };
-
-		let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-		if let Err(e) = enact_result {
-			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
-		};
-
-		// Final Verification
-		let locked_block = enact_result.unwrap();
-		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
-			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
+			Err(())
 		}
-
-		Ok(locked_block)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
@@ -366,23 +355,21 @@ impl Client {
 
 			for block in blocks {
 				let header = &block.header;
-				if invalid_blocks.contains(header.parent_hash()) {
+				let is_invalid = invalid_blocks.contains(header.parent_hash());
+				if is_invalid {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}
-				let closed_block = self.check_and_close_block(&block);
-				if let Err(_) = closed_block {
+				if let Ok(closed_block) = self.check_and_close_block(&block) {
+					imported_blocks.push(header.hash());
+
+					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+					import_results.push(route);
+
+					self.report.write().accrue_block(&block);
+				} else {
 					invalid_blocks.insert(header.hash());
-					continue;
 				}
-
-				let closed_block = closed_block.unwrap();
-				imported_blocks.push(header.hash());
-
-				let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-				import_results.push(route);
-
-				self.report.write().accrue_block(&block);
 			}
 
 			let imported = imported_blocks.len();
@@ -432,7 +419,7 @@ impl Client {
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
 			let n = number - HISTORY;
-			Some((n, chain.block_hash(n).unwrap()))
+			Some((n, chain.block_hash(n).expect("only verified blocks can be commited; verified block has hash; qed")))
 		} else {
 			None
 		};
@@ -461,6 +448,8 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
+		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
 		self.db.read().write_buffered(batch);
 		chain.commit();
@@ -535,9 +524,11 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
+		let header = self.best_block_header();
+		let header = HeaderView::new(&header);
 		State::from_existing(
-			self.state_db.lock().boxed_clone(),
-			HeaderView::new(&self.best_block_header()).state_root(),
+			self.state_db.lock().boxed_clone_canon(&header.hash()),
+			header.state_root(),
 			self.engine.account_start_nonce(),
 			self.factories.clone())
 		.expect("State root of best block header always valid.")
@@ -899,8 +890,10 @@ impl BlockChainClient for Client {
 					BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index)
 				});
 
-			match (t, chain.transaction_receipt(&address)) {
-				(Some(tx), Some(receipt)) => {
+			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
+
+			match (tx_and_sender, chain.transaction_receipt(&address)) {
+				(Some((tx, sender)), Some(receipt)) => {
 					let block_hash = tx.block_hash.clone();
 					let block_number = tx.block_number.clone();
 					let transaction_hash = tx.hash();
@@ -922,7 +915,7 @@ impl BlockChainClient for Client {
 						gas_used: receipt.gas_used - prior_gas_used,
 						contract_address: match tx.action {
 							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
+							Action::Create => Some(contract_address(&sender, &tx.nonce))
 						},
 						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 							entry: log,
@@ -1023,17 +1016,18 @@ impl BlockChainClient for Client {
 		let start = self.block_number(filter.range.start);
 		let end = self.block_number(filter.range.end);
 
-		if start.is_some() && end.is_some() {
-			let filter = trace::Filter {
-				range: start.unwrap() as usize..end.unwrap() as usize,
-				from_address: From::from(filter.from_address),
-				to_address: From::from(filter.to_address),
-			};
+		match (start, end) {
+			(Some(s), Some(e)) => {
+				let filter = trace::Filter {
+					range: s as usize..e as usize,
+					from_address: From::from(filter.from_address),
+					to_address: From::from(filter.to_address),
+				};
 
-			let traces = self.tracedb.read().filter(&filter);
-			Some(traces)
-		} else {
-			None
+				let traces = self.tracedb.read().filter(&filter);
+				Some(traces)
+			},
+			_ => None,
 		}
 	}
 
@@ -1080,7 +1074,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
 	// TODO: Make it an actual queue, return errors.
@@ -1109,7 +1103,7 @@ impl MiningBlockChainClient for Client {
 			engine,
 			self.factories.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.lock().boxed_clone(),
+			self.state_db.lock().boxed_clone_canon(&h),
 			&chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
@@ -1120,11 +1114,15 @@ impl MiningBlockChainClient for Client {
 		// Add uncles
 		chain
 			.find_uncle_headers(&h, engine.maximum_uncle_age())
-			.unwrap()
+			.unwrap_or_else(Vec::new)
 			.into_iter()
 			.take(engine.maximum_uncle_count())
 			.foreach(|h| {
-				open_block.push_uncle(h).unwrap();
+				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
+												open_block was just created;
+												push_uncle is not ok only if more than maximum_uncle_count is pushed;
+												so all push_uncle are Ok;
+												qed");
 			});
 
 		open_block
@@ -1145,6 +1143,7 @@ impl MiningBlockChainClient for Client {
 		let block_data = block.rlp_bytes();
 		let route = self.commit_block(block, &h, &block_data);
 		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+		self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
 
 		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);

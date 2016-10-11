@@ -6,7 +6,7 @@ environment:
   certpass:
     secure: 0BgXJqxq9Ei34/hZ7121FQ==
   keyfile: C:\users\appveyor\Certificates.p12
-  RUSTFLAGS: -Zorbit=off
+  RUSTFLAGS: -Zorbit=off -D warnings
 
 branches:
   only:

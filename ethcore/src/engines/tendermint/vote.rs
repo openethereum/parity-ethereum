@@ -21,27 +21,35 @@ use util::Hashable;
 use account_provider::AccountProvider;
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 use basic_types::Seal;
+use super::BlockHash;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Hash)]
 pub struct Vote {
+	block_hash: BlockHash,
 	signature: H520
 }
 
-fn message(header: &Header) -> H256 {
+fn block_hash(header: &Header) -> H256 {
 	header.rlp(Seal::WithSome(1)).sha3()
 }
 
 impl Vote {
-	fn new(signature: H520) -> Vote { Vote { signature: signature }}
+	fn new(block_hash: BlockHash, signature: H520) -> Vote {
+		Vote { block_hash: block_hash, signature: signature }
+	}
 
 	/// Try to use the author address to create a vote.
 	pub fn propose(header: &Header, accounts: &AccountProvider) -> Option<Vote> {
-		accounts.sign(*header.author(), message(&header)).ok().map(Into::into).map(Self::new)
+		Self::validate(header, accounts, *header.author())
 	}
 	
 	/// Use any unlocked validator account to create a vote.
 	pub fn validate(header: &Header, accounts: &AccountProvider, validator: Address) -> Option<Vote> {
-		accounts.sign(validator, message(&header)).ok().map(Into::into).map(Self::new)
+		let message = block_hash(&header);
+		accounts.sign(validator, message)
+			.ok()
+			.map(Into::into)
+			.map(|sig| Self::new(message, sig))
 	}
 }
 
@@ -51,13 +59,14 @@ impl Decodable for Vote {
 		if decoder.as_raw().len() != try!(rlp.payload_info()).total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		rlp.as_val().map(Self::new)
+		Ok(Self::new(try!(rlp.val_at(0)), try!(rlp.val_at(1))))
     }
 }
 
 impl Encodable for Vote {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		let Vote { ref signature } = *self;
+		let Vote { ref block_hash, ref signature } = *self;
+		s.append(block_hash);
 		s.append(signature);
 	}
 }

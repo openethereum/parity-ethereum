@@ -21,7 +21,7 @@ macro_rules! rpc_unimplemented {
 }
 
 use std::fmt;
-use ethcore::error::Error as EthcoreError;
+use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
@@ -34,6 +34,7 @@ mod codes {
 	pub const NO_NEW_WORK: i64 = -32003;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
+	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
@@ -106,6 +107,14 @@ pub fn invalid_params<T: fmt::Debug>(param: &str, details: T) -> Error {
 		code: ErrorCode::InvalidParams,
 		message: format!("Couldn't parse parameters: {}", param),
 		data: Some(Value::String(format!("{:?}", details))),
+	}
+}
+
+pub fn execution<T: fmt::Debug>(data: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::EXECUTION_ERROR),
+		message: "Transaction execution error.".into(),
+		data: Some(Value::String(format!("{:?}", data))),
 	}
 }
 
@@ -189,13 +198,13 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			AlreadyImported => "Transaction with the same hash was already imported.".into(),
 			Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
 			TooCheapToReplace => {
-				"Transaction fee is too low. There is another transaction with same nonce in the queue. Try increasing the fee or incrementing the nonce.".into()
+				"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
 			},
 			LimitReached => {
 				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
 			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction fee is too low. It does not satisfy your node's minimal fee (minimal: {}, got: {}). Try increasing the fee.", minimal, got)
+				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
 			},
 			InsufficientBalance { balance, cost } => {
 				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
@@ -219,4 +228,10 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 	}
 }
 
-
+pub fn from_call_error(error: CallError) -> Error {
+	match error {
+		CallError::StatePruned => state_pruned(),
+		CallError::Execution(e) => execution(e),
+		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
+	}
+}

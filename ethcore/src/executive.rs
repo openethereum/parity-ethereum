@@ -25,10 +25,10 @@ use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, E
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
-/// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
+/// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
-const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
+const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -149,12 +149,13 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let gas_cost = t.gas.full_mul(t.gas_price);
 		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+		let balance512 = U512::from(balance);
+		if balance512 < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -212,8 +213,11 @@ impl<'a> Executive<'a> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+
+		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+
 		// Ordinary execution - keep VM in same thread
-		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
@@ -265,7 +269,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -285,7 +289,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_snapshot();
+				self.state.revert_to_snapshot();
 
 				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
@@ -331,7 +335,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -413,7 +417,7 @@ impl<'a> Executive<'a> {
 
 		// real ammount to refund
 		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
-		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
+		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
 		let gas_used = t.gas - gas_left;
@@ -473,10 +477,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_snapshot();
+					self.state.revert_to_snapshot();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 				substate.accrue(un_substate);
 			}
 		}

@@ -20,6 +20,7 @@ mod message;
 mod timeout;
 mod params;
 mod vote;
+mod vote_collector;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use common::*;
@@ -246,9 +247,11 @@ impl Engine for Tendermint {
 		}
 	}
 
-	/// Set author to proposer.
+	/// Set author to proposer and set the correct round in the seal.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
+	fn on_close_block(&self, _block: &mut ExecutedBlock) {
+		
+	}
 
 	/// Attempt to seal the block internally using all available signatures.
 	///
@@ -278,11 +281,14 @@ impl Engine for Tendermint {
 
 	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
 		let message: ConsensusMessage = try!(message.as_val());
-		try!(Err(EngineError::UnknownStep))
-		//match message {
-		//	ConsensusMessage::Prevote 
-		//}
 
+		if self.is_authority(&sender) {
+			//match message {
+			//		ConsensusMessage::Prevote 
+			//}
+		}
+
+		try!(Err(EngineError::UnknownStep))
 
 		// Check if correct round.
 		//if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {

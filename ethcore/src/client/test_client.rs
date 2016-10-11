@@ -55,6 +55,8 @@ pub struct TestBlockChainClient {
 	pub genesis_hash: H256,
 	/// Last block hash.
 	pub last_hash: RwLock<H256>,
+	/// Extra data do set for each block
+	pub extra_data: Bytes,
 	/// Difficulty.
 	pub difficulty: RwLock<U256>,
 	/// Balances.
@@ -105,11 +107,17 @@ impl Default for TestBlockChainClient {
 impl TestBlockChainClient {
 	/// Creates new test client.
 	pub fn new() -> Self {
+		Self::new_with_extra_data(Bytes::new())
+	}
+
+	/// Creates new test client with specified extra data for each block
+	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
 		let spec = Spec::new_test();
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
 			genesis_hash: H256::new(),
+			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 			balances: RwLock::new(HashMap::new()),
@@ -129,7 +137,7 @@ impl TestBlockChainClient {
 		client.genesis_hash = client.last_hash.read().clone();
 		client
 	}
-
+	
 	/// Set the transaction receipt result
 	pub fn set_transaction_receipt(&self, id: TransactionID, receipt: LocalizedReceipt) {
 		self.receipts.write().insert(id, receipt);
@@ -184,6 +192,7 @@ impl TestBlockChainClient {
 			header.set_parent_hash(self.last_hash.read().clone());
 			header.set_number(n as BlockNumber);
 			header.set_gas_limit(U256::from(1_000_000));
+			header.set_extra_data(self.extra_data.clone());
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
@@ -606,6 +615,6 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
 }

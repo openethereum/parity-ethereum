@@ -591,7 +591,8 @@ impl Host {
 	}
 
 	fn handshake_count(&self) -> usize {
-		self.sessions.read().count() - self.session_count()
+		// session_count < total_count is possible because of the data race.
+		self.sessions.read().count().saturating_sub(self.session_count())
 	}
 
 	fn keep_alive(&self, io: &IoContext<NetworkIoMessage>) {
