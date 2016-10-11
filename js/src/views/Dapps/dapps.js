@@ -18,11 +18,50 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { sha3 } from '../../api/util/sha3';
 import { Actionbar, Page } from '../../ui';
 
 import Summary from './Summary';
 
 import styles from './dapps.css';
+
+const APPS = [
+  {
+    name: 'Token Deployment',
+    description: 'Deploy new basic tokens that you are able to send around',
+    url: 'basiccoin'
+  },
+  {
+    name: 'GAVcoin',
+    description: 'Manage your GAVcoins, the hottest new property in crypto',
+    url: 'gavcoin'
+  },
+  {
+    name: 'Registry',
+    description: 'A global registry of addresses on the network',
+    url: 'registry'
+  },
+  {
+    name: 'Token Registry',
+    description: 'A registry of transactable tokens on the network',
+    url: 'tokenreg'
+  },
+  {
+    name: 'Method Registry',
+    description: 'A registry of method signatures for lookups on transactions',
+    url: 'signaturereg'
+  },
+  {
+    name: 'GitHub Hint',
+    description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
+    url: 'githubhint'
+  }
+];
+
+APPS.forEach((app) => {
+  app.id = sha3(app.url);
+  console.log(`dapps ${app.id} -> ${app.url}`);
+});
 
 class Dapps extends Component {
   static contextTypes = {
@@ -34,38 +73,7 @@ class Dapps extends Component {
   }
 
   state = {
-    apps: [
-      {
-        name: 'Token Deployment',
-        description: 'Deploy new basic tokens that you are able to send around',
-        url: 'basiccoin'
-      },
-      {
-        name: 'GAVcoin',
-        description: 'Manage your GAVcoins, the hottest new property in crypto',
-        url: 'gavcoin'
-      },
-      {
-        name: 'Registry',
-        description: 'A global registry of addresses on the network',
-        url: 'registry'
-      },
-      {
-        name: 'Token Registry',
-        description: 'A registry of transactable tokens on the network',
-        url: 'tokenreg'
-      },
-      {
-        name: 'Method Registry',
-        description: 'A registry of method signatures for lookups on transactions',
-        url: 'signaturereg'
-      },
-      {
-        name: 'GitHub Hint',
-        description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
-        url: 'githubhint'
-      }
-    ]
+    apps: APPS
   }
 
   render () {
