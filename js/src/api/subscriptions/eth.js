@@ -40,7 +40,7 @@ export default class Eth {
       setTimeout(() => this._blockNumber(), timeout);
     };
 
-    if (!this._api.transport.isConnected()) {
+    if (!this._api.transport.isConnected) {
       nextTimeout(500);
       return;
     }

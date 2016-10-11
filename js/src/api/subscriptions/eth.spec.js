@@ -29,6 +29,9 @@ function stubApi (blockNumber) {
 
   return {
     _calls,
+    transport: {
+      isConnected: true
+    },
     eth: {
       blockNumber: () => {
         const stub = sinon.stub().resolves(new BigNumber(blockNumber || START_BLOCK))();
