@@ -141,7 +141,7 @@ pub struct Client {
 	last_hashes: RwLock<VecDeque<H256>>,
 }
 
-const HISTORY: u64 = 1200;
+const HISTORY: u64 = 64;
 
 // database columns
 /// Column for State
@@ -185,6 +185,20 @@ impl Client {
 			let batch = DBTransaction::new(&db);
 			try!(state_db.commit(&batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
+		}
+
+		trace!("Cleaup Journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
+			if latest > earliest && latest - earliest > HISTORY {
+				let mut era = earliest;
+				while era < latest - HISTORY + 1 {
+					trace!("Cleanup era {}", era);
+					let batch = DBTransaction::new(&db);
+					try!(state_db.journal_db_mut().commit_old(&batch, era, &chain.block_hash(era).expect("Old block not found in the database")));
+					try!(db.write(batch).map_err(ClientError::Database));
+					era = era + 1;
+				}
+			}
 		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {

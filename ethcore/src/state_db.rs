@@ -323,6 +323,11 @@ impl StateDB {
 		&*self.db
 	}
 
+	/// Returns underlying `JournalDB`.
+	pub fn journal_db_mut(&mut self) -> &mut JournalDB {
+		&mut *self.db
+	}
+
 	/// Add pending cache change.
 	/// The change is queued to be applied in `commit`.
 	pub fn add_to_account_cache(&mut self, addr: Address, data: Option<Account>, modified: bool) {

@@ -35,9 +35,18 @@ pub trait JournalDB: HashDB {
 	/// Get the latest era in the DB. None if there isn't yet any data in there.
 	fn latest_era(&self) -> Option<u64>;
 
+	/// Get the earliest era in the DB. None if there isn't yet any data in there.
+	fn earliest_era(&self) -> Option<u64> { None }
+
 	/// Commit all recent insert operations and canonical historical commits' removals from the
 	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
 	fn commit(&mut self, batch: &DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+
+	/// Commit canonical historical commits' removals from the
+	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
+	fn commit_old(&mut self, _batch: &DBTransaction, _end_era: u64, _end_id: &H256) -> Result<(), UtilError> {
+		Ok(())
+	}
 
 	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
 	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
