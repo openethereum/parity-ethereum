@@ -183,8 +183,8 @@ impl BlockCollection {
 		{
 			let mut blocks = Vec::new();
 			let mut head = self.head;
-			while head.is_some() {
-				head = self.parents.get(&head.unwrap()).cloned();
+			while let Some(h) = head {
+				head = self.parents.get(&h).cloned();
 				if let Some(head) = head {
 					match self.blocks.get(&head) {
 						Some(block) if block.body.is_some() => {
@@ -200,7 +200,7 @@ impl BlockCollection {
 			for block in blocks.drain(..) {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&block.header, 1);
-				let body = Rlp::new(block.body.as_ref().unwrap()); // incomplete blocks are filtered out in the loop above
+				let body = Rlp::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				drained.push(block_rlp.out());
