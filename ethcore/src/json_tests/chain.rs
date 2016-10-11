@@ -126,4 +126,5 @@ mod daohardfork_tests {
 
 	declare_test!{BlockchainTests_TestNetwork_bcSimpleTransitionTest, "BlockchainTests/TestNetwork/bcSimpleTransitionTest"}
 	declare_test!{BlockchainTests_TestNetwork_bcTheDaoTest, "BlockchainTests/TestNetwork/bcTheDaoTest"}
+	declare_test!{BlockchainTests_TestNetwork_bcEIP150Test, "BlockchainTests/TestNetwork/bcEIP150Test"}
 }
