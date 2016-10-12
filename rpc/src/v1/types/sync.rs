@@ -42,7 +42,7 @@ pub struct Peers {
 	/// Max number of peers
 	pub max: u32,
 	/// Detailed information on peers
-	pub peers: Vec<PeerInfo>
+	pub peers: Vec<PeerInfo>,
 }
 
 /// Peer connection information
@@ -57,7 +57,7 @@ pub struct PeerInfo {
 	/// Network information
 	pub network: PeerNetworkInfo,
 	/// Protocols information
-	pub protocols: PeerProtocolsInfo
+	pub protocols: PeerProtocolsInfo,
 }
 
 /// Peer network information
@@ -68,14 +68,14 @@ pub struct PeerNetworkInfo {
 	pub remote_address: String,
 	/// Local endpoint address
 	#[serde(rename="localAddress")]
-	pub local_address: String
+	pub local_address: String,
 }
 
 /// Peer protocols information
 #[derive(Default, Debug, Serialize)]
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
-	pub eth: Option<PeerEthereumProtocolInfo>
+	pub eth: Option<PeerEthereumProtocolInfo>,
 }
 
 /// Peer Ethereum protocol information
@@ -86,7 +86,7 @@ pub struct PeerEthereumProtocolInfo {
 	/// Peer total difficulty if known
 	pub difficulty: Option<U256>,
 	/// SHA3 of peer best block hash
-	pub head: String
+	pub head: String,
 }
 
 /// Sync status
@@ -116,15 +116,15 @@ impl From<SyncPeerInfo> for PeerInfo {
 			caps: p.capabilities,
 			network: PeerNetworkInfo {
 				remote_address: p.remote_address,
-				local_address: p.local_address
+				local_address: p.local_address,
 			},
 			protocols: PeerProtocolsInfo {
 				eth: Some(PeerEthereumProtocolInfo {
 					version: p.eth_version,
 					difficulty: p.eth_difficulty.map(|d| d.into()),
-					head: p.eth_head.hex()
+					head: p.eth_head.hex(),
 				})
-			}
+			},
 		}
 	}
 }

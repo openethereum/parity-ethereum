@@ -347,7 +347,7 @@ impl ChainSync {
 		}
 	}
 
-	/// @returns Synchonization status
+	/// Returns synchonization status
 	pub fn status(&self) -> SyncStatus {
 		SyncStatus {
 			state: self.state.clone(),
@@ -369,7 +369,7 @@ impl ChainSync {
 		}
 	}
 
-	/// @returns Information on peers connections
+	/// Returns information on peers connections
 	pub fn peers(&self, io: &SyncIo) -> Vec<PeerInfoDigest> {
 		self.peers.iter()
 			.filter_map(|(&peer_id, ref peer_data)|
@@ -382,7 +382,7 @@ impl ChainSync {
 						local_address: session_info.local_address,
 						eth_version: peer_data.protocol_version,
 						eth_difficulty: peer_data.difficulty,
-						eth_head: peer_data.latest_hash
+						eth_head: peer_data.latest_hash,
 				})
 			)
 			.collect()

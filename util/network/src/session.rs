@@ -91,7 +91,7 @@ pub struct SessionInfo {
 	/// Remote endpoint address of the session
 	pub remote_address: String,
 	/// Local endpoint address of the session
-	pub local_address: String
+	pub local_address: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
