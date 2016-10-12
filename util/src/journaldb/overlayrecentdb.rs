@@ -124,7 +124,10 @@ impl OverlayRecentDB {
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing, self.column);
 		let journal_overlay = self.journal_overlay.read();
-		*journal_overlay == reconstructed
+		journal_overlay.backing_overlay == reconstructed.backing_overlay &&
+		journal_overlay.pending_overlay == reconstructed.pending_overlay &&
+		journal_overlay.journal == reconstructed.journal &&
+		journal_overlay.latest_era == reconstructed.latest_era
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {

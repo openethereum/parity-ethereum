@@ -17,6 +17,7 @@ use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::path::{Path};
 use std::fmt;
+use std::cmp;
 use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::time::{Instant};
 use time::precise_time_ns;
@@ -73,6 +74,7 @@ pub use blockchain::CacheSize as BlockChainCacheSize;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
+const MIN_HISTORY_SIZE: u64 = 64;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -187,15 +189,14 @@ impl Client {
 		}
 
 		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+		let history = cmp::max(MIN_HISTORY_SIZE, config.history);
 		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
-			if latest > earliest && latest - earliest > config.history {
-				let mut era = earliest;
-				while era <= latest - config.history {
+			if latest > earliest && latest - earliest > history {
+				for era in earliest..(latest - history + 1) {
 					trace!("Removing era {}", era);
 					let batch = DBTransaction::new(&db);
 					try!(state_db.journal_db_mut().commit_old(&batch, era, &chain.block_hash(era).expect("Old block not found in the database")));
 					try!(db.write(batch).map_err(ClientError::Database));
-					era = era + 1;
 				}
 			}
 		}
@@ -232,7 +233,7 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
-			history: config.history,
+			history: history,
 		};
 		Ok(Arc::new(client))
 	}
