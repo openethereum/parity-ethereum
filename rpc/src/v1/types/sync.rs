@@ -75,7 +75,7 @@ pub struct PeerNetworkInfo {
 #[derive(Default, Debug, Serialize)]
 pub struct PeerProtocolsInfo {
 	/// Ethereum protocol information
-	pub eth: PeerEthereumProtocolInfo
+	pub eth: Option<PeerEthereumProtocolInfo>
 }
 
 /// Peer Ethereum protocol information
@@ -119,11 +119,11 @@ impl From<SyncPeerInfo> for PeerInfo {
 				local_address: p.local_address
 			},
 			protocols: PeerProtocolsInfo {
-				eth: PeerEthereumProtocolInfo {
+				eth: Some(PeerEthereumProtocolInfo {
 					version: p.eth_version,
 					difficulty: p.eth_difficulty.map(|d| d.into()),
 					head: p.eth_head.hex()
-				}
+				})
 			}
 		}
 	}
