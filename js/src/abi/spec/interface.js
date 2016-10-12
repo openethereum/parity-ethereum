@@ -62,6 +62,7 @@ export default class Interface {
           return new Event(item);
 
         case 'function':
+        case 'fallback':
           return new Func(item);
 
         default:

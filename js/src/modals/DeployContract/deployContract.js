@@ -51,6 +51,8 @@ export default class DeployContract extends Component {
     fromAddressError: null,
     name: '',
     nameError: ERRORS.invalidName,
+    params: [],
+    paramsError: [],
     step: 0,
     deployError: null
   }
@@ -132,7 +134,8 @@ export default class DeployContract extends Component {
             onCodeChange={ this.onCodeChange }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
-            onNameChange={ this.onNameChange } />
+            onNameChange={ this.onNameChange }
+            onParamsChange={ this.onParamsChange } />
         );
 
       case 1:
@@ -178,6 +181,10 @@ export default class DeployContract extends Component {
     this.setState(validateName(name));
   }
 
+  onParamsChange = (params) => {
+    this.setState({ params });
+  }
+
   onAbiChange = (abi) => {
     const { api } = this.context;
 
@@ -192,7 +199,7 @@ export default class DeployContract extends Component {
 
   onDeployStart = () => {
     const { api, store } = this.context;
-    const { abiParsed, code, description, name, fromAddress } = this.state;
+    const { abiParsed, code, description, name, params, fromAddress } = this.state;
     const options = {
       data: code,
       from: fromAddress
@@ -202,7 +209,7 @@ export default class DeployContract extends Component {
 
     api
       .newContract(abiParsed)
-      .deploy(options, null, this.onDeploymentState)
+      .deploy(options, params, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
           api.personal.setAccountName(address, name),

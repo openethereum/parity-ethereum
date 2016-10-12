@@ -16,9 +16,16 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input, AddressSelect } from '../../../ui';
+import { AddressSelect, Form, Input, InputAddressSelect } from '../../../ui';
+import { validateAbi } from '../../../util/validation';
+
+import styles from '../deployContract.css';
 
 export default class DetailsStep extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     abi: PropTypes.string,
@@ -31,16 +38,23 @@ export default class DetailsStep extends Component {
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
+    params: PropTypes.array,
+    paramsError: PropTypes.array,
     onAbiChange: PropTypes.func.isRequired,
     onCodeChange: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
-    onNameChange: PropTypes.func.isRequired
+    onNameChange: PropTypes.func.isRequired,
+    onParamsChange: PropTypes.func.isRequired
+  }
+
+  state = {
+    inputs: []
   }
 
   render () {
     const { accounts } = this.props;
-    const { abi, abiError, code, codeError, onAbiChange, onCodeChange, fromAddress, fromAddressError, name, nameError, onFromAddressChange, onNameChange } = this.props;
+    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError } = this.props;
 
     return (
       <Form>
@@ -50,26 +64,130 @@ export default class DetailsStep extends Component {
           value={ fromAddress }
           error={ fromAddressError }
           accounts={ accounts }
-          onChange={ onFromAddressChange } />
+          onChange={ this.onFromAddressChange } />
         <Input
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
           value={ name }
-          onSubmit={ onNameChange } />
+          onSubmit={ this.onNameChange } />
         <Input
           label='abi'
           hint='the abi of the contract to deploy'
           error={ abiError }
           value={ abi }
-          onSubmit={ onAbiChange } />
+          onSubmit={ this.onAbiChange } />
         <Input
           label='code'
           hint='the compiled code of the contract to deploy'
           error={ codeError }
           value={ code }
-          onSubmit={ onCodeChange } />
+          onSubmit={ this.onCodeChange } />
+        { this.renderConstructorInputs() }
       </Form>
     );
+  }
+
+  renderConstructorInputs () {
+    const { accounts, params, paramsError } = this.props;
+    const { inputs } = this.state;
+
+    if (!inputs || !inputs.length) {
+      return null;
+    }
+
+    return inputs.map((input, index) => {
+      const onChange = (event, value) => this.onParamChange(index, value);
+      const onSubmit = (value) => this.onParamChange(index, value);
+      const label = `${input.name}: ${input.type}`;
+      let inputBox = null;
+
+      switch (input.type) {
+        case 'address':
+          inputBox = (
+            <InputAddressSelect
+              accounts={ accounts }
+              editing
+              label={ label }
+              value={ params[index] }
+              error={ paramsError[index] }
+              onChange={ onChange } />
+          );
+          break;
+
+        default:
+          inputBox = (
+            <Input
+              label={ label }
+              value={ params[index] }
+              error={ paramsError[index] }
+              onSubmit={ onSubmit } />
+            );
+          break;
+      }
+
+      return (
+        <div key={ index } className={ styles.funcparams }>
+          { inputBox }
+        </div>
+      );
+    });
+  }
+
+  onFromAddressChange = (fromAddress) => {
+    const { onFromAddressChange } = this.props;
+
+    onFromAddressChange(fromAddress);
+  }
+
+  onNameChange = (name) => {
+    const { onNameChange } = this.props;
+
+    onNameChange(name);
+  }
+
+  onParamChange = (index, value) => {
+    console.log('***', index, value);
+    const { params, onParamsChange } = this.props;
+
+    params[index] = value;
+    onParamsChange(params);
+  }
+
+  onAbiChange = (abi) => {
+    const { api } = this.context;
+    const { onAbiChange, onParamsChange } = this.props;
+    const { abiError, abiParsed } = validateAbi(abi, api);
+
+    if (!abiError) {
+      const { inputs } = abiParsed.find((method) => method.type === 'constructor') || { inputs: [] };
+      const params = [];
+
+      inputs.forEach((input) => {
+        switch (input.type) {
+          case 'string':
+            params.push('');
+            break;
+
+          default:
+            params.push('0x');
+            break;
+        }
+      });
+
+      onParamsChange(params);
+      this.setState({ inputs });
+    } else {
+      onParamsChange([]);
+      this.setState({ inputs: [] });
+    }
+
+    onAbiChange(abi);
+  }
+
+  onCodeChange = (code) => {
+    const { onCodeChange } = this.props;
+
+    onCodeChange(code);
   }
 }
