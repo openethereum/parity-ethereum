@@ -54,6 +54,8 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
+	/// Bad gas transition block number.
+	pub bad_gas_compatibility_mode_limit: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -73,6 +75,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
+			bad_gas_compatibility_mode_limit: p.bad_gas_compatibility_mode_limit.map_or(0, Into::into),
 		}
 	}
 }
@@ -117,12 +120,14 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.frontier_compatibility_mode_limit, self.ethash_params.bad_gas_compatibility_mode_limit);
 
 		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
 			Schedule::new_frontier()
-		} else {
+		} else if env_info.number < self.ethash_params.bad_gas_compatibility_mode_limit {
 			Schedule::new_homestead()
+		} else {
+			Schedule::new_homestead_gas_fix()
 		}
 	}
 

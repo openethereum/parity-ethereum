@@ -32,7 +32,8 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
 		ChainEra::Homestead => ethereum::new_homestead_test().engine,
 		ChainEra::DaoHardfork => ethereum::new_daohardfork_test().engine,
-};
+		ChainEra::Eip150Hardfork => ethereum::new_eip150hardfork_test().engine,
+	};
 
 	for (name, test) in tests.into_iter() {
 		let mut fail = false;
@@ -96,7 +97,6 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
 declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
 declare_test!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}
-declare_test!{StateTests_stDelegatecallTest, "StateTests/stDelegatecallTest"}
 declare_test!{StateTests_stExample, "StateTests/stExample"}
 declare_test!{StateTests_stInitCodeTest, "StateTests/stInitCodeTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}

@@ -1,5 +1,5 @@
 {
-	"name": "Frontier (Test)",
+	"name": "EIP150.1b hard-fork consensus test",
 	"engine": {
 		"Ethash": {
 			"params": {
@@ -9,8 +9,8 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x118c30",
-				"daoHardforkTransition": "0x1d4c00",
+				"frontierCompatibilityModeLimit": "0x5",
+				"daoHardforkTransition": "0x8",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
 				"daoHardforkAccounts": [  
 					"0xd4fe7bc31cedb7bfb8a345f31e668033056b2728",
@@ -130,7 +130,7 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"badGasCompatibilityModeLimit": "0x7fffffffffffffff"
+				"badGasCompatibilityModeLimit": "0xa"
 			}
 		}
 	},
