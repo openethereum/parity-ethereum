@@ -195,6 +195,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
 		flag_tx_queue_size: usize = 2048usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
+		flag_tx_queue_gas: String = "auto",
+			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
@@ -350,6 +352,7 @@ struct Mining {
 	gas_cap: Option<String>,
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
+	tx_queue_gas: Option<String>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 }
@@ -526,6 +529,7 @@ mod tests {
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
 			flag_tx_queue_size: 2048usize,
+			flag_tx_queue_gas: "auto".into(),
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 
@@ -677,6 +681,7 @@ mod tests {
 				gas_floor_target: None,
 				gas_cap: None,
 				tx_queue_size: Some(2048),
+				tx_queue_gas: Some("auto".into()),
 				tx_gas_limit: None,
 				extra_data: None,
 				remove_solved: None,

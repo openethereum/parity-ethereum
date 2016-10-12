@@ -196,6 +196,9 @@ fn sync_main() -> bool {
 }
 
 fn main() {
+	// Always print backtrace on panic.
+	::std::env::set_var("RUST_BACKTRACE", "1");
+	
 	if sync_main() {
 		return;
 	}

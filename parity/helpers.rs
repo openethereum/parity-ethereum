@@ -22,7 +22,7 @@ use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::PendingSet;
+use ethcore::miner::{PendingSet, GasLimit};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::upgrade;
@@ -90,6 +90,14 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 		"strict" => Ok(PendingSet::AlwaysSealing),
 		"lenient" => Ok(PendingSet::SealingOrElseQueue),
 		other => Err(format!("Invalid pending set value: {:?}", other)),
+	}
+}
+
+pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
+	match s {
+		"auto" => Ok(GasLimit::Auto),
+		"off" => Ok(GasLimit::None),
+		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
 	}
 }
 
