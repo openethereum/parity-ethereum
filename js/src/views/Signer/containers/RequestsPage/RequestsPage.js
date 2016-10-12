@@ -28,7 +28,7 @@ import styles from './RequestsPage.css';
 
 class RequestsPage extends Component {
   static propTypes = {
-    signerRequests: PropTypes.shape({
+    signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -39,7 +39,7 @@ class RequestsPage extends Component {
   };
 
   render () {
-    const { pending, finished } = this.props.signerRequests;
+    const { pending, finished } = this.props.signer;
 
     if (!pending.length && !finished.length) {
       return this.renderNoRequestsMsg();
@@ -58,7 +58,7 @@ class RequestsPage extends Component {
   }
 
   renderPendingRequests () {
-    const { pending } = this.props.signerRequests;
+    const { pending } = this.props.signer;
 
     if (!pending.length) {
       return;
@@ -77,7 +77,7 @@ class RequestsPage extends Component {
   }
 
   renderFinishedRequests () {
-    const { finished } = this.props.signerRequests;
+    const { finished } = this.props.signer;
 
     if (!finished.length) {
       return;

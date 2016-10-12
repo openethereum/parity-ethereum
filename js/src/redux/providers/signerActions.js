@@ -14,26 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { combineReducers } from 'redux';
-import { routerReducer } from 'react-router-redux';
-
-import { balancesReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
-
-import { errorReducer } from '../ui/Errors';
-import { settingsReducer } from '../views/Settings';
-import { tooltipReducer } from '../ui/Tooltips';
-
-export default function () {
-  return combineReducers({
-    errors: errorReducer,
-    tooltip: tooltipReducer,
-    routing: routerReducer,
-    settings: settingsReducer,
-
-    balances: balancesReducer,
-    images: imagesReducer,
-    nodeStatus: nodeStatusReducer,
-    personal: personalReducer,
-    signer: signerReducer
-  });
+export function signerRequestsToConfirm (pending) {
+  return {
+    type: 'signerRequestsToConfirm',
+    pending
+  };
 }

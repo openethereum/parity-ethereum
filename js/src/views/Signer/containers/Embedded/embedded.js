@@ -28,7 +28,7 @@ import styles from './embedded.css';
 
 class Embedded extends Component {
   static propTypes = {
-    signerRequests: PropTypes.shape({
+    signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -49,8 +49,8 @@ class Embedded extends Component {
   }
 
   renderPendingRequests () {
-    const { signerRequests } = this.props;
-    const { pending } = signerRequests;
+    const { signer } = this.props;
+    const { pending } = signer;
 
     if (!pending.length) {
       return (
@@ -93,11 +93,11 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
-  const { actions, signerRequests } = state;
+  const { actions, signer } = state;
 
   return {
     actions,
-    signerRequests
+    signer
   };
 }
 

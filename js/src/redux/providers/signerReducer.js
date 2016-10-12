@@ -14,4 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export WsDataProvider from './wsDataProvider';
+import { handleActions } from 'redux-actions';
+
+const initialState = {
+  finished: [],
+  pending: []
+};
+
+export default handleActions({
+  signerRequestsToConfirm (state, action) {
+    const { pending } = action;
+
+    return Object.assign({}, state, { pending });
+  }
+}, initialState);

@@ -25,7 +25,8 @@ const events = [
   'logging',
   'eth_blockNumber',
   'personal_accountsInfo',
-  'personal_listAccounts'
+  'personal_listAccounts',
+  'personal_requestsToConfirm'
 ];
 const aliasses = {};
 

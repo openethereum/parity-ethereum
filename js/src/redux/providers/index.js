@@ -16,9 +16,11 @@
 
 export Balances from './balances';
 export Personal from './personal';
+export Signer from './signer';
 export Status from './status';
 
 export balancesReducer from './balancesReducer';
 export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
+export signerReducer from './signerReducer';
 export statusReducer from './statusReducer';

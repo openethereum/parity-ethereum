@@ -126,7 +126,7 @@ class Application extends Component {
 function mapStateToProps (state) {
   const { netChain, isTest } = state.nodeStatus;
   const { hasAccounts } = state.personal;
-  const { pending } = state.signerRequests;
+  const { pending } = state.signer;
 
   return {
     hasAccounts,
