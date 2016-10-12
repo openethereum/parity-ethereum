@@ -213,7 +213,7 @@ impl Database {
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
 		}
-		try!(opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024)));
+		try!(opts.set_parsed_options(&format!("max_total_wal_size={}", 256 * 1024 * 1024)));
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
