@@ -24,6 +24,8 @@ injectTapEventPlugin();
 import store from './registry/store';
 import Container from './registry/Container';
 
+import '../../assets/fonts/Roboto/font.css';
+import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
 import './registry.html';
 
