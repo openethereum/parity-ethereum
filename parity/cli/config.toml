@@ -41,6 +41,7 @@ reseal_on_txs = "all"
 reseal_min_period = 4000
 price_update_period = "hourly"
 tx_queue_size = 2048
+tx_queue_gas = "auto"
 
 [footprint]
 tracing = "on"
@@ -49,7 +50,7 @@ cache_size_db = 128
 cache_size_blocks = 16
 cache_size_queue = 100
 db_compaction = "ssd"
-fat_db = true
+fat_db = "off"
 
 [snapshots]
 disable_periodic = true

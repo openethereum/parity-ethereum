@@ -143,12 +143,12 @@ impl CompactionProfile {
 }
 
 /// Database configuration
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct DatabaseConfig {
 	/// Max number of open files.
 	pub max_open_files: i32,
-	/// Cache-size
-	pub cache_size: Option<usize>,
+	/// Cache sizes (in MiB) for specific columns.
+	pub cache_sizes: HashMap<Option<u32>, usize>,
 	/// Compaction profile
 	pub compaction: CompactionProfile,
 	/// Set number of columns
@@ -159,17 +159,23 @@ pub struct DatabaseConfig {
 
 impl DatabaseConfig {
 	/// Create new `DatabaseConfig` with default parameters and specified set of columns.
+	/// Note that cache sizes must be explicitly set.
 	pub fn with_columns(columns: Option<u32>) -> Self {
 		let mut config = Self::default();
 		config.columns = columns;
 		config
+	}
+
+	/// Set the column cache size in MiB.
+	pub fn set_cache(&mut self, col: Option<u32>, size: usize) {
+		self.cache_sizes.insert(col, size);
 	}
 }
 
 impl Default for DatabaseConfig {
 	fn default() -> DatabaseConfig {
 		DatabaseConfig {
-			cache_size: None,
+			cache_sizes: HashMap::new(),
 			max_open_files: 512,
 			compaction: CompactionProfile::default(),
 			columns: None,
@@ -213,6 +219,9 @@ impl Database {
 
 	/// Open database file. Creates if it does not exist.
 	pub fn open(config: &DatabaseConfig, path: &str) -> Result<Database, String> {
+		// default cache size for columns not specified.
+		const DEFAULT_CACHE: usize = 2;
+
 		let mut opts = Options::new();
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
@@ -232,17 +241,22 @@ impl Database {
 
 		let mut cf_options = Vec::with_capacity(config.columns.unwrap_or(0) as usize);
 
-		for _ in 0 .. config.columns.unwrap_or(0) {
+		for col in 0 .. config.columns.unwrap_or(0) {
 			let mut opts = Options::new();
 			opts.set_compaction_style(DBCompactionStyle::DBUniversalCompaction);
 			opts.set_target_file_size_base(config.compaction.initial_file_size);
 			opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
-			if let Some(cache_size) = config.cache_size {
+
+			let col_opt = config.columns.map(|_| col);
+
+			{
+				let cache_size = config.cache_sizes.get(&col_opt).cloned().unwrap_or(DEFAULT_CACHE);
 				let mut block_opts = BlockBasedOptions::new();
-				// all goes to read cache
+				// all goes to read cache.
 				block_opts.set_cache(Cache::new(cache_size * 1024 * 1024));
 				opts.set_block_based_table_factory(&block_opts);
 			}
+
 			cf_options.push(opts);
 		}
 

@@ -23,15 +23,14 @@ use time::precise_time_ns;
 
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
-use util::journaldb::{self, JournalDB};
-use util::{U256, H256, Address, H2048, Uint};
-use util::sha3::*;
-use util::TrieFactory;
+use util::{journaldb, TrieFactory, Trie};
+use util::trie::TrieSpec;
+use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::kvdb::*;
 
 // other
 use io::*;
-use views::{BlockView, HeaderView, BodyView};
+use views::{HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::State;
@@ -47,12 +46,12 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
-use block_queue::{BlockQueue, BlockQueueInfo};
+use verification::queue::{BlockQueue, QueueInfo as BlockQueueInfo};
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify
+	ChainNotify,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -66,7 +65,7 @@ use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
-
+use state_db::StateDB;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -126,9 +125,9 @@ pub struct Client {
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<Engine>,
 	config: ClientConfig,
-	db: RwLock<Arc<Database>>,
 	pruning: journaldb::Algorithm,
-	state_db: RwLock<Box<JournalDB>>,
+	db: RwLock<Arc<Database>>,
+	state_db: Mutex<StateDB>,
 	block_queue: BlockQueue,
 	report: RwLock<ClientReport>,
 	import_lock: Mutex<()>,
@@ -148,13 +147,6 @@ pub struct Client {
 /// assume finality of a given candidate.
 pub const HISTORY: u64 = 1200;
 
-/// Append a path element to the given path and return the string.
-pub fn append_path<P>(path: P, item: &str) -> String where P: AsRef<Path> {
-	let mut p = path.as_ref().to_path_buf();
-	p.push(item);
-	p.to_str().unwrap().to_owned()
-}
-
 impl Client {
 	/// Create a new client with given spec and DB path and custom verifier.
 	pub fn new(
@@ -168,18 +160,24 @@ impl Client {
 		let path = path.to_path_buf();
 		let gb = spec.genesis_block();
 
-		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().unwrap()).map_err(ClientError::Database)));
+		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)));
 		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
-		let mut state_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
-		if state_db.is_empty() && try!(spec.ensure_db_good(state_db.as_hashdb_mut())) {
+		let trie_spec = match config.fat_db {
+			true => TrieSpec::Fat,
+			false => TrieSpec::Secure,
+		};
+
+		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
+		let mut state_db = StateDB::new(journal_db);
+		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db)) {
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
-		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.contains(h.state_root())) {
+		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
 			warn!("State root not found for block #{} ({})", chain.best_block_number(), chain.best_block_hash().hex());
 		}
 
@@ -193,7 +191,7 @@ impl Client {
 
 		let factories = Factories {
 			vm: EvmFactory::new(config.vm_type.clone()),
-			trie: TrieFactory::new(config.trie_spec.clone()),
+			trie: TrieFactory::new(trie_spec),
 			accountdb: Default::default(),
 		};
 
@@ -208,7 +206,7 @@ impl Client {
 			verifier: verification::new(config.verifier_type.clone()),
 			config: config,
 			db: RwLock::new(db),
-			state_db: RwLock::new(state_db),
+			state_db: Mutex::new(state_db),
 			block_queue: block_queue,
 			report: RwLock::new(Default::default()),
 			import_lock: Mutex::new(()),
@@ -291,30 +289,27 @@ impl Client {
 
 		// Check if Parent is in chain
 		let chain_has_parent = chain.block_header(header.parent_hash());
-		if let None = chain_has_parent {
+		if let Some(parent) = chain_has_parent {
+			// Enact Verified Block
+			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
+			let db = self.state_db.lock().boxed_clone_canon(&header.parent_hash());
+
+			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
+			let locked_block = try!(enact_result.map_err(|e| {
+				warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+			}));
+
+			// Final Verification
+			if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
+				warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
+				return Err(());
+			}
+
+			Ok(locked_block)
+		} else {
 			warn!(target: "client", "Block import failed for #{} ({}): Parent not found ({}) ", header.number(), header.hash(), header.parent_hash());
-			return Err(());
-		};
-
-		// Enact Verified Block
-		let parent = chain_has_parent.unwrap();
-		let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-		let db = self.state_db.read().boxed_clone();
-
-		let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
-		if let Err(e) = enact_result {
-			warn!(target: "client", "Block import failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
-		};
-
-		// Final Verification
-		let locked_block = enact_result.unwrap();
-		if let Err(e) = self.verifier.verify_block_final(header, locked_block.block().header()) {
-			warn!(target: "client", "Stage 4 block verification failed for #{} ({})\nError: {:?}", header.number(), header.hash(), e);
-			return Err(());
+			Err(())
 		}
-
-		Ok(locked_block)
 	}
 
 	fn calculate_enacted_retracted(&self, import_results: &[ImportRoute]) -> (Vec<H256>, Vec<H256>) {
@@ -358,23 +353,21 @@ impl Client {
 
 			for block in blocks {
 				let header = &block.header;
-				if invalid_blocks.contains(header.parent_hash()) {
+				let is_invalid = invalid_blocks.contains(header.parent_hash());
+				if is_invalid {
 					invalid_blocks.insert(header.hash());
 					continue;
 				}
-				let closed_block = self.check_and_close_block(&block);
-				if let Err(_) = closed_block {
+				if let Ok(closed_block) = self.check_and_close_block(&block) {
+					imported_blocks.push(header.hash());
+
+					let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
+					import_results.push(route);
+
+					self.report.write().accrue_block(&block);
+				} else {
 					invalid_blocks.insert(header.hash());
-					continue;
 				}
-
-				let closed_block = closed_block.unwrap();
-				imported_blocks.push(header.hash());
-
-				let route = self.commit_block(closed_block, &header.hash(), &block.bytes);
-				import_results.push(route);
-
-				self.report.write().accrue_block(&block);
 			}
 
 			let imported = imported_blocks.len();
@@ -424,7 +417,7 @@ impl Client {
 		// Are we committing an era?
 		let ancient = if number >= HISTORY {
 			let n = number - HISTORY;
-			Some((n, chain.block_hash(n).unwrap()))
+			Some((n, chain.block_hash(n).expect("only verified blocks can be commited; verified block has hash; qed")))
 		} else {
 			None
 		};
@@ -442,7 +435,8 @@ impl Client {
 		// CHECK! I *think* this is fine, even if the state_root is equal to another
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
-		block.drain().commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
+		let mut state = block.drain();
+		state.commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
 
 		let route = chain.insert_block(&mut batch, block_data, receipts);
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
@@ -452,10 +446,11 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
+		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
 		self.db.read().write_buffered(batch);
 		chain.commit();
-
 		self.update_last_hashes(&parent, hash);
 		route
 	}
@@ -503,7 +498,7 @@ impl Client {
 		};
 
 		self.block_header(id).and_then(|header| {
-			let db = self.state_db.read().boxed_clone();
+			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
 			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + HISTORY {
@@ -533,9 +528,11 @@ impl Client {
 
 	/// Get a copy of the best block's state.
 	pub fn state(&self) -> State {
+		let header = self.best_block_header();
+		let header = HeaderView::new(&header);
 		State::from_existing(
-			self.state_db.read().boxed_clone(),
-			HeaderView::new(&self.best_block_header()).state_root(),
+			self.state_db.lock().boxed_clone_canon(&header.hash()),
+			header.state_root(),
 			self.engine.account_start_nonce(),
 			self.factories.clone())
 		.expect("State root of best block header always valid.")
@@ -549,7 +546,7 @@ impl Client {
 	/// Get the report.
 	pub fn report(&self) -> ClientReport {
 		let mut report = self.report.read().clone();
-		report.state_db_mem = self.state_db.read().mem_used();
+		report.state_db_mem = self.state_db.lock().mem_used();
 		report
 	}
 
@@ -605,7 +602,7 @@ impl Client {
 	/// Take a snapshot at the given block.
 	/// If the ID given is "latest", this will default to 1000 blocks behind.
 	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockID, p: &snapshot::Progress) -> Result<(), EthcoreError> {
-		let db = self.state_db.read().boxed_clone();
+		let db = self.state_db.lock().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
 
@@ -684,14 +681,14 @@ impl snapshot::DatabaseRestore for Client {
 		trace!(target: "snapshot", "Replacing client database with {:?}", new_db);
 
 		let _import_lock = self.import_lock.lock();
-		let mut state_db = self.state_db.write();
+		let mut state_db = self.state_db.lock();
 		let mut chain = self.chain.write();
 		let mut tracedb = self.tracedb.write();
 		self.miner.clear();
 		let db = self.db.write();
 		try!(db.restore(new_db));
 
-		*state_db = journaldb::new(db.clone(), self.pruning, ::db::COL_STATE);
+		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE));
 		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
@@ -811,7 +808,7 @@ impl BlockChainClient for Client {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
-			Some(hash) => self.block_queue.block_status(&hash),
+			Some(hash) => self.block_queue.status(&hash).into(),
 			None => BlockStatus::Unknown
 		}
 	}
@@ -836,7 +833,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
-		self.state_at(id).map(|s| s.code(address))
+		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
 	}
 
 	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
@@ -845,6 +842,38 @@ impl BlockChainClient for Client {
 
 	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
 		self.state_at(id).map(|s| s.storage_at(address, position))
+	}
+
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>> {
+		if !self.factories.trie.is_fat() {
+			trace!(target: "fatdb", "list_accounts: Not a fat DB");
+			return None;
+		}
+
+		let state = match self.state_at(id) {
+			Some(state) => state,
+			_ => return None,
+		};
+
+		let (root, db) = state.drop();
+		let trie = match self.factories.trie.readonly(db.as_hashdb(), &root) {
+			Ok(trie) => trie,
+			_ => {
+				trace!(target: "fatdb", "list_accounts: Couldn't open the DB");
+				return None;
+			}
+		};
+
+		let iter = match trie.iter() {
+			Ok(iter) => iter,
+			_ => return None,
+		};
+
+		let accounts = iter.filter_map(|item| {
+			item.ok().map(|(addr, _)| Address::from_slice(&addr))
+		}).collect();
+
+		Some(accounts)
 	}
 
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {
@@ -858,12 +887,17 @@ impl BlockChainClient for Client {
 
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
 		let chain = self.chain.read();
-		self.transaction_address(id).and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
+		self.transaction_address(id)
+			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
 			let t = chain.block_body(&address.block_hash)
-				.and_then(|block| BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index));
+				.and_then(|block| {
+					BodyView::new(&block).localized_transaction_at(&address.block_hash, block_number, address.index)
+				});
 
-			match (t, chain.transaction_receipt(&address)) {
-				(Some(tx), Some(receipt)) => {
+			let tx_and_sender = t.and_then(|tx| tx.sender().ok().map(|sender| (tx, sender)));
+
+			match (tx_and_sender, chain.transaction_receipt(&address)) {
+				(Some((tx, sender)), Some(receipt)) => {
 					let block_hash = tx.block_hash.clone();
 					let block_number = tx.block_number.clone();
 					let transaction_hash = tx.hash();
@@ -885,7 +919,7 @@ impl BlockChainClient for Client {
 						gas_used: receipt.gas_used - prior_gas_used,
 						contract_address: match tx.action {
 							Action::Call(_) => None,
-							Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce))
+							Action::Create => Some(contract_address(&sender, &tx.nonce))
 						},
 						logs: receipt.logs.into_iter().enumerate().map(|(i, log)| LocalizedLogEntry {
 							entry: log,
@@ -915,7 +949,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn state_data(&self, hash: &H256) -> Option<Bytes> {
-		self.state_db.read().state(hash)
+		self.state_db.lock().journal_db().state(hash)
 	}
 
 	fn block_receipts(&self, hash: &H256) -> Option<Bytes> {
@@ -923,16 +957,21 @@ impl BlockChainClient for Client {
 	}
 
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError> {
+		use verification::queue::kind::HasHash;
+		use verification::queue::kind::blocks::Unverified;
+
+		// create unverified block here so the `sha3` calculation can be cached.
+		let unverified = Unverified::new(bytes);
+
 		{
-			let header = BlockView::new(&bytes).header_view();
-			if self.chain.read().is_known(&header.sha3()) {
+			if self.chain.read().is_known(&unverified.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
-				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+			if self.block_status(BlockID::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
+				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
-		Ok(try!(self.block_queue.import_block(bytes)))
+		Ok(try!(self.block_queue.import(unverified)))
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -981,17 +1020,18 @@ impl BlockChainClient for Client {
 		let start = self.block_number(filter.range.start);
 		let end = self.block_number(filter.range.end);
 
-		if start.is_some() && end.is_some() {
-			let filter = trace::Filter {
-				range: start.unwrap() as usize..end.unwrap() as usize,
-				from_address: From::from(filter.from_address),
-				to_address: From::from(filter.to_address),
-			};
+		match (start, end) {
+			(Some(s), Some(e)) => {
+				let filter = trace::Filter {
+					range: s as usize..e as usize,
+					from_address: From::from(filter.from_address),
+					to_address: From::from(filter.to_address),
+				};
 
-			let traces = self.tracedb.read().filter(&filter);
-			Some(traces)
-		} else {
-			None
+				let traces = self.tracedb.read().filter(&filter);
+				Some(traces)
+			},
+			_ => None,
 		}
 	}
 
@@ -1036,7 +1076,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 }
 
@@ -1050,7 +1090,7 @@ impl MiningBlockChainClient for Client {
 			engine,
 			self.factories.clone(),
 			false,	// TODO: this will need to be parameterised once we want to do immediate mining insertion.
-			self.state_db.read().boxed_clone(),
+			self.state_db.lock().boxed_clone_canon(&h),
 			&chain.block_header(&h).expect("h is best block hash: so its header must exist: qed"),
 			self.build_last_hashes(h.clone()),
 			author,
@@ -1061,11 +1101,15 @@ impl MiningBlockChainClient for Client {
 		// Add uncles
 		chain
 			.find_uncle_headers(&h, engine.maximum_uncle_age())
-			.unwrap()
+			.unwrap_or_else(Vec::new)
 			.into_iter()
 			.take(engine.maximum_uncle_count())
 			.foreach(|h| {
-				open_block.push_uncle(h).unwrap();
+				open_block.push_uncle(h).expect("pushing maximum_uncle_count;
+												open_block was just created;
+												push_uncle is not ok only if more than maximum_uncle_count is pushed;
+												so all push_uncle are Ok;
+												qed");
 			});
 
 		open_block
@@ -1086,6 +1130,7 @@ impl MiningBlockChainClient for Client {
 		let block_data = block.rlp_bytes();
 		let route = self.commit_block(block, &h, &block_data);
 		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+		self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
 
 		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);

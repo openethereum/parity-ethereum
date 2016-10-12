@@ -68,6 +68,8 @@ mod panics;
 use mio::{EventLoop, Token};
 use std::fmt;
 
+pub use worker::LOCAL_STACK_SIZE;
+
 #[derive(Debug)]
 /// IO Error
 pub enum IoError {

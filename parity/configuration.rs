@@ -30,8 +30,8 @@ use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
@@ -39,7 +39,7 @@ use signer::Configuration as SignerConfiguration;
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
-use account::{AccountCmd, NewAccount, ImportAccounts};
+use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 
 #[derive(Debug, PartialEq)]
@@ -84,6 +84,7 @@ impl Configuration {
 		let cache_config = self.cache_config();
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
+		let fat_db = try!(self.args.flag_fat_db.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
@@ -119,6 +120,14 @@ impl Configuration {
 				unreachable!();
 			};
 			Cmd::Account(account_cmd)
+		} else if self.args.flag_import_geth_keys {
+        	let account_cmd = AccountCmd::ImportFromGeth(
+				ImportFromGethAccounts {
+					to: dirs.keys,
+					testnet: self.args.flag_testnet
+				}
+			);
+			Cmd::Account(account_cmd)
 		} else if self.args.cmd_wallet {
 			let presale_cmd = ImportWallet {
 				iterations: self.args.flag_keys_iterations,
@@ -140,6 +149,7 @@ impl Configuration {
 				wal: wal,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				vm_type: vm_type,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
@@ -156,6 +166,7 @@ impl Configuration {
 				wal: wal,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
 			};
@@ -169,6 +180,7 @@ impl Configuration {
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
@@ -185,6 +197,7 @@ impl Configuration {
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				file_path: self.args.arg_file.clone(),
 				wal: wal,
@@ -216,6 +229,7 @@ impl Configuration {
 				miner_extras: try!(self.miner_extras()),
 				mode: mode,
 				tracing: tracing,
+				fat_db: fat_db,
 				compaction: compaction,
 				wal: wal,
 				vm_type: vm_type,
@@ -313,7 +327,6 @@ impl Configuration {
 	fn accounts_config(&self) -> Result<AccountsConfig, String> {
 		let cfg = AccountsConfig {
 			iterations: self.args.flag_keys_iterations,
-			import_keys: self.args.flag_import_geth_keys,
 			testnet: self.args.flag_testnet,
 			password_files: self.args.flag_password.clone(),
 			unlocked_accounts: try!(to_addresses(&self.args.flag_unlock)),
@@ -335,6 +348,7 @@ impl Configuration {
 				None => U256::max_value(),
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
+			tx_queue_gas_limit: try!(to_gas_limit(&self.args.flag_tx_queue_gas)),
 			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
@@ -445,21 +459,10 @@ impl Configuration {
 		ret.min_peers = self.min_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
-		let net_specific_path = net_path.join(&try!(self.network_specific_path()));
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.net_config_path = Some(net_specific_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
-	}
-
-	fn network_specific_path(&self) -> Result<PathBuf, String> {
-		let spec_type : SpecType = try!(self.chain().parse());
-		let spec = try!(spec_type.spec());
-		let id = try!(self.network_id());
-		let mut path = PathBuf::new();
-		path.push(format!("{}", id.unwrap_or_else(|| spec.network_id())));
-		Ok(path)
 	}
 
 	fn network_id(&self) -> Result<Option<U256>, String> {
@@ -717,6 +720,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
 		})));
 	}
@@ -737,6 +741,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
 		})));
@@ -758,6 +763,7 @@ mod tests {
 			wal: true,
 			mode: Default::default(),
 			tracing: Default::default(),
+			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
 		})));
@@ -804,6 +810,7 @@ mod tests {
 			ui: false,
 			name: "".into(),
 			custom_bootnodes: false,
+			fat_db: Default::default(),
 			no_periodic_snapshot: false,
 		}));
 	}

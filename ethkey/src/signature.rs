@@ -25,7 +25,6 @@ use bigint::hash::{H520, H256, FixedHash};
 use {Secret, Public, SECP256K1, Error, Message, public_to_address, Address};
 
 #[repr(C)]
-#[derive(Eq)]
 pub struct Signature([u8; 65]);
 
 impl Signature {
@@ -75,6 +74,9 @@ impl PartialEq for Signature {
 		&self.0[..] == &other.0[..]
 	}
 }
+
+// manual implementation required in Rust 1.13+, see `std::cmp::AssertParamIsEq`.
+impl Eq for Signature { }
 
 // also manual for the same reason, but the pretty printing might be useful.
 impl fmt::Debug for Signature {

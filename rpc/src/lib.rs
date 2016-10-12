@@ -36,6 +36,7 @@ extern crate json_ipc_server as ipc;
 extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
+extern crate fetch;
 
 #[macro_use]
 extern crate log;

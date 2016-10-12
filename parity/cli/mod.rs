@@ -193,8 +193,10 @@ usage! {
 			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
-		flag_tx_queue_size: usize = 1024usize,
+		flag_tx_queue_size: usize = 2048usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
+		flag_tx_queue_gas: String = "auto",
+			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
@@ -217,7 +219,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).fast_and_loose.clone(),
 		flag_db_compaction: String = "ssd",
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
-		flag_fat_db: bool = false,
+		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
 
 		// -- Import/Export Options
@@ -348,6 +350,7 @@ struct Mining {
 	gas_cap: Option<String>,
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
+	tx_queue_gas: Option<String>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 }
@@ -362,7 +365,7 @@ struct Footprint {
 	cache_size_blocks: Option<u32>,
 	cache_size_queue: Option<u32>,
 	db_compaction: Option<String>,
-	fat_db: Option<bool>,
+	fat_db: Option<String>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -522,7 +525,8 @@ mod tests {
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
-			flag_tx_queue_size: 1024usize,
+			flag_tx_queue_size: 2048usize,
+			flag_tx_queue_gas: "auto".into(),
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 
@@ -535,7 +539,7 @@ mod tests {
 			flag_cache_size: Some(128),
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
-			flag_fat_db: false,
+			flag_fat_db: "auto".into(),
 
 			// -- Import/Export Options
 			flag_from: "1".into(),
@@ -673,6 +677,7 @@ mod tests {
 				gas_floor_target: None,
 				gas_cap: None,
 				tx_queue_size: Some(2048),
+				tx_queue_gas: Some("auto".into()),
 				tx_gas_limit: None,
 				extra_data: None,
 				remove_solved: None,
@@ -687,7 +692,7 @@ mod tests {
 				cache_size_blocks: Some(16),
 				cache_size_queue: Some(100),
 				db_compaction: Some("ssd".into()),
-				fat_db: Some(true),
+				fat_db: Some("off".into()),
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),

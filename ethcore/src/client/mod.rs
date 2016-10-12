@@ -23,20 +23,27 @@ mod trace;
 mod client;
 
 pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockQueueConfig, BlockChainConfig, VMType};
+pub use self::config::{Mode, ClientConfig, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
 pub use types::trace_filter::Filter as TraceFilter;
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
-pub use self::chain_notify::{ChainNotify, ChainNotifyClient};
+pub use self::chain_notify::ChainNotify;
 
 pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient, RemoteClient};
+pub use self::traits::{BlockChainClient, MiningBlockChainClient};
+
+/// IPC interfaces
+#[cfg(feature="ipc")]
+pub mod remote {
+	pub use super::traits::RemoteClient;
+	pub use super::chain_notify::ChainNotifyClient;
+}
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues

@@ -110,6 +110,13 @@ impl DatabaseDirectories {
 		dir.push("snapshot");
 		dir
 	}
+
+	/// Get the path for the network directory.
+	pub fn network_path(&self) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push("network");
+		dir
+	}
 }
 
 #[cfg(test)]

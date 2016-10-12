@@ -30,7 +30,7 @@ use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -57,6 +57,7 @@ pub struct SnapshotCommand {
 	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub wal: bool,
@@ -139,9 +140,6 @@ impl SnapshotCommand {
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
-		// check if tracing is on
-		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
-
 		// Setup logging
 		let _logger = setup_log(&self.logger_config);
 
@@ -149,6 +147,12 @@ impl SnapshotCommand {
 
 		// select pruning algorithm
 		let algorithm = self.pruning.to_algorithm(&user_defaults);
+
+		// check if tracing is on
+		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+
+		// check if fatdb is on
+		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
 
 		// prepare client and snapshot paths.
 		let client_path = db_dirs.client_path(algorithm);
@@ -158,7 +162,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
 
 		let service = try!(ClientService::start(
 			client_config,

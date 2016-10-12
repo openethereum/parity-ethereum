@@ -30,8 +30,8 @@ use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError,
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
 use informant::{Informant, MillisecondDuration};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use io_handler::ImportIoHandler;
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
@@ -81,6 +81,7 @@ pub struct ImportBlockchain {
 	pub wal: bool,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub vm_type: VMType,
 }
 
@@ -96,6 +97,7 @@ pub struct ExportBlockchain {
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub mode: Mode,
+	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockID,
 	pub to_block: BlockID,
@@ -135,13 +137,16 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
-	// check if tracing is on
-	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
-
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -151,7 +156,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -283,13 +288,16 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// load user defaults
 	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
-	// check if tracing is on
-	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
-
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
 	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -299,7 +307,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
 
 	let service = try!(ClientService::start(
 		client_config,

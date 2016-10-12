@@ -123,7 +123,6 @@ impl Args {
 	}
 }
 
-
 fn die(msg: &'static str) -> ! {
 	println!("{}", msg);
 	::std::process::exit(-1)

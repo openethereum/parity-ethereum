@@ -35,18 +35,20 @@ pub struct HttpProcessor {
 	status: Option<String>,
 	headers: Vec<String>,
 	body_writer: io::BufWriter<Box<io::Write>>,
+	size_limit: Option<usize>,
 }
 
 const BREAK_LEN: usize = 2;
 
 impl HttpProcessor {
-	pub fn new(body_writer: Box<io::Write>) -> Self {
+	pub fn new(body_writer: Box<io::Write>, size_limit: Option<usize>) -> Self {
 		HttpProcessor {
 			state: State::WaitingForStatus,
 			buffer: Cursor::new(Vec::new()),
 			status: None,
 			headers: Vec::new(),
-			body_writer: io::BufWriter::new(body_writer)
+			body_writer: io::BufWriter::new(body_writer),
+			size_limit: size_limit,
 		}
 	}
 
@@ -140,6 +142,15 @@ impl HttpProcessor {
 				},
 				State::WritingBody => {
 					let len = self.buffer.get_ref().len();
+					match self.size_limit {
+						None => {},
+						Some(limit) if limit > len => {},
+						_ => {
+							warn!("Finishing file fetching because limit was reached.");
+							self.set_state(State::Finished);
+							continue;
+						}
+					}
 					try!(self.body_writer.write_all(self.buffer.get_ref()));
 					self.buffer_consume(len);
 					return Ok(());
@@ -167,6 +178,17 @@ impl HttpProcessor {
 				},
 				// Buffers the data until we have a full chunk
 				State::WritingChunk(left) if self.buffer.get_ref().len() >= left => {
+					match self.size_limit {
+						None => {},
+						Some(limit) if limit > left => {
+							self.size_limit = Some(limit - left);
+						},
+						_ => {
+							warn!("Finishing file fetching because limit was reached.");
+							self.set_state(State::Finished);
+							continue;
+						}
+					}
 					try!(self.body_writer.write_all(&self.buffer.get_ref()[0..left]));
 					self.buffer_consume(left + BREAK_LEN);
 
@@ -230,7 +252,7 @@ mod tests {
 	#[test]
 	fn should_be_able_to_process_status_line() {
 		// given
-		let mut http = HttpProcessor::new(Box::new(Cursor::new(Vec::new())));
+		let mut http = HttpProcessor::new(Box::new(Cursor::new(Vec::new())), None);
 
 		// when
 		let out =
@@ -249,7 +271,7 @@ mod tests {
 	#[test]
 	fn should_be_able_to_process_headers() {
 		// given
-		let mut http = HttpProcessor::new(Box::new(Cursor::new(Vec::new())));
+		let mut http = HttpProcessor::new(Box::new(Cursor::new(Vec::new())), None);
 
 		// when
 		let out =
@@ -274,7 +296,7 @@ mod tests {
 	fn should_be_able_to_consume_body() {
 		// given
 		let (writer, data) = Writer::new();
-		let mut http = HttpProcessor::new(Box::new(writer));
+		let mut http = HttpProcessor::new(Box::new(writer), None);
 
 		// when
 		let out =
@@ -301,7 +323,7 @@ mod tests {
 	fn should_correctly_handle_chunked_content() {
 		// given
 		let (writer, data) = Writer::new();
-		let mut http = HttpProcessor::new(Box::new(writer));
+		let mut http = HttpProcessor::new(Box::new(writer), None);
 
 		// when
 		let out =
@@ -331,4 +353,40 @@ mod tests {
 		assert_eq!(data.borrow().get_ref()[..], b"Parity in\r\n\r\nchunks."[..]);
 		assert_eq!(http.state(), State::Finished);
 	}
+
+	#[test]
+	fn should_stop_fetching_when_limit_is_reached() {
+		// given
+		let (writer, data) = Writer::new();
+		let mut http = HttpProcessor::new(Box::new(writer), Some(5));
+
+		// when
+		let out =
+			"\
+				HTTP/1.1 200 OK\r\n\
+				Host: 127.0.0.1:8080\r\n\
+				Transfer-Encoding: chunked\r\n\
+				Connection: close\r\n\
+				\r\n\
+				4\r\n\
+				Pari\r\n\
+				3\r\n\
+				ty \r\n\
+				D\r\n\
+				in\r\n\
+				\r\n\
+				chunks.\r\n\
+				0\r\n\
+				\r\n\
+			";
+		http.write_all(out.as_bytes()).unwrap();
+		http.flush().unwrap();
+
+		// then
+		assert_eq!(http.status().unwrap(), "HTTP/1.1 200 OK");
+		assert_eq!(http.headers().len(), 3);
+		assert_eq!(data.borrow().get_ref()[..], b"Pari"[..]);
+		assert_eq!(http.state(), State::Finished);
+	}
+
 }

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use std::str;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
 use util::{U256, H256};
@@ -29,9 +30,6 @@ use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 
-/// Ethereum sync protocol
-pub const ETH_PROTOCOL: &'static str = "eth";
-
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
 pub struct SyncConfig {
@@ -39,6 +37,8 @@ pub struct SyncConfig {
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
 	pub network_id: U256,
+	/// Main "eth" subprotocol name.
+	pub subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 }
@@ -48,6 +48,7 @@ impl Default for SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
 			network_id: U256::from(1),
+			subprotocol_name: *b"eth",
 			fork_block: None,
 		}
 	}
@@ -68,6 +69,8 @@ pub struct EthSync {
 	network: NetworkService,
 	/// Protocol handler
 	handler: Arc<SyncProtocolHandler>,
+	/// The main subprotocol name
+	subprotocol_name: [u8; 3],
 }
 
 impl EthSync {
@@ -78,13 +81,13 @@ impl EthSync {
 		let sync = Arc::new(EthSync{
 			network: service,
 			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain, snapshot_service: snapshot_service }),
+			subprotocol_name: config.subprotocol_name,
 		});
 
 		Ok(sync)
 	}
 }
 
-#[derive(Ipc)]
 #[ipc(client_ident="SyncClient")]
 impl SyncProvider for EthSync {
 	/// Get sync status
@@ -135,7 +138,7 @@ impl ChainNotify for EthSync {
 		sealed: Vec<H256>,
 		_duration: u64)
 	{
-		self.network.with_context(ETH_PROTOCOL, |context| {
+		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
 			self.handler.sync.write().chain_new_blocks(
 				&mut sync_io,
@@ -149,7 +152,7 @@ impl ChainNotify for EthSync {
 
 	fn start(&self) {
 		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-		self.network.register_protocol(self.handler.clone(), ETH_PROTOCOL, &[62u8, 63u8, 64u8])
+		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, &[62u8, 63u8, 64u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 	}
 
@@ -180,7 +183,6 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[derive(Ipc)]
 #[ipc(client_ident="NetworkManagerClient")]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
@@ -204,7 +206,7 @@ impl ManageNetwork for EthSync {
 	}
 
 	fn stop_network(&self) {
-		self.network.with_context(ETH_PROTOCOL, |context| {
+		self.network.with_context(self.subprotocol_name, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
 			self.handler.sync.write().abort(&mut sync_io);
 		});

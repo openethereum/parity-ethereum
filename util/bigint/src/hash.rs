@@ -64,10 +64,10 @@ pub fn clean_0x(s: &str) -> &str {
 
 macro_rules! impl_hash {
 	($from: ident, $size: expr) => {
-		#[derive(Eq)]
 		#[repr(C)]
 		/// Unformatted binary data of fixed length.
 		pub struct $from (pub [u8; $size]);
+
 
 		impl From<[u8; $size]> for $from {
 			fn from(bytes: [u8; $size]) -> Self {
@@ -209,6 +209,8 @@ macro_rules! impl_hash {
 				ret
 			}
 		}
+
+		impl Eq for $from {}
 
 		impl PartialEq for $from {
 			fn eq(&self, other: &Self) -> bool {

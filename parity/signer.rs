@@ -74,7 +74,7 @@ pub fn new_token(path: String) -> Result<String, String> {
 		.map_err(|err| format!("Error generating token: {:?}", err))
 }
 
-fn generate_new_token(path: String) -> io::Result<String> {
+pub fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());

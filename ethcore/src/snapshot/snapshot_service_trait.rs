@@ -22,7 +22,6 @@ use ipc::IpcConfig;
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteSnapshotService")]
 pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.

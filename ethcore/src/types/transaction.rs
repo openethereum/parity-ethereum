@@ -20,7 +20,7 @@ use std::ops::Deref;
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes};
+use util::{H256, Address, U256, Bytes, HeapSizeOf};
 use ethkey::{Signature, sign, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
@@ -83,6 +83,12 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+	}
+}
+
+impl HeapSizeOf for Transaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.data.heap_size_of_children()
 	}
 }
 
@@ -249,6 +255,12 @@ impl Decodable for SignedTransaction {
 
 impl Encodable for SignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
+}
+
+impl HeapSizeOf for SignedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.unsigned.heap_size_of_children()
+	}
 }
 
 impl SignedTransaction {
