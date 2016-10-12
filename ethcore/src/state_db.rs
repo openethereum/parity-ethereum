@@ -26,17 +26,19 @@ use bloom_journal::{Bloom, BloomJournal};
 use db::COL_ACCOUNT_BLOOM;
 use byteorder::{LittleEndian, ByteOrder};
 
-const STATE_CACHE_ITEMS: usize = 256000;
-const STATE_CACHE_BLOCKS: usize = 8;
-
 pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
 pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
+const STATE_CACHE_BLOCKS: usize = 8;
+
+
 /// Shared canonical state cache.
 struct AccountCache {
 	/// DB Account cache. `None` indicates that account is known to be missing.
+	// When changing the type of the values here, be sure to update `mem_used` and
+	// `new`.
 	accounts: LruCache<Address, Option<Account>>,
 	/// Information on the modifications in recently committed blocks; specifically which addresses
 	/// changed in which block. Ordered by block number.
@@ -92,6 +94,7 @@ pub struct StateDB {
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
 	account_bloom: Arc<Mutex<Bloom>>,
+	cache_size: usize,
 	/// Hash of the block on top of which this instance was created or
 	/// `None` if cache is disabled
 	parent_hash: Option<H256>,
@@ -102,6 +105,30 @@ pub struct StateDB {
 }
 
 impl StateDB {
+
+	/// Create a new instance wrapping `JournalDB` and the maximum allowed size
+	/// of the LRU cache in bytes. Actual used memory may (read: will) be higher due to bookkeeping.
+	// TODO: make the cache size actually accurate by moving the account storage cache
+	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
+	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
+		let bloom = Self::load_bloom(db.backing());
+		let cache_items = cache_size / ::std::mem::size_of::<Option<Account>>();
+
+		StateDB {
+			db: db,
+			account_cache: Arc::new(Mutex::new(AccountCache {
+				accounts: LruCache::new(cache_items),
+				modifications: VecDeque::new(),
+			})),
+			local_cache: Vec::new(),
+			account_bloom: Arc::new(Mutex::new(bloom)),
+			cache_size: cache_size,
+			parent_hash: None,
+			commit_hash: None,
+			commit_number: None,
+		}
+	}
+
 	/// Loads accounts bloom from the database
 	/// This bloom is used to handle request for the non-existant account fast
 	pub fn load_bloom(db: &Database) -> Bloom {
@@ -127,23 +154,6 @@ impl StateDB {
 		let bloom = Bloom::from_parts(&bloom_parts, hash_count as u32);
 		trace!(target: "account_bloom", "Bloom is {:?} full, hash functions count = {:?}", bloom.saturation(), hash_count);
 		bloom
-	}
-
-	/// Create a new instance wrapping `JournalDB`
-	pub fn new(db: Box<JournalDB>) -> StateDB {
-		let bloom = Self::load_bloom(db.backing());
-		StateDB {
-			db: db,
-			account_cache: Arc::new(Mutex::new(AccountCache {
-				accounts: LruCache::new(STATE_CACHE_ITEMS),
-				modifications: VecDeque::new(),
-			})),
-			local_cache: Vec::new(),
-			account_bloom: Arc::new(Mutex::new(bloom)),
-			parent_hash: None,
-			commit_hash: None,
-			commit_number: None,
-		}
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
@@ -298,6 +308,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
+			cache_size: self.cache_size,
 			parent_hash: None,
 			commit_hash: None,
 			commit_number: None,
@@ -311,6 +322,7 @@ impl StateDB {
 			account_cache: self.account_cache.clone(),
 			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
+			cache_size: self.cache_size,
 			parent_hash: Some(parent.clone()),
 			commit_hash: None,
 			commit_number: None,
@@ -324,7 +336,8 @@ impl StateDB {
 
 	/// Heap size used.
 	pub fn mem_used(&self) -> usize {
-		self.db.mem_used() //TODO: + self.account_cache.lock().heap_size_of_children()
+		// TODO: account for LRU-cache overhead; this is a close approximation.
+		self.db.mem_used() + self.account_cache.lock().accounts.len() * ::std::mem::size_of::<Option<Account>>()
 	}
 
 	/// Returns underlying `JournalDB`.
@@ -363,6 +376,11 @@ impl StateDB {
 			return None;
 		}
 		cache.accounts.get_mut(a).map(|c| f(c.as_mut()))
+	}
+
+	/// Query how much memory is set aside for the accounts cache (in bytes).
+	pub fn cache_size(&self) -> usize {
+		self.cache_size
 	}
 
 	/// Check if the account can be returned from cache by matching current block parent hash against canonical
@@ -404,77 +422,77 @@ impl StateDB {
 #[cfg(test)]
 mod tests {
 
-use util::{U256, H256, FixedHash, Address, DBTransaction};
-use tests::helpers::*;
-use state::Account;
-use util::log::init_log;
+	use util::{U256, H256, FixedHash, Address, DBTransaction};
+	use tests::helpers::*;
+	use state::Account;
+	use util::log::init_log;
 
-#[test]
-fn state_db_smoke() {
-	init_log();
+	#[test]
+	fn state_db_smoke() {
+		init_log();
 
-	let mut state_db_result = get_temp_state_db();
-	let state_db = state_db_result.take();
-	let root_parent = H256::random();
-	let address = Address::random();
-	let h0 = H256::random();
-	let h1a = H256::random();
-	let h1b = H256::random();
-	let h2a = H256::random();
-	let h2b = H256::random();
-	let h3a = H256::random();
-	let h3b = H256::random();
-	let mut batch = DBTransaction::new(state_db.journal_db().backing());
+		let mut state_db_result = get_temp_state_db();
+		let state_db = state_db_result.take();
+		let root_parent = H256::random();
+		let address = Address::random();
+		let h0 = H256::random();
+		let h1a = H256::random();
+		let h1b = H256::random();
+		let h2a = H256::random();
+		let h2b = H256::random();
+		let h3a = H256::random();
+		let h3b = H256::random();
+		let mut batch = DBTransaction::new(state_db.journal_db().backing());
 
-	// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
-    // balance [ 5     5     4  3  2     2 ]
-	let mut s = state_db.boxed_clone_canon(&root_parent);
-	s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
-	s.commit(&mut batch, 0, &h0, None).unwrap();
-	s.sync_cache(&[], &[], true);
+		// blocks  [ 3a(c) 2a(c) 2b 1b 1a(c) 0 ]
+	    // balance [ 5     5     4  3  2     2 ]
+		let mut s = state_db.boxed_clone_canon(&root_parent);
+		s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
+		s.commit(&mut batch, 0, &h0, None).unwrap();
+		s.sync_cache(&[], &[], true);
 
-	let mut s = state_db.boxed_clone_canon(&h0);
-	s.commit(&mut batch, 1, &h1a, None).unwrap();
-	s.sync_cache(&[], &[], true);
+		let mut s = state_db.boxed_clone_canon(&h0);
+		s.commit(&mut batch, 1, &h1a, None).unwrap();
+		s.sync_cache(&[], &[], true);
 
-	let mut s = state_db.boxed_clone_canon(&h0);
-	s.add_to_account_cache(address, Some(Account::new_basic(3.into(), 0.into())), true);
-	s.commit(&mut batch, 1, &h1b, None).unwrap();
-	s.sync_cache(&[], &[], false);
+		let mut s = state_db.boxed_clone_canon(&h0);
+		s.add_to_account_cache(address, Some(Account::new_basic(3.into(), 0.into())), true);
+		s.commit(&mut batch, 1, &h1b, None).unwrap();
+		s.sync_cache(&[], &[], false);
 
-	let mut s = state_db.boxed_clone_canon(&h1b);
-	s.add_to_account_cache(address, Some(Account::new_basic(4.into(), 0.into())), true);
-	s.commit(&mut batch, 2, &h2b, None).unwrap();
-	s.sync_cache(&[], &[], false);
+		let mut s = state_db.boxed_clone_canon(&h1b);
+		s.add_to_account_cache(address, Some(Account::new_basic(4.into(), 0.into())), true);
+		s.commit(&mut batch, 2, &h2b, None).unwrap();
+		s.sync_cache(&[], &[], false);
 
-	let mut s = state_db.boxed_clone_canon(&h1a);
-	s.add_to_account_cache(address, Some(Account::new_basic(5.into(), 0.into())), true);
-	s.commit(&mut batch, 2, &h2a, None).unwrap();
-	s.sync_cache(&[], &[], true);
+		let mut s = state_db.boxed_clone_canon(&h1a);
+		s.add_to_account_cache(address, Some(Account::new_basic(5.into(), 0.into())), true);
+		s.commit(&mut batch, 2, &h2a, None).unwrap();
+		s.sync_cache(&[], &[], true);
 
-	let mut s = state_db.boxed_clone_canon(&h2a);
-	s.commit(&mut batch, 3, &h3a, None).unwrap();
-	s.sync_cache(&[], &[], true);
+		let mut s = state_db.boxed_clone_canon(&h2a);
+		s.commit(&mut batch, 3, &h3a, None).unwrap();
+		s.sync_cache(&[], &[], true);
 
-	let s = state_db.boxed_clone_canon(&h3a);
-	assert_eq!(s.get_cached_account(&address).unwrap().unwrap().balance(), &U256::from(5));
+		let s = state_db.boxed_clone_canon(&h3a);
+		assert_eq!(s.get_cached_account(&address).unwrap().unwrap().balance(), &U256::from(5));
 
-	let s = state_db.boxed_clone_canon(&h1a);
-	assert!(s.get_cached_account(&address).is_none());
+		let s = state_db.boxed_clone_canon(&h1a);
+		assert!(s.get_cached_account(&address).is_none());
 
-	let s = state_db.boxed_clone_canon(&h2b);
-	assert!(s.get_cached_account(&address).is_none());
+		let s = state_db.boxed_clone_canon(&h2b);
+		assert!(s.get_cached_account(&address).is_none());
 
-	let s = state_db.boxed_clone_canon(&h1b);
-	assert!(s.get_cached_account(&address).is_none());
+		let s = state_db.boxed_clone_canon(&h1b);
+		assert!(s.get_cached_account(&address).is_none());
 
-	// reorg to 3b
-	// blocks  [ 3b(c) 3a 2a 2b(c) 1b 1a 0 ]
-	let mut s = state_db.boxed_clone_canon(&h2b);
-	s.commit(&mut batch, 3, &h3b, None).unwrap();
-	s.sync_cache(&[h1b.clone(), h2b.clone(), h3b.clone()], &[h1a.clone(), h2a.clone(), h3a.clone()], true);
-	let s = state_db.boxed_clone_canon(&h3a);
-	assert!(s.get_cached_account(&address).is_none());
-}
+		// reorg to 3b
+		// blocks  [ 3b(c) 3a 2a 2b(c) 1b 1a 0 ]
+		let mut s = state_db.boxed_clone_canon(&h2b);
+		s.commit(&mut batch, 3, &h3b, None).unwrap();
+		s.sync_cache(&[h1b.clone(), h2b.clone(), h3b.clone()], &[h1a.clone(), h2a.clone(), h3a.clone()], true);
+		let s = state_db.boxed_clone_canon(&h3a);
+		assert!(s.get_cached_account(&address).is_none());
+	}
 }
 

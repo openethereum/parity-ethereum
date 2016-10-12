@@ -598,7 +598,7 @@ mod tests {
 	#[test]
 	// Tracing is not suported in JIT
 	fn test_call_to_create() {
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 
 		// code:
 		//
@@ -724,7 +724,7 @@ mod tests {
 	#[test]
 	fn test_create_contract() {
 		// Tracing is not supported in JIT
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 		// code:
 		//
 		// 60 10 - push 16
