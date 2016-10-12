@@ -191,7 +191,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);
-		let vm_factory = Factory::new(vm_type.clone());
+		let vm_factory = Factory::new(vm_type.clone(), 1024 * 32);
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();
