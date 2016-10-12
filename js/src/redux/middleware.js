@@ -16,20 +16,21 @@
 
 import ErrorsMiddleware from '../ui/Errors/middleware';
 import SettingsMiddleware from '../views/Settings/middleware';
+import SignerMiddleware from './providers/signerMiddleware';
 
-import signerMiddleware from '../views/Signer/middleware';
 import statusMiddleware from '../views/Status/middleware';
 
-export default function (signerWs, signerTokenSetter, statusWeb3) {
+export default function (api) {
   const errors = new ErrorsMiddleware();
   const settings = new SettingsMiddleware();
+  const signer = new SignerMiddleware(api);
 
-  const signer = signerMiddleware(signerWs, signerTokenSetter);
-  const status = statusMiddleware(statusWeb3);
+  const status = statusMiddleware();
 
   const middleware = [
     errors.toMiddleware(),
-    settings.toMiddleware()
+    settings.toMiddleware(),
+    signer.toMiddleware()
   ];
 
   return middleware.concat(signer).concat(status);

@@ -21,10 +21,90 @@ const initialState = {
   pending: []
 };
 
+function removeWithId (pending, id) {
+  return pending.filter(tx => tx.id !== id).slice();
+}
+
+function setIsSending (pending, id, isSending) {
+  return pending.map(p => {
+    if (p.id === id) {
+      p.isSending = isSending;
+    }
+    return p;
+  }).slice();
+}
+
 export default handleActions({
   signerRequestsToConfirm (state, action) {
     const { pending } = action;
 
-    return Object.assign({}, state, { pending });
+    return Object.assign({}, state, {
+      pending: pending.map((request) => {
+        const { id } = request;
+        const oldRequest = state.pending.find((r) => r.id === id);
+
+        request.date = (oldRequest && oldRequest.date)
+          ? oldRequest.date
+          : new Date();
+
+        return request;
+      })
+    });
+  },
+
+  signerStartConfirmRequest (state, action) {
+    return {
+      ...state,
+      pending: setIsSending(state.pending, action.payload.id, true)
+    };
+  },
+
+  signerSuccessConfirmRequest (state, action) {
+    const { id, txHash } = action.payload;
+    const confirmed = Object.assign(
+      state.pending.find(p => p.id === id),
+      { result: txHash, status: 'confirmed' }
+    );
+
+    return {
+      ...state,
+      pending: removeWithId(state.pending, id),
+      finished: [confirmed].concat(state.finished)
+    };
+  },
+
+  signerErrorConfirmRequest (state, action) {
+    return {
+      ...state,
+      pending: setIsSending(state.pending, action.payload.id, false)
+    };
+  },
+
+  signerStartRejectRequest (state, action) {
+    return {
+      ...state,
+      pending: setIsSending(state.pending, action.payload.id, true)
+    };
+  },
+
+  signerSuccessRejectRequest (state, action) {
+    const { id } = action.payload;
+    const rejected = Object.assign(
+      state.pending.find(p => p.id === id),
+      { status: 'rejected' }
+    );
+    return {
+      ...state,
+      pending: removeWithId(state.pending, id),
+      finished: [rejected].concat(state.finished)
+    };
+  },
+
+  signerErrorRejectRequest (state, action) {
+    return {
+      ...state,
+      pending: setIsSending(state.pending, action.payload.id, false)
+    };
   }
+
 }, initialState);

@@ -29,9 +29,9 @@ const storeCreation = window.devToolsExtension
   ? window.devToolsExtension()(createStore)
   : createStore;
 
-export default function (api, signerWs, signerTokenSetter, statusWeb3) {
+export default function (api) {
   const reducers = initReducers();
-  const middleware = initMiddleware(signerWs, signerTokenSetter, statusWeb3);
+  const middleware = initMiddleware(api);
   const store = applyMiddleware(...middleware)(storeCreation)(reducers);
 
   new BalancesProvider(store, api).start();
