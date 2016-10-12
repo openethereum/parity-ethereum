@@ -178,7 +178,7 @@ fn change_history_size() {
 	let address = Address::random();
 	{
 		let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
-		for _ in 0..2 {
+		for _ in 0..20 {
 			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
 			b.block_mut().fields_mut().state.add_balance(&address, &5.into());
 			b.block_mut().fields_mut().state.commit().unwrap();
@@ -187,7 +187,7 @@ fn change_history_size() {
 		}
 	}
 	let mut config = ClientConfig::default();
-	config.history = 1;
+	config.history = 10;
 	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
-	assert_eq!(client.state().balance(&address), 10.into());
+	assert_eq!(client.state().balance(&address), 100.into());
 }
