@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
 
@@ -22,9 +24,10 @@ import { Form, Input, SignerIcon } from '../../../../../ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 
-export default class TransactionPendingFormConfirm extends Component {
-
+class TransactionPendingFormConfirm extends Component {
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
+    address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired
   }
@@ -36,8 +39,13 @@ export default class TransactionPendingFormConfirm extends Component {
   }
 
   render () {
-    const { isSending } = this.props;
+    const { accounts, address, isSending } = this.props;
     const { password } = this.state;
+    const account = accounts[address] || {};
+
+    const passwordHint = account.meta && account.meta.passwordHint
+      ? (<div><span>(hint) </span>{ account.meta.passwordHint }</div>)
+      : null;
 
     return (
       <div className={ styles.confirmForm }>
@@ -49,6 +57,9 @@ export default class TransactionPendingFormConfirm extends Component {
             hint='unlock the account'
             type='password'
             value={ password } />
+          <div className={ styles.passwordHint }>
+            { passwordHint }
+          </div>
           <div
             data-tip
             data-place='bottom'
@@ -103,3 +114,20 @@ export default class TransactionPendingFormConfirm extends Component {
     this.onConfirm();
   }
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return {
+    accounts
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(TransactionPendingFormConfirm);

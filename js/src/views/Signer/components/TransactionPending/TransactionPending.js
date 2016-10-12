@@ -67,7 +67,7 @@ export default class TransactionPending extends Component {
     const className = this.props.className || '';
 
     const { gasPriceEthmDisplay, gasToDisplay } = this.state;
-    const { id, date, data } = this.props;
+    const { id, date, data, from } = this.props;
 
     return (
       <div className={ `${styles.container} ${className}` }>
@@ -85,6 +85,7 @@ export default class TransactionPending extends Component {
             />
           </TransactionMainDetails>
           <TransactionPendingForm
+            address={ from }
             isSending={ this.props.isSending }
             onConfirm={ this.onConfirm }
             onReject={ this.onReject }
