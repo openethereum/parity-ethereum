@@ -107,6 +107,8 @@ pub struct ClientConfig {
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+	/// State pruning history size.
+	pub history: u64,
 }
 
 #[cfg(test)]

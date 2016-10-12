@@ -73,6 +73,7 @@ impl Configuration {
 	pub fn into_command(self) -> Result<Cmd, String> {
 		let dirs = self.directories();
 		let pruning = try!(self.args.flag_pruning.parse());
+		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = try!(self.vm_type());
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 		let miner_options = try!(self.miner_options());
@@ -134,6 +135,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				format: format,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
 				mode: mode,
@@ -150,6 +152,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				format: format,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
 				mode: mode,
@@ -164,6 +167,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
@@ -180,6 +184,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
@@ -202,6 +207,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				daemon: daemon,
 				logger_config: logger_config,
 				miner_options: miner_options,
@@ -694,6 +700,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			format: Default::default(),
 			pruning: Default::default(),
+			pruning_history: 64,
 			compaction: Default::default(),
 			wal: true,
 			mode: Default::default(),
@@ -713,6 +720,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
+			pruning_history: 64,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -734,6 +742,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
+			pruning_history: 64,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
@@ -761,6 +770,7 @@ mod tests {
 			dirs: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
+			pruning_history: 64,
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),

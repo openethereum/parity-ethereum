@@ -139,9 +139,8 @@ pub struct Client {
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
+	history: u64,
 }
-
-const HISTORY: u64 = 64;
 
 // database columns
 /// Column for State
@@ -187,12 +186,12 @@ impl Client {
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
-		trace!("Cleaup Journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
 		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
-			if latest > earliest && latest - earliest > HISTORY {
+			if latest > earliest && latest - earliest > config.history {
 				let mut era = earliest;
-				while era < latest - HISTORY + 1 {
-					trace!("Cleanup era {}", era);
+				while era <= latest - config.history {
+					trace!("Removing era {}", era);
 					let batch = DBTransaction::new(&db);
 					try!(state_db.journal_db_mut().commit_old(&batch, era, &chain.block_hash(era).expect("Old block not found in the database")));
 					try!(db.write(batch).map_err(ClientError::Database));
@@ -233,6 +232,7 @@ impl Client {
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
+			history: config.history,
 		};
 		Ok(Arc::new(client))
 	}
@@ -289,7 +289,7 @@ impl Client {
 
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = self.chain.best_block_number();
-		if best_block_number >= HISTORY && header.number() <= best_block_number - HISTORY {
+		if best_block_number >= self.history && header.number() <= best_block_number - self.history {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
@@ -433,8 +433,8 @@ impl Client {
 		let number = block.header().number();
 		let parent = block.header().parent_hash().clone();
 		// Are we committing an era?
-		let ancient = if number >= HISTORY {
-			let n = number - HISTORY;
+		let ancient = if number >= self.history {
+			let n = number - self.history;
 			Some((n, self.chain.block_hash(n).expect("only verified blocks can be commited; verified block has hash; qed")))
 		} else {
 			None
@@ -512,7 +512,7 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.chain.best_block_number() >= block_number + HISTORY {
+			if db.is_pruned() && self.chain.best_block_number() >= block_number + self.history {
 				return None;
 			}
 
@@ -617,7 +617,7 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
 
-		if best_block_number > HISTORY + block_number && db.is_pruned() {
+		if best_block_number > self.history + block_number && db.is_pruned() {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
@@ -629,8 +629,10 @@ impl Client {
 					0
 				};
 
-				self.block_hash(BlockID::Number(start_num))
-					.expect("blocks within HISTORY are always stored.")
+				match self.block_hash(BlockID::Number(start_num)) {
+					Some(h) => h,
+					None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
+				}
 			}
 			_ => match self.block_hash(at) {
 				Some(hash) => hash,

@@ -219,6 +219,8 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced [default: auto].
+  --pruning-history NUM    Set a number of recent states to keep when pruning
+                           is active. [default: 64].
   --cache-size-db MB       Override database cache size [default: 64].
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes [default: 8].
@@ -325,6 +327,7 @@ pub struct Args {
 	pub flag_bootnodes: Option<String>,
 	pub flag_network_id: Option<String>,
 	pub flag_pruning: String,
+	pub flag_pruning_history: u64,
 	pub flag_tracing: String,
 	pub flag_port: u16,
 	pub flag_min_peers: u16,

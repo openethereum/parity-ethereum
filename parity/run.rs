@@ -52,6 +52,7 @@ pub struct RunCmd {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -149,6 +150,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.mode,
 		cmd.tracing,
 		cmd.pruning,
+		cmd.pruning_history,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
