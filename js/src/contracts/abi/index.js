@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import basiccoin from './basiccoin.json';
 import basiccoinmanager from './basiccoinmanager.json';
 import dappreg from './dappreg.json';
 import eip20 from './eip20.json';
@@ -25,6 +26,7 @@ import signaturereg from './signaturereg.json';
 import tokenreg from './tokenreg.json';
 
 export {
+  basiccoin,
   basiccoinmanager,
   dappreg,
   eip20,
