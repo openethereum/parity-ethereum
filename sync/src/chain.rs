@@ -102,6 +102,7 @@ use super::SyncConfig;
 use blocks::BlockCollection;
 use snapshot::{Snapshot, ChunkType};
 use rand::{thread_rng, Rng};
+use api::PeerInfo as PeerInfoDigest;
 
 known_heap_size!(0, PeerInfo);
 
@@ -346,7 +347,7 @@ impl ChainSync {
 		}
 	}
 
-	/// @returns Synchonization status
+	/// Returns synchonization status
 	pub fn status(&self) -> SyncStatus {
 		SyncStatus {
 			state: self.state.clone(),
@@ -366,6 +367,25 @@ impl ChainSync {
 				+ self.peers.heap_size_of_children()
 				+ self.round_parents.heap_size_of_children(),
 		}
+	}
+
+	/// Returns information on peers connections
+	pub fn peers(&self, io: &SyncIo) -> Vec<PeerInfoDigest> {
+		self.peers.iter()
+			.filter_map(|(&peer_id, ref peer_data)|
+				io.peer_session_info(peer_id).map(|session_info|
+					PeerInfoDigest {
+						id: session_info.id.map(|id| id.hex()),
+						client_version: session_info.client_version,
+						capabilities: session_info.peer_capabilities.into_iter().map(|c| c.to_string()).collect(),
+						remote_address: session_info.remote_address,
+						local_address: session_info.local_address,
+						eth_version: peer_data.protocol_version,
+						eth_difficulty: peer_data.difficulty,
+						eth_head: peer_data.latest_hash,
+				})
+			)
+			.collect()
 	}
 
 	/// Abort all sync activity

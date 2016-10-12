@@ -83,6 +83,10 @@ impl<'p> SyncIo for TestIo<'p> {
 		self.snapshot_service
 	}
 
+	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
+		None
+	}
+
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
 		64
 	}
