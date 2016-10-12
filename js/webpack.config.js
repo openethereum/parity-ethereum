@@ -211,6 +211,10 @@ module.exports = {
           '^/app': ''
         }
       },
+      '/parity-utils/*': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
+      },
       '/rpc/*': {
         target: 'http://localhost:8080',
         changeOrigin: true
