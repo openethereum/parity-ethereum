@@ -291,7 +291,12 @@ impl Configuration {
 	fn cache_config(&self) -> CacheConfig {
 		match self.args.flag_cache_size.or(self.args.flag_cache) {
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
-			None => CacheConfig::new(self.args.flag_cache_size_db, self.args.flag_cache_size_blocks, self.args.flag_cache_size_queue),
+			None => CacheConfig::new(
+				self.args.flag_cache_size_db,
+				self.args.flag_cache_size_blocks,
+				self.args.flag_cache_size_queue,
+				self.args.flag_cache_size_state,
+			),
 		}
 	}
 

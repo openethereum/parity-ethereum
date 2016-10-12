@@ -37,7 +37,7 @@ ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
 rand = "0.3"
-lru-cache = "0.0.7"
+lru-cache = { git = "https://github.com/contain-rs/lru-cache" }
 ethcore-bloom-journal = { path = "../util/bloom" }
 byteorder = "0.5"
 

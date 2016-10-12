@@ -21,15 +21,13 @@ const MIN_DB_CACHE_MB: u32 = 2;
 const MIN_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 16;
 const DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB: u32 = 50;
 const DEFAULT_TRACE_CACHE_SIZE: u32 = 20;
+const DEFAULT_STATE_CACHE_SIZE: u32 = 25;
 
 /// Configuration for application cache sizes.
 /// All	values are represented in MB.
 #[derive(Debug, PartialEq)]
 pub struct CacheConfig {
-	/// Size of database cache set using option `set_block_cache_size_mb`
-	/// 50% is blockchain
-	/// 25% is tracing
-	/// 25% is state
+	/// Size of rocksDB cache. Almost all goes to the state column.
 	db: u32,
 	/// Size of blockchain cache.
 	blockchain: u32,
@@ -37,11 +35,13 @@ pub struct CacheConfig {
 	queue: u32,
 	/// Size of traces cache.
 	traces: u32,
+	/// Size of the state cache.
+	state: u32,
 }
 
 impl Default for CacheConfig {
 	fn default() -> Self {
-		CacheConfig::new(64, 8, DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB)
+		CacheConfig::new(64, 8, DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, DEFAULT_STATE_CACHE_SIZE)
 	}
 }
 
@@ -49,26 +49,28 @@ impl CacheConfig {
 	/// Creates new cache config with cumulative size equal `total`.
 	pub fn new_with_total_cache_size(total: u32) -> Self {
 		CacheConfig {
-			db: total * 7 / 8,
-			blockchain: total / 8,
+			db: total * 7 / 10,
+			blockchain: total / 10,
 			queue: DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB,
 			traces: DEFAULT_TRACE_CACHE_SIZE,
+			state: total * 2 / 10,
 		}
 	}
 
 	/// Creates new cache config with gitven details.
-	pub fn new(db: u32, blockchain: u32, queue: u32) -> Self {
+	pub fn new(db: u32, blockchain: u32, queue: u32, state: u32) -> Self {
 		CacheConfig {
 			db: db,
 			blockchain: blockchain,
 			queue: queue,
 			traces: DEFAULT_TRACE_CACHE_SIZE,
+			state: state,
 		}
 	}
 
 	/// Size of db cache for blockchain.
 	pub fn db_blockchain_cache_size(&self) -> u32 {
-		max(MIN_DB_CACHE_MB, self.blockchain / 4)
+		max(MIN_DB_CACHE_MB, self.db / 4)
 	}
 
 	/// Size of db cache for state.
@@ -90,6 +92,16 @@ impl CacheConfig {
 	pub fn traces(&self) -> u32 {
 		self.traces
 	}
+
+	/// Size of the state cache.
+	pub fn state(&self) -> u32 {
+		self.state * 3 / 4
+	}
+
+	/// Size of the jump-tables cache.
+	pub fn jump_tables(&self) -> u32 {
+		self.state / 4
+	}
 }
 
 #[cfg(test)]
@@ -99,21 +111,24 @@ mod tests {
 	#[test]
 	fn test_cache_config_constructor() {
 		let config = CacheConfig::new_with_total_cache_size(200);
-		assert_eq!(config.db, 175);
-		assert_eq!(config.blockchain(), 25);
+		assert_eq!(config.db, 140);
+		assert_eq!(config.blockchain(), 20);
 		assert_eq!(config.queue(), 50);
+		assert_eq!(config.state(), 30);
+		assert_eq!(config.jump_tables(), 10);
 	}
 
 	#[test]
 	fn test_cache_config_db_cache_sizes() {
 		let config = CacheConfig::new_with_total_cache_size(400);
-		assert_eq!(config.db, 350);
-		assert_eq!(config.db_blockchain_cache_size(), 12);
-		assert_eq!(config.db_state_cache_size(), 262);
+		assert_eq!(config.db, 280);
+		assert_eq!(config.db_blockchain_cache_size(), 70);
+		assert_eq!(config.db_state_cache_size(), 210);
 	}
 
 	#[test]
 	fn test_cache_config_default() {
-		assert_eq!(CacheConfig::default(), CacheConfig::new(64, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB));
+		assert_eq!(CacheConfig::default(),
+			CacheConfig::new(64, 8, super::DEFAULT_BLOCK_QUEUE_SIZE_LIMIT_MB, super::DEFAULT_STATE_CACHE_SIZE));
 	}
 }

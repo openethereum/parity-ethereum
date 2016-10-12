@@ -214,6 +214,8 @@ Footprint Options:
                            megabytes (default: {flag_cache_size_blocks}).
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue (default: {flag_cache_size_queue}).
+  --cache-size-state MB    Specify the maximum size of memory to use for
+                           the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.a (default: {flag_cache_size:?})
