@@ -256,16 +256,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			return;
 		}
 
-		// at first, let's insert new block traces
-		{
-			let mut traces = self.traces.write();
-			// it's important to use overwrite here,
-			// cause this value might be queried by hash later
-			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
-			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
-		}
-
 		// now let's rebuild the blooms
 		if !request.enacted.is_empty() {
 			let range_start = request.block_number as Number + 1 - request.enacted.len();
@@ -276,11 +266,24 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				// all traces are expected to be found here. That's why `expect` has been used
 				// instead of `filter_map`. If some traces haven't been found, it meens that
 				// traces database is corrupted or incomplete.
-				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
-				.map(|block_traces| block_traces.bloom())
+				.map(|block_hash| if block_hash == &request.block_hash {
+					request.traces.bloom()
+				} else {
+					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
+				})
 				.map(blooms::Bloom::from)
 				.map(Into::into)
 				.collect();
+
+			// insert new block traces into the cache and the database
+			{
+				let mut traces = self.traces.write();
+				// it's important to use overwrite here,
+				// cause this value might be queried by hash later
+				batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+				// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
+				self.note_used(CacheID::Trace(request.block_hash.clone()));
+			}
 
 			let chain = BloomGroupChain::new(self.bloom_config, self);
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);

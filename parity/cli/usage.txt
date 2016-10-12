@@ -184,6 +184,10 @@ Sealing/Mining Options:
                            more than 32 characters. (default: {flag_extra_data:?})
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) (default: {flag_tx_queue_size}).
+  --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
+                           the queue. LIMIT can be either an amount of gas or
+                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           the current block gas limit. (default: {flag_tx_queue_gas}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
