@@ -22,6 +22,7 @@ use tests::helpers::*;
 use common::*;
 use devtools::*;
 use miner::Miner;
+use spec::Spec;
 
 #[test]
 fn imports_from_empty() {
@@ -166,4 +167,27 @@ fn can_mine() {
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+}
+
+#[test]
+fn change_history_size() {
+	let dir = RandomTempPath::new();
+	let test_spec = Spec::new_null();
+	let mut config = ClientConfig::default();
+	config.history = 2;
+	let address = Address::random();
+	{
+		let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
+		for _ in 0..2 {
+			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+			b.block_mut().fields_mut().state.add_balance(&address, &5.into());
+			b.block_mut().fields_mut().state.commit().unwrap();
+			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
+		}
+	}
+	let mut config = ClientConfig::default();
+	config.history = 1;
+	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected()).unwrap();
+	assert_eq!(client.state().balance(&address), 10.into());
 }
