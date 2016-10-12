@@ -179,7 +179,7 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 	use ethsync::NetworkConfiguration;
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
-		net_config_path: Some(replace_home("$HOME/.parity/network/1")),
+		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
 		udp_port: None,

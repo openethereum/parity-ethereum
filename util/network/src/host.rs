@@ -47,7 +47,24 @@ type Slab<T> = ::slab::Slab<T, usize>;
 const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 80;
 const MAX_HANDSHAKES_PER_ROUND: usize = 32;
+
+// Tokens
+const TCP_ACCEPT: usize = SYS_TIMER + 1;
+const IDLE: usize = SYS_TIMER + 2;
+const DISCOVERY: usize = SYS_TIMER + 3;
+const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
+const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
+const NODE_TABLE: usize = SYS_TIMER + 6;
+const FIRST_SESSION: usize = 0;
+const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
+const USER_TIMER: usize = LAST_SESSION + 256;
+const SYS_TIMER: usize = LAST_SESSION + 1;
+
+// Timeouts
 const MAINTENANCE_TIMEOUT: u64 = 1000;
+const DISCOVERY_REFRESH_TIMEOUT: u64 = 7200;
+const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
+const NODE_TABLE_TIMEOUT: u64 = 300_000;
 
 #[derive(Debug, PartialEq, Clone)]
 /// Network service configuration
@@ -121,18 +138,6 @@ impl NetworkConfiguration {
 		config
 	}
 }
-
-// Tokens
-const TCP_ACCEPT: usize = SYS_TIMER + 1;
-const IDLE: usize = SYS_TIMER + 2;
-const DISCOVERY: usize = SYS_TIMER + 3;
-const DISCOVERY_REFRESH: usize = SYS_TIMER + 4;
-const DISCOVERY_ROUND: usize = SYS_TIMER + 5;
-const NODE_TABLE: usize = SYS_TIMER + 6;
-const FIRST_SESSION: usize = 0;
-const LAST_SESSION: usize = FIRST_SESSION + MAX_SESSIONS - 1;
-const USER_TIMER: usize = LAST_SESSION + 256;
-const SYS_TIMER: usize = LAST_SESSION + 1;
 
 /// Protocol handler level packet id
 pub type PacketId = u8;
@@ -564,11 +569,11 @@ impl Host {
 			discovery.init_node_list(self.nodes.read().unordered_entries());
 			discovery.add_node_list(self.nodes.read().unordered_entries());
 			*self.discovery.lock() = Some(discovery);
-			io.register_stream(DISCOVERY).expect("Error registering UDP listener");
-			io.register_timer(DISCOVERY_REFRESH, 7200).expect("Error registering discovery timer");
-			io.register_timer(DISCOVERY_ROUND, 300).expect("Error registering discovery timer");
+			try!(io.register_stream(DISCOVERY));
+			try!(io.register_timer(DISCOVERY_REFRESH, DISCOVERY_REFRESH_TIMEOUT));
+			try!(io.register_timer(DISCOVERY_ROUND, DISCOVERY_ROUND_TIMEOUT));
 		}
-		try!(io.register_timer(NODE_TABLE, 300_000));
+		try!(io.register_timer(NODE_TABLE, NODE_TABLE_TIMEOUT));
 		try!(io.register_stream(TCP_ACCEPT));
 		Ok(())
 	}
@@ -982,6 +987,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 			NODE_TABLE => {
 				trace!(target: "network", "Refreshing node table");
 				self.nodes.write().clear_useless();
+				self.nodes.write().save();
 			},
 			_ => match self.timers.read().get(&token).cloned() {
 				Some(timer) => match self.handlers.read().get(&timer.protocol).cloned() {

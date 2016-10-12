@@ -27,7 +27,7 @@ use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::{SyncConfig, SyncProvider};
+use ethsync::SyncConfig;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
@@ -201,6 +201,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
 
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
+
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
@@ -302,7 +305,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || sync.status().is_major_syncing(),
+				move || ::ethsync::SyncProvider::status(&*sync).is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

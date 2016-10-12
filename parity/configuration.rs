@@ -31,7 +31,7 @@ use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
 geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit};
-use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras, SpecType};
+use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
@@ -459,21 +459,10 @@ impl Configuration {
 		ret.min_peers = self.min_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
-		let net_specific_path = net_path.join(&try!(self.network_specific_path()));
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
-		ret.net_config_path = Some(net_specific_path.to_str().unwrap().to_owned());
 		ret.reserved_nodes = try!(self.init_reserved_nodes());
 		ret.allow_non_reserved = !self.args.flag_reserved_only;
 		Ok(ret)
-	}
-
-	fn network_specific_path(&self) -> Result<PathBuf, String> {
-		let spec_type : SpecType = try!(self.chain().parse());
-		let spec = try!(spec_type.spec());
-		let id = try!(self.network_id());
-		let mut path = PathBuf::new();
-		path.push(format!("{}", id.unwrap_or_else(|| spec.network_id())));
-		Ok(path)
 	}
 
 	fn network_id(&self) -> Result<Option<U256>, String> {

@@ -122,7 +122,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -151,7 +150,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -180,7 +178,6 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -209,7 +206,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -269,17 +265,24 @@ windows:
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
     - cmd md5sum target\release\parity >> checksum
+    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
+    - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
+    - cmd signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
+    - cmd C:\NSIS\makensis.exe nsis\installer.nsi
+    - cmd signtool sign /f %keyfile% /p %certpass% nsis\installer.exe
     - aws configure set aws_access_key_id %s3_key%
     - aws configure set aws_secret_access_key %s3_secret%
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.exe
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.pdb
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/installer.exe --body nsis\installer.exe
   tags:
    - rust-windows
   artifacts:
     paths:
     - target/release/parity.exe
     - target/release/parity.pdb
+    - nsis/installer.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-linux:
   stage: test
