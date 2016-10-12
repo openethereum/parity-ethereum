@@ -49,6 +49,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 					ChainEra::Frontier => ethereum::new_frontier_test(),
 					ChainEra::Homestead => ethereum::new_homestead_test(),
 					ChainEra::DaoHardfork => ethereum::new_daohardfork_test(),
+					ChainEra::Eip150Hardfork => ethereum::new_eip150hardfork_test(),
 				};
 				spec.set_genesis_state(state);
 				spec.overwrite_genesis_params(genesis);
@@ -124,4 +125,15 @@ mod daohardfork_tests {
 
 	declare_test!{BlockchainTests_TestNetwork_bcSimpleTransitionTest, "BlockchainTests/TestNetwork/bcSimpleTransitionTest"}
 	declare_test!{BlockchainTests_TestNetwork_bcTheDaoTest, "BlockchainTests/TestNetwork/bcTheDaoTest"}
+}
+
+mod eip150hardfork_tests {
+	use tests::helpers::*;
+	use super::json_chain_test;
+
+	fn do_json_test(json_data: &[u8]) -> Vec<String> {
+		json_chain_test(json_data, ChainEra::Eip150Hardfork)
+	}
+
+	declare_test!{BlockchainTests_TestNetwork_bcEIP150Test, "BlockchainTests/TestNetwork/bcEIP150Test"}
 }
