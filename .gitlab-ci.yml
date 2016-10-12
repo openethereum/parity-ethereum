@@ -3,9 +3,8 @@ stages:
   - test
 variables:
   GIT_DEPTH: "3"
-  SIMPLECOV: "true"
+  SIMPLECOV: "true" 
   RUST_BACKTRACE: "1"
-  RUSTFLAGS: "-D warnings"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -20,11 +19,11 @@ linux-stable:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
-    - md5sum target/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-stable
@@ -43,11 +42,11 @@ linux-stable-14.04:
   script:
     - cargo build --release --verbose
     - strip target/release/parity
-    - md5sum target/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-14.04
@@ -106,11 +105,11 @@ linux-centos:
     - export CC="gcc"
     - cargo build --release --verbose
     - strip target/release/parity
-    - md5sum target/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-centos
@@ -133,11 +132,11 @@ linux-armv7:
     - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
-    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-arm
@@ -161,11 +160,11 @@ linux-arm:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
-    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-arm
@@ -189,11 +188,11 @@ linux-armv6:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5 
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-arm
@@ -217,11 +216,11 @@ linux-aarch64:
     - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
-    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
   tags:
     - rust
     - rust-arm
@@ -239,11 +238,11 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
-    - md5sum target/release/parity >> checksum
-    - aws configure set aws_access_key_id $s3_key
+    - md5sum target/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/checksum --body checksum
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
   tags:
     - osx
   artifacts:
@@ -261,28 +260,42 @@ windows:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
-    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off
+    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
-    - cmd md5sum target\release\parity >> checksum
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
-    - makensis.exe nsis\installer.nsi
-    - signtool sign /f %keyfile% /p %certpass% nsis\installer.exe
+    - cd nsis
+    - makensis.exe installer.nsi
+    - copy installer.exe InstallParity.exe
+    - signtool sign /f %keyfile% /p %certpass% InstallParity.exe
+    - md5sums InstallParity.exe > InstallParity.exe.md5
+    - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
+    - md5sums win-installer.zip > win-installer.zip.md5
+    - cd ..\target\release\
+    - md5sums parity.exe parity.pdb > parity.md5
+    - md5sums parity.exe > parity.exe.md5
+    - zip parity.zip parity.exe parity.pdb parity.md5
+    - md5sums parity.zip > parity.zip.md5
+    - cd ..\..
     - aws configure set aws_access_key_id %s3_key%
     - aws configure set aws_secret_access_key %s3_secret%
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.exe
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity --body target\release\parity.pdb
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/checksum --body checksum
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/installer.exe --body nsis\installer.exe
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe.md5 --body target\release\parity.exe.md5
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip --body target\release\parity.zip
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip.md5 --body target\release\parity.zip.md5
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe --body nsis\InstallParity.exe
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
   tags:
    - rust-windows
   artifacts:
     paths:
     - target/release/parity.exe
     - target/release/parity.pdb
-    - nsis/installer.exe
+    - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-linux:
   stage: test

@@ -61,6 +61,30 @@ binary_fixed_size!(SyncStatus);
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
+
+	/// Get peers information
+	fn peers(&self) -> Vec<PeerInfo>;
+}
+
+/// Peer connection information
+#[derive(Debug, Binary)]
+pub struct PeerInfo {
+	/// Public node id
+	pub id: Option<String>,
+	/// Node client ID
+	pub client_version: String,
+	/// Capabilities
+	pub capabilities: Vec<String>, 
+	/// Remote endpoint address
+	pub remote_address: String,
+	/// Local endpoint address
+	pub local_address: String,
+	/// Ethereum protocol version
+	pub eth_version: u32,
+	/// SHA3 of peer best block hash
+	pub eth_head: H256,
+	/// Peer total difficulty if known
+	pub eth_difficulty: Option<U256>,
 }
 
 /// Ethereum network protocol handler
@@ -93,6 +117,14 @@ impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
 		self.handler.sync.write().status()
+	}
+
+	/// Get sync peers
+	fn peers(&self) -> Vec<PeerInfo> {
+		self.network.with_context_eval(self.subprotocol_name, |context| {
+			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			self.handler.sync.write().peers(&sync_io)
+		}).unwrap_or(Vec::new())
 	}
 }
 
