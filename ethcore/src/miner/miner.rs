@@ -48,6 +48,17 @@ pub enum PendingSet {
 	SealingOrElseQueue,
 }
 
+/// Type of the gas limit to apply to the transaction queue.
+#[derive(Debug, PartialEq)]
+pub enum GasLimit {
+	/// Depends on the block gas limit and is updated with every block.
+	Auto,
+	/// No limit.
+	None,
+	/// Set to a fixed gas value.
+	Fixed(U256),
+}
+
 /// Configures the behaviour of the miner.
 #[derive(Debug, PartialEq)]
 pub struct MinerOptions {
@@ -73,6 +84,8 @@ pub struct MinerOptions {
 	pub work_queue_size: usize,
 	/// Can we submit two different solutions for the same block and expect both to result in an import?
 	pub enable_resubmission: bool,
+	/// Global gas limit for all transaction in the queue except for local and retracted.
+	pub tx_queue_gas_limit: GasLimit,
 }
 
 impl Default for MinerOptions {
@@ -89,6 +102,7 @@ impl Default for MinerOptions {
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
+			tx_queue_gas_limit: GasLimit::Auto,
 		}
 	}
 }
@@ -210,8 +224,12 @@ impl Miner {
 	/// Creates new instance of miner
 	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
 		let work_poster = if !options.new_work_notify.is_empty() { Some(WorkPoster::new(&options.new_work_notify)) } else { None };
+		let gas_limit = match options.tx_queue_gas_limit {
+			GasLimit::Fixed(ref limit) => *limit,
+			_ => !U256::zero(),
+		};
 		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(
-			options.tx_queue_strategy, options.tx_queue_size, !U256::zero(), options.tx_gas_limit
+			options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit
 		)));
 		Arc::new(Miner {
 			transaction_queue: txq,
@@ -402,8 +420,10 @@ impl Miner {
 		let gas_limit = HeaderView::new(&chain.best_block_header()).gas_limit();
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
-		// Set total qx queue gas limit to be 2x the block gas limit.
-		queue.set_total_gas_limit(gas_limit << 1);
+		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
+			// Set total tx queue gas limit to be 2x the block gas limit.
+			queue.set_total_gas_limit(gas_limit << 1);
+		}
 	}
 
 	/// Returns true if we had to prepare new pending block
@@ -1023,6 +1043,7 @@ mod tests {
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
 				tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
+				tx_queue_gas_limit: GasLimit::None,
 				pending_set: PendingSet::AlwaysSealing,
 				work_queue_size: 5,
 				enable_resubmission: true,

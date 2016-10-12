@@ -200,6 +200,10 @@ Sealing/Mining Options:
                            gas_price - Prioritize txs with high gas price;
                            gas_factor - Prioritize txs using gas price
                            and gas limit ratio [default: gas_factor].
+  --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
+                           the queue. LIMIT can be either an amount of gas or
+                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           the current block gas limit. [default: auto].
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -379,6 +383,7 @@ pub struct Args {
 	pub flag_extra_data: Option<String>,
 	pub flag_tx_queue_size: usize,
 	pub flag_tx_queue_strategy: String,
+	pub flag_tx_queue_gas: String,
 	pub flag_notify_work: Option<String>,
 	pub flag_logging: Option<String>,
 	pub flag_version: bool,
