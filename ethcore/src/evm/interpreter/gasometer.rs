@@ -63,7 +63,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 		match schedule.sub_gas_cap_divisor {
 			Some(cap_divisor) if self.current_gas >= needed => {
 				let gas_remaining = self.current_gas - needed;
-				let max_gas_provided = gas_remaining * Gas::from(cap_divisor - 1) / Gas::from(cap_divisor);
+				let max_gas_provided = gas_remaining - gas_remaining / Gas::from(cap_divisor);
 				if let Some(r) = requested { 
 					min(r, max_gas_provided)
 				} else {
