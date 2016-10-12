@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import unknownImage from '../../images/contracts/unknown-64x64.png';
+import unknownImage from '../../../assets/images/contracts/unknown-64x64.png';
 import styles from './balance.css';
 
 class Balance extends Component {

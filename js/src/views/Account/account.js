@@ -23,7 +23,7 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import { EditMeta, Shapeshift, Transfer } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
-import shapeshiftBtn from '../../images/shapeshift-btn.png';
+import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';

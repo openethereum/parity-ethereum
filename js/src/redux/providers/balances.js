@@ -19,7 +19,7 @@ import { setAddressImage } from './imagesActions';
 
 import * as abis from '../../contracts/abi';
 
-import imagesEthereum from '../../images/contracts/ethereum-black-64x64.png';
+import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
 
 const ETH = {
   name: 'Ethereum',

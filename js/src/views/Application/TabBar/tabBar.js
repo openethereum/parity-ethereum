@@ -23,7 +23,7 @@ import { Tabs, Tab } from 'material-ui/Tabs';
 import { Badge, ParityBackground, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
-import imagesEthcoreBlock from '../../../images/ethcore-block.png';
+import imagesEthcoreBlock from '../../../../assets/images/ethcore-block.png';
 
 const TABMAP = {
   accounts: 'account',

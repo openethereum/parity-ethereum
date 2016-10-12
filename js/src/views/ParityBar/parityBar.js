@@ -23,7 +23,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Badge, Button, ContainerTitle, ParityBackground, SignerIcon } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../images/ethcore-block.png';
+import imagesEthcoreBlock from '../../../assets/images/ethcore-block.png';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {

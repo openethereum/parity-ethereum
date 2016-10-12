@@ -39,4 +39,5 @@
 .author, .version {
   font-size: 0.75em;
   opacity: 0.5;
+  margin-top: 0.5em;
 }

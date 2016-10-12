@@ -24,6 +24,8 @@ injectTapEventPlugin();
 import store from './tokenreg/store';
 import Container from './tokenreg/Container';
 
+import '../../assets/fonts/Roboto/font.css';
+import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
 import './tokenreg.html';
 

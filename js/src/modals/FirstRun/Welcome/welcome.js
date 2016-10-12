@@ -16,7 +16,7 @@
 
 import React, { Component } from 'react';
 
-import imagesEthcore from '../../../images/ethcore-logo-white-square.png';
+import imagesEthcore from '../../../../assets/images/ethcore-logo-white-square.png';
 
 const LOGO_STYLE = {
   float: 'right',

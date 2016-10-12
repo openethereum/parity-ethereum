@@ -20,7 +20,7 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
 
-import imageUnknown from '../../../images/contracts/unknown-64x64.png';
+import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';
 
 const CHECK_STYLE = {
