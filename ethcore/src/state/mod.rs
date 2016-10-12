@@ -239,15 +239,15 @@ impl State {
 
 	/// Create a recoverable snaphot of this state.
 	pub fn snapshot(&mut self) {
-		self.snapshots.borrow_mut().push(HashMap::new());
+		self.snapshots.get_mut().push(HashMap::new());
 	}
 
 	/// Merge last snapshot with previous.
 	pub fn discard_snapshot(&mut self) {
 		// merge with previous snapshot
-		let last = self.snapshots.borrow_mut().pop();
+		let last = self.snapshots.get_mut().pop();
 		if let Some(mut snapshot) = last {
-			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
+			if let Some(ref mut prev) = self.snapshots.get_mut().last_mut() {
 				if prev.is_empty() {
 					**prev = snapshot;
 				} else {
@@ -261,11 +261,11 @@ impl State {
 
 	/// Revert to the last snapshot and discard it.
 	pub fn revert_to_snapshot(&mut self) {
-		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
+		if let Some(mut snapshot) = self.snapshots.get_mut().pop() {
 			for (k, v) in snapshot.drain() {
 				match v {
 					Some(v) => {
-						match self.cache.borrow_mut().entry(k) {
+						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(mut e) => {
 								// Merge snapshotted changes back into the main account
 								// storage preserving the cache.
@@ -277,7 +277,7 @@ impl State {
 						}
 					},
 					None => {
-						match self.cache.borrow_mut().entry(k) {
+						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(e) => {
 								if e.get().is_dirty() {
 									e.remove();
@@ -578,14 +578,14 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (address, pod_account) in query.get() {
-			self.ensure_cached(address, RequireCache::Code, |a| {
-				if a.is_some() {
-					for key in pod_account.storage.keys() {
-						self.storage_at(address, key);
-					}
-				}
-			});
+		for (address, pod_account) in query.get().into_iter()
+			.filter(|&(ref a, _)| self.ensure_cached(a, RequireCache::Code, |a| a.is_some()))
+		{
+			// needs to be split into two parts for the refcell code here
+			// to work.
+			for key in pod_account.storage.keys() {
+				self.storage_at(address, key);
+			}
 		}
 	}
 
