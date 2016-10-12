@@ -39,7 +39,6 @@
     "test:e2e": "mocha 'src/**/*.e2e.js'"
   },
   "devDependencies": {
-    "axios": "^0.14.0",
     "babel-cli": "^6.10.1",
     "babel-core": "^6.10.4",
     "babel-eslint": "^6.1.2",
@@ -94,13 +93,6 @@
     "react-addons-test-utils": "^15.3.0",
     "react-copy-to-clipboard": "^4.2.3",
     "react-hot-loader": "^1.3.0",
-    "rollup": "^0.34.1",
-    "rollup-plugin-babel": "^2.6.1",
-    "rollup-plugin-commonjs": "^3.3.1",
-    "rollup-plugin-node-globals": "^1.0.6",
-    "rollup-plugin-node-resolve": "^2.0.0",
-    "rollup-plugin-replace": "^1.1.1",
-    "rollup-plugin-uglify": "^1.0.1",
     "rucksack-css": "^0.8.6",
     "sinon": "^1.17.4",
     "sinon-as-promised": "^4.0.2",
@@ -117,9 +109,7 @@
   "dependencies": {
     "bignumber.js": "^2.3.0",
     "blockies": "0.0.2",
-    "browser-request": "^0.3.3",
     "bytes": "^2.4.0",
-    "classnames": "^2.2.3",
     "es6-promise": "^3.2.1",
     "format-json": "^1.0.3",
     "format-number": "^2.0.1",
