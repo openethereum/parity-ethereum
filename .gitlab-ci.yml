@@ -272,9 +272,10 @@ windows:
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - cd nsis
     - makensis.exe installer.nsi
-    - signtool sign /f %keyfile% /p %certpass% installer.exe
-    - md5sums installer.exe > installer.exe.md5
-    - zip win-installer.zip installer.exe installer.exe.md5
+    - cp installer.exe InstallParity.exe
+    - signtool sign /f %keyfile% /p %certpass% InstallParity.exe
+    - md5sums InstallParity.exe > InstallParity.exe.md5
+    - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
     - md5sums win-installer.zip > win-installer.zip.md5
     - cd ..\target\release\
     - md5sums parity.exe parity.pdb > parity.md5
@@ -288,8 +289,8 @@ windows:
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe.md5 --body target\release\parity.exe.md5
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip --body target\release\parity.zip
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip.md5 --body target\release\parity.zip.md5
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/installer.exe --body nsis\installer.exe
-    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/installer.exe.md5 --body nsis\installer.exe.md5
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe --body nsis\InstallParity.exe
+    - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/InstallParity.exe.md5 --body nsis\InstallParity.exe.md5
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip --body nsis\win-installer.zip
     - aws s3api put-object --bucket builds-parity --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/win-installer.zip.md5 --body nsis\win-installer.zip.md5
   tags:
