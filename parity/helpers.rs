@@ -205,6 +205,7 @@ pub fn to_client_config(
 		vm_type: VMType,
 		name: String,
 		pruning: Algorithm,
+		pruning_history: u64,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -232,6 +233,7 @@ pub fn to_client_config(
 	client_config.tracing.enabled = tracing;
 	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
+	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;

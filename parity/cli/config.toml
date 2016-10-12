@@ -46,6 +46,7 @@ tx_queue_gas = "auto"
 [footprint]
 tracing = "on"
 pruning = "fast"
+pruning_history = 64
 cache_size_db = 128
 cache_size_blocks = 16
 cache_size_queue = 100
