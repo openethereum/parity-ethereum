@@ -121,7 +121,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -150,7 +149,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -179,7 +177,6 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -208,7 +205,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -272,7 +268,7 @@ windows:
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - cd nsis
     - makensis.exe installer.nsi
-    - cp installer.exe InstallParity.exe
+    - copy installer.exe InstallParity.exe
     - signtool sign /f %keyfile% /p %certpass% InstallParity.exe
     - md5sums InstallParity.exe > InstallParity.exe.md5
     - zip win-installer.zip InstallParity.exe InstallParity.exe.md5
@@ -299,7 +295,7 @@ windows:
     paths:
     - target/release/parity.exe
     - target/release/parity.pdb
-    - nsis/installer.exe
+    - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-linux:
   stage: test
