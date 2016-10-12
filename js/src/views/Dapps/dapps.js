@@ -133,12 +133,14 @@ export default class Dapps extends Component {
     fetch(`http://${window.location.host}/api/apps`, { method: 'GET' })
       .then((response) => response.ok ? response.json() : [])
       .then((_localApps) => {
-        const localApps = _localApps.map((app) => {
-          app.image = `/app/${app.id}/${app.iconUrl}`;
-          app.url = app.id;
-          app.local = true;
-          return app;
-        });
+        const localApps = _localApps
+          .filter((app) => !['home', 'status', 'parity', 'wallet'].includes(app.id))
+          .map((app) => {
+            app.image = `/app/${app.id}/${app.iconUrl}`;
+            app.url = app.id;
+            app.local = true;
+            return app;
+          });
         console.log('loadLocalApps', localApps);
         this.setState({ localApps });
       })
