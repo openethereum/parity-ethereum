@@ -100,7 +100,7 @@ impl Default for MinerOptions {
 			tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
-			work_queue_size: 20,
+			work_queue_size: 5,
 			enable_resubmission: true,
 			tx_queue_gas_limit: GasLimit::Auto,
 		}

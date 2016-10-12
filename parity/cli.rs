@@ -164,7 +164,7 @@ Sealing/Mining Options:
   --work-queue-size ITEMS  Specify the number of historical work packages
                            which are kept cached lest a solution is found for
                            them later. High values take more memory but result
-                           in fewer unusable solutions [default: 20].
+                           in fewer unusable solutions [default: 5].
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
   --relay-set SET          Set of transactions to relay. SET may be:
