@@ -468,12 +468,10 @@ export default class Transfer extends Component {
   _estimateGasEth () {
     const { api } = this.context;
     const { account } = this.props;
-    const { data, gas, gasPrice, recipient, value } = this.state;
+    const { data, recipient, value } = this.state;
     const options = {
       from: account.address,
       to: recipient,
-      gas,
-      gasPrice,
       value: api.util.toWei(value || 0)
     };
 

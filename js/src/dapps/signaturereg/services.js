@@ -167,6 +167,7 @@ export function postRegister (instance, id, options = {}) {
     .estimateGas(options, [id])
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
+      console.log('postRegister', `gas estimated at ${gas.toFormat(0)}, setting to ${gas.mul(1.2).toFormat(0)}`);
       instance.register.postTransaction(options, [id]);
     });
 }
