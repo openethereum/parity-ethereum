@@ -70,6 +70,7 @@ struct JournalOverlay {
 	pending_overlay: H256FastMap<Bytes>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
+	earliest_era: Option<u64>,
 }
 
 #[derive(PartialEq)]
@@ -123,7 +124,10 @@ impl OverlayRecentDB {
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing, self.column);
 		let journal_overlay = self.journal_overlay.read();
-		*journal_overlay == reconstructed
+		journal_overlay.backing_overlay == reconstructed.backing_overlay &&
+		journal_overlay.pending_overlay == reconstructed.pending_overlay &&
+		journal_overlay.journal == reconstructed.journal &&
+		journal_overlay.latest_era == reconstructed.latest_era
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -135,6 +139,7 @@ impl OverlayRecentDB {
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
 		let mut latest_era = None;
+		let mut earliest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
@@ -166,6 +171,7 @@ impl OverlayRecentDB {
 						deletions: deletions,
 					});
 					index += 1;
+					earliest_era = Some(era);
 				};
 				if index == 0 || era == 0 {
 					break;
@@ -178,8 +184,61 @@ impl OverlayRecentDB {
 			backing_overlay: overlay,
 			pending_overlay: HashMap::default(),
 			journal: journal,
-			latest_era: latest_era }
+			latest_era: latest_era,
+			earliest_era: earliest_era,
+		}
 	}
+
+	fn apply_old_commit(batch: &DBTransaction, journal_overlay: &mut JournalOverlay, column: Option<u32>, end_era: u64, canon_id: &H256) -> Result<(), UtilError> {
+		// apply old commits' details
+		if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
+			let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
+			let mut canon_deletions: Vec<H256> = Vec::new();
+			let mut overlay_deletions: Vec<H256> = Vec::new();
+			let mut index = 0usize;
+			for mut journal in records.drain(..) {
+				//delete the record from the db
+				let mut r = RlpStream::new_list(3);
+				r.append(&end_era);
+				r.append(&index);
+				r.append(&&PADDING[..]);
+				try!(batch.delete(column, &r.drain()));
+				trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
+				{
+					if canon_id == &journal.id {
+						for h in &journal.insertions {
+							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
+								if rc > 0 {
+									canon_insertions.push((h.clone(), d.to_owned())); //TODO: optimize this to avoid data copy
+								}
+							}
+						}
+						canon_deletions = journal.deletions;
+					}
+					overlay_deletions.append(&mut journal.insertions);
+				}
+				index += 1;
+			}
+			// apply canon inserts first
+			for (k, v) in canon_insertions {
+				try!(batch.put(column, &k, &v));
+				journal_overlay.pending_overlay.insert(to_short_key(&k), v);
+			}
+			// update the overlay
+			for k in overlay_deletions {
+				journal_overlay.backing_overlay.remove_and_purge(&to_short_key(&k));
+			}
+			// apply canon deletions
+			for k in canon_deletions {
+				if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
+					try!(batch.delete(column, &k));
+				}
+			}
+		}
+		journal_overlay.journal.remove(&end_era);
+		Ok(())
+	}
+
 
 }
 
@@ -213,6 +272,8 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
+
+	fn earliest_era(&self) -> Option<u64> { self.journal_overlay.read().earliest_era }
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let journal_overlay = self.journal_overlay.read();
@@ -257,57 +318,16 @@ impl JournalDB for OverlayRecentDB {
 			}
 			journal_overlay.journal.entry(now).or_insert_with(Vec::new).push(JournalEntry { id: id.clone(), insertions: inserted_keys, deletions: removed_keys });
 		}
-
-		let journal_overlay = &mut *journal_overlay;
-		// apply old commits' details
 		if let Some((end_era, canon_id)) = end {
-			if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
-				let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
-				let mut canon_deletions: Vec<H256> = Vec::new();
-				let mut overlay_deletions: Vec<H256> = Vec::new();
-				let mut index = 0usize;
-				for mut journal in records.drain(..) {
-					//delete the record from the db
-					let mut r = RlpStream::new_list(3);
-					r.append(&end_era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					try!(batch.delete(self.column, &r.drain()));
-					trace!("commit: Delete journal for time #{}.{}: {}, (canon was {}): +{} -{} entries", end_era, index, journal.id, canon_id, journal.insertions.len(), journal.deletions.len());
-					{
-						if canon_id == journal.id {
-							for h in &journal.insertions {
-								if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
-									if rc > 0 {
-										canon_insertions.push((h.clone(), d.to_owned())); //TODO: optimize this to avoid data copy
-									}
-								}
-							}
-							canon_deletions = journal.deletions;
-						}
-						overlay_deletions.append(&mut journal.insertions);
-					}
-					index += 1;
-				}
-				// apply canon inserts first
-				for (k, v) in canon_insertions {
-					try!(batch.put(self.column, &k, &v));
-					journal_overlay.pending_overlay.insert(to_short_key(&k), v);
-				}
-				// update the overlay
-				for k in overlay_deletions {
-					journal_overlay.backing_overlay.remove_and_purge(&to_short_key(&k));
-				}
-				// apply canon deletions
-				for k in canon_deletions {
-					if !journal_overlay.backing_overlay.contains(&to_short_key(&k)) {
-						try!(batch.delete(self.column, &k));
-					}
-				}
-			}
-			journal_overlay.journal.remove(&end_era);
+			try!(Self::apply_old_commit(batch, &mut journal_overlay, self.column, end_era, &canon_id));
 		}
-		Ok(0)
+		Ok((0))
+
+	}
+
+	fn commit_old(&mut self, batch: &DBTransaction, end_era: u64, end_id: &H256) -> Result<(), UtilError> {
+		let mut journal_overlay = self.journal_overlay.write();
+		Self::apply_old_commit(batch, &mut journal_overlay, self.column, end_era, end_id)
 	}
 
 	fn flush(&self) {

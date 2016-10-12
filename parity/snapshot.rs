@@ -52,6 +52,7 @@ pub struct SnapshotCommand {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
@@ -89,7 +90,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.pruning, self.pruning_history, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
 
 		let service = try!(ClientService::start(
 			client_config,
