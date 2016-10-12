@@ -98,7 +98,6 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}
 declare_test!{StateTests_stCallCodes, "StateTests/stCallCodes"}
 declare_test!{StateTests_stCallCreateCallCodeTest, "StateTests/stCallCreateCallCodeTest"}
-declare_test!{StateTests_stDelegatecallTest, "StateTests/stDelegatecallTest"}
 declare_test!{StateTests_stExample, "StateTests/stExample"}
 declare_test!{StateTests_stInitCodeTest, "StateTests/stInitCodeTest"}
 declare_test!{StateTests_stLogTests, "StateTests/stLogTests"}
