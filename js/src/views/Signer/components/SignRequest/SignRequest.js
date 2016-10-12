@@ -66,7 +66,7 @@ export default class SignRequest extends Component {
   }
 
   renderActions () {
-    const { isFinished, status } = this.props;
+    const { address, isFinished, status } = this.props;
 
     if (isFinished) {
       if (status === 'confirmed') {
@@ -92,6 +92,7 @@ export default class SignRequest extends Component {
 
     return (
       <TransactionPendingForm
+        address={ address }
         isSending={ this.props.isSending }
         onConfirm={ this.onConfirm }
         onReject={ this.onReject }

@@ -25,6 +25,7 @@ import styles from './TransactionPendingForm.css';
 export default class TransactionPendingForm extends Component {
 
   static propTypes = {
+    address: PropTypes.string.isRequired,
     isSending: PropTypes.bool.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
@@ -47,15 +48,20 @@ export default class TransactionPendingForm extends Component {
   }
 
   renderForm () {
-    const { isSending, onConfirm, onReject } = this.props;
+    const { address, isSending, onConfirm, onReject } = this.props;
+
     if (this.state.isRejectOpen) {
       return (
-        <TransactionPendingFormReject onReject={ onReject } />
+        <TransactionPendingFormReject
+          onReject={ onReject } />
       );
     }
 
     return (
-      <TransactionPendingFormConfirm onConfirm={ onConfirm } isSending={ isSending } />
+      <TransactionPendingFormConfirm
+        address={ address }
+        onConfirm={ onConfirm }
+        isSending={ isSending } />
     );
   }
 
