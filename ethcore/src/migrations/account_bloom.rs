@@ -27,17 +27,15 @@ use util::{H256, FixedHash, BytesConvertable};
 use util::{Database, DatabaseConfig, DBTransaction, CompactionProfile};
 use std::path::Path;
 use byteorder::{LittleEndian, ByteOrder};
-use std::sync::Arc;
 
-
-fn check_bloom_exists(db: &Arc<Database>) -> bool {
+fn check_bloom_exists(db: &Database) -> bool {
 	let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 		.expect("Low-level database error");
 
 	hash_count_entry.is_some()
 }
 
-fn check_space_match(db: &Arc<Database>) -> Result<(), usize> {
+fn check_space_match(db: &Database) -> Result<(), usize> {
 	let db_space = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_SPACE_KEY)
 		.expect("Low-level database error")
 		.map(|val| LittleEndian::read_u64(&val[..]) as usize)
@@ -82,8 +80,8 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	let db = ::std::sync::Arc::new(source);
 	let batch = DBTransaction::new(&db);
 
-	if check_bloom_exists(&db) {
-		match check_space_match(&db) {
+	if check_bloom_exists(&*db) {
+		match check_space_match(&*db) {
 			Ok(_) => {
 				// bloom already exists and desired and stored spaces match, nothing to do
 				trace!(target: "migration", "Bloom already present of the right space, skipping");
