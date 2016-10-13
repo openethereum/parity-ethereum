@@ -54,8 +54,7 @@ mod ui {
 	}
 
 	#[derive(Default)]
-	pub struct Handler {
-	}
+	pub struct Handler;
 
 	impl Handler {
 		pub fn handle(&self, _req: &str) -> Option<&File> {
