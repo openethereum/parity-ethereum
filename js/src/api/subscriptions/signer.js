@@ -44,8 +44,6 @@ export default class Signer {
       }
     };
 
-    console.log('_listRequests', this._api.transport.isConnected);
-
     if (!this._api.transport.isConnected) {
       nextTimeout(500);
       return;

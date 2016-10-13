@@ -57,7 +57,7 @@ export default class TransactionFinishedWeb3 extends Component {
     const { api } = this.context;
 
     api.ethcore
-      .getNetChain()
+      .netChain()
       .then((chain) => {
         this.setState({ chain });
       })

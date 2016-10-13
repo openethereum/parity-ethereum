@@ -24,11 +24,11 @@ export default class TransactionPendingWeb3 extends Component {
   };
 
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
-    value: PropTypes.string.isRequired, // wei hex
-    gasPrice: PropTypes.string.isRequired, // wei hex
-    gas: PropTypes.string.isRequired, // hex
+    value: PropTypes.object.isRequired, // wei hex
+    gasPrice: PropTypes.object.isRequired, // wei hex
+    gas: PropTypes.object.isRequired, // hex
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
@@ -71,7 +71,7 @@ export default class TransactionPendingWeb3 extends Component {
     const { api } = this.context;
 
     api.ethcore
-      .getNetChain()
+      .netChain()
       .then((chain) => {
         this.setState({ chain });
       })

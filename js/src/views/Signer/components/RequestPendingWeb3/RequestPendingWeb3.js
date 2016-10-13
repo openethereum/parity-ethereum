@@ -21,7 +21,7 @@ import SignRequestWeb3 from '../SignRequestWeb3';
 
 export default class RequestPendingWeb3 extends Component {
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,

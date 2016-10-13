@@ -49,7 +49,6 @@ export default class Signer {
           return;
         }
 
-        console.log('pending', pending);
         this._store.dispatch(signerRequestsToConfirm(pending || []));
       })
       .then((subscriptionId) => {

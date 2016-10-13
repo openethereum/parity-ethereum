@@ -21,7 +21,7 @@ import SignWeb3 from '../SignRequestWeb3';
 
 export default class RequestFinishedWeb3 extends Component {
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     result: PropTypes.any.isRequired,
     date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
