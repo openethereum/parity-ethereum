@@ -326,14 +326,14 @@ impl TransactionSet {
 		let to_drop : Vec<(Address, U256)> = {
 			self.by_priority
 				.iter()
-				.skip_while(|order| {
+				.filter(|order| {
 					count = count + 1;
 					let r = gas.overflowing_add(order.gas);
 					if r.1 { return false }
 					gas = r.0;
 					// Own and retracted transactions are allowed to go above the gas limit, bot not above the count limit.
-					(gas <= self.gas_limit || order.origin == TransactionOrigin::Local || order.origin == TransactionOrigin::RetractedBlock) &&
-						count <= self.limit
+					(gas > self.gas_limit && order.origin != TransactionOrigin::Local && order.origin != TransactionOrigin::RetractedBlock) ||
+						count > self.limit
 				})
 				.map(|order| by_hash.get(&order.hash)
 					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
@@ -345,6 +345,7 @@ impl TransactionSet {
 			.fold(HashMap::new(), |mut removed, (sender, nonce)| {
 				let order = self.drop(&sender, &nonce)
 					.expect("Transaction has just been found in `by_priority`; so it is in `by_address` also.");
+				trace!(target: "txqueue", "Dropped out of limit transaction: {:?}", order.hash);
 
 				by_hash.remove(&order.hash)
 					.expect("hash is in `by_priorty`; all hashes in `by_priority` must be in `by_hash`; qed");
@@ -1778,8 +1779,11 @@ mod test {
 		let mut txq = TransactionQueue::with_limits(100, default_gas_val() * U256::from(2), !U256::zero());
 		let (tx1, tx2) = new_tx_pair_default(U256::from(1), U256::from(1));
 		let (tx3, tx4) = new_tx_pair_default(U256::from(1), U256::from(2));
+		let (tx5, tx6) = new_tx_pair_default(U256::from(1), U256::from(2));
 		txq.add(tx1.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
+		txq.add(tx3.clone(), &default_account_details, TransactionOrigin::External).ok();
+		txq.add(tx4.clone(), &default_account_details, TransactionOrigin::External).ok();
 		txq.add(tx3.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		txq.add(tx4.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		assert_eq!(txq.status().pending, 4);
