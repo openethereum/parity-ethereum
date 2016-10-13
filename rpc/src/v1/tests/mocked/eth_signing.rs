@@ -19,7 +19,7 @@ use std::sync::Arc;
 use jsonrpc_core::{IoHandler, to_value};
 use v1::impls::EthSigningQueueClient;
 use v1::traits::EthSigning;
-use v1::helpers::{ConfirmationsQueue, SigningQueue};
+use v1::helpers::{SignerService, SigningQueue};
 use v1::types::{H256 as RpcH256, H520 as RpcH520};
 use v1::tests::helpers::TestMinerService;
 use util::{Address, FixedHash, Uint, U256, H256, H520};
@@ -28,7 +28,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 
 struct EthSigningTester {
-	pub queue: Arc<ConfirmationsQueue>,
+	pub signer: Arc<SignerService>,
 	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
 	pub accounts: Arc<AccountProvider>,
@@ -37,15 +37,15 @@ struct EthSigningTester {
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
-		let queue = Arc::new(ConfirmationsQueue::default());
+		let signer = Arc::new(SignerService::new_test());
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&queue, &client, &miner, &accounts).to_delegate());
+		io.add_delegate(EthSigningQueueClient::new(&signer, &client, &miner, &accounts).to_delegate());
 
 		EthSigningTester {
-			queue: queue,
+			signer: signer,
 			client: client,
 			miner: miner,
 			accounts: accounts,
@@ -63,7 +63,7 @@ fn should_add_sign_to_queue() {
 	// given
 	let tester = eth_signing();
 	let address = Address::random();
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.signer.requests().len(), 0);
 
 	// when
 	let request = r#"{
@@ -79,9 +79,9 @@ fn should_add_sign_to_queue() {
 
 	// then
 	let async_result = tester.io.handle_request(&request).unwrap();
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&RpcH520::from(H520::default()))));
+	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&RpcH520::from(H520::default()))));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
@@ -92,7 +92,7 @@ fn should_post_sign_to_queue() {
 	// given
 	let tester = eth_signing();
 	let address = Address::random();
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.signer.requests().len(), 0);
 
 	// when
 	let request = r#"{
@@ -108,7 +108,7 @@ fn should_post_sign_to_queue() {
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.signer.requests().len(), 1);
 }
 
 #[test]
@@ -155,7 +155,7 @@ fn should_check_status_of_request_when_its_resolved() {
 		"id": 1
 	}"#;
 	tester.io.handle_request_sync(&request).expect("Sent");
-	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&"Hello World!")));
+	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&"Hello World!")));
 
 	// when
 	let request = r#"{
@@ -192,7 +192,7 @@ fn should_sign_if_account_is_unlocked() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{}", signature).as_ref() + r#"","id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.signer.requests().len(), 0);
 }
 
 #[test]
@@ -200,7 +200,7 @@ fn should_add_transaction_to_queue() {
 	// given
 	let tester = eth_signing();
 	let address = Address::random();
-	assert_eq!(tester.queue.requests().len(), 0);
+	assert_eq!(tester.signer.requests().len(), 0);
 
 	// when
 	let request = r#"{
@@ -219,9 +219,9 @@ fn should_add_transaction_to_queue() {
 
 	// then
 	let async_result = tester.io.handle_request(&request).unwrap();
-	assert_eq!(tester.queue.requests().len(), 1);
+	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.queue.request_confirmed(U256::from(1), Ok(to_value(&RpcH256::from(H256::default()))));
+	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&RpcH256::from(H256::default()))));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));

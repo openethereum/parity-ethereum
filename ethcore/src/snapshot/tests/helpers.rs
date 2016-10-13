@@ -52,8 +52,9 @@ impl StateProducer {
 		// modify existing accounts.
 		let mut accounts_to_modify: Vec<_> = {
 			let trie = TrieDB::new(&*db, &self.state_root).unwrap();
-			let temp = trie.iter() // binding required due to complicated lifetime stuff
+			let temp = trie.iter().unwrap() // binding required due to complicated lifetime stuff
 				.filter(|_| rng.gen::<f32>() < ACCOUNT_CHURN)
+				.map(Result::unwrap)
 				.map(|(k, v)| (H256::from_slice(&k), v.to_owned()))
 				.collect();
 

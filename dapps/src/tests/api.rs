@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve, request};
+use tests::helpers::{serve, serve_with_registrar, request};
 
 #[test]
 fn should_return_error() {
@@ -80,5 +80,26 @@ fn should_handle_ping() {
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
 	assert_eq!(response.body, "0\n\n".to_owned());
+}
+
+
+#[test]
+fn should_try_to_resolve_dapp() {
+	// given
+	let (server, registrar) = serve_with_registrar();
+
+	// when
+	let response = request(server,
+		"\
+			GET /api/content/1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d HTTP/1.1\r\n\
+			Host: home.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
+	assert_eq!(registrar.calls.lock().len(), 2);
 }
 

@@ -13,6 +13,7 @@ nanomsg = { git = "https://github.com/ethcore/nanomsg.rs.git" }
 ethcore-ipc-nano = { path = "../nano" }
 semver = "0.2"
 log = "0.3"
+time = "0.1"
 
 [build-dependencies]
 ethcore-ipc-codegen = { path = "../codegen" }

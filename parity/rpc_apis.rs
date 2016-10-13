@@ -25,7 +25,7 @@ use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
 use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
-pub use ethcore_rpc::ConfirmationsQueue;
+pub use ethcore_rpc::SignerService;
 
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
@@ -94,7 +94,7 @@ impl FromStr for ApiSet {
 
 pub struct Dependencies {
 	pub signer_port: Option<u16>,
-	pub signer_queue: Arc<ConfirmationsQueue>,
+	pub signer_service: Arc<SignerService>,
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
@@ -173,7 +173,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(filter_client.to_delegate());
 
 				if deps.signer_port.is_some() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_queue, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
+					server.add_delegate(EthSigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
@@ -182,11 +182,11 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_port, deps.geth_compatibility).to_delegate());
 			},
 			Api::Signer => {
-				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_queue).to_delegate());
+				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
 			Api::Ethcore => {
-				let queue = deps.signer_port.map(|_| deps.signer_queue.clone());
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, &deps.sync, &deps.net_service, deps.logger.clone(), deps.settings.clone(), queue).to_delegate())
+				let signer = deps.signer_port.map(|_| deps.signer_service.clone());
+				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, &deps.sync, &deps.net_service, deps.logger.clone(), deps.settings.clone(), signer).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())

@@ -20,13 +20,14 @@ use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use serde;
 use rustc_serialize::hex::{ToHex, FromHex};
-use util::{H64 as Eth64, H256 as EthH256, H520 as EthH520, H2048 as Eth2048, H160 as Eth160};
+use util::{H64 as Eth64, H160 as Eth160, H256 as Eth256, H520 as Eth520, H512 as Eth512, H2048 as Eth2048};
 
 macro_rules! impl_hash {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Hash serialization
-		#[derive(Eq)]
 		pub struct $name([u8; $size]);
+
+		impl Eq for $name { }
 
 		impl Default for $name {
 			fn default() -> Self {
@@ -144,6 +145,7 @@ macro_rules! impl_hash {
 
 impl_hash!(H64, Eth64, 8);
 impl_hash!(H160, Eth160, 20);
-impl_hash!(H256, EthH256, 32);
-impl_hash!(H520, EthH520, 65);
+impl_hash!(H256, Eth256, 32);
+impl_hash!(H512, Eth512, 64);
+impl_hash!(H520, Eth520, 65);
 impl_hash!(H2048, Eth2048, 256);

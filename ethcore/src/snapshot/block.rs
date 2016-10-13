@@ -21,10 +21,10 @@ use header::Header;
 
 use views::BlockView;
 use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
-use rlp::{Compressible, RlpType};
 use util::{Bytes, Hashable, H256};
+use util::triehash::ordered_trie_root;
 
-const HEADER_FIELDS: usize = 10;
+const HEADER_FIELDS: usize = 8;
 const BLOCK_FIELDS: usize = 2;
 
 pub struct AbridgedBlock {
@@ -61,8 +61,6 @@ impl AbridgedBlock {
 		stream
 			.append(&header.author())
 			.append(&header.state_root())
-			.append(&header.transactions_root())
-			.append(&header.receipts_root())
 			.append(&header.log_bloom())
 			.append(&header.difficulty())
 			.append(&header.gas_limit())
@@ -79,33 +77,35 @@ impl AbridgedBlock {
 		}
 
 		AbridgedBlock {
-			rlp: UntrustedRlp::new(stream.as_raw()).compress(RlpType::Blocks).to_vec(),
+			rlp: stream.out(),
 		}
 	}
 
 	/// Flesh out an abridged block view with the provided parent hash and block number.
 	///
 	/// Will fail if contains invalid rlp.
-	pub fn to_block(&self, parent_hash: H256, number: u64) -> Result<Block, DecoderError> {
-		let rlp = UntrustedRlp::new(&self.rlp).decompress(RlpType::Blocks);
-		let rlp = UntrustedRlp::new(&rlp);
+	pub fn to_block(&self, parent_hash: H256, number: u64, receipts_root: H256) -> Result<Block, DecoderError> {
+		let rlp = UntrustedRlp::new(&self.rlp);
 
 		let mut header: Header = Default::default();
 		header.set_parent_hash(parent_hash);
 		header.set_author(try!(rlp.val_at(0)));
 		header.set_state_root(try!(rlp.val_at(1)));
-		header.set_transactions_root(try!(rlp.val_at(2)));
-		header.set_receipts_root(try!(rlp.val_at(3)));
-		header.set_log_bloom(try!(rlp.val_at(4)));
-		header.set_difficulty(try!(rlp.val_at(5)));
+		header.set_log_bloom(try!(rlp.val_at(2)));
+		header.set_difficulty(try!(rlp.val_at(3)));
 		header.set_number(number);
-		header.set_gas_limit(try!(rlp.val_at(6)));
-		header.set_gas_used(try!(rlp.val_at(7)));
-		header.set_timestamp(try!(rlp.val_at(8)));
-		header.set_extra_data(try!(rlp.val_at(9)));
+		header.set_gas_limit(try!(rlp.val_at(4)));
+		header.set_gas_used(try!(rlp.val_at(5)));
+		header.set_timestamp(try!(rlp.val_at(6)));
+		header.set_extra_data(try!(rlp.val_at(7)));
 
-		let transactions = try!(rlp.val_at(10));
-		let uncles: Vec<Header> = try!(rlp.val_at(11));
+		let transactions = try!(rlp.val_at(8));
+		let uncles: Vec<Header> = try!(rlp.val_at(9));
+
+		header.set_transactions_root(ordered_trie_root(
+			try!(rlp.at(8)).iter().map(|r| r.as_raw().to_owned())
+		));
+		header.set_receipts_root(receipts_root);
 
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&uncles);
@@ -143,20 +143,22 @@ mod tests {
 	#[test]
 	fn empty_block_abridging() {
 		let b = Block::default();
+		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
 		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
-		assert_eq!(abridged.to_block(H256::new(), 0).unwrap(), b);
+		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 
 	#[test]
 	#[should_panic]
 	fn wrong_number() {
 		let b = Block::default();
+		let receipts_root = b.header.receipts_root().clone();
 		let encoded = encode_block(&b);
 
 		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded));
-		assert_eq!(abridged.to_block(H256::new(), 2).unwrap(), b);
+		assert_eq!(abridged.to_block(H256::new(), 2, receipts_root).unwrap(), b);
 	}
 
 	#[test]
@@ -184,9 +186,14 @@ mod tests {
 		b.transactions.push(t1);
 		b.transactions.push(t2);
 
+		let receipts_root = b.header.receipts_root().clone();
+		b.header.set_transactions_root(::util::triehash::ordered_trie_root(
+			b.transactions.iter().map(::rlp::encode).map(|out| out.to_vec())
+		));
+
 		let encoded = encode_block(&b);
 
 		let abridged = AbridgedBlock::from_block_view(&BlockView::new(&encoded[..]));
-		assert_eq!(abridged.to_block(H256::new(), 0).unwrap(), b);
+		assert_eq!(abridged.to_block(H256::new(), 0, receipts_root).unwrap(), b);
 	}
 }

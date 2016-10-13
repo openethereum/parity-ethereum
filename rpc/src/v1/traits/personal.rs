@@ -92,12 +92,16 @@ pub trait PersonalSigner: Sized + Send + Sync + 'static {
 	/// Reject the confirmation request.
 	fn reject_request(&self, _: Params) -> Result<Value, Error>;
 
+	/// Generates new authorization token.
+	fn generate_token(&self, _: Params) -> Result<Value, Error>;
+
 	/// Should be used to convert object to io delegate.
 	fn to_delegate(self) -> IoDelegate<Self> {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_method("personal_requestsToConfirm", PersonalSigner::requests_to_confirm);
 		delegate.add_method("personal_confirmRequest", PersonalSigner::confirm_request);
 		delegate.add_method("personal_rejectRequest", PersonalSigner::reject_request);
+		delegate.add_method("personal_generateAuthorizationToken", PersonalSigner::generate_token);
 		delegate
 	}
 }

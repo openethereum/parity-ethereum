@@ -174,6 +174,8 @@ pub enum FromBytesError {
 	DataIsTooLong,
 	/// Integer-representation is non-canonically prefixed with zero byte(s).
 	ZeroPrefixedInt,
+	/// String representation is not utf-8
+	InvalidUtf8,
 }
 
 impl StdError for FromBytesError {
@@ -199,7 +201,7 @@ pub trait FromBytes: Sized {
 
 impl FromBytes for String {
 	fn from_bytes(bytes: &[u8]) -> FromBytesResult<String> {
-		Ok(::std::str::from_utf8(bytes).unwrap().to_owned())
+		::std::str::from_utf8(bytes).map(|s| s.to_owned()).map_err(|_| FromBytesError::InvalidUtf8)
 	}
 }
 

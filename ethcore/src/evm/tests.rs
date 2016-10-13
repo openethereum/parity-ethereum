@@ -49,7 +49,7 @@ pub struct FakeExt {
 	depth: usize,
 	store: HashMap<H256, H256>,
 	blockhashes: HashMap<U256, H256>,
-	codes: HashMap<Address, Bytes>,
+	codes: HashMap<Address, Arc<Bytes>>,
 	logs: Vec<FakeLogEntry>,
 	_suicides: HashSet<Address>,
 	info: EnvInfo,
@@ -136,8 +136,12 @@ impl Ext for FakeExt {
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes {
-		self.codes.get(address).unwrap_or(&Bytes::new()).clone()
+	fn extcode(&self, address: &Address) -> Arc<Bytes> {
+		self.codes.get(address).unwrap_or(&Arc::new(Bytes::new())).clone()
+	}
+
+	fn extcodesize(&self, address: &Address) -> usize {
+		self.codes.get(address).map_or(0, |c| c.len())
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
@@ -180,11 +184,11 @@ fn test_stack_underflow() {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let err = {
-		let mut vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter::<usize>::default());
+		let mut vm : Box<evm::Evm> = Box::new(super::interpreter::Interpreter::<usize>::new(Arc::new(super::interpreter::SharedCache::default())));
 		test_finalize(vm.exec(params, &mut ext)).unwrap_err()
 	};
 
@@ -207,7 +211,7 @@ fn test_add(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -227,7 +231,7 @@ fn test_sha3(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -247,7 +251,7 @@ fn test_address(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -269,7 +273,7 @@ fn test_origin(factory: super::Factory) {
 	params.address = address.clone();
 	params.origin = origin.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -291,7 +295,7 @@ fn test_sender(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -325,9 +329,9 @@ fn test_extcodecopy(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
-	ext.codes.insert(sender, sender_code);
+	ext.codes.insert(sender, Arc::new(sender_code));
 
 	let gas_left = {
 		let mut vm = factory.create(params.gas);
@@ -346,7 +350,7 @@ fn test_log_empty(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -378,7 +382,7 @@ fn test_log_sender(factory: super::Factory) {
 	params.address = address.clone();
 	params.sender = sender.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -402,7 +406,7 @@ fn test_blockhash(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.blockhashes.insert(U256::zero(), blockhash.clone());
 
@@ -424,7 +428,7 @@ fn test_calldataload(factory: super::Factory) {
 	let mut params = ActionParams::default();
 	params.address = address.clone();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	params.data = Some(data);
 	let mut ext = FakeExt::new();
 
@@ -445,7 +449,7 @@ fn test_author(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.info.author = author;
 
@@ -465,7 +469,7 @@ fn test_timestamp(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.info.timestamp = timestamp;
 
@@ -485,7 +489,7 @@ fn test_number(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.info.number = number;
 
@@ -505,7 +509,7 @@ fn test_difficulty(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.info.difficulty = difficulty;
 
@@ -525,7 +529,7 @@ fn test_gas_limit(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 	ext.info.gas_limit = gas_limit;
 
@@ -544,7 +548,7 @@ fn test_mul(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -562,7 +566,7 @@ fn test_sub(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -580,7 +584,7 @@ fn test_div(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -598,7 +602,7 @@ fn test_div_zero(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -616,7 +620,7 @@ fn test_mod(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -635,7 +639,7 @@ fn test_smod(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -654,7 +658,7 @@ fn test_sdiv(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -673,7 +677,7 @@ fn test_exp(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -693,7 +697,7 @@ fn test_comparison(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -714,7 +718,7 @@ fn test_signed_comparison(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -735,7 +739,7 @@ fn test_bitops(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(150_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -758,7 +762,7 @@ fn test_addmod_mulmod(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -779,7 +783,7 @@ fn test_byte(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -798,7 +802,7 @@ fn test_signextend(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -813,12 +817,12 @@ fn test_signextend(factory: super::Factory) {
 
 #[test] // JIT just returns out of gas
 fn test_badinstruction_int() {
-	let factory = super::Factory::new(VMType::Interpreter);
+	let factory = super::Factory::new(VMType::Interpreter, 1024 * 32);
 	let code = "af".from_hex().unwrap();
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let err = {
@@ -838,7 +842,7 @@ fn test_pop(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(100_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -858,7 +862,7 @@ fn test_extops(factory: super::Factory) {
 	params.gas = U256::from(150_000);
 	params.gas_price = U256::from(0x32);
 	params.value = ActionValue::Transfer(U256::from(0x99));
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -881,7 +885,7 @@ fn test_jumps(factory: super::Factory) {
 
 	let mut params = ActionParams::default();
 	params.gas = U256::from(150_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	let mut ext = FakeExt::new();
 
 	let gas_left = {
@@ -904,7 +908,7 @@ fn test_calls(factory: super::Factory) {
 	let code_address = Address::from(0x998);
 	let mut params = ActionParams::default();
 	params.gas = U256::from(150_000);
-	params.code = Some(code);
+	params.code = Some(Arc::new(code));
 	params.address = address.clone();
 	let mut ext = FakeExt::new();
 	ext.balances = {

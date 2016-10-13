@@ -26,12 +26,10 @@ linked-hash-map = "0.3"
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
-https-fetch = { path = "../util/https-fetch" }
+fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
 parity-dapps-glue = { path = "./js-glue" }
-
 ### DEPRECATED
-# List of apps
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }

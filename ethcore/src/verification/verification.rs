@@ -36,14 +36,22 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
+impl HeapSizeOf for PreverifiedBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children()
+			+ self.transactions.heap_size_of_children()
+			+ self.bytes.heap_size_of_children()
+	}
+}
+
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(verify_header(&header, engine));
+	try!(verify_header_params(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash()));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = try!(u);
-		try!(verify_header(&u, engine));
+		try!(verify_header_params(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	// Verify transactions.
@@ -179,7 +187,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
@@ -215,7 +223,7 @@ fn verify_parent(header: &Header, parent: &Header) -> Result<(), Error> {
 fn verify_block_integrity(block: &[u8], transactions_root: &H256, uncles_hash: &H256) -> Result<(), Error> {
 	let block = UntrustedRlp::new(block);
 	let tx = try!(block.at(1));
-	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+	let expected_root = &ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
 	if expected_root != transactions_root {
 		return Err(From::from(BlockError::InvalidTransactionsRoot(Mismatch { expected: expected_root.clone(), found: transactions_root.clone() })))
 	}
@@ -422,7 +430,7 @@ mod tests {
 		let mut uncles_rlp = RlpStream::new();
 		uncles_rlp.append(&good_uncles);
 		let good_uncles_hash = uncles_rlp.as_raw().sha3();
-		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()).collect());
+		let good_transactions_root = ordered_trie_root(good_transactions.iter().map(|t| ::rlp::encode::<SignedTransaction>(t).to_vec()));
 
 		let mut parent = good.clone();
 		parent.set_number(9);

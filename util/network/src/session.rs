@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::{str, io};
 use std::net::SocketAddr;
-use std::io;
 use std::sync::*;
 use mio::*;
 use mio::tcp::*;
@@ -63,7 +63,7 @@ pub enum SessionData {
 		/// Packet data
 		data: Vec<u8>,
 		/// Packet protocol ID
-		protocol: &'static str,
+		protocol: [u8; 3],
 		/// Zero based packet ID
 		packet_id: u8,
 	},
@@ -72,6 +72,7 @@ pub enum SessionData {
 }
 
 /// Shared session information
+#[derive(Debug, Clone)]
 pub struct SessionInfo {
 	/// Peer public key
 	pub id: Option<NodeId>,
@@ -79,33 +80,51 @@ pub struct SessionInfo {
 	pub client_version: String,
 	/// Peer RLPx protocol version
 	pub protocol_version: u32,
+	/// Session protocol capabilities
+	pub capabilities: Vec<SessionCapabilityInfo>,
 	/// Peer protocol capabilities
-	capabilities: Vec<SessionCapabilityInfo>,
+	pub peer_capabilities: Vec<PeerCapabilityInfo>,
 	/// Peer ping delay in milliseconds
 	pub ping_ms: Option<u64>,
 	/// True if this session was originated by us.
 	pub originated: bool,
+	/// Remote endpoint address of the session
+	pub remote_address: String,
+	/// Local endpoint address of the session
+	pub local_address: String,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PeerCapabilityInfo {
-	pub protocol: String,
+	pub protocol: ProtocolId,
 	pub version: u8,
 }
 
 impl Decodable for PeerCapabilityInfo {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let c = decoder.as_rlp();
+		let p: Vec<u8> = try!(c.val_at(0));
+		if p.len() != 3 {
+			return Err(DecoderError::Custom("Invalid subprotocol string length. Should be 3"));
+		}
+		let mut p2: ProtocolId = [0u8; 3];
+		p2.clone_from_slice(&p);
 		Ok(PeerCapabilityInfo {
-			protocol: try!(c.val_at(0)),
+			protocol: p2,
 			version: try!(c.val_at(1))
 		})
 	}
 }
 
-#[derive(Debug)]
-struct SessionCapabilityInfo {
-	pub protocol: &'static str,
+impl ToString for PeerCapabilityInfo {
+	fn to_string(&self) -> String {
+		format!("{}/{}", str::from_utf8(&self.protocol[..]).unwrap_or("???"), self.version)
+	}
+}
+
+#[derive(Debug, Clone)]
+pub struct SessionCapabilityInfo {
+	pub protocol: [u8; 3],
 	pub version: u8,
 	pub packet_count: u8,
 	pub id_offset: u8,
@@ -128,6 +147,7 @@ impl Session {
 		where Message: Send + Clone {
 		let originated = id.is_some();
 		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
+		let local_addr = handshake.connection.local_addr_str();
 		try!(handshake.start(io, host, originated));
 		Ok(Session {
 			state: State::Handshake(handshake),
@@ -137,8 +157,11 @@ impl Session {
 				client_version: String::new(),
 				protocol_version: 0,
 				capabilities: Vec::new(),
+				peer_capabilities: Vec::new(),
 				ping_ms: None,
 				originated: originated,
+				remote_address: "Handshake".to_owned(),
+				local_address: local_addr,
 			},
 			ping_time_ns: 0,
 			pong_time_ns: None,
@@ -149,6 +172,7 @@ impl Session {
 	fn complete_handshake<Message>(&mut self, io: &IoContext<Message>, host: &HostInfo) -> Result<(), NetworkError> where Message: Send + Sync + Clone {
 		let connection = if let State::Handshake(ref mut h) = self.state {
 			self.info.id = Some(h.id.clone());
+			self.info.remote_address = h.connection.remote_addr_str();
 			try!(EncryptedConnection::new(h))
 		} else {
 			panic!("Unexpected state");
@@ -239,12 +263,12 @@ impl Session {
 	}
 
 	/// Checks if peer supports given capability
-	pub fn have_capability(&self, protocol: &str) -> bool {
+	pub fn have_capability(&self, protocol: [u8; 3]) -> bool {
 		self.info.capabilities.iter().any(|c| c.protocol == protocol)
 	}
 
 	/// Checks if peer supports given capability
-	pub fn capability_version(&self, protocol: &str) -> Option<u8> {
+	pub fn capability_version(&self, protocol: [u8; 3]) -> Option<u8> {
 		self.info.capabilities.iter().filter_map(|c| if c.protocol == protocol { Some(c.version) } else { None }).max()
 	}
 
@@ -270,10 +294,10 @@ impl Session {
 	}
 
 	/// Send a protocol packet to peer.
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: &str, packet_id: u8, data: &[u8]) -> Result<(), NetworkError>
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, protocol: [u8; 3], packet_id: u8, data: &[u8]) -> Result<(), NetworkError>
         where Message: Send + Sync + Clone {
 		if self.info.capabilities.is_empty() || !self.had_hello {
-			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), protocol, packet_id);
+			debug!(target: "network", "Sending to unconfirmed session {}, protocol: {}, packet: {}", self.token(), str::from_utf8(&protocol[..]).unwrap_or("??"), packet_id);
 			return Err(From::from(NetworkError::BadProtocol));
 		}
 		if self.expired() {
@@ -425,8 +449,10 @@ impl Session {
 			i += 1;
 		}
 		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;
+		self.info.peer_capabilities = peer_caps; 
 		if self.info.capabilities.is_empty() {
 			trace!(target: "network", "No common capabilities with peer.");
 			return Err(From::from(self.disconnect(io, DisconnectReason::UselessPeer)));

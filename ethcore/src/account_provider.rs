@@ -322,6 +322,26 @@ impl AccountProvider {
 		Ok(signature)
 	}
 
+	/// Decrypts a message. Account must be unlocked.
+	pub fn decrypt(&self, account: Address, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let data = {
+			let mut unlocked = self.unlocked.lock();
+			let data = try!(unlocked.get(&account).ok_or(Error::NotUnlocked)).clone();
+			if let Unlock::Temp = data.unlock {
+				unlocked.remove(&account).expect("data exists: so key must exist: qed");
+			}
+			if let Unlock::Timed((ref start, ref duration)) = data.unlock {
+				if start.elapsed() > Duration::from_millis(*duration as u64) {
+					unlocked.remove(&account).expect("data exists: so key must exist: qed");
+					return Err(Error::NotUnlocked);
+				}
+			}
+			data
+		};
+
+		Ok(try!(self.sstore.decrypt(&account, &data.password, shared_mac, message)))
+	}
+
 	/// Unlocks an account, signs the message, and locks it again.
 	pub fn sign_with_password(&self, account: Address, password: String, message: Message) -> Result<Signature, Error> {
 		let signature = try!(self.sstore.sign(&account, &password, &message));

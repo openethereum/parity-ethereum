@@ -41,7 +41,7 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 	}
 }
 
-pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<Value, Error>
+pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: SignedTransaction) -> Result<RpcH256, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 	let hash = RpcH256::from(signed_transaction.hash());
 
@@ -49,7 +49,7 @@ pub fn dispatch_transaction<C, M>(client: &C, miner: &M, signed_transaction: Sig
 
 	import
 		.map_err(errors::from_transaction_error)
-		.map(|_| to_value(&hash))
+		.map(|_| hash)
 }
 
 pub fn signature_with_password(accounts: &AccountProvider, address: Address, hash: H256, pass: String) -> Result<Value, Error> {
@@ -70,7 +70,7 @@ pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: Transactio
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
-	dispatch_transaction(&*client, &*miner, signed_transaction)
+	dispatch_transaction(&*client, &*miner, signed_transaction).map(to_value)
 }
 
 pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionRequest, account_provider: &AccountProvider, address: Address) -> Result<Value, Error>
@@ -84,7 +84,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReques
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
-	dispatch_transaction(&*client, &*miner, signed_transaction)
+	dispatch_transaction(&*client, &*miner, signed_transaction).map(to_value)
 }
 
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {

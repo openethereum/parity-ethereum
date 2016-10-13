@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::time::Duration;
 use std::io::{Read, Write};
 use std::str::{self, Lines};
 use std::net::{TcpStream, SocketAddr};
@@ -43,10 +44,11 @@ pub fn read_block(lines: &mut Lines, all: bool) -> String {
 
 pub fn request(address: &SocketAddr, request: &str) -> Response {
 	let mut req = TcpStream::connect(address).unwrap();
+	req.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 
 	let mut response = String::new();
-	req.read_to_string(&mut response).unwrap();
+	let _ = req.read_to_string(&mut response);
 
 	let mut lines = response.lines();
 	let status = lines.next().unwrap().to_owned();

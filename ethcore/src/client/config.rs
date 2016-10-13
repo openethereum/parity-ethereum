@@ -16,13 +16,12 @@
 
 use std::str::FromStr;
 pub use std::time::Duration;
-pub use block_queue::BlockQueueConfig;
 pub use blockchain::Config as BlockChainConfig;
-pub use trace::{Config as TraceConfig, Switch};
+pub use trace::Config as TraceConfig;
 pub use evm::VMType;
-pub use verification::VerifierType;
+
+use verification::{VerifierType, QueueConfig};
 use util::{journaldb, CompactionProfile};
-use util::trie::TrieSpec;
 
 /// Client state db compaction profile
 #[derive(Debug, PartialEq)]
@@ -84,29 +83,33 @@ impl Default for Mode {
 #[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {
 	/// Block queue configuration.
-	pub queue: BlockQueueConfig,
+	pub queue: QueueConfig,
 	/// Blockchain configuration.
 	pub blockchain: BlockChainConfig,
 	/// Trace configuration.
 	pub tracing: TraceConfig,
 	/// VM type.
 	pub vm_type: VMType,
-	/// Trie type.
-	pub trie_spec: TrieSpec,
+	/// Fat DB enabled?
+	pub fat_db: bool,
 	/// The JournalDB ("pruning") algorithm to use.
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
-	/// State db cache-size if not default
+	/// RocksDB state column cache-size if not default
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
 	/// Should db have WAL enabled?
-	pub db_wal: bool, 
+	pub db_wal: bool,
 	/// Operating mode
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+	/// State db cache-size.
+	pub state_cache_size: usize,
+	/// EVM jump-tables cache size.
+	pub jump_table_size: usize,
 }
 
 #[cfg(test)]

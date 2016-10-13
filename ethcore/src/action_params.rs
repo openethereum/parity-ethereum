@@ -43,6 +43,8 @@ impl ActionValue {
 pub struct ActionParams {
 	/// Address of currently executed code.
 	pub code_address: Address,
+	/// Hash of currently executed code.
+	pub code_hash: H256,
 	/// Receive address. Usually equal to code_address,
 	/// except when called using CALLCODE.
 	pub address: Address,
@@ -57,7 +59,7 @@ pub struct ActionParams {
 	/// Transaction value.
 	pub value: ActionValue,
 	/// Code being executed.
-	pub code: Option<Bytes>,
+	pub code: Option<Arc<Bytes>>,
 	/// Input data.
 	pub data: Option<Bytes>,
 	/// Type of call
@@ -70,6 +72,7 @@ impl Default for ActionParams {
 	fn default() -> ActionParams {
 		ActionParams {
 			code_address: Address::new(),
+			code_hash: SHA3_EMPTY,
 			address: Address::new(),
 			sender: Address::new(),
 			origin: Address::new(),
@@ -88,10 +91,11 @@ impl From<ethjson::vm::Transaction> for ActionParams {
 		let address: Address = t.address.into();
 		ActionParams {
 			code_address: Address::new(),
+			code_hash: (&*t.code).sha3(),
 			address: address,
 			sender: t.sender.into(),
 			origin: t.origin.into(),
-			code: Some(t.code.into()),
+			code: Some(Arc::new(t.code.into())),
 			data: Some(t.data.into()),
 			gas: t.gas.into(),
 			gas_price: t.gas_price.into(),

@@ -22,8 +22,18 @@ use crossbeam::sync::chase_lev;
 use service::{HandlerId, IoChannel, IoContext};
 use IoHandler;
 use panics::*;
+use std::cell::Cell;
 
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
+
+const STACK_SIZE: usize = 16*1024*1024;
+
+thread_local! {
+	/// Stack size
+	/// Should be modified if it is changed in Rust since it is no way
+	/// to know or get it
+	pub static LOCAL_STACK_SIZE: Cell<usize> = Cell::new(::std::env::var("RUST_MIN_STACK").ok().and_then(|s| s.parse().ok()).unwrap_or(2 * 1024 * 1024));
+}
 
 pub enum WorkType<Message> {
 	Readable,
@@ -66,8 +76,9 @@ impl Worker {
 			deleting: deleting.clone(),
 			wait_mutex: wait_mutex.clone(),
 		};
-		worker.thread = Some(thread::Builder::new().name(format!("IO Worker #{}", index)).spawn(
+		worker.thread = Some(thread::Builder::new().stack_size(STACK_SIZE).name(format!("IO Worker #{}", index)).spawn(
 			move || {
+				LOCAL_STACK_SIZE.with(|val| val.set(STACK_SIZE));
 				panic_handler.catch_panic(move || {
 					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
 				}).unwrap()

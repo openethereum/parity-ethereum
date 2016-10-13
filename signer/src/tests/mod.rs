@@ -14,24 +14,48 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::env;
+use std::ops::{Deref, DerefMut};
 use std::thread;
-use std::time::Duration;
+use std::time::{self, Duration};
 use std::sync::Arc;
-use devtools::http_client;
+use devtools::{http_client, RandomTempPath};
 use rpc::ConfirmationsQueue;
+use util::Hashable;
 use rand;
 
 use ServerBuilder;
 use Server;
+use AuthCodes;
 
-pub fn serve() -> Server {
+pub struct GuardedAuthCodes {
+	authcodes: AuthCodes,
+	path: RandomTempPath,
+}
+impl Deref for GuardedAuthCodes {
+	type Target = AuthCodes;
+	fn deref(&self) -> &Self::Target {
+		&self.authcodes
+	}
+}
+impl DerefMut for GuardedAuthCodes {
+	fn deref_mut(&mut self) -> &mut AuthCodes {
+		&mut self.authcodes
+	}
+}
+
+pub fn serve() -> (Server, usize, GuardedAuthCodes) {
+	let mut path = RandomTempPath::new();
+	path.panic_on_drop_failure = false;
 	let queue = Arc::new(ConfirmationsQueue::default());
-	let builder = ServerBuilder::new(queue, env::temp_dir());
+	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
 	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
 	thread::sleep(Duration::from_millis(25));
-	res
+
+	(res, port, GuardedAuthCodes {
+		authcodes: AuthCodes::from_file(&path).unwrap(),
+		path: path,
+	})
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {
@@ -41,7 +65,7 @@ pub fn request(server: Server, request: &str) -> http_client::Response {
 #[test]
 fn should_reject_invalid_host() {
 	// given
-	let server = serve();
+	let server = serve().0;
 
 	// when
 	let response = request(server,
@@ -62,7 +86,7 @@ fn should_reject_invalid_host() {
 #[test]
 fn should_serve_styles_even_on_disallowed_domain() {
 	// given
-	let server = serve();
+	let server = serve().0;
 
 	// when
 	let response = request(server,
@@ -79,3 +103,103 @@ fn should_serve_styles_even_on_disallowed_domain() {
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 }
 
+#[test]
+fn should_block_if_authorization_is_incorrect() {
+	// given
+	let (server, port, _) = serve();
+
+	// when
+	let response = request(server,
+		&format!("\
+			GET / HTTP/1.1\r\n\
+			Host: 127.0.0.1:{}\r\n\
+			Connection: Upgrade\r\n\
+			Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
+			Sec-WebSocket-Protocol: wrong\r\n\
+			Sec-WebSocket-Version: 13\r\n\
+			\r\n\
+			{{}}
+		", port)
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
+}
+
+#[test]
+fn should_allow_if_authorization_is_correct() {
+	// given
+	let (server, port, mut authcodes) = serve();
+	let code = authcodes.generate_new().unwrap().replace("-", "");
+	authcodes.to_file(&authcodes.path).unwrap();
+	let timestamp = time::UNIX_EPOCH.elapsed().unwrap().as_secs();
+
+	// when
+	let response = request(server,
+		&format!("\
+			GET / HTTP/1.1\r\n\
+			Host: 127.0.0.1:{}\r\n\
+			Connection: Close\r\n\
+			Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
+			Sec-WebSocket-Protocol: {:?}_{}\r\n\
+			Sec-WebSocket-Version: 13\r\n\
+			\r\n\
+			{{}}
+		",
+		port,
+		format!("{}:{}", code, timestamp).sha3(),
+		timestamp,
+		)
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 101 Switching Protocols".to_owned());
+}
+
+#[test]
+fn should_allow_initial_connection_but_only_once() {
+	// given
+	let (server, port, authcodes) = serve();
+	let code = "initial";
+	let timestamp = time::UNIX_EPOCH.elapsed().unwrap().as_secs();
+	assert!(authcodes.is_empty());
+
+	// when
+	let response1 = http_client::request(server.addr(),
+		&format!("\
+			GET / HTTP/1.1\r\n\
+			Host: 127.0.0.1:{}\r\n\
+			Connection: Close\r\n\
+			Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
+			Sec-WebSocket-Protocol:{:?}_{}\r\n\
+			Sec-WebSocket-Version: 13\r\n\
+			\r\n\
+			{{}}
+		",
+		port,
+		format!("{}:{}", code, timestamp).sha3(),
+		timestamp,
+		)
+	);
+	let response2 = http_client::request(server.addr(),
+		&format!("\
+			GET / HTTP/1.1\r\n\
+			Host: 127.0.0.1:{}\r\n\
+			Connection: Close\r\n\
+			Sec-WebSocket-Key: x3JJHMbDL1EzLkh9GBhXDw==\r\n\
+			Sec-WebSocket-Protocol:{:?}_{}\r\n\
+			Sec-WebSocket-Version: 13\r\n\
+			\r\n\
+			{{}}
+		",
+		port,
+		format!("{}:{}", code, timestamp).sha3(),
+		timestamp,
+		)
+	);
+
+
+	// then
+	assert_eq!(response1.status, "HTTP/1.1 101 Switching Protocols".to_owned());
+	assert_eq!(response2.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
+}

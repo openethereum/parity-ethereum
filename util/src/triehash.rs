@@ -40,7 +40,9 @@ use vector::SharedPrefix;
 /// 	assert_eq!(ordered_trie_root(v), H256::from_str(root).unwrap());
 /// }
 /// ```
-pub fn ordered_trie_root(input: Vec<Vec<u8>>) -> H256 {
+pub fn ordered_trie_root<I>(input: I) -> H256
+	where I: IntoIterator<Item=Vec<u8>>
+{
 	let gen_input = input
 		// first put elements into btree to sort them by nibbles
 		// optimize it later

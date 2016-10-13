@@ -29,6 +29,7 @@ pub struct TestIo<'p> {
 	pub snapshot_service: &'p TestSnapshotService,
 	pub queue: &'p mut VecDeque<TestPacket>,
 	pub sender: Option<PeerId>,
+	pub to_disconnect: HashSet<PeerId>,
 }
 
 impl<'p> TestIo<'p> {
@@ -37,16 +38,19 @@ impl<'p> TestIo<'p> {
 			chain: chain,
 			snapshot_service: ss,
 			queue: queue,
-			sender: sender
+			sender: sender,
+			to_disconnect: HashSet::new(),
 		}
 	}
 }
 
 impl<'p> SyncIo for TestIo<'p> {
-	fn disable_peer(&mut self, _peer_id: PeerId) {
+	fn disable_peer(&mut self, peer_id: PeerId) {
+		self.disconnect_peer(peer_id);
 	}
 
-	fn disconnect_peer(&mut self, _peer_id: PeerId) {
+	fn disconnect_peer(&mut self, peer_id: PeerId) {
+		self.to_disconnect.insert(peer_id);
 	}
 
 	fn is_expired(&self) -> bool {
@@ -77,6 +81,10 @@ impl<'p> SyncIo for TestIo<'p> {
 
 	fn snapshot_service(&self) -> &SnapshotService {
 		self.snapshot_service
+	}
+
+	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
+		None
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
@@ -150,13 +158,30 @@ impl TestNet {
 	pub fn sync_step(&mut self) {
 		for peer in 0..self.peers.len() {
 			if let Some(packet) = self.peers[peer].queue.pop_front() {
-				let mut p = self.peers.get_mut(packet.recipient).unwrap();
-				trace!("--- {} -> {} ---", peer, packet.recipient);
-				ChainSync::dispatch_packet(&p.sync, &mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId)), peer as PeerId, packet.packet_id, &packet.data);
-				trace!("----------------");
+				let disconnecting = {
+					let mut p = self.peers.get_mut(packet.recipient).unwrap();
+					trace!("--- {} -> {} ---", peer, packet.recipient);
+					let to_disconnect = {
+						let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId));
+						ChainSync::dispatch_packet(&p.sync, &mut io, peer as PeerId, packet.packet_id, &packet.data);
+						io.to_disconnect
+					};
+					for d in &to_disconnect {
+						// notify this that disconnecting peers are disconnecting
+						let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(*d));
+						p.sync.write().on_peer_aborting(&mut io, *d);
+					}
+					to_disconnect
+				};
+				for d in &disconnecting {
+					// notify other peers that this peer is disconnecting
+					let mut p = self.peers.get_mut(*d).unwrap();
+					let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId));
+					p.sync.write().on_peer_aborting(&mut io, peer as PeerId);
+				}
 			}
-			let mut p = self.peers.get_mut(peer).unwrap();
-			p.sync.write().maintain_sync(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, None));
+
+			self.sync_step_peer(peer);
 		}
 	}
 

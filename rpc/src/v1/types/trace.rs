@@ -414,15 +414,15 @@ pub struct LocalizedTrace {
 	/// Result
 	result: Res,
 	/// Trace address
-	trace_address: Vec<U256>,
+	trace_address: Vec<usize>,
 	/// Subtraces
-	subtraces: U256,
+	subtraces: usize,
 	/// Transaction position
-	transaction_position: U256,
+	transaction_position: usize,
 	/// Transaction hash
 	transaction_hash: H256,
 	/// Block Number
-	block_number: U256,
+	block_number: u64,
 	/// Block Hash
 	block_hash: H256,
 }
@@ -485,9 +485,9 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
 #[derive(Debug)]
 pub struct Trace {
 	/// Trace address
-	trace_address: Vec<U256>,
+	trace_address: Vec<usize>,
 	/// Subtraces
-	subtraces: U256,
+	subtraces: usize,
 	/// Action
 	action: Action,
 	/// Result
@@ -601,15 +601,15 @@ mod tests {
 				gas_used: 8.into(),
 				output: vec![0x56, 0x78].into(),
 			}),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"result":{"gasUsed":"0x8","output":"0x5678"},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"result":{"gasUsed":"0x8","output":"0x5678"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -624,15 +624,15 @@ mod tests {
 				call_type: CallType::Call,
 			}),
 			result: Res::FailedCall(TraceError::OutOfGas),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"error":"Out of gas","traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"call","action":{"from":"0x0000000000000000000000000000000000000004","to":"0x0000000000000000000000000000000000000005","value":"0x6","gas":"0x7","input":"0x1234","callType":"call"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -649,15 +649,15 @@ mod tests {
 				code: vec![0x56, 0x78].into(),
 				address: 0xff.into(),
 			}),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"result":{"gasUsed":"0x8","code":"0x5678","address":"0x00000000000000000000000000000000000000ff"},"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -670,15 +670,15 @@ mod tests {
 				init: Bytes::new(vec![0x12, 0x34]),
 			}),
 			result: Res::FailedCreate(TraceError::OutOfGas),
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"error":"Out of gas","traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"create","action":{"from":"0x0000000000000000000000000000000000000004","value":"0x6","gas":"0x7","init":"0x1234"},"error":"Out of gas","traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]
@@ -690,15 +690,15 @@ mod tests {
 				balance: 7.into(),
 			}),
 			result: Res::None,
-			trace_address: vec![10.into()],
-			subtraces: 1.into(),
-			transaction_position: 11.into(),
+			trace_address: vec![10],
+			subtraces: 1,
+			transaction_position: 11,
 			transaction_hash: 12.into(),
-			block_number: 13.into(),
+			block_number: 13,
 			block_hash: 14.into(),
 		};
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"type":"suicide","action":{"address":"0x0000000000000000000000000000000000000004","refundAddress":"0x0000000000000000000000000000000000000006","balance":"0x7"},"result":null,"traceAddress":["0xa"],"subtraces":"0x1","transactionPosition":"0xb","transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":"0xd","blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
+		assert_eq!(serialized, r#"{"type":"suicide","action":{"address":"0x0000000000000000000000000000000000000004","refundAddress":"0x0000000000000000000000000000000000000006","balance":"0x7"},"result":null,"traceAddress":[10],"subtraces":1,"transactionPosition":11,"transactionHash":"0x000000000000000000000000000000000000000000000000000000000000000c","blockNumber":13,"blockHash":"0x000000000000000000000000000000000000000000000000000000000000000e"}"#);
 	}
 
 	#[test]

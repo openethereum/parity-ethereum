@@ -45,7 +45,7 @@ pub trait Engine : Sync + Send {
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
 
 	/// Additional information.
-	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() } 
+	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
 
 	/// Get the general parameters of the chain.
 	fn params(&self) -> &CommonParams;
@@ -126,7 +126,7 @@ pub trait Engine : Sync + Send {
 	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut [u8]) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }

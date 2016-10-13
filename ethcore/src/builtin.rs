@@ -17,14 +17,15 @@
 use crypto::sha2::Sha256 as Sha256Digest;
 use crypto::ripemd160::Ripemd160 as Ripemd160Digest;
 use crypto::digest::Digest;
-use util::*;
+use std::cmp::min;
+use util::{U256, H256, Hashable, FixedHash, BytesRef};
 use ethkey::{Signature, recover as ec_recover};
 use ethjson;
 
 /// Native implementation of a built-in contract.
 pub trait Impl: Send + Sync {
 	/// execute this built-in on the given input, writing to the given output.
-	fn execute(&self, input: &[u8], out: &mut [u8]);
+	fn execute(&self, input: &[u8], output: &mut BytesRef);
 }
 
 /// A gas pricing scheme for built-in contracts.
@@ -56,7 +57,7 @@ impl Builtin {
 	pub fn cost(&self, s: usize) -> U256 { self.pricer.cost(s) }
 
 	/// Simple forwarder for execute.
-	pub fn execute(&self, input: &[u8], output: &mut[u8]) { self.native.execute(input, output) }
+	pub fn execute(&self, input: &[u8], output: &mut BytesRef) { self.native.execute(input, output) }
 }
 
 impl From<ethjson::spec::Builtin> for Builtin {
@@ -108,14 +109,13 @@ struct Sha256;
 struct Ripemd160;
 
 impl Impl for Identity {
-	fn execute(&self, input: &[u8], output: &mut [u8]) {
-		let len = min(input.len(), output.len());
-		output[..len].copy_from_slice(&input[..len]);
+	fn execute(&self, input: &[u8], output: &mut BytesRef) {
+		output.write(0, input);
 	}
 }
 
 impl Impl for EcRecover {
-	fn execute(&self, i: &[u8], output: &mut [u8]) {
+	fn execute(&self, i: &[u8], output: &mut BytesRef) {
 		let len = min(i.len(), 128);
 
 		let mut input = [0; 128];
@@ -135,58 +135,34 @@ impl Impl for EcRecover {
 		if s.is_valid() {
 			if let Ok(p) = ec_recover(&s, &hash) {
 				let r = p.sha3();
-
-				let out_len = min(output.len(), 32);
-
-				for x in &mut output[0.. min(12, out_len)] {
-					*x = 0;
-				}
-
-				if out_len > 12 {
-					output[12..out_len].copy_from_slice(&r[12..out_len]);
-				}
+				output.write(0, &[0; 12]);
+				output.write(12, &r[12..r.len()]);
 			}
 		}
 	}
 }
 
 impl Impl for Sha256 {
-	fn execute(&self, input: &[u8], output: &mut [u8]) {
-		let out_len = min(output.len(), 32);
-
+	fn execute(&self, input: &[u8], output: &mut BytesRef) {
 		let mut sha = Sha256Digest::new();
 		sha.input(input);
 
-		if out_len == 32 {
-			sha.result(&mut output[0..32]);
-		} else {
-			let mut out = [0; 32];
-			sha.result(&mut out);
+		let mut out = [0; 32];
+		sha.result(&mut out);
 
-			output.copy_from_slice(&out[..out_len])
-		}
+		output.write(0, &out);
 	}
 }
 
 impl Impl for Ripemd160 {
-	fn execute(&self, input: &[u8], output: &mut [u8]) {
-		let out_len = min(output.len(), 32);
-
+	fn execute(&self, input: &[u8], output: &mut BytesRef) {
 		let mut sha = Ripemd160Digest::new();
 		sha.input(input);
 
-		for x in &mut output[0.. min(12, out_len)] {
-			*x = 0;
-		}
+		let mut out = [0; 32];
+		sha.result(&mut out[12..32]);
 
-		if out_len >= 32 {
-			sha.result(&mut output[12..32]);
-		} else if out_len > 12 {
-			let mut out = [0; 20];
-			sha.result(&mut out);
-
-			output.copy_from_slice(&out[12..out_len])
-		}
+		output.write(0, &out);
 	}
 }
 
@@ -194,7 +170,7 @@ impl Impl for Ripemd160 {
 mod tests {
 	use super::{Builtin, Linear, ethereum_builtin, Pricer};
 	use ethjson;
-	use util::U256;
+	use util::{U256, BytesRef};
 
 	#[test]
 	fn identity() {
@@ -203,15 +179,15 @@ mod tests {
 		let i = [0u8, 1, 2, 3];
 
 		let mut o2 = [255u8; 2];
-		f.execute(&i[..], &mut o2[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o2[..]));
 		assert_eq!(i[0..2], o2);
 
 		let mut o4 = [255u8; 4];
-		f.execute(&i[..], &mut o4[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o4[..]));
 		assert_eq!(i, o4);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut o8[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
 		assert_eq!(i, o8[..4]);
 		assert_eq!([255u8; 4], o8[4..]);
 	}
@@ -224,16 +200,20 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut o[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut o8[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
 		assert_eq!(&o8[..], &(FromHex::from_hex("e3b0c44298fc1c14").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut o34[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
 		assert_eq!(&o34[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855ffff").unwrap())[..]);
+
+		let mut ov = vec![];
+		f.execute(&i[..], &mut BytesRef::Flexible(&mut ov));
+		assert_eq!(&ov[..], &(FromHex::from_hex("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855").unwrap())[..]);
 	}
 
 	#[test]
@@ -244,15 +224,15 @@ mod tests {
 		let i = [0u8; 0];
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut o[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut o8[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut o34[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
 		assert_eq!(&o34[..], &(FromHex::from_hex("0000000000000000000000009c1185a5c5e9fc54612808977ee8f548b2258d31ffff").unwrap())[..]);
 	}
 
@@ -272,46 +252,46 @@ mod tests {
 		let i = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 
 		let mut o = [255u8; 32];
-		f.execute(&i[..], &mut o[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddb").unwrap())[..]);
 
 		let mut o8 = [255u8; 8];
-		f.execute(&i[..], &mut o8[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o8[..]));
 		assert_eq!(&o8[..], &(FromHex::from_hex("0000000000000000").unwrap())[..]);
 
 		let mut o34 = [255u8; 34];
-		f.execute(&i[..], &mut o34[..]);
+		f.execute(&i[..], &mut BytesRef::Fixed(&mut o34[..]));
 		assert_eq!(&o34[..], &(FromHex::from_hex("000000000000000000000000c08b5542d177ac6686946920409741463a15dddbffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001a650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff000000000000000000000000000000000000000000000000000000000000001b").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		let i_bad = FromHex::from_hex("47173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b000000000000000000000000000000000000000000000000000000000000001bffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);
 
 		// TODO: Should this (corrupted version of the above) fail rather than returning some address?
 	/*	let i_bad = FromHex::from_hex("48173285a8d7341e5e972fc677286384f802f8ef42a5ec5f03bbfa254cb01fad000000000000000000000000000000000000000000000000000000000000001b650acf9d3f5f0a2c799776a1254355d5f4061762a237396a99a0e0e3fc2bcd6729514a0dacb2e623ac4abd157cb18163ff942280db4d5caad66ddf941ba12e03").unwrap();
 		let mut o = [255u8; 32];
-		f.execute(&i_bad[..], &mut o[..]);
+		f.execute(&i_bad[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(&o[..], &(FromHex::from_hex("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap())[..]);*/
 	}
 
@@ -336,7 +316,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut o[..]);
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(i, o);
 	}
 
@@ -357,7 +337,7 @@ mod tests {
 
 		let i = [0u8, 1, 2, 3];
 		let mut o = [255u8; 4];
-		b.execute(&i[..], &mut o[..]);
+		b.execute(&i[..], &mut BytesRef::Fixed(&mut o[..]));
 		assert_eq!(i, o);
 	}
 }

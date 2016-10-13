@@ -22,7 +22,7 @@ use client::BlockID;
 use log_entry::LogEntry;
 
 /// Blockchain Filter.
-#[derive(Binary)]
+#[derive(Binary, Debug, PartialEq)]
 pub struct Filter {
 	/// Blockchain will be searched from this block.
 	pub from_block: BlockID,
@@ -41,6 +41,12 @@ pub struct Filter {
 	/// If None, match all.
 	/// If specified, log must contain one of these topics.
 	pub topics: Vec<Option<Vec<H256>>>,
+
+	/// Logs limit
+	///
+	/// If None, return all logs
+	/// If specified, should only return *last* `n` logs.
+	pub limit: Option<usize>,
 }
 
 impl Clone for Filter {
@@ -59,7 +65,8 @@ impl Clone for Filter {
 			from_block: self.from_block.clone(),
 			to_block: self.to_block.clone(),
 			address: self.address.clone(),
-			topics: topics[..].to_vec()
+			topics: topics[..].to_vec(),
+			limit: self.limit,
 		}
 	}
 }
@@ -117,6 +124,7 @@ mod tests {
 			to_block: BlockID::Latest,
 			address: None,
 			topics: vec![None, None, None, None],
+			limit: None,
 		};
 
 		let possibilities = none_filter.bloom_possibilities();
@@ -136,7 +144,8 @@ mod tests {
 				None,
 				None,
 				None,
-			]
+			],
+			limit: None,
 		};
 
 		let possibilities = filter.bloom_possibilities();
@@ -154,7 +163,8 @@ mod tests {
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9".into()]),
 				None,
 				None,
-			]
+			],
+			limit: None,
 		};
 
 		let possibilities = filter.bloom_possibilities();
@@ -181,7 +191,8 @@ mod tests {
 				]),
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23f9".into()]),
 				None
-			]
+			],
+			limit: None,
 		};
 
 		// number of possibilites should be equal 2 * 2 * 2 * 1 = 8
@@ -201,7 +212,8 @@ mod tests {
 				Some(vec!["ff74e91598aed6ae5d2fdcf8b24cd2c7be49a0808112a305069355b7160f23fa".into()]),
 				None,
 				None,
-			]
+			],
+			limit: None,
 		};
 
 		let entry0 = LogEntry {

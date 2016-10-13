@@ -19,12 +19,18 @@ use rlp::*;
 use network::NetworkError;
 use ethcore::header::{ Header as BlockHeader};
 
-known_heap_size!(0, HeaderId, SyncBlock);
+known_heap_size!(0, HeaderId);
 
 /// Block data with optional body.
 struct SyncBlock {
 	header: Bytes,
 	body: Option<Bytes>,
+}
+
+impl HeapSizeOf for SyncBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children() + self.body.heap_size_of_children()
+	}
 }
 
 /// Used to identify header by transactions and uncles hashes
@@ -178,8 +184,8 @@ impl BlockCollection {
 		{
 			let mut blocks = Vec::new();
 			let mut head = self.head;
-			while head.is_some() {
-				head = self.parents.get(&head.unwrap()).cloned();
+			while let Some(h) = head {
+				head = self.parents.get(&h).cloned();
 				if let Some(head) = head {
 					match self.blocks.get(&head) {
 						Some(block) if block.body.is_some() => {
@@ -195,7 +201,7 @@ impl BlockCollection {
 			for block in blocks.drain(..) {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&block.header, 1);
-				let body = Rlp::new(block.body.as_ref().unwrap()); // incomplete blocks are filtered out in the loop above
+				let body = Rlp::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
 				block_rlp.append_raw(body.at(0).as_raw(), 1);
 				block_rlp.append_raw(body.at(1).as_raw(), 1);
 				drained.push(block_rlp.out());
@@ -219,10 +225,14 @@ impl BlockCollection {
 		self.blocks.contains_key(hash)
 	}
 
-	/// Return heap size.
+	/// Return used heap size.
 	pub fn heap_size(&self) -> usize {
-		//TODO: other collections
-		self.blocks.heap_size_of_children()
+		self.heads.heap_size_of_children()
+			+ self.blocks.heap_size_of_children()
+			+ self.parents.heap_size_of_children()
+			+ self.header_ids.heap_size_of_children()
+			+ self.downloading_headers.heap_size_of_children()
+			+ self.downloading_bodies.heap_size_of_children()
 	}
 
 	/// Check if given block hash is marked as being downloaded.
@@ -233,7 +243,7 @@ impl BlockCollection {
 	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
 		let body = UntrustedRlp::new(&b);
 		let tx = try!(body.at(0));
-		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec()).collect()); //TODO: get rid of vectors here
+		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
 		let uncles = try!(body.at(1)).as_raw().sha3();
 		let header_id = HeaderId {
 			transactions_root: tx_root,

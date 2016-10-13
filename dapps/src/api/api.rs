@@ -15,23 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use hyper::{server, net, Decoder, Encoder, Next};
+use hyper::{server, net, Decoder, Encoder, Next, Control};
 use api::types::{App, ApiError};
 use api::response::{as_json, as_json_error, ping_response};
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
+use apps::fetcher::ContentFetcher;
 
 #[derive(Clone)]
 pub struct RestApi {
 	local_domain: String,
 	endpoints: Arc<Endpoints>,
+	fetcher: Arc<ContentFetcher>,
 }
 
 impl RestApi {
-	pub fn new(local_domain: String, endpoints: Arc<Endpoints>) -> Box<Endpoint> {
+	pub fn new(local_domain: String, endpoints: Arc<Endpoints>, fetcher: Arc<ContentFetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
 			local_domain: local_domain,
 			endpoints: endpoints,
+			fetcher: fetcher,
 		})
 	}
 
@@ -43,21 +46,40 @@ impl RestApi {
 }
 
 impl Endpoint for RestApi {
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		Box::new(RestApiRouter {
-			api: self.clone(),
-			handler: as_json_error(&ApiError {
-				code: "404".into(),
-				title: "Not Found".into(),
-				detail: "Resource you requested has not been found.".into(),
-			}),
-		})
+	fn to_async_handler(&self, path: EndpointPath, control: Control) -> Box<Handler> {
+		Box::new(RestApiRouter::new(self.clone(), path, control))
 	}
 }
 
 struct RestApiRouter {
 	api: RestApi,
+	path: Option<EndpointPath>,
+	control: Option<Control>,
 	handler: Box<Handler>,
+}
+
+impl RestApiRouter {
+	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
+		RestApiRouter {
+			path: Some(path),
+			control: Some(control),
+			api: api,
+			handler: as_json_error(&ApiError {
+				code: "404".into(),
+				title: "Not Found".into(),
+				detail: "Resource you requested has not been found.".into(),
+			}),
+		}
+	}
+
+	fn resolve_content(&self, hash: Option<&str>, path: EndpointPath, control: Control) -> Option<Box<Handler>> {
+		match hash {
+			Some(hash) if self.api.fetcher.contains(hash) => {
+				Some(self.api.fetcher.to_async_handler(path, control))
+			},
+			_ => None
+		}
+	}
 }
 
 impl server::Handler<net::HttpStream> for RestApiRouter {
@@ -69,13 +91,21 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 			return Next::write();
 		}
 
-		let url = url.expect("Check for None is above; qed");
+		let url = url.expect("Check for None early-exists above; qed");
+		let mut path = self.path.take().expect("on_request called only once, and path is always defined in new; qed");
+		let control = self.control.take().expect("on_request called only once, and control is always defined in new; qed");
+
 		let endpoint = url.path.get(1).map(|v| v.as_str());
+		let hash = url.path.get(2).map(|v| v.as_str());
+		// at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
+		// we will try and retrieve 'api' as the hash when doing the /api/content route
+		if let Some(hash) = hash.clone() { path.app_id = hash.to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
 			"apps" => Some(as_json(&self.api.list_apps())),
 			"ping" => Some(ping_response(&self.api.local_domain)),
-			_ => None,
+			"content" => self.resolve_content(hash, path, control),
+			_ => None
 		});
 
 		// Overwrite default

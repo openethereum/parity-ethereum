@@ -14,6 +14,7 @@ Usage:
   parity signer new-token [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
+  parity tools hash <file>
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
@@ -30,8 +31,8 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic or testnet
-                           (default: {flag_chain}).
+                           homestead, mainnet, morden, classic, expanse or
+                           testnet (default: {flag_chain}).
   -d --db-path PATH        Specify the database & configuration directory path
                            (default: {flag_db_path}).
   --keys-path PATH         Specify the path for JSON key files to be found
@@ -43,7 +44,8 @@ Account Options:
                            ACCOUNTS is a comma-delimited list of addresses.
                            Implies --no-signer. (default: {flag_unlock:?})
   --password FILE          Provide a file containing a password for unlocking
-                           an account. (default: {flag_password:?})
+                           an account. Leading and trailing whitespace is trimmed.
+                           (default: {flag_password:?})
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) (default: {flag_keys_iterations}).
@@ -182,6 +184,10 @@ Sealing/Mining Options:
                            more than 32 characters. (default: {flag_extra_data:?})
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) (default: {flag_tx_queue_size}).
+  --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
+                           the queue. LIMIT can be either an amount of gas or
+                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           the current block gas limit. (default: {flag_tx_queue_gas}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -208,6 +214,8 @@ Footprint Options:
                            megabytes (default: {flag_cache_size_blocks}).
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue (default: {flag_cache_size_queue}).
+  --cache-size-state MB    Specify the maximum size of memory to use for
+                           the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.a (default: {flag_cache_size:?})
@@ -216,7 +224,10 @@ Footprint Options:
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
                            hdd - suitable for slow HDDs (default: {flag_db_compaction}).
-  --fat-db                 Fat database. (default: {flag_fat_db})
+  --fat-db BOOL            Build appropriate information to allow enumeration
+                           of all accounts and storage keys. Doubles the size
+                           of the state database. BOOL may be one of on, off
+                           or auto. (default: {flag_fat_db})
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -283,4 +294,3 @@ Miscellaneous Options:
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.
   -h --help                Show this screen.
-

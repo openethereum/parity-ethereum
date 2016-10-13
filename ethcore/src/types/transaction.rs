@@ -20,8 +20,8 @@ use std::ops::Deref;
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes};
-use ethkey::{Signature, sign, Secret, recover, public_to_address, Error as EthkeyError};
+use util::{H256, Address, U256, Bytes, HeapSizeOf};
+use ethkey::{Signature, sign, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
@@ -83,6 +83,12 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+	}
+}
+
+impl HeapSizeOf for Transaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.data.heap_size_of_children()
 	}
 }
 
@@ -251,6 +257,12 @@ impl Encodable for SignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
 }
 
+impl HeapSizeOf for SignedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.unsigned.heap_size_of_children()
+	}
+}
+
 impl SignedTransaction {
 	/// Append object with a signature into RLP stream
 	pub fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
@@ -305,11 +317,16 @@ impl SignedTransaction {
 		match sender {
 			Some(s) => Ok(s),
 			None => {
-				let s = public_to_address(&try!(recover(&self.signature(), &self.unsigned.hash())));
+				let s = public_to_address(&try!(self.public_key()));
 				self.sender.set(Some(s));
 				Ok(s)
 			}
 		}
+	}
+
+	/// Returns the public key of the sender.
+	pub fn public_key(&self) -> Result<Public, Error> {
+		Ok(try!(recover(&self.signature(), &self.unsigned.hash())))
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,

@@ -79,7 +79,7 @@ fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	}
 }
 
-fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
+fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 	match protocols {
 		Ok(ref protocols) if protocols.len() == 1 => {
 			protocols.iter().any(|protocol| {
@@ -89,8 +89,15 @@ fn auth_is_valid(codes: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 
 				if let (Some(auth), Some(time)) = (auth, time) {
 					// Check if the code is valid
-					AuthCodes::from_file(codes)
-						.map(|codes| codes.is_valid(&auth, time))
+					AuthCodes::from_file(codes_path)
+						.map(|mut codes| {
+							let res = codes.is_valid(&auth, time);
+							// make sure to save back authcodes - it might have been modified
+							if let Err(_) = codes.to_file(codes_path) {
+								warn!(target: "signer", "Couldn't save authorization codes to file.");
+							}
+							res
+						})
 						.unwrap_or(false)
 				} else {
 					false

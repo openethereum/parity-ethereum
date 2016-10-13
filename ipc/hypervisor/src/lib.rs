@@ -22,6 +22,7 @@ extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
 extern crate semver;
 #[macro_use] extern crate log;
+extern crate time;
 
 pub mod service;
 
@@ -187,23 +188,40 @@ impl Hypervisor {
 	}
 
 	/// Waits for every required module to check in
-	pub fn wait_for_shutdown(&self) {
+	pub fn wait_for_shutdown(&self) -> bool {
+		use time::{PreciseTime, Duration};
+
 		let mut worker = self.ipc_worker.write().unwrap();
+		let start = PreciseTime::now();
 		while !self.modules_shutdown() {
-			worker.poll()
+			worker.poll();
+			if start.to(PreciseTime::now()) > Duration::seconds(30) {
+				warn!("Some modules failed to shutdown gracefully, they will be terminated.");
+				break;
+			}
 		}
+		self.modules_shutdown()
 	}
 
 	/// Shutdown the ipc and all managed child processes
 	pub fn shutdown(&self) {
 		let mut childs = self.processes.write().unwrap();
-		for (ref mut module, _) in childs.iter_mut() {
+		for (ref module, _) in childs.iter() {
 			trace!(target: "hypervisor", "Stopping process module: {}", module);
 			self.service.send_shutdown(**module);
 		}
 		trace!(target: "hypervisor", "Waiting for shutdown...");
-		self.wait_for_shutdown();
-		trace!(target: "hypervisor", "All modules reported shutdown");
+		if self.wait_for_shutdown() {
+			trace!(target: "hypervisor", "All modules reported shutdown");
+			return;
+		}
+
+		for (ref module, ref mut process) in childs.iter_mut()  {
+			if self.service.is_running(**module) {
+				process.kill().unwrap();
+				trace!("Terminated {}", module);
+			}
+		}
 	}
 }
 

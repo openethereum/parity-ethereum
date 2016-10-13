@@ -127,8 +127,12 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		MessageCallResult::Success(*gas)
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes  {
+	fn extcode(&self, address: &Address) -> Arc<Bytes>  {
 		self.ext.extcode(address)
+	}
+
+	fn extcodesize(&self, address: &Address) -> usize {
+		self.ext.extcodesize(address)
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
@@ -187,7 +191,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);
-		let vm_factory = Factory::new(vm_type.clone());
+		let vm_factory = Factory::new(vm_type.clone(), 1024 * 32);
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();
@@ -228,7 +232,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 				for (address, account) in vm.post_state.unwrap().into_iter() {
 					let address = address.into();
 					let code: Vec<u8> = account.code.into();
-					fail_unless(state.code(&address).unwrap_or_else(Vec::new) == code, "code is incorrect");
+					fail_unless(state.code(&address).as_ref().map_or_else(|| code.is_empty(), |c| &**c == &code), "code is incorrect");
 					fail_unless(state.balance(&address) == account.balance.into(), "balance is incorrect");
 					fail_unless(state.nonce(&address) == account.nonce.into(), "nonce is incorrect");
 					account.storage.into_iter().foreach(|(k, v)| {

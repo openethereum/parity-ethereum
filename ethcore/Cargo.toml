@@ -37,6 +37,9 @@ ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
 rand = "0.3"
+lru-cache = { git = "https://github.com/contain-rs/lru-cache" }
+ethcore-bloom-journal = { path = "../util/bloom" }
+byteorder = "0.5"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"
@@ -44,7 +47,9 @@ default-features = false
 
 [features]
 jit = ["evmjit"]
-evm-debug = []
+evm-debug = ["slow-blocks"]
+evm-debug-tests = ["evm-debug"]
+slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
 dev = ["clippy"]

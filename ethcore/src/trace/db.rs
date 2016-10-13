@@ -22,7 +22,7 @@ use bloomchain::{Number, Config as BloomConfig};
 use bloomchain::group::{BloomGroupDatabase, BloomGroupChain, GroupPosition, BloomGroup};
 use util::{H256, H264, Database, DBTransaction, RwLock, HeapSizeOf};
 use header::BlockNumber;
-use trace::{LocalizedTrace, Config, Switch, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras, Error};
+use trace::{LocalizedTrace, Config, Filter, Database as TraceDatabase, ImportRequest, DatabaseExtras};
 use db::{self, Key, Writable, Readable, CacheUpdatePolicy};
 use blooms;
 use super::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
@@ -126,38 +126,20 @@ impl<T> BloomGroupDatabase for TraceDB<T> where T: DatabaseExtras {
 
 impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
-	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Result<Self, Error> {
-		// check if in previously tracing was enabled
-		let old_tracing = match tracesdb.get(db::COL_TRACE, b"enabled").unwrap() {
-			Some(ref value) if value as &[u8] == &[0x1] => Switch::On,
-			Some(ref value) if value as &[u8] == &[0x0] => Switch::Off,
-			Some(_) => { panic!("tracesdb is corrupted") },
-			None => Switch::Auto,
-		};
-
-		let enabled = try!(old_tracing.turn_to(config.enabled));
-
-		let encoded_tracing = match enabled {
-			true => [0x1],
-			false => [0x0]
-		};
-
+	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new(&tracesdb);
-		batch.put(db::COL_TRACE, b"enabled", &encoded_tracing);
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
 		tracesdb.write(batch).unwrap();
 
-		let db = TraceDB {
+		TraceDB {
 			traces: RwLock::new(HashMap::new()),
 			blooms: RwLock::new(HashMap::new()),
 			cache_manager: RwLock::new(CacheManager::new(config.pref_cache_size, config.max_cache_size, 10 * 1024)),
 			tracesdb: tracesdb,
 			bloom_config: config.blooms,
-			enabled: enabled,
+			enabled: config.enabled,
 			extras: extras,
-		};
-
-		Ok(db)
+		}
 	}
 
 	fn cache_size(&self) -> usize {
@@ -274,16 +256,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			return;
 		}
 
-		// at first, let's insert new block traces
-		{
-			let mut traces = self.traces.write();
-			// it's important to use overwrite here,
-			// cause this value might be queried by hash later
-			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
-			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
-		}
-
 		// now let's rebuild the blooms
 		if !request.enacted.is_empty() {
 			let range_start = request.block_number as Number + 1 - request.enacted.len();
@@ -294,11 +266,24 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				// all traces are expected to be found here. That's why `expect` has been used
 				// instead of `filter_map`. If some traces haven't been found, it meens that
 				// traces database is corrupted or incomplete.
-				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
-				.map(|block_traces| block_traces.bloom())
+				.map(|block_hash| if block_hash == &request.block_hash {
+					request.traces.bloom()
+				} else {
+					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
+				})
 				.map(blooms::Bloom::from)
 				.map(Into::into)
 				.collect();
+
+			// insert new block traces into the cache and the database
+			{
+				let mut traces = self.traces.write();
+				// it's important to use overwrite here,
+				// cause this value might be queried by hash later
+				batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+				// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
+				self.note_used(CacheID::Trace(request.block_hash.clone()));
+			}
 
 			let chain = BloomGroupChain::new(self.bloom_config, self);
 			let trace_blooms = chain.replace(&replaced_range, enacted_blooms);
@@ -419,7 +404,7 @@ mod tests {
 	use util::{Address, U256, H256, Database, DatabaseConfig, DBTransaction};
 	use devtools::RandomTempPath;
 	use header::BlockNumber;
-	use trace::{Config, Switch, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
+	use trace::{Config, TraceDB, Database as TraceDatabase, DatabaseExtras, ImportRequest};
 	use trace::{Filter, LocalizedTrace, AddressesFilter, TraceError};
 	use trace::trace::{Call, Action, Res};
 	use trace::flat::{FlatTrace, FlatBlockTraces, FlatTransactionTraces};
@@ -474,22 +459,10 @@ mod tests {
 		let mut config = Config::default();
 
 		// set autotracing
-		config.enabled = Switch::Auto;
+		config.enabled = false;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
-
-		config.enabled = Switch::Off;
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), false);
 		}
 	}
@@ -501,50 +474,12 @@ mod tests {
 		let mut config = Config::default();
 
 		// set tracing on
-		config.enabled = Switch::On;
+		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras));
 			assert_eq!(tracedb.tracing_enabled(), true);
 		}
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
-
-		config.enabled = Switch::Auto;
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
-
-		config.enabled = Switch::Off;
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), false);
-		}
-	}
-
-	#[test]
-	#[should_panic]
-	fn test_invalid_reopening_db() {
-		let temp = RandomTempPath::new();
-		let db = new_db(temp.as_str());
-		let mut config = Config::default();
-
-		// set tracing on
-		config.enabled = Switch::Off;
-
-		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap();
-			assert_eq!(tracedb.tracing_enabled(), true);
-		}
-
-		config.enabled = Switch::On;
-		TraceDB::new(config.clone(), db.clone(), Arc::new(NoopExtras)).unwrap(); // should panic!
 	}
 
 	fn create_simple_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
@@ -595,7 +530,7 @@ mod tests {
 		let temp = RandomTempPath::new();
 		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
 		let mut config = Config::default();
-		config.enabled = Switch::On;
+		config.enabled = true;
 		let block_0 = H256::from(0xa1);
 		let block_1 = H256::from(0xa2);
 		let tx_0 = H256::from(0xff);
@@ -607,7 +542,7 @@ mod tests {
 		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
 
-		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras)).unwrap();
+		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
 
 		// import block 0
 		let request = create_simple_import_request(0, block_0.clone());
@@ -679,10 +614,10 @@ mod tests {
 		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
 
 		// set tracing on
-		config.enabled = Switch::On;
+		config.enabled = true;
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone())).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
 
 			// import block 0
 			let request = create_simple_import_request(0, block_0.clone());
@@ -692,7 +627,7 @@ mod tests {
 		}
 
 		{
-			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras)).unwrap();
+			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras));
 			let traces = tracedb.transaction_traces(0, 0);
 			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(0, block_0, tx_0)]);
 		}

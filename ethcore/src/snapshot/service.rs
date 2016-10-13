@@ -27,7 +27,7 @@ use super::{ManifestData, StateRebuilder, BlockRebuilder, RestorationStatus, Sna
 use super::io::{SnapshotReader, LooseReader, SnapshotWriter, LooseWriter};
 
 use blockchain::BlockChain;
-use client::Client;
+use client::{BlockChainClient, Client};
 use engines::Engine;
 use error::Error;
 use ids::BlockID;
@@ -345,7 +345,17 @@ impl Service {
 		let res = client.take_snapshot(writer, BlockID::Number(num), &self.progress);
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
-		try!(res);
+		if let Err(e) = res {
+			if client.chain_info().best_block_number >= num + ::client::HISTORY {
+				// "Cancelled" is mincing words a bit -- what really happened
+				// is that the state we were snapshotting got pruned out
+				// before we could finish.
+				info!("Cancelled prematurely-started periodic snapshot.");
+				return Ok(())
+			} else {
+				return Err(e);
+			}
+		}
 
 		info!("Finished taking snapshot at #{}", num);
 

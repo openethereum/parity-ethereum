@@ -57,10 +57,10 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
-extern crate https_fetch;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
+extern crate fetch;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 
@@ -199,8 +199,11 @@ impl Server {
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
-			special.insert(router::SpecialEndpoint::Api, api::RestApi::new(format!("{}", addr), endpoints.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
+			special.insert(
+				router::SpecialEndpoint::Api,
+				api::RestApi::new(format!("{}", addr), endpoints.clone(), content_fetcher.clone())
+			);
 			special
 		});
 		let hosts = Self::allowed_hosts(hosts, format!("{}", addr));

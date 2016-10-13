@@ -57,7 +57,11 @@ fn should_return_registrar() {
 		IoChannel::disconnected(),
 		&db_config
 	).unwrap();
-	assert_eq!(client.additional_params().get("registrar"), Some(&"8e4e9b13d4b45cb0befc93c3061b1408f67316b2".to_owned()));
+	let params = client.additional_params();
+	let address = params.get("registrar").unwrap();
+
+	assert_eq!(address.len(), 40);
+	assert!(U256::from_str(address).is_ok());
 }
 
 #[test]
@@ -142,7 +146,8 @@ fn returns_logs() {
 		to_block: BlockID::Latest,
 		address: None,
 		topics: vec![],
-	}, None);
+		limit: None,
+	});
 	assert_eq!(logs.len(), 0);
 }
 
@@ -156,7 +161,8 @@ fn returns_logs_with_limit() {
 		to_block: BlockID::Latest,
 		address: None,
 		topics: vec![],
-	}, Some(2));
+		limit: Some(2),
+	});
 	assert_eq!(logs.len(), 0);
 }
 

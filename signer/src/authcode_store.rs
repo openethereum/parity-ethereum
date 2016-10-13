@@ -48,6 +48,7 @@ impl TimeProvider for DefaultTimeProvider {
 /// No of seconds the hash is valid
 const TIME_THRESHOLD: u64 = 7;
 const TOKEN_LENGTH: usize = 16;
+const INITIAL_TOKEN: &'static str = "initial";
 
 /// Manages authorization codes for `SignerUIs`
 pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
@@ -98,7 +99,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 	}
 
 	/// Checks if given hash is correct identifier of `SignerUI`
-	pub fn is_valid(&self, hash: &H256, time: u64) -> bool {
+	pub fn is_valid(&mut self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time
 		if time >= now + TIME_THRESHOLD || time <= now - TIME_THRESHOLD {
@@ -106,9 +107,21 @@ impl<T: TimeProvider> AuthCodes<T> {
 			return false;
 		}
 
+		let as_token = |code| format!("{}:{}", code, time).sha3();
+
+		// Check if it's the initial token.
+		if self.is_empty() {
+			let initial = &as_token(INITIAL_TOKEN) == hash;
+			// Initial token can be used only once.
+			if initial {
+				let _ = self.generate_new();
+			}
+			return initial;
+		}
+
 		// look for code
 		self.codes.iter()
-			.any(|code| &format!("{}:{}", code, time).sha3() == hash)
+			.any(|code| &as_token(code) == hash)
 	}
 
 	/// Generates and returns a new code that can be used by `SignerUIs`
@@ -124,6 +137,11 @@ impl<T: TimeProvider> AuthCodes<T> {
 		self.codes.push(code);
 		Ok(readable_code)
 	}
+
+	/// Returns true if there are no tokens in this store
+	pub fn is_empty(&self) -> bool {
+		self.codes.is_empty()
+	}
 }
 
 
@@ -138,11 +156,27 @@ mod tests {
 	}
 
 	#[test]
+	fn should_return_true_if_code_is_initial_and_store_is_empty() {
+		// given
+		let code = "initial";
+		let time = 99;
+		let mut codes = AuthCodes::new(vec![], || 100);
+
+		// when
+		let res1 = codes.is_valid(&generate_hash(code, time), time);
+		let res2 = codes.is_valid(&generate_hash(code, time), time);
+
+		// then
+		assert_eq!(res1, true);
+		assert_eq!(res2, false);
+	}
+
+	#[test]
 	fn should_return_true_if_hash_is_valid() {
 		// given
 		let code = "23521352asdfasdfadf";
 		let time = 99;
-		let codes = AuthCodes::new(vec![code.into()], || 100);
+		let mut codes = AuthCodes::new(vec![code.into()], || 100);
 
 		// when
 		let res = codes.is_valid(&generate_hash(code, time), time);
@@ -156,7 +190,7 @@ mod tests {
 		// given
 		let code = "23521352asdfasdfadf";
 		let time = 99;
-		let codes = AuthCodes::new(vec!["1".into()], || 100);
+		let mut codes = AuthCodes::new(vec!["1".into()], || 100);
 
 		// when
 		let res = codes.is_valid(&generate_hash(code, time), time);
@@ -171,7 +205,7 @@ mod tests {
 		let code = "23521352asdfasdfadf";
 		let time = 107;
 		let time2 = 93;
-		let codes = AuthCodes::new(vec![code.into()], || 100);
+		let mut codes = AuthCodes::new(vec![code.into()], || 100);
 
 		// when
 		let res1 = codes.is_valid(&generate_hash(code, time), time);

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
 use spec::CommonParams;
@@ -32,6 +32,8 @@ pub struct EthashParams {
 	pub minimum_difficulty: U256,
 	/// Difficulty bound divisor.
 	pub difficulty_bound_divisor: U256,
+	/// Difficulty increment divisor.
+	pub difficulty_increment_divisor: u64,
 	/// Block duration.
 	pub duration_limit: u64,
 	/// Block reward.
@@ -46,6 +48,12 @@ pub struct EthashParams {
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
+	/// Transition block for a change of difficulty params (currently just bound_divisor).
+	pub difficulty_hardfork_transition: u64,
+	/// Difficulty param after the difficulty transition.
+	pub difficulty_hardfork_bound_divisor: U256,
+	/// Block on which there is no additional difficulty from the exponential bomb.
+	pub bomb_defuse_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -54,6 +62,7 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
+			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
@@ -61,6 +70,9 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
+			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
+			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
 		}
 	}
 }
@@ -167,9 +179,11 @@ impl Engine for Ethash {
 		for u in fields.uncles.iter() {
 			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
+
+		// Commit state so that we can actually figure out the state root.
 		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);
-		}
+			warn!("Encountered error on state commit: {}", e);		
+		}		
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -219,6 +233,7 @@ impl Engine for Ethash {
 		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, Ethash::from_ethash(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), Ethash::from_ethash(result.mix_hash), Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
@@ -269,7 +284,11 @@ impl Ethash {
 		}
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
-		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
+		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
+		let difficulty_bound_divisor = match difficulty_hardfork {
+			true => self.ethash_params.difficulty_hardfork_bound_divisor,
+			false => self.ethash_params.difficulty_bound_divisor,
+		};
 		let duration_limit = self.ethash_params.duration_limit;
 		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
 
@@ -283,17 +302,19 @@ impl Ethash {
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp() - parent.timestamp()) / 10;
+			let diff_inc = (header.timestamp() - parent.timestamp()) / self.ethash_params.difficulty_increment_divisor;
 			if diff_inc <= 1 {
-				parent.difficulty().clone() + parent.difficulty().clone() / From::from(2048) * From::from(1 - diff_inc)
+				parent.difficulty().clone() + parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(1 - diff_inc)
 			} else {
-				parent.difficulty().clone() - parent.difficulty().clone() / From::from(2048) * From::from(min(diff_inc - 1, 99))
+				parent.difficulty().clone() - parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(min(diff_inc - 1, 99))
 			}
 		};
 		target = max(min_difficulty, target);
-		let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
-		if period > 1 {
-			target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+		if header.number() < self.ethash_params.bomb_defuse_transition {
+			let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+			if period > 1 {
+				target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+			}
 		}
 		target
 	}
@@ -357,9 +378,9 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -371,9 +392,9 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();

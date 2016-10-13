@@ -38,10 +38,6 @@ struct RpcEndpoint {
 }
 
 impl Endpoint for RpcEndpoint {
-	fn to_handler(&self, _path: EndpointPath) -> Box<Handler> {
-		panic!("RPC Endpoint is asynchronous and requires Control object.");
-	}
-
 	fn to_async_handler(&self, _path: EndpointPath, control: hyper::Control) -> Box<Handler> {
 		let panic_handler = PanicHandler { handler: self.panic_handler.clone() };
 		Box::new(ServerHandler::new(

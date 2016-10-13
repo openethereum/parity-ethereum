@@ -178,6 +178,13 @@ impl NetworkService {
 			host.with_context(protocol, &io, action);
 		};
 	}
+
+	/// Evaluates function in the network context
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: Fn(&NetworkContext) -> T {
+		let io = IoContext::new(self.io_service.channel(), 0);
+		let host = self.host.read();
+		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))
+	}
 }
 
 impl MayPanic for NetworkService {

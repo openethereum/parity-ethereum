@@ -17,6 +17,7 @@ jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.gi
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
+ethcrypto = { path = "../ethcrypto" }
 ethkey = { path = "../ethkey" }
 ethstore = { path = "../ethstore" }
 ethash = { path = "../ethash" }
@@ -24,6 +25,7 @@ ethsync = { path = "../sync" }
 ethjson = { path = "../json" }
 ethcore-devtools = { path = "../devtools" }
 rlp = { path = "../util/rlp" }
+fetch = { path = "../util/fetch" }
 rustc-serialize = "0.3"
 transient-hashmap = "0.1"
 serde_macros = { version = "0.8.0", optional = true }

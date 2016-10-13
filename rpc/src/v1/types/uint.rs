@@ -23,8 +23,10 @@ use util::{U256 as EthU256, Uint};
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
 		/// Uint serialization.
-		#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash)]
+		#[derive(Debug, Default, Clone, Copy, PartialEq, Hash)]
 		pub struct $name($other);
+
+		impl Eq for $name { }
 
 		impl<T> From<T> for $name where $other: From<T> {
 			fn from(o: T) -> Self {
@@ -77,6 +79,10 @@ macro_rules! impl_uint {
 							return Err(serde::Error::custom("Invalid length."));
 						}
 
+						if &value[0..2] != "0x" {
+							return Err(serde::Error::custom("Use hex encoded numbers with 0x prefix."))
+						}
+
 						$other::from_str(&value[2..]).map($name).map_err(|_| serde::Error::custom("Invalid hex value."))
 					}
 
@@ -100,6 +106,8 @@ mod tests {
 	use super::U256;
 	use serde_json;
 
+	type Res = Result<U256, serde_json::Error>;
+
 	#[test]
 	fn should_serialize_u256() {
 		let serialized1 = serde_json::to_string(&U256(0.into())).unwrap();
@@ -111,6 +119,21 @@ mod tests {
 		assert_eq!(serialized2, r#""0x1""#);
 		assert_eq!(serialized3, r#""0x10""#);
 		assert_eq!(serialized4, r#""0x100""#);
+	}
+
+	#[test]
+	fn should_fail_to_deserialize_decimals() {
+		let deserialized1: Res = serde_json::from_str(r#""""#);
+		let deserialized2: Res = serde_json::from_str(r#""0""#);
+		let deserialized3: Res = serde_json::from_str(r#""10""#);
+		let deserialized4: Res = serde_json::from_str(r#""1000000""#);
+		let deserialized5: Res = serde_json::from_str(r#""1000000000000000000""#);
+
+		assert!(deserialized1.is_err());
+		assert!(deserialized2.is_err());
+		assert!(deserialized3.is_err());
+		assert!(deserialized4.is_err());
+		assert!(deserialized5.is_err());
 	}
 
 	#[test]

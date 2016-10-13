@@ -74,7 +74,7 @@ pub fn new_token(path: String) -> Result<String, String> {
 		.map_err(|err| format!("Error generating token: {:?}", err))
 }
 
-fn generate_new_token(path: String) -> io::Result<String> {
+pub fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
 	let code = try!(codes.generate_new());
@@ -90,7 +90,7 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 
 	let start_result = {
 		let server = signer::ServerBuilder::new(
-			deps.apis.signer_queue.clone(),
+			deps.apis.signer_service.queue(),
 			codes_path(conf.signer_path),
 		);
 		if conf.skip_origin_validation {

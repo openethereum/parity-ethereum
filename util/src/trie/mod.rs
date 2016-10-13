@@ -72,11 +72,11 @@ impl fmt::Display for TrieError {
 	}
 }
 
-/// Trie-Item type.
-pub type TrieItem<'a> = (Vec<u8>, &'a [u8]);
-
 /// Trie result type. Boxed to avoid copying around extra space for `H256`s on successful queries.
 pub type Result<T> = ::std::result::Result<T, Box<TrieError>>;
+
+/// Trie-Item type.
+pub type TrieItem<'a> = Result<(Vec<u8>, &'a [u8])>;
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
@@ -102,7 +102,7 @@ pub trait Trie {
 		where 'a: 'b, R: Recorder;
 
 	/// Returns an iterator over elements of trie.
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a>;
+	fn iter<'a>(&'a self) -> Result<Box<Iterator<Item = TrieItem> + 'a>>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
@@ -193,7 +193,7 @@ impl<'db> Trie for TrieKinds<'db> {
 		wrapper!(self, get_recorded, key, r)
 	}
 
-	fn iter<'a>(&'a self) -> Box<Iterator<Item = TrieItem> + 'a> {
+	fn iter<'a>(&'a self) -> Result<Box<Iterator<Item = TrieItem> + 'a>> {
 		wrapper!(self, iter,)
 	}
 }
@@ -233,4 +233,7 @@ impl TrieFactory {
 			TrieSpec::Fat => Ok(Box::new(try!(FatDBMut::from_existing(db, root)))),
 		}
 	}
+
+	/// Returns true iff the trie DB is a fat DB (allows enumeration of keys).
+	pub fn is_fat(&self) -> bool { self.spec == TrieSpec::Fat } 
 }
