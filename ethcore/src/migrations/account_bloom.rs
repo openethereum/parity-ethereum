@@ -39,6 +39,7 @@ fn check_space_match(db: &Database) -> Result<(), usize> {
 	let db_space = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_SPACE_KEY)
 		.expect("Low-level database error")
 		.map(|val| LittleEndian::read_u64(&val[..]) as usize)
+		// this was the initial size of the bloom which was not written in the database
 		.unwrap_or(1048576);
 
 	if db_space == ACCOUNT_BLOOM_SPACE { Ok(()) } else { Err(db_space) }
