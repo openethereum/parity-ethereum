@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use parity_dapps_glue::{WebApp, File, Info};
 
 #[derive(WebAppFiles)]
-#[webapp(path = "./web")]
+#[webapp(path = "../../../js/build")]
 pub struct App {
 	pub files: HashMap<&'static str, File>,
 }
