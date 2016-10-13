@@ -1797,4 +1797,20 @@ fn create_empty() {
 	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
 }
 
+#[test]
+fn should_not_panic_on_state_diff_with_storage() {
+	let state = get_temp_state();
+	let mut state = state.reference().clone();
+
+	let a: Address = 0xa.into();
+	state.init_code(&a, b"abcdefg".to_vec());
+	state.add_balance(&a, &256.into());
+	state.set_storage(&a, 0xb.into(), 0xc.into());
+
+	let mut new_state = state.clone();
+	new_state.set_storage(&a, 0xb.into(), 0xd.into());
+
+	new_state.diff_from(state);
+}
+
 }
