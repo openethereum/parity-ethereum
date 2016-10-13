@@ -130,7 +130,7 @@ export default class Dapps extends Component {
   }
 
   loadLocalApps () {
-    fetch(`http://${window.location.host}/api/apps`, { method: 'GET' })
+    fetch('http://localhost:8080/api/apps', { method: 'GET' })
       .then((response) => response.ok ? response.json() : [])
       .then((_localApps) => {
         const localApps = _localApps

@@ -26,7 +26,7 @@ const initialState = {
 export function hashToImageUrl (hashArray) {
   const hash = hashArray ? bytesToHex(hashArray) : ZERO;
 
-  return hash === ZERO ? null : `/api/content/${hash.substr(2)}`;
+  return hash === ZERO ? null : `http://localhost:8080/api/content/${hash.substr(2)}`;
 }
 
 export default handleActions({
