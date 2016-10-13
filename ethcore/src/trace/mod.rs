@@ -26,7 +26,7 @@ mod noop_tracer;
 
 pub use types::trace_types::{filter, flat, localized, trace};
 pub use types::trace_types::error::Error as TraceError;
-pub use self::config::{Config, Switch};
+pub use self::config::Config;
 pub use self::db::TraceDB;
 pub use self::error::Error;
 pub use types::trace_types::trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff};

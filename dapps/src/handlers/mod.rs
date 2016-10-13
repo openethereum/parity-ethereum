@@ -21,7 +21,6 @@ mod echo;
 mod content;
 mod redirect;
 mod fetch;
-pub mod client;
 
 pub use self::auth::AuthRequiredHandler;
 pub use self::echo::EchoHandler;

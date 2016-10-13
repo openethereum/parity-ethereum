@@ -39,6 +39,8 @@ extern crate semver;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate serde;
+extern crate serde_json;
 extern crate rlp;
 
 extern crate json_ipc_server as jsonipc;
@@ -106,6 +108,7 @@ mod run;
 mod sync;
 #[cfg(feature="ipc")]
 mod boot;
+mod user_defaults;
 
 #[cfg(feature="stratum")]
 mod stratum;
@@ -193,6 +196,9 @@ fn sync_main() -> bool {
 }
 
 fn main() {
+	// Always print backtrace on panic.
+	::std::env::set_var("RUST_BACKTRACE", "1");
+	
 	if sync_main() {
 		return;
 	}

@@ -25,10 +25,10 @@ use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, E
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
-/// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
+/// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
-const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
+const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -149,12 +149,13 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let gas_cost = t.gas.full_mul(t.gas_price);
 		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+		let balance512 = U512::from(balance);
+		if balance512 < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -168,13 +169,14 @@ impl<'a> Executive<'a> {
 				let new_address = contract_address(&sender, &nonce);
 				let params = ActionParams {
 					code_address: new_address.clone(),
+					code_hash: t.data.sha3(),
 					address: new_address,
 					sender: sender.clone(),
 					origin: sender.clone(),
 					gas: init_gas,
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
-					code: Some(t.data.clone()),
+					code: Some(Arc::new(t.data.clone())),
 					data: None,
 					call_type: CallType::None,
 				};
@@ -190,6 +192,7 @@ impl<'a> Executive<'a> {
 					gas_price: t.gas_price,
 					value: ActionValue::Transfer(t.value),
 					code: self.state.code(address),
+					code_hash: self.state.code_hash(address),
 					data: Some(t.data.clone()),
 					call_type: CallType::Call,
 				};
@@ -210,8 +213,11 @@ impl<'a> Executive<'a> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+
+		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+
 		// Ordinary execution - keep VM in same thread
-		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
@@ -263,7 +269,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -283,7 +289,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_snapshot();
+				self.state.revert_to_snapshot();
 
 				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
@@ -329,7 +335,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -411,7 +417,7 @@ impl<'a> Executive<'a> {
 
 		// real ammount to refund
 		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
-		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
+		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
 		let gas_used = t.gas - gas_left;
@@ -471,10 +477,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_snapshot();
+					self.state.revert_to_snapshot();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.clear_snapshot();
+				self.state.discard_snapshot();
 				substate.accrue(un_substate);
 			}
 		}
@@ -511,7 +517,7 @@ mod tests {
 		params.address = address.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some("3331600055".from_hex().unwrap());
+		params.code = Some(Arc::new("3331600055".from_hex().unwrap()));
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -570,7 +576,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -589,8 +595,11 @@ mod tests {
 		assert_eq!(substate.contracts_created.len(), 0);
 	}
 
-	evm_test!{test_call_to_create: test_call_to_create_jit, test_call_to_create_int}
-	fn test_call_to_create(factory: Factory) {
+	#[test]
+	// Tracing is not suported in JIT
+	fn test_call_to_create() {
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
+
 		// code:
 		//
 		// 7c 601080600c6000396000f3006000355415600957005b60203560003555 - push 29 bytes?
@@ -625,7 +634,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
@@ -712,8 +721,10 @@ mod tests {
 		assert_eq!(vm_tracer.drain().unwrap(), expected_vm_trace);
 	}
 
-	evm_test!{test_create_contract: test_create_contract_jit, test_create_contract_int}
-	fn test_create_contract(factory: Factory) {
+	#[test]
+	fn test_create_contract() {
+		// Tracing is not supported in JIT
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 		// code:
 		//
 		// 60 10 - push 16
@@ -735,7 +746,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -823,7 +834,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -875,7 +886,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
@@ -932,7 +943,7 @@ mod tests {
 		params.address = address_a.clone();
 		params.sender = sender.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code_a.clone());
+		params.code = Some(Arc::new(code_a.clone()));
 		params.value = ActionValue::Transfer(U256::from(100_000));
 
 		let mut state_result = get_temp_state();
@@ -982,10 +993,10 @@ mod tests {
 		let mut params = ActionParams::default();
 		params.address = address.clone();
 		params.gas = U256::from(100_000);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code.clone()));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.init_code(&address, code.clone());
+		state.init_code(&address, code);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -1183,7 +1194,7 @@ mod tests {
 		params.sender = sender.clone();
 		params.origin = sender.clone();
 		params.gas = U256::from(0x0186a0);
-		params.code = Some(code.clone());
+		params.code = Some(Arc::new(code));
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();

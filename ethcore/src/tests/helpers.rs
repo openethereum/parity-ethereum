@@ -19,6 +19,7 @@ use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use common::*;
 use spec::*;
+use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use state::*;
@@ -28,6 +29,7 @@ use ethereum;
 use devtools::*;
 use miner::Miner;
 use rlp::{self, RlpStream, Stream};
+use db::COL_STATE;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -146,9 +148,9 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 	).unwrap();
 	let test_engine = &*test_spec.engine;
 
-	let mut db_result = get_temp_journal_db();
+	let mut db_result = get_temp_state_db();
 	let mut db = db_result.take();
-	test_spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+	test_spec.ensure_db_good(&mut db).unwrap();
 	let genesis_header = test_spec.genesis_header();
 
 	let mut rolling_timestamp = 40;
@@ -321,9 +323,9 @@ pub fn generate_dummy_empty_blockchain() -> GuardedTempResult<BlockChain> {
 	}
 }
 
-pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
+pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	let temp = RandomTempPath::new();
-	let journal_db = get_temp_journal_db_in(temp.as_path());
+	let journal_db = get_temp_state_db_in(temp.as_path());
 
 	GuardedTempResult {
 		_temp: temp,
@@ -333,7 +335,7 @@ pub fn get_temp_journal_db() -> GuardedTempResult<Box<JournalDB>> {
 
 pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
-	let journal_db = get_temp_journal_db_in(temp.as_path());
+	let journal_db = get_temp_state_db_in(temp.as_path());
 
 	GuardedTempResult {
 	    _temp: temp,
@@ -341,13 +343,14 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 	}
 }
 
-pub fn get_temp_journal_db_in(path: &Path) -> Box<JournalDB> {
+pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, None)
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {
-	let journal_db = get_temp_journal_db_in(path);
+	let journal_db = get_temp_state_db_in(path);
 	State::new(journal_db, U256::from(0), Default::default())
 }
 

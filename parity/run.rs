@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
@@ -23,22 +22,26 @@ use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::{SyncConfig, SyncProvider};
+use ethsync::SyncConfig;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool,
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -71,6 +74,7 @@ pub struct RunCmd {
 	pub miner_extras: MinerExtras,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
@@ -87,34 +91,48 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// increase max number of open files
-	raise_fd_limit();
+	// set up panic handler
+	let panic_handler = PanicHandler::new_in_arc();
 
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
-	// set up panic handler
-	let panic_handler = PanicHandler::new_in_arc();
+	// increase max number of open files
+	raise_fd_limit();
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
-	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -123,7 +141,17 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match fat_db {
+			true => Colour::White.bold().paint(" +Fat").to_string(),
+			false => "".to_owned(),
+		},
+		match tracing {
+			true => Colour::White.bold().paint(" +Trace").to_string(),
+			false => "".to_owned(),
+		}
+	);
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -136,6 +164,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	if spec.subprotocol_name().len() != 3 {
+		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");
+	} else {
+		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
+	}
 	sync_config.fork_block = spec.fork_block();
 
 	// prepare account provider
@@ -152,16 +185,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
 		cmd.mode,
-		cmd.tracing,
-		cmd.pruning,
+		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
 	);
 
 	// set up bootnodes
@@ -169,6 +200,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
@@ -209,7 +243,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_port: cmd.signer_port,
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		})),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -269,7 +305,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || sync.status().is_major_syncing(),
+				move || ::ethsync::SyncProvider::status(&*sync).is_major_syncing(),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,
@@ -287,6 +323,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
+
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
@@ -321,27 +362,10 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::{import_accounts, EthStore};
-	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-	use ethcore::ethstore::Error;
+	use ethcore::ethstore::EthStore;
+	use ethcore::ethstore::dir::DiskDirectory;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
-
-	if cfg.import_keys {
-		let t = if cfg.testnet {
-			DirectoryType::Testnet
-		} else {
-			DirectoryType::Main
-		};
-
-		let from = GethDirectory::open(t);
-		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
-		match import_accounts(&from, &to) {
-			Ok(_) => {}
-			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
-			Err(err) => warn!("Import geth accounts failed. {}", err)
-		}
-	}
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(

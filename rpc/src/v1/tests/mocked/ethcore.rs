@@ -23,7 +23,7 @@ use ethcore::client::{TestBlockChainClient};
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
 use v1::helpers::{SignerService, NetworkSettings};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestFetch};
 use super::manage_network::TestManageNetwork;
 
 fn miner_service() -> Arc<TestMinerService> {
@@ -60,12 +60,15 @@ fn network_service() -> Arc<ManageNetwork> {
 	Arc::new(TestManageNetwork)
 }
 
+type TestEthcoreClient = EthcoreClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestFetch>;
+
 fn ethcore_client(
 	client: &Arc<TestBlockChainClient>,
 	miner: &Arc<TestMinerService>,
 	sync: &Arc<TestSyncProvider>,
-	net: &Arc<ManageNetwork>) -> EthcoreClient<TestBlockChainClient, TestMinerService, TestSyncProvider> {
-	EthcoreClient::new(client, miner, sync, net, logger(), settings(), None)
+	net: &Arc<ManageNetwork>)
+	-> TestEthcoreClient {
+	EthcoreClient::with_fetch(client, miner, sync, net, logger(), settings(), None)
 }
 
 #[test]
@@ -140,9 +143,9 @@ fn rpc_ethcore_dev_logs() {
 	let logger = logger();
 	logger.append("a".to_owned());
 	logger.append("b".to_owned());
-	let ethcore = EthcoreClient::new(&client, &miner, &sync, &net, logger.clone(), settings(), None).to_delegate();
+	let ethcore: TestEthcoreClient = EthcoreClient::with_fetch(&client, &miner, &sync, &net, logger.clone(), settings(), None);
 	let io = IoHandler::new();
-	io.add_delegate(ethcore);
+	io.add_delegate(ethcore.to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogs", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["b","a"],"id":1}"#;
@@ -205,7 +208,12 @@ fn rpc_ethcore_net_peers() {
 	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPeers", "params":[], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"active":0,"connected":120,"max":50},"id":1}"#;
+	let response = "{\"jsonrpc\":\"2.0\",\"result\":{\"active\":0,\"connected\":120,\"max\":50,\"peers\":[{\"caps\":[\"eth/62\",\"eth/63\"],\
+\"id\":\"node1\",\"name\":\"Parity/1\",\"network\":{\"localAddress\":\"127.0.0.1:8888\",\"remoteAddress\":\"127.0.0.1:7777\"}\
+,\"protocols\":{\"eth\":{\"difficulty\":\"0x28\",\"head\":\"0000000000000000000000000000000000000000000000000000000000000032\"\
+,\"version\":62}}},{\"caps\":[\"eth/63\",\"eth/64\"],\"id\":null,\"name\":\"Parity/2\",\"network\":{\"localAddress\":\
+\"127.0.0.1:3333\",\"remoteAddress\":\"Handshake\"},\"protocols\":{\"eth\":{\"difficulty\":null,\"head\":\
+\"000000000000000000000000000000000000000000000000000000000000003c\",\"version\":64}}}]},\"id\":1}";
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -263,8 +271,8 @@ fn rpc_ethcore_unsigned_transactions_count() {
 	let net = network_service();
 	let io = IoHandler::new();
 	let signer = Arc::new(SignerService::new_test());
-	let ethcore = EthcoreClient::new(&client, &miner, &sync, &net, logger(), settings(), Some(signer)).to_delegate();
-	io.add_delegate(ethcore);
+	let ethcore: TestEthcoreClient = EthcoreClient::with_fetch(&client, &miner, &sync, &net, logger(), settings(), Some(signer));
+	io.add_delegate(ethcore.to_delegate());
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
@@ -283,6 +291,36 @@ fn rpc_ethcore_unsigned_transactions_count_when_signer_disabled() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_hash_content() {
+	let miner = miner_service();
+	let client = client_service();
+	let sync = sync_provider();
+	let net = network_service();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_pending_transactions() {
+	let miner = miner_service();
+	let client = client_service();
+	let sync = sync_provider();
+	let net = network_service();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_pendingTransactions", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

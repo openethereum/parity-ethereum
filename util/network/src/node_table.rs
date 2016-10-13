@@ -266,7 +266,8 @@ impl NodeTable {
 		self.useless_nodes.clear();
 	}
 
-	fn save(&self) {
+	/// Save the nodes.json file.
+	pub fn save(&self) {
 		if let Some(ref path) = self.path {
 			let mut path_buf = PathBuf::from(path);
 			if let Err(e) = fs::create_dir_all(path_buf.as_path()) {
@@ -292,7 +293,7 @@ impl NodeTable {
 				}
 			};
 			if let Err(e) = file.write(&json.into_bytes()) {
-					warn!("Error writing node table file: {:?}", e);
+				warn!("Error writing node table file: {:?}", e);
 			}
 		}
 	}

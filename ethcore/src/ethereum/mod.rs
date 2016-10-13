@@ -42,6 +42,9 @@ pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
+/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
+
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
@@ -69,9 +72,9 @@ mod tests {
 		let spec = new_morden();
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());

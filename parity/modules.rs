@@ -68,8 +68,9 @@ pub type SyncModules = (Arc<SyncProvider>, Arc<ManageNetwork>, Arc<ChainNotify>)
 
 #[cfg(feature="ipc")]
 mod ipc_deps {
-	pub use ethsync::{SyncClient, NetworkManagerClient, ServiceConfiguration};
-	pub use ethcore::client::ChainNotifyClient;
+	pub use ethsync::remote::{SyncClient, NetworkManagerClient};
+	pub use ethsync::ServiceConfiguration;
+	pub use ethcore::client::remote::ChainNotifyClient;
 	pub use hypervisor::{SYNC_MODULE_ID, BootArgs, HYPERVISOR_IPC_URL};
 	pub use nanoipc::{GuardedSocket, NanoSocket, generic_client, fast_client};
 	pub use ipc::IpcSocket;

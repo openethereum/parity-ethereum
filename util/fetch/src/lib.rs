@@ -14,21 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Block queue info types
+//! A service to fetch any HTTP / HTTPS content.
 
-/// Block queue status
-#[derive(Debug, Binary)]
-pub struct BlockQueueInfo {
-	/// Number of queued blocks pending verification
-	pub unverified_queue_size: usize,
-	/// Number of verified queued blocks pending import
-	pub verified_queue_size: usize,
-	/// Number of blocks being verified
-	pub verifying_queue_size: usize,
-	/// Configured maximum number of blocks in the queue
-	pub max_queue_size: usize,
-	/// Configured maximum number of bytes to use
-	pub max_mem_use: usize,
-	/// Heap memory used in bytes
-	pub mem_used: usize,
-}
+#[macro_use]
+extern crate log;
+extern crate hyper;
+extern crate https_fetch;
+extern crate rand;
+
+
+pub mod client;
+pub mod fetch_file;
+
+pub use self::client::{Client, Fetch, FetchError, FetchResult};

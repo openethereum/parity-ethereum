@@ -191,6 +191,11 @@ impl Connection {
 		self.socket.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
 	}
 
+	/// Get local peer address string
+	pub fn local_addr_str(&self) -> String {
+		self.socket.local_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
+	}
+
 	/// Clone this connection. Clears the receiving buffer of the returned connection.
 	pub fn try_clone(&self) -> io::Result<Self> {
 		Ok(Connection {
