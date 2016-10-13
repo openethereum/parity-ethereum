@@ -19,16 +19,26 @@ import sinon from 'sinon';
 import Manager, { events } from './manager';
 
 function newStub () {
-  const manager = new Manager({});
+  const start = () => manager._updateSubscriptions(manager.__test, null, 'test');
+  const manager = new Manager({
+    transport: {
+      isConnected: true
+    }
+  });
 
   manager._eth = {
     isStarted: false,
-    start: () => manager._updateSubscriptions(manager.__test, null, 'test')
+    start
   };
 
   manager._personal = {
     isStarted: false,
-    start: () => manager._updateSubscriptions(manager.__test, null, 'test')
+    start
+  };
+
+  manager._signer = {
+    isStarted: false,
+    start
   };
 
   return manager;
@@ -43,43 +53,46 @@ describe('api/subscriptions/manager', () => {
 
   describe('constructor', () => {
     it('sets up the subscription types & defaults', () => {
-      expect(Object.keys(manager.subscriptions)).to.deep.equal(events);
-      expect(Object.keys(manager.values)).to.deep.equal(events);
+      expect(Object.keys(manager.subscriptions)).to.deep.equal(Object.keys(events));
+      expect(Object.keys(manager.values)).to.deep.equal(Object.keys(events));
     });
   });
 
   describe('subscriptions', () => {
-    events.filter((event) => event.indexOf('_') !== -1).forEach((event) => {
-      const [engineName] = event.split('_');
-      let engine;
-      let cb;
-      let subscriptionId;
+    Object
+      .keys(events)
+      .filter((eventName) => eventName.indexOf('_') !== -1)
+      .forEach((eventName) => {
+        const { module } = events[eventName];
+        let engine;
+        let cb;
+        let subscriptionId;
 
-      describe(event, () => {
-        beforeEach(() => {
-          engine = manager[`_${engineName}`];
-          manager.__test = event;
-          cb = sinon.stub();
-          sinon.spy(engine, 'start');
-          return manager
-            .subscribe(event, cb)
-            .then((_subscriptionId) => {
-              subscriptionId = _subscriptionId;
-            });
-        });
+        describe(eventName, () => {
+          beforeEach(() => {
+            engine = manager[`_${module}`];
+            manager.__test = eventName;
+            cb = sinon.stub();
+            sinon.spy(engine, 'start');
+            return manager
+              .subscribe(eventName, cb)
+              .then((_subscriptionId) => {
+                subscriptionId = _subscriptionId;
+              });
+          });
 
-        it(`puts the ${engineName} engine in a started state`, () => {
-          expect(engine.start).to.have.been.called;
-        });
+          it(`puts the ${module} engine in a started state`, () => {
+            expect(engine.start).to.have.been.called;
+          });
 
-        it('returns a subscriptionId', () => {
-          expect(subscriptionId).to.be.ok;
-        });
+          it('returns a subscriptionId', () => {
+            expect(subscriptionId).to.be.ok;
+          });
 
-        it('calls the subscription callback with updated values', () => {
-          expect(cb).to.have.been.calledWith(null, 'test');
+          it('calls the subscription callback with updated values', () => {
+            expect(cb).to.have.been.calledWith(null, 'test');
+          });
         });
       });
-    });
   });
 });
