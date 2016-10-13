@@ -17,7 +17,7 @@
 //! Bloom upgrade
 
 use client::{DB_COL_EXTRA, DB_COL_HEADERS, DB_NO_OF_COLUMNS, DB_COL_STATE, DB_COL_ACCOUNT_BLOOM};
-use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB, ACCOUNT_BLOOM_HASHCOUNT_KEY};
+use state_db::{ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET, StateDB, ACCOUNT_BLOOM_HASHCOUNT_KEY, ACCOUNT_BLOOM_SPACE_KEY};
 use util::trie::TrieDB;
 use views::HeaderView;
 use bloomfilter::Bloom;
@@ -26,12 +26,24 @@ use util::journaldb;
 use util::{H256, FixedHash, BytesConvertable};
 use util::{Database, DatabaseConfig, DBTransaction, CompactionProfile};
 use std::path::Path;
+use byteorder::{LittleEndian, ByteOrder};
+use std::sync::Arc;
 
-fn check_bloom_exists(db: &Database) -> bool {
+
+fn check_bloom_exists(db: &Arc<Database>) -> bool {
 	let hash_count_entry = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 		.expect("Low-level database error");
 
 	hash_count_entry.is_some()
+}
+
+fn check_space_match(db: &Arc<Database>) -> Result<(), usize> {
+	let db_space = db.get(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_SPACE_KEY)
+		.expect("Low-level database error")
+		.map(|val| LittleEndian::read_u64(&val[..]) as usize)
+		.unwrap_or(1048576);
+
+	if db_space == ACCOUNT_BLOOM_SPACE { Ok(()) } else { Err(db_space) }
 }
 
 /// Account bloom upgrade routine. If bloom already present, does nothing.
@@ -67,14 +79,32 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 	};
 	let state_root = HeaderView::new(&best_block_header).state_root();
 
-	if check_bloom_exists(&source) {
-		// bloom already exists, nothing to do
-		trace!(target: "migration", "Bloom already present, skipping");
-		return Ok(())
+	let db = ::std::sync::Arc::new(source);
+	let batch = DBTransaction::new(&db);
+
+	if check_bloom_exists(&db) {
+		match check_space_match(&db) {
+			Ok(_) => {
+				// bloom already exists and desired and stored spaces match, nothing to do
+				trace!(target: "migration", "Bloom already present of the right space, skipping");
+				return Ok(())
+			},
+			Err(wrong_size) => {
+				// nullify existing bloom entries
+				trace!(target: "migration", "Clearing old bloom of space {}", &wrong_size);
+				let mut key = [0u8; 8];
+				for idx in 0..(wrong_size as u64/8) {
+					LittleEndian::write_u64(&mut key, idx);
+					try!(batch.put(DB_COL_ACCOUNT_BLOOM, &key, &[0u8; 8]));
+				}
+
+				LittleEndian::write_u64(&mut key, ACCOUNT_BLOOM_SPACE as u64);
+				try!(batch.put(DB_COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_SPACE_KEY, &key));
+			},
+		}
 	}
 
-	println!("Adding accounts bloom (one-time upgrade)");
-	let db = ::std::sync::Arc::new(source);
+	println!("Adding/expanding accounts bloom (one-time upgrade)");
 	let bloom_journal = {
 		let mut bloom = Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
 		// no difference what algorithm is passed, since there will be no writes
@@ -93,12 +123,10 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 
 	trace!(target: "migration", "Generated {} bloom updates", bloom_journal.entries.len());
 
-	let batch = DBTransaction::new(&db);
 	try!(StateDB::commit_bloom(&batch, bloom_journal).map_err(|_| Error::Custom("Failed to commit bloom".to_owned())));
 	try!(db.write(batch));
 
 	trace!(target: "migration", "Finished bloom update");
-
 
 	Ok(())
 }

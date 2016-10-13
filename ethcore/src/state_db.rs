@@ -87,10 +87,11 @@ pub struct StateDB {
 	commit_number: Option<BlockNumber>,
 }
 
-pub const ACCOUNT_BLOOM_SPACE: usize = 1048576;
-pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
+pub const ACCOUNT_BLOOM_SPACE: usize = 4 * 1048576;
+pub const DEFAULT_ACCOUNT_PRESET: usize = 100 * 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
+pub const ACCOUNT_BLOOM_SPACE_KEY: &'static [u8] = b"account_space";
 
 impl StateDB {
 	/// Loads accounts bloom from the database
@@ -138,13 +139,11 @@ impl StateDB {
 	}
 
 	pub fn check_account_bloom(&self, address: &Address) -> bool {
-		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
 		bloom.check(address.sha3().as_slice())
 	}
 
 	pub fn note_account_bloom(&self, address: &Address) {
-		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
 		bloom.set(address.sha3().as_slice());
 	}
