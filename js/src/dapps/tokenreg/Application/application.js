@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-
-import GeoPattern from 'geopattern';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 
 import Loading from '../Loading';
@@ -53,7 +51,7 @@ export default class Application extends Component {
     }
 
     return (
-      <div className={ styles.application } style={ this.getBackgroundStyle() }>
+      <div className={ styles.application }>
         <Status
           address={ contract.address }
           fee={ contract.fee } />
@@ -63,15 +61,6 @@ export default class Application extends Component {
         <Tokens />
       </div>
     );
-  }
-
-  getBackgroundStyle () {
-    const seed = this.props.contract ? this.props.contract.address : '0x0';
-    const url = GeoPattern.generate(seed).toDataUrl();
-
-    return {
-      background: `linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), ${url}`
-    };
   }
 
   getChildContext () {
