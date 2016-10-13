@@ -48,6 +48,8 @@ fn check_space_match(db: &Database) -> Result<(), usize> {
 /// If database empty (no best block), does nothing.
 /// Can be called on upgraded database with no issues (will do nothing).
 pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
+	let mut progress = ::util::migration::Progress::default();
+
 	let path = try!(db_path.to_str().ok_or(Error::MigrationImpossible));
 	trace!(target: "migration", "Account bloom upgrade at {:?}", db_path);
 
@@ -114,6 +116,7 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 		for (ref account_key, _) in account_trie.iter() {
 			let account_key_hash = H256::from_slice(&account_key);
 			bloom.set(account_key_hash.as_slice());
+			progress.tick();
 		}
 
 		bloom.drain_journal()
