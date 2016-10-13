@@ -17,9 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 
 import TransactionPending from '../TransactionPending';
-import Web3Compositor from '../Web3Compositor';
 
-class TransactionPendingWeb3 extends Component {
+export default class TransactionPendingWeb3 extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
@@ -109,5 +108,3 @@ class TransactionPendingWeb3 extends Component {
       });
   }
 }
-
-export default Web3Compositor(TransactionPendingWeb3);
