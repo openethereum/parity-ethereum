@@ -34,7 +34,9 @@ export default class SecureApi extends Api {
   }
 
   _followConnection = () => {
-    const nextTick = () => setTimeout(this._followConnection, 250);
+    const nextTick = () => {
+      setTimeout(this._followConnection, 250);
+    };
     const setManual = () => {
       this._connectedState = 100;
       this._needsToken = true;
