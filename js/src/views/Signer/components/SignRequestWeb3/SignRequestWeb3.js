@@ -46,11 +46,8 @@ export default class SignRequestWeb3 extends Component {
   }
 
   render () {
-    const { api } = this.context;
     const { balance, chain } = this.state;
-    const { onConfirm, onReject, isSending, isFinished, hash, className, id, status } = this.props;
-
-    const address = api.util.toChecksumAddress(this.props.address);
+    const { address, onConfirm, onReject, isSending, isFinished, hash, className, id, status } = this.props;
 
     return (
       <SignRequest

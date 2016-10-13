@@ -39,11 +39,7 @@ export default class TransactionFinishedWeb3 extends Component {
 
   render () {
     const { fromBalance, toBalance, chain } = this.state;
-    const { api } = this.context;
-
-    let { from, to } = this.props;
-    from = api.util.toChecksumAddress(from);
-    to = to ? api.util.toChecksumAddress(to) : to;
+    const { from, to } = this.props;
 
     return (
       <TransactionFinished

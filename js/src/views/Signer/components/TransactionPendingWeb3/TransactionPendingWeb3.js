@@ -51,12 +51,8 @@ export default class TransactionPendingWeb3 extends Component {
   }
 
   render () {
-    const { api } = this.context;
     const { fromBalance, toBalance, chain } = this.state;
-    let { from, to, date } = this.props;
-
-    from = api.util.toChecksumAddress(from);
-    to = to ? api.util.toChecksumAddress(to) : to;
+    const { from, to, date } = this.props;
 
     return (
       <TransactionPending
