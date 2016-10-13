@@ -26,8 +26,8 @@ export default class Dapp extends Component {
   render () {
     const { name, type } = this.props.params;
     const src = type === 'global'
-      ? `${name}.html`
-      : `/app/${name}/`;
+      ? `http://localhost:8080/ui/${name}.html`
+      : `http://localhost:8080/${name}/`;
 
     return (
       <iframe
