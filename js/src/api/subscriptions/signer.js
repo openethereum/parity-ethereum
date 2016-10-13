@@ -30,17 +30,32 @@ export default class Signer {
     this._started = true;
 
     return Promise.all([
-      this._listRequests(),
+      this._listRequests(true),
       this._loggingSubscribe()
     ]);
   }
 
-  _listRequests = () => {
+  _listRequests = (doTimeout) => {
+    const nextTimeout = (timeout = 1000) => {
+      if (doTimeout) {
+        setTimeout(() => {
+          this._listRequests(true);
+        }, timeout);
+      }
+    };
+
+    if (!this._api.transport.isConnected) {
+      nextTimeout(500);
+      return;
+    }
+
     return this._api.personal
       .requestsToConfirm()
       .then((requests) => {
         this._updateSubscriptions('personal_requestsToConfirm', null, requests);
-      });
+        nextTimeout();
+      })
+      .catch(nextTimeout);
   }
 
   _loggingSubscribe () {
@@ -53,7 +68,7 @@ export default class Signer {
         case 'eth_postTransaction':
         case 'eth_sendTranasction':
         case 'eth_sendRawTransaction':
-          this._listRequests();
+          this._listRequests(false);
           return;
       }
     });

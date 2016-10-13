@@ -26,19 +26,12 @@ import injectTapEventPlugin from 'react-tap-event-plugin';
 import { createHashHistory } from 'history';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
 
-import Web3 from 'web3';
-
 import SecureApi from './secureApi';
 import ContractInstances from './contracts';
 
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsViews, Signer, Status } from './views';
-
-// TODO: This is VERY messy, just dumped here to get the Signer going
-import { Web3Provider as SignerWeb3Provider, web3Extension as statusWeb3Extension } from './views/Signer/components';
-import { WebSocketsProvider, Ws } from './views/Signer/utils';
-import { WsDataProvider } from './views/Signer/providers';
 
 import './environment';
 
@@ -56,51 +49,37 @@ const parityUrl = process.env.PARITY_URL ||
     : '127.0.0.1:8180'
   );
 
-const ws = new Ws(parityUrl);
-const api = new SecureApi(`ws://${parityUrl}`, ws.init);
+const api = new SecureApi(`ws://${parityUrl}`);
 ContractInstances.create(api);
 
-// signer
-function tokenSetter (token, cb) {
-  window.localStorage.setItem('sysuiToken', token);
-}
-
-const web3ws = new Web3(new WebSocketsProvider(ws));
-statusWeb3Extension(web3ws).map((extension) => web3ws._extend(extension));
-
-const store = initStore(api, ws, tokenSetter);
+const store = initStore(api);
 store.dispatch({ type: 'initAll', api });
-
-// signer
-new WsDataProvider(store, ws); // eslint-disable-line no-new
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <SignerWeb3Provider web3={ web3ws }>
-      <Router className={ styles.reset } history={ routerHistory }>
-        <Redirect from='/' to='/accounts' />
-        <Redirect from='/settings' to='/settings/views' />
-        <Route path='/' component={ Application }>
-          <Route path='accounts' component={ Accounts } />
-          <Route path='account/:address' component={ Account } />
-          <Route path='addresses' component={ Addresses } />
-          <Route path='address/:address' component={ Address } />
-          <Route path='apps' component={ Dapps } />
-          <Route path='app/:type/:name' component={ Dapp } />
-          <Route path='contracts' component={ Contracts } />
-          <Route path='contract/:address' component={ Contract } />
-          <Route path='settings' component={ Settings }>
-            <Route path='background' component={ SettingsBackground } />
-            <Route path='views' component={ SettingsViews } />
-          </Route>
-          <Route path='signer' component={ Signer } />
-          <Route path='status' component={ Status } />
-          <Route path='status/:subpage' component={ Status } />
+    <Router className={ styles.reset } history={ routerHistory }>
+      <Redirect from='/' to='/accounts' />
+      <Redirect from='/settings' to='/settings/views' />
+      <Route path='/' component={ Application }>
+        <Route path='accounts' component={ Accounts } />
+        <Route path='account/:address' component={ Account } />
+        <Route path='addresses' component={ Addresses } />
+        <Route path='address/:address' component={ Address } />
+        <Route path='apps' component={ Dapps } />
+        <Route path='app/:type/:name' component={ Dapp } />
+        <Route path='contracts' component={ Contracts } />
+        <Route path='contract/:address' component={ Contract } />
+        <Route path='settings' component={ Settings }>
+          <Route path='background' component={ SettingsBackground } />
+          <Route path='views' component={ SettingsViews } />
         </Route>
-      </Router>
-    </SignerWeb3Provider>
+        <Route path='signer' component={ Signer } />
+        <Route path='status' component={ Status } />
+        <Route path='status/:subpage' component={ Status } />
+      </Route>
+    </Router>
   </ContextProvider>,
   document.querySelector('#container')
 );

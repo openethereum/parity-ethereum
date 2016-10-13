@@ -29,7 +29,7 @@ import * as tUtil from '../util/transaction';
 export default class TransactionSecondaryDetails extends Component {
 
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     date: PropTypes.instanceOf(Date),
     data: PropTypes.string, // hex
     gasPriceEthmDisplay: PropTypes.string,

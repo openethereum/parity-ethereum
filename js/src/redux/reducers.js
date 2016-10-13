@@ -17,13 +17,11 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { balancesReducer, imagesReducer, personalReducer, statusReducer as nodeStatusReducer } from './providers';
+import { balancesReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
 
 import { errorReducer } from '../ui/Errors';
 import { settingsReducer } from '../views/Settings';
 import { tooltipReducer } from '../ui/Tooltips';
-
-import { requests as signerRequestsReducer } from '../views/Signer/reducers';
 
 export default function () {
   return combineReducers({
@@ -36,7 +34,6 @@ export default function () {
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
-
-    signerRequests: signerRequestsReducer
+    signer: signerReducer
   });
 }

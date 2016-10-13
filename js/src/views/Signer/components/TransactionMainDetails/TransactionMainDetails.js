@@ -24,12 +24,11 @@ import Account from '../Account';
 import styles from './TransactionMainDetails.css';
 
 export default class TransactionMainDetails extends Component {
-
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
     fromBalance: PropTypes.object, // eth BigNumber, not required since it might take time to fetch
-    value: PropTypes.string.isRequired, // wei hex
+    value: PropTypes.object.isRequired, // wei hex
     totalValue: PropTypes.object.isRequired, // wei BigNumber
     chain: PropTypes.string.isRequired,
     to: PropTypes.string, // undefined if it's a contract

@@ -17,20 +17,18 @@
 import React, { Component, PropTypes } from 'react';
 
 import TransactionPending from '../TransactionPending';
-import Web3Compositor from '../Web3Compositor';
 
-class TransactionPendingWeb3 extends Component {
-
+export default class TransactionPendingWeb3 extends Component {
   static contextTypes = {
-    web3: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
-    value: PropTypes.string.isRequired, // wei hex
-    gasPrice: PropTypes.string.isRequired, // wei hex
-    gas: PropTypes.string.isRequired, // hex
+    value: PropTypes.object.isRequired, // wei hex
+    gasPrice: PropTypes.object.isRequired, // wei hex
+    gas: PropTypes.object.isRequired, // hex
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
@@ -47,13 +45,14 @@ class TransactionPendingWeb3 extends Component {
     toBalance: null // avoid required prop loading warning in case there's a to address
   }
 
-  render () {
-    const { web3 } = this.context;
-    const { fromBalance, toBalance, chain } = this.state;
-    let { from, to, date } = this.props;
+  componentDidMount () {
+    this.fetchChain();
+    this.fetchBalances();
+  }
 
-    from = web3.toChecksumAddress(from);
-    to = to ? web3.toChecksumAddress(to) : to;
+  render () {
+    const { fromBalance, toBalance, chain } = this.state;
+    const { from, to, date } = this.props;
 
     return (
       <TransactionPending
@@ -68,47 +67,40 @@ class TransactionPendingWeb3 extends Component {
     );
   }
 
-  // todo [adgo] - call next() only after all CBs are executed
-  onTick (next) {
-    this.fetchChain();
-    this.fetchBalances(next);
-  }
-
   fetchChain () {
-    this.context.web3.ethcore.getNetChain((err, chain) => {
-      if (err) {
-        return console.warn('err fetching chain', err);
-      }
-      this.setState({ chain });
-    });
+    const { api } = this.context;
+
+    api.ethcore
+      .netChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((error) => {
+        console.error('fetchChain', error);
+      });
   }
 
-  fetchBalances (next) {
+  fetchBalances () {
     const { from, to } = this.props;
-    this.fetchBalance(from, 'from', next);
+    this.fetchBalance(from, 'from');
 
     if (!to) {
       return;
     }
 
-    this.fetchBalance(to, 'to', next);
+    this.fetchBalance(to, 'to');
   }
 
-  fetchBalance (address, owner, next) {
-    this.context.web3.eth.getBalance(address, (err, balance) => {
-      next(err);
+  fetchBalance (address, owner) {
+    const { api } = this.context;
 
-      if (err) {
-        console.warn('err fetching balance for ', address, err);
-        return;
-      }
-
-      this.setState({
-        [owner + 'Balance']: balance
+    api.eth
+      .getBalance(address)
+      .then((balance) => {
+        this.setState({ [owner + 'Balance']: balance });
+      })
+      .catch((error) => {
+        console.error('fetchBalance', error);
       });
-    });
   }
-
 }
-
-export default Web3Compositor(TransactionPendingWeb3);

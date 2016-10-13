@@ -29,8 +29,7 @@ let modules = [
 if (!isProd) {
   modules = modules.concat([
     'webpack-dev-server/client?http://localhost:3000',
-    'react-hot-loader', 'core-js', 'core-js/library',
-    'web3'
+    'react-hot-loader', 'core-js', 'core-js/library'
   ]);
 }
 

@@ -26,15 +26,14 @@ import * as tUtil from '../util/transaction';
 import { capitalize } from '../util/util';
 
 export default class TransactionFinished extends Component {
-
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
     fromBalance: PropTypes.object, // eth BigNumber, not required since it might take time to fetch
-    value: PropTypes.string.isRequired, // wei hex
+    value: PropTypes.object.isRequired, // wei hex
     chain: PropTypes.string.isRequired,
-    gasPrice: PropTypes.string.isRequired, // wei hex
-    gas: PropTypes.string.isRequired, // hex
+    gasPrice: PropTypes.object.isRequired, // wei hex
+    gas: PropTypes.object.isRequired, // hex
     status: PropTypes.string.isRequired, // rejected, confirmed
     date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract

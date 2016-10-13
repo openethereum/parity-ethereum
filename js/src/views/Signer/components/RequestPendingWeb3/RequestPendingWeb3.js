@@ -18,15 +18,10 @@ import React, { Component, PropTypes } from 'react';
 
 import TransactionPendingWeb3 from '../TransactionPendingWeb3';
 import SignRequestWeb3 from '../SignRequestWeb3';
-import Web3Compositor from '../Web3Compositor';
 
-class RequestPendingWeb3 extends Component {
-  static contextTypes = {
-    web3: PropTypes.object.isRequired
-  };
-
+export default class RequestPendingWeb3 extends Component {
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
@@ -81,5 +76,3 @@ class RequestPendingWeb3 extends Component {
     return null;
   }
 }
-
-export default Web3Compositor(RequestPendingWeb3);

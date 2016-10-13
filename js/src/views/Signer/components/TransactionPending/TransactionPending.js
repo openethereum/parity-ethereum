@@ -25,15 +25,14 @@ import styles from './TransactionPending.css';
 import * as tUtil from '../util/transaction';
 
 export default class TransactionPending extends Component {
-
   static propTypes = {
-    id: PropTypes.string.isRequired,
+    id: PropTypes.object.isRequired,
     chain: PropTypes.string.isRequired,
     from: PropTypes.string.isRequired,
     fromBalance: PropTypes.object, // eth BigNumber, not required since it mght take time to fetch
-    value: PropTypes.string.isRequired, // wei hex
-    gasPrice: PropTypes.string.isRequired, // wei hex
-    gas: PropTypes.string.isRequired, // hex
+    value: PropTypes.object.isRequired, // wei hex
+    gasPrice: PropTypes.object.isRequired, // wei hex
+    gas: PropTypes.object.isRequired, // hex
     date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract
     toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched

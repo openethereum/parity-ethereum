@@ -64,6 +64,14 @@ export default {
       {
         type: Quantity,
         desc: 'The request id'
+      },
+      {
+        type: Object,
+        desc: 'The request options'
+      },
+      {
+        type: String,
+        desc: 'The account password'
       }
     ],
     returns: {

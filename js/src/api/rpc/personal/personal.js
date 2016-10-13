@@ -28,9 +28,9 @@ export default class Personal {
       .then(outAccountInfo);
   }
 
-  confirmRequest (requestId) {
+  confirmRequest (requestId, options, password) {
     return this._transport
-      .execute('personal_confirmRequest', inNumber16(requestId));
+      .execute('personal_confirmRequest', inNumber16(requestId), options, password);
   }
 
   generateAuthorizationToken () {

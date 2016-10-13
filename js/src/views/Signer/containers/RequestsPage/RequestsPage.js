@@ -19,16 +19,16 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
+import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, ContainerTitle } from '../../../../ui';
 
 import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
-import * as RequestsActions from '../../actions/requests';
 
 import styles from './RequestsPage.css';
 
 class RequestsPage extends Component {
   static propTypes = {
-    signerRequests: PropTypes.shape({
+    signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -39,7 +39,7 @@ class RequestsPage extends Component {
   };
 
   render () {
-    const { pending, finished } = this.props.signerRequests;
+    const { pending, finished } = this.props.signer;
 
     if (!pending.length && !finished.length) {
       return this.renderNoRequestsMsg();
@@ -58,7 +58,7 @@ class RequestsPage extends Component {
   }
 
   renderPendingRequests () {
-    const { pending } = this.props.signerRequests;
+    const { pending } = this.props.signer;
 
     if (!pending.length) {
       return;
@@ -77,7 +77,7 @@ class RequestsPage extends Component {
   }
 
   renderFinishedRequests () {
-    const { finished } = this.props.signerRequests;
+    const { finished } = this.props.signer;
 
     if (!finished.length) {
       return;

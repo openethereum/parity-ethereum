@@ -19,16 +19,16 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container } from '../../../../ui';
 
 import { RequestPendingWeb3 } from '../../components';
-import * as RequestsActions from '../../actions/requests';
 
 import styles from './embedded.css';
 
 class Embedded extends Component {
   static propTypes = {
-    signerRequests: PropTypes.shape({
+    signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
       finished: PropTypes.array.isRequired
     }).isRequired,
@@ -49,8 +49,8 @@ class Embedded extends Component {
   }
 
   renderPendingRequests () {
-    const { signerRequests } = this.props;
-    const { pending } = signerRequests;
+    const { signer } = this.props;
+    const { pending } = signer;
 
     if (!pending.length) {
       return (
@@ -93,11 +93,11 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
-  const { actions, signerRequests } = state;
+  const { actions, signer } = state;
 
   return {
     actions,
-    signerRequests
+    signer
   };
 }
 

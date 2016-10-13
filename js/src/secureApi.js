@@ -19,23 +19,22 @@ import Api from './api';
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
-  constructor (url, updateTokenCallback) {
+  constructor (url) {
     super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
     this._connectState = 0;
     this._needsToken = false;
-    this._updateTokenCallback = (token) => updateTokenCallback(token);
 
     this._followConnection();
   }
 
+  setToken = () => {
+    window.localStorage.setItem('sysuiToken', this._transport.token);
+  }
+
   _followConnection = () => {
     const nextTick = () => setTimeout(this._followConnection, 250);
-    const setToken = () => {
-      window.localStorage.setItem('sysuiToken', this._transport.token);
-      this._updateTokenCallback(this._transport.token);
-    };
     const setManual = () => {
       this._connectedState = 100;
       this._needsToken = true;
@@ -49,7 +48,7 @@ export default class SecureApi extends Api {
       case 0:
         if (isConnected) {
           this._isConnecting = false;
-          return setToken();
+          return this.setToken();
         } else if (lastError) {
           this.updateToken('initial', 1);
         }
@@ -78,7 +77,7 @@ export default class SecureApi extends Api {
       case 2:
         if (isConnected) {
           this._isConnecting = false;
-          return setToken();
+          return this.setToken();
         } else if (lastError) {
           return setManual();
         }
