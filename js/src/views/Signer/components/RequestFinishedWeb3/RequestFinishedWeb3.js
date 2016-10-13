@@ -18,14 +18,8 @@ import React, { Component, PropTypes } from 'react';
 
 import TransactionFinishedWeb3 from '../TransactionFinishedWeb3';
 import SignWeb3 from '../SignRequestWeb3';
-import Web3Compositor from '../Web3Compositor';
 
-class RequestFinishedWeb3 extends Component {
-
-  static contextTypes = {
-    web3: PropTypes.object.isRequired
-  };
-
+export default class RequestFinishedWeb3 extends Component {
   static propTypes = {
     id: PropTypes.string.isRequired,
     result: PropTypes.any.isRequired,
@@ -84,5 +78,3 @@ class RequestFinishedWeb3 extends Component {
     return null;
   }
 }
-
-export default Web3Compositor(RequestFinishedWeb3);

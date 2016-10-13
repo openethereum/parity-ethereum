@@ -30,19 +30,21 @@ export default class Signer {
     this._started = true;
 
     return Promise.all([
-      this._listRequests(),
+      this._listRequests(true),
       this._loggingSubscribe()
     ]);
   }
 
-  _listRequests = (doTimeout = true) => {
+  _listRequests = (doTimeout) => {
     const nextTimeout = (timeout = 1000) => {
       if (doTimeout) {
         setTimeout(() => {
-          this._listRequests();
+          this._listRequests(true);
         }, timeout);
       }
     };
+
+    console.log('_listRequests', this._api.transport.isConnected);
 
     if (!this._api.transport.isConnected) {
       nextTimeout(500);

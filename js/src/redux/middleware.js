@@ -22,9 +22,8 @@ import statusMiddleware from '../views/Status/middleware';
 
 export default function (api) {
   const errors = new ErrorsMiddleware();
-  const settings = new SettingsMiddleware();
   const signer = new SignerMiddleware(api);
-
+  const settings = new SettingsMiddleware();
   const status = statusMiddleware();
 
   const middleware = [
@@ -33,5 +32,5 @@ export default function (api) {
     signer.toMiddleware()
   ];
 
-  return middleware.concat(signer).concat(status);
+  return middleware.concat(status);
 }

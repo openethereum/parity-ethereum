@@ -19,10 +19,10 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
+import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, ContainerTitle } from '../../../../ui';
 
 import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
-import * as RequestsActions from '../../actions/requests';
 
 import styles from './RequestsPage.css';
 

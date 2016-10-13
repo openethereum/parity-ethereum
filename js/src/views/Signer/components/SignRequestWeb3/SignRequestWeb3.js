@@ -18,13 +18,10 @@ import React, { Component, PropTypes } from 'react';
 
 import SignRequest from '../SignRequest';
 
-import Web3Compositor from '../Web3Compositor';
-
-class SignRequestWeb3 extends Component {
-
+export default class SignRequestWeb3 extends Component {
   static contextTypes = {
-    web3: PropTypes.object.isRequired
-  };
+    api: PropTypes.object.isRequired
+  }
 
   static propTypes = {
     id: PropTypes.string.isRequired,
@@ -43,12 +40,17 @@ class SignRequestWeb3 extends Component {
     balance: null // avoid required prop loading warning
   }
 
+  componentDidMount () {
+    this.fetchChain();
+    this.fetchBalance();
+  }
+
   render () {
-    const { web3 } = this.context;
+    const { api } = this.context;
     const { balance, chain } = this.state;
     const { onConfirm, onReject, isSending, isFinished, hash, className, id, status } = this.props;
 
-    const address = web3.toChecksumAddress(this.props.address);
+    const address = api.util.toChecksumAddress(this.props.address);
 
     return (
       <SignRequest
@@ -67,35 +69,30 @@ class SignRequestWeb3 extends Component {
     );
   }
 
-  onTick (next) {
-    this.fetchChain();
-    this.fetchBalance(next);
-  }
-
   fetchChain () {
-    this.context.web3.ethcore.getNetChain((err, chain) => {
-      if (err) {
-        return console.warn('err fetching chain', err);
-      }
-      this.setState({ chain });
-    });
+    const { api } = this.context;
+
+    api.ethcore
+      .getNetChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((error) => {
+        console.error('fetchChain', error);
+      });
   }
 
-  fetchBalance (next) {
+  fetchBalance () {
+    const { api } = this.context;
     const { address } = this.props;
 
-    this.context.web3.eth.getBalance(address, (err, balance) => {
-      next(err);
-
-      if (err) {
-        console.warn('err fetching balance for ', address, err);
-        return;
-      }
-
-      this.setState({ balance });
-    });
+    api.eth
+      .getBalance(address)
+      .then((balance) => {
+        this.setState({ balance });
+      })
+      .catch((error) => {
+        console.error('fetchBalance', error);
+      });
   }
-
 }
-
-export default Web3Compositor(SignRequestWeb3);

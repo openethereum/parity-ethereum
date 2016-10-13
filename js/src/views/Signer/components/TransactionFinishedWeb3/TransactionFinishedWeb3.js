@@ -17,13 +17,11 @@
 import React, { Component, PropTypes } from 'react';
 
 import TransactionFinished from '../TransactionFinished';
-import Web3Compositor from '../Web3Compositor';
 
-class TransactionFinishedWeb3 extends Component {
-
+export default class TransactionFinishedWeb3 extends Component {
   static contextTypes = {
-    web3: PropTypes.object.isRequired
-  };
+    api: PropTypes.object.isRequired
+  }
 
   static propTypes = {
     from: PropTypes.string.isRequired,
@@ -32,56 +30,20 @@ class TransactionFinishedWeb3 extends Component {
 
   state = {
     chain: 'homestead'
-  };
+  }
 
-  onTick (next) {
+  componentDidMount () {
     this.fetchChain();
-    this.fetchBalances(next);
-  }
-
-  fetchBalances (next) {
-    const { from, to } = this.props;
-    this.fetchBalance(from, 'from', next);
-
-    if (!to) {
-      return;
-    }
-
-    this.fetchBalance(to, 'to', next);
-  }
-
-  fetchBalance (address, owner, next) {
-    this.context.web3.eth.getBalance(address, (err, balance) => {
-      next(err);
-
-      if (err) {
-        console.warn('err fetching balance for ', address, err);
-        return;
-      }
-
-      this.setState({
-        [owner + 'Balance']: balance
-      });
-    });
-  }
-
-  fetchChain () {
-    this.context.web3.ethcore.getNetChain((err, chain) => {
-      if (err) {
-        return console.warn('err fetching chain', err);
-      }
-
-      this.setState({ chain });
-    });
+    this.fetchBalances();
   }
 
   render () {
     const { fromBalance, toBalance, chain } = this.state;
-    const { web3 } = this.context;
+    const { api } = this.context;
 
     let { from, to } = this.props;
-    from = web3.toChecksumAddress(from);
-    to = to ? web3.toChecksumAddress(to) : to;
+    from = api.util.toChecksumAddress(from);
+    to = to ? api.util.toChecksumAddress(to) : to;
 
     return (
       <TransactionFinished
@@ -94,6 +56,41 @@ class TransactionFinishedWeb3 extends Component {
         />
     );
   }
-}
 
-export default Web3Compositor(TransactionFinishedWeb3);
+  fetchChain () {
+    const { api } = this.context;
+
+    api.ethcore
+      .getNetChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((error) => {
+        console.error('fetchChain', error);
+      });
+  }
+
+  fetchBalances () {
+    const { from, to } = this.props;
+    this.fetchBalance(from, 'from');
+
+    if (!to) {
+      return;
+    }
+
+    this.fetchBalance(to, 'to');
+  }
+
+  fetchBalance (address, owner) {
+    const { api } = this.context;
+
+    api.eth
+      .getBalance(address)
+      .then((balance) => {
+        this.setState({ [owner + 'Balance']: balance });
+      })
+      .catch((error) => {
+        console.error('fetchBalance', error);
+      });
+  }
+}

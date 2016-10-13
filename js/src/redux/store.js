@@ -22,6 +22,7 @@ import initReducers from './reducers';
 import {
   Balances as BalancesProvider,
   Personal as PersonalProvider,
+  Signer as SignerProvider,
   Status as StatusProvider
 } from './providers';
 
@@ -36,6 +37,7 @@ export default function (api) {
 
   new BalancesProvider(store, api).start();
   new PersonalProvider(store, api).start();
+  new SignerProvider(store, api).start();
   new StatusProvider(store, api).start();
 
   return store;

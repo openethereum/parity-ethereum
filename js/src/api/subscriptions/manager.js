@@ -21,14 +21,13 @@ import Logging from './logging';
 import Personal from './personal';
 import Signer from './signer';
 
-const events = [
-  'logging',
-  'eth_blockNumber',
-  'personal_accountsInfo',
-  'personal_listAccounts',
-  'personal_requestsToConfirm'
-];
-const aliasses = {};
+const events = {
+  'logging': { module: 'logging' },
+  'eth_blockNumber': { module: 'eth' },
+  'personal_accountsInfo': { module: 'personal' },
+  'personal_listAccounts': { module: 'personal' },
+  'personal_requestsToConfirm': { module: 'signer' }
+};
 
 let nextSubscriptionId = 0;
 
@@ -39,7 +38,7 @@ export default class Manager {
     this.subscriptions = {};
     this.values = {};
 
-    events.forEach((subscriptionName) => {
+    Object.keys(events).forEach((subscriptionName) => {
       this.subscriptions[subscriptionName] = {};
       this.values[subscriptionName] = {
         error: null,
@@ -53,29 +52,28 @@ export default class Manager {
     this._signer = new Signer(this._updateSubscriptions, api, this);
   }
 
-  _validateType (_subscriptionName) {
-    const subscriptionName = aliasses[_subscriptionName] || _subscriptionName;
+  _validateType (subscriptionName) {
+    const subscription = events[subscriptionName];
 
-    if (!events.includes(subscriptionName)) {
-      return new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${events.join(', ')}`);
+    if (!subscription) {
+      return new Error(`${subscriptionName} is not a valid interface, subscribe using one of ${Object.keys(events).join(', ')}`);
     }
 
-    return subscriptionName;
+    return subscription;
   }
 
-  subscribe (_subscriptionName, callback) {
+  subscribe (subscriptionName, callback) {
     return new Promise((resolve, reject) => {
-      const subscriptionName = this._validateType(_subscriptionName);
+      const subscription = this._validateType(subscriptionName);
 
-      if (isError(subscriptionName)) {
-        reject(subscriptionName);
+      if (isError(subscription)) {
+        reject(subscription);
         return;
       }
 
       const subscriptionId = nextSubscriptionId++;
       const { error, data } = this.values[subscriptionName];
-      const [prefix] = subscriptionName.split('_');
-      const engine = this[`_${prefix}`];
+      const engine = this[`_${subscription.module}`];
 
       this.subscriptions[subscriptionName][subscriptionId] = callback;
 

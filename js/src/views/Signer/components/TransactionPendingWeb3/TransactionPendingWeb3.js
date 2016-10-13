@@ -20,9 +20,8 @@ import TransactionPending from '../TransactionPending';
 import Web3Compositor from '../Web3Compositor';
 
 class TransactionPendingWeb3 extends Component {
-
   static contextTypes = {
-    web3: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   };
 
   static propTypes = {
@@ -47,13 +46,18 @@ class TransactionPendingWeb3 extends Component {
     toBalance: null // avoid required prop loading warning in case there's a to address
   }
 
+  componentDidMount () {
+    this.fetchChain();
+    this.fetchBalances();
+  }
+
   render () {
-    const { web3 } = this.context;
+    const { api } = this.context;
     const { fromBalance, toBalance, chain } = this.state;
     let { from, to, date } = this.props;
 
-    from = web3.toChecksumAddress(from);
-    to = to ? web3.toChecksumAddress(to) : to;
+    from = api.util.toChecksumAddress(from);
+    to = to ? api.util.toChecksumAddress(to) : to;
 
     return (
       <TransactionPending
@@ -68,47 +72,42 @@ class TransactionPendingWeb3 extends Component {
     );
   }
 
-  // todo [adgo] - call next() only after all CBs are executed
-  onTick (next) {
-    this.fetchChain();
-    this.fetchBalances(next);
-  }
-
   fetchChain () {
-    this.context.web3.ethcore.getNetChain((err, chain) => {
-      if (err) {
-        return console.warn('err fetching chain', err);
-      }
-      this.setState({ chain });
-    });
+    const { api } = this.context;
+
+    api.ethcore
+      .getNetChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((error) => {
+        console.error('fetchChain', error);
+      });
   }
 
-  fetchBalances (next) {
+  fetchBalances () {
     const { from, to } = this.props;
-    this.fetchBalance(from, 'from', next);
+    this.fetchBalance(from, 'from');
 
     if (!to) {
       return;
     }
 
-    this.fetchBalance(to, 'to', next);
+    this.fetchBalance(to, 'to');
   }
 
-  fetchBalance (address, owner, next) {
-    this.context.web3.eth.getBalance(address, (err, balance) => {
-      next(err);
+  fetchBalance (address, owner) {
+    const { api } = this.context;
 
-      if (err) {
-        console.warn('err fetching balance for ', address, err);
-        return;
-      }
-
-      this.setState({
-        [owner + 'Balance']: balance
+    api.eth
+      .getBalance(address)
+      .then((balance) => {
+        this.setState({ [owner + 'Balance']: balance });
+      })
+      .catch((error) => {
+        console.error('fetchBalance', error);
       });
-    });
   }
-
 }
 
 export default Web3Compositor(TransactionPendingWeb3);
