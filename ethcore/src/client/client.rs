@@ -173,7 +173,7 @@ impl Client {
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
 		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db)) {
 			let mut batch = DBTransaction::new(&db);
-			try!(state_db.commit(&mut batch, 0, &spec.genesis_header().hash(), None));
+			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
 		}
 
@@ -414,13 +414,6 @@ impl Client {
 		let number = block.header().number();
 		let parent = block.header().parent_hash().clone();
 		let chain = self.chain.read();
-		// Are we committing an era?
-		let ancient = if number >= HISTORY {
-			let n = number - HISTORY;
-			Some((n, chain.block_hash(n).expect("only verified blocks can be commited; verified block has hash; qed")))
-		} else {
-			None
-		};
 
 		// Commit results
 		let receipts = block.receipts().to_owned();
@@ -436,7 +429,13 @@ impl Client {
 		// already-imported block of the same number.
 		// TODO: Prove it with a test.
 		let mut state = block.drain();
-		state.commit(&mut batch, number, hash, ancient).expect("DB commit failed.");
+
+		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
+
+		if number >= HISTORY {
+			let n = number - HISTORY;
+			state.mark_canonical(&mut batch, n, &chain.block_hash(n).unwrap()).expect("DB commit failed");
+		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts);
 		self.tracedb.read().import(&mut batch, TraceImportRequest {
@@ -446,6 +445,7 @@ impl Client {
 			enacted: route.enacted.clone(),
 			retracted: route.retracted.len()
 		});
+
 		let is_canon = route.enacted.last().map_or(false, |h| h == hash);
 		state.sync_cache(&route.enacted, &route.retracted, is_canon);
 		// Final commit to the DB
