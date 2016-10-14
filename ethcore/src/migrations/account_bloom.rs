@@ -97,6 +97,8 @@ pub fn upgrade_account_bloom(db_path: &Path) -> Result<(), Error> {
 				for idx in 0..(wrong_size as u64/8) {
 					LittleEndian::write_u64(&mut key, idx);
 					try!(batch.put(DB_COL_ACCOUNT_BLOOM, &key, &[0u8; 8]));
+
+					if idx % 10000 == 1 { progress.tick(); };
 				}
 
 				LittleEndian::write_u64(&mut key, ACCOUNT_BLOOM_SPACE as u64);
