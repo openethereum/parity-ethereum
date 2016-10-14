@@ -562,12 +562,7 @@ impl ChainSync {
 		}
 		match self.state {
 			SyncState::ChainHead => {
-				if headers.is_empty() {
-					// peer is not on our chain
-					// track back and try again
-					self.imported_this_round = Some(0);
-					self.start_sync_round(io);
-				} else {
+				if !headers.is_empty() {
 					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
 					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
