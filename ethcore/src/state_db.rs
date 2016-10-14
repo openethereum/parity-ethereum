@@ -31,8 +31,7 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
-const STATE_CACHE_BLOCKS: usize = 8;
-
+const STATE_CACHE_BLOCKS: usize = 12;
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -182,17 +181,22 @@ impl StateDB {
 		Ok(())
 	}
 
-	/// Commit all recent insert operations and canonical historical commits' removals from the
-	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
-	pub fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	/// Journal all recent operations under the given era and ID.
+	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		{
  			let mut bloom_lock = self.account_bloom.lock();
  			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
  		}
-		let records = try!(self.db.commit(batch, now, id, end));
+		let records = try!(self.db.journal_under(batch, now, id));
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
 		Ok(records)
+	}
+
+	/// Mark a given candidate from an ancient era as canonical, enacting its removals from the
+	/// backing database and reverting any non-canonical historical commit's insertions.
+	pub fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+		self.db.mark_canonical(batch, end_era, canon_id)
 	}
 
 	/// Propagate local cache into the global cache and synchonize
@@ -448,30 +452,30 @@ mod tests {
 	    // balance [ 5     5     4  3  2     2 ]
 		let mut s = state_db.boxed_clone_canon(&root_parent);
 		s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
-		s.commit(&mut batch, 0, &h0, None).unwrap();
+		s.journal_under(&mut batch, 0, &h0).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h0);
-		s.commit(&mut batch, 1, &h1a, None).unwrap();
+		s.journal_under(&mut batch, 1, &h1a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h0);
 		s.add_to_account_cache(address, Some(Account::new_basic(3.into(), 0.into())), true);
-		s.commit(&mut batch, 1, &h1b, None).unwrap();
+		s.journal_under(&mut batch, 1, &h1b).unwrap();
 		s.sync_cache(&[], &[], false);
 
 		let mut s = state_db.boxed_clone_canon(&h1b);
 		s.add_to_account_cache(address, Some(Account::new_basic(4.into(), 0.into())), true);
-		s.commit(&mut batch, 2, &h2b, None).unwrap();
+		s.journal_under(&mut batch, 2, &h2b).unwrap();
 		s.sync_cache(&[], &[], false);
 
 		let mut s = state_db.boxed_clone_canon(&h1a);
 		s.add_to_account_cache(address, Some(Account::new_basic(5.into(), 0.into())), true);
-		s.commit(&mut batch, 2, &h2a, None).unwrap();
+		s.journal_under(&mut batch, 2, &h2a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h2a);
-		s.commit(&mut batch, 3, &h3a, None).unwrap();
+		s.journal_under(&mut batch, 3, &h3a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let s = state_db.boxed_clone_canon(&h3a);
@@ -489,7 +493,7 @@ mod tests {
 		// reorg to 3b
 		// blocks  [ 3b(c) 3a 2a 2b(c) 1b 1a 0 ]
 		let mut s = state_db.boxed_clone_canon(&h2b);
-		s.commit(&mut batch, 3, &h3b, None).unwrap();
+		s.journal_under(&mut batch, 3, &h3b).unwrap();
 		s.sync_cache(&[h1b.clone(), h2b.clone(), h3b.clone()], &[h1a.clone(), h2a.clone(), h3a.clone()], true);
 		let s = state_db.boxed_clone_canon(&h3a);
 		assert!(s.get_cached_account(&address).is_none());

@@ -110,6 +110,8 @@ pub struct ClientConfig {
 	pub state_cache_size: usize,
 	/// EVM jump-tables cache size.
 	pub jump_table_size: usize,
+	/// State pruning history size.
+	pub history: u64,
 }
 
 #[cfg(test)]

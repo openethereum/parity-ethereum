@@ -346,7 +346,7 @@ impl Service {
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
-			if client.chain_info().best_block_number >= num + ::client::HISTORY {
+			if client.chain_info().best_block_number >= num + client.pruning_history() {
 				// "Cancelled" is mincing words a bit -- what really happened
 				// is that the state we were snapshotting got pruned out
 				// before we could finish.

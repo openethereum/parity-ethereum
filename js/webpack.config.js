@@ -25,6 +25,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
+const DEST = process.env.BUILD_DEST || '.build';
 
 module.exports = {
   debug: !isProd,
@@ -45,7 +46,7 @@ module.exports = {
     'index': ['./index.js']
   },
   output: {
-    path: path.join(__dirname, 'build'),
+    path: path.join(__dirname, DEST),
     filename: '[name].js'
   },
   module: {
@@ -139,7 +140,7 @@ module.exports = {
       }),
       new webpack.DllReferencePlugin({
         context: '.',
-        manifest: require('./build/vendor-manifest.json')
+        manifest: require(`./${DEST}/vendor-manifest.json`)
       }),
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
       new WebpackErrorNotificationPlugin(),
@@ -192,7 +193,7 @@ module.exports = {
     return plugins;
   }()),
   devServer: {
-    contentBase: './build',
+    contentBase: `./${DEST}`,
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
