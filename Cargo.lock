@@ -1406,7 +1406,7 @@ dependencies = [
 [[package]]
 name = "rocksdb"
 version = "0.4.5"
-source = "git+https://github.com/ethcore/rust-rocksdb#ffc7c82380fe8569f85ae6743f7f620af2d4a679"
+source = "git+https://github.com/ethcore/rust-rocksdb#64c63ccbe1f62c2e2b39262486f9ba813793af58"
 dependencies = [
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "rocksdb-sys 0.3.0 (git+https://github.com/ethcore/rust-rocksdb)",
@@ -1415,7 +1415,7 @@ dependencies = [
 [[package]]
 name = "rocksdb-sys"
 version = "0.3.0"
-source = "git+https://github.com/ethcore/rust-rocksdb#ffc7c82380fe8569f85ae6743f7f620af2d4a679"
+source = "git+https://github.com/ethcore/rust-rocksdb#64c63ccbe1f62c2e2b39262486f9ba813793af58"
 dependencies = [
  "gcc 0.3.35 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",

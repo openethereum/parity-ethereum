@@ -87,12 +87,12 @@ export default class Manager {
     });
   }
 
-  unsubscribe (_subscriptionName, subscriptionId) {
+  unsubscribe (subscriptionName, subscriptionId) {
     return new Promise((resolve, reject) => {
-      const subscriptionName = this._validateType(_subscriptionName);
+      const subscription = this._validateType(subscriptionName);
 
-      if (isError(subscriptionName)) {
-        reject(subscriptionName);
+      if (isError(subscription)) {
+        reject(subscription);
         return;
       }
 

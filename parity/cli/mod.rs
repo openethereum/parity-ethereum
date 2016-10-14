@@ -207,6 +207,8 @@ usage! {
 			or |c: &Config| otry!(c.footprint).tracing.clone(),
 		flag_pruning: String = "auto",
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
+		flag_pruning_history: u64 = 64u64,
+			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
 		flag_cache_size_db: u32 = 64u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
@@ -361,6 +363,7 @@ struct Mining {
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
+	pruning_history: Option<u64>,
 	fast_and_loose: Option<bool>,
 	cache_size: Option<u32>,
 	cache_size_db: Option<u32>,
@@ -536,6 +539,7 @@ mod tests {
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
 			flag_pruning: "auto".into(),
+			flag_pruning_history: 64u64,
 			flag_cache_size_db: 64u32,
 			flag_cache_size_blocks: 8u32,
 			flag_cache_size_queue: 50u32,
@@ -690,6 +694,7 @@ mod tests {
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
 				pruning: Some("fast".into()),
+				pruning_history: Some(64),
 				fast_and_loose: None,
 				cache_size: None,
 				cache_size_db: Some(128),
