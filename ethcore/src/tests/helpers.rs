@@ -35,6 +35,7 @@ use db::COL_STATE;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
+	Eip150,
 	DaoHardfork,
 	Eip150Hardfork,
 }
