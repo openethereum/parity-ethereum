@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use network::{NetworkContext, PeerId, PacketId, NetworkError};
+use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo};
 use ethcore::client::BlockChainClient;
 use ethcore::snapshot::SnapshotService;
 
@@ -34,10 +34,12 @@ pub trait SyncIo {
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
-	/// Returns peer client identifier string
+	/// Returns peer identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
+	/// Returns information on p2p session
+	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
 	/// Maximum mutuallt supported ETH protocol version
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
@@ -91,8 +93,8 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.snapshot_service
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		self.network.peer_info(peer_id)
+	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {
+		self.network.session_info(peer_id)
 	}
 
 	fn is_expired(&self) -> bool {

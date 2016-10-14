@@ -348,7 +348,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
 	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
-	StateDB::new(journal_db)
+	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
 pub fn get_temp_state_in(path: &Path) -> State {
