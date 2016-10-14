@@ -59,24 +59,24 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 	/// How much gas is provided to a CALL/CREATE, given that we need to deduct `needed` for this operation
 	/// and that we `requested` some.
-	pub fn gas_provided(&self, schedule: &Schedule, needed: Gas, requested: Option<Gas>) -> Gas {
+	pub fn gas_provided(&self, schedule: &Schedule, needed: Gas, requested: Option<evm::Result<Gas>>) -> evm::Result<Gas> {
 		match schedule.sub_gas_cap_divisor {
 			Some(cap_divisor) if self.current_gas >= needed => {
 				let gas_remaining = self.current_gas - needed;
 				let max_gas_provided = gas_remaining - gas_remaining / Gas::from(cap_divisor);
-				if let Some(r) = requested { 
-					min(r, max_gas_provided)
+				if let Some(Ok(r)) = requested { 
+					Ok(min(r, max_gas_provided))
 				} else {
-					max_gas_provided
+					Ok(max_gas_provided)
 				}
 			},
 			_ => {
 				if let Some(r) = requested { 
 					r
 				} else if self.current_gas >= needed {
-					self.current_gas - needed
+					Ok(self.current_gas - needed)
 				} else {
-					0.into()
+					Ok(0.into())
 				}
 			}
 		}
@@ -185,7 +185,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				// TODO: refactor to avoid duplicate calculation here and later on. 
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
-				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), Gas::from_u256(*stack.peek(0)).ok());
+				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
+				let requested = Gas::from_u256(*stack.peek(0));
+				let provided = try!(self.gas_provided(schedule, cost_so_far, Some(requested)));
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
@@ -201,7 +203,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
 				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
 				let requested = Gas::from_u256(*stack.peek(0));
-				let provided = self.gas_provided(schedule, cost_so_far, requested.ok());
+				let provided = try!(self.gas_provided(schedule, cost_so_far, Some(requested)));
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
@@ -212,8 +214,8 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				// TODO: refactor to avoid duplicate calculation here and later on. 
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
-				// Just like CALL, we add the amount of gas we give to the sub-context to our bill, then refund later. 
-				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), None);
+				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into())); 
+				let provided = try!(self.gas_provided(schedule, cost_so_far, None));
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
