@@ -74,6 +74,7 @@ pub use blockchain::CacheSize as BlockChainCacheSize;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
+const MIN_HISTORY_SIZE: u64 = 8;
 
 impl fmt::Display for BlockChainInfo {
 	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -141,11 +142,8 @@ pub struct Client {
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
+	history: u64,
 }
-
-/// The pruning constant -- how old blocks must be before we
-/// assume finality of a given candidate.
-pub const HISTORY: u64 = 1200;
 
 impl Client {
 	/// Create a new client with given spec and DB path and custom verifier.
@@ -175,6 +173,28 @@ impl Client {
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
+		}
+
+		trace!("Cleanup journal: DB Earliest = {:?}, Latest = {:?}", state_db.journal_db().earliest_era(), state_db.journal_db().latest_era());
+
+		let history = if config.history < MIN_HISTORY_SIZE {
+			info!(target: "client", "Ignoring pruning history parameter of {}\
+				, falling back to minimum of {}",
+				config.history, MIN_HISTORY_SIZE);
+			MIN_HISTORY_SIZE
+		} else {
+			config.history
+		};
+
+		if let (Some(earliest), Some(latest)) = (state_db.journal_db().earliest_era(), state_db.journal_db().latest_era()) {
+			if latest > earliest && latest - earliest > history {
+				for era in earliest..(latest - history + 1) {
+					trace!("Removing era {}", era);
+					let mut batch = DBTransaction::new(&db);
+					try!(state_db.mark_canonical(&mut batch, era, &chain.block_hash(era).expect("Old block not found in the database")));
+					try!(db.write(batch).map_err(ClientError::Database));
+				}
+			}
 		}
 
 		if !chain.block_header(&chain.best_block_hash()).map_or(true, |h| state_db.journal_db().contains(h.state_root())) {
@@ -217,6 +237,7 @@ impl Client {
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
+			history: history,
 		};
 		Ok(Arc::new(client))
 	}
@@ -275,7 +296,7 @@ impl Client {
 		let chain = self.chain.read();
 		// Check the block isn't so old we won't be able to enact it.
 		let best_block_number = chain.best_block_number();
-		if best_block_number >= HISTORY && header.number() <= best_block_number - HISTORY {
+		if best_block_number >= self.history && header.number() <= best_block_number - self.history {
 			warn!(target: "client", "Block import failed for #{} ({})\nBlock is ancient (current best block: #{}).", header.number(), header.hash(), best_block_number);
 			return Err(());
 		}
@@ -432,8 +453,8 @@ impl Client {
 
 		state.journal_under(&mut batch, number, hash).expect("DB commit failed");
 
-		if number >= HISTORY {
-			let n = number - HISTORY;
+		if number >= self.history {
+			let n = number - self.history;
 			state.mark_canonical(&mut batch, n, &chain.block_hash(n).unwrap()).expect("DB commit failed");
 		}
 
@@ -495,7 +516,7 @@ impl Client {
 			let db = self.state_db.lock().boxed_clone();
 
 			// early exit for pruned blocks
-			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + HISTORY {
+			if db.is_pruned() && self.chain.read().best_block_number() >= block_number + self.history {
 				return None;
 			}
 
@@ -600,7 +621,7 @@ impl Client {
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
 
-		if best_block_number > HISTORY + block_number && db.is_pruned() {
+		if best_block_number > self.history + block_number && db.is_pruned() {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
@@ -612,8 +633,10 @@ impl Client {
 					0
 				};
 
-				self.block_hash(BlockID::Number(start_num))
-					.expect("blocks within HISTORY are always stored.")
+				match self.block_hash(BlockID::Number(start_num)) {
+					Some(h) => h,
+					None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
+				}
 			}
 			_ => match self.block_hash(at) {
 				Some(hash) => hash,
@@ -624,6 +647,11 @@ impl Client {
 		try!(snapshot::take_snapshot(&self.chain.read(), start_hash, db.as_hashdb(), writer, p));
 
 		Ok(())
+	}
+
+	/// Ask the client what the history parameter is.
+	pub fn pruning_history(&self) -> u64 {
+		self.history
 	}
 
 	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {

@@ -70,6 +70,7 @@ struct JournalOverlay {
 	pending_overlay: H256FastMap<Bytes>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
+	earliest_era: Option<u64>,
 }
 
 #[derive(PartialEq)]
@@ -123,7 +124,10 @@ impl OverlayRecentDB {
 	fn can_reconstruct_refs(&self) -> bool {
 		let reconstructed = Self::read_overlay(&self.backing, self.column);
 		let journal_overlay = self.journal_overlay.read();
-		*journal_overlay == reconstructed
+		journal_overlay.backing_overlay == reconstructed.backing_overlay &&
+		journal_overlay.pending_overlay == reconstructed.pending_overlay &&
+		journal_overlay.journal == reconstructed.journal &&
+		journal_overlay.latest_era == reconstructed.latest_era
 	}
 
 	fn payload(&self, key: &H256) -> Option<Bytes> {
@@ -135,6 +139,7 @@ impl OverlayRecentDB {
 		let mut overlay = MemoryDB::new();
 		let mut count = 0;
 		let mut latest_era = None;
+		let mut earliest_era = None;
 		if let Some(val) = db.get(col, &LATEST_ERA_KEY).expect("Low-level database error.") {
 			let mut era = decode::<u64>(&val);
 			latest_era = Some(era);
@@ -166,6 +171,7 @@ impl OverlayRecentDB {
 						deletions: deletions,
 					});
 					index += 1;
+					earliest_era = Some(era);
 				};
 				if index == 0 || era == 0 {
 					break;
@@ -178,8 +184,11 @@ impl OverlayRecentDB {
 			backing_overlay: overlay,
 			pending_overlay: HashMap::default(),
 			journal: journal,
-			latest_era: latest_era }
+			latest_era: latest_era,
+			earliest_era: earliest_era,
+		}
 	}
+
 
 }
 
@@ -213,6 +222,8 @@ impl JournalDB for OverlayRecentDB {
 	}
 
 	fn latest_era(&self) -> Option<u64> { self.journal_overlay.read().latest_era }
+
+	fn earliest_era(&self) -> Option<u64> { self.journal_overlay.read().earliest_era }
 
 	fn state(&self, key: &H256) -> Option<Bytes> {
 		let journal_overlay = self.journal_overlay.read();
