@@ -1,11 +1,8 @@
 #!/bin/bash
 
-# find the build destimation
-DEST=${BUILD_DEST:=.build}
-
-# change into the js directory (one down from scripts)
+# change into the build directory
 pushd `dirname $0`
-cd ../$DEST
+cd ../.build
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
@@ -22,10 +19,12 @@ git config user.name "GitLab Build Bot"
 
 # add local files and send it up
 git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git
+git fetch origin
 git checkout -b $CI_BUILD_REF_NAME
 git add .
-git commit -m "$UTCDATE"
-git push origin $CI_BUILD_REF_NAME --force
+git commit -m "$UTCDATE [compiled]"
+git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
+git push origin $CI_BUILD_REF_NAME
 
 # back to root
 popd
