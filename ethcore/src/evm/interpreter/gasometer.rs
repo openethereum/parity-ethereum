@@ -185,7 +185,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				// TODO: refactor to avoid duplicate calculation here and later on. 
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
-				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), Some(try!(Gas::from_u256(*stack.peek(0)))));
+				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), Gas::from_u256(*stack.peek(0)).ok());
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
@@ -199,7 +199,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 				// TODO: refactor to avoid duplicate calculation here and later on. 
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
-				let provided = self.gas_provided(schedule, overflowing!(gas.overflow_add(mem_gas_cost.into())), Some(try!(Gas::from_u256(*stack.peek(0)))));
+				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
+				let requested = Gas::from_u256(*stack.peek(0));
+				let provided = self.gas_provided(schedule, cost_so_far, requested.ok());
 				gas = overflowing!(gas.overflow_add(provided));
 
 				InstructionCost::GasMem(gas, mem, Some(provided))
