@@ -48,6 +48,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let mut spec = match era {
 					ChainEra::Frontier => ethereum::new_frontier_test(),
 					ChainEra::Homestead => ethereum::new_homestead_test(),
+					ChainEra::Eip150 => ethereum::new_eip150_test(),
 					ChainEra::DaoHardfork => ethereum::new_daohardfork_test(),
 					ChainEra::Eip150Hardfork => ethereum::new_eip150hardfork_test(),
 				};

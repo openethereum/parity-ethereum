@@ -32,6 +32,7 @@ use miner::Miner;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
+	Eip150,
 	DaoHardfork,
 	Eip150Hardfork,
 }
