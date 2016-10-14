@@ -73,15 +73,11 @@ class TxHash extends Component {
   renderConfirmations () {
     const { blockNumber, transaction } = this.state;
 
-    if (!transaction) {
-      return null;
-    }
-
     let txBlock = 'Pending';
     let confirmations = 'No';
     let value = 0;
 
-    if (transaction.blockNumber && transaction.blockNumber.gt(0)) {
+    if (transaction && transaction.blockNumber && transaction.blockNumber.gt(0)) {
       const num = blockNumber.minus(transaction.blockNumber).plus(1);
       txBlock = `#${transaction.blockNumber.toFormat(0)}`;
       confirmations = num.toFormat(0);
@@ -116,6 +112,9 @@ class TxHash extends Component {
       .getTransactionReceipt(hash)
       .then((transaction) => {
         this.setState({ transaction });
+      })
+      .catch((error) => {
+        console.warn('onBlockNumber', error);
       });
   }
 }
