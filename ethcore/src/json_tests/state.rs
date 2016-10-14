@@ -28,8 +28,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
 		ChainEra::Homestead => ethereum::new_homestead_test().engine,
 		ChainEra::Eip150 => ethereum::new_eip150_test().engine,
-		ChainEra::DaoHardfork => ethereum::new_daohardfork_test().engine,
-		ChainEra::Eip150Hardfork => ethereum::new_eip150hardfork_test().engine,
+		ChainEra::TransitionTest => ethereum::new_transition_test().engine,
 	};
 
 	for (name, test) in tests.into_iter() {
@@ -90,19 +89,6 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 
 	println!("!!! {:?} tests from failed.", failed.len());
 	failed
-}
-
-mod eip150hardfork_tests {
-	use super::json_chain_test;
-	use tests::helpers::ChainEra;
-
-	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::Eip150Hardfork)
-	}
-
-	declare_test!{StateTests_EIP150_stEIPSpecificTest, "StateTests/EIP150/stEIPSpecificTest"}
-	declare_test!{StateTests_EIP150_stEIPsingleCodeGasPrices, "StateTests/EIP150/stEIPsingleCodeGasPrices"}
-	declare_test!{StateTests_EIP150_stMemExpandingEIPCalls, "StateTests/EIP150/stMemExpandingEIPCalls"}
 }
 
 mod frontier_tests {
