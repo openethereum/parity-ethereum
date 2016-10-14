@@ -1,8 +1,11 @@
 #!/bin/bash
 
+# find the build destimation
+DEST=${BUILD_DEST:=.build}
+
 # change into the js directory (one down from scripts)
 pushd `dirname $0`
-cd ../build
+cd ../$DEST
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
