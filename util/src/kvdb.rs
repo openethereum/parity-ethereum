@@ -21,7 +21,7 @@ use elastic_array::*;
 use std::default::Default;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
-	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column};
+	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -198,6 +198,7 @@ pub struct Database {
 	db: DB,
 	write_opts: WriteOptions,
 	cfs: Vec<Column>,
+	read_opts: ReadOptions,
 	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
 }
 
@@ -213,7 +214,8 @@ impl Database {
 		if let Some(rate_limit) = config.compaction.write_rate_limit {
 			try!(opts.set_parsed_options(&format!("rate_limiter_bytes_per_sec={}", rate_limit)));
 		}
-		try!(opts.set_parsed_options(&format!("max_total_wal_size={}", 256 * 1024 * 1024)));
+		try!(opts.set_parsed_options(&format!("max_total_wal_size={}", 64 * 1024 * 1024)));
+		try!(opts.set_parsed_options("verify_checksums_in_compaction=0"));
 		opts.set_max_open_files(config.max_open_files);
 		opts.create_if_missing(true);
 		opts.set_use_fsync(false);
@@ -246,6 +248,8 @@ impl Database {
 		if !config.wal {
 			write_opts.disable_wal(true);
 		}
+		let mut read_opts = ReadOptions::new();
+		read_opts.set_verify_checksums(false);
 
 		let mut cfs: Vec<Column> = Vec::new();
 		let db = match config.columns {
@@ -287,6 +291,7 @@ impl Database {
 			write_opts: write_opts,
 			overlay: RwLock::new((0..(cfs.len() + 1)).map(|_| HashMap::new()).collect()),
 			cfs: cfs,
+			read_opts: read_opts,
 		})
 	}
 
@@ -390,8 +395,8 @@ impl Database {
 			Some(&KeyState::Delete) => Ok(None),
 			None => {
 				col.map_or_else(
-					|| self.db.get(key).map(|r| r.map(|v| v.to_vec())),
-					|c| self.db.get_cf(self.cfs[c as usize], key).map(|r| r.map(|v| v.to_vec())))
+					|| self.db.get_opt(key, &self.read_opts).map(|r| r.map(|v| v.to_vec())),
+					|c| self.db.get_cf_opt(self.cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| v.to_vec())))
 			},
 		}
 	}
@@ -399,8 +404,8 @@ impl Database {
 	/// Get value by partial key. Prefix size should match configured prefix size. Only searches flushed values.
 	// TODO: support prefix seek for unflushed ata
 	pub fn get_by_prefix(&self, col: Option<u32>, prefix: &[u8]) -> Option<Box<[u8]>> {
-		let mut iter = col.map_or_else(|| self.db.iterator(IteratorMode::From(prefix, Direction::Forward)),
-			|c| self.db.iterator_cf(self.cfs[c as usize], IteratorMode::From(prefix, Direction::Forward)).unwrap());
+		let mut iter = col.map_or_else(|| self.db.iterator_opt(IteratorMode::From(prefix, Direction::Forward), &self.read_opts),
+			|c| self.db.iterator_cf_opt(self.cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts).unwrap());
 		match iter.next() {
 			// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 			Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
@@ -411,8 +416,8 @@ impl Database {
 	/// Get database iterator for flushed data.
 	pub fn iter(&self, col: Option<u32>) -> DatabaseIterator {
 		//TODO: iterate over overlay
-		col.map_or_else(|| DatabaseIterator { iter: self.db.iterator(IteratorMode::Start) },
-			|c| DatabaseIterator { iter: self.db.iterator_cf(self.cfs[c as usize], IteratorMode::Start).unwrap() })
+		col.map_or_else(|| DatabaseIterator { iter: self.db.iterator_opt(IteratorMode::Start, &self.read_opts) },
+			|c| DatabaseIterator { iter: self.db.iterator_cf_opt(self.cfs[c as usize], IteratorMode::Start, &self.read_opts).unwrap() })
 	}
 }
 
