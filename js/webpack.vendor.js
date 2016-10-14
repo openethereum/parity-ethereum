@@ -18,6 +18,7 @@ const webpack = require('webpack');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
+const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
   'babel-polyfill',
@@ -47,14 +48,14 @@ module.exports = {
   },
   output: {
     filename: '[name].js',
-    path: 'build/',
+    path: `${DEST}/`,
     library: '[name]_lib'
   },
   plugins: (function () {
     const plugins = [
       new webpack.DllPlugin({
         name: '[name]_lib',
-        path: 'build/[name]-manifest.json'
+        path: `${DEST}/[name]-manifest.json`
       }),
 
       new webpack.DefinePlugin({
