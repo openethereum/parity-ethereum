@@ -46,9 +46,9 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
 				let mut spec = match era {
-					ChainEra::AllUptoHomestead => ethereum::new_frontier_test(),
-					ChainEra::AlwaysHomestead => ethereum::new_homestead_test(),
-					ChainEra::AllUptoEip150 => ethereum::new_eip150_test(),
+					ChainEra::Frontier => ethereum::new_frontier_test(),
+					ChainEra::Homestead => ethereum::new_homestead_test(),
+					ChainEra::Eip150 => ethereum::new_eip150_test(),
 					ChainEra::TransitionTest => ethereum::new_transition_test(),
 				};
 				spec.set_genesis_state(state);
@@ -93,7 +93,7 @@ mod frontier_era_tests {
 	use super::json_chain_test;
 
 	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::AllUptoHomestead)
+		json_chain_test(json_data, ChainEra::Frontier)
 	}
 
 	declare_test!{BlockchainTests_bcBlockGasLimitTest, "BlockchainTests/bcBlockGasLimitTest"}
