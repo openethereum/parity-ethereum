@@ -99,6 +99,8 @@ mod eip150hardfork_tests {
 	}
 
 	declare_test!{StateTests_EIP150_stEIPSpecificTest, "StateTests/EIP150/stEIPSpecificTest"}
+	declare_test!{StateTests_EIP150_stEIPsingleCodeGasPrices, "StateTests/EIP150/stEIPsingleCodeGasPrices"}
+	declare_test!{StateTests_EIP150_stMemExpandingEIPCalls, "StateTests/EIP150/stMemExpandingEIPCalls"}
 }
 
 mod frontier_tests {
