@@ -202,7 +202,7 @@ Sealing/Mining Options:
                            and gas limit ratio [default: gas_factor].
   --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
                            the queue. LIMIT can be either an amount of gas or
-                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. [default: auto].
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
