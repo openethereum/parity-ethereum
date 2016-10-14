@@ -1782,8 +1782,9 @@ mod test {
 		let (tx5, tx6) = new_tx_pair_default(U256::from(1), U256::from(2));
 		txq.add(tx1.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		txq.add(tx2.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
-		txq.add(tx3.clone(), &default_account_details, TransactionOrigin::External).ok();
-		txq.add(tx4.clone(), &default_account_details, TransactionOrigin::External).ok();
+		txq.add(tx5.clone(), &default_account_details, TransactionOrigin::External).unwrap();
+		// Not accepted because of limit
+		txq.add(tx6.clone(), &default_account_details, TransactionOrigin::External).unwrap_err();
 		txq.add(tx3.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		txq.add(tx4.clone(), &default_account_details, TransactionOrigin::Local).unwrap();
 		assert_eq!(txq.status().pending, 4);
