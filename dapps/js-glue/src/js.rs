@@ -70,6 +70,7 @@ pub fn build(path: &str) {
 		.arg("run")
 		.arg("build")
 		.env("NODE_ENV", "production")
+		.env("BUILD_DEST", "build")
 		.current_dir(path)
 		.status()
 		.unwrap_or_else(|e| die("Building JS code", e));
