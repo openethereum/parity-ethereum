@@ -25,9 +25,9 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let tests = ethjson::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let engine = match era {
-		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
-		ChainEra::Homestead => ethereum::new_homestead_test().engine,
-		ChainEra::Eip150 => ethereum::new_eip150_test().engine,
+		ChainEra::AllUptoHomestead => ethereum::new_mainnet_like().engine,
+		ChainEra::AlwaysHomestead => ethereum::new_homestead_test().engine,
+		ChainEra::AllUptoEip150 => ethereum::new_eip150_test().engine,
 		ChainEra::TransitionTest => ethereum::new_transition_test().engine,
 	};
 
@@ -95,7 +95,7 @@ mod frontier_tests {
 	use tests::helpers::ChainEra;
 
 	fn do_json_test(json_data: &[u8]) -> Vec<String> {
-		json_chain_test(json_data, ChainEra::Frontier)
+		json_chain_test(json_data, ChainEra::AllUptoHomestead)
 	}
 
 	declare_test!{StateTests_stBlockHashTest, "StateTests/stBlockHashTest"}

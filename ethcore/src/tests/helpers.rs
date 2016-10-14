@@ -33,9 +33,9 @@ use db::COL_STATE;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
-	Frontier,
-	Homestead,
-	Eip150,
+	AllUptoHomestead,
+	AlwaysHomestead,
+	AllUptoEip150,
 	TransitionTest,
 }
 
