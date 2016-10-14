@@ -678,6 +678,8 @@ impl TransactionQueue {
 		let nonce = transaction.nonce();
 		let current_nonce = fetch_account(&sender).nonce;
 
+		trace!(target: "txqueue", "Removing invalid transaction: {:?}", transaction.hash());
+
 		// Remove from future
 		let order = self.future.drop(&sender, &nonce);
 		if order.is_some() {
@@ -953,12 +955,14 @@ impl TransactionQueue {
 		let old_fee = old.gas_price;
 		let new_fee = order.gas_price;
 		if old_fee.cmp(&new_fee) == Ordering::Greater {
+			trace!(target: "txqueue", "Didn't insert transaction because gas price was too low: {:?} ({:?} stays in the queue)", order.hash, old.hash);
 			// Put back old transaction since it has greater priority (higher gas_price)
 			set.insert(address, nonce, old);
 			// and remove new one
 			by_hash.remove(&order.hash).expect("The hash has been just inserted and no other line is altering `by_hash`.");
 			false
 		} else {
+			trace!(target: "txqueue", "Replaced transaction: {:?} with transaction with higher gas price: {:?}", old.hash, order.hash);
 			// Make sure we remove old transaction entirely
 			by_hash.remove(&old.hash).expect("The hash is coming from `future` so it has to be in `by_hash`.");
 			true
