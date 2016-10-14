@@ -26,3 +26,6 @@ pub use self::v9::Extract;
 
 mod v10;
 pub use self::v10::ToV10;
+
+mod upgrade_bloom;
+pub use self::upgrade_bloom::upgrade_account_bloom;
