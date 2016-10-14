@@ -19,7 +19,7 @@ use tests::helpers::*;
 use super::state::json_chain_test;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
-	json_chain_test(json_data, ChainEra::Frontier)
+	json_chain_test(json_data, ChainEra::AllUptoEip150)
 }
 
 declare_test!{StateTests_EIP150_stEIPSpecificTest, "StateTests/EIP150/stEIPSpecificTest"}

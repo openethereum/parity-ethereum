@@ -38,7 +38,7 @@ pub struct EthashParams {
 	/// Namereg contract address.
 	pub registrar: Address,
 	/// Homestead transition block number.
-	pub frontier_compatibility_mode_limit: u64,
+	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
@@ -52,7 +52,7 @@ pub struct EthashParams {
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
 	/// Bad gas transition block number.
-	pub bad_gas_compatibility_mode_limit: u64,
+	pub eip150_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -64,14 +64,14 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map_or(0, Into::into),
+			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
-			bad_gas_compatibility_mode_limit: p.bad_gas_compatibility_mode_limit.map_or(0, Into::into),
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -116,11 +116,11 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.frontier_compatibility_mode_limit, self.ethash_params.bad_gas_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
+		if env_info.number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else if env_info.number < self.ethash_params.bad_gas_compatibility_mode_limit {
+		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
 			Schedule::new_homestead_gas_fix()
@@ -260,7 +260,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.frontier_compatibility_mode_limit {
+		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
 		Ok(())
@@ -282,7 +282,7 @@ impl Ethash {
 		let min_difficulty = self.ethash_params.minimum_difficulty;
 		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
 		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
+		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number < frontier_limit {
 			if header.timestamp >= parent.timestamp + duration_limit {

@@ -50,7 +50,7 @@ mod tests {
 	#[test]
 	fn params_deserialization() {
 		let s = r#"{
-			"frontierCompatibilityModeLimit": "0x118c30",
+			"homesteadTransition": "0x118c30",
 			"maximumExtraDataSize": "0x20",
 			"networkID" : "0x1",
 			"minGasLimit": "0x1388",
