@@ -31,8 +31,7 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
-const STATE_CACHE_BLOCKS: usize = 8;
-
+const STATE_CACHE_BLOCKS: usize = 12;
 
 /// Shared canonical state cache.
 struct AccountCache {
