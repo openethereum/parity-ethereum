@@ -99,6 +99,7 @@ pub use host::NetworkIoMessage;
 pub use error::NetworkError;
 pub use host::NetworkConfiguration;
 pub use stats::NetworkStats;
+pub use session::SessionInfo;
 
 use io::TimerToken;
 pub use node_table::is_valid_node_url;

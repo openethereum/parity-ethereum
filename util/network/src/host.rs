@@ -31,7 +31,7 @@ use util::hash::*;
 use util::Hashable;
 use util::version;
 use rlp::*;
-use session::{Session, SessionData};
+use session::{Session, SessionInfo, SessionData};
 use error::*;
 use io::*;
 use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
@@ -280,12 +280,13 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Returns peer identification string
-	pub fn peer_info(&self, peer: PeerId) -> String {
-		let session = self.resolve_session(peer);
-		if let Some(session) = session {
-			return session.lock().info.client_version.clone()
-		}
-		"unknown".to_owned()
+	pub fn peer_client_version(&self, peer: PeerId) -> String {
+		self.resolve_session(peer).map_or("unknown".to_owned(), |s| s.lock().info.client_version.clone())
+	}
+
+	/// Returns information on p2p session
+	pub fn session_info(&self, peer: PeerId) -> Option<SessionInfo> {
+		self.resolve_session(peer).map(|s| s.lock().info.clone())
 	}
 
 	/// Returns max version for a given protocol.
@@ -917,6 +918,13 @@ impl Host {
 
 		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
 		action(&context);
+	}
+
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, io: &IoContext<NetworkIoMessage>, action: F) -> T where F: Fn(&NetworkContext) -> T {
+		let reserved = { self.reserved_nodes.read() };
+
+		let context = NetworkContext::new(io, protocol, None, self.sessions.clone(), &reserved);
+		action(&context)
 	}
 }
 

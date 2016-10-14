@@ -186,7 +186,7 @@ Sealing/Mining Options:
                            to be included in next block) (default: {flag_tx_queue_size}).
   --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
                            the queue. LIMIT can be either an amount of gas or
-                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. (default: {flag_tx_queue_gas}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
@@ -214,6 +214,8 @@ Footprint Options:
                            megabytes (default: {flag_cache_size_blocks}).
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue (default: {flag_cache_size_queue}).
+  --cache-size-state MB    Specify the maximum size of memory to use for
+                           the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.a (default: {flag_cache_size:?})

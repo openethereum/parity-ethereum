@@ -60,7 +60,7 @@ mod api {
 }
 
 pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
-	ServiceConfiguration, NetworkConfiguration};
+	ServiceConfiguration, NetworkConfiguration, PeerInfo};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
 
