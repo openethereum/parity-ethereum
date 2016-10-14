@@ -19,7 +19,7 @@ use tests::helpers::*;
 use super::state::json_chain_test;
 
 fn do_json_test(json_data: &[u8]) -> Vec<String> {
-	json_chain_test(json_data, ChainEra::AlwaysHomestead)
+	json_chain_test(json_data, ChainEra::Homestead)
 }
 
 declare_test!{StateTests_Homestead_stCallCodes, "StateTests/Homestead/stCallCodes"}
