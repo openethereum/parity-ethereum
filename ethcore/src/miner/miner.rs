@@ -462,8 +462,8 @@ impl Miner {
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
-			// Set total tx queue gas limit to be 2x the block gas limit.
-			queue.set_total_gas_limit(gas_limit << 1);
+			// Set total tx queue gas limit to be 20x the block gas limit.
+			queue.set_total_gas_limit(gas_limit * 20.into());
 		}
 	}
 
