@@ -36,8 +36,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
-	DaoHardfork,
-	Eip150Hardfork,
+	TransitionTest,
 }
 
 pub struct TestEngine {

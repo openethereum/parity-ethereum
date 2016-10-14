@@ -55,10 +55,7 @@ pub fn new_homestead_test() -> Spec { load(include_bytes!("../../res/ethereum/ho
 pub fn new_eip150_test() -> Spec { load(include_bytes!("../../res/ethereum/eip150_test.json")) }
 
 /// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
-pub fn new_daohardfork_test() -> Spec { load(include_bytes!("../../res/ethereum/daohardfork_test.json")) }
-
-/// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
-pub fn new_eip150hardfork_test() -> Spec { load(include_bytes!("../../res/ethereum/eip150hardfork_test.json")) }
+pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/transition_test.json")) }
 
 /// Create a new Frontier main net chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
