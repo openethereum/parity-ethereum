@@ -240,12 +240,7 @@ impl BlockDownloader {
 
 		match self.state {
 			State::ChainHead => {
-				if headers.is_empty() {
-					// peer is not on our chain
-					// track back and try again
-					self.imported_this_round = Some(0);
-					return Err(BlockDownloaderImportError::Useless);
-				} else {
+				if !headers.is_empty() {
 					// TODO: validate heads better. E.g. check that there is enough distance between blocks.
 					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
