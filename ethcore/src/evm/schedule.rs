@@ -81,14 +81,14 @@ pub struct Schedule {
 	/// Gas price for copying memory
 	pub copy_gas: usize,
 	/// Price of EXTCODESIZE
-	pub extcodesize_gas: usize, 
+	pub extcodesize_gas: usize,
 	/// Base price of EXTCODECOPY
-	pub extcodecopy_base_gas: usize, 
+	pub extcodecopy_base_gas: usize,
 	/// Price of BALANCE
-	pub balance_gas: usize, 
+	pub balance_gas: usize,
 	/// Price of SUICIDE
 	pub suicide_gas: usize,
-	/// Amount of additional gas to pay when SUICIDE credits a non-existant account 
+	/// Amount of additional gas to pay when SUICIDE credits a non-existant account
 	pub suicide_to_new_account_cost: usize,
 	/// If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
 	/// If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
@@ -108,7 +108,6 @@ impl Schedule {
 
 	/// Schedule for the Homestead-era of the Ethereum main net.
 	pub fn new_homestead_gas_fix() -> Schedule {
-		flushln!("Creating new EIP150 schedule.");
 		Schedule{
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
@@ -141,9 +140,9 @@ impl Schedule {
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
 			copy_gas: 3,
-			extcodesize_gas: 700, 
-			extcodecopy_base_gas: 700, 
-			balance_gas: 400, 
+			extcodesize_gas: 700,
+			extcodecopy_base_gas: 700,
+			balance_gas: 400,
 			suicide_gas: 5000,
 			suicide_to_new_account_cost: 25000,
 			sub_gas_cap_divisor: Some(64),
@@ -183,9 +182,9 @@ impl Schedule {
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
 			copy_gas: 3,
-			extcodesize_gas: 20, 
-			extcodecopy_base_gas: 20, 
-			balance_gas: 20, 
+			extcodesize_gas: 20,
+			extcodecopy_base_gas: 20,
+			balance_gas: 20,
 			suicide_gas: 0,
 			suicide_to_new_account_cost: 0,
 			sub_gas_cap_divisor: None,
