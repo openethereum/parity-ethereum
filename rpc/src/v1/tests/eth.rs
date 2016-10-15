@@ -33,9 +33,10 @@ use util::{U256, H256, Uint, Address};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
-use v1::types::U256 as NU256;
-use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
+use v1::types::U256 as NU256;
+use v1::traits::eth::Eth;
+use v1::traits::eth_signing::EthSigning;
 use v1::tests::helpers::{TestSyncProvider, Config};
 
 fn account_provider() -> Arc<AccountProvider> {

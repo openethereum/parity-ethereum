@@ -22,9 +22,9 @@ use jsonrpc_core::*;
 use ethkey::{Brain, Generator};
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, TransactionRequest};
-use v1::helpers::{errors, TransactionRequest as TRequest};
+use v1::helpers::errors;
 use v1::helpers::params::expect_no_params;
-use v1::helpers::dispatch::unlock_sign_and_dispatch;
+use v1::helpers::dispatch::sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
@@ -139,10 +139,13 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		try!(self.active());
 		from_params::<(TransactionRequest, String)>(params)
 			.and_then(|(request, password)| {
-				let request: TRequest = request.into();
-				let accounts = take_weak!(self.accounts);
-
-				unlock_sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*accounts, password)
+				sign_and_dispatch(
+					&*take_weak!(self.client),
+					&*take_weak!(self.miner),
+					&*take_weak!(self.accounts),
+					request.into(),
+					Some(password)
+				)
 			})
 	}
 
