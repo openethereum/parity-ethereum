@@ -40,8 +40,8 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	pub registrar: Option<Address>,
 	/// See main EthashParams docs.
-	#[serde(rename="frontierCompatibilityModeLimit")]
-	pub frontier_compatibility_mode_limit: Option<Uint>,
+	#[serde(rename="homesteadTransition")]
+	pub homestead_transition: Option<Uint>,
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkTransition")]
 	pub dao_hardfork_transition: Option<Uint>,
@@ -51,6 +51,18 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="daoHardforkAccounts")]
 	pub dao_hardfork_accounts: Option<Vec<Address>>,
+	/// See main EthashParams docs.
+	#[serde(rename="difficultyHardforkTransition")]
+	pub difficulty_hardfork_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="difficultyHardforkBoundDivisor")]
+	pub difficulty_hardfork_bound_divisor: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="bombDefuseTransition")]
+	pub bomb_defuse_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="eip150Transition")]
+	pub eip150_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
@@ -75,7 +87,7 @@ mod tests {
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar": "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x42",
+				"homesteadTransition": "0x42",
 				"daoHardforkTransition": "0x08",
 				"daoHardforkBeneficiary": "0xabcabcabcabcabcabcabcabcabcabcabcabcabca",
 				"daoHardforkAccounts": [
@@ -99,7 +111,11 @@ mod tests {
 					"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97",
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
-				]
+				],
+				"difficultyHardforkTransition": "0x59d9",
+				"difficultyHardforkBoundDivisor": "0x0200",
+				"bombDefuseTransition": "0x42",
+				"eip150Transition": "0x42"
 			}
 		}"#;
 
