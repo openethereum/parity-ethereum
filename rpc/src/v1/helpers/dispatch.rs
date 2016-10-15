@@ -79,8 +79,8 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 	Transaction {
 		nonce: request.nonce
 			.or_else(|| miner
-					 .last_nonce(&request.from)
-					 .map(|nonce| nonce + U256::one()))
+				.last_nonce(&request.from)
+				.map(|nonce| nonce + U256::one()))
 			.unwrap_or_else(|| client.latest_nonce(&request.from)),
 
 		action: request.to.map_or(Action::Create, Action::Call),
