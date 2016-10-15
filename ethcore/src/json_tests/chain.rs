@@ -136,6 +136,7 @@ mod eip150_blockchain_tests {
 		json_chain_test(json_data, ChainEra::Eip150)
 	}
 
+	declare_test!{BlockchainTests_EIP150_bcBlockGasLimitTest, "BlockchainTests/EIP150/bcBlockGasLimitTest"}
 	declare_test!{BlockchainTests_EIP150_bcForkStressTest, "BlockchainTests/EIP150/bcForkStressTest"}
 	declare_test!{BlockchainTests_EIP150_bcGasPricerTest, "BlockchainTests/EIP150/bcGasPricerTest"}
 	declare_test!{BlockchainTests_EIP150_bcInvalidHeaderTest, "BlockchainTests/EIP150/bcInvalidHeaderTest"}
