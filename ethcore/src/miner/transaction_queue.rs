@@ -310,9 +310,9 @@ impl TransactionSet {
 					let r = gas.overflowing_add(order.gas);
 					if r.1 { return false }
 					gas = r.0;
-					// Own and retracted transactions are allowed to go above the gas limit, bot not above the count limit.
-					(gas > self.gas_limit && order.origin != TransactionOrigin::Local && order.origin != TransactionOrigin::RetractedBlock) ||
-						count > self.limit
+					// Own and retracted transactions are allowed to go above all limits.
+					order.origin != TransactionOrigin::Local && order.origin != TransactionOrigin::RetractedBlock &&
+					(gas > self.gas_limit || count > self.limit)
 				})
 				.map(|order| by_hash.get(&order.hash)
 					.expect("All transactions in `self.by_priority` and `self.by_address` are kept in sync with `by_hash`."))
