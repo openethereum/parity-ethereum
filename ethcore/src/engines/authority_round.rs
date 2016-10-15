@@ -18,6 +18,7 @@
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Weak;
+use std::time::{UNIX_EPOCH, Duration};
 use common::*;
 use ethkey::verify_address;
 use rlp::{UntrustedRlp, View, encode, decode};
@@ -36,7 +37,7 @@ pub struct AuthorityRoundParams {
 	/// Gas limit divisor.
 	pub gas_limit_bound_divisor: U256,
 	/// Time to wait before next block or authority switching.
-	pub step_duration: u64,
+	pub step_duration: Duration,
 	/// Valid authorities.
 	pub authorities: Vec<Address>,
 	/// Number of authorities.
@@ -47,7 +48,7 @@ impl From<ethjson::spec::AuthorityRoundParams> for AuthorityRoundParams {
 	fn from(p: ethjson::spec::AuthorityRoundParams) -> Self {
 		AuthorityRoundParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
-			step_duration: p.step_duration.into(),
+			step_duration: Duration::from_secs(p.step_duration.into()),
 			authority_n: p.authorities.len(),
 			authorities: p.authorities.into_iter().map(Into::into).collect::<Vec<_>>(),
 		}
@@ -62,12 +63,23 @@ pub struct AuthorityRound {
 	builtins: BTreeMap<Address, Builtin>,
 	transistion_service: IoService<BlockArrived>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
-	step: AtomicUsize,
+	step: AtomicUsize
+}
+
+trait AsMillis {
+	fn as_millis(&self) -> u64;
+}
+
+impl AsMillis for Duration {
+	fn as_millis(&self) -> u64 {
+		self.as_secs()*1_000 + (self.subsec_nanos()/1_000_000) as u64
+	}
 }
 
 impl AuthorityRound {
-	/// Create a new instance of AuthorityRound engine
+	/// Create a new instance of AuthorityRound engine.
 	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+		let initial_step = (unix_now().as_secs() / our_params.step_duration.as_secs()) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
@@ -75,15 +87,19 @@ impl AuthorityRound {
 				builtins: builtins,
 				transistion_service: IoService::<BlockArrived>::start().expect("Error creating engine timeout service"),
 				message_channel: Mutex::new(None),
-				step: AtomicUsize::new(0),
+				step: AtomicUsize::new(initial_step),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		engine.transistion_service.register_handler(Arc::new(handler)).expect("Error creating engine timeout service");
+		engine.transistion_service.register_handler(Arc::new(handler)).expect("Error registering engine timeout service");
 		engine
 	}
 
 	fn step(&self) -> usize {
 		self.step.load(AtomicOrdering::SeqCst)
+	}
+
+	fn remaining_step_millis(&self) -> u64 {
+		unix_now().as_millis() % self.our_params.step_duration.as_millis()
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
@@ -94,6 +110,10 @@ impl AuthorityRound {
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
 		self.step_proposer(step) == address
 	}
+}
+
+fn unix_now() -> Duration {
+	UNIX_EPOCH.elapsed().expect("Valid time has to be set in your system.")
 }
 
 struct TransitionHandler {
@@ -108,7 +128,7 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 0;
 impl IoHandler<BlockArrived> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<BlockArrived>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Error registering engine timeout");
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_millis()).expect("Error registering engine timeout");
 		}
 	}
 
@@ -117,31 +137,22 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 			if let Some(engine) = self.engine.upgrade() {
 				debug!(target: "authorityround", "Timeout step: {}", engine.step.load(AtomicOrdering::Relaxed));
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-				if let Some(ref channel) = *engine.message_channel.try_lock().unwrap() {
+				if let Some(ref channel) = *engine.message_channel.try_lock().expect("Could not acquire message channel work.") {
 					match channel.send(ClientIoMessage::UpdateSealing) {
 						Ok(_) => trace!(target: "authorityround", "timeout: UpdateSealing message sent."),
 						Err(_) => trace!(target: "authorityround", "timeout: Could not send a sealing message."),
 					}
 				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_millis()).expect("Failed to restart consensus step timer.")
 			}
 		}
 	}
-
-//	fn message(&self, io: &IoContext<BlockArrived>, _net_message: &BlockArrived) {
-//		if let Some(engine) = self.engine.upgrade() {
-//			trace!(target: "authorityround", "Message: {:?}", get_time().sec);
-//			engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-//			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
-//			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.our_params.step_duration).expect("Failed to restart consensus step timer.")
-//		}
-//	}
 }
 
 impl Engine for AuthorityRound {
 	fn name(&self) -> &str { "AuthorityRound" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
-	// One field - the proposer signature.
+	/// Two fields - consensus step and the corresponding proposer signature.
 	fn seal_fields(&self) -> usize { 2 }
 
 	fn params(&self) -> &CommonParams { &self.params }
@@ -279,7 +290,7 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use std::thread::sleep;
-	use std::time::Duration;
+	use std::time::{Duration, UNIX_EPOCH};
 
 	#[test]
 	fn has_valid_metadata() {
@@ -356,7 +367,9 @@ mod tests {
 		header.set_author(addr);
 
 		let signature = tap.sign_with_password(addr, "0".into(), header.bare_hash()).unwrap();
-		header.set_seal(vec![vec![1u8], encode(&(&*signature as &[u8])).to_vec()]);
+		let timestamp = UNIX_EPOCH.elapsed().unwrap().as_secs();
+		let step = timestamp + timestamp % 2 + 1;
+		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 
 		let engine = Spec::new_test_round().engine;
 
