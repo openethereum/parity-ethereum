@@ -52,6 +52,7 @@ macro_rules! overflowing {
 
 type CodePosition = usize;
 type Gas = U256;
+type Cost = U256;
 type ProgramCounter = usize;
 
 /// Stack trait with VM-friendly API
@@ -269,14 +270,12 @@ impl<'a> CodeReader<'a> {
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
 enum InstructionCost {
 	Gas(U256),
-	GasMem(U256, U256),
+	GasMem(U256, U256, Option<U256>),
 	GasMemCopy(U256, U256, U256)
 }
 
 enum InstructionResult {
 	Ok,
-	UseAllGas,
-	GasLeft(U256),
 	UnusedGas(U256),
 	JumpToPosition(U256),
 	// gas left, init_orf, init_size
@@ -288,6 +287,7 @@ enum InstructionResult {
 #[derive(Default)]
 pub struct Interpreter {
 	mem: Vec<u8>,
+	current_gas: U256,
 }
 
 impl evm::Evm for Interpreter {
@@ -297,7 +297,7 @@ impl evm::Evm for Interpreter {
 		let code = &params.code.as_ref().unwrap();
 		let valid_jump_destinations = self.find_jump_destinations(&code);
 
-		let mut current_gas = params.gas;
+		self.current_gas = params.gas;
 		let mut stack = VecStack::with_capacity(ext.schedule().stack_limit, U256::zero());
 		let mut reader = CodeReader {
 			position: 0,
@@ -308,16 +308,15 @@ impl evm::Evm for Interpreter {
 			let instruction = code[reader.position];
 
 			// Calculate gas cost
-			let (gas_cost, mem_size) = try!(self.get_gas_cost_mem(ext, instruction, &stack));
-
+			let (gas_cost, mem_size, provided) = try!(self.get_gas_cost_mem(ext, instruction, &stack));
 			// TODO: make compile-time removable if too much of a performance hit.
 			let trace_executed = ext.trace_prepare_execute(reader.position, instruction, &gas_cost);
 
 			reader.position += 1;
 
-			try!(self.verify_gas(&current_gas, &gas_cost));
+			try!(self.verify_gas(&self.current_gas, &gas_cost));
 			self.mem.expand(mem_size);
-			current_gas = current_gas - gas_cost; //TODO: use operator -=
+			self.current_gas = self.current_gas - gas_cost; //TODO: use operator -=
 
 			evm_debug!({
 				println!("[0x{:x}][{}(0x{:x}) Gas: {:x}\n  Gas Before: {:x}",
@@ -325,7 +324,7 @@ impl evm::Evm for Interpreter {
 					color(instruction, instructions::get_info(instruction).name),
 					instruction,
 					gas_cost,
-					current_gas + gas_cost
+					self.current_gas + gas_cost
 				);
 			});
 
@@ -336,25 +335,19 @@ impl evm::Evm for Interpreter {
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
-				current_gas, &params, ext, instruction, &mut reader, &mut stack
+				&params, ext, instruction, &mut reader, &mut stack, provided
 			));
 
+			if let InstructionResult::UnusedGas(ref gas) = result {
+				self.current_gas = self.current_gas + *gas;
+			}
+
 			if trace_executed {
-				ext.trace_executed(current_gas, stack.peek_top(get_info(instruction).ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
+				ext.trace_executed(self.current_gas, stack.peek_top(get_info(instruction).ret), mem_written.map(|(o, s)| (o, &(self.mem[o..(o + s)]))), store_written);
 			}
 
 			// Advance
 			match result {
-				InstructionResult::Ok => {},
-				InstructionResult::UnusedGas(gas) => {
-					current_gas = current_gas + gas; //TODO: use operator +=
-				},
-				InstructionResult::UseAllGas => {
-					current_gas = U256::zero();
-				},
-				InstructionResult::GasLeft(gas_left) => {
-					current_gas = gas_left;
-				},
 				InstructionResult::JumpToPosition(position) => {
 					let pos = try!(self.verify_jump(position, &valid_jump_destinations));
 					reader.position = pos;
@@ -363,10 +356,11 @@ impl evm::Evm for Interpreter {
 					return Ok(GasLeft::NeedsReturn(gas, self.mem.read_slice(off, size)));
 				},
 				InstructionResult::StopExecution => break,
+				_ => {},
 			}
 		}
 
-		Ok(GasLeft::Known(current_gas))
+		Ok(GasLeft::Known(self.current_gas))
 	}
 }
 
@@ -377,7 +371,7 @@ impl Interpreter {
 		ext: &evm::Ext,
 		instruction: Instruction,
 		stack: &Stack<U256>
-	) -> evm::Result<(U256, usize)> {
+	) -> evm::Result<(Gas, usize, Option<Gas>)> {
 		let schedule = ext.schedule();
 		let info = instructions::get_info(instruction);
 
@@ -415,26 +409,42 @@ impl Interpreter {
 			instructions::SLOAD => {
 				InstructionCost::Gas(U256::from(schedule.sload_gas))
 			},
+			instructions::BALANCE => {
+				InstructionCost::Gas(Gas::from(schedule.balance_gas))
+			},
+			instructions::EXTCODESIZE => {
+				InstructionCost::Gas(Gas::from(schedule.extcodesize_gas))
+			},
+			instructions::SUICIDE => {
+				let mut gas = Gas::from(schedule.suicide_gas);
+
+				let address = u256_to_address(stack.peek(0));
+				if !ext.exists(&address) {
+					gas = overflowing!(gas.overflowing_add(schedule.suicide_to_new_account_cost.into()));
+				}
+
+				InstructionCost::Gas(gas)
+			},
 			instructions::MSTORE | instructions::MLOAD => {
-				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 32)), None)
 			},
 			instructions::MSTORE8 => {
-				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 1)))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed_const(stack.peek(0), 1)), None)
 			},
 			instructions::RETURN => {
-				InstructionCost::GasMem(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
+				InstructionCost::GasMem(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))), None)
 			},
 			instructions::SHA3 => {
 				let w = overflowing!(add_u256_usize(stack.peek(1), 31));
 				let words = w >> 5;
 				let gas = U256::from(schedule.sha3_gas) + (U256::from(schedule.sha3_word_gas) * words);
-				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
+				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))), None)
 			},
 			instructions::CALLDATACOPY | instructions::CODECOPY => {
 				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(0), stack.peek(2))), stack.peek(2).clone())
 			},
 			instructions::EXTCODECOPY => {
-				InstructionCost::GasMemCopy(default_gas, try!(self.mem_needed(stack.peek(1), stack.peek(3))), stack.peek(3).clone())
+				InstructionCost::GasMemCopy(schedule.extcodecopy_base_gas.into(), try!(self.mem_needed(stack.peek(1), stack.peek(3))), stack.peek(3).clone())
 			},
 			instructions::JUMPDEST => {
 				InstructionCost::Gas(U256::one())
@@ -445,10 +455,10 @@ impl Interpreter {
 
 				let data_gas = overflowing!(stack.peek(1).overflowing_mul(U256::from(schedule.log_data_gas)));
 				let gas = overflowing!(data_gas.overflowing_add(U256::from(log_gas)));
-				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))))
+				InstructionCost::GasMem(gas, try!(self.mem_needed(stack.peek(0), stack.peek(1))), None)
 			},
 			instructions::CALL | instructions::CALLCODE => {
-				let mut gas  = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let mut gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
 					try!(self.mem_needed(stack.peek(5), stack.peek(6))),
 					try!(self.mem_needed(stack.peek(3), stack.peek(4)))
@@ -457,27 +467,46 @@ impl Interpreter {
 				let address = u256_to_address(stack.peek(1));
 
 				if instruction == instructions::CALL && !ext.exists(&address) {
-					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_new_account_gas)));
+					gas = overflowing!(gas.overflowing_add(schedule.call_new_account_gas.into()));
 				};
 
 				if stack.peek(2).clone() > U256::zero() {
-					gas = overflowing!(gas.overflowing_add(U256::from(schedule.call_value_transfer_gas)));
+					gas = overflowing!(gas.overflowing_add(schedule.call_value_transfer_gas.into()));
 				};
+				// TODO: refactor to avoid duplicate calculation here and later on. 
+				let (mem_gas_cost, _) = try!(self.mem_gas_cost(schedule, self.mem.size(), &mem));
+				let cost_so_far = overflowing!(gas.overflowing_add(mem_gas_cost.into()));
+				let requested = *stack.peek(0);
+				let provided = try!(self.gas_provided(schedule, cost_so_far, Some(requested)));
+				gas = overflowing!(gas.overflowing_add(provided));
 
-				InstructionCost::GasMem(gas,mem)
+				InstructionCost::GasMem(gas, mem, Some(provided))
 			},
 			instructions::DELEGATECALL => {
-				let gas = overflowing!(add_u256_usize(stack.peek(0), schedule.call_gas));
+				let mut gas = Gas::from(schedule.call_gas);
 				let mem = cmp::max(
 					try!(self.mem_needed(stack.peek(4), stack.peek(5))),
 					try!(self.mem_needed(stack.peek(2), stack.peek(3)))
 				);
-				InstructionCost::GasMem(gas, mem)
+				// TODO: refactor to avoid duplicate calculation here and later on. 
+				let (mem_gas_cost, _) = try!(self.mem_gas_cost(schedule, self.mem.size(), &mem));
+				let cost_so_far = overflowing!(gas.overflowing_add(mem_gas_cost.into()));
+				let requested = *stack.peek(0);
+				let provided = try!(self.gas_provided(schedule, cost_so_far, Some(requested)));
+				gas = overflowing!(gas.overflowing_add(provided));
+
+				InstructionCost::GasMem(gas, mem, Some(provided))
 			},
 			instructions::CREATE => {
-				let gas = U256::from(schedule.create_gas);
+				let mut gas = Gas::from(schedule.create_gas);
 				let mem = try!(self.mem_needed(stack.peek(1), stack.peek(2)));
-				InstructionCost::GasMem(gas, mem)
+				// TODO: refactor to avoid duplicate calculation here and later on. 
+				let (mem_gas_cost, _) = try!(self.mem_gas_cost(schedule, self.mem.size(), &mem));
+				let cost_so_far = overflowing!(gas.overflowing_add(mem_gas_cost.into()));
+				let provided = try!(self.gas_provided(schedule, cost_so_far, None));
+				gas = overflowing!(gas.overflowing_add(provided));
+
+				InstructionCost::GasMem(gas, mem, Some(provided))
 			},
 			instructions::EXP => {
 				let expon = stack.peek(1);
@@ -485,17 +514,17 @@ impl Interpreter {
 				let gas = U256::from(schedule.exp_gas + schedule.exp_byte_gas * bytes);
 				InstructionCost::Gas(gas)
 			},
-			_ => InstructionCost::Gas(default_gas)
+			_ => InstructionCost::Gas(default_gas),
 		};
 
 		match cost {
 			InstructionCost::Gas(gas) => {
-				Ok((gas, 0))
+				Ok((gas, 0, None))
 			},
-			InstructionCost::GasMem(gas, mem_size) => {
+			InstructionCost::GasMem(gas, mem_size, provided) => {
 				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, self.mem.size(), &mem_size));
 				let gas = overflowing!(gas.overflowing_add(mem_gas));
-				Ok((gas, new_mem_size))
+				Ok((gas, new_mem_size, provided))
 			},
 			InstructionCost::GasMemCopy(gas, mem_size, copy) => {
 				let (mem_gas, new_mem_size) = try!(self.mem_gas_cost(schedule, self.mem.size(), &mem_size));
@@ -503,7 +532,32 @@ impl Interpreter {
 				let copy_gas = U256::from(schedule.copy_gas) * (copy / U256::from(32));
 				let gas = overflowing!(gas.overflowing_add(copy_gas));
 				let gas = overflowing!(gas.overflowing_add(mem_gas));
-				Ok((gas, new_mem_size))
+				Ok((gas, new_mem_size, None))
+			}
+		}
+	}
+
+	/// How much gas is provided to a CALL/CREATE, given that we need to deduct `needed` for this operation
+	/// and that we `requested` some.
+	pub fn gas_provided(&self, schedule: &evm::Schedule, needed: Gas, requested: Option<Gas>) -> evm::Result<Gas> {
+		match schedule.sub_gas_cap_divisor {
+			Some(cap_divisor) if self.current_gas >= needed => {
+				let gas_remaining = self.current_gas - needed;
+				let max_gas_provided = gas_remaining - gas_remaining / Gas::from(cap_divisor);
+				if let Some(r) = requested {
+					Ok(min(r, max_gas_provided))
+				} else {
+					Ok(max_gas_provided)
+				}
+			},
+			_ => {
+				if let Some(r) = requested {
+					Ok(r)
+				} else if self.current_gas >= needed {
+					Ok(self.current_gas - needed)
+				} else {
+					Ok(0.into())
+				}
 			}
 		}
 	}
@@ -573,12 +627,12 @@ impl Interpreter {
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]
 	fn exec_instruction(
 		&mut self,
-		gas: Gas,
 		params: &ActionParams,
 		ext: &mut evm::Ext,
 		instruction: Instruction,
 		code: &mut CodeReader,
-		stack: &mut Stack<U256>
+		stack: &mut Stack<U256>,
+		provided: Option<Cost>
 	) -> evm::Result<InstructionResult> {
 		match instruction {
 			instructions::JUMP => {
@@ -603,31 +657,32 @@ impl Interpreter {
 				let endowment = stack.pop_back();
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
+				let create_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is `CREATE`; qed");
 
 				let contract_code = self.mem.read_slice(init_off, init_size);
 				let can_create = ext.balance(&params.address) >= endowment && ext.depth() < ext.schedule().max_depth;
 
 				if !can_create {
 					stack.push(U256::zero());
-					return Ok(InstructionResult::Ok);
+					return Ok(InstructionResult::UnusedGas(create_gas));
 				}
 
-				let create_result = ext.create(&gas, &endowment, &contract_code);
+				let create_result = ext.create(&create_gas, &endowment, &contract_code);
 				return match create_result {
 					ContractCreateResult::Created(address, gas_left) => {
 						stack.push(address_to_u256(address));
-						Ok(InstructionResult::GasLeft(gas_left))
+						Ok(InstructionResult::UnusedGas(gas_left))
 					},
 					ContractCreateResult::Failed => {
 						stack.push(U256::zero());
-						// TODO [todr] Should we just StopExecution here?
-						Ok(InstructionResult::UseAllGas)
+						Ok(InstructionResult::Ok)
 					}
 				};
 			},
 			instructions::CALL | instructions::CALLCODE | instructions::DELEGATECALL => {
 				assert!(ext.schedule().call_value_transfer_gas > ext.schedule().call_stipend, "overflow possible");
-				let call_gas = stack.pop_back();
+				stack.pop_back();
+				let call_gas = provided.expect("`provided` comes through Self::exec from `Gasometer::get_gas_cost_mem`; `gas_gas_mem_cost` guarantees `Some` when instruction is `CALL`/`CALLCODE`/`DELEGATECALL`/`CREATE`; this is one of `CALL`/`CALLCODE`/`DELEGATECALL`; qed");
 				let code_address = stack.pop_back();
 				let code_address = u256_to_address(&code_address);
 
@@ -691,7 +746,7 @@ impl Interpreter {
 				let init_off = stack.pop_back();
 				let init_size = stack.pop_back();
 
-				return Ok(InstructionResult::StopExecutionNeedsReturn(gas, init_off, init_size))
+				return Ok(InstructionResult::StopExecutionNeedsReturn(self.current_gas, init_off, init_size))
 			},
 			instructions::STOP => {
 				return Ok(InstructionResult::StopExecution);
@@ -760,7 +815,7 @@ impl Interpreter {
 				stack.push(U256::from(code.position - 1));
 			},
 			instructions::GAS => {
-				stack.push(gas.clone());
+				stack.push(self.current_gas.clone());
 			},
 			instructions::ADDRESS => {
 				stack.push(address_to_u256(params.address.clone()));

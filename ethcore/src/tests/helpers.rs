@@ -30,7 +30,8 @@ use miner::Miner;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-	DaoHardfork,
+	Eip150,
+	TransitionTest,
 }
 
 #[cfg(test)]
@@ -62,7 +63,7 @@ impl TestEngine {
 	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
 			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }
