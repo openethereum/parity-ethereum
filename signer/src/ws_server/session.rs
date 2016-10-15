@@ -47,7 +47,7 @@ mod signer {
 #[cfg(not(feature = "ui"))]
 mod signer {
 	pub struct File {
-		pub content: &'static str,
+		pub content: &'static [u8],
 		pub content_type: &'static str,
 	}
 
