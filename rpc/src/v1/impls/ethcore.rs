@@ -36,7 +36,6 @@ use v1::traits::Ethcore;
 use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
-use v1::helpers::params::expect_no_params;
 use v1::helpers::auto_args::Ready;
 
 /// Ethcore implementation.
