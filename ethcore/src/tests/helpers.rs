@@ -35,19 +35,20 @@ use db::COL_STATE;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-	DaoHardfork,
+	Eip150,
+	TransitionTest,
 }
 
 pub struct TestEngine {
 	engine: Arc<Engine>,
-	max_depth: usize
+	max_depth: usize,
 }
 
 impl TestEngine {
 	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
 			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }

@@ -80,6 +80,19 @@ pub struct Schedule {
 	pub tx_data_non_zero_gas: usize,
 	/// Gas price for copying memory
 	pub copy_gas: usize,
+	/// Price of EXTCODESIZE
+	pub extcodesize_gas: usize,
+	/// Base price of EXTCODECOPY
+	pub extcodecopy_base_gas: usize,
+	/// Price of BALANCE
+	pub balance_gas: usize,
+	/// Price of SUICIDE
+	pub suicide_gas: usize,
+	/// Amount of additional gas to pay when SUICIDE credits a non-existant account
+	pub suicide_to_new_account_cost: usize,
+	/// If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
+	/// If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
+	pub sub_gas_cap_divisor: Option<usize>,
 }
 
 impl Schedule {
@@ -91,6 +104,49 @@ impl Schedule {
 	/// Schedule for the Homestead-era of the Ethereum main net.
 	pub fn new_homestead() -> Schedule {
 		Self::new(true, true, 53000)
+	}
+
+	/// Schedule for the Homestead-era of the Ethereum main net.
+	pub fn new_homestead_gas_fix() -> Schedule {
+		Schedule{
+			exceptional_failed_code_deposit: true,
+			have_delegate_call: true,
+			stack_limit: 1024,
+			max_depth: 1024,
+			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
+			exp_gas: 10,
+			exp_byte_gas: 10,
+			sha3_gas: 30,
+			sha3_word_gas: 6,
+			sload_gas: 200,
+			sstore_set_gas: 20000,
+			sstore_reset_gas: 5000,
+			sstore_refund_gas: 15000,
+			jumpdest_gas: 1,
+			log_gas: 375,
+			log_data_gas: 8,
+			log_topic_gas: 375,
+			create_gas: 32000,
+			call_gas: 700,
+			call_stipend: 2300,
+			call_value_transfer_gas: 9000,
+			call_new_account_gas: 25000,
+			suicide_refund_gas: 24000,
+			memory_gas: 3,
+			quad_coeff_div: 512,
+			create_data_gas: 200,
+			tx_gas: 21000,
+			tx_create_gas: 53000,
+			tx_data_zero_gas: 4,
+			tx_data_non_zero_gas: 68,
+			copy_gas: 3,
+			extcodesize_gas: 700,
+			extcodecopy_base_gas: 700,
+			balance_gas: 400,
+			suicide_gas: 5000,
+			suicide_to_new_account_cost: 25000,
+			sub_gas_cap_divisor: Some(64),
+		}
 	}
 
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
@@ -126,6 +182,12 @@ impl Schedule {
 			tx_data_zero_gas: 4,
 			tx_data_non_zero_gas: 68,
 			copy_gas: 3,
+			extcodesize_gas: 20,
+			extcodecopy_base_gas: 20,
+			balance_gas: 20,
+			suicide_gas: 0,
+			suicide_to_new_account_cost: 0,
+			sub_gas_cap_divisor: None,
 		}
 	}
 }
