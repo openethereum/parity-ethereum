@@ -39,22 +39,19 @@ pub fn expand_webapp_implementation(
 	meta_item: &MetaItem,
 	annotatable: &Annotatable,
 	push: &mut FnMut(Annotatable)
-	) {
-		let item = match *annotatable {
-			Annotatable::Item(ref item) => item,
-			_ => {
-				cx.span_err(meta_item.span, "`#[derive(WebAppFiles)]` may only be applied to struct implementations");
-				return;
-			},
-		};
-
-		let builder = aster::AstBuilder::new().span(span);
-
-		implement_webapp(cx, &builder, &item, push);
-	}
+) {
+	let item = match *annotatable {
+		Annotatable::Item(ref item) => item,
+		_ => {
+			cx.span_err(meta_item.span, "`#[derive(WebAppFiles)]` may only be applied to struct implementations");
+			return;
+		},
+	};
+	let builder = aster::AstBuilder::new().span(span);
+	implement_webapp(cx, &builder, &item, push);
+}
 
 fn implement_webapp(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push: &mut FnMut(Annotatable)) {
-
 	let static_files_dir = extract_path(cx, item);
 
 	let src = Path::new("src");
@@ -94,25 +91,27 @@ fn implement_webapp(cx: &ExtCtxt, builder: &aster::AstBuilder, item: &Item, push
 			let env_id = builder.id("env!");
 			let macro_id = builder.id("include_bytes!");
 
-			let content = quote_expr!(cx,
-									  $macro_id($concat_id($env_id("CARGO_MANIFEST_DIR"), $separator_lit, $web_path_lit))
-									 );
-			quote_stmt!(cx,
-						files.insert($path_lit, File { path: $path_lit, content_type: $mime_lit, content: $content });
-					   ).expect("The statement is always ok, because it just uses literals.")
+			let content = quote_expr!(
+				cx,
+				$macro_id($concat_id($env_id("CARGO_MANIFEST_DIR"), $separator_lit, $web_path_lit))
+			);
+			quote_stmt!(
+				cx,
+				files.insert($path_lit, File { path: $path_lit, content_type: $mime_lit, content: $content });
+			).expect("The statement is always ok, because it just uses literals.")
 		}).collect::<Vec<ast::Stmt>>();
 
 	let type_name = item.ident;
 
 	let files_impl = quote_item!(cx,
-								   impl $type_name {
-									   fn files() -> ::std::collections::HashMap<&'static str, File> {
-										   let mut files = ::std::collections::HashMap::new();
-										   $statements
-										   files
-									   }
-								   }
-								  ).unwrap();
+		impl $type_name {
+			fn files() -> ::std::collections::HashMap<&'static str, File> {
+				let mut files = ::std::collections::HashMap::new();
+				$statements
+				files
+			}
+		}
+	).unwrap();
 
 	push(Annotatable::Item(files_impl));
 }
@@ -142,9 +141,10 @@ fn get_str_from_lit(cx: &ExtCtxt, name: &str, lit: &ast::Lit) -> Option<Interned
 			cx.span_err(
 				lit.span,
 				&format!("webapp annotation `{}` must be a string, not `{}`",
-						 name,
-						 lit_to_string(lit)));
-
+					name,
+					lit_to_string(lit)
+				)
+			);
 			return None;
 		}
 	}
