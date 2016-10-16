@@ -188,6 +188,12 @@ Sealing/Mining Options:
                            the queue. LIMIT can be either an amount of gas or
                            'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. (default: {flag_tx_queue_gas}).
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas - Prioritize txs with low gas limit;
+                           gas_price - Prioritize txs with high gas price;
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio (default: {flag_tx_queue_strategy}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions

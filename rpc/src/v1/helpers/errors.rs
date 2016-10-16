@@ -43,6 +43,7 @@ mod codes {
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
 	pub const COMPILATION_ERROR: i64 = -32050;
+	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
 }
 
@@ -163,6 +164,14 @@ pub fn signer_disabled() -> Error {
 		code: ErrorCode::ServerError(codes::SIGNER_DISABLED),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
 		data: None
+	}
+}
+
+pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
+		message: "Encryption error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
 

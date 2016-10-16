@@ -264,7 +264,7 @@ fn rpc_eth_sign() {
 	let account = tester.accounts_provider.new_account("abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
-	let signed = tester.accounts_provider.sign(account, message).unwrap();
+	let signed = tester.accounts_provider.sign(account, None, message).unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -709,7 +709,7 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
@@ -726,7 +726,7 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
@@ -791,7 +791,7 @@ fn rpc_eth_send_raw_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let rlp = ::rlp::encode(&t).to_vec().to_hex();

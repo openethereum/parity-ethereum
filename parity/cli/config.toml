@@ -40,7 +40,7 @@ force_sealing = true
 reseal_on_txs = "all"
 reseal_min_period = 4000
 price_update_period = "hourly"
-tx_queue_size = 2048
+tx_queue_size = 1024
 tx_queue_gas = "auto"
 
 [footprint]

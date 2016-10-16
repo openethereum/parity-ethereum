@@ -9,10 +9,10 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x118c30",
+				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
-				"daoHardforkAccounts": [  
+				"daoHardforkAccounts": [
 					"0xd4fe7bc31cedb7bfb8a345f31e668033056b2728",
 					"0xb3fb0e5aba0e20e5c49d252dfd30e102b171a425",
 					"0x2c19c7f9ae8b751e37aeb2d93a699722395ae18f",
@@ -129,7 +129,8 @@
 					"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97",
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
-				]
+				],
+				"eip150Transition": "0x259518"
 			}
 		}
 	},

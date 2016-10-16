@@ -22,7 +22,7 @@ use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::{PendingSet, GasLimit};
+use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::upgrade;
@@ -98,6 +98,15 @@ pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
 		"auto" => Ok(GasLimit::Auto),
 		"off" => Ok(GasLimit::None),
 		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+	}
+}
+
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
+	match s {
+		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
