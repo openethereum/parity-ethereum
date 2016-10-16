@@ -11,10 +11,11 @@
 				"durationLimit": "0x3C",
 				"blockReward": "0x6f05b59d3b200000",
 				"registrar" : "0x6c221ca53705f3497ec90ca7b84c59ae7382fc21",
-				"frontierCompatibilityModeLimit": "0x30d40",
+				"homesteadTransition": "0x30d40",
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
-				"bombDefuseTransition": "0x30d40"
+				"bombDefuseTransition": "0x30d40",
+				"eip150Transition": "0x7fffffffffffffff"				
 			}
 		}
 	},

@@ -24,9 +24,9 @@ use util::{U256, Address, H256, Mutex};
 use transient_hashmap::TransientHashMap;
 use ethcore::account_provider::AccountProvider;
 use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest, SignerService};
-use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch};
+use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch, sign, decrypt};
 use v1::traits::EthSigning;
-use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, U256 as RpcU256, Bytes as RpcBytes};
+use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, U256 as RpcU256, Bytes as RpcBytes};
 
 fn fill_optional_fields<C, M>(request: TRequest, client: &C, miner: &M) -> FilledRequest
 	where C: MiningBlockChainClient, M: MinerService {
@@ -76,60 +76,65 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 		Ok(())
 	}
 
+	fn add_to_queue<WhenUnlocked, Payload>(&self, sender: Address, when_unlocked: WhenUnlocked, payload: Payload)
+		-> Result<DispatchResult, Error> where
+			WhenUnlocked: Fn(&AccountProvider) -> Result<Value, Error>,
+			Payload: Fn() -> ConfirmationPayload, {
+
+		let accounts = take_weak!(self.accounts);
+		if accounts.is_unlocked(sender) {
+			return when_unlocked(&accounts).map(DispatchResult::Value);
+		}
+
+		take_weak!(self.signer).add_request(payload())
+			.map(DispatchResult::Promise)
+			.map_err(|_| errors::request_rejected_limit())
+	}
+
+	fn handle_dispatch(&self, res: Result<DispatchResult, Error>, ready: Ready) {
+		match res {
+			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
+			Ok(DispatchResult::Promise(promise)) => {
+				promise.wait_for_result(move |result| {
+					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
+				})
+			},
+			Err(e) => ready.ready(Err(e)),
+		}
+	}
+
 	fn dispatch_sign(&self, params: Params) -> Result<DispatchResult, Error> {
 		from_params::<(RpcH160, RpcH256)>(params).and_then(|(address, msg)| {
 			let address: Address = address.into();
 			let msg: H256 = msg.into();
 
-			let accounts = take_weak!(self.accounts);
-			if accounts.is_unlocked(address) {
-				return Ok(DispatchResult::Value(to_value(&accounts.sign(address, msg).ok().map_or_else(RpcH520::default, Into::into))))
-			}
-
-			let signer = take_weak!(self.signer);
-			signer.add_request(ConfirmationPayload::Sign(address, msg))
-				.map(DispatchResult::Promise)
-				.map_err(|_| errors::request_rejected_limit())
+			self.add_to_queue(
+				address,
+				|accounts| sign(accounts, address, None, msg.clone()),
+				|| ConfirmationPayload::Sign(address, msg.clone()),
+			)
 		})
 	}
 
 	fn dispatch_transaction(&self, params: Params) -> Result<DispatchResult, Error> {
-		from_params::<(TransactionRequest, )>(params)
-			.and_then(|(request, )| {
-				let request: TRequest = request.into();
-				let accounts = take_weak!(self.accounts);
-				let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
-
-				if accounts.is_unlocked(request.from) {
-					let sender = request.from;
-					return sign_and_dispatch(&*client, &*miner, request, &*accounts, sender).map(DispatchResult::Value);
+		from_params::<(TransactionRequest, )>(params).and_then(|(request, )| {
+			let request: TRequest = request.into();
+			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+			self.add_to_queue(
+				request.from,
+				|accounts| sign_and_dispatch(&*client, &*miner, accounts, request.clone(), None),
+				|| {
+					let request = fill_optional_fields(request.clone(), &*client, &*miner);
+					ConfirmationPayload::Transaction(request)
 				}
-
-				let signer = take_weak!(self.signer);
-				let request = fill_optional_fields(request, &*client, &*miner);
-				signer.add_request(ConfirmationPayload::Transaction(request))
-					.map(DispatchResult::Promise)
-					.map_err(|_| errors::request_rejected_limit())
-			})
+			)
+		})
 	}
 }
 
 impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 	where C: MiningBlockChainClient + 'static, M: MinerService + 'static
 {
-
-	fn sign(&self, params: Params, ready: Ready) {
-		let res = self.active().and_then(|_| self.dispatch_sign(params));
-		match res {
-			Ok(DispatchResult::Promise(promise)) => {
-				promise.wait_for_result(move |result| {
-					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
-				})
-			},
-			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
-			Err(e) => ready.ready(Err(e)),
-		}
-	}
 
 	fn post_sign(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
@@ -143,19 +148,6 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 		})
 	}
 
-	fn send_transaction(&self, params: Params, ready: Ready) {
-		let res = self.active().and_then(|_| self.dispatch_transaction(params));
-		match res {
-			Ok(DispatchResult::Promise(promise)) => {
-				promise.wait_for_result(move |result| {
-					ready.ready(result.unwrap_or_else(|| Err(errors::request_rejected())))
-				})
-			},
-			Ok(DispatchResult::Value(v)) => ready.ready(Ok(v)),
-			Err(e) => ready.ready(Err(e)),
-		}
-	}
-
 	fn post_transaction(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		self.dispatch_transaction(params).map(|result| match result {
@@ -165,13 +157,6 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 				self.pending.lock().insert(id, promise);
 				to_value(&RpcU256::from(id))
 			},
-		})
-	}
-
-	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(_account, _ciphertext)| {
-			Err(errors::unimplemented())
 		})
 	}
 
@@ -191,6 +176,32 @@ impl<C, M> EthSigning for EthSigningQueueClient<C, M>
 			pending.remove(&id);
 			res
 		})
+	}
+
+	fn sign(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.dispatch_sign(params));
+		self.handle_dispatch(res, ready);
+	}
+
+	fn send_transaction(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.dispatch_transaction(params));
+		self.handle_dispatch(res, ready);
+	}
+
+	fn decrypt_message(&self, params: Params, ready: Ready) {
+		let res = self.active()
+			.and_then(|_| from_params::<(RpcH160, RpcBytes)>(params))
+			.and_then(|(address, msg)| {
+				let address: Address = address.into();
+
+				self.add_to_queue(
+					address,
+					|accounts| decrypt(accounts, address, None, msg.clone().into()),
+					|| ConfirmationPayload::Decrypt(address, msg.clone().into())
+				)
+			});
+
+		self.handle_dispatch(res, ready);
 	}
 }
 
@@ -232,9 +243,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		ready.ready(self.active()
 			.and_then(|_| from_params::<(RpcH160, RpcH256)>(params))
 			.and_then(|(address, msg)| {
-				let address: Address = address.into();
-				let msg: H256 = msg.into();
-				Ok(to_value(&take_weak!(self.accounts).sign(address, msg).ok().map_or_else(RpcH520::default, Into::into)))
+				sign(&*take_weak!(self.accounts), address.into(), None, msg.into())
 			}))
 	}
 
@@ -242,18 +251,16 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		ready.ready(self.active()
 			.and_then(|_| from_params::<(TransactionRequest, )>(params))
 			.and_then(|(request, )| {
-				let request: TRequest = request.into();
-				let sender = request.from;
-				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), request, &*take_weak!(self.accounts), sender)
+				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None)
 			}))
 	}
 
-	fn decrypt_message(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		from_params::<(RpcH160, RpcBytes)>(params).and_then(|(address, ciphertext)| {
-			let s = try!(take_weak!(self.accounts).decrypt(address.into(), &[0; 0], &ciphertext.0).map_err(|_| Error::internal_error()));
-			Ok(to_value(RpcBytes::from(s)))
-		})
+	fn decrypt_message(&self, params: Params, ready: Ready) {
+		ready.ready(self.active()
+			.and_then(|_| from_params::<(RpcH160, RpcBytes)>(params))
+			.and_then(|(address, ciphertext)| {
+				decrypt(&*take_weak!(self.accounts), address.into(), None, ciphertext.0)
+			}))
 	}
 
 	fn post_sign(&self, _: Params) -> Result<Value, Error> {

@@ -186,7 +186,7 @@ fn should_confirm_transaction_and_dispatch() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "test".into()).unwrap();
-	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	assert_eq!(tester.signer.requests().len(), 1);

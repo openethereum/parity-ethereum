@@ -19,6 +19,7 @@ use util::log::RotatingLogger;
 use util::U256;
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
+use ethstore::ethkey::{Generator, Random};
 
 use jsonrpc_core::IoHandler;
 use v1::{Ethcore, EthcoreClient};
@@ -34,7 +35,7 @@ fn client_service() -> Arc<TestBlockChainClient> {
 	Arc::new(TestBlockChainClient::default())
 }
 
-fn sync_provider() -> Arc<TestSyncProvider> {
+pub fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
 		network_id: U256::from(3),
 		num_peers: 120,
@@ -56,13 +57,13 @@ fn settings() -> Arc<NetworkSettings> {
 	})
 }
 
-fn network_service() -> Arc<ManageNetwork> {
+pub fn network_service() -> Arc<ManageNetwork> {
 	Arc::new(TestManageNetwork)
 }
 
-type TestEthcoreClient = EthcoreClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestFetch>;
+pub type TestEthcoreClient = EthcoreClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestFetch>;
 
-fn ethcore_client(
+pub fn ethcore_client(
 	client: &Arc<TestBlockChainClient>,
 	miner: &Arc<TestMinerService>,
 	sync: &Arc<TestSyncProvider>,
@@ -323,4 +324,18 @@ fn rpc_ethcore_pending_transactions() {
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_encrypt() {
+	let miner = miner_service();
+	let client = client_service();
+	let sync = sync_provider();
+	let net = network_service();
+	let io = IoHandler::new();
+	io.add_delegate(ethcore_client(&client, &miner, &sync, &net).to_delegate());
+	let key = format!("{:?}", Random.generate().unwrap().public());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":["0x"#.to_owned() + &key + r#"", "0x01"], "id": 1}"#;
+	assert!(io.handle_request_sync(&request).unwrap().contains("result"), "Should return success.");
 }

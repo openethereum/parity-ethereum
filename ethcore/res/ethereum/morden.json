@@ -9,7 +9,8 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar": "0x52dff57a8a1532e6afb3dc07e2af58bb9eb05b3d",
-				"frontierCompatibilityModeLimit": "0x789b0"
+				"homesteadTransition": "0x789b0",
+				"eip150Transition": "0x1b34d8"
 			}
 		}
 	},
