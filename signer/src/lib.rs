@@ -54,6 +54,8 @@ extern crate jsonrpc_core;
 extern crate ws;
 #[cfg(feature = "ui")]
 extern crate parity_dapps_signer as signer;
+#[cfg(feature = "ui")]
+extern crate parity_dapps as dapps;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 

@@ -16,16 +16,20 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
-use jsonrpc_core::{IoHandler, to_value};
+use jsonrpc_core::{IoHandler, to_value, Success};
 use v1::impls::EthSigningQueueClient;
-use v1::traits::EthSigning;
+use v1::traits::{EthSigning, Ethcore};
 use v1::helpers::{SignerService, SigningQueue};
-use v1::types::{H256 as RpcH256, H520 as RpcH520};
+use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
+use v1::tests::mocked::ethcore;
+
 use util::{Address, FixedHash, Uint, U256, H256, H520};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
+use ethstore::ethkey::{Generator, Random};
+use serde_json;
 
 struct EthSigningTester {
 	pub signer: Arc<SignerService>,
@@ -178,7 +182,7 @@ fn should_sign_if_account_is_unlocked() {
 	let acc = tester.accounts.new_account("test").unwrap();
 	tester.accounts.unlock_account_permanently(acc, "test".into()).unwrap();
 
-	let signature = tester.accounts.sign(acc, hash).unwrap();
+	let signature = tester.accounts.sign(acc, None, hash).unwrap();
 
 	// when
 	let request = r#"{
@@ -242,7 +246,7 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts.sign(acc, t.hash()).unwrap();
+	let signature = tester.accounts.sign(acc, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	// when
@@ -262,4 +266,66 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+}
+
+#[test]
+fn should_decrypt_message_if_account_is_unlocked() {
+	// given
+	let tester = eth_signing();
+	let sync = ethcore::sync_provider();
+	let net = ethcore::network_service();
+	let ethcore_client = ethcore::ethcore_client(&tester.client, &tester.miner, &sync, &net);
+	tester.io.add_delegate(ethcore_client.to_delegate());
+	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
+	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
+
+
+	// First encrypt message
+	let request = format!("{}0x{:?}{}",
+		r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":[""#,
+		public,
+		r#"", "0x01020304"], "id": 1}"#
+	);
+	let encrypted: Success = serde_json::from_str(&tester.io.handle_request_sync(&request).unwrap()).unwrap();
+
+	// then call decrypt
+	let request = format!("{}{:?}{}{:?}{}",
+		r#"{"jsonrpc": "2.0", "method": "ethcore_decryptMessage", "params":["0x"#,
+		address,
+		r#"","#,
+		encrypted.result,
+		r#"], "id": 1}"#
+	);
+	println!("Request: {:?}", request);
+	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
+}
+
+#[test]
+fn should_add_decryption_to_the_queue() {
+	// given
+	let tester = eth_signing();
+	let acc = Random.generate().unwrap();
+	assert_eq!(tester.signer.requests().len(), 0);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "ethcore_decryptMessage",
+		"params": ["0x"#.to_owned() + &format!("{:?}", acc.address()) + r#"",
+		"0x012345"],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
+
+	// then
+	let async_result = tester.io.handle_request(&request).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+	// respond
+	tester.signer.request_confirmed(U256::from(1), Ok(to_value(Bytes(vec![0x1, 0x2]))));
+	assert!(async_result.on_result(move |res| {
+		assert_eq!(res, response.to_owned());
+	}));
 }
