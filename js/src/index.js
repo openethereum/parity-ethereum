@@ -73,6 +73,7 @@ ReactDOM.render(
         <Route path='contract/:address' component={ Contract } />
         <Route path='settings' component={ Settings }>
           <Route path='background' component={ SettingsBackground } />
+          <Route path='proxy' component={ SettingsProxy } />
           <Route path='views' component={ SettingsViews } />
         </Route>
         <Route path='signer' component={ Signer } />

@@ -34,6 +34,7 @@
 .tabactive {
   padding: 16px 2em !important;
   line-height: 24px !important;
+  width: auto !important;
 }
 
 .tabactive {

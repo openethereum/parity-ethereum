@@ -57,8 +57,8 @@ class Background extends Component {
         <ContainerTitle title='Background Pattern' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <p><strong>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token.</strong> This is so that decentralized applications cannot pretend to be trustworthy.</p>
-            <p>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser's cache or use a new Signer token.</p>
+            <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
+            <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.bgcontainer }>
