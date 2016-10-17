@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
-import { Badge, ParityBackground, Tooltip } from '../../../ui';
+import { Badge, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/ethcore-block.png';
@@ -50,14 +50,12 @@ class TabBar extends Component {
 
   render () {
     return (
-      <ParityBackground>
-        <Toolbar
-          className={ styles.toolbar }>
-          { this.renderLogo() }
-          { this.renderTabs() }
-          { this.renderLast() }
-        </Toolbar>
-      </ParityBackground>
+      <Toolbar
+        className={ styles.toolbar }>
+        { this.renderLogo() }
+        { this.renderTabs() }
+        { this.renderLast() }
+      </Toolbar>
     );
   }
 
