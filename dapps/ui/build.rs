@@ -14,17 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
+extern crate parity_dapps_glue;
 
-const styles = {
-  padding: '.5em',
-  border: '1px solid #777'
-};
-
-export default (address) => (
-  <img
-    src={ `http://127.0.0.1:8080/${address}/` }
-    alt={ address }
-    style={ styles }
-  />
-);
+fn main() {
+	parity_dapps_glue::js::build(concat!(env!("CARGO_MANIFEST_DIR"), "../../js"));
+	parity_dapps_glue::generate();
+}

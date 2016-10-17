@@ -267,7 +267,7 @@ export default class Token extends Component {
           </span> meta-data:
         </p>
         <div className={ styles['meta-image'] }>
-          <img src={ `/api/content/${imageHash}/` } />
+          <img src={ `http://127.0.0.1:8080/api/content/${imageHash}/` } />
         </div>
       </div>);
     }

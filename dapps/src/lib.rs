@@ -57,13 +57,16 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
-extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+
+extern crate parity_dapps_glue;
+// TODO [ToDr] - Deprecate when we get rid of old dapps.
+extern crate parity_dapps;
 
 mod endpoint;
 mod apps;

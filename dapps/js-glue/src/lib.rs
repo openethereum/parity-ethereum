@@ -14,17 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
 
-const styles = {
-  padding: '.5em',
-  border: '1px solid #777'
-};
+#![cfg_attr(not(feature = "with-syntex"), feature(rustc_private, plugin))]
+#![cfg_attr(not(feature = "with-syntex"), plugin(quasi_macros))]
 
-export default (address) => (
-  <img
-    src={ `http://127.0.0.1:8080/${address}/` }
-    alt={ address }
-    style={ styles }
-  />
-);
+#[cfg(feature = "with-syntex")]
+extern crate syntex;
+
+#[cfg(feature = "with-syntex")]
+#[macro_use]
+extern crate syntex_syntax as syntax;
+
+#[cfg(feature = "with-syntex")]
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));
+
+#[cfg(not(feature = "with-syntex"))]
+#[macro_use]
+extern crate syntax;
+
+#[cfg(not(feature = "with-syntex"))]
+extern crate rustc_plugin;
+
+#[cfg(not(feature = "with-syntex"))]
+include!("lib.rs.in");
