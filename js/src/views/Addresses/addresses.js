@@ -21,7 +21,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -37,11 +37,13 @@ class Addresses extends Component {
   }
 
   state = {
-    showAdd: false
+    showAdd: false,
+    searchValue: ''
   }
 
   render () {
     const { balances, contacts, hasContacts } = this.props;
+    const { searchValue } = this.state;
 
     return (
       <div className={ styles.addresses }>
@@ -50,6 +52,7 @@ class Addresses extends Component {
         <Page>
           <List
             link='address'
+            search={ searchValue }
             accounts={ contacts }
             balances={ balances }
             empty={ !hasContacts } />
@@ -58,13 +61,25 @@ class Addresses extends Component {
     );
   }
 
+  renderSearchButton () {
+    const onChange = (value) => {
+      this.setState({ searchValue: value });
+    };
+
+    return (<ActionbarSearch
+      key='searchAddress'
+      onChange={ onChange } />);
+  }
+
   renderActionbar () {
     const buttons = [
       <Button
         key='newAddress'
         icon={ <ContentAdd /> }
         label='new address'
-        onClick={ this.onOpenAdd } />
+        onClick={ this.onOpenAdd } />,
+
+      this.renderSearchButton()
     ];
 
     return (

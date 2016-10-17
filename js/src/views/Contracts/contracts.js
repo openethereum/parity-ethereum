@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, Button, Page } from '../../ui';
 import { AddContract, DeployContract } from '../../modals';
 
 import List from '../Accounts/List';
@@ -40,11 +40,13 @@ class Contracts extends Component {
 
   state = {
     addContract: false,
-    deployContract: false
+    deployContract: false,
+    searchValue: ''
   }
 
   render () {
     const { contracts, hasContracts, balances } = this.props;
+    const { searchValue } = this.state;
 
     return (
       <div className={ styles.contracts }>
@@ -55,12 +57,23 @@ class Contracts extends Component {
         <Page>
           <List
             link='contract'
+            search={ searchValue }
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts } />
         </Page>
       </div>
     );
+  }
+
+  renderSearchButton () {
+    const onChange = (value) => {
+      this.setState({ searchValue: value });
+    };
+
+    return (<ActionbarSearch
+      key='searchContract'
+      onChange={ onChange } />);
   }
 
   renderActionbar () {
@@ -74,7 +87,9 @@ class Contracts extends Component {
         key='deployContract'
         icon={ <ContentAdd /> }
         label='deploy contract'
-        onClick={ this.onDeployContract } />
+        onClick={ this.onDeployContract } />,
+
+        this.renderSearchButton()
     ];
 
     return (

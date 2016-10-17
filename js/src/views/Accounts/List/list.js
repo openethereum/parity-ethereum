@@ -26,6 +26,7 @@ export default class List extends Component {
     accounts: PropTypes.object,
     balances: PropTypes.object,
     link: PropTypes.string,
+    search: PropTypes.string,
     empty: PropTypes.bool
   };
 
@@ -38,7 +39,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty } = this.props;
+    const { accounts, balances, link, empty, search } = this.props;
 
     if (empty) {
       return (
@@ -50,7 +51,20 @@ export default class List extends Component {
       );
     }
 
-    return Object.keys(accounts).map((address, idx) => {
+    const searchValue = (search || '').toLowerCase();
+    const filteredAddresses = (searchValue && searchValue.length > 0)
+      ? Object.keys(accounts)
+          .filter((address) => {
+            const account = accounts[address];
+            const tags = account.meta.tags || [];
+
+            return tags
+              .filter((tag) => tag.toLowerCase().indexOf(searchValue) >= 0)
+              .length > 0;
+          })
+      : Object.keys(accounts);
+
+    return filteredAddresses.map((address, idx) => {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 

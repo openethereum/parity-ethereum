@@ -21,7 +21,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, Button, Page, Tooltip } from '../../ui';
+import { Actionbar, ActionbarSearch, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -38,11 +38,13 @@ class Accounts extends Component {
 
   state = {
     addressBook: false,
-    newDialog: false
+    newDialog: false,
+    searchValue: ''
   }
 
   render () {
     const { accounts, hasAccounts, balances } = this.props;
+    const { searchValue } = this.state;
 
     return (
       <div className={ styles.accounts }>
@@ -50,6 +52,7 @@ class Accounts extends Component {
         { this.renderActionbar() }
         <Page>
           <List
+            search={ searchValue }
             accounts={ accounts }
             balances={ balances }
             empty={ !hasAccounts } />
@@ -61,13 +64,25 @@ class Accounts extends Component {
     );
   }
 
+  renderSearchButton () {
+    const onChange = (value) => {
+      this.setState({ searchValue: value });
+    };
+
+    return (<ActionbarSearch
+      key='searchAccount'
+      onChange={ onChange } />);
+  }
+
   renderActionbar () {
     const buttons = [
       <Button
         key='newAccount'
         icon={ <ContentAdd /> }
         label='new account'
-        onClick={ this.onNewAccountClick } />
+        onClick={ this.onNewAccountClick } />,
+
+      this.renderSearchButton()
     ];
 
     return (
