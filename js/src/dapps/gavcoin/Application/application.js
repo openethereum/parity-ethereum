@@ -83,6 +83,7 @@ export default class Application extends Component {
             accounts={ accounts } />
         </Status>
         <Actions
+          gavBalance={ gavBalance }
           onAction={ this.onAction } />
         <Events
           accounts={ accounts } />
