@@ -37,6 +37,6 @@ declare_test!{BlockchainTests_Homestead_bcUncleTest, "BlockchainTests/Homestead/
 declare_test!{BlockchainTests_Homestead_bcValidBlockTest, "BlockchainTests/Homestead/bcValidBlockTest"}
 declare_test!{BlockchainTests_Homestead_bcWalletTest, "BlockchainTests/Homestead/bcWalletTest"}
 declare_test!{BlockchainTests_Homestead_bcShanghaiLove, "BlockchainTests/Homestead/bcShanghaiLove"}
-// Uncomment once the test is correct.
+// TODO [ToDr] uncomment as soon as eip150 tests are merged to develop branch of ethereum/tests
 // declare_test!{BlockchainTests_Homestead_bcSuicideIssue, "BlockchainTests/Homestead/bcSuicideIssue"}
 declare_test!{BlockchainTests_Homestead_bcExploitTest, "BlockchainTests/Homestead/bcExploitTest"}

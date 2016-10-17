@@ -22,7 +22,7 @@ use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
 use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::{PendingSet, GasLimit};
+use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::upgrade;
@@ -98,6 +98,15 @@ pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
 		"auto" => Ok(GasLimit::Auto),
 		"off" => Ok(GasLimit::None),
 		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+	}
+}
+
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
+	match s {
+		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
@@ -205,6 +214,7 @@ pub fn to_client_config(
 		vm_type: VMType,
 		name: String,
 		pruning: Algorithm,
+		pruning_history: u64,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -232,6 +242,7 @@ pub fn to_client_config(
 	client_config.tracing.enabled = tracing;
 	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
+	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;

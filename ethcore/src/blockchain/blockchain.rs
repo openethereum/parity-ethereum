@@ -332,7 +332,10 @@ impl BlockProvider for BlockChain {
 			.filter_map(|(number, hash)| self.block_receipts(&hash).map(|r| (number, hash, r.receipts)))
 			.filter_map(|(number, hash, receipts)| self.block_body(&hash).map(|ref b| (number, hash, receipts, BodyView::new(b).transaction_hashes())))
 			.flat_map(|(number, hash, mut receipts, mut hashes)| {
-				assert_eq!(receipts.len(), hashes.len());
+				if receipts.len() != hashes.len() {
+					warn!("Block {} ({}) has different number of receipts ({}) to transactions ({}). Database corrupt?", number, hash, receipts.len(), hashes.len());
+					assert!(false);
+				}
 				log_index = receipts.iter().fold(0, |sum, receipt| sum + receipt.logs.len());
 
 				let receipts_len = receipts.len();

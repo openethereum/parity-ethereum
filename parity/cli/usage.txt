@@ -186,8 +186,14 @@ Sealing/Mining Options:
                            to be included in next block) (default: {flag_tx_queue_size}).
   --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
                            the queue. LIMIT can be either an amount of gas or
-                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. (default: {flag_tx_queue_gas}).
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas - Prioritize txs with low gas limit;
+                           gas_price - Prioritize txs with high gas price;
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio (default: {flag_tx_queue_strategy}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -209,6 +215,8 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
+  --pruning-history NUM    Set a number of recent states to keep when pruning
+                           is active. [default: {flag_pruning_history}].
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).

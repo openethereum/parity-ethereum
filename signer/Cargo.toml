@@ -29,3 +29,4 @@ clippy = { version = "0.0.90", optional = true}
 dev = ["clippy"]
 ui = ["parity-dapps-glue", "parity-ui"]
 use-precompiled-js = ["parity-ui/use-precompiled-js"]
+

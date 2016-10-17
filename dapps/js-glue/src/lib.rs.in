@@ -43,10 +43,3 @@ pub trait WebApp : Default + Send + Sync {
 	fn file(&self, path: &str) -> Option<&File>;
 	fn info(&self) -> Info;
 }
-
-#[cfg(test)]
-mod tests {
-	#[test]
-	fn it_works() {
-	}
-}

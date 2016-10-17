@@ -1,5 +1,5 @@
 {
-	"name": "Frontier (Test)",
+	"name": "Homestead (Test)",
 	"engine": {
 		"Ethash": {
 			"params": {
@@ -9,8 +9,8 @@
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"homesteadTransition": "0x7fffffffffffffff",
-				"eip150Transition": "0x7fffffffffffffff"
+				"homesteadTransition": "0x0",
+				"eip150Transition": "0x0"
 			}
 		}
 	},
@@ -35,9 +35,9 @@
 		"gasLimit": "0x1388"
 	},
 	"accounts": {
-		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
-		"0000000000000000000000000000000000000002": { "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
-		"0000000000000000000000000000000000000003": { "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
-		"0000000000000000000000000000000000000004": { "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
+		"0000000000000000000000000000000000000001": { "balance": "1", "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },
+		"0000000000000000000000000000000000000002": { "balance": "1", "builtin": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } } },
+		"0000000000000000000000000000000000000003": { "balance": "1", "builtin": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } } },
+		"0000000000000000000000000000000000000004": { "balance": "1", "builtin": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } } }
 	}
 }
