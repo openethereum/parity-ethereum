@@ -26,6 +26,7 @@ extern crate ethcore_util as util;
 
 mod ext;
 
+use std::sync::Arc;
 use std::time::{Instant, Duration};
 use std::str::FromStr;
 use docopt::Docopt;
@@ -42,9 +43,9 @@ Usage:
     evmbin [-h | --help]
 
 Transaction options:
-    --code CODE        Contract code.
-    --input DATA       Input data.
-    --gas GAS          Supplied gas.
+    --code CODE        Contract code as hex (without 0x)
+    --input DATA       Input data as hex (without 0x)
+    --gas GAS          Supplied gas as hex (without 0x)
 
 General options:
     -h, --help         Display this message and exit.
@@ -56,7 +57,7 @@ fn main() {
 
 	let mut params = ActionParams::default();
 	params.gas = args.gas();
-	params.code = Some(args.code());
+	params.code = Some(Arc::new(args.code()));
 	params.data = args.data();
 
 	let result = run_vm(params);
@@ -68,7 +69,7 @@ fn main() {
 /// Execute VM with given `ActionParams`
 pub fn run_vm(params: ActionParams) -> ExecutionResults {
 	let initial_gas = params.gas;
-	let factory = Factory::new(VMType::Interpreter);
+	let factory = Factory::new(VMType::Interpreter, 1024);
 	let mut vm = factory.create(params.gas);
 	let mut ext = ext::FakeExt::default();
 
