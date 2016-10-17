@@ -134,7 +134,7 @@ export default class DetailsStep extends Component {
     });
   }
 
-  onFromAddressChange = (fromAddress) => {
+  onFromAddressChange = (event, fromAddress) => {
     const { onFromAddressChange } = this.props;
 
     onFromAddressChange(fromAddress);
@@ -147,7 +147,6 @@ export default class DetailsStep extends Component {
   }
 
   onParamChange = (index, value) => {
-    console.log('***', index, value);
     const { params, onParamsChange } = this.props;
 
     params[index] = value;
