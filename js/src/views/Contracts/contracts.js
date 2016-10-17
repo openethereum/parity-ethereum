@@ -89,7 +89,7 @@ class Contracts extends Component {
         label='deploy contract'
         onClick={ this.onDeployContract } />,
 
-        this.renderSearchButton()
+      this.renderSearchButton()
     ];
 
     return (
