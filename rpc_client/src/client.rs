@@ -2,14 +2,14 @@ extern crate jsonrpc_core;
 
 use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::io::{BufReader, BufRead};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::collections::BTreeMap;
 use std::thread;
 use std::time;
 
 use std::path::PathBuf;
-use util::Hashable;
+use util::{Hashable, Mutex};
 use url::Url;
 use std::fs::File;
 
@@ -138,10 +138,10 @@ impl Pending {
 		Pending(Arc::new(Mutex::new(BTreeMap::new())))
 	}
 	fn insert(&mut self, k: usize, v: Complete<Result<JsonValue, RpcError>>) {
-		self.0.lock().expect("no panics in mutex guard").insert(k, v);
+		self.0.lock().insert(k, v);
 	}
 	fn remove(&mut self, k: usize) -> Option<Complete<Result<JsonValue, RpcError>>> {
-		self.0.lock().expect("no panics in mutex guard").remove(&k)
+		self.0.lock().remove(&k)
 	}
 }
 
