@@ -18,6 +18,11 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './dapp.css';
 
+const hostname = `${window.location.hostname}:${window.location.port}`;
+const dapphost = (hostname === 'localhost:3000') || (hostname === '127.0.0.1:3000')
+  ? hostname
+  : '127.0.0.1:8080/ui';
+
 export default class Dapp extends Component {
   static propTypes = {
     params: PropTypes.object
@@ -26,8 +31,8 @@ export default class Dapp extends Component {
   render () {
     const { name, type } = this.props.params;
     const src = type === 'global'
-      ? `http://localhost:8080/ui/${name}.html`
-      : `http://localhost:8080/${name}/`;
+      ? `http://${dapphost}/${name}.html`
+      : `http://127.0.0.1:8080/${name}/`;
 
     return (
       <iframe
