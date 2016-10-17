@@ -10,6 +10,7 @@ version = "1.4.0"
 futures = "0.1"
 jsonrpc-core = "3.0.2"
 lazy_static = "0.2.1"
+log = "0.3.6"
 matches = "0.1.2"
 rand = "0.3.14"
 serde = "0.8"
@@ -17,6 +18,12 @@ serde_json = "0.8"
 tempdir = "0.3.5"
 url = "1.2.0"
 ws = "0.5.3"
-ethcore-rpc = { path = "../rpc" }
-ethcore-signer = { path = "../signer" }
-ethcore-util = { path = "../util" }
+
+[dependencies.ethcore-rpc]
+path = "../rpc"
+
+[dependencies.ethcore-signer]
+path = "../signer"
+
+[dependencies.ethcore-util]
+path = "../util"
