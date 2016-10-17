@@ -23,7 +23,7 @@ const styles = {
 
 export default (address) => (
   <img
-    src={ `http://localhost:8080/${address}/` }
+    src={ `http://127.0.0.1:8080/${address}/` }
     alt={ address }
     style={ styles }
   />
