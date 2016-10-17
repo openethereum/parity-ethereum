@@ -27,9 +27,9 @@ export default function (api) {
   const status = statusMiddleware();
 
   const middleware = [
-    errors.toMiddleware(),
     settings.toMiddleware(),
-    signer.toMiddleware()
+    signer.toMiddleware(),
+    errors.toMiddleware()
   ];
 
   return middleware.concat(status);
