@@ -107,6 +107,8 @@ export default class EditMeta extends Component {
       defaultValue={ tags }
       onChange={ onChange }
       floatingLabelText='(optional) tags'
+      hintText='enter tags here'
+      floatingLabelFixed
       fullWidth
     />);
   }

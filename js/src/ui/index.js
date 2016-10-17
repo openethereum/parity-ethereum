@@ -31,6 +31,7 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
+import Tags  from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 
@@ -62,6 +63,7 @@ export {
   Page,
   ParityBackground,
   SignerIcon,
+  Tags,
   Tooltip,
   Tooltips,
   TxHash
