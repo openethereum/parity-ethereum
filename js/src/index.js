@@ -17,6 +17,12 @@
 import 'babel-polyfill';
 import 'whatwg-fetch';
 
+// redirect when not on 127.0.0.1:8180
+const host = `${window.location.hostname}:${window.location.port}`;
+if (host === '127.0.0.1:8080' || host === 'localhost:8080') {
+  window.location = 'http://127.0.0.1:8180';
+}
+
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
