@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
 
 import styles from './header.css';
 
@@ -69,6 +69,9 @@ export default class Header extends Component {
             { meta.description }
           </div>
           { this.renderTxCount() }
+        </div>
+        <div className={ styles.tags }>
+          <Tags tags={ meta.tags } />
         </div>
         <div className={ styles.balances }>
           <Balance
