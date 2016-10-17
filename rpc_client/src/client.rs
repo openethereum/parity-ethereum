@@ -1,3 +1,5 @@
+extern crate jsonrpc_core;
+
 use std::fmt::{Debug, Formatter, Error as FmtError};
 use std::io::{BufReader, BufRead};
 use std::sync::{Arc, Mutex};
@@ -21,26 +23,23 @@ use ws::{self,
 		 Message,
 		 Result as WsResult};
 
-use serde::Serialize;
 use serde::Deserialize;
-use serde::ser::Serializer;
 use serde_json::{self as json,
 				 Value as JsonValue,
 				 Error as JsonError};
 
-//use jsonrpc_core::
-
 use futures::{BoxFuture, Canceled, Complete, Future, oneshot, done};
+
+use jsonrpc_core::{Id, Version, Params, Error as JsonRpcError};
+use jsonrpc_core::request::MethodCall;
+use jsonrpc_core::response::{SyncOutput, Success, Failure};
 
 /// The actual websocket connection handler, passed into the
 /// event loop of ws-rs
 struct RpcHandler {
 	pending: Pending,
-	// Option is used here as
-	// temporary storage until
-	// connection is setup
-	// and the values are moved into
-	// the new `Rpc`
+	// Option is used here as temporary storage until connection
+	// is setup and the values are moved into the new `Rpc`
 	complete: Option<Complete<Result<Rpc, RpcError>>>,
 	auth_code: String,
 	out: Option<Sender>,
@@ -98,14 +97,33 @@ impl Handler for RpcHandler {
 		}
 	}
     fn on_message(&mut self, msg: Message) -> WsResult<()> {
-		match parse_response(&msg.to_string()) {
-			(Some(id), response) => {
-				match self.pending.remove(id) {
-					Some(c) => c.complete(response),
-					None => println!("warning: unexpected id: {}", id),
-				}
+		let ret: Result<JsonValue, JsonRpcError>;
+		let response_id;
+		let string = &msg.to_string();
+		match json::from_str::<SyncOutput>(&string) {
+			Ok(SyncOutput::Success(Success { result, id: Id::Num(id), .. })) => {
+				ret = Ok(result);
+				response_id = id as usize;
 			}
-			(None, response) => println!("warning: error: {:?}, {}", response, msg.to_string()),
+			Ok(SyncOutput::Failure(Failure { error, id: Id::Num(id), .. })) => {
+				ret = Err(error);
+				response_id = id as usize;
+			}
+			Err(e) => {
+				warn!(target: "rpc-client", "recieved invalid message: {}\n {:?}", string, e);
+				return Ok(())
+			},
+			_ => {
+				warn!(target: "rpc-client", "recieved invalid message: {}", string);
+				return Ok(())
+			}
+		}
+
+		match self.pending.remove(response_id) {
+			Some(c) => c.complete(ret.map_err(|err| {
+				RpcError::JsonRpc(err)
+			})),
+			None => warn!(target: "rpc-client", "warning: unexpected id: {}", response_id),
 		}
 		Ok(())
     }
@@ -120,10 +138,10 @@ impl Pending {
 		Pending(Arc::new(Mutex::new(BTreeMap::new())))
 	}
 	fn insert(&mut self, k: usize, v: Complete<Result<JsonValue, RpcError>>) {
-		self.0.lock().unwrap().insert(k, v);
+		self.0.lock().expect("no panics in mutex guard").insert(k, v);
 	}
 	fn remove(&mut self, k: usize) -> Option<Complete<Result<JsonValue, RpcError>>> {
-		self.0.lock().unwrap().remove(&k)
+		self.0.lock().expect("no panics in mutex guard").remove(&k)
 	}
 }
 
@@ -194,7 +212,14 @@ impl Rpc {
 		let id = self.counter.fetch_add(1, Ordering::Relaxed);
 		self.pending.insert(id, c);
 
-		let serialized = json::to_string(&RpcRequest::new(id, method, params)).unwrap();
+		let request = MethodCall {
+			jsonrpc: Version::V2,
+			method: method.to_owned(),
+			params: Some(Params::Array(params)),
+			id: Id::Num(id as u64),
+		};
+
+		let serialized = json::to_string(&request).expect("request is serializable");
 		let _ = self.out.send(serialized);
 
 		p.map(|result| {
@@ -209,41 +234,11 @@ impl Rpc {
 	}
 }
 
-
-struct RpcRequest {
-	method: &'static str,
-	params: Vec<JsonValue>,
-	id: usize,
-}
-
-impl RpcRequest {
-	fn new(id: usize, method: &'static str, params: Vec<JsonValue>) -> Self {
-		RpcRequest {
-			method: method,
-			id: id,
-			params: params,
-		}
-	}
-}
-
-impl Serialize for RpcRequest {
-    fn serialize<S>(&self, s: &mut S)
-					-> Result<(), S::Error>
-		where S: Serializer {
-        let mut state = try!(s.serialize_struct("RpcRequest" , 3));
-        try!(s.serialize_struct_elt(&mut state ,"jsonrpc", "2.0"));
-        try!(s.serialize_struct_elt(&mut state ,"id" , &self.id));
-        try!(s.serialize_struct_elt(&mut state ,"method" , &self.method));
-        try!(s.serialize_struct_elt(&mut state ,"params" , &self.params));
-        s.serialize_struct_end(state)
-    }
-}
-
 pub enum RpcError {
 	WrongVersion(String),
 	ParseError(JsonError),
 	MalformedResponse(String),
-	Remote(String),
+	JsonRpc(JsonRpcError),
 	WsError(WsError),
 	Canceled(Canceled),
 	UnexpectedId,
@@ -252,22 +247,22 @@ pub enum RpcError {
 
 impl Debug for RpcError {
 	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
-		match self {
-			&RpcError::WrongVersion(ref s)
+		match *self {
+			RpcError::WrongVersion(ref s)
 				=> write!(f, "Expected version 2.0, got {}", s),
-			&RpcError::ParseError(ref err)
+			RpcError::ParseError(ref err)
 				=> write!(f, "ParseError: {}", err),
-			&RpcError::MalformedResponse(ref s)
+			RpcError::MalformedResponse(ref s)
 				=> write!(f, "Malformed response: {}", s),
-			&RpcError::Remote(ref s)
-				=> write!(f, "Remote error: {}", s),
-			&RpcError::WsError(ref s)
+			RpcError::JsonRpc(ref json)
+				=> write!(f, "JsonRpc error: {:?}", json),
+			RpcError::WsError(ref s)
 				=> write!(f, "Websocket error: {}", s),
-			&RpcError::Canceled(ref s)
+			RpcError::Canceled(ref s)
 				=> write!(f, "Futures error: {:?}", s),
-			&RpcError::UnexpectedId
+			RpcError::UnexpectedId
 				=> write!(f, "Unexpected response id"),
-			&RpcError::NoAuthCode
+			RpcError::NoAuthCode
 				=> write!(f, "No authcodes available"),
 		}
 	}
@@ -288,54 +283,5 @@ impl From<WsError> for RpcError {
 impl From<Canceled> for RpcError {
 	fn from(err: Canceled) -> RpcError {
 		RpcError::Canceled(err)
-	}
-}
-
-fn parse_response(s: &str) -> (Option<usize>, Result<JsonValue, RpcError>) {
-	let mut json: JsonValue = match json::from_str(s) {
-		Err(e) => return (None, Err(RpcError::ParseError(e))),
-		Ok(json) => json,
-	};
-
-	let obj = match json.as_object_mut() {
-		Some(o) => o,
-		None => return
-			(None,
-			 Err(RpcError::MalformedResponse("Not a JSON object".to_string()))),
-	};
-
-	let id;
-	match obj.get("id") {
-		Some(&JsonValue::U64(u)) => {
-			id = u as usize;
-		},
-		_ => return (None,
-					 Err(RpcError::MalformedResponse("Missing id".to_string()))),
-	}
-
-	match obj.get("jsonrpc") {
-		Some(&JsonValue::String(ref s)) => {
-			if *s != "2.0".to_string() {
-				return (Some(id),
-						Err(RpcError::WrongVersion(s.clone())))
-			}
-		},
-		_ => return
-			(Some(id),
-			 Err(RpcError::MalformedResponse("Not a jsonrpc object".to_string()))),
-	}
-
-	match obj.get("error") {
-		Some(err) => return
-			(Some(id),
-			 Err(RpcError::Remote(format!("{}", err)))),
-		None => (),
-	};
-
-	match obj.remove("result") {
-		None => (Some(id),
-				 Err(RpcError::MalformedResponse("No result".to_string()))),
-		Some(result) => (Some(id),
-						 Ok(result)),
 	}
 }
