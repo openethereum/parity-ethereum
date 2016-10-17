@@ -31,7 +31,7 @@ use std::time::{Instant, Duration};
 use std::str::FromStr;
 use docopt::Docopt;
 use util::{U256, FromHex, Uint, Bytes};
-use ethcore::evm::{Factory, VMType, Finalize};
+use ethcore::evm::{self, Factory, VMType, Finalize};
 use ethcore::action_params::ActionParams;
 
 const USAGE: &'static str = r#"
@@ -61,9 +61,17 @@ fn main() {
 	params.data = args.data();
 
 	let result = run_vm(params);
-	println!("Gas used: {:?}", result.gas_used);
-	println!("Output: {:?}", result.output);
-	println!("Time: {}.{:.9}s", result.time.as_secs(), result.time.subsec_nanos());
+	match result {
+		ExecutionResults::Ok { gas_used, output, time } => {
+			println!("Gas used: {:?}", gas_used);
+			println!("Output: {:?}", output);
+			println!("Time: {}.{:.9}s", time.as_secs(), time.subsec_nanos());
+		},
+		ExecutionResults::Error { error, time } => {
+			println!("Error: {:?}", error);
+			println!("Time: {}.{:.9}s", time.as_secs(), time.subsec_nanos());
+		},
+	}
 }
 
 /// Execute VM with given `ActionParams`
@@ -74,24 +82,40 @@ pub fn run_vm(params: ActionParams) -> ExecutionResults {
 	let mut ext = ext::FakeExt::default();
 
 	let start = Instant::now();
-	let gas_left = vm.exec(params, &mut ext).finalize(ext).expect("OK");
+	let gas_left = vm.exec(params, &mut ext).finalize(ext);
 	let duration = start.elapsed();
 
-	ExecutionResults {
-		gas_used: initial_gas - gas_left,
-		output: Vec::new(),
-		time: duration,
+	match gas_left {
+		Ok(gas_left) => ExecutionResults::Ok {
+			gas_used: initial_gas - gas_left,
+			output: Vec::new(),
+			time: duration,
+		},
+		Err(e) => ExecutionResults::Error {
+			error: e,
+			time: duration,
+		},
 	}
 }
 
 /// VM execution results
-pub struct ExecutionResults {
-	/// Used gas
-	pub gas_used: U256,
-	/// Output as bytes
-	pub output: Vec<u8>,
-	/// Time Taken
-	pub time: Duration,
+pub enum ExecutionResults {
+	/// Execution finished correctly
+	Ok {
+		/// Used gas
+		gas_used: U256,
+		/// Output as bytes
+		output: Vec<u8>,
+		/// Time Taken
+		time: Duration,
+	},
+	/// Error
+	Error {
+		/// Internal error
+		error: evm::Error,
+		/// Duration
+		time: Duration,
+	}
 }
 
 #[derive(Debug, RustcDecodable)]
