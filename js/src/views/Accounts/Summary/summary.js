@@ -42,15 +42,16 @@ export default class Summary extends Component {
       return null;
     }
 
-    const viewLink = `/${link || 'account'}/${account.address}`;
+    const { address } = account;
+    const viewLink = `/${link || 'account'}/${address}`;
 
     return (
       <Container>
         <IdentityIcon
-          address={ account.address } />
+          address={ address } />
         <ContainerTitle
-          title={ <Link to={ viewLink }>{ <IdentityName address={ account.address } unknown /> }</Link> }
-          byline={ account.address } />
+          title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
+          byline={ address } />
         <Balance
           balance={ balance } />
         { children }
