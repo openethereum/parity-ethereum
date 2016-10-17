@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import Chip from 'material-ui/Chip';
 
 import styles from './tags.css';
 
