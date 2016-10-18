@@ -292,9 +292,9 @@ export default class Eth {
       .execute('eth_sendTransaction', inOptions(options));
   }
 
-  sign () {
+  sign (address, data) {
     return this._transport
-      .execute('eth_sign');
+      .execute('eth_sign', inAddress(address), inData(data));
   }
 
   signTransaction () {
