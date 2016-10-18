@@ -15,55 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.layout {
-  padding-top: 1.5em;
-}
-
-.layout::after {
-  display: table;
-  clear: both;
-  content: '';
-}
-
-.overview, .details {
-  float: left;
-  box-sizing: border-box;
-}
-
-.overview {
-  width: 33.33333%;
-  width: -webkit-calc(100% / 12 * 4);
-  width: -moz-calc(100% / 12 * 4);
-  width: calc(100% / 12 * 4);
-}
-
-.overview {
-  opacity: 0.5;
-}
-
-.overview div {
+.details {
   line-height: 1.5em;
 }
 
-.overview>div+div {
+.details div+div {
   padding-top: 1.25em;
-}
-
-.details {
-  width: 66.66665%;
-  width: -webkit-calc(100% / 12 * 8);
-  width: -moz-calc(100% / 12 * 8);
-  width: calc(100% / 12 * 8);
-  padding-left: 3em;
-}
-
-.console {
-  font-family: 'Roboto Mono', monospace;
-  background: rgba(255, 255, 255, 0.1);
-  font-size: 16px;
-  padding: 0 0.25em;
-}
-
-.center {
-  text-align: center;
 }

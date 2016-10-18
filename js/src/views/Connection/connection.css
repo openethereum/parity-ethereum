@@ -88,8 +88,9 @@
 }
 
 .console {
-  font-family: 'Roboto Mono';
+  font-family: 'Roboto Mono', monospace;
   background: rgba(0, 0, 0, 0.25);
+  font-size: 16px;
   padding: 0 0.25em;
 }
 

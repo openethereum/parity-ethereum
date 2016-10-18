@@ -18,6 +18,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Tab, Tabs } from 'material-ui';
+import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
 import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
 import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
@@ -51,6 +52,20 @@ export default class Settings extends Component {
 
   renderTabs () {
     const hash = (window.location.hash || '').split('?')[0].split('/')[2];
+    const isProxied = window.location.hostname.indexOf('.parity') !== -1;
+    let proxy = null;
+
+    if (!isProxied) {
+      proxy = (
+        <Tab
+          className={ hash === 'proxy' ? styles.tabactive : styles.tab }
+          value='proxy'
+          key='proxy'
+          icon={ <ActionSettingsEthernet /> }
+          label={ <div className={ styles.menu }>proxy</div> }
+          onActive={ this.onActivate('proxy') } />
+      );
+    }
 
     return (
       <Tabs className={ styles.tabs } value={ hash }>
@@ -68,6 +83,7 @@ export default class Settings extends Component {
           icon={ <ImageBlurOn /> }
           label={ <div className={ styles.menu }>background</div> }
           onActive={ this.onActivate('background') } />
+        { proxy }
       </Tabs>
     );
   }
