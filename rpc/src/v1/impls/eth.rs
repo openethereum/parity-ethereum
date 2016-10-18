@@ -253,7 +253,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		try!(self.active());
-		if take_weak!(self.sync).status().is_major_syncing() {
+		let status = take_weak!(self.sync).status();
+		if status.is_major_syncing() {
 			let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
 			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 			let info = SyncInfo {
