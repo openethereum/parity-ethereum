@@ -28,10 +28,11 @@ mod ext;
 
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use std::fmt;
 use std::str::FromStr;
 use docopt::Docopt;
 use util::{U256, FromHex, Uint, Bytes};
-use ethcore::evm::{Factory, VMType, Finalize};
+use ethcore::evm::{self, Factory, VMType, Finalize};
 use ethcore::action_params::ActionParams;
 
 const USAGE: &'static str = r#"
@@ -61,37 +62,68 @@ fn main() {
 	params.data = args.data();
 
 	let result = run_vm(params);
-	println!("Gas used: {:?}", result.gas_used);
-	println!("Output: {:?}", result.output);
-	println!("Time: {}.{:.9}s", result.time.as_secs(), result.time.subsec_nanos());
+	match result {
+		Ok(success) => println!("{}", success),
+		Err(failure) => println!("{}", failure),
+	}
 }
 
 /// Execute VM with given `ActionParams`
-pub fn run_vm(params: ActionParams) -> ExecutionResults {
+pub fn run_vm(params: ActionParams) -> Result<Success, Failure> {
 	let initial_gas = params.gas;
 	let factory = Factory::new(VMType::Interpreter, 1024);
 	let mut vm = factory.create(params.gas);
 	let mut ext = ext::FakeExt::default();
 
 	let start = Instant::now();
-	let gas_left = vm.exec(params, &mut ext).finalize(ext).expect("OK");
+	let gas_left = vm.exec(params, &mut ext).finalize(ext);
 	let duration = start.elapsed();
 
-	ExecutionResults {
-		gas_used: initial_gas - gas_left,
-		output: Vec::new(),
-		time: duration,
+	match gas_left {
+		Ok(gas_left) => Ok(Success {
+			gas_used: initial_gas - gas_left,
+			// TODO [ToDr] get output from ext
+			output: Vec::new(),
+			time: duration,
+		}),
+		Err(e) => Err(Failure {
+			error: e,
+			time: duration,
+		}),
 	}
 }
 
-/// VM execution results
-pub struct ExecutionResults {
+/// Execution finished correctly
+pub struct Success {
 	/// Used gas
-	pub gas_used: U256,
+	gas_used: U256,
 	/// Output as bytes
-	pub output: Vec<u8>,
+	output: Vec<u8>,
 	/// Time Taken
-	pub time: Duration,
+	time: Duration,
+}
+impl fmt::Display for Success {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		try!(writeln!(f, "Gas used: {:?}", self.gas_used));
+		try!(writeln!(f, "Output: {:?}", self.output));
+		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
+		Ok(())
+	}
+}
+
+/// Execution failed
+pub struct Failure {
+	/// Internal error
+	error: evm::Error,
+	/// Duration
+	time: Duration,
+}
+impl fmt::Display for Failure {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		try!(writeln!(f, "Error: {:?}", self.error));
+		try!(writeln!(f, "Time: {}.{:.9}s", self.time.as_secs(), self.time.subsec_nanos()));
+		Ok(())
+	}
 }
 
 #[derive(Debug, RustcDecodable)]
