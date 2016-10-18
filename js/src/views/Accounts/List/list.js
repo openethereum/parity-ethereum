@@ -26,7 +26,7 @@ export default class List extends Component {
     accounts: PropTypes.object,
     balances: PropTypes.object,
     link: PropTypes.string,
-    search: PropTypes.string,
+    search: PropTypes.array,
     empty: PropTypes.bool
   };
 
@@ -39,7 +39,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty, search } = this.props;
+    const { accounts, balances, link, empty } = this.props;
 
     if (empty) {
       return (
@@ -51,20 +51,9 @@ export default class List extends Component {
       );
     }
 
-    const searchValue = (search || '').toLowerCase();
-    const filteredAddresses = (searchValue && searchValue.length > 0)
-      ? Object.keys(accounts)
-          .filter((address) => {
-            const account = accounts[address];
-            const tags = account.meta.tags || [];
+    const addresses = this.getFilteredAddresses();
 
-            return tags
-              .filter((tag) => tag.toLowerCase().indexOf(searchValue) >= 0)
-              .length > 0;
-          })
-      : Object.keys(accounts);
-
-    return filteredAddresses.map((address, idx) => {
+    return addresses.map((address, idx) => {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
@@ -79,5 +68,36 @@ export default class List extends Component {
         </div>
       );
     });
+  }
+
+  getFilteredAddresses () {
+    const { accounts, search } = this.props;
+    const searchValues = (search || []).map(v => v.toLowerCase());
+
+    if (searchValues.length === 0) {
+      return Object.keys(accounts);
+    }
+
+    return Object.keys(accounts)
+      .filter((address) => {
+        const account = accounts[address];
+
+        const tags = account.meta.tags || [];
+        const name = account.name || '';
+
+        const values = []
+          .concat(tags, name)
+          .map(v => v.toLowerCase());
+
+        return values
+          .filter((value) => {
+            return searchValues
+              .map(searchValue => value.indexOf(searchValue) >= 0)
+              // `current && truth, true` => use tokens as AND
+              // `current || truth, false` => use tokens as OR
+              .reduce((current, truth) => current || truth, false);
+          })
+          .length > 0;
+      });
   }
 }

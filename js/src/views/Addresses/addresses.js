@@ -38,12 +38,12 @@ class Addresses extends Component {
 
   state = {
     showAdd: false,
-    searchValue: ''
+    searchValues: []
   }
 
   render () {
     const { balances, contacts, hasContacts } = this.props;
-    const { searchValue } = this.state;
+    const { searchValues } = this.state;
 
     return (
       <div className={ styles.addresses }>
@@ -52,7 +52,7 @@ class Addresses extends Component {
         <Page>
           <List
             link='address'
-            search={ searchValue }
+            search={ searchValues }
             accounts={ contacts }
             balances={ balances }
             empty={ !hasContacts } />
@@ -62,8 +62,8 @@ class Addresses extends Component {
   }
 
   renderSearchButton () {
-    const onChange = (value) => {
-      this.setState({ searchValue: value });
+    const onChange = (values) => {
+      this.setState({ searchValues: values });
     };
 
     return (<ActionbarSearch

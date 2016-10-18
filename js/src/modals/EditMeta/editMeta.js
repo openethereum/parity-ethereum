@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentSave from 'material-ui/svg-icons/content/save';
-import ChipInput from 'material-ui-chip-input';
+// import ChipInput from 'material-ui-chip-input';
+import ChipInput from 'material-ui-chip-input/src/ChipInput';
 
 import { Button, Form, Input, Modal } from '../../ui';
 import { validateName } from '../../util/validation';
@@ -107,7 +108,7 @@ export default class EditMeta extends Component {
       defaultValue={ tags }
       onChange={ onChange }
       floatingLabelText='(optional) tags'
-      hintText='enter tags here'
+      hintText='press <Enter> to add a tag'
       floatingLabelFixed
       fullWidth
     />);

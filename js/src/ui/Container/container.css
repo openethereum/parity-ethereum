@@ -15,13 +15,15 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .container {
-  padding: 0em
+  padding: 0em;
 }
 
 .padded {
   padding: 1.5em;
   background: rgba(0, 0, 0, 0.8) !important;
   border-radius: 0 !important;
+  position: relative;
+  overflow: auto;
 }
 
 .light .padded {
