@@ -22,7 +22,7 @@ import { uniq } from 'lodash';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, ActionbarSearch, Button, Page, Tooltip } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -40,12 +40,13 @@ class Accounts extends Component {
   state = {
     addressBook: false,
     newDialog: false,
+    sortOrder: '',
     searchValues: []
   }
 
   render () {
     const { accounts, hasAccounts, balances } = this.props;
-    const { searchValues } = this.state;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.accounts }>
@@ -57,6 +58,7 @@ class Accounts extends Component {
             accounts={ accounts }
             balances={ balances }
             empty={ !hasAccounts }
+            order={ sortOrder }
             handleAddSearchToken={ this.onAddSearchToken } />
           <Tooltip
             className={ styles.accountTooltip }
@@ -77,6 +79,17 @@ class Accounts extends Component {
       onChange={ onChange } />);
   }
 
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (<ActionbarSort
+      key='sortAccounts'
+      order={ this.state.sortOrder }
+      onChange={ onChange } />);
+  }
+
   renderActionbar () {
     const buttons = [
       <Button
@@ -85,7 +98,8 @@ class Accounts extends Component {
         label='new account'
         onClick={ this.onNewAccountClick } />,
 
-      this.renderSearchButton()
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (

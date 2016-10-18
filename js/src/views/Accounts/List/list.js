@@ -28,6 +28,7 @@ export default class List extends Component {
     link: PropTypes.string,
     search: PropTypes.array,
     empty: PropTypes.bool,
+    order: PropTypes.string,
     handleAddSearchToken: PropTypes.func
   };
 
@@ -52,7 +53,7 @@ export default class List extends Component {
       );
     }
 
-    const addresses = this.getFilteredAddresses();
+    const addresses = this.getAddresses();
 
     return addresses.map((address, idx) => {
       const account = accounts[address] || {};
@@ -69,6 +70,44 @@ export default class List extends Component {
             handleAddSearchToken={ handleAddSearchToken } />
         </div>
       );
+    });
+  }
+
+  getAddresses () {
+    const filteredAddresses = this.getFilteredAddresses();
+    return this.sortAddresses(filteredAddresses);
+  }
+
+  sortAddresses (addresses) {
+    const { order } = this.props;
+
+    if (!order || ['tags', 'name'].indexOf(order) === -1) {
+      return addresses;
+    }
+
+    const { accounts } = this.props;
+
+    return addresses.sort((addressA, addressB) => {
+      const accountA = accounts[addressA];
+      const accountB = accounts[addressB];
+
+      if (order === 'name') {
+        return accountA.name.localeCompare(accountB.name);
+      }
+
+      if (order === 'tags') {
+        const tagsA = [].concat(accountA.meta.tags)
+          .filter(t => t)
+          .sort();
+        const tagsB = [].concat(accountB.meta.tags)
+          .filter(t => t)
+          .sort();
+
+        if (tagsA.length === 0) return 1;
+        if (tagsB.length === 0) return -1;
+
+        return tagsA.join('').localeCompare(tagsB.join(''));
+      }
     });
   }
 
