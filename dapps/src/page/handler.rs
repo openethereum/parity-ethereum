@@ -81,7 +81,7 @@ pub struct PageHandler<T: Dapp> {
 	/// Requested path.
 	pub path: EndpointPath,
 	/// Flag indicating if the file can be safely embeded (put in iframe).
-	pub safe_to_embed: bool,
+	pub safe_to_embed_at_port: Option<u16>,
 }
 
 impl<T: Dapp> PageHandler<T> {
@@ -128,8 +128,13 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 			ServedFile::File(ref f) => {
 				res.set_status(StatusCode::Ok);
 				res.headers_mut().set(header::ContentType(f.content_type().parse().unwrap()));
-				if !self.safe_to_embed {
-					res.headers_mut().set_raw("X-Frame-Options", vec![b"SAMEORIGIN".to_vec()]);
+				if let Some(port) = self.safe_to_embed_at_port {
+					res.headers_mut().set_raw(
+						"X-Frame-Options",
+						vec![format!("ALLOW-FROM http://127.0.0.1:{}", port).into_bytes()]
+					);
+				} else {
+					res.headers_mut().set_raw("X-Frame-Options",  vec![b"DENY".to_vec()]);
 				}
 				Next::write()
 			},
@@ -213,7 +218,7 @@ fn should_extract_path_with_appid() {
 			using_dapps_domains: true,
 		},
 		file: Default::default(),
-		safe_to_embed: true,
+		safe_to_embed_at_port: None,
 	};
 
 	// when

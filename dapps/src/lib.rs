@@ -108,6 +108,7 @@ pub struct ServerBuilder {
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	signer_port: Option<u16>,
 }
 
 impl Extendable for ServerBuilder {
@@ -124,12 +125,18 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			signer_port: None,
 		}
 	}
 
 	/// Change default sync status.
 	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
 		self.sync_status = status;
+	}
+
+	/// Change default signer port.
+	pub fn with_signer_port(&mut self, signer_port: Option<u16>) {
+		self.signer_port = signer_port;
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -141,6 +148,7 @@ impl ServerBuilder {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -155,6 +163,7 @@ impl ServerBuilder {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -189,13 +198,14 @@ impl Server {
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
+		signer_port: Option<u16>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port));
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));

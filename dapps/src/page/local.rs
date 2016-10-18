@@ -62,7 +62,7 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: Default::default(),
-				safe_to_embed: false,
+				safe_to_embed_at_port: None,
 			})
 		} else {
 			Box::new(handler::PageHandler {
@@ -70,7 +70,7 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: Default::default(),
-				safe_to_embed: false,
+				safe_to_embed_at_port: None,
 			})
 		}
 	}

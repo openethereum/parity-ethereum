@@ -50,22 +50,18 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_dapps_home::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints(dapps_path: String) -> Endpoints {
+pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path);
-	// Home page needs to be safe embed
-	// because we use Cross-Origin LocalStorage.
-	// TODO [ToDr] Account naming should be moved to parity.
-	pages.insert("home".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(parity_dapps_home::App::default())
-	));
+
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	pages.insert("ui".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(NewUi::default())
+		PageEndpoint::new_safe_to_embed(NewUi::default(), signer_port)
 	));
+
 	pages.insert("proxy".into(), ProxyPac::boxed());
+	insert::<parity_dapps_home::App>(&mut pages, "home");
 	insert::<parity_dapps_status::App>(&mut pages, "status");
-	insert::<parity_dapps_status::App>(&mut pages, "parity");
 
 	// Optional dapps
 	wallet_page(&mut pages);
