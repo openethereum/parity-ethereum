@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
 import { Actionbar, ActionbarSearch, Button, Page } from '../../ui';
 import { AddContract, DeployContract } from '../../modals';
@@ -60,19 +61,21 @@ class Contracts extends Component {
             search={ searchValues }
             accounts={ contracts }
             balances={ balances }
-            empty={ !hasContracts } />
+            empty={ !hasContracts }
+            handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
     );
   }
 
   renderSearchButton () {
-    const onChange = (values) => {
-      this.setState({ searchValues: values });
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
     };
 
     return (<ActionbarSearch
       key='searchContract'
+      tokens={ this.state.searchValues }
       onChange={ onChange } />);
   }
 
@@ -128,6 +131,12 @@ class Contracts extends Component {
         accounts={ accounts }
         onClose={ this.onDeployContractClose } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onDeployContractClose = () => {
