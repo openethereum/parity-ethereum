@@ -17,7 +17,6 @@
 import React, { Component, PropTypes } from 'react';
 // import ChipInput from 'material-ui-chip-input';
 import ChipInput from 'material-ui-chip-input/src/ChipInput';
-// import ChipInput from '../../../../../../../material-ui-chip-input/src/ChipInput';
 import ActionSearch from 'material-ui/svg-icons/action/search';
 import { uniq } from 'lodash';
 
