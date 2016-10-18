@@ -24,6 +24,7 @@ import { Actionbar, Page } from '../../ui';
 import fetchAvailable from './available';
 import { read as readVisible } from './visible';
 
+import AddDapps from './AddDapps';
 import Summary from './Summary';
 
 import styles from './dapps.css';
@@ -35,7 +36,8 @@ export default class Dapps extends Component {
 
   state = {
     available: [],
-    visible: []
+    visible: [],
+    modalOpen: false
   }
 
   componentDidMount () {
@@ -51,11 +53,20 @@ export default class Dapps extends Component {
   }
 
   render () {
-    const { available, visible } = this.state;
-    const apps = available.filter((app) => visible.includes(app.id))
+    const { available, visible, modalOpen } = this.state;
+    const apps = available.filter((app) => visible.includes(app.id));
 
+    const onAdd = () => {};
+    const onModalClose = () => {
+      this.setState({ modalOpen: false })
+    };
     return (
       <div>
+        <AddDapps
+          open={ modalOpen }
+          onAdd={ onAdd }
+          onClose={ onModalClose }
+        />
         <Actionbar
           title='Decentralized Applications' />
         <Page>
