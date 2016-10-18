@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import CircularProgress from 'material-ui/CircularProgress';
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
 import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
@@ -25,17 +26,18 @@ import styles from './TransactionPending.css';
 import * as tUtil from '../util/transaction';
 
 export default class TransactionPending extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     id: PropTypes.object.isRequired,
-    chain: PropTypes.string.isRequired,
     from: PropTypes.string.isRequired,
-    fromBalance: PropTypes.object, // eth BigNumber, not required since it mght take time to fetch
     value: PropTypes.object.isRequired, // wei hex
     gasPrice: PropTypes.object.isRequired, // wei hex
     gas: PropTypes.object.isRequired, // hex
     date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract
-    toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
     data: PropTypes.string, // hex
     nonce: PropTypes.number,
     onConfirm: PropTypes.func.isRequired,
@@ -49,7 +51,9 @@ export default class TransactionPending extends Component {
   };
 
   state = {
-    isDataExpanded: false
+    chain: null,
+    fromBalance: null,
+    toBalance: null
   };
 
   componentWillMount () {
@@ -59,20 +63,39 @@ export default class TransactionPending extends Component {
     const gasPriceEthmDisplay = tUtil.getEthmFromWeiDisplay(gasPrice);
     const gasToDisplay = tUtil.getGasDisplay(gas);
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
+
+    this.context.api.ethcore.netChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((err) => {
+        console.error('could not fetch chain', err);
+      });
+
+    const { from, to } = this.props;
+    this.fetchBalance(from, 'fromBalance');
+    if (to) this.fetchBalance(to, 'toBalance');
   }
 
   render () {
-    const { totalValue } = this.state;
-    const className = this.props.className || '';
+    const { chain, fromBalance, toBalance } = this.state;
+    if (!chain || !fromBalance || !toBalance) {
+      return (
+        <div className={ `${styles.container} ${className}` }>
+          <CircularProgress size={ 1 } />
+        </div>
+      );
+    }
 
-    const { gasPriceEthmDisplay, gasToDisplay } = this.state;
-    const { id, date, data, from } = this.props;
+    const { totalValue, gasPriceEthmDisplay, gasToDisplay } = this.state;
+    const { className, id, date, data, from } = this.props;
 
     return (
-      <div className={ `${styles.container} ${className}` }>
+      <div className={ `${styles.container} ${className || ''}` }>
         <div className={ styles.mainContainer }>
           <TransactionMainDetails
             { ...this.props }
+            { ...this.state }
             className={ styles.transactionDetails }
             totalValue={ totalValue }>
             <TransactionSecondaryDetails
@@ -101,6 +124,16 @@ export default class TransactionPending extends Component {
 
   onReject = () => {
     this.props.onReject(this.props.id);
+  }
+
+  fetchBalance (address, key) {
+    this.context.api.eth.getBalance(address)
+      .then((balance) => {
+        this.setState({ [key]: balance });
+      })
+      .catch((err) => {
+        console.error('could not fetch balance', err);
+      });
   }
 
 }
