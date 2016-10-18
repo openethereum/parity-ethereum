@@ -8,7 +8,7 @@ extern crate rpassword;
 extern crate parity_rpc_client as client;
 
 use rpc::v1::types::{U256, ConfirmationRequest};
-use client::signer::SignerRpc;
+use client::signer_client::SignerRpc;
 use std::io::{Write, BufRead, BufReader, stdout, stdin};
 use std::path::PathBuf;
 use std::fs::File;

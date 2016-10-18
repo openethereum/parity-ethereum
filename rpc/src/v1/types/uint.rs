@@ -49,19 +49,6 @@ macro_rules! impl_uint {
 			}
 		}
 
-		impl $name {
-			/// Human readable formatting
-			pub fn format_ether(&self) -> String {
-				let divisor = $other::from(10u64.pow(18));
-				let ether = self.0 / divisor;
-				let rest = self.0 - ether * divisor;
-				let string = format!("{}.{}", ether, rest);
-				string.trim_right_matches('0')
-					.trim_right_matches('.')
-					.to_string()
-			}
-		}
-
 		impl fmt::Display for $name {
 			fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 				write!(f, "{}", self.0)
