@@ -24,7 +24,7 @@ import Contracts from './Contracts';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
-import Settings, { SettingsBackground, SettingsViews } from './Settings';
+import Settings, { SettingsBackground, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
 
@@ -41,6 +41,7 @@ export {
   ParityBar,
   Settings,
   SettingsBackground,
+  SettingsProxy,
   SettingsViews,
   Signer,
   Status
