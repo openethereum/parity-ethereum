@@ -308,3 +308,46 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+js-release:
+  stage: build
+  image: ethcore/javascript:latest
+  only:
+    - js
+    - master
+    - beta
+    - tags
+    - stable
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
+js-lint:
+  stage: test
+  image: ethcore/javascript:latest
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/lint.sh
+  tags:
+    - javascript-test
+js-test:
+  stage: test
+  image: ethcore/javascript:latest
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/test.sh
+  tags:
+    - javascript-test
+js-pack:
+  stage: test
+  image: ethcore/javascript:latest
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+  tags:
+    - javascript-test

@@ -1,0 +1,84 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.toolbar {
+  background: none !important;
+  height: 72px !important;
+  position: relative;
+}
+
+.tabs {
+  width: 100%;
+  position: relative;
+}
+
+.tabs button,
+.settings,
+.logo,
+.last {
+  background: rgba(0, 0, 0, 0.5) !important; /* rgba(0, 0, 0, 0.25) !important; */
+}
+
+.tabs button:hover {
+  background: rgba(0, 0, 0, 0.4) !important;
+}
+
+button.tabactive,
+button.tabactive:hover {
+  background: rgba(0, 0, 0, 0.25) !important;
+  border-radius: 4px 4px 0 0;
+}
+
+.tabbarTooltip {
+  left: 3.3em;
+  top: 0.5em;
+}
+
+.label {
+  position: relative;
+}
+
+.labelBubble {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+}
+
+.logo {
+  margin: 0 0 0 -24px;
+  padding: 22px 24px 0 24px;
+  white-space: nowrap;
+}
+
+.logo img {
+  height: 28px;
+  width: 28px;
+  margin-right: 0.5em;
+}
+
+.logo div {
+  display: inline-block;
+  text-transform: uppercase;
+  line-height: 32px;
+  vertical-align: top;
+  letter-spacing: 0.2em;
+}
+
+.last {
+  margin: 0 -24px 0 0;
+  padding: 22px 12px 0 12px;
+  white-space: nowrap;
+}
