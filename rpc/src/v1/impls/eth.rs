@@ -24,7 +24,7 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 use time::get_time;
-use ethsync::{SyncProvider, SyncState};
+use ethsync::{SyncProvider};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
