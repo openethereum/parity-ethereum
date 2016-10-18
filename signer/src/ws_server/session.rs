@@ -113,6 +113,8 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	{
 		let mut headers = response.headers_mut();
 		headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
+		headers.push(("X-XSS-Protection".into(), b"1; mode=block".to_vec()));
+		headers.push(("X-Content-Type-Options".into(), b"nosniff".to_vec()));
 		headers.push(("Server".into(), b"Parity/SignerUI".to_vec()));
 		headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
 		headers.push(("Content-Type".into(), mime.as_bytes().to_vec()));
