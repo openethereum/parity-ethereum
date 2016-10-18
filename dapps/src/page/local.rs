@@ -61,7 +61,7 @@ impl Endpoint for LocalPageEndpoint {
 				app: LocalSingleFile { path: self.path.clone(), mime: mime.clone() },
 				prefix: None,
 				path: path,
-				file: Default::default(),
+				file: handler::ServedFile::new(None),
 				safe_to_embed_at_port: None,
 			})
 		} else {
@@ -69,7 +69,7 @@ impl Endpoint for LocalPageEndpoint {
 				app: LocalDapp { path: self.path.clone() },
 				prefix: None,
 				path: path,
-				file: Default::default(),
+				file: handler::ServedFile::new(None),
 				safe_to_embed_at_port: None,
 			})
 		}

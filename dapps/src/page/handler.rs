@@ -22,7 +22,7 @@ use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 use hyper::{Decoder, Encoder, Next};
 use endpoint::EndpointPath;
-use handlers::ContentHandler;
+use handlers::{ContentHandler, add_security_headers};
 
 /// Represents a file that can be sent to client.
 /// Implementation should keep track of bytes already sent internally.
@@ -57,13 +57,14 @@ pub enum ServedFile<T: Dapp> {
 	Error(ContentHandler),
 }
 
-impl<T: Dapp> Default for ServedFile<T> {
-	fn default() -> Self {
-		ServedFile::Error(ContentHandler::error(
+impl<T: Dapp> ServedFile<T> {
+	pub fn new(embeddable_at: Option<u16>) -> Self {
+		ServedFile::Error(ContentHandler::error_embeddable(
 			StatusCode::NotFound,
 			"404 Not Found",
 			"Requested dapp resource was not found.",
-			None
+			None,
+			embeddable_at,
 		))
 	}
 }
@@ -115,7 +116,7 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 				self.app.file(&self.extract_path(url.path()))
 			},
 			_ => None,
-		}.map_or_else(|| ServedFile::default(), |f| ServedFile::File(f));
+		}.map_or_else(|| ServedFile::new(self.safe_to_embed_at_port.clone()), |f| ServedFile::File(f));
 		Next::write()
 	}
 
@@ -128,14 +129,8 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 			ServedFile::File(ref f) => {
 				res.set_status(StatusCode::Ok);
 				res.headers_mut().set(header::ContentType(f.content_type().parse().unwrap()));
-				if let Some(port) = self.safe_to_embed_at_port {
-					res.headers_mut().set_raw(
-						"X-Frame-Options",
-						vec![format!("ALLOW-FROM http://127.0.0.1:{}", port).into_bytes()]
-					);
-				} else {
-					res.headers_mut().set_raw("X-Frame-Options",  vec![b"DENY".to_vec()]);
-				}
+				// Security headers:
+				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_at_port);
 				Next::write()
 			},
 			ServedFile::Error(ref mut handler) => {
@@ -217,7 +212,7 @@ fn should_extract_path_with_appid() {
 			port: 8080,
 			using_dapps_domains: true,
 		},
-		file: Default::default(),
+		file: ServedFile::new(None),
 		safe_to_embed_at_port: None,
 	};
 

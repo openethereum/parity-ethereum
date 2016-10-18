@@ -79,7 +79,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			app: BuiltinDapp::new(self.app.clone()),
 			prefix: self.prefix.clone(),
 			path: path,
-			file: Default::default(),
+			file: handler::ServedFile::new(self.safe_to_embed_at_port.clone()),
 			safe_to_embed_at_port: self.safe_to_embed_at_port.clone(),
 		})
 	}

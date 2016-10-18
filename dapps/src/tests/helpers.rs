@@ -92,3 +92,18 @@ pub fn serve() -> Server {
 pub fn request(server: Server, request: &str) -> http_client::Response {
 	http_client::request(server.addr(), request)
 }
+
+pub fn assert_security_headers(headers: &[String]) {
+	assert!(
+		headers.iter().find(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN").is_some(),
+		"X-Frame-Options missing: {:?}", headers
+	);
+	assert!(
+		headers.iter().find(|header| header.as_str() == "X-XSS-Protection: 1; mode=block").is_some(),
+		"X-XSS-Protection missing: {:?}", headers
+	);
+	assert!(
+		headers.iter().find(|header|  header.as_str() == "X-Content-Type-Options: nosniff").is_some(),
+		"X-Content-Type-Options missing: {:?}", headers
+	);
+}

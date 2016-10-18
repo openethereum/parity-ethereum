@@ -58,6 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
+	let signer_port = deps.apis.signer_port.clone();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
@@ -72,7 +73,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, deps.signer_port.clone()))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_port))))
 }
 
 pub use self::server::WebappServer;
