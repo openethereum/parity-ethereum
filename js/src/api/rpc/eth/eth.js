@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber16, inOptions } from '../../format/input';
+import { inAddress, inBlockNumber, inData, inFilter, inHash, inHex, inNumber16, inOptions } from '../../format/input';
 import { outAddress, outBlock, outLog, outNumber, outReceipt, outTransaction } from '../../format/output';
 
 export default class Eth {
@@ -292,9 +292,9 @@ export default class Eth {
       .execute('eth_sendTransaction', inOptions(options));
   }
 
-  sign (address, data) {
+  sign (address, hash) {
     return this._transport
-      .execute('eth_sign', inAddress(address), inData(data));
+      .execute('eth_sign', inAddress(address), inHash(hash));
   }
 
   signTransaction () {

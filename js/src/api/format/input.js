@@ -17,7 +17,6 @@
 import BigNumber from 'bignumber.js';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
-import { padU32 } from '../../abi/util/pad';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -44,7 +43,11 @@ export function inData (data) {
     }).join('');
   }
 
-  return `0x${padU32(inHex(data))}`;
+  return inHex(data);
+}
+
+export function inHash (hash) {
+  return inHex(hash);
 }
 
 export function inTopics (_topics) {
