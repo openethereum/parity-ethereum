@@ -23,8 +23,21 @@
   min-width: 50px !important;
 }
 
-.searchInput {
-  transition: width 450ms !important;
+.input {
+  width: 500px !important;
+}
+
+.inputContainer {
+  transition: width 450ms ease-in-out 0ms, height 0ms ease-in-out 0ms;
   white-space: nowrap;
   overflow: hidden;
+  width: 500px;
+  height: 100%;
+  position: relative;
+}
+
+.inputContainerShown {
+  transition: width 450ms ease-in-out 0ms, height 0ms ease-in-out 400ms;
+  width: 0;
+  height: 0;
 }

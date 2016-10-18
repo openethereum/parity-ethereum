@@ -16,11 +16,12 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './tags.css';
+import styles from './tags.less';
 
 export default class Tags extends Component {
   static propTypes = {
-    tags: PropTypes.array
+    tags: PropTypes.array,
+    handleAddSearchToken: PropTypes.func
   }
 
   render () {
@@ -30,10 +31,26 @@ export default class Tags extends Component {
   }
 
   renderTags () {
+    const { handleAddSearchToken } = this.props;
     const tags = this.props.tags || [];
 
-    return tags.map((tag, idx) => (
-      <div key={ idx } className={ styles.tag }>{ tag }</div>
-    ));
+    const tagClasses = handleAddSearchToken
+      ? [ styles.tag, styles.tagClickable ]
+      : [ styles.tag ]
+
+    return tags.map((tag, idx) => {
+      const onClick = handleAddSearchToken
+        ? () => handleAddSearchToken(tag)
+        : null;
+
+      return (
+        <div
+          key={ idx }
+          className={ tagClasses.join(' ') }
+          onClick={ onClick }>
+          { tag }
+        </div>
+      );
+    });
   }
 }

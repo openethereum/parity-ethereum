@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
@@ -55,19 +56,21 @@ class Addresses extends Component {
             search={ searchValues }
             accounts={ contacts }
             balances={ balances }
-            empty={ !hasContacts } />
+            empty={ !hasContacts }
+            handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
     );
   }
 
   renderSearchButton () {
-    const onChange = (values) => {
-      this.setState({ searchValues: values });
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
     };
 
     return (<ActionbarSearch
       key='searchAddress'
+      tokens={ this.state.searchValues }
       onChange={ onChange } />);
   }
 
@@ -103,6 +106,12 @@ class Addresses extends Component {
         contacts={ contacts }
         onClose={ this.onCloseAdd } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onOpenAdd = () => {

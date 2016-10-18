@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
@@ -55,7 +56,8 @@ class Accounts extends Component {
             search={ searchValues }
             accounts={ accounts }
             balances={ balances }
-            empty={ !hasAccounts } />
+            empty={ !hasAccounts }
+            handleAddSearchToken={ this.onAddSearchToken } />
           <Tooltip
             className={ styles.accountTooltip }
             text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
@@ -71,6 +73,7 @@ class Accounts extends Component {
 
     return (<ActionbarSearch
       key='searchAccount'
+      tokens={ this.state.searchValues }
       onChange={ onChange } />);
   }
 
@@ -112,6 +115,12 @@ class Accounts extends Component {
         onClose={ this.onNewAccountClose }
         onUpdate={ this.onNewAccountUpdate } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onNewAccountClick = () => {

@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 // import ChipInput from 'material-ui-chip-input';
 import ChipInput from 'material-ui-chip-input/src/ChipInput';
+// import ChipInput from '../../../../../../../material-ui-chip-input/src/ChipInput';
 import ActionSearch from 'material-ui/svg-icons/action/search';
 import { uniq } from 'lodash';
 
@@ -26,45 +27,53 @@ import styles from './search.css';
 
 export default class ActionbarSearch extends Component {
   static propTypes = {
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    tokens: PropTypes.array
   };
 
   state = {
     showSearch: false,
-    searchValues: [],
     stateChanging: false,
     inputValue: ''
   }
 
-  render () {
-    const { showSearch, searchValues } = this.state;
+  componentWillReceiveProps (nextProps) {
+    const { tokens } = nextProps;
 
-    const searchInputStyle = { width: 500 };
+    if (tokens.length > 0 && this.props.tokens.length === 0) {
+      this.handleOpenSearch(true, true);
+    }
+  }
+
+  render () {
+    const { showSearch } = this.state;
+    const { tokens } = this.props;
+
+    const inputContainerClasses = [ styles.inputContainer ];
 
     if (!showSearch) {
-      searchInputStyle.width = 0;
+      inputContainerClasses.push(styles.inputContainerShown);
     }
 
     return (
       <div
         className={ styles.searchcontainer }
         key='searchAccount'>
-        <ChipInput
-          persistInput
-          style={ searchInputStyle }
-          className={ styles.searchInput }
-          hintText='Enter search input...'
-          hintStyle={ {
-            maxWidth: '100%',
-            overflow: 'hidden',
-            bottom: 22
-          } }
-          ref='searchInput'
-          value={ searchValues }
-          onBlur={ this.handleSearchBlur }
-          onRequestAdd={ this.handleTokenAdd }
-          onRequestDelete={ this.handleTokenDelete }
-          onUpdateInput={ this.handleInputChange } />
+        <div className={ inputContainerClasses.join(' ') }>
+          <ChipInput
+            clearOnBlur={ false }
+            className={ styles.input }
+            hintText='Enter search input...'
+            hintStyle={ {
+              transition: 'none'
+            } }
+            ref='searchInput'
+            value={ tokens }
+            onBlur={ this.handleSearchBlur }
+            onRequestAdd={ this.handleTokenAdd }
+            onRequestDelete={ this.handleTokenDelete }
+            onUpdateInput={ this.handleInputChange } />
+        </div>
 
         <Button
           className={ styles.searchButton }
@@ -76,37 +85,33 @@ export default class ActionbarSearch extends Component {
   }
 
   handleTokenAdd = (value) => {
-    const { searchValues } = this.state;
+    const { tokens } = this.props;
 
-    const newSearchValues = uniq([].concat(searchValues, value));
+    const newSearchValues = uniq([].concat(tokens, value));
 
     this.setState({
-      searchValues: newSearchValues
+      inputValue: ''
     });
 
     this.handleSearchChange(newSearchValues);
   }
 
   handleTokenDelete = (value) => {
-    const { searchValues } = this.state;
+    const { tokens } = this.props;
 
     const newSearchValues = []
-      .concat(searchValues)
+      .concat(tokens)
       .filter(v => v !== value);
 
     this.setState({
-      searchValues: newSearchValues
+      inputValue: ''
     });
 
     this.handleSearchChange(newSearchValues);
+    this.refs.searchInput.focus();
   }
 
   handleInputChange = (value) => {
-    const { searchValues } = this.state;
-
-    const newSearchValues = uniq([].concat(searchValues, value));
-
-    this.handleSearchChange(newSearchValues);
     this.setState({ inputValue: value });
   }
 
@@ -124,15 +129,18 @@ export default class ActionbarSearch extends Component {
   }
 
   handleSearchBlur = () => {
-    const { searchValues, inputValue } = this.state;
+    window.setTimeout(() => {
+      const { inputValue } = this.state;
+      const { tokens } = this.props;
 
-    if (searchValues.length === 0 && inputValue.length === 0) {
-      this.handleOpenSearch(false);
-    }
+      if (tokens.length === 0 && inputValue.length === 0) {
+        this.handleOpenSearch(false);
+      }
+    }, 250);
   }
 
-  handleOpenSearch = (showSearch) => {
-    if (this.state.stateChanging) return false;
+  handleOpenSearch = (showSearch, force) => {
+    if (this.state.stateChanging && !force) return false;
 
     this.setState({
       showSearch: showSearch,

@@ -28,7 +28,8 @@ export default class Summary extends Component {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object.isRequired,
     link: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    handleAddSearchToken: PropTypes.func
   }
 
   state = {
@@ -36,7 +37,7 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, balance, children, link } = this.props;
+    const { account, balance, children, link, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -48,7 +49,7 @@ export default class Summary extends Component {
 
     return (
       <Container>
-        <Tags tags={ tags } />
+        <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
         <IdentityIcon
           address={ address } />
         <ContainerTitle

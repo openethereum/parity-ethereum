@@ -27,7 +27,8 @@ export default class List extends Component {
     balances: PropTypes.object,
     link: PropTypes.string,
     search: PropTypes.array,
-    empty: PropTypes.bool
+    empty: PropTypes.bool,
+    handleAddSearchToken: PropTypes.func
   };
 
   render () {
@@ -39,7 +40,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty } = this.props;
+    const { accounts, balances, link, empty, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
@@ -64,7 +65,8 @@ export default class List extends Component {
           <Summary
             link={ link }
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+            handleAddSearchToken={ handleAddSearchToken } />
         </div>
       );
     });
