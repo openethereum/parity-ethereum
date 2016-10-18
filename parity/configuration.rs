@@ -552,10 +552,10 @@ impl Configuration {
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
 		let signer_path = replace_home(&self.args.flag_signer_path);
 
-		if self.args.flag_geth {
-			let geth_path = path::ethereum::default();
-			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		if self.args.flag_geth  && !cfg!(windows) {
+			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
+				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
 
 		Directories {
