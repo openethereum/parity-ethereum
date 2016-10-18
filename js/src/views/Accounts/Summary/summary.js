@@ -48,12 +48,12 @@ export default class Summary extends Component {
 
     return (
       <Container>
+        <Tags tags={ tags } />
         <IdentityIcon
           address={ address } />
         <ContainerTitle
           title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
           byline={ address } />
-        <Tags tags={ tags } />
         <Balance
           balance={ balance } />
         { children }

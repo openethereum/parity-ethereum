@@ -119,7 +119,7 @@
     "lodash": "^4.11.1",
     "marked": "^0.3.6",
     "material-ui": "^0.15.4",
-    "material-ui-chip-input": "^0.7.0",
+    "material-ui-chip-input": "github:ngotchac/material-ui-chip-input",
     "moment": "^2.14.1",
     "react": "^15.2.1",
     "react-addons-css-transition-group": "^15.2.1",

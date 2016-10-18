@@ -15,8 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import TextField from 'material-ui/TextField';
+// import ChipInput from 'material-ui-chip-input';
+import ChipInput from 'material-ui-chip-input/src/ChipInput';
 import ActionSearch from 'material-ui/svg-icons/action/search';
+import { uniq } from 'lodash';
 
 import { Button } from '../../';
 
@@ -29,56 +31,104 @@ export default class ActionbarSearch extends Component {
 
   state = {
     showSearch: false,
-    searchValue: '',
-    stateChanging: false
+    searchValues: [],
+    stateChanging: false,
+    inputValue: ''
   }
 
   render () {
-    const { onChange } = this.props;
-    const { showSearch } = this.state;
+    const { showSearch, searchValues } = this.state;
 
-    const onSearchClick = () => {
-      this.handleOpenSearch(!this.state.showSearch);
-    };
-
-    const onSearchBlur = () => {
-      if (this.state.searchValue.length === 0) {
-        this.handleOpenSearch(false);
-      }
-    };
-
-    const onSearchChange = (event) => {
-      const searchValue = event.target.value;
-
-      this.setState({ searchValue });
-      onChange(searchValue);
-    };
-
-    const searchInputStyle = {};
+    const searchInputStyle = { width: 500 };
 
     if (!showSearch) {
       searchInputStyle.width = 0;
     }
 
-    return (<div key='searchAccount'>
-      <TextField
-        className={ styles.searchInput }
-        style={ searchInputStyle }
-        hintText='Enter search input...'
-        hintStyle={ {
-          maxWidth: '100%',
-          overflow: 'hidden'
-        } }
-        ref='searchInput'
-        onBlur={ onSearchBlur }
-        onChange={ onSearchChange } />
+    return (
+      <div
+        className={ styles.searchcontainer }
+        key='searchAccount'>
+        <ChipInput
+          persistInput
+          style={ searchInputStyle }
+          className={ styles.searchInput }
+          hintText='Enter search input...'
+          hintStyle={ {
+            maxWidth: '100%',
+            overflow: 'hidden',
+            bottom: 22
+          } }
+          ref='searchInput'
+          value={ searchValues }
+          onBlur={ this.handleSearchBlur }
+          onRequestAdd={ this.handleTokenAdd }
+          onRequestDelete={ this.handleTokenDelete }
+          onUpdateInput={ this.handleInputChange } />
 
-      <Button
-        className={ styles.searchButton }
-        icon={ <ActionSearch /> }
-        label=''
-        onClick={ onSearchClick } />
-    </div>);
+        <Button
+          className={ styles.searchButton }
+          icon={ <ActionSearch /> }
+          label=''
+          onClick={ this.handleSearchClick } />
+      </div>
+    );
+  }
+
+  handleTokenAdd = (value) => {
+    const { searchValues } = this.state;
+
+    const newSearchValues = uniq([].concat(searchValues, value));
+
+    this.setState({
+      searchValues: newSearchValues
+    });
+
+    this.handleSearchChange(newSearchValues);
+  }
+
+  handleTokenDelete = (value) => {
+    const { searchValues } = this.state;
+
+    const newSearchValues = []
+      .concat(searchValues)
+      .filter(v => v !== value);
+
+    this.setState({
+      searchValues: newSearchValues
+    });
+
+    this.handleSearchChange(newSearchValues);
+  }
+
+  handleInputChange = (value) => {
+    const { searchValues } = this.state;
+
+    const newSearchValues = uniq([].concat(searchValues, value));
+
+    this.handleSearchChange(newSearchValues);
+    this.setState({ inputValue: value });
+  }
+
+  handleSearchChange = (searchValues) => {
+    const { onChange } = this.props;
+    const newSearchValues = searchValues.filter(v => v.length > 0);
+
+    onChange(newSearchValues);
+  }
+
+  handleSearchClick = () => {
+    const { showSearch } = this.state;
+
+    this.handleOpenSearch(!showSearch);
+  }
+
+  handleSearchBlur = () => {
+    const { searchValues, inputValue } = this.state;
+
+    if (searchValues.length === 0 && inputValue.length === 0) {
+      this.handleOpenSearch(false);
+    }
   }
 
   handleOpenSearch = (showSearch) => {
@@ -91,6 +141,8 @@ export default class ActionbarSearch extends Component {
 
     if (showSearch) {
       this.refs.searchInput.focus();
+    } else {
+      this.refs.searchInput.getInputNode().blur();
     }
 
     window.setTimeout(() => {

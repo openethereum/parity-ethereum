@@ -1,9 +1,13 @@
 .tags {
   display: flex;
   flex-wrap: wrap;
+  position: absolute;
+  right: 0.25rem;
+  top: 0;
 }
 
 .tag {
+  font-size: 0.9rem;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   margin: 0.75em 0.5em 0 0;

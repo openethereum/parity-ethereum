@@ -41,12 +41,12 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    searchValue: ''
+    searchValues: []
   }
 
   render () {
     const { contracts, hasContracts, balances } = this.props;
-    const { searchValue } = this.state;
+    const { searchValues } = this.state;
 
     return (
       <div className={ styles.contracts }>
@@ -57,7 +57,7 @@ class Contracts extends Component {
         <Page>
           <List
             link='contract'
-            search={ searchValue }
+            search={ searchValues }
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts } />
@@ -67,8 +67,8 @@ class Contracts extends Component {
   }
 
   renderSearchButton () {
-    const onChange = (value) => {
-      this.setState({ searchValue: value });
+    const onChange = (values) => {
+      this.setState({ searchValues: values });
     };
 
     return (<ActionbarSearch

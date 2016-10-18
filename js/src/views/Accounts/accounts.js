@@ -39,12 +39,12 @@ class Accounts extends Component {
   state = {
     addressBook: false,
     newDialog: false,
-    searchValue: ''
+    searchValues: []
   }
 
   render () {
     const { accounts, hasAccounts, balances } = this.props;
-    const { searchValue } = this.state;
+    const { searchValues } = this.state;
 
     return (
       <div className={ styles.accounts }>
@@ -52,7 +52,7 @@ class Accounts extends Component {
         { this.renderActionbar() }
         <Page>
           <List
-            search={ searchValue }
+            search={ searchValues }
             accounts={ accounts }
             balances={ balances }
             empty={ !hasAccounts } />
@@ -65,8 +65,8 @@ class Accounts extends Component {
   }
 
   renderSearchButton () {
-    const onChange = (value) => {
-      this.setState({ searchValue: value });
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
     };
 
     return (<ActionbarSearch
