@@ -22,7 +22,7 @@ import { uniq } from 'lodash';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar, ActionbarSearch, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -39,12 +39,13 @@ class Addresses extends Component {
 
   state = {
     showAdd: false,
+    sortOrder: '',
     searchValues: []
   }
 
   render () {
     const { balances, contacts, hasContacts } = this.props;
-    const { searchValues } = this.state;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.addresses }>
@@ -57,10 +58,22 @@ class Addresses extends Component {
             accounts={ contacts }
             balances={ balances }
             empty={ !hasContacts }
+            order={ sortOrder }
             handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
     );
+  }
+
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (<ActionbarSort
+      key='sortAccounts'
+      order={ this.state.sortOrder }
+      onChange={ onChange } />);
   }
 
   renderSearchButton () {
@@ -82,7 +95,8 @@ class Addresses extends Component {
         label='new address'
         onClick={ this.onOpenAdd } />,
 
-      this.renderSearchButton()
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (

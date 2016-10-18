@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq } from 'lodash';
 
-import { Actionbar, ActionbarSearch, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 import { AddContract, DeployContract } from '../../modals';
 
 import List from '../Accounts/List';
@@ -42,12 +42,13 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
+    sortOrder: '',
     searchValues: []
   }
 
   render () {
     const { contracts, hasContracts, balances } = this.props;
-    const { searchValues } = this.state;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.contracts }>
@@ -62,10 +63,22 @@ class Contracts extends Component {
             accounts={ contracts }
             balances={ balances }
             empty={ !hasContracts }
+            order={ sortOrder }
             handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
     );
+  }
+
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (<ActionbarSort
+      key='sortAccounts'
+      order={ this.state.sortOrder }
+      onChange={ onChange } />);
   }
 
   renderSearchButton () {
@@ -92,7 +105,8 @@ class Contracts extends Component {
         label='deploy contract'
         onClick={ this.onDeployContract } />,
 
-      this.renderSearchButton()
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (
