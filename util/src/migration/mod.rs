@@ -20,6 +20,7 @@ mod tests;
 
 use std::collections::BTreeMap;
 use std::fs;
+use std::fmt;
 use std::path::{Path, PathBuf};
 
 use ::kvdb::{CompactionProfile, Database, DatabaseConfig, DBTransaction};
@@ -96,6 +97,17 @@ pub enum Error {
 	Custom(String),
 }
 
+impl fmt::Display for Error {
+	fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+		match *self {
+			Error::CannotAddMigration => write!(f, "Cannot add migration"),
+			Error::MigrationImpossible => write!(f, "Migration impossible"),
+			Error::Io(ref err) => write!(f, "{}", err),
+			Error::Custom(ref err) => write!(f, "{}", err),
+		}
+	}
+}
+
 impl From<::std::io::Error> for Error {
 	fn from(e: ::std::io::Error) -> Self {
 		Error::Io(e)
@@ -110,6 +122,8 @@ impl From<String> for Error {
 
 /// A generalized migration from the given db to a destination db.
 pub trait Migration: 'static {
+	/// Number of columns in the database before the migration.
+	fn pre_columns(&self) -> Option<u32> { self.columns() }
 	/// Number of columns in database after the migration.
 	fn columns(&self) -> Option<u32>;
 	/// Version of the database after the migration.
@@ -201,6 +215,7 @@ impl Manager {
 			Some(last) => migration.version() > last.version(),
 			None => true,
 		};
+
 		match is_new {
 			true => Ok(self.migrations.push(Box::new(migration))),
 			false => Err(Error::CannotAddMigration),
@@ -211,9 +226,11 @@ impl Manager {
 	/// and producing a path where the final migration lives.
 	pub fn execute(&mut self, old_path: &Path, version: u32) -> Result<PathBuf, Error> {
 		let config = self.config.clone();
-		let columns = self.no_of_columns_at(version);
 		let migrations = self.migrations_from(version);
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
+
+		let columns = migrations.iter().find(|m| m.version() == version).and_then(|m| m.pre_columns());
+
 		let mut db_config = DatabaseConfig {
 			max_open_files: 64,
 			cache_size: None,
@@ -272,14 +289,6 @@ impl Manager {
 	/// Find all needed migrations.
 	fn migrations_from(&mut self, version: u32) -> Vec<&mut Box<Migration>> {
 		self.migrations.iter_mut().filter(|m| m.version() > version).collect()
-	}
-
-	fn no_of_columns_at(&self, version: u32) -> Option<u32> {
-		let migration = self.migrations.iter().find(|m| m.version() == version);
-		match migration {
-			Some(m) => m.columns(),
-			None => None
-		}
 	}
 }
 
