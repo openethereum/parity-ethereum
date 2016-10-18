@@ -625,12 +625,13 @@ impl Client {
 			return Err(snapshot::Error::OldBlockPrunedDB.into());
 		}
 
+		let history = ::std::cmp::min(self.history, 1000);
+
 		let start_hash = match at {
 			BlockID::Latest => {
-				let start_num = if best_block_number > 1000 {
-					best_block_number - 1000
-				} else {
-					0
+				let start_num = match db.earliest_era() {
+					Some(era) => ::std::cmp::max(era, best_block_number - history),
+					None => best_block_number - history,
 				};
 
 				match self.block_hash(BlockID::Number(start_num)) {
