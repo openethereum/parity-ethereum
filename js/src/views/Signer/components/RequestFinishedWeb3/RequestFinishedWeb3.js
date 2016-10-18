@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import TransactionFinishedWeb3 from '../TransactionFinishedWeb3';
+import TransactionFinished from '../TransactionFinished';
 import SignWeb3 from '../SignRequestWeb3';
 
 export default class RequestFinishedWeb3 extends Component {
@@ -57,7 +57,7 @@ export default class RequestFinishedWeb3 extends Component {
     if (payload.transaction) {
       const { transaction } = payload;
       return (
-        <TransactionFinishedWeb3
+        <TransactionFinished
           className={ className }
           txHash={ result }
           id={ id }
