@@ -66,10 +66,7 @@ mod tests {
 								   authcodes.path.as_path());
 
 		let _ = connect.map(|conn| {
-			if let Err(e) = conn {
-				println!("debug: {:?}", e);
-			};
-			// assert!(conn.is_ok())
+			assert!(conn.is_ok())
 		}).wait();
 	}
 
