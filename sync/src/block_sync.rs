@@ -67,7 +67,7 @@ pub enum BlockDownloaderImportError {
 	/// Imported data is rejected as invalid.
 	Invalid,
 	/// Imported data is valid but rejected cause the downloader does not need it.
-	Useless
+	Useless,
 }
 
 /// Block downloader strategy.
