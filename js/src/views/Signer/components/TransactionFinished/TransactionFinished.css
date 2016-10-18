@@ -50,5 +50,6 @@
 }
 
 .txHash {
+  display: block;
   word-break: break-all;
 }

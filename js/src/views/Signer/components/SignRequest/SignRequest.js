@@ -76,7 +76,7 @@ export default class SignRequest extends Component {
           <div className={ styles.actions }>
             <span className={ styles.isConfirmed }>Confirmed</span>
             <div>
-              Transaction hash: <br />
+              Transaction hash:
               <TxHashLink chain={ chain } txHash={ hash } className={ styles.txHash } />
             </div>
           </div>
