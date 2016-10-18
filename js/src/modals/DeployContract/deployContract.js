@@ -168,7 +168,7 @@ export default class DeployContract extends Component {
     this.setState({ description, descriptionError: null });
   }
 
-  onFromAddressChange = (event, fromAddress) => {
+  onFromAddressChange = (fromAddress) => {
     const { api } = this.context;
     const fromAddressError = api.util.isAddressValid(fromAddress)
       ? null

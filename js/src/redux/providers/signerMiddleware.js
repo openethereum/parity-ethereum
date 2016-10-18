@@ -68,11 +68,11 @@ export default class SignerMiddleware {
       });
   }
 
-  onRejectStart = (store, next, action) => {
+  onRejectStart = (store, action) => {
     const id = action.payload;
 
     this._api.personal
-      .personal_rejectRequest(id)
+      .rejectRequest(id)
       .then(() => {
         store.dispatch(actions.successRejectRequest({ id }));
       })

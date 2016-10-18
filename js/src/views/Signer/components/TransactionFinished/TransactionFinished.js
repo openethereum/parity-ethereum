@@ -98,7 +98,7 @@ export default class TransactionFinished extends Component {
 
     return (
       <div>
-        Transaction hash: <br />
+        Transaction hash:
         <TxHashLink chain={ chain } txHash={ txHash } className={ styles.txHash } />
       </div>
     );

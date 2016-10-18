@@ -164,7 +164,8 @@ mod test {
 	#[test]
 	fn should_create_new_account() {
 		// given
-		let dir = env::temp_dir();
+		let mut dir = env::temp_dir();
+		dir.push("ethstore_should_create_new_account");
 		let keypair = Random.generate().unwrap();
 		let password = "hello world";
 		let directory = DiskDirectory::create(dir.clone()).unwrap();

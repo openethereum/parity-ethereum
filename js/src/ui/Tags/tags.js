@@ -36,7 +36,7 @@ export default class Tags extends Component {
 
     const tagClasses = handleAddSearchToken
       ? [ styles.tag, styles.tagClickable ]
-      : [ styles.tag ]
+      : [ styles.tag ];
 
     return tags.map((tag, idx) => {
       const onClick = handleAddSearchToken

@@ -21,6 +21,8 @@ import { Snackbar } from 'material-ui';
 
 import { closeErrors } from './actions';
 
+import styles from './errors.css';
+
 class Errors extends Component {
   static propTypes = {
     message: PropTypes.string,
@@ -38,6 +40,7 @@ class Errors extends Component {
     return (
       <Snackbar
         open
+        className={ styles.container }
         message={ message }
         autoHideDuration={ 5000 }
         onRequestClose={ onCloseErrors } />

@@ -17,7 +17,8 @@
 use endpoint::{Endpoints, Endpoint};
 use page::PageEndpoint;
 use proxypac::ProxyPac;
-use parity_dapps::WebApp;
+use parity_dapps::{self, WebApp};
+use parity_dapps_glue::WebApp as NewWebApp;
 
 mod cache;
 mod fs;
@@ -27,6 +28,7 @@ pub mod manifest;
 
 extern crate parity_dapps_status;
 extern crate parity_dapps_home;
+extern crate parity_ui;
 
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
@@ -57,9 +59,13 @@ pub fn all_endpoints(dapps_path: String) -> Endpoints {
 	pages.insert("home".into(), Box::new(
 		PageEndpoint::new_safe_to_embed(parity_dapps_home::App::default())
 	));
+	// NOTE [ToDr] Dapps will be currently embeded on 8180
+	pages.insert("ui".into(), Box::new(
+		PageEndpoint::new_safe_to_embed(NewUi::default())
+	));
 	pages.insert("proxy".into(), ProxyPac::boxed());
-	insert::<parity_dapps_status::App>(&mut pages, "parity");
 	insert::<parity_dapps_status::App>(&mut pages, "status");
+	insert::<parity_dapps_status::App>(&mut pages, "parity");
 
 	// Optional dapps
 	wallet_page(&mut pages);
@@ -77,4 +83,51 @@ fn wallet_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
+}
+
+// TODO [ToDr] Temporary wrapper until we get rid of old built-ins.
+use std::collections::HashMap;
+
+struct NewUi {
+	app: parity_ui::App,
+	files: HashMap<&'static str, parity_dapps::File>,
+}
+
+impl Default for NewUi {
+	fn default() -> Self {
+		let app = parity_ui::App::default();
+		let files = {
+			let mut files = HashMap::new();
+			for (k, v) in &app.files {
+				files.insert(*k, parity_dapps::File {
+					path: v.path,
+					content: v.content,
+					content_type: v.content_type,
+				});
+			}
+			files
+		};
+
+		NewUi {
+			app: app,
+			files: files,
+		}
+	}
+}
+
+impl WebApp for NewUi {
+	fn file(&self, path: &str) -> Option<&parity_dapps::File> {
+		self.files.get(path)
+	}
+
+	fn info(&self) -> parity_dapps::Info {
+		let info = self.app.info();
+		parity_dapps::Info {
+			name: info.name,
+			version: info.version,
+			author: info.author,
+			description: info.description,
+			icon_url: info.icon_url,
+		}
+	}
 }

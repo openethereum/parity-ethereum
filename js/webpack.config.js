@@ -21,6 +21,7 @@ const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const webpack = require('webpack');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
@@ -152,7 +153,7 @@ module.exports = {
         context: '.',
         manifest: require(`./${DEST}/vendor-manifest.json`)
       }),
-
+      new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
       new WebpackErrorNotificationPlugin(),
       new webpack.DefinePlugin({
         'process.env': {

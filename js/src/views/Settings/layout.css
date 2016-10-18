@@ -41,6 +41,10 @@
   opacity: 0.5;
 }
 
+.overview div {
+  line-height: 1.5em;
+}
+
 .overview>div+div {
   padding-top: 1.25em;
 }
@@ -51,4 +55,15 @@
   width: -moz-calc(100% / 12 * 8);
   width: calc(100% / 12 * 8);
   padding-left: 3em;
+}
+
+.console {
+  font-family: 'Roboto Mono', monospace;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+  padding: 0 0.25em;
+}
+
+.center {
+  text-align: center;
 }

@@ -54,11 +54,11 @@ class Background extends Component {
   render () {
     return (
       <Container>
-        <ContainerTitle title='background' />
+        <ContainerTitle title='Background Pattern' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>Manage your unique, fingerprinted application background.</div>
-            <div>The background is derived from the secure token shared between the front-end and Parity, and it unique across connections. Apart from allowing you to customize the look of your UI, it also allow you to uniquely identify that you are indeed connected to a know endpoint.</div>
+            <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
+            <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.bgcontainer }>

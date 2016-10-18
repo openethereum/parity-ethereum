@@ -27,11 +27,15 @@ ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
+parity-ui = { path = "./ui" }
+parity-dapps-glue = { path = "./js-glue" }
+### DEPRECATED
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-# List of apps
 parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-wallet = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4", optional = true }
+### /DEPRECATED
+
 mime_guess = { version = "1.6.1" }
 clippy = { version = "0.0.90", optional = true}
 
@@ -45,6 +49,7 @@ nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
 
 use-precompiled-js = [
+	"parity-ui/use-precompiled-js",
 	"parity-dapps-status/use-precompiled-js",
 	"parity-dapps-home/use-precompiled-js",
 	"parity-dapps-wallet/use-precompiled-js"

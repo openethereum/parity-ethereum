@@ -49,7 +49,7 @@ export default class Status {
       setTimeout(this._pollPing, timeout);
     };
 
-    fetch(`http://${window.location.host}/api/ping`, { method: 'GET' })
+    fetch('/', { method: 'GET' })
       .then((response) => dispatch(!!response.ok))
       .catch(() => dispatch(false));
   }
