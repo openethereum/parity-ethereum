@@ -11,6 +11,7 @@ if [ -z "$1" ]; then
   exit 1
 fi
 
+git fetch
 git fetch origin $1
 git merge $1 -X theirs
 
