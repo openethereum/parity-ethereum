@@ -70,10 +70,12 @@ class Addresses extends Component {
       this.setState({ sortOrder });
     };
 
-    return (<ActionbarSort
-      key='sortAccounts'
-      order={ this.state.sortOrder }
-      onChange={ onChange } />);
+    return (
+      <ActionbarSort
+        key='sortAccounts'
+        order={ this.state.sortOrder }
+        onChange={ onChange } />
+    );
   }
 
   renderSearchButton () {
@@ -81,10 +83,12 @@ class Addresses extends Component {
       this.setState({ searchValues });
     };
 
-    return (<ActionbarSearch
-      key='searchAddress'
-      tokens={ this.state.searchValues }
-      onChange={ onChange } />);
+    return (
+      <ActionbarSearch
+        key='searchAddress'
+        tokens={ this.state.searchValues }
+        onChange={ onChange } />
+    );
   }
 
   renderActionbar () {

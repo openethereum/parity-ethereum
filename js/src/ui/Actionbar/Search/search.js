@@ -34,7 +34,8 @@ export default class ActionbarSearch extends Component {
   state = {
     showSearch: false,
     stateChanging: false,
-    inputValue: ''
+    inputValue: '',
+    timeoutIds: []
   }
 
   componentWillReceiveProps (nextProps) {
@@ -42,6 +43,14 @@ export default class ActionbarSearch extends Component {
 
     if (tokens.length > 0 && this.props.tokens.length === 0) {
       this.handleOpenSearch(true, true);
+    }
+  }
+
+  componentWillUnmount () {
+    const { timeoutIds } = this.state;
+
+    if (timeoutIds.length > 0) {
+      timeoutIds.map(id => window.clearTimeout(id));
     }
   }
 
@@ -129,7 +138,7 @@ export default class ActionbarSearch extends Component {
   }
 
   handleSearchBlur = () => {
-    window.setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       const { inputValue } = this.state;
       const { tokens } = this.props;
 
@@ -137,6 +146,10 @@ export default class ActionbarSearch extends Component {
         this.handleOpenSearch(false);
       }
     }, 250);
+
+    this.setState({
+      timeoutIds: [].concat(this.state.timeoutIds, timeoutId)
+    });
   }
 
   handleOpenSearch = (showSearch, force) => {
@@ -153,8 +166,12 @@ export default class ActionbarSearch extends Component {
       this.refs.searchInput.getInputNode().blur();
     }
 
-    window.setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       this.setState({ stateChanging: false });
     }, 450);
+
+    this.setState({
+      timeoutIds: [].concat(this.state.timeoutIds, timeoutId)
+    });
   }
 }

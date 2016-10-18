@@ -75,10 +75,12 @@ class Contracts extends Component {
       this.setState({ sortOrder });
     };
 
-    return (<ActionbarSort
-      key='sortAccounts'
-      order={ this.state.sortOrder }
-      onChange={ onChange } />);
+    return (
+      <ActionbarSort
+        key='sortAccounts'
+        order={ this.state.sortOrder }
+        onChange={ onChange } />
+    );
   }
 
   renderSearchButton () {
@@ -86,10 +88,12 @@ class Contracts extends Component {
       this.setState({ searchValues });
     };
 
-    return (<ActionbarSearch
-      key='searchContract'
-      tokens={ this.state.searchValues }
-      onChange={ onChange } />);
+    return (
+      <ActionbarSearch
+        key='searchContract'
+        tokens={ this.state.searchValues }
+        onChange={ onChange } />
+    );
   }
 
   renderActionbar () {
