@@ -28,6 +28,8 @@ use util::{journaldb, CompactionProfile};
 pub enum DatabaseCompactionProfile {
 	/// Default compaction profile
 	Default,
+	/// SSD compaction profile
+	SSD,
 	/// HDD or other slow storage io compaction profile
 	HDD,
 }
@@ -40,9 +42,10 @@ impl Default for DatabaseCompactionProfile {
 
 impl DatabaseCompactionProfile {
 	/// Returns corresponding compaction profile.
-	pub fn compaction_profile(&self) -> CompactionProfile {
+	pub fn compaction_profile(&self, db_path: Path) -> CompactionProfile {
 		match *self {
-			DatabaseCompactionProfile::Default => Default::default(),
+			DatabaseCompactionProfile::Default => CompactionProfile::auto(db_path),
+			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
 			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
 		}
 	}
@@ -53,7 +56,8 @@ impl FromStr for DatabaseCompactionProfile {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
+			"default" => Ok(DatabaseCompactionProfile::Default),
+			"ssd" => Ok(DatabaseCompactionProfile::SSD),
 			"hdd" => Ok(DatabaseCompactionProfile::HDD),
 			_ => Err("Invalid compaction profile given. Expected hdd/ssd (default).".into()),
 		}

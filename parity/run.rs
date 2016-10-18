@@ -133,7 +133,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(&db_dirs)));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {

@@ -123,16 +123,26 @@ pub struct CompactionProfile {
 impl Default for CompactionProfile {
 	/// Default profile suitable for most storage
 	fn default() -> CompactionProfile {
+		CompactionProfile::ssd()
+	}
+}
+
+impl CompactionProfile {
+	/// Attempt to determine the best profile automatically.
+	fn auto(db_path: Path) -> CompactionProfile {
+		Self::default()
+	}
+
+	/// Default profile suitable for SSD storage
+	fn ssd() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 32 * 1024 * 1024,
 			file_size_multiplier: 2,
 			write_rate_limit: None,
 		}
 	}
-}
 
-impl CompactionProfile {
-	/// Slow hdd compaction profile
+	/// Slow HDD compaction profile
 	pub fn hdd() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 192 * 1024 * 1024,
