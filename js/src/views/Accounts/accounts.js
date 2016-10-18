@@ -18,10 +18,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, Button, Page, Tooltip } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -38,11 +39,14 @@ class Accounts extends Component {
 
   state = {
     addressBook: false,
-    newDialog: false
+    newDialog: false,
+    sortOrder: '',
+    searchValues: []
   }
 
   render () {
     const { accounts, hasAccounts, balances } = this.props;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.accounts }>
@@ -50,14 +54,43 @@ class Accounts extends Component {
         { this.renderActionbar() }
         <Page>
           <List
+            search={ searchValues }
             accounts={ accounts }
             balances={ balances }
-            empty={ !hasAccounts } />
+            empty={ !hasAccounts }
+            order={ sortOrder }
+            handleAddSearchToken={ this.onAddSearchToken } />
           <Tooltip
             className={ styles.accountTooltip }
             text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
         </Page>
       </div>
+    );
+  }
+
+  renderSearchButton () {
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
+    };
+
+    return (
+      <ActionbarSearch
+        key='searchAccount'
+        tokens={ this.state.searchValues }
+        onChange={ onChange } />
+    );
+  }
+
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (
+      <ActionbarSort
+        key='sortAccounts'
+        order={ this.state.sortOrder }
+        onChange={ onChange } />
     );
   }
 
@@ -67,7 +100,10 @@ class Accounts extends Component {
         key='newAccount'
         icon={ <ContentAdd /> }
         label='new account'
-        onClick={ this.onNewAccountClick } />
+        onClick={ this.onNewAccountClick } />,
+
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (
@@ -97,6 +133,12 @@ class Accounts extends Component {
         onClose={ this.onNewAccountClose }
         onUpdate={ this.onNewAccountUpdate } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onNewAccountClick = () => {

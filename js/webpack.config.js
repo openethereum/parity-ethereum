@@ -57,6 +57,11 @@ module.exports = {
         loaders: [ 'happypack/loader?id=js' ]
       },
       {
+        test: /\.js$/,
+        include: /node_modules\/material-ui-chip-input/,
+        loader: 'babel'
+      },
+      {
         test: /\.json$/,
         loaders: ['json']
       },
@@ -77,11 +82,7 @@ module.exports = {
       },
       {
         test: /\.less$/,
-        loaders: [
-          'style',
-          'css',
-          'less'
-        ]
+        loaders: [ 'happypack/loader?id=less' ]
       },
       {
         test: /\.(png|jpg|)$/,
@@ -127,6 +128,16 @@ module.exports = {
         loaders: [
           'style',
           'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss'
+        ]
+      }),
+      new HappyPack({
+        id: 'less',
+        threads: 4,
+        loaders: [
+          'style',
+          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'less',
           'postcss'
         ]
       }),

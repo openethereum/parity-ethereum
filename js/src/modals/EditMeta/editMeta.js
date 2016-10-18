@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentSave from 'material-ui/svg-icons/content/save';
+// import ChipInput from 'material-ui-chip-input';
+import ChipInput from 'material-ui-chip-input/src/ChipInput';
 
 import { Button, Form, Input, Modal } from '../../ui';
 import { validateName } from '../../util/validation';
@@ -55,6 +57,7 @@ export default class EditMeta extends Component {
             error={ nameError }
             onSubmit={ this.onNameChange } />
           { this.renderMetaFields() }
+          { this.renderTags() }
         </Form>
       </Modal>
     );
@@ -94,6 +97,21 @@ export default class EditMeta extends Component {
           onSubmit={ onSubmit } />
       );
     });
+  }
+
+  renderTags () {
+    const { meta } = this.state;
+    const { tags } = meta || [];
+    const onChange = (chips) => this.onMetaChange('tags', chips);
+
+    return (<ChipInput
+      defaultValue={ tags }
+      onChange={ onChange }
+      floatingLabelText='(optional) tags'
+      hintText='press <Enter> to add a tag'
+      floatingLabelFixed
+      fullWidth
+    />);
   }
 
   onNameChange = (name) => {

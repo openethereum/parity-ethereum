@@ -14,18 +14,7 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.container {
-  padding: 0em;
-}
 
-.padded {
-  padding: 1.5em;
-  background: rgba(0, 0, 0, 0.8) !important;
-  border-radius: 0 !important;
-  position: relative;
-  overflow: auto;
-}
-
-.light .padded {
-  background: rgba(0, 0, 0, 0.5) !important;
+.sortButton {
+  min-width: 50px !important;
 }

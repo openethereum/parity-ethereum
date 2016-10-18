@@ -14,18 +14,23 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.container {
-  padding: 0em;
+
+:local(.tags) {
+  display: flex;
+  flex-wrap: wrap;
+  position: absolute;
+  right: 0.25rem;
+  top: 0;
 }
 
-.padded {
-  padding: 1.5em;
-  background: rgba(0, 0, 0, 0.8) !important;
-  border-radius: 0 !important;
-  position: relative;
-  overflow: auto;
-}
+:local(.tag) {
+  font-size: 0.8rem;
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  margin: 0.75em 0.5em 0 0;
+  padding: 0.25em 1em;
 
-.light .padded {
-  background: rgba(0, 0, 0, 0.5) !important;
+  &.tagClickable:hover {
+    cursor: pointer;
+  }
 }
