@@ -14,19 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
-import 'whatwg-fetch';
+import Web3 from 'web3';
+import web3extensions from './util/web3.extensions';
 
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
+import './dev.web3.html';
 
-import Api from './api';
+const http = new Web3.providers.HttpProvider('/rpc/');
+const web3 = new Web3(http);
 
-import './dev.parity.html';
+web3extensions(web3).map((extension) => web3._extend(extension));
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
-
-window.parity = {
-  Api,
-  api
-};
+global.web3 = web3;
