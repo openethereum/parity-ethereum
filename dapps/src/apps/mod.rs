@@ -26,7 +26,6 @@ pub mod urlhint;
 pub mod fetcher;
 pub mod manifest;
 
-extern crate parity_dapps_status;
 extern crate parity_dapps_home;
 extern crate parity_ui;
 
@@ -61,21 +60,10 @@ pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints 
 
 	pages.insert("proxy".into(), ProxyPac::boxed());
 	insert::<parity_dapps_home::App>(&mut pages, "home");
-	insert::<parity_dapps_status::App>(&mut pages, "status");
 
-	// Optional dapps
-	wallet_page(&mut pages);
 
 	pages
 }
-
-#[cfg(feature = "parity-dapps-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_wallet;
-	insert::<parity_dapps_wallet::App>(pages, "wallet");
-}
-#[cfg(not(feature = "parity-dapps-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
