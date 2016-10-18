@@ -1,0 +1,55 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+/* todo [adgo] - make local */
+:global .transition-appear {
+  opacity: 0.01;
+}
+
+:global .transition-appear.transition-appear-active {
+  opacity: 1;
+  transition: opacity .3s ease-in-out;
+}
+
+:global .transition-enter {
+  opacity: 0.01;
+}
+
+:global .transition-enter.transition-enter-active {
+  opacity: 1;
+  transition: opacity .3s ease-in-out;
+}
+
+:global .transition-leave {
+  opacity: 1;
+}
+
+:global .transition-leave.transition-leave-active {
+  opacity: 0.01;
+  transition: opacity .3s ease-in-out;
+}
+
+:global .absoluteAnimationContainer {
+  position: relative;
+}
+
+:global .absoluteAnimationContainer > .transition-leave {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+}

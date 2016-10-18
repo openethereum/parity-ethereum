@@ -1,0 +1,101 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.right {
+  text-align: right;
+}
+
+.center {
+  text-align: center;
+}
+
+.left {
+  text-align: left;
+}
+
+.transactions {
+}
+
+.transactions table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.transactions tr {
+  line-height: 32px;
+  vertical-align: top;
+}
+
+.transactions tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.transactions th {
+  color: #aaa;
+  text-align: center;
+}
+
+.transactions td {
+  vertical-align: top;
+  padding: 0.75em 0.75em;
+}
+
+.transactions .link {
+  vertical-align: top;
+}
+
+.infonone {
+  opacity: 0.25;
+}
+
+.etherscan {
+  text-align: right;
+  padding-top: 1em;
+  font-size: 0.75em;
+  color: #aaa;
+}
+
+.address {
+  text-align: center;
+}
+
+.transaction {
+  text-align: center;
+}
+
+.transactions td.transaction {
+  padding-top: 1.5em;
+}
+
+.transaction div {
+  line-height: 1.25em;
+  min-height: 1.25em;
+}
+
+.icon {
+  margin: 0;
+}
+
+.method {
+  width: 40%;
+}
+
+.transactions td.timestamp {
+  padding-top: 1.5em;
+  text-align: right;
+  line-height: 1.5em;
+  opacity: 0.5;
+}

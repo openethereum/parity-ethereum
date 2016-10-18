@@ -89,6 +89,7 @@ impl Configuration {
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
+		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
 		let dapps_conf = self.dapps_config();
@@ -240,6 +241,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				enable_network: enable_network,
+				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
 				signer_port: signer_port,
 				net_settings: self.network_settings(),
@@ -564,10 +566,10 @@ impl Configuration {
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
 		let signer_path = replace_home(&self.args.flag_signer_path);
 
-		if self.args.flag_geth {
-			let geth_path = path::ethereum::default();
-			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		if self.args.flag_geth  && !cfg!(windows) {
+			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
+				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
 
 		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
@@ -810,6 +812,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
+			warp_sync: false,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),

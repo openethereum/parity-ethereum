@@ -1,0 +1,53 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.status {
+  background: rgba(25, 75, 125, 1);
+  color: rgba(255, 255, 255, 1);
+  padding: 4em 0 2em 0;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.title {
+  margin-top: 0;
+  font-weight: 300;
+  font-size: 2.5rem;
+  text-transform: uppercase;
+}
+
+.item {
+  flex: 0 1 30%;
+  width: 30%;
+  margin: 0 1.5%;
+  text-align: center;
+}
+
+.byline {
+  font-size: 1.25em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.heading {
+  text-transform: uppercase;
+  letter-spacing: 0.25em;
+  font-size: 1.5em;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.hero {
+  font-size: 4em;
+}

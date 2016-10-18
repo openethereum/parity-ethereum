@@ -560,6 +560,10 @@ impl BlockChainClient for TestBlockChainClient {
 		Ok(h)
 	}
 
+	fn import_block_with_receipts(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(b)
+	}
+
 	fn queue_info(&self) -> QueueInfo {
 		QueueInfo {
 			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
@@ -585,6 +589,10 @@ impl BlockChainClient for TestBlockChainClient {
 			genesis_hash: self.genesis_hash.clone(),
 			best_block_hash: self.last_hash.read().clone(),
 			best_block_number: self.blocks.read().len() as BlockNumber - 1,
+			first_block_hash: None,
+			first_block_number: None,
+			ancient_block_hash: None,
+			ancient_block_number: None,
 		}
 	}
 

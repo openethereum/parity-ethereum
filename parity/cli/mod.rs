@@ -106,6 +106,8 @@ usage! {
 		// -- Networking Options
 		flag_no_network: bool = false,
 			or |c: &Config| otry!(c.network).disable.clone(),
+		flag_warp: bool = false,
+			or |c: &Config| otry!(c.network).warp.clone(),
 		flag_port: u16 = 30303u16,
 			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
@@ -300,6 +302,7 @@ struct Signer {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Network {
 	disable: Option<bool>,
+	warp: Option<bool>,
 	port: Option<u16>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
@@ -486,6 +489,7 @@ mod tests {
 
 			// -- Networking Options
 			flag_no_network: false,
+			flag_warp: true,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
@@ -643,6 +647,7 @@ mod tests {
 			}),
 			network: Some(Network {
 				disable: Some(false),
+				warp: Some(false),
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),

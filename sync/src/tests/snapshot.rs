@@ -77,7 +77,9 @@ impl SnapshotService for TestSnapshotService {
 		match *self.restoration_manifest.lock() {
 			Some(ref manifest) if self.state_restoration_chunks.lock().len() == manifest.state_hashes.len() &&
 				self.block_restoration_chunks.lock().len() == manifest.block_hashes.len() => RestorationStatus::Inactive,
-			Some(_) => RestorationStatus::Ongoing {
+			Some(ref manifest) => RestorationStatus::Ongoing {
+				state_chunks: manifest.state_hashes.len() as u32,
+				block_chunks: manifest.block_hashes.len() as u32,
 				state_chunks_done: self.state_restoration_chunks.lock().len() as u32,
 				block_chunks_done: self.block_restoration_chunks.lock().len() as u32,
 			},
@@ -114,7 +116,7 @@ impl SnapshotService for TestSnapshotService {
 fn snapshot_sync() {
 	::env_logger::init().ok();
 	let mut net = TestNet::new(2);
-	net.peer_mut(0).snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 1));
+	net.peer_mut(0).snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
 	net.peer_mut(0).chain.add_blocks(1, EachBlockWith::Nothing);
 	net.sync_steps(19); // status + manifest + chunks
 	assert_eq!(net.peer(1).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());

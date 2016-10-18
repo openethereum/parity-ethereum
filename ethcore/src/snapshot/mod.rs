@@ -564,6 +564,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// After all chunks have been submitted, we "glue" the chunks together.
 pub struct BlockRebuilder {
 	chain: BlockChain,
+	db: Arc<Database>,
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
@@ -571,9 +572,10 @@ pub struct BlockRebuilder {
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
+			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
 			best_number: best_number,
@@ -616,15 +618,17 @@ impl BlockRebuilder {
 			}
 
 			let is_best = cur_number == self.best_number;
+			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_total_difficulty), is_best) {
+				if self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, Some(parent_total_difficulty), is_best, false) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
-				self.chain.insert_snapshot_block(&block_bytes, receipts, None, is_best);
+				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
 			}
+			self.db.write(batch).expect("Error writing to the DB");
 			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();

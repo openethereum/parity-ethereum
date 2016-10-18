@@ -194,7 +194,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
+	let informant = Informant::new(client.clone(), None, None, None, cmd.logger_config.color);
 
 	try!(service.register_io_handler(Arc::new(ImportIoHandler {
 		info: Arc::new(informant),
