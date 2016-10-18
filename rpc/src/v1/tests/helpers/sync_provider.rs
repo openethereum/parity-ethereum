@@ -51,6 +51,7 @@ impl TestSyncProvider {
 				mem_used: 0,
 				num_snapshot_chunks: 0,
 				snapshot_chunks_done: 0,
+				last_imported_old_block_number: None,
 			}),
 		}
 	}

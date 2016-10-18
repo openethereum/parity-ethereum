@@ -106,10 +106,11 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	/// Add a packet to send queue.
 	pub fn send<Message>(&mut self, io: &IoContext<Message>, data: Bytes) where Message: Send + Clone {
 		if !data.is_empty() {
+			trace!(target:"network", "{}: Sending {} bytes", self.token, data.len());
 			self.send_queue.push_back(Cursor::new(data));
-		}
-		if !self.interest.is_writable() {
-			self.interest.insert(EventSet::writable());
+			if !self.interest.is_writable() {
+				self.interest.insert(EventSet::writable());
+			}
 			io.update_registration(self.token).ok();
 		}
 	}

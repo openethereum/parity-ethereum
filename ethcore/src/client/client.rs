@@ -30,7 +30,7 @@ use util::kvdb::*;
 
 // other
 use io::*;
-use views::{HeaderView, BodyView};
+use views::{HeaderView, BodyView, BlockView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
 use header::BlockNumber;
 use state::State;
@@ -429,6 +429,29 @@ impl Client {
 
 		self.db.read().flush().expect("DB flush failed.");
 		imported
+	}
+
+	/// Import a block with transaction receipts.
+	/// The block is guaranteed to be the next best blocks in the first block sequence.
+	/// Does no sealing or transaction validation.
+	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> H256 {
+		let block = BlockView::new(&block_bytes);
+		let hash = block.header().hash();
+		let _import_lock = self.import_lock.lock();
+		{
+			let _timer = PerfTimer::new("import_old_block");
+			let chain = self.chain.read();
+
+			// Commit results
+			let receipts = ::rlp::decode(&receipts_bytes);
+			let mut batch = DBTransaction::new(&self.db.read());
+			chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, false, true);
+			// Final commit to the DB
+			self.db.read().write_buffered(batch);
+			chain.commit();
+		}
+		self.db.read().flush().expect("DB flush failed.");
+		hash
 	}
 
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
@@ -998,6 +1021,20 @@ impl BlockChainClient for Client {
 		Ok(try!(self.block_queue.import(unverified)))
 	}
 
+	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError> {
+		{
+			// check block order
+			let header = BlockView::new(&block_bytes).header_view();
+			if self.chain.read().is_known(&header.hash()) {
+				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
+			}
+			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
+				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
+			}
+		}
+		Ok(self.import_old_block(block_bytes, receipts_bytes))
+	}
+
 	fn queue_info(&self) -> BlockQueueInfo {
 		self.block_queue.queue_info()
 	}
@@ -1007,14 +1044,7 @@ impl BlockChainClient for Client {
 	}
 
 	fn chain_info(&self) -> BlockChainInfo {
-		let chain = self.chain.read();
-		BlockChainInfo {
-			total_difficulty: chain.best_block_total_difficulty(),
-			pending_total_difficulty: chain.best_block_total_difficulty(),
-			genesis_hash: chain.genesis_hash(),
-			best_block_hash: chain.best_block_hash(),
-			best_block_number: From::from(chain.best_block_number())
-		}
+		self.chain.read().chain_info()
 	}
 
 	fn additional_params(&self) -> BTreeMap<String, String> {
@@ -1146,21 +1176,22 @@ impl MiningBlockChainClient for Client {
 	}
 
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult {
-		let _import_lock = self.import_lock.lock();
-		let _timer = PerfTimer::new("import_sealed_block");
-		let start = precise_time_ns();
-
 		let h = block.header().hash();
-		let number = block.header().number();
+		let start = precise_time_ns();
+		let route = {
+			// scope for self.import_lock
+			let _import_lock = self.import_lock.lock();
+			let _timer = PerfTimer::new("import_sealed_block");
 
-		let block_data = block.rlp_bytes();
-		let route = self.commit_block(block, &h, &block_data);
-		trace!(target: "client", "Imported sealed block #{} ({})", number, h);
-		self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
-
+			let number = block.header().number();
+			let block_data = block.rlp_bytes();
+			let route = self.commit_block(block, &h, &block_data);
+			trace!(target: "client", "Imported sealed block #{} ({})", number, h);
+			self.state_db.lock().sync_cache(&route.enacted, &route.retracted, false);
+			route
+		};
 		let (enacted, retracted) = self.calculate_enacted_retracted(&[route]);
 		self.miner.chain_new_blocks(self, &[h.clone()], &[], &enacted, &retracted);
-
 		self.notify(|notify| {
 			notify.new_blocks(
 				vec![h.clone()],

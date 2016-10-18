@@ -70,6 +70,7 @@ pub struct RunCmd {
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<U256>,
+	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -171,6 +172,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
 	sync_config.fork_block = spec.fork_block();
+	sync_config.warp_sync = cmd.warp_sync;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -231,7 +233,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -287,7 +289,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
 
-	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let informant = Arc::new(Informant::new(
+		service.client(),
+		Some(sync_provider.clone()),
+		Some(manage_network.clone()),
+		Some(snapshot_service.clone()),
+		cmd.logger_config.color
+	));
 	let info_notify: Arc<ChainNotify> = informant.clone();
 	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {

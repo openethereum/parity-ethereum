@@ -28,6 +28,7 @@ nat = "any"
 id = "0x1"
 bootnodes = []
 discovery = true
+warp = true
 
 reserved_only = false
 reserved_peers = "./path_to_file"
