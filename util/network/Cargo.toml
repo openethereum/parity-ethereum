@@ -17,7 +17,7 @@ slab = "0.2"
 clippy = { version = "0.0.90", optional = true}
 igd = "0.5.0"
 libc = "0.2.7"
-parking_lot = "0.2.6"
+parking_lot = "0.3"
 ansi_term = "0.7"
 rustc-serialize = "0.3"
 ethcore-io = { path = "../io" }
