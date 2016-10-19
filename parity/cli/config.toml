@@ -13,6 +13,7 @@ disable = true
 
 [network]
 disable = false
+warp = false
 discovery = true
 nat = "any"
 min_peers = 10

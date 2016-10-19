@@ -81,7 +81,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));

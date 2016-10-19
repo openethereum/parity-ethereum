@@ -17,3 +17,6 @@ rustc-serialize = "0.3"
 docopt = { version = "0.6" }
 ethcore = { path = "../ethcore" }
 ethcore-util = { path = "../util" }
+
+[features]
+evm-debug = ["ethcore/evm-debug-tests"]

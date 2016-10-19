@@ -31,5 +31,13 @@ pub struct BlockChainInfo {
 	/// Best blockchain block hash.
 	pub best_block_hash: H256,
 	/// Best blockchain block number.
-	pub best_block_number: BlockNumber
+	pub best_block_number: BlockNumber,
+	/// Best ancient block hash.
+	pub ancient_block_hash: Option<H256>,
+	/// Best ancient block number.
+	pub ancient_block_number: Option<BlockNumber>,
+	/// First block on the best sequence.
+	pub first_block_hash: Option<H256>,
+	/// Number of the first block on the best sequence.
+	pub first_block_number: Option<BlockNumber>,
 }

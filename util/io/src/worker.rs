@@ -101,11 +101,11 @@ impl Worker {
 				let _ = wait.wait(lock);
 			}
 
-			if deleting.load(AtomicOrdering::Acquire) {
-				return;
-			}
-			while let chase_lev::Steal::Data(work) = stealer.steal() {
-				Worker::do_work(work, channel.clone());
+			while !deleting.load(AtomicOrdering::Acquire) {
+				match stealer.steal() {
+					chase_lev::Steal::Data(work) => Worker::do_work(work, channel.clone()),
+					_ => break,
+				}
 			}
 		}
 	}

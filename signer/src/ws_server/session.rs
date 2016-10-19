@@ -25,13 +25,15 @@ use jsonrpc_core::IoHandler;
 use util::{H256, Mutex, version};
 
 #[cfg(feature = "ui")]
-mod signer {
-	use signer::SignerApp;
-	use dapps::{self, WebApp};
+mod ui {
+	extern crate parity_ui as ui;
+	extern crate parity_dapps_glue as dapps;
+
+	use self::dapps::WebApp;
 
 	#[derive(Default)]
 	pub struct Handler {
-		signer: SignerApp,
+		ui: ui::App,
 	}
 
 	impl Handler {
@@ -40,20 +42,19 @@ mod signer {
 				"" | "/" => "index.html",
 				path => &path[1..],
 			};
-			self.signer.file(file)
+			self.ui.file(file)
 		}
 	}
 }
 #[cfg(not(feature = "ui"))]
-mod signer {
+mod ui {
 	pub struct File {
 		pub content: &'static [u8],
 		pub content_type: &'static str,
 	}
 
 	#[derive(Default)]
-	pub struct Handler {
-	}
+	pub struct Handler;
 
 	impl Handler {
 		pub fn handle(&self, _req: &str) -> Option<&File> {
@@ -111,6 +112,8 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 	{
 		let mut headers = response.headers_mut();
 		headers.push(("X-Frame-Options".into(), b"SAMEORIGIN".to_vec()));
+		headers.push(("X-XSS-Protection".into(), b"1; mode=block".to_vec()));
+		headers.push(("X-Content-Type-Options".into(), b"nosniff".to_vec()));
 		headers.push(("Server".into(), b"Parity/SignerUI".to_vec()));
 		headers.push(("Content-Length".into(), content_len.as_bytes().to_vec()));
 		headers.push(("Content-Type".into(), mime.as_bytes().to_vec()));
@@ -125,7 +128,7 @@ pub struct Session {
 	self_origin: String,
 	authcodes_path: PathBuf,
 	handler: Arc<IoHandler>,
-	file_handler: Arc<signer::Handler>,
+	file_handler: Arc<ui::Handler>,
 }
 
 impl ws::Handler for Session {
@@ -200,7 +203,7 @@ pub struct Factory {
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
-	file_handler: Arc<signer::Handler>,
+	file_handler: Arc<ui::Handler>,
 }
 
 impl Factory {
@@ -210,7 +213,7 @@ impl Factory {
 			skip_origin_validation: skip_origin_validation,
 			self_origin: self_origin,
 			authcodes_path: authcodes_path,
-			file_handler: Arc::new(signer::Handler::default()),
+			file_handler: Arc::new(ui::Handler::default()),
 		}
 	}
 }
