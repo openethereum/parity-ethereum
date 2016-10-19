@@ -208,7 +208,7 @@ impl SyncStatus {
 			SyncState::Idle | SyncState::NewBlocks => true,
 			_ => false,
 		};
-		let is_current_block = self.highest_block_number.unwrap_or(self.start_block_number) < self.last_imported_block_number.unwrap_or(0) + BlockNumber::from(4u64);
+		let is_current_block = self.highest_block_number.unwrap_or(self.start_block_number) < self.last_imported_block_number.unwrap_or(0) + BlockNumber::from(6u64);
 		// If not synced then is major syncing.
 		!(is_synced_state && is_current_block)
 	}
