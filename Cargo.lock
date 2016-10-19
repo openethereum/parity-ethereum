@@ -339,8 +339,6 @@ dependencies = [
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-glue 1.4.0",
  "parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
- "parity-dapps-status 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
- "parity-dapps-wallet 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1203,22 +1201,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "parity-dapps-status"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
-]
-
-[[package]]
-name = "parity-dapps-wallet"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
-]
-
-[[package]]
 name = "parity-ui"
 version = "1.4.0"
 dependencies = [
@@ -1999,8 +1981,6 @@ dependencies = [
 "checksum odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)" = "b28c06e81b0f789122d415d6394b5fe849bde8067469f4c2980d3cdc10c78ec1"
 "checksum parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
 "checksum parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-status 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-wallet 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
 "checksum parking_lot 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "e0fd1be2c3cf5fef20a6d18fec252c4f3c87c14fc3039002eb7d4ed91e436826"
 "checksum phf 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "447d9d45f2e0b4a9b532e808365abf18fc211be6ca217202fcd45236ef12f026"
 "checksum phf_codegen 0.7.14 (registry+https://github.com/rust-lang/crates.io-index)" = "8af7ae7c3f75a502292b491e5cc0a1f69e3407744abe6e57e2a3b712bb82f01d"

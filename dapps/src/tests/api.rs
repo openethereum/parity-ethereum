@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve, serve_with_registrar, request};
+use tests::helpers::{serve, serve_with_registrar, request, assert_security_headers};
 
 #[test]
 fn should_return_error() {
@@ -36,6 +36,7 @@ fn should_return_error() {
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
 	assert_eq!(response.body, format!("58\n{}\n0\n\n", r#"{"code":"404","title":"Not Found","detail":"Resource you requested has not been found."}"#));
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -58,6 +59,7 @@ fn should_serve_apps() {
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
 	assert!(response.body.contains("Parity Home Screen"), response.body);
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -80,6 +82,7 @@ fn should_handle_ping() {
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
 	assert_eq!(response.body, "0\n\n".to_owned());
+	assert_security_headers(&response.headers);
 }
 
 
@@ -101,5 +104,6 @@ fn should_try_to_resolve_dapp() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert_eq!(registrar.calls.lock().len(), 2);
+	assert_security_headers(&response.headers);
 }
 
