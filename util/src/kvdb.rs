@@ -129,12 +129,12 @@ impl Default for CompactionProfile {
 
 impl CompactionProfile {
 	/// Attempt to determine the best profile automatically.
-	fn auto(db_path: Path) -> CompactionProfile {
+	pub fn auto(db_path: &Path) -> CompactionProfile {
 		Self::default()
 	}
 
 	/// Default profile suitable for SSD storage
-	fn ssd() -> CompactionProfile {
+	pub fn ssd() -> CompactionProfile {
 		CompactionProfile {
 			initial_file_size: 32 * 1024 * 1024,
 			file_size_multiplier: 2,

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
+use std::path::Path;
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::Config as TraceConfig;
@@ -42,7 +43,7 @@ impl Default for DatabaseCompactionProfile {
 
 impl DatabaseCompactionProfile {
 	/// Returns corresponding compaction profile.
-	pub fn compaction_profile(&self, db_path: Path) -> CompactionProfile {
+	pub fn compaction_profile(&self, db_path: &Path) -> CompactionProfile {
 		match *self {
 			DatabaseCompactionProfile::Default => CompactionProfile::auto(db_path),
 			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
