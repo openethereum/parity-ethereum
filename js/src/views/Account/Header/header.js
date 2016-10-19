@@ -15,6 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import CopyToClipboard from 'react-copy-to-clipboard';
+import IconButton from 'material-ui/IconButton';
+import Snackbar from 'material-ui/Snackbar';
+import CopyIcon from 'material-ui/svg-icons/content/content-copy';
+import { lightWhite, fullWhite, lightBlack } from 'material-ui/styles/colors';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
 
@@ -32,7 +37,8 @@ export default class Header extends Component {
   }
 
   state = {
-    name: null
+    name: null,
+    addressCopied: false
   }
 
   componentWillMount () {
@@ -45,6 +51,7 @@ export default class Header extends Component {
 
   render () {
     const { account, balance } = this.props;
+    const { addressCopied } = this.state;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -62,6 +69,35 @@ export default class Header extends Component {
         <div className={ styles.floatleft }>
           <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
           <div className={ styles.addressline }>
+            <Snackbar
+              open={ addressCopied }
+              message={ `Address ${address} copied to clipboard` }
+              autoHideDuration={ 4000 }
+              onRequestClose={ this.handleCopyAddressClose }
+              bodyStyle={ {
+                backgroundColor: lightBlack
+              } }
+            />
+            <CopyToClipboard
+              onCopy={ this.handleCopyAddress }
+              text={ address } >
+              <IconButton
+                tooltip='Copy address to clipboard'
+                tooltipPosition='top-center'
+                style={ {
+                  width: 32,
+                  height: 16,
+                  padding: 0
+                } }
+                iconStyle={ {
+                  width: 16,
+                  height: 16
+                } }>
+                <CopyIcon
+                  color={ addressCopied ? lightWhite : fullWhite }
+                />
+              </IconButton>
+            </CopyToClipboard>
             { address }
           </div>
           { uuidText }
@@ -106,6 +142,14 @@ export default class Header extends Component {
           console.error(error);
         });
     });
+  }
+
+  handleCopyAddress = () => {
+    this.setState({ addressCopied: true });
+  }
+
+  handleCopyAddressClose = () => {
+    this.setState({ addressCopied: false });
   }
 
   setName () {
