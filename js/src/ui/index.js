@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Actionbar from './Actionbar';
+import ActionbarSearch from './Actionbar/Search';
+import ActionbarSort from './Actionbar/Sort';
 import Badge from './Badge';
 import Balance from './Balance';
 import Button from './Button';
@@ -31,11 +33,14 @@ import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
+import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
 
 export {
   Actionbar,
+  ActionbarSearch,
+  ActionbarSort,
   AddressSelect,
   Badge,
   Balance,
@@ -62,6 +67,7 @@ export {
   Page,
   ParityBackground,
   SignerIcon,
+  Tags,
   Tooltip,
   Tooltips,
   TxHash

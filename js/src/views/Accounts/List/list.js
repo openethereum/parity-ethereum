@@ -26,7 +26,10 @@ export default class List extends Component {
     accounts: PropTypes.object,
     balances: PropTypes.object,
     link: PropTypes.string,
-    empty: PropTypes.bool
+    search: PropTypes.array,
+    empty: PropTypes.bool,
+    order: PropTypes.string,
+    handleAddSearchToken: PropTypes.func
   };
 
   render () {
@@ -38,7 +41,7 @@ export default class List extends Component {
   }
 
   renderAccounts () {
-    const { accounts, balances, link, empty } = this.props;
+    const { accounts, balances, link, empty, handleAddSearchToken } = this.props;
 
     if (empty) {
       return (
@@ -50,7 +53,9 @@ export default class List extends Component {
       );
     }
 
-    return Object.keys(accounts).map((address, idx) => {
+    const addresses = this.getAddresses();
+
+    return addresses.map((address, idx) => {
       const account = accounts[address] || {};
       const balance = balances[address] || {};
 
@@ -61,9 +66,78 @@ export default class List extends Component {
           <Summary
             link={ link }
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+            handleAddSearchToken={ handleAddSearchToken } />
         </div>
       );
     });
+  }
+
+  getAddresses () {
+    const filteredAddresses = this.getFilteredAddresses();
+    return this.sortAddresses(filteredAddresses);
+  }
+
+  sortAddresses (addresses) {
+    const { order } = this.props;
+
+    if (!order || ['tags', 'name'].indexOf(order) === -1) {
+      return addresses;
+    }
+
+    const { accounts } = this.props;
+
+    return addresses.sort((addressA, addressB) => {
+      const accountA = accounts[addressA];
+      const accountB = accounts[addressB];
+
+      if (order === 'name') {
+        return accountA.name.localeCompare(accountB.name);
+      }
+
+      if (order === 'tags') {
+        const tagsA = [].concat(accountA.meta.tags)
+          .filter(t => t)
+          .sort();
+        const tagsB = [].concat(accountB.meta.tags)
+          .filter(t => t)
+          .sort();
+
+        if (tagsA.length === 0) return 1;
+        if (tagsB.length === 0) return -1;
+
+        return tagsA.join('').localeCompare(tagsB.join(''));
+      }
+    });
+  }
+
+  getFilteredAddresses () {
+    const { accounts, search } = this.props;
+    const searchValues = (search || []).map(v => v.toLowerCase());
+
+    if (searchValues.length === 0) {
+      return Object.keys(accounts);
+    }
+
+    return Object.keys(accounts)
+      .filter((address) => {
+        const account = accounts[address];
+
+        const tags = account.meta.tags || [];
+        const name = account.name || '';
+
+        const values = []
+          .concat(tags, name)
+          .map(v => v.toLowerCase());
+
+        return searchValues
+          .map(searchValue => {
+            return values
+              .some(value => value.indexOf(searchValue) >= 0);
+          })
+          // `current && truth, true` => use tokens as AND
+          // `current || truth, false` => use tokens as OR
+          .reduce((current, truth) => current && truth, true);
+      });
   }
 }

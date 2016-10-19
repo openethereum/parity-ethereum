@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve, request};
+use tests::helpers::{serve, request, assert_security_headers};
 
 #[test]
 fn should_redirect_to_home() {
@@ -74,6 +74,7 @@ fn should_display_404_on_invalid_dapp() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert!(response.body.contains("href=\"/home/"));
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -94,6 +95,7 @@ fn should_display_404_on_invalid_dapp_with_domain() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert!(response.body.contains("href=\"http://home.parity/"));
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -160,6 +162,7 @@ fn should_serve_proxy_pac() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.body, "86\n\nfunction FindProxyForURL(url, host) {\n\tif (shExpMatch(host, \"*.parity\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:8080\";\n\t}\n\n\treturn \"DIRECT\";\n}\n\n0\n\n".to_owned());
+	assert_security_headers(&response.headers);
 }
 
 #[test]
@@ -181,5 +184,6 @@ fn should_serve_utils() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
 	assert_eq!(response.body.contains("function(){"), true);
+	assert_security_headers(&response.headers);
 }
 

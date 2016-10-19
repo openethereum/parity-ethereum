@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve_with_registrar, request};
+use tests::helpers::{serve_with_registrar, request, assert_security_headers};
 
 #[test]
 fn should_resolve_dapp() {
@@ -34,5 +34,6 @@ fn should_resolve_dapp() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert_eq!(registrar.calls.lock().len(), 2);
+	assert_security_headers(&response.headers);
 }
 

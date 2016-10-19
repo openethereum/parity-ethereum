@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -28,7 +28,8 @@ export default class Summary extends Component {
     account: PropTypes.object.isRequired,
     balance: PropTypes.object.isRequired,
     link: PropTypes.string,
-    children: PropTypes.node
+    children: PropTypes.node,
+    handleAddSearchToken: PropTypes.func
   }
 
   state = {
@@ -36,21 +37,24 @@ export default class Summary extends Component {
   }
 
   render () {
-    const { account, balance, children, link } = this.props;
+    const { account, balance, children, link, handleAddSearchToken } = this.props;
+    const { tags } = account.meta;
 
     if (!account) {
       return null;
     }
 
-    const viewLink = `/${link || 'account'}/${account.address}`;
+    const { address } = account;
+    const viewLink = `/${link || 'account'}/${address}`;
 
     return (
       <Container>
+        <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
         <IdentityIcon
-          address={ account.address } />
+          address={ address } />
         <ContainerTitle
-          title={ <Link to={ viewLink }>{ <IdentityName address={ account.address } unknown /> }</Link> }
-          byline={ account.address } />
+          title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
+          byline={ address } />
         <Balance
           balance={ balance } />
         { children }

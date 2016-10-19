@@ -332,15 +332,13 @@ dependencies = [
  "fetch 0.1.0",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
+ "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-glue 1.4.0",
  "parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
- "parity-dapps-status 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
- "parity-dapps-wallet 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -484,7 +482,7 @@ dependencies = [
  "fetch 0.1.0",
  "json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
+ "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -850,8 +848,8 @@ dependencies = [
 
 [[package]]
 name = "jsonrpc-http-server"
-version = "6.1.0"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#2766c6708f66f6f4e667211461d220b49c0d9fdf"
+version = "6.1.1"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#ee72e4778583daf901b5692468fc622f46abecb6"
 dependencies = [
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1201,22 +1199,6 @@ dependencies = [
 
 [[package]]
 name = "parity-dapps-home"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
-]
-
-[[package]]
-name = "parity-dapps-status"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
-]
-
-[[package]]
-name = "parity-dapps-wallet"
 version = "1.4.0"
 source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
 dependencies = [
@@ -1987,7 +1969,7 @@ dependencies = [
 "checksum json-ipc-server 0.2.4 (git+https://github.com/ethcore/json-ipc-server.git)" = "<none>"
 "checksum json-tcp-server 0.1.0 (git+https://github.com/ethcore/json-tcp-server)" = "<none>"
 "checksum jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)" = "3c5094610b07f28f3edaf3947b732dadb31dbba4941d4d0c1c7a8350208f4414"
-"checksum jsonrpc-http-server 6.1.0 (git+https://github.com/ethcore/jsonrpc-http-server.git)" = "<none>"
+"checksum jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc-http-server.git)" = "<none>"
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
@@ -2026,8 +2008,6 @@ dependencies = [
 "checksum owning_ref 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d91377085359426407a287ab16884a0111ba473aa6844ff01d4ec20ce3d75e7"
 "checksum parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
 "checksum parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-status 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-wallet 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
 "checksum parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "968f685642555d2f7e202c48b8b11de80569e9bfea817f7f12d7c61aac62d4e6"
 "checksum parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "dbc5847584161f273e69edc63c1a86254a22f570a0b5dd87aa6f9773f6f7d125"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"

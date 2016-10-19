@@ -92,3 +92,7 @@ pub fn serve() -> Server {
 pub fn request(server: Server, request: &str) -> http_client::Response {
 	http_client::request(server.addr(), request)
 }
+
+pub fn assert_security_headers(headers: &[String]) {
+	http_client::assert_security_headers_present(headers)
+}

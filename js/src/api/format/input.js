@@ -46,6 +46,10 @@ export function inData (data) {
   return inHex(data);
 }
 
+export function inHash (hash) {
+  return inHex(hash);
+}
+
 export function inTopics (_topics) {
   let topics = (_topics || [])
     .filter((topic) => topic)

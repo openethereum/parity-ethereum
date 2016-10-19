@@ -39,7 +39,7 @@ export default class Dapp extends Component {
         className={ styles.frame }
         frameBorder={ 0 }
         name={ name }
-        sandbox='allow-scripts'
+        sandbox='allow-same-origin allow-scripts'
         scrolling='auto'
         src={ src }>
       </iframe>

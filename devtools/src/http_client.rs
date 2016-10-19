@@ -64,3 +64,18 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 	}
 }
 
+/// Check if all required security headers are present
+pub fn assert_security_headers_present(headers: &[String]) {
+	assert!(
+		headers.iter().find(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN").is_some(),
+		"X-Frame-Options missing: {:?}", headers
+	);
+	assert!(
+		headers.iter().find(|header| header.as_str() == "X-XSS-Protection: 1; mode=block").is_some(),
+		"X-XSS-Protection missing: {:?}", headers
+	);
+	assert!(
+		headers.iter().find(|header|  header.as_str() == "X-Content-Type-Options: nosniff").is_some(),
+		"X-Content-Type-Options missing: {:?}", headers
+	);
+}
