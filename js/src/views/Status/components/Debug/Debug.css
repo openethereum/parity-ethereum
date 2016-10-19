@@ -37,7 +37,9 @@
 }
 
 .logs {
-  width: 100%;
+  max-width: 100%;
+  white-space: pre-line;
+  word-wrap: break-word;
 }
 
 .stopped {
