@@ -204,7 +204,13 @@ pub struct SyncStatus {
 impl SyncStatus {
 	/// Indicates if initial sync is still in progress.
 	pub fn is_major_syncing(&self) -> bool {
-		self.state != SyncState::Idle && self.state != SyncState::NewBlocks
+		let is_synced_state = match self.state {
+			SyncState::Idle | SyncState::NewBlocks | SyncState::Blocks => true,
+			_ => false,
+		};
+		let is_current_block = self.highest_block_number.unwrap_or(self.start_block_number) < self.last_imported_block_number.unwrap_or(0) + BlockNumber::from(4u64);
+		// If not synced then is major syncing.
+		!(is_synced_state && is_current_block)
 	}
 
 	/// Indicates if snapshot download is in progress

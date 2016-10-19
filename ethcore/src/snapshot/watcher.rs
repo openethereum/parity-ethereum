@@ -46,9 +46,7 @@ impl<F> Oracle for StandardOracle<F>
 	}
 
 	fn is_major_syncing(&self) -> bool {
-		let queue_info = self.client.queue_info();
-
-		(self.sync_status)() || queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
+		(self.sync_status)()
 	}
 }
 
