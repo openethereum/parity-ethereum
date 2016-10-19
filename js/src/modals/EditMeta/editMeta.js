@@ -104,14 +104,16 @@ export default class EditMeta extends Component {
     const { tags } = meta || [];
     const onChange = (chips) => this.onMetaChange('tags', chips);
 
-    return (<ChipInput
-      defaultValue={ tags }
-      onChange={ onChange }
-      floatingLabelText='(optional) tags'
-      hintText='press <Enter> to add a tag'
-      floatingLabelFixed
-      fullWidth
-    />);
+    return (
+      <ChipInput
+        defaultValue={ tags }
+        onChange={ onChange }
+        floatingLabelText='(optional) tags'
+        hintText='press <Enter> to add a tag'
+        floatingLabelFixed
+        fullWidth
+      />
+    );
   }
 
   onNameChange = (name) => {

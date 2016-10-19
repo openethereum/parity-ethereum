@@ -15,7 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-:local(.tags) {
+.tags {
   display: flex;
   flex-wrap: wrap;
   position: absolute;
@@ -23,14 +23,14 @@
   top: 0;
 }
 
-:local(.tag) {
-  font-size: 0.8rem;
+.tag {
+  font-size: 0.75rem;
   background: rgba(255, 255, 255, 0.07);
   border-radius: 16px;
   margin: 0.75em 0.5em 0 0;
   padding: 0.25em 1em;
+}
 
-  &.tagClickable:hover {
-    cursor: pointer;
-  }
+.tagClickable:hover {
+  cursor: pointer;
 }

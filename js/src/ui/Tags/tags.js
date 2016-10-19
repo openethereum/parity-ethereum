@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './tags.less';
+import styles from './tags.css';
 
 export default class Tags extends Component {
   static propTypes = {
@@ -36,7 +36,7 @@ export default class Tags extends Component {
 
     const tagClasses = handleAddSearchToken
       ? [ styles.tag, styles.tagClickable ]
-      : [ styles.tag ]
+      : [ styles.tag ];
 
     return tags.map((tag, idx) => {
       const onClick = handleAddSearchToken
