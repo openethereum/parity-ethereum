@@ -133,8 +133,7 @@ export default class List extends Component {
         return searchValues
           .map(searchValue => {
             return values
-              .filter(value => value.indexOf(searchValue) >= 0)
-              .length > 0;
+              .some(value => value.indexOf(searchValue) >= 0);
           })
           // `current && truth, true` => use tokens as AND
           // `current || truth, false` => use tokens as OR
