@@ -53,6 +53,12 @@ export default class Input extends Component {
     value: this.props.value
   }
 
+  componentWillReceiveProps (newProps) {
+    if (newProps.value !== this.props.value) {
+      this.setValue(newProps.value);
+    }
+  }
+
   render () {
     const { value } = this.state;
     const { children, className, disabled, error, label, hint, multiLine, rows, type } = this.props;
