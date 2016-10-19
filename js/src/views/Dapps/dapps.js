@@ -45,7 +45,7 @@ export default class Dapps extends Component {
   componentDidMount () {
     fetchAvailable()
     .then((available) => {
-      this.setState({ available })
+      this.setState({ available });
       this.setState({ visible: readVisible() });
       this.loadImages();
     })
@@ -69,7 +69,6 @@ export default class Dapps extends Component {
           onClose={ this.closeModal }
         />
         <Actionbar
-          title='Accounts Overview'
           className={ styles.toolbar }
           title='Decentralized Applications'
           buttons={ [

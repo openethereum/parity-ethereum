@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import Dialog from 'material-ui/Dialog';
 import IconButton from 'material-ui/IconButton';
 import DoneIcon from 'material-ui/svg-icons/action/done';
-import {List, ListItem} from 'material-ui/List';
+import { List, ListItem } from 'material-ui/List';
 import Checkbox from 'material-ui/Checkbox';
 
 export default class AddDapps extends Component {
@@ -42,7 +42,9 @@ export default class AddDapps extends Component {
             <DoneIcon />
           </IconButton>
         ] }
-        open={ open }>
+        open={ open }
+        autoScrollBodyContent={ true }
+      >
         <List>
           { available.map(this.renderApp) }
         </List>

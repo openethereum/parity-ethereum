@@ -62,8 +62,8 @@ const hardcoded = [
 ];
 
 export default function () {
-  return Promise.resolve(hardcoded) // TODO
+  return Promise.resolve(hardcoded); // TODO
 
   return fetch('//127.0.0.1:8080/api/apps')
-  .then((res) => res.ok ? res.json() : [])
+  .then((res) => res.ok ? res.json() : []);
 }
