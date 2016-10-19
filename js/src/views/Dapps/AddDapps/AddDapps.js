@@ -21,6 +21,8 @@ import Checkbox from 'material-ui/Checkbox';
 
 import { Modal, Button } from '../../../ui';
 
+import styles from './AddDapps.css';
+
 export default class AddDapps extends Component {
   static propTypes = {
     available: PropTypes.array.isRequired,
@@ -61,8 +63,9 @@ export default class AddDapps extends Component {
     return (
       <ListItem
         key={ app.id }
-        primaryText={ app.name }
         leftCheckbox={ <Checkbox checked={ isVisible } onCheck={ onCheck } /> }
+        primaryText={ app.name }
+        secondaryText={ <pre className={ styles.hash }><code>{ app.hash }</code></pre> }
       />
     );
   }

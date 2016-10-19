@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { sha3 } from '../../api/util/sha3';
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
@@ -98,7 +97,7 @@ export default class Dapps extends Component {
     const { available } = this.state;
     const { dappReg } = Contracts.get();
 
-    return Promise.all(available.map((app) => dappReg.getImage(sha3(app.id))))
+    return Promise.all(available.map((app) => dappReg.getImage(app.hash)))
     .then((images) => {
       this.setState({
         available: images

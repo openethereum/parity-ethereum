@@ -16,6 +16,8 @@
 
 // TODO remove this hardcoded list of apps once the route works again.
 
+import { sha3 } from '../../api/util/sha3';
+
 const hardcoded = [
   {
     id: 'basiccoin',
@@ -62,8 +64,11 @@ const hardcoded = [
 ];
 
 export default function () {
-  return Promise.resolve(hardcoded); // TODO
 
-  return fetch('//127.0.0.1:8080/api/apps')
-  .then((res) => res.ok ? res.json() : []);
+  // return fetch('//127.0.0.1:8080/api/apps')
+  // .then((res) => res.ok ? res.json() : [])
+  return Promise.resolve(hardcoded) // TODO
+  .then((apps) => apps.map((app) => {
+    return Object.assign({}, app, { hash: sha3(app.id) })
+  }));
 }
