@@ -22,7 +22,7 @@ import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
 
 import fetchAvailable from './available';
-import { read as readVisible } from './visible';
+import { read as readVisible, write as writeVisible } from './visible';
 
 import AddDapps from './AddDapps';
 import Summary from './Summary';
@@ -56,16 +56,15 @@ export default class Dapps extends Component {
     const { available, visible, modalOpen } = this.state;
     const apps = available.filter((app) => visible.includes(app.id));
 
-    const onAdd = () => {};
-    const onModalClose = () => {
-      this.setState({ modalOpen: false })
-    };
     return (
       <div>
         <AddDapps
+          available={ available }
+          visible={ visible }
           open={ modalOpen }
-          onAdd={ onAdd }
-          onClose={ onModalClose }
+          onAdd={ this.onAdd }
+          onRemove={ this.onRemove }
+          onClose={ this.onModalClose }
         />
         <Actionbar
           title='Decentralized Applications' />
@@ -104,4 +103,24 @@ export default class Dapps extends Component {
       console.error('error loading dapp images', err);
     });
   }
+
+  onAdd = (id) => {
+    const oldVisible = this.state.visible;
+    if (oldVisible.includes(id)) return;
+    const newVisible = oldVisible.concat(id);
+    this.setState({ visible: newVisible });
+    writeVisible(newVisible);
+  }
+
+  onRemove = (id) => {
+    const oldVisible = this.state.visible;
+    if (!oldVisible.includes(id)) return;
+    const newVisible = oldVisible.filter((_id) => _id !== id);
+    this.setState({ visible: newVisible });
+    writeVisible(newVisible);
+  }
+
+  onModalClose = () => {
+    this.setState({ modalOpen: false });
+  };
 }

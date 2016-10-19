@@ -18,32 +18,52 @@ import React, { Component, PropTypes } from 'react';
 import Dialog from 'material-ui/Dialog';
 import IconButton from 'material-ui/IconButton';
 import DoneIcon from 'material-ui/svg-icons/action/done';
+import {List, ListItem} from 'material-ui/List';
+import Checkbox from 'material-ui/Checkbox';
 
 export default class AddDapps extends Component {
   static propTypes = {
+    available: PropTypes.array.isRequired,
+    visible: PropTypes.array.isRequired,
     open: PropTypes.bool.isRequired,
     onAdd: PropTypes.func.isRequired,
+    onRemove: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   };
 
   render () {
-    const actions = [
-      <IconButton
-        label={ 'Done' }
-        onClick={ this.props.onClose }
-      >
-        <DoneIcon />
-      </IconButton>
-    ]
+    const { onClose, open, available } = this.props;
 
     return (
       <Dialog
-        visible
         title='Select Distributed Apps to be shown'
-        actions={ actions }
-        open={ this.props.open }>
-        foo bar baz
+        actions={ [
+          <IconButton label={ 'Done' } onClick={ onClose }>
+            <DoneIcon />
+          </IconButton>
+        ] }
+        open={ open }>
+        <List>
+          { available.map(this.renderApp) }
+        </List>
       </Dialog>
+    );
+  }
+
+  renderApp = (app) => {
+    const { visible, onAdd, onRemove } = this.props;
+    const isVisible = visible.includes(app.id);
+    const onCheck = () => {
+      if (isVisible) onRemove(app.id);
+      else onAdd(app.id);
+    };
+
+    return (
+      <ListItem
+        key={ app.id }
+        primaryText={ app.name }
+        leftCheckbox={ <Checkbox checked={ isVisible } onCheck={ onCheck } /> }
+      />
     );
   }
 }
