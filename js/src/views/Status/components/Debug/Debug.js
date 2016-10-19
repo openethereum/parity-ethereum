@@ -72,16 +72,10 @@ export default class Debug extends Component {
       return null;
     }
 
-    const logs = devLogs.map((log, idx) => (
-      <pre className={ styles.log } key={ idx }>
-        { log }
-      </pre>
-    ));
-
     return (
-      <div className={ styles.logs }>
-        { logs }
-      </div>
+      <pre className={ styles.logs }>
+        { devLogs.join('\n') }
+      </pre>
     );
   }
 
