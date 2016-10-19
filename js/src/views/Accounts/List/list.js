@@ -130,15 +130,14 @@ export default class List extends Component {
           .concat(tags, name)
           .map(v => v.toLowerCase());
 
-        return values
-          .filter((value) => {
-            return searchValues
-              .map(searchValue => value.indexOf(searchValue) >= 0)
-              // `current && truth, true` => use tokens as AND
-              // `current || truth, false` => use tokens as OR
-              .reduce((current, truth) => current || truth, false);
+        return searchValues
+          .map(searchValue => {
+            return values
+              .some(value => value.indexOf(searchValue) >= 0);
           })
-          .length > 0;
+          // `current && truth, true` => use tokens as AND
+          // `current || truth, false` => use tokens as OR
+          .reduce((current, truth) => current && truth, true);
       });
   }
 }

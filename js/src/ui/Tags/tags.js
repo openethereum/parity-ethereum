@@ -38,19 +38,21 @@ export default class Tags extends Component {
       ? [ styles.tag, styles.tagClickable ]
       : [ styles.tag ];
 
-    return tags.map((tag, idx) => {
-      const onClick = handleAddSearchToken
-        ? () => handleAddSearchToken(tag)
-        : null;
+    return tags
+      .sort()
+      .map((tag, idx) => {
+        const onClick = handleAddSearchToken
+          ? () => handleAddSearchToken(tag)
+          : null;
 
-      return (
-        <div
-          key={ idx }
-          className={ tagClasses.join(' ') }
-          onClick={ onClick }>
-          { tag }
-        </div>
-      );
-    });
+        return (
+          <div
+            key={ idx }
+            className={ tagClasses.join(' ') }
+            onClick={ onClick }>
+            { tag }
+          </div>
+        );
+      });
   }
 }
