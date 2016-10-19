@@ -1058,7 +1058,7 @@ impl ChainSync {
 					}
 
 					let have_latest = io.chain().block_status(BlockID::Hash(peer_latest)) != BlockStatus::Unknown;
-					if !have_latest && higher_difficulty {
+					if !have_latest && (higher_difficulty || force) {
 						// check if got new blocks to download
 						if let Some(request) = self.new_blocks.request_blocks(io) {
 							self.request_blocks(io, peer_id, request, BlockSet::NewBlocks);
