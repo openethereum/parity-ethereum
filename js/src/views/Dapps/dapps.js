@@ -20,6 +20,8 @@ import { sha3 } from '../../api/util/sha3';
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
+import FlatButton from 'material-ui/FlatButton';
+import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
 import fetchAvailable from './available';
 import { read as readVisible, write as writeVisible } from './visible';
@@ -64,10 +66,16 @@ export default class Dapps extends Component {
           open={ modalOpen }
           onAdd={ this.onAdd }
           onRemove={ this.onRemove }
-          onClose={ this.onModalClose }
+          onClose={ this.closeModal }
         />
         <Actionbar
-          title='Decentralized Applications' />
+          title='Accounts Overview'
+          className={ styles.toolbar }
+          title='Decentralized Applications'
+          buttons={ [
+            <FlatButton label='edit' icon={ <EyeIcon /> } onClick={ this.openModal } />
+          ] }
+        />
         <Page>
           <div className={ styles.list }>
             { apps.map(this.renderApp) }
@@ -120,7 +128,10 @@ export default class Dapps extends Component {
     writeVisible(newVisible);
   }
 
-  onModalClose = () => {
+  openModal = () => {
+    this.setState({ modalOpen: true });
+  };
+  closeModal = () => {
     this.setState({ modalOpen: false });
   };
 }
