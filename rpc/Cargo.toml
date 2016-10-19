@@ -13,7 +13,7 @@ log = "0.3"
 serde = "0.7.0"
 serde_json = "0.7.0"
 jsonrpc-core = "2.1"
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git", branch = "beta" }
 ethcore-io = { path = "../util/io" }
 ethcore-util = { path = "../util" }
 ethcore = { path = "../ethcore" }
