@@ -171,11 +171,14 @@ export function outTrace (trace) {
         switch (key) {
           case 'gas':
           case 'value':
+          case 'balance':
             trace.action[key] = outNumber(trace.action[key]);
             break;
 
           case 'from':
           case 'to':
+          case 'address':
+          case 'refundAddress':
             trace.action[key] = outAddress(trace.action[key]);
             break;
         }
@@ -187,6 +190,10 @@ export function outTrace (trace) {
         switch (key) {
           case 'gasUsed':
             trace.result[key] = outNumber(trace.result[key]);
+            break;
+
+          case 'address':
+            trace.action[key] = outAddress(trace.action[key]);
             break;
         }
       });
@@ -200,6 +207,7 @@ export function outTrace (trace) {
 
     Object.keys(trace).forEach((key) => {
       switch (key) {
+        case 'subtraces':
         case 'transactionPosition':
         case 'blockNumber':
           trace[key] = outNumber(trace[key]);
