@@ -82,8 +82,6 @@
     "istanbul": "^1.0.0-alpha.2",
     "jsdom": "9.2.1",
     "json-loader": "^0.5.4",
-    "less": "^2.7.1",
-    "less-loader": "^2.2.3",
     "mocha": "^3.0.0-1",
     "mock-local-storage": "1.0.2",
     "mock-socket": "^3.0.1",
