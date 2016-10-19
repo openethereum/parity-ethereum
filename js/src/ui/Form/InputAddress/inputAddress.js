@@ -38,22 +38,40 @@ class InputAddress extends Component {
     onSubmit: PropTypes.func
   };
 
+  state = {
+    isEmpty: false
+  }
+
+  componentWillMount () {
+    const { value, text, accountsInfo, tokens } = this.props;
+    const account = accountsInfo[value] || tokens[value];
+    const hasAccount = account && !account.meta.deleted;
+    const inputValue = text && hasAccount ? account.name : value;
+    const isEmpty = (inputValue.length === 0);
+
+    this.setState({ isEmpty });
+  }
+
   render () {
-    const { className, disabled, error, label, hint, value, text, onChange, onSubmit, accountsInfo, tokens } = this.props;
-    const classes = `${styles.input} ${className}`;
+    const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
+    const { isEmpty } = this.state;
+
+    const classes = [ className ];
+    classes.push(isEmpty ? styles.inputEmpty : styles.input);
+
     const account = accountsInfo[value] || tokens[value];
     const hasAccount = account && !account.meta.deleted;
 
     return (
       <div className={ styles.container }>
         <Input
-          className={ classes }
+          className={ classes.join(' ') }
           disabled={ disabled }
           label={ label }
           hint={ hint }
           error={ error }
           value={ text && hasAccount ? account.name : value }
-          onChange={ onChange }
+          onChange={ this.handleInputChange }
           onSubmit={ onSubmit } />
         { this.renderIcon() }
       </div>
@@ -74,6 +92,13 @@ class InputAddress extends Component {
           address={ value } />
       </div>
     );
+  }
+
+  handleInputChange = (event, value) => {
+    let isEmpty = (value.length === 0);
+
+    this.setState({ isEmpty });
+    this.props.onChange(event, value);
   }
 }
 

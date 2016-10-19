@@ -73,10 +73,6 @@
   position: relative;
 }
 
-.address input {
-  padding-left: 48px !important;
-}
-
 .from {
   padding: 25px 0 0 48px !important;
   line-height: 32px;
