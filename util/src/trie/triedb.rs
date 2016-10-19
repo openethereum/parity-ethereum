@@ -304,14 +304,6 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(())
 	}
 
-	/// Descend into a payload and get the next item.
-	fn descend_next(&mut self, d: &'a [u8]) -> Option<TrieItem<'a>> {
-		match self.descend(d) {
-			Ok(()) => self.next(),
-			Err(e) => Some(Err(e)),
-		}
-	}
-
 	/// The present key.
 	fn key(&self) -> Bytes {
 		// collapse the key_nibbles down to bytes.
@@ -323,38 +315,52 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 	type Item = TrieItem<'a>;
 
 	fn next(&mut self) -> Option<Self::Item> {
-		let b = match self.trail.last_mut() {
-			Some(mut b) => { b.increment(); b.clone() },
-			None => return None,
-		};
-		match (b.status, b.node) {
-			(Status::Exiting, n) => {
-				match n {
-					Node::Leaf(n, _) | Node::Extension(n, _) => {
-						let l = self.key_nibbles.len();
-						self.key_nibbles.truncate(l - n.len());
-					},
-					Node::Branch(_, _) => { self.key_nibbles.pop(); },
-					_ => {}
-				}
-				self.trail.pop();
-				self.next()
-			},
-			(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => Some(Ok((self.key(), v))),
-			(Status::At, Node::Extension(_, d)) => self.descend_next(d),
-			(Status::At, Node::Branch(_, _)) => self.next(),
-			(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
-				match i {
-					0 => self.key_nibbles.push(0),
-					i => *self.key_nibbles.last_mut().unwrap() = i as u8,
-				}
-				self.descend_next(children[i])
-			},
-			(Status::AtChild(i), Node::Branch(_, _)) => {
-				if i == 0 { self.key_nibbles.push(0); }
-				self.next()
-			},
-			_ => panic!() // Should never see Entering or AtChild without a Branch here.
+		loop {
+			let b = match self.trail.last_mut() {
+				Some(mut b) => { b.increment(); b.clone() },
+				None => return None,
+			};
+			match (b.status, b.node) {
+				(Status::Exiting, n) => {
+					match n {
+						Node::Leaf(n, _) | Node::Extension(n, _) => {
+							let l = self.key_nibbles.len();
+							self.key_nibbles.truncate(l - n.len());
+						},
+						Node::Branch(_, _) => { self.key_nibbles.pop(); },
+						_ => {}
+					}
+					self.trail.pop();
+					// continue
+				},
+				(Status::At, Node::Leaf(_, v)) | (Status::At, Node::Branch(_, Some(v))) => {
+					return Some(Ok((self.key(), v)));
+				},
+				(Status::At, Node::Extension(_, d)) => {
+					if let Err(e) = self.descend(d) {
+						return Some(Err(e));
+					}
+					// continue
+				},
+				(Status::At, Node::Branch(_, _)) => {},
+				(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
+					match i {
+						0 => self.key_nibbles.push(0),
+						i => *self.key_nibbles.last_mut().unwrap() = i as u8,
+					}
+					if let Err(e) = self.descend(children[i]) {
+						return Some(Err(e));
+					}
+					// continue
+				},
+				(Status::AtChild(i), Node::Branch(_, _)) => {
+					if i == 0 {
+						self.key_nibbles.push(0);
+					}
+					// continue
+				},
+				_ => panic!() // Should never see Entering or AtChild without a Branch here.
+			}
 		}
 	}
 }
