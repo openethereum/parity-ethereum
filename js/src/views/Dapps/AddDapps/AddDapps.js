@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import Dialog from 'material-ui/Dialog';
-import IconButton from 'material-ui/IconButton';
 import DoneIcon from 'material-ui/svg-icons/action/done';
 import { List, ListItem } from 'material-ui/List';
 import Checkbox from 'material-ui/Checkbox';
+
+import { Modal, Button } from '../../../ui';
 
 export default class AddDapps extends Component {
   static propTypes = {
@@ -35,20 +35,18 @@ export default class AddDapps extends Component {
     const { onClose, open, available } = this.props;
 
     return (
-      <Dialog
+      <Modal
         title='Select Distributed Apps to be shown'
         actions={ [
-          <IconButton label={ 'Done' } onClick={ onClose }>
-            <DoneIcon />
-          </IconButton>
+          <Button label={ 'Done' } onClick={ onClose } icon={ <DoneIcon /> } />
         ] }
-        open={ open }
-        autoScrollBodyContent={ true }
+        visible={ open }
+        scroll={ true }
       >
         <List>
           { available.map(this.renderApp) }
         </List>
-      </Dialog>
+      </Modal>
     );
   }
 
