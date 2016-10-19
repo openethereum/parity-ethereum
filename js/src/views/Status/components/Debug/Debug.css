@@ -37,19 +37,16 @@
 }
 
 .logs {
-  width: 100%;
+  margin: 0;
+  max-width: 100%;
+  white-space: pre-line;
+  word-wrap: break-word;
+  color: #aaa;
 }
 
 .stopped {
   color: #aaa;
   padding: 1em 0;
-}
-
-.log {
-  margin: 0;
-  white-space: nowrap;
-  overflow: visible;
-  color: #aaa;
 }
 
 .container {
