@@ -58,6 +58,11 @@ module.exports = {
         loaders: [ 'happypack/loader?id=js' ]
       },
       {
+        test: /\.js$/,
+        include: /node_modules\/material-ui-chip-input/,
+        loader: 'babel'
+      },
+      {
         test: /\.json$/,
         loaders: ['json']
       },
@@ -75,14 +80,6 @@ module.exports = {
         test: /\.css$/,
         exclude: [/src/],
         loader: 'style!css'
-      },
-      {
-        test: /\.less$/,
-        loaders: [
-          'style',
-          'css',
-          'less'
-        ]
       },
       {
         test: /\.(png|jpg|)$/,

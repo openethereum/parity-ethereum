@@ -18,10 +18,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -37,11 +38,14 @@ class Addresses extends Component {
   }
 
   state = {
-    showAdd: false
+    showAdd: false,
+    sortOrder: '',
+    searchValues: []
   }
 
   render () {
     const { balances, contacts, hasContacts } = this.props;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.addresses }>
@@ -50,11 +54,40 @@ class Addresses extends Component {
         <Page>
           <List
             link='address'
+            search={ searchValues }
             accounts={ contacts }
             balances={ balances }
-            empty={ !hasContacts } />
+            empty={ !hasContacts }
+            order={ sortOrder }
+            handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
+    );
+  }
+
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (
+      <ActionbarSort
+        key='sortAccounts'
+        order={ this.state.sortOrder }
+        onChange={ onChange } />
+    );
+  }
+
+  renderSearchButton () {
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
+    };
+
+    return (
+      <ActionbarSearch
+        key='searchAddress'
+        tokens={ this.state.searchValues }
+        onChange={ onChange } />
     );
   }
 
@@ -64,7 +97,10 @@ class Addresses extends Component {
         key='newAddress'
         icon={ <ContentAdd /> }
         label='new address'
-        onClick={ this.onOpenAdd } />
+        onClick={ this.onOpenAdd } />,
+
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (
@@ -88,6 +124,12 @@ class Addresses extends Component {
         contacts={ contacts }
         onClose={ this.onCloseAdd } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onOpenAdd = () => {
