@@ -41,6 +41,7 @@ module.exports = {
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
+    'inject': ['./inject.js'],
     'parity': ['./parity.js'],
     // app
     'index': ['./index.js']
@@ -55,6 +56,11 @@ module.exports = {
         test: /\.js$/,
         exclude: /node_modules/,
         loaders: [ 'happypack/loader?id=js' ]
+      },
+      {
+        test: /\.js$/,
+        include: /node_modules\/material-ui-chip-input/,
+        loader: 'babel'
       },
       {
         test: /\.json$/,
@@ -74,14 +80,6 @@ module.exports = {
         test: /\.css$/,
         exclude: [/src/],
         loader: 'style!css'
-      },
-      {
-        test: /\.less$/,
-        loaders: [
-          'style',
-          'css',
-          'less'
-        ]
       },
       {
         test: /\.(png|jpg|)$/,

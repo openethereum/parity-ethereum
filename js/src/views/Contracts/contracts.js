@@ -18,8 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import { uniq } from 'lodash';
 
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 import { AddContract, DeployContract } from '../../modals';
 
 import List from '../Accounts/List';
@@ -40,11 +41,14 @@ class Contracts extends Component {
 
   state = {
     addContract: false,
-    deployContract: false
+    deployContract: false,
+    sortOrder: '',
+    searchValues: []
   }
 
   render () {
     const { contracts, hasContracts, balances } = this.props;
+    const { searchValues, sortOrder } = this.state;
 
     return (
       <div className={ styles.contracts }>
@@ -55,11 +59,40 @@ class Contracts extends Component {
         <Page>
           <List
             link='contract'
+            search={ searchValues }
             accounts={ contracts }
             balances={ balances }
-            empty={ !hasContracts } />
+            empty={ !hasContracts }
+            order={ sortOrder }
+            handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
+    );
+  }
+
+  renderSortButton () {
+    const onChange = (sortOrder) => {
+      this.setState({ sortOrder });
+    };
+
+    return (
+      <ActionbarSort
+        key='sortAccounts'
+        order={ this.state.sortOrder }
+        onChange={ onChange } />
+    );
+  }
+
+  renderSearchButton () {
+    const onChange = (searchValues) => {
+      this.setState({ searchValues });
+    };
+
+    return (
+      <ActionbarSearch
+        key='searchContract'
+        tokens={ this.state.searchValues }
+        onChange={ onChange } />
     );
   }
 
@@ -74,7 +107,10 @@ class Contracts extends Component {
         key='deployContract'
         icon={ <ContentAdd /> }
         label='deploy contract'
-        onClick={ this.onDeployContract } />
+        onClick={ this.onDeployContract } />,
+
+      this.renderSearchButton(),
+      this.renderSortButton()
     ];
 
     return (
@@ -113,6 +149,12 @@ class Contracts extends Component {
         accounts={ accounts }
         onClose={ this.onDeployContractClose } />
     );
+  }
+
+  onAddSearchToken = (token) => {
+    const { searchValues } = this.state;
+    const newSearchValues = uniq([].concat(searchValues, token));
+    this.setState({ searchValues: newSearchValues });
   }
 
   onDeployContractClose = () => {

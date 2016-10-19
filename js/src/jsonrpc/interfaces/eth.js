@@ -924,7 +924,7 @@ export default {
   },
 
   sign: {
-    desc: 'Signs data with a given address.\n**Note** the address to sign must be unlocked.',
+    desc: 'Signs transaction hash with a given address.',
     params: [
       {
         type: Address,
@@ -933,7 +933,7 @@ export default {
       },
       {
         type: Data,
-        desc: 'Data to sign'
+        desc: 'Transaction hash to sign'
       }
     ],
     returns: {

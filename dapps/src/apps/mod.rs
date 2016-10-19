@@ -26,7 +26,6 @@ pub mod urlhint;
 pub mod fetcher;
 pub mod manifest;
 
-extern crate parity_dapps_status;
 extern crate parity_dapps_home;
 extern crate parity_ui;
 
@@ -50,36 +49,21 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_dapps_home::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints(dapps_path: String) -> Endpoints {
+pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
 	let mut pages = fs::local_endpoints(dapps_path);
-	// Home page needs to be safe embed
-	// because we use Cross-Origin LocalStorage.
-	// TODO [ToDr] Account naming should be moved to parity.
-	pages.insert("home".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(parity_dapps_home::App::default())
-	));
+
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	pages.insert("ui".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(NewUi::default())
+		PageEndpoint::new_safe_to_embed(NewUi::default(), signer_port)
 	));
-	pages.insert("proxy".into(), ProxyPac::boxed());
-	insert::<parity_dapps_status::App>(&mut pages, "status");
-	insert::<parity_dapps_status::App>(&mut pages, "parity");
 
-	// Optional dapps
-	wallet_page(&mut pages);
+	pages.insert("proxy".into(), ProxyPac::boxed());
+	insert::<parity_dapps_home::App>(&mut pages, "home");
+
 
 	pages
 }
-
-#[cfg(feature = "parity-dapps-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_wallet;
-	insert::<parity_dapps_wallet::App>(pages, "wallet");
-}
-#[cfg(not(feature = "parity-dapps-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
 	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
