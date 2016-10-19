@@ -163,3 +163,50 @@ export function outTransaction (tx) {
 
   return tx;
 }
+
+export function outTrace (trace) {
+  if (trace) {
+    if (trace.action) {
+      Object.keys(trace.action).forEach(key => {
+        switch (key) {
+          case 'gas':
+          case 'value':
+            trace.action[key] = outNumber(trace.action[key]);
+            break;
+
+          case 'from':
+          case 'to':
+            trace.action[key] = outAddress(trace.action[key]);
+            break;
+        }
+      });
+    }
+
+    if (trace.result) {
+      Object.keys(trace.result).forEach(key => {
+        switch (key) {
+          case 'gasUsed':
+            trace.result[key] = outNumber(trace.result[key]);
+            break;
+        }
+      });
+    }
+
+    if (trace.traceAddress) {
+      trace.traceAddress.forEach((address, index) => {
+        trace.traceAddress[index] = outNumber(address);
+      });
+    }
+
+    Object.keys(trace).forEach((key) => {
+      switch (key) {
+        case 'transactionPosition':
+        case 'blockNumber':
+          trace[key] = outNumber(trace[key]);
+          break;
+      }
+    });
+  }
+
+  return trace;
+}
