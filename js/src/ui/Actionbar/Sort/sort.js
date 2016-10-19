@@ -51,6 +51,7 @@ export default class ActionbarSort extends Component {
         targetOrigin={ { horizontal: 'right', vertical: 'top' } }
         anchorOrigin={ { horizontal: 'right', vertical: 'top' } }
         >
+        <MenuItem value='' primaryText='Default' />
         <MenuItem value='tags' primaryText='Sort by tags' />
         <MenuItem value='name' primaryText='Sort by name' />
       </IconMenu>
