@@ -42,12 +42,7 @@ impl From<Vec<Address>> for AddressesFilter {
 impl AddressesFilter {
 	/// Returns true if address matches one of the searched addresses.
 	pub fn matches(&self, address: &Address) -> bool {
-		self.matches_all() || self.strictly_matches(address)
-	}
-
-	/// Returns true if address matches at least one of the searched addresses.
-	pub fn strictly_matches(&self, address: &Address) -> bool {
-		self.list.contains(address)
+		self.matches_all() || self.list.contains(address)
 	}
 
 	/// Returns true if this address filter matches everything.
