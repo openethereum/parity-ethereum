@@ -10,7 +10,7 @@ authors = ["Ethcore <admin@ethcore.io>"]
 rustc_version = "0.1"
 
 [dependencies]
-parity-ui-dev = { path = "../../js/parity-ui-rs", optional = true }
+parity-ui-dev = { path = "../../js", optional = true }
 parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", branch = "rs", optional = true }
 
 [features]

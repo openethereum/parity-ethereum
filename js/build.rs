@@ -17,6 +17,6 @@
 extern crate parity_dapps_glue;
 
 fn main() {
-	parity_dapps_glue::js::build(concat!(env!("CARGO_MANIFEST_DIR"), "/.."), "parity-ui-rs/build");
+	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
 	parity_dapps_glue::generate();
 }

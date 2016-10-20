@@ -1,6 +1,6 @@
 node_modules
 npm-debug.log
+build
 .build
 .coverage
 .happypack
-parity-ui-rs/build
