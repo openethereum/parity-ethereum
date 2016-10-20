@@ -218,8 +218,13 @@ pub struct Database {
 	config: DatabaseConfig,
 	write_opts: WriteOptions,
 	read_opts: ReadOptions,
-	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
 	path: String,
+	// Dirty values added with `write_buffered`. Cleaned on `flush`.
+	overlay: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	// Values currently being flushed. Cleared when `flush` completes.
+	flushing: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
+	// Prevents concurrent flushes.
+	flushing_lock: Mutex<()>,
 }
 
 impl Database {
@@ -320,6 +325,8 @@ impl Database {
 			config: config.clone(),
 			write_opts: write_opts,
 			overlay: RwLock::new((0..(num_cols + 1)).map(|_| HashMap::new()).collect()),
+			flushing: RwLock::new((0..(num_cols + 1)).map(|_| HashMap::new()).collect()),
+			flushing_lock: Mutex::new(()),
 			path: path.to_owned(),
 			read_opts: read_opts,
 		})
@@ -361,39 +368,44 @@ impl Database {
 	pub fn flush(&self) -> Result<(), String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
+				let _lock = self.flushing_lock.lock();
 				let batch = WriteBatch::new();
-				let mut overlay = self.overlay.write();
-
-				for (c, column) in overlay.iter_mut().enumerate() {
-					let column_data = mem::replace(column, HashMap::new());
-					for (key, state) in column_data.into_iter() {
-						match state {
-							KeyState::Delete => {
-								if c > 0 {
-									try!(batch.delete_cf(cfs[c - 1], &key));
-								} else {
-									try!(batch.delete(&key));
-								}
-							},
-							KeyState::Insert(value) => {
-								if c > 0 {
-									try!(batch.put_cf(cfs[c - 1], &key, &value));
-								} else {
-									try!(batch.put(&key, &value));
-								}
-							},
-							KeyState::InsertCompressed(value) => {
-								let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
-								if c > 0 {
-									try!(batch.put_cf(cfs[c - 1], &key, &compressed));
-								} else {
-									try!(batch.put(&key, &value));
+				mem::swap(&mut *self.overlay.write(), &mut *self.flushing.write());
+				{
+					for (c, column) in self.flushing.read().iter().enumerate() {
+						for (ref key, ref state) in column.iter() {
+							match **state {
+								KeyState::Delete => {
+									if c > 0 {
+										try!(batch.delete_cf(cfs[c - 1], &key));
+									} else {
+										try!(batch.delete(&key));
+									}
+								},
+								KeyState::Insert(ref value) => {
+									if c > 0 {
+										try!(batch.put_cf(cfs[c - 1], &key, value));
+									} else {
+										try!(batch.put(&key, &value));
+									}
+								},
+								KeyState::InsertCompressed(ref value) => {
+									let compressed = UntrustedRlp::new(&value).compress(RlpType::Blocks);
+									if c > 0 {
+										try!(batch.put_cf(cfs[c - 1], &key, &compressed));
+									} else {
+										try!(batch.put(&key, &value));
+									}
 								}
 							}
 						}
 					}
 				}
-				db.write_opt(batch, &self.write_opts)
+				try!(db.write_opt(batch, &self.write_opts));
+				for column in self.flushing.write().iter_mut() {
+					column.clear();
+				}
+				Ok(())
 			},
 			None => Err("Database is closed".to_owned())
 		}
@@ -435,9 +447,16 @@ impl Database {
 					Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
 					Some(&KeyState::Delete) => Ok(None),
 					None => {
-						col.map_or_else(
-							|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| v.to_vec())),
-							|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| v.to_vec())))
+						let flushing = &self.flushing.read()[Self::to_overlay_column(col)];
+						match flushing.get(key) {
+							Some(&KeyState::Insert(ref value)) | Some(&KeyState::InsertCompressed(ref value)) => Ok(Some(value.clone())),
+							Some(&KeyState::Delete) => Ok(None),
+							None => {
+								col.map_or_else(
+									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| v.to_vec())),
+									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| v.to_vec())))
+							},
+						}
 					},
 				}
 			},
@@ -478,6 +497,7 @@ impl Database {
 	fn close(&self) {
 		*self.db.write() = None;
 		self.overlay.write().clear();
+		self.flushing.write().clear();
 	}
 
 	/// Restore the database from a copy at given path.
@@ -517,6 +537,7 @@ impl Database {
 		let db = try!(Self::open(&self.config, &self.path));
 		*self.db.write() = mem::replace(&mut *db.db.write(), None);
 		*self.overlay.write() = mem::replace(&mut *db.overlay.write(), Vec::new());
+		*self.flushing.write() = mem::replace(&mut *db.flushing.write(), Vec::new());
 		Ok(())
 	}
 }

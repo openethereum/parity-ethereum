@@ -22,6 +22,8 @@ import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class SignRequest extends Component {
 
   // TODO [todr] re-use proptypes?
@@ -30,19 +32,42 @@ export default class SignRequest extends Component {
     address: PropTypes.string.isRequired,
     hash: PropTypes.string.isRequired,
     isFinished: PropTypes.bool.isRequired,
-    chain: PropTypes.string.isRequired,
-    balance: PropTypes.object,
     isSending: PropTypes.bool,
     onConfirm: PropTypes.func,
     onReject: PropTypes.func,
     status: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    chain: nullable(PropTypes.object),
+    balance: nullable(PropTypes.object)
   };
 
+  state = {
+    chain: null,
+    balance: null
+  }
+
+  componentWillMount () {
+    this.context.api.ethcore.netChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((err) => {
+        console.error('could not fetch chain', err);
+      });
+
+    this.context.api.eth.getBalance(this.props.address)
+      .then((balance) => {
+        this.setState({ balance });
+      })
+      .catch((err) => {
+        console.error('could not fetch balance', err);
+      });
+  }
+
   render () {
-    const className = this.props.className || '';
+    const { className } = this.props;
     return (
-      <div className={ `${styles.container} ${className}` }>
+      <div className={ `${styles.container} ${className || ''}` }>
         { this.renderDetails() }
         { this.renderActions() }
       </div>

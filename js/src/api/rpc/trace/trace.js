@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inBlockNumber, inHex, inNumber16 } from '../../format/input';
+import { outTrace } from '../../format/output';
 
 export default class Trace {
   constructor (transport) {
@@ -23,21 +24,25 @@ export default class Trace {
 
   filter (filterObj) {
     return this._transport
-      .execute('trace_filter', filterObj);
+      .execute('trace_filter', filterObj)
+      .then(traces => traces.map(trace => outTrace(trace)));
   }
 
   get (txHash, position) {
     return this._transport
-      .execute('trace_get', inHex(txHash), inNumber16(position));
+      .execute('trace_get', inHex(txHash), inNumber16(position))
+      .then(trace => outTrace(trace));
   }
 
   transaction (txHash) {
     return this._transport
-      .execute('trace_transaction', inHex(txHash));
+      .execute('trace_transaction', inHex(txHash))
+      .then(traces => traces.map(trace => outTrace(trace)));
   }
 
   block (blockNumber = 'latest') {
     return this._transport
-      .execute('trace_block', inBlockNumber(blockNumber));
+      .execute('trace_block', inBlockNumber(blockNumber))
+      .then(traces => traces.map(trace => outTrace(trace)));
   }
 }

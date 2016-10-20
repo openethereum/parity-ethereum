@@ -16,8 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import TransactionFinishedWeb3 from '../TransactionFinishedWeb3';
-import SignWeb3 from '../SignRequestWeb3';
+import TransactionFinished from '../TransactionFinished';
+import SignRequest from '../SignRequest';
 
 export default class RequestFinishedWeb3 extends Component {
   static propTypes = {
@@ -40,7 +40,7 @@ export default class RequestFinishedWeb3 extends Component {
     if (payload.sign) {
       const { sign } = payload;
       return (
-        <SignWeb3
+        <SignRequest
           className={ className }
           isFinished
           id={ id }
@@ -57,7 +57,7 @@ export default class RequestFinishedWeb3 extends Component {
     if (payload.transaction) {
       const { transaction } = payload;
       return (
-        <TransactionFinishedWeb3
+        <TransactionFinished
           className={ className }
           txHash={ result }
           id={ id }

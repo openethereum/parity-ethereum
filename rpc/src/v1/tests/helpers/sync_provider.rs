@@ -55,6 +55,13 @@ impl TestSyncProvider {
 			}),
 		}
 	}
+
+	/// Simulate importing blocks.
+	pub fn increase_imported_block_number(&self, count: u64) {
+		let mut status =  self.status.write();
+		let current_number = status.last_imported_block_number.unwrap_or(0);
+		status.last_imported_block_number = Some(current_number + count);
+	}
 }
 
 impl SyncProvider for TestSyncProvider {

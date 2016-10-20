@@ -298,6 +298,7 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+  allow_failure: true
 test-linux:
   stage: test
   before_script:

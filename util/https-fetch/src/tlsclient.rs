@@ -137,8 +137,11 @@ impl TlsClient {
 			trace!("Connection closed");
 			let callback = &mut self.callback;
 			callback(match self.error.take() {
+				None if self.writer.status_is_ok() => Ok(()),
 				Some(err) => Err(err.into()),
-				None => Ok(()),
+				None => {
+					Err(FetchError::UnexpectedStatus(format!("{:?}", self.writer.status())))
+				},
 			});
 
 			return true;
