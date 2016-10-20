@@ -144,7 +144,7 @@ impl Session {
 	/// and leaves the handhsake in limbo to be deregistered from the event loop.
 	pub fn new<Message>(io: &IoContext<Message>, socket: TcpStream, token: StreamToken, id: Option<&NodeId>,
 		nonce: &H256, stats: Arc<NetworkStats>, host: &HostInfo) -> Result<Session, NetworkError>
-		where Message: Send + Clone {
+		where Message: Send + Clone + Sync + 'static {
 		let originated = id.is_some();
 		let mut handshake = Handshake::new(token, id, socket, nonce, stats).expect("Can't create handshake");
 		let local_addr = handshake.connection.local_addr_str();
