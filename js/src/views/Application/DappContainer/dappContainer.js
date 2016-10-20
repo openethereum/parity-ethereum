@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { Errors } from '../../../ui';
+
 import styles from '../application.css';
 
 export default class DappContainer extends Component {
@@ -28,6 +30,7 @@ export default class DappContainer extends Component {
 
     return (
       <div className={ styles.container }>
+        <Errors />
         { children }
       </div>
     );

@@ -262,7 +262,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
     - rustup default stable-x86_64-pc-windows-msvc
-    - git submodule init && git submodule update
+    - git submodule update --init
     - cargo build --release --verbose
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
@@ -298,6 +298,7 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+  allow_failure: true
 test-linux:
   stage: test
   before_script:
