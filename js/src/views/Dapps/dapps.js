@@ -16,64 +16,19 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { sha3 } from '../../api/util/sha3';
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
+import FlatButton from 'material-ui/FlatButton';
+import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
+import fetchAvailable from './available';
+import { read as readVisible, write as writeVisible } from './visible';
+
+import AddDapps from './AddDapps';
 import Summary from './Summary';
 
 import styles from './dapps.css';
-
-const APPS = [
-  {
-    name: 'Token Deployment',
-    description: 'Deploy new basic tokens that you are able to send around',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'basiccoin',
-    version: '1.0.0'
-  },
-  {
-    name: 'GAVcoin',
-    description: 'Manage your GAVcoins, the hottest new property in crypto',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'gavcoin',
-    version: '1.0.0'
-  },
-  {
-    name: 'Registry',
-    description: 'A global registry of addresses on the network',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'registry',
-    version: '1.0.0'
-  },
-  {
-    name: 'Token Registry',
-    description: 'A registry of transactable tokens on the network',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'tokenreg',
-    version: '1.0.0'
-  },
-  {
-    name: 'Method Registry',
-    description: 'A registry of method signatures for lookups on transactions',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'signaturereg',
-    version: '1.0.0'
-  },
-  {
-    name: 'GitHub Hint',
-    description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
-    author: 'Ethcore <admin@ethcore.io>',
-    url: 'githubhint',
-    version: '1.0.0'
-  }
-];
-
-APPS.forEach((app) => {
-  app.id = sha3(app.url);
-  console.log(`dapps ${app.id} -> ${app.url}`);
-});
 
 export default class Dapps extends Component {
   static contextTypes = {
@@ -81,26 +36,47 @@ export default class Dapps extends Component {
   }
 
   state = {
-    globalApps: APPS,
-    localApps: []
+    available: [],
+    visible: [],
+    modalOpen: false
   }
 
   componentDidMount () {
-    this.loadLocalApps();
-    this.loadImages();
+    fetchAvailable()
+    .then((available) => {
+      this.setState({ available });
+      this.setState({ visible: readVisible() });
+      this.loadImages();
+    })
+    .catch((err) => {
+      console.error('error fetching available apps', err);
+    });
   }
 
   render () {
+    const { available, visible, modalOpen } = this.state;
+    const apps = available.filter((app) => visible.includes(app.id));
+
     return (
       <div>
+        <AddDapps
+          available={ available }
+          visible={ visible }
+          open={ modalOpen }
+          onAdd={ this.onAdd }
+          onRemove={ this.onRemove }
+          onClose={ this.closeModal }
+        />
         <Actionbar
-          title='Decentralized Applications' />
+          className={ styles.toolbar }
+          title='Decentralized Applications'
+          buttons={ [
+            <FlatButton label='edit' icon={ <EyeIcon /> } onClick={ this.openModal } />
+          ] }
+        />
         <Page>
           <div className={ styles.list }>
-            { this.renderGlobalApps() }
-          </div>
-          <div className={ styles.list }>
-            { this.renderLocalApps() }
+            { apps.map(this.renderApp) }
           </div>
         </Page>
       </div>
@@ -111,58 +87,49 @@ export default class Dapps extends Component {
     return (
       <div
         className={ styles.item }
-        key={ app.url }>
+        key={ app.id }>
         <Summary app={ app } />
       </div>
     );
   }
 
-  renderGlobalApps () {
-    const { globalApps } = this.state;
-
-    return globalApps.map(this.renderApp);
-  }
-
-  renderLocalApps () {
-    const { localApps } = this.state;
-
-    return localApps.map(this.renderApp);
-  }
-
-  loadLocalApps () {
-    fetch('http://127.0.0.1:8080/api/apps', { method: 'GET' })
-      .then((response) => response.ok ? response.json() : [])
-      .then((_localApps) => {
-        const localApps = _localApps
-          .filter((app) => !['home', 'status', 'parity', 'wallet'].includes(app.id))
-          .map((app) => {
-            app.image = `/app/${app.id}/${app.iconUrl}`;
-            app.url = app.id;
-            app.local = true;
-            return app;
-          });
-        console.log('loadLocalApps', localApps);
-        this.setState({ localApps });
-      })
-      .catch((error) => {
-        console.error('loadLocalApps', error);
-      });
-  }
-
   loadImages () {
-    const { globalApps } = this.state;
+    const { available } = this.state;
     const { dappReg } = Contracts.get();
 
-    Promise
-      .all(globalApps.map((app) => dappReg.getImage(app.id)))
-      .then((images) => {
-        globalApps.forEach((app, index) => {
-          app.image = hashToImageUrl(images[index]);
-        });
-        this.setState({ globalApps });
-      })
-      .catch((error) => {
-        console.error('loadImages', error);
+    return Promise.all(available.map((app) => dappReg.getImage(app.hash)))
+    .then((images) => {
+      this.setState({
+        available: images
+          .map(hashToImageUrl)
+          .map((image, i) => Object.assign({}, available[i], { image }))
       });
+    })
+    .catch((err) => {
+      console.error('error loading dapp images', err);
+    });
   }
+
+  onAdd = (id) => {
+    const oldVisible = this.state.visible;
+    if (oldVisible.includes(id)) return;
+    const newVisible = oldVisible.concat(id);
+    this.setState({ visible: newVisible });
+    writeVisible(newVisible);
+  }
+
+  onRemove = (id) => {
+    const oldVisible = this.state.visible;
+    if (!oldVisible.includes(id)) return;
+    const newVisible = oldVisible.filter((_id) => _id !== id);
+    this.setState({ visible: newVisible });
+    writeVisible(newVisible);
+  }
+
+  openModal = () => {
+    this.setState({ modalOpen: true });
+  };
+  closeModal = () => {
+    this.setState({ modalOpen: false });
+  };
 }
