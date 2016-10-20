@@ -315,7 +315,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || is_major_importing(&Some(sync.status().state), &client.queue_info()),
+				move || is_major_importing(Some(sync.status().state), client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

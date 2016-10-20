@@ -256,7 +256,7 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		let status = take_weak!(self.sync).status();
 		let client = take_weak!(self.client);
-		if is_major_importing(&Some(status.state), &client.queue_info()) {
+		if is_major_importing(Some(status.state), client.queue_info()) {
 			let current_block = U256::from(client.chain_info().best_block_number);
 			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 			let info = SyncInfo {

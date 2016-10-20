@@ -129,7 +129,7 @@ mod server {
 		);
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
-		server.with_sync_status(Arc::new(move || is_major_importing(&Some(sync.status().state), &client.queue_info())));
+		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
 		server.with_signer_port(signer_port);
 
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
