@@ -42,13 +42,13 @@ impl From<Vec<Address>> for AddressesFilter {
 impl AddressesFilter {
 	/// Returns true if address matches one of the searched addresses.
 	pub fn matches(&self, address: &Address) -> bool {
-		self.matches_all() || self.stricly_matches(address)
-    }
+		self.matches_all() || self.strictly_matches(address)
+	}
 
-    /// Returns true if address matches at least one of the searched addresses.
-    pub fn stricly_matches(&self, address: &Address) -> bool {
-        self.list.contains(address)
-    }
+	/// Returns true if address matches at least one of the searched addresses.
+	pub fn strictly_matches(&self, address: &Address) -> bool {
+		self.list.contains(address)
+	}
 
 	/// Returns true if this address filter matches everything.
 	pub fn matches_all(&self) -> bool {
@@ -132,7 +132,7 @@ impl Filter {
 		};
 
 		action || match trace.result {
-			Res::Create(ref create) => self.to_address.stricly_matches(&create.address),
+			Res::Create(ref create) => self.to_address.strictly_matches(&create.address),
 			_ => false
 		}
 	}
