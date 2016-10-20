@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outTransaction } from './output';
+import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -242,6 +242,49 @@ describe('api/format/output', () => {
         value: new BigNumber('0x105'),
         extraData: 'someExtraStuffInHere'
       });
+    });
+  });
+
+  describe('outTrace', () => {
+    it('ignores and passes through unknown keys', () => {
+      expect(outTrace({ someRandom: 'someRandom' })).to.deep.equal({ someRandom: 'someRandom' });
+    });
+
+    it('formats a trace with all the info converted', () => {
+      const formatted = outTrace({
+        type: 'call',
+        action: {
+          from: address,
+          to: address,
+          value: '0x06',
+          gas: '0x07',
+          input: '0x1234',
+          callType: 'call'
+        },
+        result: {
+          gasUsed: '0x08',
+          output: '0x5678'
+        },
+        traceAddress: [ '0x2' ],
+        subtraces: 3,
+        transactionPosition: '0xb',
+        transactionHash: '0x000000000000000000000000000000000000000000000000000000000000000c',
+        blockNumber: '0x0d',
+        blockHash: '0x000000000000000000000000000000000000000000000000000000000000000e'
+      });
+
+      expect(isBigNumber(formatted.action.gas)).to.be.true;
+      expect(formatted.action.gas.toNumber()).to.equal(7);
+      expect(isBigNumber(formatted.action.value)).to.be.true;
+      expect(formatted.action.value.toNumber()).to.equal(6);
+
+      expect(formatted.action.from).to.equal(checksum);
+      expect(formatted.action.to).to.equal(checksum);
+
+      expect(isBigNumber(formatted.blockNumber)).to.be.true;
+      expect(formatted.blockNumber.toNumber()).to.equal(13);
+      expect(isBigNumber(formatted.transactionPosition)).to.be.true;
+      expect(formatted.transactionPosition.toNumber()).to.equal(11);
     });
   });
 });
