@@ -58,11 +58,12 @@ impl ContractClient for FakeRegistrar {
 	}
 }
 
-pub fn init_server(hosts: Option<Vec<String>>) -> (Server, Arc<FakeRegistrar>) {
+pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc<FakeRegistrar>) {
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	builder.with_sync_status(Arc::new(move || is_syncing));
 	(
 		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
 		registrar,
@@ -78,15 +79,19 @@ pub fn serve_with_auth(user: &str, pass: &str) -> Server {
 }
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
-	init_server(hosts).0
+	init_server(hosts, false).0
 }
 
 pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None)
+	init_server(None, false)
+}
+
+pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
+	init_server(None, true)
 }
 
 pub fn serve() -> Server {
-	init_server(None).0
+	init_server(None, false).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {
