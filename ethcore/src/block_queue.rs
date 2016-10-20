@@ -110,7 +110,21 @@ struct QueueSignal {
 
 impl QueueSignal {
 	#[cfg_attr(feature="dev", allow(bool_comparison))]
-	fn set(&self) {
+	fn set_sync(&self) {
+		// Do not signal when we are about to close
+		if self.deleting.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+
+		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
+			if let Err(e) = self.message_channel.send_sync(ClientIoMessage::BlockVerified) {
+				debug!("Error sending BlockVerified message: {:?}", e);
+			}
+		}
+	}
+
+	#[cfg_attr(feature="dev", allow(bool_comparison))]
+	fn set_async(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
 			return;
@@ -131,8 +145,8 @@ impl QueueSignal {
 struct Verification {
 	// All locks must be captured in the order declared here.
 	unverified: Mutex<VecDeque<UnverifiedBlock>>,
-	verified: Mutex<VecDeque<PreverifiedBlock>>,
 	verifying: Mutex<VecDeque<VerifyingBlock>>,
+	verified: Mutex<VecDeque<PreverifiedBlock>>,
 	bad: Mutex<HashSet<H256>>,
 	more_to_verify: SMutex<()>,
 	empty: SMutex<()>,
@@ -143,8 +157,8 @@ impl BlockQueue {
 	pub fn new(config: BlockQueueConfig, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> BlockQueue {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
-			verified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
+			verified: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
 			more_to_verify: SMutex::new(()),
 			empty: SMutex::new(()),
@@ -226,7 +240,7 @@ impl BlockQueue {
 			};
 
 			let block_hash = block.header.hash();
-			match verify_block_unordered(block.header, block.bytes, &*engine) {
+			let is_ready = match verify_block_unordered(block.header, block.bytes, &*engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
@@ -240,7 +254,9 @@ impl BlockQueue {
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
 						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
-						ready.set();
+						true
+					} else {
+						false
 					}
 				},
 				Err(err) => {
@@ -250,9 +266,17 @@ impl BlockQueue {
 					warn!(target: "client", "Stage 2 block verification failed for {}\nError: {:?}", block_hash, err);
 					bad.insert(block_hash.clone());
 					verifying.retain(|e| e.hash != block_hash);
-					BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
-					ready.set();
+					if !verifying.is_empty() && verifying.front().unwrap().hash == block_hash {
+						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						true
+					} else {
+						false
+					}
 				}
+			};
+			if is_ready {
+				// Import the block immediately
+				ready.set_sync();
 			}
 		}
 	}
@@ -361,15 +385,17 @@ impl BlockQueue {
 		*verified = new_verified;
 	}
 
-	/// Mark given block as processed
-	pub fn mark_as_good(&self, block_hashes: &[H256]) {
-		if block_hashes.is_empty() {
-			return;
+	/// Mark given item as processed.
+	/// Returns true if the queue becomes empty.
+	pub fn mark_as_good(&self, hashes: &[H256]) -> bool {
+		if hashes.is_empty() {
+			return self.processing.read().is_empty();
 		}
 		let mut processing = self.processing.write();
-		for hash in block_hashes {
+		for hash in hashes {
 			processing.remove(hash);
 		}
+		processing.is_empty()
 	}
 
 	/// Removes up to `max` verified blocks from the queue
@@ -383,7 +409,7 @@ impl BlockQueue {
 		}
 		self.ready_signal.reset();
 		if !verified.is_empty() {
-			self.ready_signal.set();
+			self.ready_signal.set_async();
 		}
 		result
 	}
@@ -408,12 +434,9 @@ impl BlockQueue {
 			verified_queue_size: verified_len,
 			max_queue_size: self.max_queue_size,
 			max_mem_use: self.max_mem_use,
-			mem_used:
-				unverified_bytes
-				+ verifying_bytes
-				+ verified_bytes
-				// TODO: https://github.com/servo/heapsize/pull/50
-				//+ self.processing.read().heap_size_of_children(),
+			mem_used: unverified_bytes
+					   + verifying_bytes
+					   + verified_bytes
 		}
 	}
 
