@@ -1678,7 +1678,7 @@ fn empty_account_exists() {
 	let db = get_temp_state_db_in(path.as_path());
 	let (root, db) = {
 		let mut state = State::new(db, U256::from(0), Default::default());
-		state.add_balance(&a, &U256::zero()); // create an empty account
+		state.add_balance(&a, &U256::default()); // create an empty account
 		state.commit().unwrap();
 		state.drop()
 	};
