@@ -16,8 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import TransactionPendingWeb3 from '../TransactionPendingWeb3';
-import SignRequestWeb3 from '../SignRequestWeb3';
+import TransactionPending from '../TransactionPending';
+import SignRequest from '../SignRequest';
 
 export default class RequestPendingWeb3 extends Component {
   static propTypes = {
@@ -39,7 +39,7 @@ export default class RequestPendingWeb3 extends Component {
     if (payload.sign) {
       const { sign } = payload;
       return (
-        <SignRequestWeb3
+        <SignRequest
           className={ className }
           onConfirm={ onConfirm }
           onReject={ onReject }
@@ -55,7 +55,7 @@ export default class RequestPendingWeb3 extends Component {
     if (payload.transaction) {
       const { transaction } = payload;
       return (
-        <TransactionPendingWeb3
+        <TransactionPending
           className={ className }
           onConfirm={ onConfirm }
           onReject={ onReject }
