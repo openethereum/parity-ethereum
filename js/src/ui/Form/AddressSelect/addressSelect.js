@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem, AutoComplete } from 'material-ui';
+import { MenuItem } from 'material-ui';
 
+import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
 
@@ -53,26 +54,21 @@ export default class AddressSelect extends Component {
 
   render () {
     const { disabled, error, hint, label } = this.props;
+    const { entries } = this.state;
 
     return (
       <div>
         <AutoComplete
           className={ error ? '' : styles.paddedInput }
           disabled={ disabled }
-          floatingLabelText={ label }
-          hintText={ `search for ${hint}` }
-          errorText={ error }
-          onNewRequest={ this.onChange }
-          searchText={ this.getSearchText() }
-          onBlur={ this.onBlur }
-          onFocus={ this.onFocus }
-          onUpdateInput={ this.onUpdateInput }
-
+          label={ label }
+          hint={ `search for ${hint}` }
+          error={ error }
+          onChange={ this.onChange }
+          value={ this.getSearchText() }
           filter={ this.handleFilter }
-          openOnFocus
-          fullWidth
-          floatingLabelFixed
-          dataSource={ this.renderSelectEntries() }
+          entries={ entries }
+          renderItem={ this.renderItem }
         />
 
         { this.renderIdentityIcon() }
@@ -81,7 +77,9 @@ export default class AddressSelect extends Component {
   }
 
   renderIdentityIcon () {
-    if (this.props.error) return null;
+    if (this.props.error) {
+      return null;
+    }
 
     const { value } = this.props;
 
@@ -93,17 +91,11 @@ export default class AddressSelect extends Component {
     );
   }
 
-  renderSelectEntries () {
-    const values = Object.values(this.state.entries);
-
-    if (!values.length) {
-      return null;
-    }
-
-    return values.map(entry => ({
+  renderItem = (entry) => {
+    return {
       text: entry.address,
       value: this.renderSelectEntry(entry)
-    }));
+    };
   }
 
   renderSelectEntry = (entry) => {
@@ -134,10 +126,9 @@ export default class AddressSelect extends Component {
 
   getSearchText () {
     const { value } = this.props;
-    const entries = this.state.entries;
-
     if (!value) return '';
 
+    const { entries } = this.state;
     const entry = entries[value];
     if (!entry) return '';
 
@@ -152,25 +143,8 @@ export default class AddressSelect extends Component {
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
   }
 
-  onChange = (item, idx) => {
-    if (idx === -1) {
-      this.props.onChange(null, '');
-      return null;
-    }
-
-    const entries = Object.values(this.state.entries);
-    const address = entries[idx].address;
-
+  onChange = (entry) => {
+    const address = entry ? entry.address : '';
     this.props.onChange(null, address);
-  }
-
-  onFocus = () => {
-    this.props.onChange(null, '');
-  }
-
-  onBlur = () => {
-    if (this.props.error) {
-      this.props.onChange(null, '');
-    }
   }
 }

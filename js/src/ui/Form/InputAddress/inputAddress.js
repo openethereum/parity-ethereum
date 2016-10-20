@@ -95,7 +95,7 @@ class InputAddress extends Component {
   }
 
   handleInputChange = (event, value) => {
-    let isEmpty = (value.length === 0);
+    const isEmpty = (value.length === 0);
 
     this.setState({ isEmpty });
     this.props.onChange(event, value);
