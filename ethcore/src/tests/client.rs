@@ -152,7 +152,7 @@ fn can_handle_long_fork() {
 	push_blocks_to_client(client, 49, 1201, 800);
 	push_blocks_to_client(client, 53, 1201, 600);
 
-	for _ in 0..40 {
+	for _ in 0..400 {
 		client.import_verified_blocks();
 	}
 	assert_eq!(2000, client.chain_info().best_block_number);
