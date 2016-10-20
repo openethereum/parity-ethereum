@@ -14,20 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+extern crate parity_dapps_glue;
 
-#[cfg(feature = "parity-ui-dev")]
-mod inner {
-	extern crate parity_ui_dev;
+use std::collections::HashMap;
+use parity_dapps_glue::{WebApp, File, Info};
 
-	pub use self::parity_ui_dev::*;
+#[derive(WebAppFiles)]
+#[webapp(path = "../build")]
+pub struct App {
+	pub files: HashMap<&'static str, File>,
 }
 
-#[cfg(feature = "parity-ui-precompiled")]
-mod inner {
-	extern crate parity_ui_precompiled;
-
-	pub use self::parity_ui_precompiled::*;
+impl Default for App {
+	fn default() -> App {
+		App {
+			files: Self::files(),
+		}
+	}
 }
 
+impl WebApp for App {
+	fn file(&self, path: &str) -> Option<&File> {
+		self.files.get(path)
+	}
 
-pub use self::inner::*;
+	fn info(&self) -> Info {
+		Info {
+			name: "Parity UI",
+			version: env!("CARGO_PKG_VERSION"),
+			author: "Ethcore <admin@ethcore.io>",
+			description: "New UI for Parity.",
+			icon_url: "icon.png",
+		}
+	}
+}
+
+#[test]
+fn test_js() {
+	parity_dapps_glue::js::build(concat!(env!("CARGO_MANIFEST_DIR"), "/.."));
+}

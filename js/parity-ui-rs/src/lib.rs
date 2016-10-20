@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-extern crate parity_dapps_glue;
+#[cfg(feature = "with-syntex")]
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));
 
-fn main() {
-	parity_dapps_glue::js::build(concat!(env!("CARGO_MANIFEST_DIR"), "/../../js"));
-	parity_dapps_glue::generate();
-}
+#[cfg(not(feature = "with-syntex"))]
+include!("lib.rs.in");
+
