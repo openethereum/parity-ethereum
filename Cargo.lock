@@ -550,6 +550,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex 0.1.68 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
  "rocksdb 0.4.5 (git+https://github.com/ethcore/rust-rocksdb)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",

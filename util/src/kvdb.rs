@@ -17,6 +17,8 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use std::io::ErrorKind;
+use std::process::Command;
+use std::fs::File;
 use common::*;
 use elastic_array::*;
 use std::default::Default;
@@ -24,6 +26,7 @@ use std::path::PathBuf;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
+use regex::Regex;
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -110,7 +113,7 @@ enum KeyState {
 }
 
 /// Compaction profile for the database settings
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct CompactionProfile {
 	/// L0-L1 target file size
 	pub initial_file_size: u64,
@@ -128,8 +131,43 @@ impl Default for CompactionProfile {
 }
 
 impl CompactionProfile {
-	/// Attempt to determine the best profile automatically.
+	/// Attempt to determine the best profile automatically, only Linux for now.
 	pub fn auto(db_path: &Path) -> CompactionProfile {
+		let df_out_option = db_path
+			.to_str()
+			.and_then(|path_str| Command::new("df").arg(path_str).output().ok())
+			.and_then(|df_res| match df_res.status.success() {
+				true => Some(df_res.stdout),
+				false => None,
+			});
+		if let Some(df_out) = df_out_option {
+			// Get the drive name using df.
+			let drive = str::from_utf8(df_out.as_slice())
+				.ok()
+				.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:])")
+					.ok()
+					.and_then(|re| re.captures(df_str))
+					.and_then(|captures| captures.at(1)));
+			// Generate path to check drive type, e.g. /sys/block/sda/queue/rotational
+			let hdd_check_file = drive
+				.map(|drive_path| {
+					let mut p = PathBuf::from("/sys/block");
+					p.push(drive_path);
+					p.push("queue/rotational");
+					p
+				});
+			// Read out the file and match compaction profile.
+			if let Some(hdd_check) = hdd_check_file {
+				if let Ok(mut file) = File::open(hdd_check.as_path()) {
+					let mut buffer = [0; 1];
+					if file.read_exact(&mut buffer).is_ok() {
+						if buffer == [48] { return Self::ssd(); }
+						if buffer == [49] { return Self::hdd(); }
+					}
+				}
+			}
+		}
+		// Fallback if drive type was not determined.
 		Self::default()
 	}
 
@@ -607,5 +645,11 @@ mod tests {
 		let path = RandomTempPath::create_dir();
 		let _ = Database::open_default(path.as_path().to_str().unwrap()).unwrap();
 		test_db(&DatabaseConfig::default());
+	}
+
+	#[test]
+	fn auto_compaction() {
+		let path = RandomTempPath::create_dir();
+		assert_eq!(CompactionProfile::ssd(), CompactionProfile::auto(path.as_path()));
 	}
 }
