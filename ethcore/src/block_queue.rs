@@ -17,7 +17,7 @@
 //! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
 use std::thread::{JoinHandle, self};
-use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 use util::*;
 use io::*;
@@ -74,6 +74,13 @@ impl BlockQueueInfo {
 	pub fn is_empty(&self) -> bool {
 		self.unverified_queue_size + self.verified_queue_size + self.verifying_queue_size == 0
 	}
+}
+
+// the internal queue sizes.
+struct Sizes {
+	unverified: AtomicUsize,
+	verifying: AtomicUsize,
+	verified: AtomicUsize,
 }
 
 /// A queue of blocks. Sits between network or other I/O and the `BlockChain`.
@@ -150,6 +157,7 @@ struct Verification {
 	bad: Mutex<HashSet<H256>>,
 	more_to_verify: SMutex<()>,
 	empty: SMutex<()>,
+	sizes: Sizes,
 }
 
 impl BlockQueue {
@@ -162,7 +170,11 @@ impl BlockQueue {
 			bad: Mutex::new(HashSet::new()),
 			more_to_verify: SMutex::new(()),
 			empty: SMutex::new(()),
-
+			sizes: Sizes {
+				unverified: AtomicUsize::new(0),
+				verifying: AtomicUsize::new(0),
+				verified: AtomicUsize::new(0),
+			}
 		});
 		let more_to_verify = Arc::new(SCondvar::new());
 		let deleting = Arc::new(AtomicBool::new(false));
@@ -235,6 +247,7 @@ impl BlockQueue {
 				}
 				let mut verifying = verification.verifying.lock();
 				let block = unverified.pop_front().unwrap();
+				verification.sizes.unverified.fetch_sub(block.heap_size_of_children(), AtomicOrdering::SeqCst);
 				verifying.push_back(VerifyingBlock{ hash: block.header.hash(), block: None });
 				block
 			};
@@ -245,6 +258,7 @@ impl BlockQueue {
 					let mut verifying = verification.verifying.lock();
 					for e in verifying.iter_mut() {
 						if e.hash == block_hash {
+							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::SeqCst);
 							e.block = Some(verified);
 							break;
 						}
@@ -253,7 +267,7 @@ impl BlockQueue {
 						// we're next!
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
-						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.sizes);
 						true
 					} else {
 						false
@@ -267,7 +281,7 @@ impl BlockQueue {
 					bad.insert(block_hash.clone());
 					verifying.retain(|e| e.hash != block_hash);
 					if !verifying.is_empty() && verifying.front().unwrap().hash == block_hash {
-						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad);
+						BlockQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.sizes);
 						true
 					} else {
 						false
@@ -281,16 +295,24 @@ impl BlockQueue {
 		}
 	}
 
-	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>) {
+	fn drain_verifying(verifying: &mut VecDeque<VerifyingBlock>, verified: &mut VecDeque<PreverifiedBlock>, bad: &mut HashSet<H256>, sizes: &Sizes) {
+		let mut removed_size = 0;
+		let mut inserted_size = 0;
 		while !verifying.is_empty() && verifying.front().unwrap().block.is_some() {
 			let block = verifying.pop_front().unwrap().block.unwrap();
-			if bad.contains(&block.header.parent_hash) {
+			let size = block.heap_size_of_children();
+			removed_size += size;
+
+			if bad.contains(&block.header.parent_hash()) {
 				bad.insert(block.header.hash());
-			}
-			else {
+			} else {
+				inserted_size += size;
 				verified.push_back(block);
 			}
 		}
+
+		sizes.verifying.fetch_sub(removed_size, AtomicOrdering::SeqCst);
+		sizes.verified.fetch_add(inserted_size, AtomicOrdering::SeqCst);
 	}
 
 	/// Clear the queue and stop verification activity.
@@ -301,6 +323,12 @@ impl BlockQueue {
 		unverified.clear();
 		verifying.clear();
 		verified.clear();
+
+		let sizes = &self.verification.sizes;
+		sizes.unverified.store(0, AtomicOrdering::Release);
+		sizes.verifying.store(0, AtomicOrdering::Release);
+		sizes.verified.store(0, AtomicOrdering::Release);
+
 		self.processing.write().clear();
 	}
 
@@ -346,7 +374,9 @@ impl BlockQueue {
 		match verify_block_basic(&header, &bytes, &*self.engine) {
 			Ok(()) => {
 				self.processing.write().insert(h.clone());
-				self.verification.unverified.lock().push_back(UnverifiedBlock { header: header, bytes: bytes });
+				let block = UnverifiedBlock { header: header, bytes: bytes };
+				self.verification.sizes.unverified.fetch_add(block.heap_size_of_children(), AtomicOrdering::SeqCst);
+				self.verification.unverified.lock().push_back(block);
 				self.more_to_verify.notify_all();
 				Ok(h)
 			},
@@ -374,14 +404,18 @@ impl BlockQueue {
 		}
 
 		let mut new_verified = VecDeque::new();
+		let mut removed_size = 0;
 		for block in verified.drain(..) {
 			if bad.contains(&block.header.parent_hash) {
+				removed_size += block.heap_size_of_children();
 				bad.insert(block.header.hash());
 				processing.remove(&block.header.hash());
 			} else {
 				new_verified.push_back(block);
 			}
 		}
+
+		self.verification.sizes.verified.fetch_sub(removed_size, AtomicOrdering::SeqCst);
 		*verified = new_verified;
 	}
 
@@ -405,6 +439,7 @@ impl BlockQueue {
 		let mut result = Vec::with_capacity(count);
 		for _ in 0..count {
 			let block = verified.pop_front().unwrap();
+			self.verification.sizes.verified.fetch_sub(block.heap_size_of_children(), AtomicOrdering::SeqCst);
 			result.push(block);
 		}
 		self.ready_signal.reset();
@@ -416,17 +451,22 @@ impl BlockQueue {
 
 	/// Get queue status.
 	pub fn queue_info(&self) -> BlockQueueInfo {
+		use std::mem::size_of;
 		let (unverified_len, unverified_bytes) = {
-			let v = self.verification.unverified.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.unverified.lock().len();
+			let size = self.verification.sizes.unverified.load(AtomicOrdering::Acquire);
+
+			(len, size + len * size_of::<UnverifiedBlock>())
 		};
 		let (verifying_len, verifying_bytes) = {
-			let v = self.verification.verifying.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.verifying.lock().len();
+			let size = self.verification.sizes.verifying.load(AtomicOrdering::Acquire);
+			(len, size + len * size_of::<VerifyingBlock>())
 		};
 		let (verified_len, verified_bytes) = {
-			let v = self.verification.verified.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.verified.lock().len();
+			let size = self.verification.sizes.verified.load(AtomicOrdering::Acquire);
+			(len, size + len * size_of::<PreverifiedBlock>())
 		};
 		BlockQueueInfo {
 			unverified_queue_size: unverified_len,
