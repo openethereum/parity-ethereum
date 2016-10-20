@@ -52,9 +52,12 @@ impl HttpProcessor {
 		}
 	}
 
-	#[cfg(test)]
 	pub fn status(&self) -> Option<&String> {
 		self.status.as_ref()
+	}
+
+	pub fn status_is_ok(&self) -> bool {
+		self.status == Some("HTTP/1.1 200 OK".into())
 	}
 
 	#[cfg(test)]
@@ -153,7 +156,7 @@ impl HttpProcessor {
 					}
 					try!(self.body_writer.write_all(self.buffer.get_ref()));
 					self.buffer_consume(len);
-					return Ok(());
+					return self.body_writer.flush();
 				},
 				State::WaitingForChunk => {
 					match self.find_break_index() {
@@ -189,7 +192,11 @@ impl HttpProcessor {
 							continue;
 						}
 					}
-					try!(self.body_writer.write_all(&self.buffer.get_ref()[0..left]));
+					{
+						let chunk = &self.buffer.get_ref()[0..left];
+						trace!("Writing chunk: {:?}", String::from_utf8_lossy(chunk));
+						try!(self.body_writer.write_all(chunk));
+					}
 					self.buffer_consume(left + BREAK_LEN);
 
 					self.set_state(State::WaitingForChunk);
@@ -200,7 +207,7 @@ impl HttpProcessor {
 				State::Finished => {
 					let len = self.buffer.get_ref().len();
 					self.buffer_consume(len);
-					return Ok(());
+					return self.body_writer.flush();
 				},
 			}
 		}
