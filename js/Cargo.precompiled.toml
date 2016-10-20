@@ -1,6 +1,6 @@
 [package]
 description = "Parity built-in dapps."
-name = "parity-ui-dev"
+name = "parity-ui-precompiled"
 version = "1.4.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io>"]
@@ -8,6 +8,7 @@ build = "build.rs"
 
 [features]
 default = ["with-syntex"]
+use-precompiled-js = ["parity-dapps-glue/use-precompiled-js"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 
 [build-dependencies]
