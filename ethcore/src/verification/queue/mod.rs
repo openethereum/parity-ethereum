@@ -233,7 +233,7 @@ impl<K: Kind> VerificationQueue<K> {
 					None => continue,
 				};
 
-				verification.sizes.unverified.fetch_sub(item.heap_size_of_children(), AtomicOrdering::AcqRel);
+				verification.sizes.unverified.fetch_sub(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 				verifying.push_back(Verifying { hash: item.hash(), output: None });
 				item
 			};
@@ -247,7 +247,7 @@ impl<K: Kind> VerificationQueue<K> {
 						if e.hash == hash {
 							idx = Some(i);
 
-							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::AcqRel);
+							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::SeqCst);
 							e.output = Some(verified);
 							break;
 						}
@@ -294,8 +294,8 @@ impl<K: Kind> VerificationQueue<K> {
 			}
 		}
 
-		sizes.verifying.fetch_sub(removed_size, AtomicOrdering::AcqRel);
-		sizes.verified.fetch_add(inserted_size, AtomicOrdering::AcqRel);
+		sizes.verifying.fetch_sub(removed_size, AtomicOrdering::SeqCst);
+		sizes.verified.fetch_add(inserted_size, AtomicOrdering::SeqCst);
 	}
 
 	/// Clear the queue and stop verification activity.
@@ -355,7 +355,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 		match K::create(input, &*self.engine) {
 			Ok(item) => {
-				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::AcqRel);
+				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 
 				self.processing.write().insert(h.clone());
 				self.verification.unverified.lock().push_back(item);
@@ -397,7 +397,7 @@ impl<K: Kind> VerificationQueue<K> {
 			}
 		}
 
-		self.verification.sizes.verified.fetch_sub(removed_size, AtomicOrdering::AcqRel);
+		self.verification.sizes.verified.fetch_sub(removed_size, AtomicOrdering::SeqCst);
 		*verified = new_verified;
 	}
 
@@ -419,7 +419,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
 		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
-		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::AcqRel);
+		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();
 		if !verified.is_empty() {
@@ -440,12 +440,12 @@ impl<K: Kind> VerificationQueue<K> {
 		};
 		let (verifying_len, verifying_bytes) = {
 			let len = self.verification.verifying.lock().len();
-			let size = self.verification.sizes.unverified.load(AtomicOrdering::Acquire);
+			let size = self.verification.sizes.verifying.load(AtomicOrdering::Acquire);
 			(len, size + len * size_of::<Verifying<K>>())
 		};
 		let (verified_len, verified_bytes) = {
 			let len = self.verification.verified.lock().len();
-			let size = self.verification.sizes.unverified.load(AtomicOrdering::Acquire);
+			let size = self.verification.sizes.verified.load(AtomicOrdering::Acquire);
 			(len, size + len * size_of::<K::Verified>())
 		};
 
