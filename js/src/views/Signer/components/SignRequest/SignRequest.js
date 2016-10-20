@@ -64,9 +64,9 @@ export default class SignRequest extends Component {
   }
 
   render () {
-    const { balance, chain } = this.state;
+    const { className } = this.props;
     return (
-      <div className={ `${styles.container} ${this.props.className || ''}` }>
+      <div className={ `${styles.container} ${className || ''}` }>
         { this.renderDetails() }
         { this.renderActions() }
       </div>
