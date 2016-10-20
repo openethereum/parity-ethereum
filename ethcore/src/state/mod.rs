@@ -516,7 +516,7 @@ impl State {
 		}
 
 		{
-			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root).unwrap();
+			let mut trie = try!(factories.trie.from_existing(db.as_hashdb_mut(), root));
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
@@ -688,14 +688,15 @@ impl State {
 		}
 		self.note_cache(a);
 
-		match &mut self.cache.borrow_mut().get_mut(a).unwrap().account {
-			&mut Some(ref mut acc) => not_default(acc),
-			slot => *slot = Some(default()),
-		}
-
-		// at this point the account is guaranteed to be in the cache.
+		// at this point the entry is guaranteed to be in the cache.
 		RefMut::map(self.cache.borrow_mut(), |c| {
-			let mut entry = c.get_mut(a).unwrap();
+			let mut entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
+
+			match &mut entry.account {
+				&mut Some(ref mut acc) => not_default(acc),
+				slot => *slot = Some(default()),
+			}
+
 			// set the dirty flag after changing account data.
 			entry.state = AccountState::Dirty;
 			match entry.account {
