@@ -36,3 +36,17 @@
   vertical-align: top;
   text-transform: uppercase;
 }
+
+.icon {
+  position: absolute;
+  left: 0;
+  top: 35px;
+}
+
+.paddedInput input {
+  padding-left: 46px !important;
+}
+
+.container {
+  position: relative;
+}

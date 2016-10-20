@@ -12,6 +12,16 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-export default from './SignRequestWeb3';
+const defaultDapps = ['gavcoin', 'basiccoin', 'tokenreg'];
+
+export function read () {
+  const stored = localStorage.getItem('visible-dapps');
+  if (stored) return JSON.parse(stored);
+  return defaultDapps;
+}
+
+export function write (visible) {
+  localStorage.setItem('visible-dapps', JSON.stringify(visible));
+}
