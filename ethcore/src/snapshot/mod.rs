@@ -27,7 +27,7 @@ use ids::BlockID;
 use views::BlockView;
 use super::state_db::StateDB;
 
-use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut, BytesConvertable};
+use util::{Bytes, Hashable, HashDB, snappy, TrieDB, TrieDBMut, TrieMut, BytesConvertable, U256, Uint};
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -38,6 +38,8 @@ use util::rlp::SHA3_NULL_RLP;
 use self::account::Account;
 use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
+
+use super::account::Account as StateAccount;
 
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
@@ -417,6 +419,7 @@ impl StateRebuilder {
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
+		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 		let backing = self.db.backing().clone();
@@ -464,7 +467,9 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				bloom.set(hash.as_slice());
+				if &thin_rlp[..] != &empty_rlp[..] {
+					bloom.set(hash.as_slice());
+				}
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
