@@ -37,7 +37,8 @@ class Transactions extends Component {
     contacts: PropTypes.object,
     contracts: PropTypes.object,
     tokens: PropTypes.object,
-    isTest: PropTypes.bool
+    isTest: PropTypes.bool,
+    traceMode: PropTypes.bool
   }
 
   state = {
@@ -47,7 +48,17 @@ class Transactions extends Component {
   }
 
   componentDidMount () {
-    this.getTransactions();
+    this.getTransactions(this.props);
+  }
+
+  componentWillReceiveProps (newProps) {
+    const hasChanged = [ 'isTest', 'traceMode' ]
+      .map(key => newProps[key] !== this.props[key])
+      .reduce((truth, keyTruth) => truth || keyTruth, false);
+
+    if (hasChanged) {
+      this.getTransactions(newProps);
+    }
   }
 
   render () {
@@ -81,9 +92,21 @@ class Transactions extends Component {
             { this.renderRows() }
           </tbody>
         </table>
-        <div className={ styles.etherscan }>
-          Transaction list powered by <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
-        </div>
+        { this.renderEtherscanFooter() }
+      </div>
+    );
+  }
+
+  renderEtherscanFooter () {
+    const { traceMode } = this.props;
+
+    if (traceMode) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.etherscan }>
+        Transaction list powered by <a href='https://etherscan.io/' target='_blank'>etherscan.io</a>
       </div>
     );
   }
@@ -92,45 +115,85 @@ class Transactions extends Component {
     const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
     const { transactions } = this.state;
 
-    return (transactions || []).map((transaction, index) => {
-      return (
-        <Transaction
-          key={ index }
-          transaction={ transaction }
-          address={ address }
-          accounts={ accounts }
-          contacts={ contacts }
-          contracts={ contracts }
-          tokens={ tokens }
-          isTest={ isTest } />
-      );
-    });
+    return (transactions || [])
+      .sort((tA, tB) => {
+        return tB.blockNumber - tA.blockNumber;
+      })
+      .map((transaction, index) => {
+        return (
+          <Transaction
+            key={ index }
+            transaction={ transaction }
+            address={ address }
+            accounts={ accounts }
+            contacts={ contacts }
+            contracts={ contracts }
+            tokens={ tokens }
+            isTest={ isTest } />
+        );
+      });
   }
 
-  getTransactions = () => {
-    const { isTest, address } = this.props;
+  getTransactions = (props) => {
+    const { isTest, address, traceMode } = props;
 
-    return etherscan.account
-      .transactions(address, 0, isTest)
-      .then((transactions) => {
+    if (!traceMode) {
+      return this.fetchEtherscanTransactions(isTest, address);
+    }
+
+    return this
+      .fetchTraceTransactions(address)
+      .then(transactions => {
         this.setState({
           transactions,
           loading: false
         });
-      })
+      });
+  }
+
+  fetchEtherscanTransactions = (isTest, address) => {
+    return etherscan.account
+      .transactions(address, 0, isTest)
       .catch((error) => {
         console.error('getTransactions', error);
+      });
+  }
+
+  fetchTraceTransactions = (address) => {
+    return Promise
+      .all([
+        this.context.api.trace
+          .filter({
+            fromBlock: 0,
+            fromAddress: address
+          }),
+        this.context.api.trace
+          .filter({
+            fromBlock: 0,
+            toAddress: address
+          })
+      ])
+      .then(([fromTransactions, toTransactions]) => {
+        const transactions = [].concat(fromTransactions, toTransactions);
+
+        return transactions.map(transaction => ({
+          from: transaction.action.from,
+          to: transaction.action.to,
+          blockNumber: transaction.blockNumber,
+          hash: transaction.transactionHash
+        }));
       });
   }
 }
 
 function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
+  const { isTest, traceMode } = state.nodeStatus;
   const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
 
   return {
     isTest,
+    traceMode,
     accounts,
     contacts,
     contracts,

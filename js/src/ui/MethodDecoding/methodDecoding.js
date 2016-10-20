@@ -286,7 +286,7 @@ class Method extends Component {
     const token = (tokens || {})[isReceived ? transaction.from : transaction.to];
     this.setState({ token, isReceived });
 
-    if (!transaction.input) {
+    if (!transaction.input || transaction.input === '0x') {
       return;
     }
 
