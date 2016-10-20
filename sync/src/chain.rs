@@ -205,7 +205,7 @@ impl SyncStatus {
 	/// Indicates if initial sync is still in progress.
 	pub fn is_major_syncing(&self) -> bool {
 		let is_synced_state = match self.state {
-			SyncState::Idle | SyncState::NewBlocks | SyncState::Blocks => true,
+			SyncState::Idle | SyncState::NewBlocks => true,
 			_ => false,
 		};
 		let is_current_block = self.highest_block_number.unwrap_or(self.start_block_number) < self.last_imported_block_number.unwrap_or(0) + BlockNumber::from(4u64);
