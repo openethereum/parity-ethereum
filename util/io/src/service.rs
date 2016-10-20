@@ -173,10 +173,11 @@ pub struct IoManager<Message> where Message: Send + Sync {
 
 impl<Message> IoManager<Message> where Message: Send + Sync + Clone + 'static {
 	/// Creates a new instance and registers it with the event loop.
-	pub fn start(panic_handler: Arc<PanicHandler>, 
+	pub fn start(
+		panic_handler: Arc<PanicHandler>, 
 		event_loop: &mut EventLoop<IoManager<Message>>,
 		handlers: Arc<RwLock<Slab<Arc<IoHandler<Message>>, HandlerId>>>
-		) -> Result<(), IoError> {
+	) -> Result<(), IoError> {
 		let (worker, stealer) = chase_lev::deque();
 		let num_workers = 4;
 		let work_ready_mutex =  Arc::new(SMutex::new(()));
