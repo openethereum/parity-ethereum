@@ -61,12 +61,12 @@ extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
+extern crate parity_dapps_glue as parity_dapps;
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+#[cfg(test)]
+extern crate env_logger;
 
-extern crate parity_dapps_glue;
-// TODO [ToDr] - Deprecate when we get rid of old dapps.
-extern crate parity_dapps;
 
 mod endpoint;
 mod apps;
@@ -205,7 +205,7 @@ impl Server {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port.clone()));
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
@@ -221,7 +221,7 @@ impl Server {
 		try!(hyper::Server::http(addr))
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
-				apps::main_page(),
+				signer_port.clone(),
 				content_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
@@ -283,6 +283,10 @@ pub fn random_filename() -> String {
 	use ::rand::Rng;
 	let mut rng = ::rand::OsRng::new().unwrap();
 	rng.gen_ascii_chars().take(12).collect()
+}
+
+fn signer_address(port: u16) -> String {
+	format!("http://127.0.0.1:{}", port)
 }
 
 #[cfg(test)]

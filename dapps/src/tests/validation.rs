@@ -45,7 +45,7 @@ fn should_allow_valid_host() {
 	// when
 	let response = request(server,
 		"\
-			GET /home/ HTTP/1.1\r\n\
+			GET /ui/ HTTP/1.1\r\n\
 			Host: localhost:8080\r\n\
 			Connection: close\r\n\
 			\r\n\
@@ -66,7 +66,7 @@ fn should_serve_dapps_domains() {
 	let response = request(server,
 		"\
 			GET / HTTP/1.1\r\n\
-			Host: home.parity\r\n\
+			Host: ui.parity\r\n\
 			Connection: close\r\n\
 			\r\n\
 			{}

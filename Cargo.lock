@@ -325,6 +325,7 @@ name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
  "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
@@ -336,9 +337,7 @@ dependencies = [
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-glue 1.4.0",
- "parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1171,20 +1170,6 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "parity-dapps"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex_syntax 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "parity-dapps-glue"
 version = "1.4.0"
 dependencies = [
@@ -1195,14 +1180,6 @@ dependencies = [
  "quasi_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex_syntax 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "parity-dapps-home"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
 
 [[package]]
@@ -2006,8 +1983,6 @@ dependencies = [
 "checksum number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "084d05f4bf60621a9ac9bde941a410df548f4de9545f06e5ee9d3aef4b97cd77"
 "checksum odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)" = "b28c06e81b0f789122d415d6394b5fe849bde8067469f4c2980d3cdc10c78ec1"
 "checksum owning_ref 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d91377085359426407a287ab16884a0111ba473aa6844ff01d4ec20ce3d75e7"
-"checksum parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
 "checksum parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "968f685642555d2f7e202c48b8b11de80569e9bfea817f7f12d7c61aac62d4e6"
 "checksum parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "dbc5847584161f273e69edc63c1a86254a22f570a0b5dd87aa6f9773f6f7d125"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"

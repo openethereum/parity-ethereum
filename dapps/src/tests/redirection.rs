@@ -33,7 +33,7 @@ fn should_redirect_to_home() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "Location: /home/");
+	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn should_redirect_to_home_when_trailing_slash_is_missing() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 302 Found".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "Location: /home/");
+	assert_eq!(response.headers.get(0).unwrap(), "Location: http://127.0.0.1:18180");
 }
 
 #[test]
@@ -73,7 +73,6 @@ fn should_display_404_on_invalid_dapp() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert!(response.body.contains("href=\"/home/"));
 	assert_security_headers(&response.headers);
 }
 
@@ -94,7 +93,6 @@ fn should_display_404_on_invalid_dapp_with_domain() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert!(response.body.contains("href=\"http://home.parity/"));
 	assert_security_headers(&response.headers);
 }
 
