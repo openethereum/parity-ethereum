@@ -95,8 +95,7 @@ impl Informant {
 		let network_config = self.net.as_ref().map(|n| n.network_config());
 		let sync_status = self.sync.as_ref().map(|s| s.status());
 
-		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
-			|| sync_status.map_or(false, |s| s.is_major_syncing());
+		let importing = self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
 		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
 			match s.status() {
 				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
@@ -175,9 +174,7 @@ impl Informant {
 impl ChainNotify for Informant {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
 		let mut last_import = self.last_import.lock();
-		let queue_info = self.client.queue_info();
-		let importing = queue_info.unverified_queue_size + queue_info.verified_queue_size > 3
-			|| self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
+		let importing = self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
 		if Instant::now() > *last_import + Duration::from_secs(1) && !importing {
 			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
 				let view = BlockView::new(&block);

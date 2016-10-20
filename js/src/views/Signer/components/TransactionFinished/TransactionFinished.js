@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import CircularProgress from 'material-ui/CircularProgress';
 import TransactionMainDetails from '../TransactionMainDetails';
 import TxHashLink from '../TxHashLink';
 import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
@@ -26,25 +27,28 @@ import * as tUtil from '../util/transaction';
 import { capitalize } from '../util/util';
 
 export default class TransactionFinished extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
-    fromBalance: PropTypes.object, // eth BigNumber, not required since it might take time to fetch
     value: PropTypes.object.isRequired, // wei hex
-    chain: PropTypes.string.isRequired,
     gasPrice: PropTypes.object.isRequired, // wei hex
     gas: PropTypes.object.isRequired, // hex
     status: PropTypes.string.isRequired, // rejected, confirmed
     date: PropTypes.instanceOf(Date).isRequired,
     to: PropTypes.string, // undefined if it's a contract
-    toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
     txHash: PropTypes.string, // undefined if transacation is rejected
     className: PropTypes.string,
     data: PropTypes.string
   };
 
-  static defaultProps = {
-    value: '0x0' // todo [adgo] - remove after resolving https://github.com/ethcore/parity/issues/1458
+  state = {
+    chain: null,
+    fromBalance: null,
+    toBalance: null
   };
 
   componentWillMount () {
@@ -52,9 +56,30 @@ export default class TransactionFinished extends Component {
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
     const totalValue = tUtil.getTotalValue(fee, value);
     this.setState({ totalValue });
+
+    this.context.api.ethcore.netChain()
+      .then((chain) => {
+        this.setState({ chain });
+      })
+      .catch((err) => {
+        console.error('could not fetch chain', err);
+      });
+
+    const { from, to } = this.props;
+    this.fetchBalance(from, 'fromBalance');
+    if (to) this.fetchBalance(to, 'toBalance');
   }
 
   render () {
+    const { chain, fromBalance, toBalance } = this.state;
+    if (!chain || !fromBalance || !toBalance) {
+      return (
+        <div className={ `${styles.container} ${className}` }>
+          <CircularProgress size={ 1 } />
+        </div>
+      );
+    }
+
     const { className, date, id } = this.props;
     const { totalValue } = this.state;
 
@@ -63,7 +88,7 @@ export default class TransactionFinished extends Component {
         <div className={ styles.mainContainer }>
           <TransactionMainDetails
             { ...this.props }
-            totalValue={ totalValue }
+            { ...this.state }
             className={ styles.transactionDetails }
           >
             <TransactionSecondaryDetails
@@ -102,6 +127,16 @@ export default class TransactionFinished extends Component {
         <TxHashLink chain={ chain } txHash={ txHash } className={ styles.txHash } />
       </div>
     );
+  }
+
+  fetchBalance (address, key) {
+    this.context.api.eth.getBalance(address)
+      .then((balance) => {
+        this.setState({ [key]: balance });
+      })
+      .catch((err) => {
+        console.error('could not fetch balance', err);
+      });
   }
 
 }

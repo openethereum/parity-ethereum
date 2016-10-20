@@ -114,7 +114,21 @@ struct QueueSignal {
 
 impl QueueSignal {
 	#[cfg_attr(feature="dev", allow(bool_comparison))]
-	fn set(&self) {
+	fn set_sync(&self) {
+		// Do not signal when we are about to close
+		if self.deleting.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+
+		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
+			if let Err(e) = self.message_channel.send_sync(ClientIoMessage::BlockVerified) {
+				debug!("Error sending BlockVerified message: {:?}", e);
+			}
+		}
+	}
+
+	#[cfg_attr(feature="dev", allow(bool_comparison))]
+	fn set_async(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
 			return;
@@ -135,8 +149,8 @@ impl QueueSignal {
 struct Verification<K: Kind> {
 	// All locks must be captured in the order declared here.
 	unverified: Mutex<VecDeque<K::Unverified>>,
-	verified: Mutex<VecDeque<K::Verified>>,
 	verifying: Mutex<VecDeque<Verifying<K>>>,
+	verified: Mutex<VecDeque<K::Verified>>,
 	bad: Mutex<HashSet<H256>>,
 	more_to_verify: SMutex<()>,
 	empty: SMutex<()>,
@@ -148,8 +162,8 @@ impl<K: Kind> VerificationQueue<K> {
 	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
-			verified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
+			verified: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
 			more_to_verify: SMutex::new(()),
 			empty: SMutex::new(()),
@@ -239,7 +253,7 @@ impl<K: Kind> VerificationQueue<K> {
 			};
 
 			let hash = item.hash();
-			match K::verify(item, &*engine) {
+			let is_ready = match K::verify(item, &*engine) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					let mut idx = None;
@@ -258,7 +272,9 @@ impl<K: Kind> VerificationQueue<K> {
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
 						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.sizes);
-						ready.set();
+						true
+					} else {
+						false
 					}
 				},
 				Err(_) => {
@@ -271,9 +287,15 @@ impl<K: Kind> VerificationQueue<K> {
 
 					if verifying.front().map_or(false, |x| x.output.is_some()) {
 						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.sizes);
-						ready.set();
+						true
+					} else {
+						false
 					}
 				}
+			};
+			if is_ready {
+				// Import the block immediately
+				ready.set_sync();
 			}
 		}
 	}
@@ -401,15 +423,17 @@ impl<K: Kind> VerificationQueue<K> {
 		*verified = new_verified;
 	}
 
-	/// Mark given item as processed
-	pub fn mark_as_good(&self, hashes: &[H256]) {
+	/// Mark given item as processed.
+	/// Returns true if the queue becomes empty.
+	pub fn mark_as_good(&self, hashes: &[H256]) -> bool {
 		if hashes.is_empty() {
-			return;
+			return self.processing.read().is_empty();
 		}
 		let mut processing = self.processing.write();
 		for hash in hashes {
 			processing.remove(hash);
 		}
+		processing.is_empty()
 	}
 
 	/// Removes up to `max` verified items from the queue
@@ -423,7 +447,7 @@ impl<K: Kind> VerificationQueue<K> {
 
 		self.ready_signal.reset();
 		if !verified.is_empty() {
-			self.ready_signal.set();
+			self.ready_signal.set_async();
 		}
 		result
 	}
@@ -455,12 +479,9 @@ impl<K: Kind> VerificationQueue<K> {
 			verified_queue_size: verified_len,
 			max_queue_size: self.max_queue_size,
 			max_mem_use: self.max_mem_use,
-			mem_used:
-				unverified_bytes
-				+ verifying_bytes
-				+ verified_bytes
-				// TODO: https://github.com/servo/heapsize/pull/50
-				//+ self.processing.read().heap_size_of_children(),
+			mem_used: unverified_bytes
+					   + verifying_bytes
+					   + verified_bytes
 		}
 	}
 

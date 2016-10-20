@@ -92,6 +92,11 @@ impl EthTester {
 			hashrates: hashrates,
 		}
 	}
+
+	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
+		self.client.add_blocks(count, with);
+		self.sync.increase_imported_block_number(count as u64);
+	}
 }
 
 #[test]
@@ -115,24 +120,21 @@ fn rpc_eth_syncing() {
 		let mut status = tester.sync.status.write();
 		status.state = SyncState::Blocks;
 		status.highest_block_number = Some(2500);
-
-		// "sync" to 1000 blocks.
-		// causes TestBlockChainClient to return 1000 for its best block number.
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1000 {
-			blocks.insert(H256::from(i), Vec::new());
-		}
 	}
+
+	// "sync" to 1000 blocks.
+	// causes TestBlockChainClient to return 1000 for its best block number.
+	tester.add_blocks(1000, EachBlockWith::Nothing);
 
 	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0"},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
+	// finish "syncing"
+	tester.add_blocks(1500, EachBlockWith::Nothing);
+
 	{
-		// finish "syncing"
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1500 {
-			blocks.insert(H256::from(i + 1000), Vec::new());
-		}
+		let mut status = tester.sync.status.write();
+		status.state = SyncState::Idle;
 	}
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));

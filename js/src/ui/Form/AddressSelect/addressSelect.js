@@ -17,9 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
+import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
 import IdentityName from '../../IdentityName';
-import Select from '../Select';
 
 import styles from './addressSelect.css';
 
@@ -36,31 +36,66 @@ export default class AddressSelect extends Component {
     onChange: PropTypes.func.isRequired
   }
 
+  state = {
+    entries: {}
+  }
+
+  componentWillMount () {
+    const { accounts, contacts } = this.props;
+    const entries = Object.assign({}, accounts || {}, contacts || {});
+    this.setState({ entries });
+  }
+
+  componentWillReceiveProps (newProps) {
+    const { accounts, contacts } = newProps;
+    const entries = Object.assign({}, accounts || {}, contacts || {});
+    this.setState({ entries });
+  }
+
   render () {
-    const { disabled, error, hint, label, value } = this.props;
+    const { disabled, error, hint, label } = this.props;
+    const { entries } = this.state;
 
     return (
-      <Select
-        disabled={ disabled }
-        label={ label }
-        hint={ hint }
-        error={ error }
-        value={ value }
-        onChange={ this.onChange }>
-        { this.renderSelectEntries() }
-      </Select>
+      <div>
+        <AutoComplete
+          className={ error ? '' : styles.paddedInput }
+          disabled={ disabled }
+          label={ label }
+          hint={ `search for ${hint}` }
+          error={ error }
+          onChange={ this.onChange }
+          value={ this.getSearchText() }
+          filter={ this.handleFilter }
+          entries={ entries }
+          renderItem={ this.renderItem }
+        />
+
+        { this.renderIdentityIcon() }
+      </div>
     );
   }
 
-  renderSelectEntries () {
-    const { accounts, contacts } = this.props;
-    const entries = Object.values(Object.assign({}, accounts || {}, contacts || {}));
-
-    if (!entries.length) {
+  renderIdentityIcon () {
+    if (this.props.error) {
       return null;
     }
 
-    return entries.map(this.renderSelectEntry);
+    const { value } = this.props;
+
+    return (
+      <IdentityIcon
+        className={ styles.icon }
+        inline center
+        address={ value } />
+    );
+  }
+
+  renderItem = (entry) => {
+    return {
+      text: entry.address,
+      value: this.renderSelectEntry(entry)
+    };
   }
 
   renderSelectEntry = (entry) => {
@@ -89,7 +124,27 @@ export default class AddressSelect extends Component {
     );
   }
 
-  onChange = (event, idx, value) => {
-    this.props.onChange(event, value);
+  getSearchText () {
+    const { value } = this.props;
+    if (!value) return '';
+
+    const { entries } = this.state;
+    const entry = entries[value];
+    if (!entry) return '';
+
+    return entry.name ? entry.name.toUpperCase() : '';
+  }
+
+  handleFilter = (searchText, address) => {
+    const entry = this.state.entries[address];
+    const lowCaseSearch = searchText.toLowerCase();
+
+    return [ entry.name, entry.address ]
+      .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
+  }
+
+  onChange = (entry) => {
+    const address = entry ? entry.address : '';
+    this.props.onChange(null, address);
   }
 }

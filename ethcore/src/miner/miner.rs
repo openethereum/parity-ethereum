@@ -282,6 +282,7 @@ impl Miner {
 			trace!(target: "miner", "prepare_block: done recalibration.");
 		}
 
+		let _timer = PerfTimer::new("prepare_block");
 		let (transactions, mut open_block, original_work_hash) = {
 			let transactions = {self.transaction_queue.lock().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock();

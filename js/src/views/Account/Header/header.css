@@ -41,3 +41,8 @@
 .uuidline {
   display: inline-block;
 }
+
+.address {
+  white-space: nowrap;
+  font-family: monospace;
+}
