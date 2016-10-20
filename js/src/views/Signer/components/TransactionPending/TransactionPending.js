@@ -78,8 +78,7 @@ export default class TransactionPending extends Component {
   }
 
   render () {
-    const { chain, fromBalance, toBalance } = this.state;
-    if (!chain) {
+    if (!this.state.chain) {
       return (
         <div className={ `${styles.container} ${className}` }>
           <CircularProgress size={ 1 } />
