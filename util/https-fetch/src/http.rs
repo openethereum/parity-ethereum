@@ -156,7 +156,7 @@ impl HttpProcessor {
 					}
 					try!(self.body_writer.write_all(self.buffer.get_ref()));
 					self.buffer_consume(len);
-					return Ok(());
+					return self.body_writer.flush();
 				},
 				State::WaitingForChunk => {
 					match self.find_break_index() {
