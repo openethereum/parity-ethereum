@@ -427,8 +427,16 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
-		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		let sender = match t.sender() {
+			Ok(sender) => sender,
+			Err(e) => {
+				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
+				return Err(ExecutionError::Internal);
+			}
+		};
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		self.state.add_balance(&sender, &refund_value);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 

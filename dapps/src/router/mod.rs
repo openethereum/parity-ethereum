@@ -81,11 +81,15 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 		self.handler = match endpoint {
 			// First check special endpoints
 			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
-				self.special.get(endpoint).unwrap().to_async_handler(path.clone().unwrap_or_default(), control)
+				self.special.get(endpoint)
+					.expect("special known to contain key; qed")
+					.to_async_handler(path.clone().unwrap_or_default(), control)
 			},
 			// Then delegate to dapp
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
-				self.endpoints.get(&path.app_id).unwrap().to_async_handler(path.clone(), control)
+				self.endpoints.get(&path.app_id)
+					.expect("special known to contain key; qed")
+					.to_async_handler(path.clone(), control)
 			},
 			// Try to resolve and fetch the dapp
 			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
@@ -108,7 +112,9 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			},
 			// RPC by default
 			_ => {
-				self.special.get(&SpecialEndpoint::Rpc).unwrap().to_async_handler(EndpointPath::default(), control)
+				self.special.get(&SpecialEndpoint::Rpc)
+					.expect("RPC endpoint always stored; qed")
+					.to_async_handler(EndpointPath::default(), control)
 			}
 		};
 
@@ -143,7 +149,9 @@ impl<A: Authorization> Router<A> {
 		allowed_hosts: Option<Vec<String>>,
 		) -> Self {
 
-		let handler = special.get(&SpecialEndpoint::Utils).unwrap().to_handler(EndpointPath::default());
+		let handler = special.get(&SpecialEndpoint::Utils)
+			.expect("Utils endpoint always stored; qed")
+			.to_handler(EndpointPath::default());
 		Router {
 			control: Some(control),
 			main_page: main_page,

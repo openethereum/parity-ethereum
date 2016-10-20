@@ -27,6 +27,7 @@ use std::default::Default;
 pub struct File {
 	pub path: &'static str,
 	pub content: &'static [u8],
+	// TODO: use strongly-typed MIME.
 	pub content_type: &'static str,
 }
 

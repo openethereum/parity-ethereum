@@ -136,7 +136,7 @@ impl GasPriceCalibrator {
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
 				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
-				set_price(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap());
+				set_price(U256::from(wei_per_gas as u64));
 			}) {
 				self.next_calibration = Instant::now() + self.options.recalibration_period;
 			} else {
@@ -747,7 +747,7 @@ impl MinerService for Miner {
 			let mut transaction_queue = self.transaction_queue.lock();
 			let import = self.add_transactions_to_queue(
 				chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue
-			).pop().unwrap();
+			).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 			match import {
 				Ok(ref res) => {
@@ -869,7 +869,11 @@ impl MinerService for Miner {
 							gas_used: receipt.gas_used - prev_gas,
 							contract_address: match tx.action {
 								Action::Call(_) => None,
-								Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce)),
+								Action::Create => {
+									let sender = tx.sender()
+										.expect("transactions in pending block have already been checked for valid sender; qed");
+									Some(contract_address(&sender, &tx.nonce))
+								}
 							},
 							logs: receipt.logs.clone(),
 						}

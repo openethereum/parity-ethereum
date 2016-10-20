@@ -478,7 +478,11 @@ impl Client {
 
 		if number >= self.history {
 			let n = number - self.history;
-			state.mark_canonical(&mut batch, n, &chain.block_hash(n).unwrap()).expect("DB commit failed");
+			if let Some(ancient_hash) = chain.block_hash(n) {
+				state.mark_canonical(&mut batch, n, &ancient_hash).expect("DB commit failed");
+			} else {
+				debug!(target: "client", "Missing expected hash for block {}", n);
+			}
 		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts);
