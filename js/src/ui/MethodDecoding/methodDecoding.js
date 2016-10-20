@@ -150,7 +150,7 @@ class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>.
+        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>
       </div>
     );
   }

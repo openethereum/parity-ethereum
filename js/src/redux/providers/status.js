@@ -56,7 +56,11 @@ export default class Status {
 
   _pollTraceMode = () => {
     return this._api.trace.block()
-      .then(() => true)
+      .then(blockTraces => {
+        // Assumes not in Trace Mode if no transactions
+        // in latest block...
+        return blockTraces.length > 0;
+      })
       .catch(() => false);
   }
 

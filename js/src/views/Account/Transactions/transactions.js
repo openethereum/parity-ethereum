@@ -137,18 +137,22 @@ class Transactions extends Component {
   getTransactions = (props) => {
     const { isTest, address, traceMode } = props;
 
-    if (!traceMode) {
-      return this.fetchEtherscanTransactions(isTest, address);
-    }
-
     return this
-      .fetchTraceTransactions(address)
+      .fetchTransactions(isTest, address, traceMode)
       .then(transactions => {
         this.setState({
           transactions,
           loading: false
         });
       });
+  }
+
+  fetchTransactions = (isTest, address, traceMode) => {
+    if (traceMode) {
+      return this.fetchTraceTransactions(address);
+    }
+
+    return this.fetchEtherscanTransactions(isTest, address);
   }
 
   fetchEtherscanTransactions = (isTest, address) => {
