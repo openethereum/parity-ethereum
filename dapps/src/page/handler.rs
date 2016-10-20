@@ -128,7 +128,13 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 		match self.file {
 			ServedFile::File(ref f) => {
 				res.set_status(StatusCode::Ok);
-				res.headers_mut().set(header::ContentType(f.content_type().parse().unwrap()));
+
+
+				match f.content_type().parse() {
+					Ok(mime) => res.headers_mut().set(header::ContentType(mime)),
+					Err(()) => debug!(target: "page_handler", "invalid MIME type: {}", f.content_type()),
+				}
+
 				// Security headers:
 				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_at_port);
 				Next::write()
