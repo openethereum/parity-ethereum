@@ -626,8 +626,6 @@ impl State {
 			None => {
 				// first check bloom if it is not in database for sure
 				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
-				// not found in the global cache, get from the DB and insert into local
-				if !self.db.check_account_bloom(a) { return f(None); }
 				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
 					Ok(acc) => acc.map(Account::from_rlp),
@@ -1667,6 +1665,21 @@ fn remove() {
 	state.kill_account(&a);
 	assert_eq!(state.exists(&a), false);
 	assert_eq!(state.nonce(&a), U256::from(0u64));
+}
+
+#[test]
+fn empty_account_exists() {
+	let a = Address::zero();
+	let path = RandomTempPath::new();
+	let db = get_temp_state_db_in(path.as_path());
+	let (root, db) = {
+		let mut state = State::new(db, U256::from(0), Default::default());
+		state.add_balance(&a, &U256::zero()); // create an empty account
+		state.commit().unwrap();
+		state.drop()
+	};
+	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+	assert!(state.exists(&a));
 }
 
 #[test]
