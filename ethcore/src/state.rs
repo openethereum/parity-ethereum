@@ -626,8 +626,6 @@ impl State {
 			None => {
 				// first check bloom if it is not in database for sure
 				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
-				// not found in the global cache, get from the DB and insert into local
-				if !self.db.check_account_bloom(a) { return f(None); }
 				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
 					Ok(acc) => acc.map(Account::from_rlp),
