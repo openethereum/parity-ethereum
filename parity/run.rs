@@ -18,11 +18,11 @@ use std::sync::{Arc, Mutex, Condvar};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
-use ethcore_rpc::NetworkSettings;
+use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -315,7 +315,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || ::ethsync::SyncProvider::status(&*sync).is_major_syncing(),
+				move || is_major_importing(&Some(sync.status().state), &client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

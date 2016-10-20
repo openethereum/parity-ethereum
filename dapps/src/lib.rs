@@ -95,11 +95,11 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 /// Indicates sync status
 pub trait SyncStatus: Send + Sync {
 	/// Returns true if there is a major sync happening.
-	fn is_major_syncing(&self) -> bool;
+	fn is_major_importing(&self) -> bool;
 }
 
 impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_syncing(&self) -> bool { self() }
+	fn is_major_importing(&self) -> bool { self() }
 }
 
 /// Webapps HTTP+RPC server build.

@@ -108,6 +108,7 @@ mod server {
 	use ethcore::client::{Client, BlockChainClient, BlockID};
 
 	use rpc_apis;
+	use ethcore_rpc::is_major_importing;
 	use ethcore_dapps::ContractClient;
 
 	pub use ethcore_dapps::Server as WebappServer;
@@ -127,7 +128,8 @@ mod server {
 			Arc::new(Registrar { client: deps.client.clone() })
 		);
 		let sync = deps.sync.clone();
-		server.with_sync_status(Arc::new(move || sync.status().is_major_syncing()));
+		let client = deps.client.clone();
+		server.with_sync_status(Arc::new(move || is_major_importing(&Some(sync.status().state), &client.queue_info())));
 		server.with_signer_port(signer_port);
 
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
