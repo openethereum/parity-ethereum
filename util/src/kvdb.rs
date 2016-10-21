@@ -131,6 +131,7 @@ impl Default for CompactionProfile {
 }
 
 /// Given output of df command return Linux rotational flag file path.
+#[cfg(target_os = "linux")]
 pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 	str::from_utf8(df_out.as_slice())
 		.ok()
@@ -150,6 +151,7 @@ pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 
 impl CompactionProfile {
 	/// Attempt to determine the best profile automatically, only Linux for now.
+	#[cfg(target_os = "linux")]
 	pub fn auto(db_path: &Path) -> CompactionProfile {
 		let hdd_check_file = db_path
 			.to_str()
@@ -172,6 +174,12 @@ impl CompactionProfile {
 			}
 		}
 		// Fallback if drive type was not determined.
+		Self::default()
+	}
+
+	/// Just default for other platforms.
+	#[cfg(not(target_os = "linux"))]
+	pub fn auto(db_path: &Path) -> CompactionProfile {
 		Self::default()
 	}
 
