@@ -130,40 +130,42 @@ impl Default for CompactionProfile {
 	}
 }
 
+/// Given output of df command return Linux rotational flag file path.
+pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
+	str::from_utf8(df_out.as_slice())
+		.ok()
+		// Get the drive name.
+		.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:])")
+			.ok()
+			.and_then(|re| re.captures(df_str))
+			.and_then(|captures| captures.at(1)))
+		// Generate path e.g. /sys/block/sda/queue/rotational
+		.map(|drive_path| {
+			let mut p = PathBuf::from("/sys/block");
+			p.push(drive_path);
+			p.push("queue/rotational");
+			p
+		})
+}
+
 impl CompactionProfile {
 	/// Attempt to determine the best profile automatically, only Linux for now.
 	pub fn auto(db_path: &Path) -> CompactionProfile {
-		let df_out_option = db_path
+		let hdd_check_file = db_path
 			.to_str()
 			.and_then(|path_str| Command::new("df").arg(path_str).output().ok())
 			.and_then(|df_res| match df_res.status.success() {
 				true => Some(df_res.stdout),
 				false => None,
-			});
-		if let Some(df_out) = df_out_option {
-			// Get the drive name using df.
-			let drive = str::from_utf8(df_out.as_slice())
-				.ok()
-				.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:])")
-					.ok()
-					.and_then(|re| re.captures(df_str))
-					.and_then(|captures| captures.at(1)));
-			// Generate path to check drive type, e.g. /sys/block/sda/queue/rotational
-			let hdd_check_file = drive
-				.map(|drive_path| {
-					let mut p = PathBuf::from("/sys/block");
-					p.push(drive_path);
-					p.push("queue/rotational");
-					p
-				});
-			// Read out the file and match compaction profile.
-			if let Some(hdd_check) = hdd_check_file {
-				if let Ok(mut file) = File::open(hdd_check.as_path()) {
-					let mut buffer = [0; 1];
-					if file.read_exact(&mut buffer).is_ok() {
-						if buffer == [48] { return Self::ssd(); }
-						if buffer == [49] { return Self::hdd(); }
-					}
+			})
+			.and_then(rotational_from_df_output);
+		// Read out the file and match compaction profile.
+		if let Some(hdd_check) = hdd_check_file {
+			if let Ok(mut file) = File::open(hdd_check.as_path()) {
+				let mut buffer = [0; 1];
+				if file.read_exact(&mut buffer).is_ok() {
+					if buffer == [48] { return Self::ssd(); }
+					if buffer == [49] { return Self::hdd(); }
 				}
 			}
 		}
@@ -586,6 +588,7 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;
+	use std::path::PathBuf;
 
 	fn test_db(config: &DatabaseConfig) {
 		let path = RandomTempPath::create_dir();
@@ -649,7 +652,9 @@ mod tests {
 
 	#[test]
 	fn auto_compaction() {
-		let path = RandomTempPath::create_dir();
-		assert_eq!(CompactionProfile::ssd(), CompactionProfile::auto(path.as_path()));
+		// Example df output.
+		let example_df = vec![70, 105, 108, 101, 115, 121, 115, 116, 101, 109, 32, 32, 32, 32, 32, 49, 75, 45, 98, 108, 111, 99, 107, 115, 32, 32, 32, 32, 32, 85, 115, 101, 100, 32, 65, 118, 97, 105, 108, 97, 98, 108, 101, 32, 85, 115, 101, 37, 32, 77, 111, 117, 110, 116, 101, 100, 32, 111, 110, 10, 47, 100, 101, 118, 47, 115, 100, 97, 49, 32, 32, 32, 32, 32, 32, 32, 54, 49, 52, 48, 57, 51, 48, 48, 32, 51, 56, 56, 50, 50, 50, 51, 54, 32, 32, 49, 57, 52, 52, 52, 54, 49, 54, 32, 32, 54, 55, 37, 32, 47, 10];
+		let expected_output = Some(PathBuf::from("/sys/block/sda/queue/rotational"));
+		assert_eq!(rotational_from_df_output(example_df), expected_output);
 	}
 }
