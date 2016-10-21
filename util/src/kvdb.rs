@@ -532,6 +532,13 @@ impl Database {
 	}
 }
 
+impl Drop for Database {
+	fn drop(&mut self) {
+		// write all buffered changes if we can.
+		let _ = self.flush();
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use hash::*;
