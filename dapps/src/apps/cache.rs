@@ -47,7 +47,7 @@ impl ContentCache {
 	}
 
 	pub fn clear_garbage(&mut self, expected_size: usize) -> Vec<(String, ContentStatus)> {
-		let mut len = self.cache.len();
+		let len = self.cache.len();
 
 		if len <= expected_size {
 			return Vec::new();
