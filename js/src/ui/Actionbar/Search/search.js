@@ -125,19 +125,19 @@ export default class ActionbarSearch extends Component {
   handleTokenAdd = (value) => {
     const { tokens } = this.props;
 
-    const newSearchValues = uniq([].concat(tokens, value));
+    const newSearchTokens = uniq([].concat(tokens, value));
 
     this.setState({
       inputValue: ''
     });
 
-    this.handleSearchChange(newSearchValues);
+    this.handleSearchChange(newSearchTokens);
   }
 
   handleTokenDelete = (value) => {
     const { tokens } = this.props;
 
-    const newSearchValues = []
+    const newSearchTokens = []
       .concat(tokens)
       .filter(v => v !== value);
 
@@ -145,34 +145,36 @@ export default class ActionbarSearch extends Component {
       inputValue: ''
     });
 
-    this.handleSearchChange(newSearchValues);
+    this.handleSearchChange(newSearchTokens);
     this.refs.searchInput.focus();
   }
 
   handleInputChange = (value) => {
-    const tokens = value.split(/[\s,;]/);
+    const splitTokens = value.split(/[\s,;]/);
 
-    const inputValue = (tokens.length <= 1)
+    const inputValue = (splitTokens.length <= 1)
       ? value
-      : tokens.slice(-1)[0];
+      : splitTokens.slice(-1)[0];
 
-    if (tokens.length > 1) {
-      const tokensToAdd = tokens.slice(0, -1);
+    if (splitTokens.length > 1) {
+      const tokensToAdd = splitTokens.slice(0, -1);
       tokensToAdd.forEach(token => this.handleTokenAdd(token));
     }
 
-    this.refs.searchInput.setState({
-      inputValue
-    });
-
+    this.refs.searchInput.setState({ inputValue });
     this.setState({ inputValue });
+
+    if (inputValue && inputValue.length > 0) {
+      const { tokens, onChange } = this.props;
+      onChange(tokens, [].concat(tokens, inputValue));
+    }
   }
 
-  handleSearchChange = (searchValues) => {
+  handleSearchChange = (searchTokens) => {
     const { onChange } = this.props;
-    const newSearchValues = searchValues.filter(v => v.length > 0);
+    const newSearchTokens = searchTokens.filter(v => v.length > 0);
 
-    onChange(newSearchValues);
+    onChange(newSearchTokens, newSearchTokens);
   }
 
   handleSearchClick = () => {

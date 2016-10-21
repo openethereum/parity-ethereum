@@ -29,6 +29,7 @@
 
 .input > div:nth-child(2) {
   bottom: 16px !important;
+  left: 2px;
 }
 
 .input > div:nth-child(3) {
