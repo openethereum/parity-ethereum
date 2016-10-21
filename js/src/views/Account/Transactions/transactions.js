@@ -126,7 +126,7 @@ class Transactions extends Component {
 
     return (transactions || [])
       .sort((tA, tB) => {
-        return tB.blockNumber - tA.blockNumber;
+        return tB.blockNumber.comparedTo(tA.blockNumber);
       })
       .slice(0, 25)
       .map((transaction, index) => {
