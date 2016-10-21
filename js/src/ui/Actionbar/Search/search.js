@@ -150,7 +150,22 @@ export default class ActionbarSearch extends Component {
   }
 
   handleInputChange = (value) => {
-    this.setState({ inputValue: value });
+    const tokens = value.split(/[\s,;]/);
+
+    const inputValue = (tokens.length <= 1)
+      ? value
+      : tokens.slice(-1)[0];
+
+    if (tokens.length > 1) {
+      const tokensToAdd = tokens.slice(0, -1);
+      tokensToAdd.forEach(token => this.handleTokenAdd(token));
+    }
+
+    this.refs.searchInput.setState({
+      inputValue
+    });
+
+    this.setState({ inputValue });
   }
 
   handleSearchChange = (searchValues) => {
