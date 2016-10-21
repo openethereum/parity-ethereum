@@ -14,11 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+
+extern crate siphasher;
+
 use std::cmp;
 use std::mem;
 use std::f64;
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, Hasher};
 use std::collections::HashSet;
+use siphasher::sip::SipHasher;
+
+// TODO [ToDr] Both hashers are exactly the same - no point to keep two.
+const NUMBER_OF_HASHERS: usize = 2;
 
 /// BitVec structure with journalling
 /// Every time any of the blocks is getting set it's index is tracked
@@ -73,7 +80,8 @@ pub struct Bloom {
 	bitmap: BitVecJournal,
 	bitmap_bits: u64,
 	k_num: u32,
-	sips: [SipHasher; 2],
+	// TODO [ToDr] Both hashers are exactly the same - no point to keep two.
+	sips: [SipHasher; NUMBER_OF_HASHERS],
 }
 
 impl Bloom {
@@ -85,7 +93,7 @@ impl Bloom {
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let k_num = Bloom::optimal_k_num(bitmap_bits, items_count);
 		let bitmap = BitVecJournal::new(bitmap_bits as usize);
-		let sips = [Bloom::sip_new(), Bloom::sip_new()];
+		let sips = [SipHasher::new(), SipHasher::new()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
@@ -99,7 +107,7 @@ impl Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
-		let sips = [Bloom::sip_new(), Bloom::sip_new()];
+		let sips = [SipHasher::new(), SipHasher::new()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
@@ -170,22 +178,18 @@ impl Bloom {
 		cmp::max(k_num, 1)
 	}
 
-	fn bloom_hash<T>(&self, hashes: &mut [u64; 2], item: &T, k_i: u32) -> u64
+	fn bloom_hash<T>(&self, hashes: &mut [u64; NUMBER_OF_HASHERS], item: &T, k_i: u32) -> u64
 		where T: Hash
 	{
-		if k_i < 2 {
-			let sip = &mut self.sips[k_i as usize].clone();
-			item.hash(sip);
+		if k_i < NUMBER_OF_HASHERS as u32 {
+			let mut sip = self.sips[k_i as usize].clone();
+			item.hash(&mut sip);
 			let hash = sip.finish();
 			hashes[k_i as usize] = hash;
 			hash
 		} else {
 			hashes[0].wrapping_add((k_i as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5)
 		}
-	}
-
-	fn sip_new() -> SipHasher {
-		SipHasher::new()
 	}
 
 	/// Drains the bloom journal returning the updated bloom part
