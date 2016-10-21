@@ -119,7 +119,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(RpcH160, String, Option<u64>)>(params).and_then(
-			|(account, account_pass, duration)|{
+			|(account, account_pass, duration)| {
 				let account: Address = account.into();
 				let store = take_weak!(self.accounts);
 				let r = match (self.allow_perm_unlock, duration) {
@@ -132,7 +132,32 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
 				}
-			})
+			}
+		)
+	}
+
+	fn test_password(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, String)>(params).and_then(
+			|(account, password)| {
+				let account: Address = account.into();
+				take_weak!(self.accounts)
+					.test_password(&account, password)
+					.map(|b| Value::Bool(b))
+					.map_err(|e| errors::account("Could not fetch account info.", e))
+			}
+		)
+	}
+
+	fn change_password(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, String, String)>(params).and_then(
+			|(account, password, new_password)| {
+				let account: Address = account.into();
+//				Some(take_weak!(self.accounts).change_password(account, password, new_password))
+				unimplemented!();
+			}
+		)
 	}
 
 	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {

@@ -264,6 +264,15 @@ impl AccountProvider {
 		Ok(())
 	}
 
+	/// Returns `true` if the password for `account` is `password`. `false` if not.
+	pub fn test_password(&self, account: &Address, password: String) -> Result<bool, Error> {
+		match self.sstore.sign(&account, &password, &Default::default()) {
+			Ok(_) => Ok(true),
+			Err(SSError::InvalidPassword) => Ok(false),
+			Err(e) => Err(Error::SStore(e)),
+		}
+	} 
+
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		// verify password by signing dump message
