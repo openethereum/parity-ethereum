@@ -14,15 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Balances from './balances';
-export Personal from './personal';
-export Signer from './signer';
-export Status from './status';
+import { handleActions } from 'redux-actions';
 
-export apiReducer from './apiReducer';
-export balancesReducer from './balancesReducer';
-export imagesReducer from './imagesReducer';
-export personalReducer from './personalReducer';
-export signerReducer from './signerReducer';
-export statusReducer from './statusReducer';
-export methodDecoderReducer from './methodDecoderReducer';
+const initialState = {};
+
+export default handleActions({
+  setApi (state, action) {
+    const { api } = action;
+    return api;
+  }
+}, initialState);

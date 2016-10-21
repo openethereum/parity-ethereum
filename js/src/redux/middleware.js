@@ -13,6 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import thunk from 'redux-thunk';
 
 import ErrorsMiddleware from '../ui/Errors/middleware';
 import SettingsMiddleware from '../views/Settings/middleware';
@@ -32,5 +33,5 @@ export default function (api) {
     errors.toMiddleware()
   ];
 
-  return middleware.concat(status);
+  return middleware.concat(status, thunk);
 }

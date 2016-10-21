@@ -24,6 +24,8 @@ import IdentityIcon from '../IdentityIcon';
 import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
 
+import { fetchCode, fetchMethod } from '../../redux/providers/methodDecoderActions';
+
 import styles from './methodDecoding.css';
 
 const CONTRACT_CREATE = '0x60606040';
@@ -31,7 +33,7 @@ const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
 
-class Method extends Component {
+class MethodDecoding extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -40,10 +42,16 @@ class Method extends Component {
     address: PropTypes.string.isRequired,
     tokens: PropTypes.object,
     transaction: PropTypes.object,
-    historic: PropTypes.bool
+    historic: PropTypes.bool,
+
+    fetchCode: PropTypes.func,
+    fetchMethod: PropTypes.func,
+    codes: PropTypes.object,
+    methods: PropTypes.object
   }
 
   state = {
+    contractAddress: null,
     method: null,
     methodName: null,
     methodInputs: null,
@@ -57,18 +65,50 @@ class Method extends Component {
 
   componentDidMount () {
     const { transaction } = this.props;
-
     this.lookup(transaction);
   }
 
   componentWillReceiveProps (newProps) {
     const { transaction } = this.props;
 
-    if (newProps.transaction === transaction) {
+    if (newProps.transaction.hash !== transaction.hash) {
+      this.lookup(transaction);
       return;
     }
 
-    this.lookup(transaction);
+    const { codes, methods } = newProps;
+    const { contractAddress, methodSignature, methodParams } = this.state;
+
+    if (contractAddress && codes[contractAddress]) {
+      const code = codes[contractAddress];
+
+      if (code && code !== '0x') {
+        this.setState({ isContract: true });
+      }
+    }
+
+    if (methodSignature && methods[methodSignature]) {
+      const method = methods[methodSignature];
+      const { api } = this.context;
+
+      let methodInputs = null;
+      let methodName = null;
+
+      if (method && method.length) {
+        const abi = api.util.methodToAbi(method);
+
+        methodName = abi.name;
+        methodInputs = api.util
+          .decodeMethodInput(abi, methodParams)
+          .map((value, index) => {
+            const type = abi.inputs[index].type;
+
+            return { type, value };
+          });
+      }
+
+      this.setState({ method, methodName, methodInputs });
+    }
   }
 
   render () {
@@ -275,16 +315,18 @@ class Method extends Component {
   }
 
   lookup (transaction) {
-    const { api } = this.context;
-    const { address, tokens } = this.props;
-
     if (!transaction) {
       return;
     }
 
+    const { api } = this.context;
+    const { address, tokens, fetchCode, fetchMethod } = this.props;
+
     const isReceived = transaction.to === address;
-    const token = (tokens || {})[isReceived ? transaction.from : transaction.to];
-    this.setState({ token, isReceived });
+    const contractAddress = isReceived ? transaction.from : transaction.to;
+
+    const token = (tokens || {})[contractAddress];
+    this.setState({ token, isReceived, contractAddress });
 
     if (!transaction.input || transaction.input === '0x') {
       return;
@@ -298,52 +340,27 @@ class Method extends Component {
       return;
     }
 
-    api.eth
-      .getCode(isReceived ? transaction.from : transaction.to)
-      .then((code) => {
-        if (code && code !== '0x') {
-          this.setState({ isContract: true });
-        }
-
-        return Contracts.get().signatureReg.lookup(signature);
-      }).then((method) => {
-        let methodInputs = null;
-        let methodName = null;
-
-        if (method && method.length) {
-          const abi = api.util.methodToAbi(method);
-
-          methodName = abi.name;
-          methodInputs = api.util
-            .decodeMethodInput(abi, paramdata)
-            .map((value, index) => {
-              const type = abi.inputs[index].type;
-
-              return { type, value };
-            });
-        }
-
-        this.setState({ method, methodName, methodInputs });
-      })
-      .catch((error) => {
-        console.error('lookup', error);
-      });
+    fetchCode(contractAddress);
+    fetchMethod(signature);
   }
 }
 
 function mapStateToProps (state) {
   const { tokens } = state.balances;
+  const { codes, methods } = state.methodDecoder;
 
   return {
-    tokens
+    tokens, codes, methods
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    fetchCode, fetchMethod
+  }, dispatch);
 }
 
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(Method);
+)(MethodDecoding);
