@@ -17,19 +17,41 @@
 import { handleActions } from 'redux-actions';
 
 const initialState = {
-  codes: {},
+  blocks: {},
+  transactions: {},
+  bytecodes: {},
   methods: {}
 };
 
 export default handleActions({
-  setCode (state, action) {
-    const { address, code } = action;
+  setBlock (state, action) {
+    const { blockNumber, block } = action;
 
-    const codes = Object.assign({}, state.codes, {
-      [address]: code
+    const blocks = Object.assign({}, state.blocks, {
+      [blockNumber.toString()]: block
     });
 
-    return Object.assign({}, state, { codes });
+    return Object.assign({}, state, { blocks });
+  },
+
+  setTransaction (state, action) {
+    const { txHash, info } = action;
+
+    const transactions = Object.assign({}, state.transactions, {
+      [txHash]: info
+    });
+
+    return Object.assign({}, state, { transactions });
+  },
+
+  setBytecode (state, action) {
+    const { address, bytecode } = action;
+
+    const bytecodes = Object.assign({}, state.bytecodes, {
+      [address]: bytecode
+    });
+
+    return Object.assign({}, state, { bytecodes });
   },
 
   setMethod (state, action) {

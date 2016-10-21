@@ -42,7 +42,7 @@ const initialState = {
   isApiConnected: true,
   isPingConnected: true,
   isTest: false,
-  traceMode: true
+  traceMode: undefined
 };
 
 export default handleActions({

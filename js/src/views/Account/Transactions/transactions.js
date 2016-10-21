@@ -38,7 +38,9 @@ class Transactions extends Component {
     contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool,
-    traceMode: PropTypes.bool
+    traceMode: PropTypes.bool,
+    blocks: PropTypes.object,
+    transactionsInfo: PropTypes.object
   }
 
   state = {
@@ -48,11 +50,18 @@ class Transactions extends Component {
   }
 
   componentDidMount () {
-    this.getTransactions(this.props);
+    if (this.props.traceMode !== undefined) {
+      this.getTransactions(this.props);
+    }
   }
 
   componentWillReceiveProps (newProps) {
-    const hasChanged = [ 'isTest', 'traceMode' ]
+    if (this.props.traceMode === undefined && newProps.traceMode !== undefined) {
+      this.getTransactions(newProps);
+      return;
+    }
+
+    const hasChanged = [ 'isTest', 'address' ]
       .map(key => newProps[key] !== this.props[key])
       .reduce((truth, keyTruth) => truth || keyTruth, false);
 
@@ -112,17 +121,25 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
+    const { address, accounts, contacts, contracts, tokens, isTest, blocks, transactionsInfo } = this.props;
     const { transactions } = this.state;
 
     return (transactions || [])
       .sort((tA, tB) => {
         return tB.blockNumber - tA.blockNumber;
       })
+      .slice(0, 25)
       .map((transaction, index) => {
+        const { blockNumber, hash } = transaction;
+
+        const block = blocks[blockNumber.toString()];
+        const transactionInfo = transactionsInfo[hash];
+
         return (
           <Transaction
             key={ index }
+            block={ block }
+            transactionInfo={ transactionInfo }
             transaction={ transaction }
             address={ address }
             accounts={ accounts }
@@ -194,6 +211,7 @@ function mapStateToProps (state) {
   const { isTest, traceMode } = state.nodeStatus;
   const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
+  const { blocks, transactions } = state.blockchain;
 
   return {
     isTest,
@@ -201,7 +219,9 @@ function mapStateToProps (state) {
     accounts,
     contacts,
     contracts,
-    tokens
+    tokens,
+    blocks,
+    transactionsInfo: transactions
   };
 }
 

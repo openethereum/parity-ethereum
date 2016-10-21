@@ -25,4 +25,4 @@ export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
 export signerReducer from './signerReducer';
 export statusReducer from './statusReducer';
-export methodDecoderReducer from './methodDecoderReducer';
+export blockchainReducer from './blockchainReducer';

@@ -19,12 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Contracts from '../../contracts';
 import IdentityIcon from '../IdentityIcon';
 import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
 
-import { fetchCode, fetchMethod } from '../../redux/providers/methodDecoderActions';
+import { fetchBytecode, fetchMethod } from '../../redux/providers/blockchainActions';
 
 import styles from './methodDecoding.css';
 
@@ -44,9 +43,9 @@ class MethodDecoding extends Component {
     transaction: PropTypes.object,
     historic: PropTypes.bool,
 
-    fetchCode: PropTypes.func,
+    fetchBytecode: PropTypes.func,
     fetchMethod: PropTypes.func,
-    codes: PropTypes.object,
+    bytecodes: PropTypes.object,
     methods: PropTypes.object
   }
 
@@ -63,26 +62,33 @@ class MethodDecoding extends Component {
     isReceived: false
   }
 
-  componentDidMount () {
+  componentWillMount () {
     const { transaction } = this.props;
     this.lookup(transaction);
   }
 
+  componentDidMount () {
+    this.setMethod(this.props);
+  }
+
   componentWillReceiveProps (newProps) {
     const { transaction } = this.props;
+    this.setMethod(newProps);
 
     if (newProps.transaction.hash !== transaction.hash) {
       this.lookup(transaction);
       return;
     }
+  }
 
-    const { codes, methods } = newProps;
+  setMethod (props) {
+    const { bytecodes, methods } = props;
     const { contractAddress, methodSignature, methodParams } = this.state;
 
-    if (contractAddress && codes[contractAddress]) {
-      const code = codes[contractAddress];
+    if (contractAddress && bytecodes[contractAddress]) {
+      const bytecode = bytecodes[contractAddress];
 
-      if (code && code !== '0x') {
+      if (bytecode && bytecode !== '0x') {
         this.setState({ isContract: true });
       }
     }
@@ -320,7 +326,7 @@ class MethodDecoding extends Component {
     }
 
     const { api } = this.context;
-    const { address, tokens, fetchCode, fetchMethod } = this.props;
+    const { address, tokens } = this.props;
 
     const isReceived = transaction.to === address;
     const contractAddress = isReceived ? transaction.from : transaction.to;
@@ -340,23 +346,25 @@ class MethodDecoding extends Component {
       return;
     }
 
-    fetchCode(contractAddress);
+    const { fetchBytecode, fetchMethod } = this.props;
+
+    fetchBytecode(contractAddress);
     fetchMethod(signature);
   }
 }
 
 function mapStateToProps (state) {
   const { tokens } = state.balances;
-  const { codes, methods } = state.methodDecoder;
+  const { bytecodes, methods } = state.blockchain;
 
   return {
-    tokens, codes, methods
+    tokens, bytecodes, methods
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    fetchCode, fetchMethod
+    fetchBytecode, fetchMethod
   }, dispatch);
 }
 
