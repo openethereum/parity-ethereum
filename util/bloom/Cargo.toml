@@ -7,3 +7,6 @@ license = "GPL3"
 
 [lib]
 path = "src/lib.rs"
+
+[dependencies]
+siphasher = "0.1.1"
