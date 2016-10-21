@@ -199,8 +199,8 @@ impl Server {
 	fn cors_domains(signer_port: Option<u16>) -> Vec<String> {
 		match signer_port {
 			Some(port) => vec![
-				format!("{}{}", HOME_PAGE, DAPPS_DOMAIN),
-				signer_address(port),
+				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
+				format!("http://{}", signer_address(port)),
 			],
 			None => vec![],
 		}
