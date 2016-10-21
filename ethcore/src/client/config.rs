@@ -125,7 +125,7 @@ mod test {
 
 	#[test]
 	fn test_default_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Default);
+		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Auto);
 	}
 
 	#[test]
