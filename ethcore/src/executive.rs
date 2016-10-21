@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
 use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
@@ -504,7 +504,7 @@ impl<'a> Executive<'a> {
 mod tests {
 	use ethkey::{Generator, Random};
 	use super::*;
-	use common::*;
+	use util::*;
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
 	use evm::{Factory, VMType};

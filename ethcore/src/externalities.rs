@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
 use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
@@ -307,7 +307,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use engines::Engine;
 	use env_info::EnvInfo;
 	use evm::Ext;

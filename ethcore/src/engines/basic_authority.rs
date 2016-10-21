@@ -16,7 +16,6 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use common::*;
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
@@ -29,6 +28,8 @@ use evm::Schedule;
 use ethjson;
 use header::Header;
 use transaction::SignedTransaction;
+
+use util::*;
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -189,7 +190,7 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
 	use env_info::EnvInfo;
 	use error::{BlockError, Error};

@@ -17,7 +17,7 @@
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
-use common::*;
+use util::*;
 use spec::*;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};

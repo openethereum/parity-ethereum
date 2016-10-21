@@ -21,7 +21,7 @@
 /// 2. Signatures verification done in the queue.
 /// 3. Final verification against the blockchain done before enactment.
 
-use common::*;
+use util::*;
 use engines::Engine;
 use error::{BlockError, Error};
 use blockchain::*;

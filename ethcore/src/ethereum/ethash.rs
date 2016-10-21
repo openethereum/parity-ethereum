@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
-use common::*;
+use util::*;
 use block::*;
 use builtin::Builtin;
 use env_info::EnvInfo;
@@ -376,7 +376,7 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
 	use tests::helpers::*;
 	use env_info::EnvInfo;

@@ -16,7 +16,7 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use common::*;
+use util::*;
 use receipt::Receipt;
 use engines::Engine;
 use env_info::EnvInfo;

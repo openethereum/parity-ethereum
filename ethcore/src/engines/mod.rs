@@ -24,7 +24,7 @@ pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 
-use common::*;
+use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;

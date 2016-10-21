@@ -20,7 +20,7 @@ use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
 use types::filter::Filter;
-use common::*;
+use util::*;
 use devtools::*;
 use miner::Miner;
 use rlp::{Rlp, View};

@@ -67,7 +67,7 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;

@@ -16,7 +16,7 @@
 
 //! Parameters for a block chain.
 
-use common::*;
+use util::*;
 use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
 use pod_state::*;
