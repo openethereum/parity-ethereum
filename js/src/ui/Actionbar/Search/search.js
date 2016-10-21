@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Chip } from 'material-ui';
+import { blue300 } from 'material-ui/styles/colors';
 // import ChipInput from 'material-ui-chip-input';
 import ChipInput from 'material-ui-chip-input/src/ChipInput';
 import ActionSearch from 'material-ui/svg-icons/action/search';
@@ -71,6 +73,7 @@ export default class ActionbarSearch extends Component {
           <ChipInput
             clearOnBlur={ false }
             className={ styles.input }
+            chipRenderer={ this.chipRenderer }
             hintText='Enter search input...'
             hintStyle={ {
               transition: 'none'
@@ -89,6 +92,33 @@ export default class ActionbarSearch extends Component {
           label=''
           onClick={ this.handleSearchClick } />
       </div>
+    );
+  }
+
+  chipRenderer = (state, key) => {
+    const { value, isFocused, isDisabled, handleClick, handleRequestDelete } = state;
+
+    return (
+      <Chip
+        key={ key }
+        className={ styles.chip }
+        style={ {
+          margin: '8px 8px 0 0',
+          float: 'left',
+          pointerEvents: isDisabled ? 'none' : undefined,
+          alignItems: 'center'
+        } }
+        labelStyle={ {
+          paddingRight: 6,
+          fontSize: '0.9rem',
+          lineHeight: 'initial'
+        } }
+        backgroundColor={ isFocused ? blue300 : 'rgba(0, 0, 0, 0.73)' }
+        onTouchTap={ handleClick }
+        onRequestDelete={ handleRequestDelete }
+      >
+        { value }
+      </Chip>
     );
   }
 
