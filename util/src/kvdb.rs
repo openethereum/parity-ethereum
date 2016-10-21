@@ -164,7 +164,9 @@ impl CompactionProfile {
 			if let Ok(mut file) = File::open(hdd_check.as_path()) {
 				let mut buffer = [0; 1];
 				if file.read_exact(&mut buffer).is_ok() {
+					// 0 means not rotational.
 					if buffer == [48] { return Self::ssd(); }
+					// 1 means rotational.
 					if buffer == [49] { return Self::hdd(); }
 				}
 			}
