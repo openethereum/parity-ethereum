@@ -16,6 +16,7 @@
 
 //! Transaction Execution environment.
 use common::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
 use executive::*;

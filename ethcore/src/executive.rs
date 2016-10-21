@@ -16,6 +16,7 @@
 
 //! Transaction Execution environment.
 use common::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
@@ -501,6 +502,7 @@ mod tests {
 	use ethkey::{Generator, Random};
 	use super::*;
 	use common::*;
+	use action_params::{ActionParams, ActionValue};
 	use evm::{Factory, VMType};
 	use state::Substate;
 	use tests::helpers::*;
