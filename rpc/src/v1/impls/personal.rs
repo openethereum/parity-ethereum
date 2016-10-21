@@ -154,8 +154,10 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 		from_params::<(RpcH160, String, String)>(params).and_then(
 			|(account, password, new_password)| {
 				let account: Address = account.into();
-//				Some(take_weak!(self.accounts).change_password(account, password, new_password))
-				unimplemented!();
+				take_weak!(self.accounts)
+					.change_password(&account, password, new_password)
+					.map(|_| Value::Null)
+					.map_err(|e| errors::account("Could not fetch account info.", e))
 			}
 		)
 	}

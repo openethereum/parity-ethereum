@@ -273,6 +273,11 @@ impl AccountProvider {
 		}
 	} 
 
+	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
+	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
+		self.sstore.change_password(&account, &password, &new_password).map_err(|e| Error::SStore(e))
+	} 
+
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
 		// verify password by signing dump message
