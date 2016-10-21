@@ -18,7 +18,9 @@
 		"accountStartNonce": "0x0100000",
 		"maximumExtraDataSize": "0x20",
 		"minGasLimit": "0x1388",
-		"networkID" : "0x2"
+		"networkID" : "0x2",
+		"forkBlock": "0x1b34d8",
+		"forkCanonHash": "0xf376243aeff1f256d970714c3de9fd78fa4e63cf63e32a51fe1169e375d98145"
 	},
 	"genesis": {
 		"seal": {
