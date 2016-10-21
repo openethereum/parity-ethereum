@@ -19,6 +19,7 @@ use common::*;
 use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
+use env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use types::executed::CallType;
@@ -308,6 +309,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 mod tests {
 	use common::*;
 	use engines::Engine;
+	use env_info::EnvInfo;
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;

@@ -589,6 +589,7 @@ mod tests {
 	use super::*;
 	use common::*;
 	use engines::Engine;
+	use env_info::LastHashes;
 	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;

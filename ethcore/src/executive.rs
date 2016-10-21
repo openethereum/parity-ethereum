@@ -20,10 +20,11 @@ use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
+use env_info::EnvInfo;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
-use transaction::Action;
+use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -504,13 +505,14 @@ mod tests {
 	use super::*;
 	use common::*;
 	use action_params::{ActionParams, ActionValue};
+	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
 	use state::Substate;
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
-	use transaction::{Action, SignedTransaction, Transaction};
+	use transaction::{Action, Transaction};
 
 	use types::executed::CallType;
 

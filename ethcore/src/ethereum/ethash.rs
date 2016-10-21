@@ -17,6 +17,8 @@
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
+use builtin::Builtin;
+use env_info::EnvInfo;
 use header::Header;
 use spec::CommonParams;
 use transaction::SignedTransaction;
@@ -376,6 +378,7 @@ mod tests {
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
+	use env_info::EnvInfo;
 	use header::Header;
 	use super::super::new_morden;
 	use super::Ethash;

@@ -16,6 +16,7 @@
 
 use common::*;
 use action_params::{ActionParams, ActionValue};
+use env_info::EnvInfo;
 use types::executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;

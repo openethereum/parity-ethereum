@@ -20,8 +20,10 @@ use common::*;
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
+use builtin::Builtin;
 use spec::CommonParams;
 use engines::Engine;
+use env_info::EnvInfo;
 use evm::Schedule;
 use ethjson;
 use header::Header;
@@ -188,6 +190,7 @@ impl Header {
 mod tests {
 	use common::*;
 	use block::*;
+	use env_info::EnvInfo;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use header::Header;

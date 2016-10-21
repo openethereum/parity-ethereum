@@ -27,6 +27,8 @@ pub use self::basic_authority::BasicAuthority;
 use common::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
+use builtin::Builtin;
+use env_info::EnvInfo;
 use spec::CommonParams;
 use evm::Schedule;
 use header::Header;

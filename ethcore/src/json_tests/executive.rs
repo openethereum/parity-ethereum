@@ -19,6 +19,7 @@ use action_params::ActionParams;
 use state::{State, Substate};
 use executive::*;
 use engines::Engine;
+use env_info::EnvInfo;
 use evm;
 use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
