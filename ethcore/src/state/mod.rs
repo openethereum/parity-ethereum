@@ -17,6 +17,7 @@
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
 use common::*;
+use receipt::Receipt;
 use engines::Engine;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
@@ -24,6 +25,7 @@ use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+use transaction::SignedTransaction;
 use state_db::StateDB;
 
 mod account;

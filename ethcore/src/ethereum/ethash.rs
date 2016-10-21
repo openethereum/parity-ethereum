@@ -17,7 +17,9 @@
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
+use header::Header;
 use spec::CommonParams;
+use transaction::SignedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -187,8 +189,8 @@ impl Engine for Ethash {
 
 		// Commit state so that we can actually figure out the state root.
 		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);		
-		}		
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -374,6 +376,7 @@ mod tests {
 	use common::*;
 	use block::*;
 	use tests::helpers::*;
+	use header::Header;
 	use super::super::new_morden;
 	use super::Ethash;
 	use rlp;

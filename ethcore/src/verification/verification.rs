@@ -24,7 +24,9 @@
 use common::*;
 use engines::Engine;
 use blockchain::*;
+use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
+use transaction::SignedTransaction;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {

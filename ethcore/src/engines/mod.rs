@@ -29,6 +29,8 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use spec::CommonParams;
 use evm::Schedule;
+use header::Header;
+use transaction::SignedTransaction;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.

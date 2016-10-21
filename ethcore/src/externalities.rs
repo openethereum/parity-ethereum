@@ -254,6 +254,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+		use log_entry::LogEntry;
+
 		let address = self.origin_info.address.clone();
 		self.substate.logs.push(LogEntry {
 			address: address,

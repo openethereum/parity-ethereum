@@ -22,7 +22,7 @@ use spec::CommonParams;
 use evm::Schedule;
 use env_info::EnvInfo;
 use block::ExecutedBlock;
-use common::Bytes;
+use util::Bytes;
 use account_provider::AccountProvider;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
@@ -71,6 +71,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use header::Header;
 	use block::*;
 
 	#[test]

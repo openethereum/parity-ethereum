@@ -24,6 +24,8 @@ use spec::CommonParams;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
+use header::Header;
+use transaction::SignedTransaction;
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -188,6 +190,7 @@ mod tests {
 	use block::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
+	use header::Header;
 	use spec::Spec;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.

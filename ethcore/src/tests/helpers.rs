@@ -28,6 +28,8 @@ use engines::Engine;
 use ethereum;
 use devtools::*;
 use miner::Miner;
+use header::Header;
+use transaction::{Action, SignedTransaction, Transaction};
 use rlp::{self, RlpStream, Stream};
 use db::COL_STATE;
 

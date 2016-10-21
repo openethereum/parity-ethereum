@@ -20,6 +20,7 @@ use common::*;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
 use pod_state::*;
 use account_db::*;
+use header::{BlockNumber, Header};
 use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;

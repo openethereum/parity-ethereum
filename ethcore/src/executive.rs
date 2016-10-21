@@ -23,6 +23,7 @@ use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use transaction::Action;
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -509,6 +510,8 @@ mod tests {
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
+	use transaction::{Action, SignedTransaction, Transaction};
+
 	use types::executed::CallType;
 
 	#[test]
