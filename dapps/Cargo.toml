@@ -19,17 +19,17 @@ url = "1.0"
 rustc-serialize = "0.3"
 serde = "0.8"
 serde_json = "0.8"
-serde_macros = { version = "0.8", optional = true }
-zip = { version = "0.1", default-features = false }
 ethabi = "0.2.2"
 linked-hash-map = "0.3"
+parity-dapps-glue = "1.4"
+mime = "0.2"
+serde_macros = { version = "0.8", optional = true }
+zip = { version = "0.1", default-features = false }
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
-parity-dapps-glue = { path = "./js-glue" }
-mime = "0.2"
 ### DEPRECATED
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
