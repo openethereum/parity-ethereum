@@ -43,10 +43,8 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
-#[macro_use]
-extern crate log;
-extern crate url as url_lib;
 extern crate hyper;
+extern crate url as url_lib;
 extern crate unicase;
 extern crate serde;
 extern crate serde_json;
@@ -62,6 +60,11 @@ extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate mime;
+
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
 #[cfg(test)]
@@ -95,11 +98,11 @@ use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 /// Indicates sync status
 pub trait SyncStatus: Send + Sync {
 	/// Returns true if there is a major sync happening.
-	fn is_major_syncing(&self) -> bool;
+	fn is_major_importing(&self) -> bool;
 }
 
 impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_syncing(&self) -> bool { self() }
+	fn is_major_importing(&self) -> bool { self() }
 }
 
 /// Webapps HTTP+RPC server build.

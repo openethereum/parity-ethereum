@@ -35,7 +35,7 @@ impl server::Handler<HttpStream> for EchoHandler {
 	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
 		match decoder.read_to_string(&mut self.content) {
 			Ok(0) => {
-				self.handler = Some(ContentHandler::ok(self.content.clone(), "application/json".into()));
+				self.handler = Some(ContentHandler::ok(self.content.clone(), mime!(Application/Json)));
 				Next::write()
 			},
 			Ok(_) => Next::read(),
@@ -47,10 +47,14 @@ impl server::Handler<HttpStream> for EchoHandler {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
-		self.handler.as_mut().unwrap().on_response(res)
+		self.handler.as_mut()
+			.expect("handler always set in on_request, which is before now; qed")
+			.on_response(res)
 	}
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		self.handler.as_mut().unwrap().on_response_writable(encoder)
+		self.handler.as_mut()
+			.expect("handler always set in on_request, which is before now; qed")
+			.on_response_writable(encoder)
 	}
 }

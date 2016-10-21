@@ -57,7 +57,7 @@ function FindProxyForURL(url, host) {{
 "#,
 		HOME_PAGE, DAPPS_DOMAIN, path.host, path.port, signer);
 
-		Box::new(ContentHandler::ok(content, "application/javascript".to_owned()))
+		Box::new(ContentHandler::ok(content, mime!(Application/Javascript)))
 	}
 }
 

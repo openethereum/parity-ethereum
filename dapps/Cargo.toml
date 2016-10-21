@@ -24,6 +24,7 @@ serde_macros = { version = "0.8", optional = true }
 zip = { version = "0.1", default-features = false }
 ethabi = "0.2.2"
 linked-hash-map = "0.3"
+mime = "0.2"
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
