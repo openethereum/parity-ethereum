@@ -130,8 +130,8 @@ mod test {
 
 	#[test]
 	fn test_parsing_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::Default, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::Default, "default".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
 	}
 
