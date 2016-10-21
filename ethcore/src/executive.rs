@@ -21,6 +21,7 @@ use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
 use env_info::EnvInfo;
+use error::ExecutionError;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
@@ -507,6 +508,7 @@ mod tests {
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
+	use error::ExecutionError;
 	use state::Substate;
 	use tests::helpers::*;
 	use trace::trace;

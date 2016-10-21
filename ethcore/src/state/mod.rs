@@ -20,6 +20,7 @@ use common::*;
 use receipt::Receipt;
 use engines::Engine;
 use env_info::EnvInfo;
+use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
 use trace::FlatTrace;

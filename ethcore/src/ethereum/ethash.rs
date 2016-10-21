@@ -19,6 +19,7 @@ use common::*;
 use block::*;
 use builtin::Builtin;
 use env_info::EnvInfo;
+use error::{BlockError, Error};
 use header::Header;
 use spec::CommonParams;
 use transaction::SignedTransaction;
@@ -379,6 +380,7 @@ mod tests {
 	use block::*;
 	use tests::helpers::*;
 	use env_info::EnvInfo;
+	use error::{BlockError, Error};
 	use header::Header;
 	use super::super::new_morden;
 	use super::Ethash;

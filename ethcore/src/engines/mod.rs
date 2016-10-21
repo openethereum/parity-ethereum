@@ -29,6 +29,7 @@ use account_provider::AccountProvider;
 use block::ExecutedBlock;
 use builtin::Builtin;
 use env_info::EnvInfo;
+use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
 use header::Header;

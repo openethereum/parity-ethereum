@@ -69,6 +69,7 @@ mod tests {
 	use state::*;
 	use super::*;
 	use tests::helpers::*;
+	use views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {

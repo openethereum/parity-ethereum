@@ -590,9 +590,11 @@ mod tests {
 	use common::*;
 	use engines::Engine;
 	use env_info::LastHashes;
+	use error::Error;
 	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;
+	use views::BlockView;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]

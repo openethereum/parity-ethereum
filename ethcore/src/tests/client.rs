@@ -25,6 +25,7 @@ use devtools::*;
 use miner::Miner;
 use rlp::{Rlp, View};
 use spec::Spec;
+use views::BlockView;
 
 #[test]
 fn imports_from_empty() {

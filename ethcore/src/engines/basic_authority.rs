@@ -24,6 +24,7 @@ use builtin::Builtin;
 use spec::CommonParams;
 use engines::Engine;
 use env_info::EnvInfo;
+use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
 use header::Header;
@@ -191,6 +192,7 @@ mod tests {
 	use common::*;
 	use block::*;
 	use env_info::EnvInfo;
+	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use header::Header;
