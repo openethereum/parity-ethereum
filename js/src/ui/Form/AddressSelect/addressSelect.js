@@ -37,13 +37,14 @@ export default class AddressSelect extends Component {
   }
 
   state = {
-    entries: {}
+    entries: {},
+    value: ''
   }
 
   componentWillMount () {
-    const { accounts, contacts } = this.props;
+    const { accounts, contacts, value } = this.props;
     const entries = Object.assign({}, accounts || {}, contacts || {});
-    this.setState({ entries });
+    this.setState({ entries, value });
   }
 
   componentWillReceiveProps (newProps) {
@@ -55,33 +56,35 @@ export default class AddressSelect extends Component {
   render () {
     const { disabled, error, hint, label } = this.props;
     const { entries } = this.state;
+    const value = this.getSearchText();
 
     return (
       <div className={ styles.container }>
         <AutoComplete
-          className={ error ? '' : styles.paddedInput }
+          className={ (error || !value) ? '' : styles.paddedInput }
           disabled={ disabled }
           label={ label }
-          hint={ `search for ${hint}` }
+          hint={ hint ? `search for ${hint}` : 'search for an address' }
           error={ error }
           onChange={ this.onChange }
-          value={ this.getSearchText() }
+          value={ value }
           filter={ this.handleFilter }
           entries={ entries }
+          entry={ this.getEntry() || {} }
           renderItem={ this.renderItem }
         />
 
-        { this.renderIdentityIcon() }
+        { this.renderIdentityIcon(value) }
       </div>
     );
   }
 
-  renderIdentityIcon () {
-    if (this.props.error) {
+  renderIdentityIcon (inputValue) {
+    const { error, value } = this.props;
+
+    if (error || !inputValue) {
       return null;
     }
-
-    const { value } = this.props;
 
     return (
       <IdentityIcon
@@ -125,14 +128,18 @@ export default class AddressSelect extends Component {
   }
 
   getSearchText () {
+    const entry = this.getEntry();
+    if (!entry) return '';
+
+    return entry.name ? entry.name.toUpperCase() : '';
+  }
+
+  getEntry () {
     const { value } = this.props;
     if (!value) return '';
 
     const { entries } = this.state;
-    const entry = entries[value];
-    if (!entry) return '';
-
-    return entry.name ? entry.name.toUpperCase() : '';
+    return entries[value];
   }
 
   handleFilter = (searchText, address) => {
@@ -143,8 +150,11 @@ export default class AddressSelect extends Component {
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
   }
 
-  onChange = (entry) => {
-    const address = entry ? entry.address : '';
+  onChange = (entry, empty) => {
+    const address = entry && entry.address
+      ? entry.address
+      : (empty ? '' : this.state.value);
+
     this.props.onChange(null, address);
   }
 }
