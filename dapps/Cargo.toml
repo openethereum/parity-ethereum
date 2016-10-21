@@ -23,12 +23,13 @@ serde_macros = { version = "0.8", optional = true }
 zip = { version = "0.1", default-features = false }
 ethabi = "0.2.2"
 linked-hash-map = "0.3"
-parity-dapps-glue = "1.4"
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
+parity-dapps-glue = { path = "./js-glue" }
+mime = "0.2"
 ### DEPRECATED
 parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
 parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
@@ -45,8 +46,7 @@ default = ["serde_codegen"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
 
-ui = ["parity-ui/no-precompiled-js"]
-ui-precompiled = [
+use-precompiled-js = [
+	"parity-ui/use-precompiled-js",
 	"parity-dapps-home/use-precompiled-js",
-	"parity-ui/use-precompiled-js"
 ]

@@ -54,8 +54,10 @@ impl ContentCache {
 		}
 
 		let mut removed = Vec::with_capacity(len - expected_size);
-		while len > expected_size {
-			let entry = self.cache.pop_front().unwrap();
+
+		while self.cache.len() > expected_size {
+			let entry = self.cache.pop_front().expect("expected_size bounded at 0, len is greater; qed");
+
 			match entry.1 {
 				ContentStatus::Fetching(ref fetch) => {
 					trace!(target: "dapps", "Aborting {} because of limit.", entry.0);
@@ -73,7 +75,6 @@ impl ContentCache {
 			}
 
 			removed.push(entry);
-			len -= 1;
 		}
 		removed
 	}

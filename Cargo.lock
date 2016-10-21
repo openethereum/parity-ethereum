@@ -335,6 +335,7 @@ dependencies = [
  "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
