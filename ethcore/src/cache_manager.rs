@@ -55,18 +55,23 @@ impl<T> CacheManager<T> where T: Eq + Hash {
 		}
 
 		for _ in 0..COLLECTION_QUEUE_SIZE {
-			let current_size = notify_unused(self.cache_usage.pop_back().unwrap());
-			self.cache_usage.push_front(Default::default());
-			if current_size < self.max_cache_size {
-				break;
+			if let Some(back) = self.cache_usage.pop_back() {
+				let current_size = notify_unused(back);
+				self.cache_usage.push_front(Default::default());
+				if current_size < self.max_cache_size {
+					break
+				}
 			}
 		}
 	}
 
 	fn rotate_cache_if_needed(&mut self) {
+		if self.cache_usage.len() == 0 { return }
+
 		if self.cache_usage[0].len() * self.bytes_per_cache_entry > self.pref_cache_size / COLLECTION_QUEUE_SIZE {
-			let cache = self.cache_usage.pop_back().unwrap();
-			self.cache_usage.push_front(cache);
+			if let Some(cache) = self.cache_usage.pop_back() {
+				self.cache_usage.push_front(cache);
+			}
 		}
 	}
 }

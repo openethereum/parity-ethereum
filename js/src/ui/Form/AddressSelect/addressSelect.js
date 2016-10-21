@@ -57,7 +57,7 @@ export default class AddressSelect extends Component {
     const { entries } = this.state;
 
     return (
-      <div>
+      <div className={ styles.container }>
         <AutoComplete
           className={ error ? '' : styles.paddedInput }
           disabled={ disabled }

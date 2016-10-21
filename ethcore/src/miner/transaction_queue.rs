@@ -700,7 +700,7 @@ impl TransactionQueue {
 			None => vec![],
 		};
 		for k in nonces_from_sender {
-			let order = self.current.drop(&sender, &k).unwrap();
+			let order = self.current.drop(&sender, &k).expect("transaction known to be in self.current; qed");
 			self.current.insert(sender, k, order.penalize());
 		}
 		// Same thing for future
@@ -709,7 +709,7 @@ impl TransactionQueue {
 			None => vec![],
 		};
 		for k in nonces_from_sender {
-			let order = self.future.drop(&sender, &k).unwrap();
+			let order = self.future.drop(&sender, &k).expect("transaction known to be in self.future; qed");
 			self.future.insert(sender, k, order.penalize());
 		}
 	}

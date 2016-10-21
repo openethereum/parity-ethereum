@@ -29,6 +29,7 @@ use ethcore::views::BlockView;
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::snapshot::{RestorationStatus, SnapshotService as SS};
 use number_prefix::{binary_prefix, Standalone, Prefixed};
+use ethcore_rpc::is_major_importing;
 
 pub struct Informant {
 	chain_info: RwLock<Option<BlockChainInfo>>,
@@ -95,7 +96,7 @@ impl Informant {
 		let network_config = self.net.as_ref().map(|n| n.network_config());
 		let sync_status = self.sync.as_ref().map(|s| s.status());
 
-		let importing = self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
+		let importing = is_major_importing(sync_status.map(|s| s.state), self.client.queue_info());
 		let (snapshot_sync, snapshot_current, snapshot_total) = self.snapshot.as_ref().map_or((false, 0, 0), |s|
 			match s.status() {
 				RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
@@ -174,7 +175,8 @@ impl Informant {
 impl ChainNotify for Informant {
 	fn new_blocks(&self, imported: Vec<H256>, _invalid: Vec<H256>, _enacted: Vec<H256>, _retracted: Vec<H256>, _sealed: Vec<H256>, duration: u64) {
 		let mut last_import = self.last_import.lock();
-		let importing = self.sync.as_ref().map_or(false, |s| s.status().is_major_syncing());
+		let sync_state = self.sync.as_ref().map(|s| s.status().state);
+		let importing = is_major_importing(sync_state, self.client.queue_info());
 		if Instant::now() > *last_import + Duration::from_secs(1) && !importing {
 			if let Some(block) = imported.last().and_then(|h| self.client.block(BlockID::Hash(*h))) {
 				let view = BlockView::new(&block);

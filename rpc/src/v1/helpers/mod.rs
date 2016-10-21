@@ -22,6 +22,7 @@ pub mod errors;
 
 pub mod dispatch;
 pub mod params;
+pub mod block_import;
 
 mod poll_manager;
 mod poll_filter;

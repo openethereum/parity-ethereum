@@ -46,3 +46,7 @@
 .paddedInput input {
   padding-left: 46px !important;
 }
+
+.container {
+  position: relative;
+}

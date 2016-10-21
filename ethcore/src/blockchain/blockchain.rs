@@ -132,7 +132,8 @@ pub trait BlockProvider {
 
 	/// Returns the header of the genesis block.
 	fn genesis_header(&self) -> Header {
-		self.block_header(&self.genesis_hash()).unwrap()
+		self.block_header(&self.genesis_hash())
+			.expect("Genesis header always stored; qed")
 	}
 
 	/// Returns numbers of blocks containing given bloom.
