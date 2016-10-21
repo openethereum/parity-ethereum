@@ -123,10 +123,14 @@ pub trait Engine : Sync + Send {
 	fn is_builtin(&self, a: &Address) -> bool { self.builtins().contains_key(a) }
 	/// Determine the code execution cost of the builtin contract with address `a`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
+	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 {
+		self.builtins().get(a).expect("queried cost of nonexistent builtin").cost(input.len())
+	}
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
+		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
+	}
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }

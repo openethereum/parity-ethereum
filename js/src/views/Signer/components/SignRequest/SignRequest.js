@@ -22,6 +22,8 @@ import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class SignRequest extends Component {
 
   // TODO [todr] re-use proptypes?
@@ -34,7 +36,9 @@ export default class SignRequest extends Component {
     onConfirm: PropTypes.func,
     onReject: PropTypes.func,
     status: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    chain: nullable(PropTypes.object),
+    balance: nullable(PropTypes.object)
   };
 
   state = {
@@ -61,7 +65,7 @@ export default class SignRequest extends Component {
   }
 
   render () {
-    const { chain, balance, className } = this.props;
+    const { className } = this.props;
     return (
       <div className={ `${styles.container} ${className || ''}` }>
         { this.renderDetails() }

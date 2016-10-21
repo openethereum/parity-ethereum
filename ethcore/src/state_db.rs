@@ -134,10 +134,11 @@ impl StateDB {
 		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
-		if hash_count_entry.is_none() {
-			return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
-		}
-		let hash_count_bytes = hash_count_entry.unwrap();
+		let hash_count_bytes = match hash_count_entry {
+			Some(bytes) => bytes,
+			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
+		};
+
 		assert_eq!(hash_count_bytes.len(), 1);
 		let hash_count = hash_count_bytes[0];
 

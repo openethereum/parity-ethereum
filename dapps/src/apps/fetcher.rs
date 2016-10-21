@@ -96,7 +96,7 @@ impl<R: URLHint> ContentFetcher<R> {
 			// else try to resolve the app_id
 			let has_content = self.resolver.resolve(content_id).is_some();
 			// if there is content or we are syncing return true
-			has_content || self.sync.is_major_syncing()
+			has_content || self.sync.is_major_importing()
 		} else {
 			false
 		}
@@ -140,7 +140,7 @@ impl<R: URLHint> ContentFetcher<R> {
 
 					match content {
 						// Don't serve dapps if we are still syncing (but serve content)
-						Some(URLHintResult::Dapp(_)) if self.sync.is_major_syncing() => {
+						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
 							(None, Self::still_syncing())
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
@@ -172,7 +172,7 @@ impl<R: URLHint> ContentFetcher<R> {
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
 						},
-						None if self.sync.is_major_syncing() => {
+						None if self.sync.is_major_importing() => {
 							(None, Self::still_syncing())
 						},
 						None => {
