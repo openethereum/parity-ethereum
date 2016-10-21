@@ -286,7 +286,7 @@ pub fn random_filename() -> String {
 }
 
 fn signer_address(port: u16) -> String {
-	format!("http://127.0.0.1:{}", port)
+	format!("127.0.0.1:{}", port)
 }
 
 #[cfg(test)]

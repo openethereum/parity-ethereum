@@ -116,7 +116,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 			_ if *req.method() == hyper::method::Method::Get => {
 				if let Some(port) = self.signer_port {
 					trace!(target: "dapps", "Redirecting to signer interface.");
-					Redirection::boxed(&signer_address(port))
+					Redirection::boxed(&format!("http://{}", signer_address(port)))
 				} else {
 					trace!(target: "dapps", "Signer disabled, returning 404.");
 					Box::new(ContentHandler::error(

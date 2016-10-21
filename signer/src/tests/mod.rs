@@ -85,6 +85,27 @@ fn should_reject_invalid_host() {
 }
 
 #[test]
+fn should_allow_home_parity_host() {
+	// given
+	let server = serve().0;
+
+	// when
+	let response = request(server,
+		"\
+			GET / HTTP/1.1\r\n\
+			Host: home.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+			{}
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	http_client::assert_security_headers_present(&response.headers, None);
+}
+
+#[test]
 fn should_serve_styles_even_on_disallowed_domain() {
 	// given
 	let server = serve().0;

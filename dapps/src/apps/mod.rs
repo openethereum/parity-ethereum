@@ -50,7 +50,7 @@ pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints 
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_port));
-	pages.insert("proxy".into(), ProxyPac::boxed());
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_port));
 
 	pages
 }

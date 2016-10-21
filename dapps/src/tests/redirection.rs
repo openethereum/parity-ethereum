@@ -159,7 +159,7 @@ fn should_serve_proxy_pac() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.body, "86\n\nfunction FindProxyForURL(url, host) {\n\tif (shExpMatch(host, \"*.parity\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:8080\";\n\t}\n\n\treturn \"DIRECT\";\n}\n\n0\n\n".to_owned());
+	assert_eq!(response.body, "D5\n\nfunction FindProxyForURL(url, host) {\n\tif (shExpMatch(host, \"home.parity\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:18180\";\n\t}\n\n\tif (shExpMatch(host, \"*.parity\"))\n\t{\n\t\treturn \"PROXY 127.0.0.1:8080\";\n\t}\n\n\treturn \"DIRECT\";\n}\n\n0\n\n".to_owned());
 	assert_security_headers(&response.headers);
 }
 
