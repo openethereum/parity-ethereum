@@ -13,7 +13,7 @@ rand = "0.3.14"
 log = "0.3"
 env_logger = "0.3"
 jsonrpc-core = "3.0"
-jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git", branch = "cors" }
+jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
 unicase = "1.3"
 url = "1.0"
