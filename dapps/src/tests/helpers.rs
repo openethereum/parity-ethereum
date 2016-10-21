@@ -65,8 +65,7 @@ fn init_logger() {
 	if let Ok(log) = env::var("RUST_LOG") {
 		let mut builder = LogBuilder::new();
 		builder.parse(&log);
-		builder.init()
-			.expect("Valid logs pattern should be passed. See: http://rust-lang-nursery.github.io/log/env_logger/");
+		builder.init().expect("Logger is initialized only once.");
 	}
 }
 
