@@ -136,7 +136,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = try!(scope(|scope| {
-		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, block_at), &writer, p));
+		let block_guard = scope.spawn(|| chunk_blocks(chain, block_at, &writer, p));
 		let state_res = chunk_state(state_db, state_root, &writer, p);
 
 		state_res.and_then(|state_hashes| {
@@ -176,10 +176,13 @@ struct BlockChunker<'a> {
 impl<'a> BlockChunker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the first desired block, and writes out the remainder.
-	fn chunk_all(&mut self, first_hash: H256) -> Result<(), Error> {
+	fn chunk_all(&mut self) -> Result<(), Error> {
 		let mut loaded_size = 0;
+		let genesis_hash = self.chain.genesis_hash();
 
-		while self.current_hash != first_hash {
+		for _ in 0..SNAPSHOT_BLOCKS {
+			if self.current_hash == genesis_hash { break }
+
 			let (block, receipts) = try!(self.chain.block(&self.current_hash)
 				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
 				.ok_or(Error::BlockNotFound(self.current_hash)));
@@ -264,17 +267,7 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
-	let (start_number, start_hash) = start_block_info;
-
-	let first_hash = if start_number < SNAPSHOT_BLOCKS {
-		// use the genesis hash.
-		chain.genesis_hash()
-	} else {
-		let first_num = start_number - SNAPSHOT_BLOCKS;
-		try!(chain.block_hash(first_num).ok_or(Error::IncompleteChain))
-	};
-
+pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let mut chunker = BlockChunker {
 		chain: chain,
 		rlps: VecDeque::new(),
@@ -285,7 +278,7 @@ pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), wr
 		progress: progress,
 	};
 
-	try!(chunker.chunk_all(first_hash));
+	try!(chunker.chunk_all());
 
 	Ok(chunker.hashes)
 }
