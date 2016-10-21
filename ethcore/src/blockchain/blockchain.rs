@@ -405,9 +405,8 @@ impl<'a> Iterator for AncestryIter<'a> {
 		if self.current.is_zero() {
 			Option::None
 		} else {
-			let mut n = self.chain.block_details(&self.current).unwrap().parent;
-			mem::swap(&mut self.current, &mut n);
-			Some(n)
+			self.chain.block_details(&self.current)
+				.map(|mut details| mem::swap(&mut self.current, &mut n))
 		}
 	}
 }
