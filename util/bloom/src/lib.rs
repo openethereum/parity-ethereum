@@ -17,7 +17,8 @@
 use std::cmp;
 use std::mem;
 use std::f64;
-use std::hash::{Hash, Hasher, SipHasher};
+use std::hash::{Hash, Hasher, BuildHasher};
+use std::collections::hash_map::RandomState;
 use std::collections::HashSet;
 
 /// BitVec structure with journalling
@@ -73,7 +74,7 @@ pub struct Bloom {
 	bitmap: BitVecJournal,
 	bitmap_bits: u64,
 	k_num: u32,
-	sips: [SipHasher; 2],
+	sips: [RandomState; 2],
 }
 
 impl Bloom {
@@ -85,7 +86,7 @@ impl Bloom {
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let k_num = Bloom::optimal_k_num(bitmap_bits, items_count);
 		let bitmap = BitVecJournal::new(bitmap_bits as usize);
-		let sips = [Bloom::sip_new(), Bloom::sip_new()];
+		let sips = [RandomState::default(), RandomState::default()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
@@ -99,7 +100,7 @@ impl Bloom {
 		let bitmap_size = parts.len() * 8;
 		let bitmap_bits = (bitmap_size as u64) * 8u64;
 		let bitmap = BitVecJournal::from_parts(parts);
-		let sips = [Bloom::sip_new(), Bloom::sip_new()];
+		let sips = [RandomState::default(), RandomState::default()];
 		Bloom {
 			bitmap: bitmap,
 			bitmap_bits: bitmap_bits,
@@ -174,18 +175,14 @@ impl Bloom {
 		where T: Hash
 	{
 		if k_i < 2 {
-			let sip = &mut self.sips[k_i as usize].clone();
-			item.hash(sip);
+			let mut sip = self.sips[k_i as usize].build_hasher();
+			item.hash(&mut sip);
 			let hash = sip.finish();
 			hashes[k_i as usize] = hash;
 			hash
 		} else {
 			hashes[0].wrapping_add((k_i as u64).wrapping_mul(hashes[1]) % 0xffffffffffffffc5)
 		}
-	}
-
-	fn sip_new() -> SipHasher {
-		SipHasher::new()
 	}
 
 	/// Drains the bloom journal returning the updated bloom part
