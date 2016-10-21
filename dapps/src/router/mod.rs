@@ -20,14 +20,13 @@
 pub mod auth;
 mod host_validation;
 
-use DAPPS_DOMAIN;
 use signer_address;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
 use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
-use apps;
+use apps::{self, DAPPS_DOMAIN};
 use apps::fetcher::ContentFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use handlers::{Redirection, extract_url, ContentHandler};

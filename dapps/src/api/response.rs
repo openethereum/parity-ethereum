@@ -19,6 +19,10 @@ use serde_json;
 use endpoint::Handler;
 use handlers::{ContentHandler, EchoHandler};
 
+pub fn empty() -> Box<Handler> {
+	Box::new(ContentHandler::ok("".into(), "text/plain".into()))
+}
+
 pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
 	Box::new(ContentHandler::ok(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
 }
@@ -27,10 +31,6 @@ pub fn as_json_error<T : Serialize>(val: &T) -> Box<Handler> {
 	Box::new(ContentHandler::not_found(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
 }
 
-pub fn ping_response(local_domain: &str) -> Box<Handler> {
-	Box::new(EchoHandler::cors(vec![
-		format!("http://{}", local_domain),
-		// Allow CORS calls also for localhost
-		format!("http://{}", local_domain.replace("127.0.0.1", "localhost")),
-	]))
+pub fn ping_response() -> Box<Handler> {
+	Box::new(EchoHandler::default())
 }

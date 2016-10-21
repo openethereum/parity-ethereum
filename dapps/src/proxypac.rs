@@ -18,7 +18,7 @@
 
 use endpoint::{Endpoint, Handler, EndpointPath};
 use handlers::ContentHandler;
-use apps::DAPPS_DOMAIN;
+use apps::{HOME_PAGE, DAPPS_DOMAIN};
 use signer_address;
 
 pub struct ProxyPac {
@@ -42,20 +42,20 @@ impl Endpoint for ProxyPac {
 		let content = format!(
 r#"
 function FindProxyForURL(url, host) {{
-	if (shExpMatch(host, "home{0}"))
+	if (shExpMatch(host, "{0}{1}"))
 	{{
-		return "PROXY {3}";
+		return "PROXY {4}";
 	}}
 
-	if (shExpMatch(host, "*{0}"))
+	if (shExpMatch(host, "*{1}"))
 	{{
-		return "PROXY {1}:{2}";
+		return "PROXY {2}:{3}";
 	}}
 
 	return "DIRECT";
 }}
 "#,
-		DAPPS_DOMAIN, path.host, path.port, signer);
+		HOME_PAGE, DAPPS_DOMAIN, path.host, path.port, signer);
 
 		Box::new(ContentHandler::ok(content, "application/javascript".to_owned()))
 	}
