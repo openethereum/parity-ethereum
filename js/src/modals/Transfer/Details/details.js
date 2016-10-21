@@ -129,7 +129,9 @@ export default class Details extends Component {
         if (isEth) {
           value = api.util.fromWei(balance.value).toFormat(3);
         } else {
-          value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+          const format = balance.token.format || 1;
+          const decimals = Math.min(3, format === 1 ? 0 : Math.floor(format / 10));
+          value = new BigNumber(balance.value).div(format).toFormat(decimals);
         }
 
         const label = (

@@ -297,6 +297,22 @@ export default class Transfer extends Component {
     return null;
   }
 
+  validateDecimals (num) {
+    const { balance } = this.props;
+    const { tag } = this.state;
+    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
+
+    if (tag !== 'ETH') {
+      const s = new BigNumber(num).mul(token.format || 1).toString();
+
+      if (s.indexOf('.') !== -1) {
+        return ERRORS.invalidDecimals;
+      }
+    }
+
+    return null;
+  }
+
   _onUpdateGas (gas) {
     const gasError = this.validatePositiveNumber(gas);
 
@@ -341,7 +357,11 @@ export default class Transfer extends Component {
   }
 
   _onUpdateValue (value) {
-    const valueError = this.validatePositiveNumber(value);
+    let valueError = this.validatePositiveNumber(value);
+
+    if (!valueError) {
+      valueError = this.validateDecimals(value);
+    }
 
     this.setState({
       value,
@@ -407,7 +427,7 @@ export default class Transfer extends Component {
         to: token.address
       }, [
         recipient,
-        new BigNumber(value).mul(token.format).toString()
+        new BigNumber(value).mul(token.format).toFixed(0)
       ]);
   }
 
