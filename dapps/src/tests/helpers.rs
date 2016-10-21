@@ -62,10 +62,11 @@ impl ContractClient for FakeRegistrar {
 
 fn init_logger() {
 	// Initialize logger
-	if env::var("RUST_LOG").is_ok() {
+	if let Ok(log) = env::var("RUST_LOG") {
 		let mut builder = LogBuilder::new();
-		builder.parse(&env::var("RUST_LOG").unwrap());
-		builder.init().unwrap();
+		builder.parse(&log);
+		builder.init()
+			.expect("Valid logs pattern should be passed. See: http://rust-lang-nursery.github.io/log/env_logger/");
 	}
 }
 

@@ -35,6 +35,6 @@ pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
 	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
 }
 
-pub fn ping_response() -> Box<Handler> {
+pub fn ping() -> Box<Handler> {
 	Box::new(EchoHandler::default())
 }

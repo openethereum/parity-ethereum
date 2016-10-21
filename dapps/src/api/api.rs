@@ -22,7 +22,7 @@ use hyper::method::Method;
 use hyper::header::AccessControlAllowOrigin;
 
 use api::types::{App, ApiError};
-use api::response::{self, as_json, as_json_error, ping_response};
+use api::response;
 use apps::fetcher::ContentFetcher;
 
 use handlers::extract_url;
@@ -73,7 +73,7 @@ impl RestApiRouter {
 			origin: None,
 			control: Some(control),
 			api: api,
-			handler: as_json_error(&ApiError {
+			handler: response::as_json_error(&ApiError {
 				code: "404".into(),
 				title: "Not Found".into(),
 				detail: "Resource you requested has not been found.".into(),
@@ -140,8 +140,8 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		if let Some(ref hash) = hash { path.app_id = hash.clone().to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(as_json(&self.api.list_apps())),
-			"ping" => Some(ping_response()),
+			"apps" => Some(response::as_json(&self.api.list_apps())),
+			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
 		});
