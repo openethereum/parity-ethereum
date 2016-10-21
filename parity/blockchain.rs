@@ -155,7 +155,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.snapshot_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
 	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history);
@@ -306,7 +306,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.snapshot_path().as_path())));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
 	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm, cmd.pruning_history);
