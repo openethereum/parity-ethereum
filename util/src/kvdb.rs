@@ -17,8 +17,6 @@
 //! Key-Value store abstraction with `RocksDB` backend.
 
 use std::io::ErrorKind;
-use std::process::Command;
-use std::fs::File;
 use common::*;
 use elastic_array::*;
 use std::default::Default;
@@ -26,7 +24,12 @@ use std::path::PathBuf;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
+#[cfg(target_os = "linux")]
 use regex::Regex;
+#[cfg(target_os = "linux")]
+use std::process::Command;
+#[cfg(target_os = "linux")]
+use std::fs::File;
 
 const DB_BACKGROUND_FLUSHES: i32 = 2;
 const DB_BACKGROUND_COMPACTIONS: i32 = 2;
@@ -179,7 +182,7 @@ impl CompactionProfile {
 
 	/// Just default for other platforms.
 	#[cfg(not(target_os = "linux"))]
-	pub fn auto(db_path: &Path) -> CompactionProfile {
+	pub fn auto(_db_path: &Path) -> CompactionProfile {
 		Self::default()
 	}
 
