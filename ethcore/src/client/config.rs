@@ -27,8 +27,8 @@ use util::{journaldb, CompactionProfile};
 /// Client state db compaction profile
 #[derive(Debug, PartialEq)]
 pub enum DatabaseCompactionProfile {
-	/// Default compaction profile
-	Default,
+	/// Try to determine compaction profile automatically
+	Auto,
 	/// SSD compaction profile
 	SSD,
 	/// HDD or other slow storage io compaction profile
@@ -37,7 +37,7 @@ pub enum DatabaseCompactionProfile {
 
 impl Default for DatabaseCompactionProfile {
 	fn default() -> Self {
-		DatabaseCompactionProfile::Default
+		DatabaseCompactionProfile::Auto
 	}
 }
 
@@ -45,7 +45,7 @@ impl DatabaseCompactionProfile {
 	/// Returns corresponding compaction profile.
 	pub fn compaction_profile(&self, db_path: &Path) -> CompactionProfile {
 		match *self {
-			DatabaseCompactionProfile::Default => CompactionProfile::auto(db_path),
+			DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
 			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
 			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
 		}
@@ -57,7 +57,7 @@ impl FromStr for DatabaseCompactionProfile {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"default" => Ok(DatabaseCompactionProfile::Default),
+			"auto" => Ok(DatabaseCompactionProfile::Auto),
 			"ssd" => Ok(DatabaseCompactionProfile::SSD),
 			"hdd" => Ok(DatabaseCompactionProfile::HDD),
 			_ => Err("Invalid compaction profile given. Expected default/hdd/ssd.".into()),
@@ -130,7 +130,7 @@ mod test {
 
 	#[test]
 	fn test_parsing_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::Default, "default".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::Auto, "auto".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
 	}

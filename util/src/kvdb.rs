@@ -136,7 +136,7 @@ pub fn rotational_from_df_output(df_out: Vec<u8>) -> Option<PathBuf> {
 	str::from_utf8(df_out.as_slice())
 		.ok()
 		// Get the drive name.
-		.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:])")
+		.and_then(|df_str| Regex::new(r"/dev/(sd[:alpha:]{1,2})")
 			.ok()
 			.and_then(|re| re.captures(df_str))
 			.and_then(|captures| captures.at(1)))
