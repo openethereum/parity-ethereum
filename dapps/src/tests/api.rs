@@ -34,7 +34,7 @@ fn should_return_error() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
+	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
 	assert_eq!(response.body, format!("58\n{}\n0\n\n", r#"{"code":"404","title":"Not Found","detail":"Resource you requested has not been found."}"#));
 	assert_security_headers(&response.headers);
 }
@@ -57,8 +57,8 @@ fn should_serve_apps() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
-	assert!(response.body.contains("Parity Home Screen"), response.body);
+	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
+	assert!(response.body.contains("Parity UI"), response.body);
 	assert_security_headers(&response.headers);
 }
 
@@ -80,7 +80,7 @@ fn should_handle_ping() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_eq!(response.headers.get(0).unwrap(), "Content-Type: application/json");
+	assert_eq!(response.headers.get(3).unwrap(), "Content-Type: application/json");
 	assert_eq!(response.body, "0\n\n".to_owned());
 	assert_security_headers(&response.headers);
 }
@@ -107,3 +107,54 @@ fn should_try_to_resolve_dapp() {
 	assert_security_headers(&response.headers);
 }
 
+#[test]
+fn should_return_signer_port_cors_headers() {
+	// given
+	let server = serve();
+
+	// when
+	let response = request(server,
+		"\
+			POST /api/ping HTTP/1.1\r\n\
+			Host: localhost:8080\r\n\
+			Origin: http://127.0.0.1:18180\r\n\
+			Connection: close\r\n\
+			\r\n\
+			{}
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	assert!(
+		response.headers_raw.contains("Access-Control-Allow-Origin: http://127.0.0.1:18180"),
+		"CORS header for signer missing: {:?}",
+		response.headers
+	);
+}
+
+#[test]
+fn should_return_signer_port_cors_headers_for_home_parity() {
+	// given
+	let server = serve();
+
+	// when
+	let response = request(server,
+		"\
+			POST /api/ping HTTP/1.1\r\n\
+			Host: localhost:8080\r\n\
+			Origin: http://home.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+			{}
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
+	assert!(
+		response.headers_raw.contains("Access-Control-Allow-Origin: http://home.parity"),
+		"CORS header for home.parity missing: {:?}",
+		response.headers
+	);
+}

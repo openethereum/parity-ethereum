@@ -38,7 +38,6 @@ export function validateAbi (abi, api) {
       abi = JSON.stringify(abiParsed);
     }
   } catch (error) {
-    console.error(error);
     abiError = ERRORS.invalidAbi;
   }
 

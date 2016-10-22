@@ -19,10 +19,11 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Contracts from '../../contracts';
 import IdentityIcon from '../IdentityIcon';
 import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
+
+import { fetchBytecode, fetchMethod } from '../../redux/providers/blockchainActions';
 
 import styles from './methodDecoding.css';
 
@@ -31,7 +32,7 @@ const TOKEN_METHODS = {
   '0xa9059cbb': 'transfer(to,value)'
 };
 
-class Method extends Component {
+class MethodDecoding extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -40,10 +41,16 @@ class Method extends Component {
     address: PropTypes.string.isRequired,
     tokens: PropTypes.object,
     transaction: PropTypes.object,
-    historic: PropTypes.bool
+    historic: PropTypes.bool,
+
+    fetchBytecode: PropTypes.func,
+    fetchMethod: PropTypes.func,
+    bytecodes: PropTypes.object,
+    methods: PropTypes.object
   }
 
   state = {
+    contractAddress: null,
     method: null,
     methodName: null,
     methodInputs: null,
@@ -55,20 +62,59 @@ class Method extends Component {
     isReceived: false
   }
 
-  componentDidMount () {
+  componentWillMount () {
     const { transaction } = this.props;
-
     this.lookup(transaction);
+  }
+
+  componentDidMount () {
+    this.setMethod(this.props);
   }
 
   componentWillReceiveProps (newProps) {
     const { transaction } = this.props;
+    this.setMethod(newProps);
 
-    if (newProps.transaction === transaction) {
+    if (newProps.transaction.hash !== transaction.hash) {
+      this.lookup(transaction);
       return;
     }
+  }
 
-    this.lookup(transaction);
+  setMethod (props) {
+    const { bytecodes, methods } = props;
+    const { contractAddress, methodSignature, methodParams } = this.state;
+
+    if (contractAddress && bytecodes[contractAddress]) {
+      const bytecode = bytecodes[contractAddress];
+
+      if (bytecode && bytecode !== '0x') {
+        this.setState({ isContract: true });
+      }
+    }
+
+    if (methodSignature && methods[methodSignature]) {
+      const method = methods[methodSignature];
+      const { api } = this.context;
+
+      let methodInputs = null;
+      let methodName = null;
+
+      if (method && method.length) {
+        const abi = api.util.methodToAbi(method);
+
+        methodName = abi.name;
+        methodInputs = api.util
+          .decodeMethodInput(abi, methodParams)
+          .map((value, index) => {
+            const type = abi.inputs[index].type;
+
+            return { type, value };
+          });
+      }
+
+      this.setState({ method, methodName, methodInputs });
+    }
   }
 
   render () {
@@ -150,7 +196,7 @@ class Method extends Component {
 
     return (
       <div className={ styles.details }>
-        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>.
+        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>
       </div>
     );
   }
@@ -275,18 +321,20 @@ class Method extends Component {
   }
 
   lookup (transaction) {
-    const { api } = this.context;
-    const { address, tokens } = this.props;
-
     if (!transaction) {
       return;
     }
 
-    const isReceived = transaction.to === address;
-    const token = (tokens || {})[isReceived ? transaction.from : transaction.to];
-    this.setState({ token, isReceived });
+    const { api } = this.context;
+    const { address, tokens } = this.props;
 
-    if (!transaction.input) {
+    const isReceived = transaction.to === address;
+    const contractAddress = isReceived ? transaction.from : transaction.to;
+
+    const token = (tokens || {})[contractAddress];
+    this.setState({ token, isReceived, contractAddress });
+
+    if (!transaction.input || transaction.input === '0x') {
       return;
     }
 
@@ -298,52 +346,29 @@ class Method extends Component {
       return;
     }
 
-    api.eth
-      .getCode(isReceived ? transaction.from : transaction.to)
-      .then((code) => {
-        if (code && code !== '0x') {
-          this.setState({ isContract: true });
-        }
+    const { fetchBytecode, fetchMethod } = this.props;
 
-        return Contracts.get().signatureReg.lookup(signature);
-      }).then((method) => {
-        let methodInputs = null;
-        let methodName = null;
-
-        if (method && method.length) {
-          const abi = api.util.methodToAbi(method);
-
-          methodName = abi.name;
-          methodInputs = api.util
-            .decodeMethodInput(abi, paramdata)
-            .map((value, index) => {
-              const type = abi.inputs[index].type;
-
-              return { type, value };
-            });
-        }
-
-        this.setState({ method, methodName, methodInputs });
-      })
-      .catch((error) => {
-        console.error('lookup', error);
-      });
+    fetchBytecode(contractAddress);
+    fetchMethod(signature);
   }
 }
 
 function mapStateToProps (state) {
   const { tokens } = state.balances;
+  const { bytecodes, methods } = state.blockchain;
 
   return {
-    tokens
+    tokens, bytecodes, methods
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    fetchBytecode, fetchMethod
+  }, dispatch);
 }
 
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(Method);
+)(MethodDecoding);

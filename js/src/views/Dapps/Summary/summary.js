@@ -38,7 +38,7 @@ export default class Summary extends Component {
       return null;
     }
 
-    const url = `/app/${app.local ? 'local' : 'global'}/${app.id}`;
+    const url = `/app/${app.builtin ? 'global' : 'local'}/${app.url || app.id}`;
     const image = app.image
       ? <img src={ app.image } className={ styles.image } />
       : <div className={ styles.image }>&nbsp;</div>;

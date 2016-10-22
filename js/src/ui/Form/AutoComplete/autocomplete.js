@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
+import { PopoverAnimationVertical } from 'material-ui/Popover';
 
 export default class AutoComplete extends Component {
   static propTypes = {
@@ -28,14 +29,22 @@ export default class AutoComplete extends Component {
     className: PropTypes.string,
     filter: PropTypes.func,
     renderItem: PropTypes.func,
+    entry: PropTypes.object,
     entries: PropTypes.oneOfType([
       PropTypes.array,
       PropTypes.object
     ])
   }
 
+  state = {
+    lastChangedValue: undefined,
+    entry: null,
+    open: false
+  }
+
   render () {
     const { disabled, error, hint, label, value, className, filter } = this.props;
+    const { open } = this.state;
 
     return (
       <MUIAutoComplete
@@ -47,9 +56,13 @@ export default class AutoComplete extends Component {
         onNewRequest={ this.onChange }
         searchText={ value }
         onFocus={ this.onFocus }
+        onBlur={ this.onBlur }
+        animation={ PopoverAnimationVertical }
 
         filter={ filter }
+        popoverProps={ { open } }
         openOnFocus
+        menuCloseDelay={ 0 }
         fullWidth
         floatingLabelFixed
         dataSource={ this.getDataSource() }
@@ -78,18 +91,45 @@ export default class AutoComplete extends Component {
   }
 
   onChange = (item, idx) => {
-    const { onChange, entries } = this.props;
+    if (idx === -1) {
+      return;
+    }
+
+    const { entries } = this.props;
+
     const entriesArray = (entries instanceof Array)
       ? entries
       : Object.values(entries);
 
-    const entry = (idx === -1) ? null : entriesArray[idx];
+    const entry = entriesArray[idx];
 
-    onChange(entry);
+    this.handleOnChange(entry);
+    this.setState({ entry, open: false });
+  }
+
+  onBlur = () => {
+    window.setTimeout(() => {
+      const { entry } = this.state;
+
+      this.handleOnChange(entry);
+    }, 100);
   }
 
   onFocus = () => {
-    this.props.onChange(null);
+    const { entry } = this.props;
+
+    this.setState({ entry, open: true }, () => {
+      this.handleOnChange(null, true);
+    });
+  }
+
+  handleOnChange = (value, empty) => {
+    const { lastChangedValue } = this.state;
+
+    if (value !== lastChangedValue) {
+      this.setState({ lastChangedValue: value });
+      this.props.onChange(value, empty);
+    }
   }
 
 }
