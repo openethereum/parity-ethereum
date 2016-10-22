@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use DAPPS_DOMAIN;
+use apps::DAPPS_DOMAIN;
 use hyper::{server, header, StatusCode};
 use hyper::net::HttpStream;
 

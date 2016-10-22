@@ -23,7 +23,7 @@ import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
 import fetchAvailable from './available';
-import { read as readVisible, write as writeVisible } from './visible';
+import { readHiddenApps, writeHiddenApps } from './hidden';
 
 import AddDapps from './AddDapps';
 import Summary from './Summary';
@@ -37,15 +37,17 @@ export default class Dapps extends Component {
 
   state = {
     available: [],
-    visible: [],
+    hidden: [],
     modalOpen: false
   }
 
   componentDidMount () {
     fetchAvailable()
     .then((available) => {
-      this.setState({ available });
-      this.setState({ visible: readVisible() });
+      this.setState({
+        available,
+        hidden: readHiddenApps()
+      });
       this.loadImages();
     })
     .catch((err) => {
@@ -54,24 +56,24 @@ export default class Dapps extends Component {
   }
 
   render () {
-    const { available, visible, modalOpen } = this.state;
-    const apps = available.filter((app) => visible.includes(app.id));
+    const { available, hidden, modalOpen } = this.state;
+    const apps = available.filter((app) => !hidden.includes(app.id));
 
     return (
       <div>
         <AddDapps
           available={ available }
-          visible={ visible }
+          hidden={ hidden }
           open={ modalOpen }
-          onAdd={ this.onAdd }
-          onRemove={ this.onRemove }
+          onHideApp={ this.onHideApp }
+          onShowApp={ this.onShowApp }
           onClose={ this.closeModal }
         />
         <Actionbar
           className={ styles.toolbar }
           title='Decentralized Applications'
           buttons={ [
-            <FlatButton label='edit' icon={ <EyeIcon /> } onClick={ this.openModal } />
+            <FlatButton label='edit' key='edit' icon={ <EyeIcon /> } onClick={ this.openModal } />
           ] }
         />
         <Page>
@@ -97,38 +99,40 @@ export default class Dapps extends Component {
     const { available } = this.state;
     const { dappReg } = Contracts.get();
 
-    return Promise.all(available.map((app) => dappReg.getImage(app.hash)))
-    .then((images) => {
-      this.setState({
-        available: images
-          .map(hashToImageUrl)
-          .map((image, i) => Object.assign({}, available[i], { image }))
+    return Promise
+      .all(available.map((app) => dappReg.getImage(app.id)))
+      .then((images) => {
+        this.setState({
+          available: images
+            .map(hashToImageUrl)
+            .map((image, i) => Object.assign({}, available[i], { image }))
+        });
+      })
+      .catch((error) => {
+        console.warn('loadImages', error);
       });
-    })
-    .catch((err) => {
-      console.error('error loading dapp images', err);
-    });
   }
 
-  onAdd = (id) => {
-    const oldVisible = this.state.visible;
-    if (oldVisible.includes(id)) return;
-    const newVisible = oldVisible.concat(id);
-    this.setState({ visible: newVisible });
-    writeVisible(newVisible);
+  onHideApp = (id) => {
+    const { hidden } = this.state;
+    const newHidden = hidden.concat(id);
+
+    this.setState({ hidden: newHidden });
+    writeHiddenApps(newHidden);
   }
 
-  onRemove = (id) => {
-    const oldVisible = this.state.visible;
-    if (!oldVisible.includes(id)) return;
-    const newVisible = oldVisible.filter((_id) => _id !== id);
-    this.setState({ visible: newVisible });
-    writeVisible(newVisible);
+  onShowApp = (id) => {
+    const { hidden } = this.state;
+    const newHidden = hidden.filter((_id) => _id !== id);
+
+    this.setState({ hidden: newHidden });
+    writeHiddenApps(newHidden);
   }
 
   openModal = () => {
     this.setState({ modalOpen: true });
   };
+
   closeModal = () => {
     this.setState({ modalOpen: false });
   };

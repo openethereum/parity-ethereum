@@ -23,17 +23,18 @@ export default class Container extends Component {
   static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
+    compact: PropTypes.bool,
     light: PropTypes.bool,
     style: PropTypes.object
   }
 
   render () {
-    const { children, className, light, style } = this.props;
+    const { children, className, compact, light, style } = this.props;
     const classes = `${styles.container} ${light ? styles.light : ''} ${className}`;
 
     return (
       <div className={ classes } style={ style }>
-        <Card className={ styles.padded }>
+        <Card className={ compact ? styles.compact : styles.padded }>
           { children }
         </Card>
       </div>
