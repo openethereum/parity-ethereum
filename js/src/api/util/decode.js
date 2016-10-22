@@ -73,7 +73,7 @@ export function methodToAbi (method) {
 
   const name = method.substr(0, typesStart);
   const types = method.substr(typesStart + 1, length - (typesStart + 1) - 1).split(',');
-  const inputs = types.map((_type) => {
+  const inputs = types.filter((_type) => _type.length).map((_type) => {
     const type = fromParamType(toParamType(_type));
 
     return { type };
