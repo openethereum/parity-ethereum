@@ -13,25 +13,14 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-import thunk from 'redux-thunk';
 
-import ErrorsMiddleware from '../ui/Errors/middleware';
-import SettingsMiddleware from '../views/Settings/middleware';
-import SignerMiddleware from './providers/signerMiddleware';
+import { handleActions } from 'redux-actions';
 
-import statusMiddleware from '../views/Status/middleware';
+const initialState = {};
 
-export default function (api) {
-  const errors = new ErrorsMiddleware();
-  const signer = new SignerMiddleware(api);
-  const settings = new SettingsMiddleware();
-  const status = statusMiddleware();
-
-  const middleware = [
-    settings.toMiddleware(),
-    signer.toMiddleware(),
-    errors.toMiddleware()
-  ];
-
-  return middleware.concat(status, thunk);
-}
+export default handleActions({
+  setApi (state, action) {
+    const { api } = action;
+    return api;
+  }
+}, initialState);
