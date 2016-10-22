@@ -16,6 +16,7 @@
 
 use std::{str, io};
 use std::net::SocketAddr;
+use std::cmp::Ordering;
 use std::sync::*;
 use mio::*;
 use mio::tcp::*;
@@ -122,12 +123,29 @@ impl ToString for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionCapabilityInfo {
 	pub protocol: [u8; 3],
 	pub version: u8,
 	pub packet_count: u8,
 	pub id_offset: u8,
+}
+
+impl PartialOrd for SessionCapabilityInfo {
+	fn partial_cmp(&self, other: &SessionCapabilityInfo) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for SessionCapabilityInfo {
+	fn cmp(&self, b: &SessionCapabilityInfo) -> Ordering {
+		// By protocol id first
+		if self.protocol != b.protocol {
+			return self.protocol.cmp(&b.protocol);
+		}
+		// By version
+		self.version.cmp(&b.version)
+	}
 }
 
 const PACKET_HELLO: u8 = 0x80;
@@ -440,6 +458,9 @@ impl Session {
 				i += 1;
 			}
 		}
+
+		// Sort capabilities alphabeticaly.
+		caps.sort();
 
 		i = 0;
 		let mut offset: u8 = PACKET_USER;
