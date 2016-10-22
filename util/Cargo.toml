@@ -35,6 +35,7 @@ table = { path = "table" }
 ansi_term = "0.7"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
+regex = "0.1"
 
 [features]
 default = []

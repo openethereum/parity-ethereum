@@ -44,10 +44,6 @@ describe('api/util/decode', () => {
       expect(() => decodeMethodInput(null, null)).to.throw(/should receive valid method/);
     });
 
-    it('expects valid parameter data', () => {
-      expect(() => decodeMethodInput({}, null)).to.throw(/should receive valid parameter/);
-    });
-
     it('expect valid hex parameter data', () => {
       expect(() => decodeMethodInput({}, 'invalid')).to.throw(/should be a hex value/);
     });

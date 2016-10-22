@@ -232,7 +232,8 @@ Footprint Options:
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
-                           hdd - suitable for slow HDDs (default: {flag_db_compaction}).
+                           hdd - suitable for slow HDDs;
+                           auto - determine automatically (default: {flag_db_compaction}).
   --fat-db BOOL            Build appropriate information to allow enumeration
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off

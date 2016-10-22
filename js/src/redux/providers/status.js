@@ -54,6 +54,16 @@ export default class Status {
       .catch(() => dispatch(false));
   }
 
+  _pollTraceMode = () => {
+    return this._api.trace.block()
+      .then(blockTraces => {
+        // Assumes not in Trace Mode if no transactions
+        // in latest block...
+        return blockTraces.length > 0;
+      })
+      .catch(() => false);
+  }
+
   _pollStatus = () => {
     const { secureToken, isConnected, isConnecting, needsToken } = this._api;
     const nextTimeout = (timeout = 1000) => {
@@ -80,9 +90,10 @@ export default class Status {
         this._api.ethcore.netPort(),
         this._api.ethcore.nodeName(),
         this._api.ethcore.rpcSettings(),
-        this._api.eth.syncing()
+        this._api.eth.syncing(),
+        this._pollTraceMode()
       ])
-      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing]) => {
+      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
         this._store.dispatch(statusCollection({
@@ -99,7 +110,8 @@ export default class Status {
           nodeName,
           rpcSettings,
           syncing,
-          isTest
+          isTest,
+          traceMode
         }));
         nextTimeout();
       })
