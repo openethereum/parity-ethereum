@@ -34,18 +34,16 @@ pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
-	signer_port: Option<u16>,
 	allow_perm_unlock: bool,
 }
 
 impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>, allow_perm_unlock: bool) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
-			signer_port: signer_port,
 			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
@@ -58,15 +56,6 @@ impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 }
 
 impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-
-	fn signer_enabled(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		try!(expect_no_params(params));
-
-		Ok(self.signer_port
-			.map(|v| to_value(&v))
-			.unwrap_or_else(|| to_value(&false)))
-	}
 
 	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());

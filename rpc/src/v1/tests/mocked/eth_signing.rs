@@ -41,7 +41,7 @@ struct EthSigningTester {
 
 impl Default for EthSigningTester {
 	fn default() -> Self {
-		let signer = Arc::new(SignerService::new_test());
+		let signer = Arc::new(SignerService::new_test(None));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
@@ -272,10 +272,8 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
-	let sync = ethcore::sync_provider();
-	let net = ethcore::network_service();
-	let ethcore_client = ethcore::ethcore_client(&tester.client, &tester.miner, &sync, &net);
-	tester.io.add_delegate(ethcore_client.to_delegate());
+	let ethcore = ethcore::Dependencies::new();
+	tester.io.add_delegate(ethcore.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 

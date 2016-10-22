@@ -49,7 +49,7 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> PersonalSignerTester {
-	let signer = Arc::new(SignerService::new_test());
+	let signer = Arc::new(SignerService::new_test(None));
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();

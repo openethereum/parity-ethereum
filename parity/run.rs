@@ -246,10 +246,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_port: cmd.signer_port,
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		})),
+		}, cmd.signer_port)),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -260,6 +259,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_port: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.port),
+			false => None,
+		},
 	});
 
 	let dependencies = rpc::Dependencies {

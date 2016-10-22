@@ -52,7 +52,8 @@ pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	fetch: Mutex<F>
+	fetch: Mutex<F>,
+	dapps_port: Option<u16>,
 }
 
 impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
@@ -67,9 +68,10 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
 		net: &Arc<ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		signer: Option<Arc<SignerService>>
+		signer: Option<Arc<SignerService>>,
+		dapps_port: Option<u16>,
 	) -> Self {
-		Self::with_fetch(client, miner, sync, net, logger, settings, signer)
+		Self::with_fetch(client, miner, sync, net, logger, settings, signer, dapps_port)
 	}
 }
 
@@ -87,7 +89,8 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 		net: &Arc<ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		signer: Option<Arc<SignerService>>
+		signer: Option<Arc<SignerService>>,
+		dapps_port: Option<u16>,
 		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
@@ -98,6 +101,7 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 			settings: settings,
 			signer: signer,
 			fetch: Mutex::new(F::default()),
+			dapps_port: dapps_port,
 		}
 	}
 
@@ -313,5 +317,21 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 				}
 			}
 		}
+	}
+
+	fn signer_port(&self) -> Result<u16, Error> {
+		try!(self.active());
+
+		self.signer
+			.clone()
+			.and_then(|signer| signer.port())
+			.ok_or_else(|| errors::signer_disabled())
+	}
+
+	fn dapps_port(&self) -> Result<u16, Error> {
+		try!(self.active());
+
+		self.dapps_port
+			.ok_or_else(|| errors::dapps_disabled())
 	}
 }
