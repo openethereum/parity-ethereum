@@ -225,7 +225,7 @@ usage! {
 			or |c: &Config| otry!(c.footprint).cache_size.clone().map(Some),
 		flag_fast_and_loose: bool = false,
 			or |c: &Config| otry!(c.footprint).fast_and_loose.clone(),
-		flag_db_compaction: String = "ssd",
+		flag_db_compaction: String = "auto",
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),

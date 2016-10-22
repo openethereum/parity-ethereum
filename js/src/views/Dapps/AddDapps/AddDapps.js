@@ -43,7 +43,7 @@ export default class AddDapps extends Component {
           <Button label={ 'Done' } onClick={ onClose } icon={ <DoneIcon /> } />
         ] }
         visible={ open }
-        scroll={ true }
+        scroll
       >
         <List>
           { available.map(this.renderApp) }

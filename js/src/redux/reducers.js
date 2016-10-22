@@ -17,7 +17,7 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { balancesReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
+import { apiReducer, balancesReducer, blockchainReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
 
 import { errorReducer } from '../ui/Errors';
 import { settingsReducer } from '../views/Settings';
@@ -25,12 +25,14 @@ import { tooltipReducer } from '../ui/Tooltips';
 
 export default function () {
   return combineReducers({
+    api: apiReducer,
     errors: errorReducer,
     tooltip: tooltipReducer,
     routing: routerReducer,
     settings: settingsReducer,
 
     balances: balancesReducer,
+    blockchain: blockchainReducer,
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,

@@ -112,7 +112,7 @@ export function attachInstances () {
 
       return Promise
         .all([
-          registry.getAddress.call({}, [api.util.sha3('playbasiccoinmgr'), 'A']),
+          registry.getAddress.call({}, [api.util.sha3('basiccoinmgr'), 'A']),
           registry.getAddress.call({}, [api.util.sha3('basiccoinreg'), 'A']),
           registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A'])
         ]);

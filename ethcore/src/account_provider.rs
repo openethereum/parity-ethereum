@@ -176,7 +176,8 @@ impl AccountProvider {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
 			address_book: Mutex::new(AddressBook::new(Default::default())),
-			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
+			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
+				.expect("NullDir load always succeeds; qed"))
 		}
 	}
 
@@ -187,7 +188,7 @@ impl AccountProvider {
 
 	/// Creates new random account and returns address and public key
 	pub fn new_account_and_public(&self, password: &str) -> Result<(Address, Public), Error> {
-		let acc = Random.generate().unwrap();
+		let acc = Random.generate().expect("secp context has generation capabilities; qed");
 		let public = acc.public().clone();
 		let secret = acc.secret().clone();
 		let address = try!(self.sstore.insert_account(secret, password));

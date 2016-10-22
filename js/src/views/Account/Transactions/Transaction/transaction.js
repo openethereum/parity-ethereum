@@ -17,12 +17,16 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+
+import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
 
 import styles from '../transactions.css';
 
-export default class Transaction extends Component {
+class Transaction extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -30,11 +34,16 @@ export default class Transaction extends Component {
   static propTypes = {
     transaction: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    isTest: PropTypes.bool.isRequired
+    isTest: PropTypes.bool.isRequired,
+
+    fetchBlock: PropTypes.func.isRequired,
+    fetchTransaction: PropTypes.func.isRequired,
+
+    block: PropTypes.object,
+    transactionInfo: PropTypes.object
   }
 
   state = {
-    info: null,
     isContract: false,
     isReceived: false
   }
@@ -46,8 +55,7 @@ export default class Transaction extends Component {
   }
 
   render () {
-    const { transaction, isTest } = this.props;
-    const { block } = this.state;
+    const { block, transaction, isTest } = this.props;
 
     const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
 
@@ -68,10 +76,9 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address } = this.props;
-    const { info } = this.state;
+    const { address, transactionInfo } = this.props;
 
-    if (!info) {
+    if (!transactionInfo) {
       return null;
     }
 
@@ -79,7 +86,7 @@ export default class Transaction extends Component {
       <MethodDecoding
         historic
         address={ address }
-        transaction={ info } />
+        transaction={ transactionInfo } />
     );
   }
 
@@ -129,13 +136,13 @@ export default class Transaction extends Component {
 
   renderEtherValue () {
     const { api } = this.context;
-    const { info } = this.state;
+    const { transactionInfo } = this.props;
 
-    if (!info) {
+    if (!transactionInfo) {
       return null;
     }
 
-    const value = api.util.fromWei(info.value);
+    const value = api.util.fromWei(transactionInfo.value);
 
     if (value.eq(0)) {
       return <div className={ styles.value }>{ ' ' }</div>;
@@ -169,25 +176,33 @@ export default class Transaction extends Component {
   }
 
   lookup (address, transaction) {
-    const { api } = this.context;
-    const { info } = this.state;
+    const { transactionInfo } = this.props;
 
-    if (info) {
+    if (transactionInfo) {
       return;
     }
 
     this.setState({ isReceived: address === transaction.to });
 
-    Promise
-      .all([
-        api.eth.getBlockByNumber(transaction.blockNumber),
-        api.eth.getTransactionByHash(transaction.hash)
-      ])
-      .then(([block, info]) => {
-        this.setState({ block, info });
-      })
-      .catch((error) => {
-        console.error('lookup', error);
-      });
+    const { fetchBlock, fetchTransaction } = this.props;
+    const { blockNumber, hash } = transaction;
+
+    fetchBlock(blockNumber);
+    fetchTransaction(hash);
   }
 }
+
+function mapStateToProps () {
+  return {};
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    fetchBlock, fetchTransaction
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Transaction);

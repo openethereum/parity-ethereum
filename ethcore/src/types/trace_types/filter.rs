@@ -108,7 +108,7 @@ impl Filter {
 
 	/// Returns true if given trace matches the filter.
 	pub fn matches(&self, trace: &FlatTrace) -> bool {
-		let action = match trace.action {
+		match trace.action {
 			Action::Call(ref call) => {
 				let from_matches = self.from_address.matches(&call.from);
 				let to_matches = self.to_address.matches(&call.to);
@@ -116,7 +116,12 @@ impl Filter {
 			}
 			Action::Create(ref create) => {
 				let from_matches = self.from_address.matches(&create.from);
-				let to_matches = self.to_address.matches_all();
+
+				let to_matches = match trace.result {
+					Res::Create(ref create_result) => self.to_address.matches(&create_result.address),
+					_ => false
+				};
+
 				from_matches && to_matches
 			},
 			Action::Suicide(ref suicide) => {
@@ -124,11 +129,6 @@ impl Filter {
 				let to_matches = self.to_address.matches(&suicide.refund_address);
 				from_matches && to_matches
 			}
-		};
-
-		action || match trace.result {
-			Res::Create(ref create) => self.to_address.matches(&create.address),
-			_ => false
 		}
 	}
 }
