@@ -42,14 +42,14 @@ export function decodeCallData (data) {
 export function decodeMethodInput (methodAbi, paramdata) {
   if (!methodAbi) {
     throw new Error('decodeMethodInput should receive valid method-specific ABI');
-  } else if (!paramdata) {
-    throw new Error('decodeMethodInput should receive valid parameter input data');
-  } else if (!isHex(paramdata)) {
-    throw new Error('Input to decodeMethodInput should be a hex value');
-  } else if (paramdata.substr(0, 2) === '0x') {
-    return decodeMethodInput(methodAbi, paramdata.slice(2));
-  } else if (paramdata.length % 64 !== 0) {
-    throw new Error('Parameter length in decodeMethodInput not a multiple of 64 characters');
+  } else if (paramdata && paramdata.length) {
+    if (!isHex(paramdata)) {
+      throw new Error('Input to decodeMethodInput should be a hex value');
+    } else if (paramdata.substr(0, 2) === '0x') {
+      return decodeMethodInput(methodAbi, paramdata.slice(2));
+    } else if (paramdata.length % 64 !== 0) {
+      throw new Error('Parameter length in decodeMethodInput not a multiple of 64 characters');
+    }
   }
 
   return new Func(methodAbi).decodeInput(paramdata).map((decoded) => decoded.value);
@@ -73,7 +73,7 @@ export function methodToAbi (method) {
 
   const name = method.substr(0, typesStart);
   const types = method.substr(typesStart + 1, length - (typesStart + 1) - 1).split(',');
-  const inputs = types.map((_type) => {
+  const inputs = types.filter((_type) => _type.length).map((_type) => {
     const type = fromParamType(toParamType(_type));
 
     return { type };

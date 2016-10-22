@@ -65,11 +65,18 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 }
 
 /// Check if all required security headers are present
-pub fn assert_security_headers_present(headers: &[String]) {
-	assert!(
-		headers.iter().find(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN").is_some(),
-		"X-Frame-Options missing: {:?}", headers
-	);
+pub fn assert_security_headers_present(headers: &[String], port: Option<u16>) {
+	if let Some(port) = port {
+		assert!(
+			headers.iter().find(|header| header.as_str() == &format!("X-Frame-Options: ALLOW-FROM http://127.0.0.1:{}", port)).is_some(),
+			"X-Frame-Options: ALLOW-FROM missing: {:?}", headers
+		);
+	} else {
+		assert!(
+			headers.iter().find(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN").is_some(),
+			"X-Frame-Options: SAMEORIGIN missing: {:?}", headers
+		);
+	}
 	assert!(
 		headers.iter().find(|header| header.as_str() == "X-XSS-Protection: 1; mode=block").is_some(),
 		"X-XSS-Protection missing: {:?}", headers

@@ -15,24 +15,31 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
+use unicase::UniCase;
 use hyper::{server, net, Decoder, Encoder, Next, Control};
+use hyper::header;
+use hyper::method::Method;
+use hyper::header::AccessControlAllowOrigin;
+
 use api::types::{App, ApiError};
-use api::response::{as_json, as_json_error, ping_response};
+use api::response;
+use apps::fetcher::ContentFetcher;
+
 use handlers::extract_url;
 use endpoint::{Endpoint, Endpoints, Handler, EndpointPath};
-use apps::fetcher::ContentFetcher;
+use jsonrpc_http_server::cors;
 
 #[derive(Clone)]
 pub struct RestApi {
-	local_domain: String,
+	cors_domains: Option<Vec<AccessControlAllowOrigin>>,
 	endpoints: Arc<Endpoints>,
 	fetcher: Arc<ContentFetcher>,
 }
 
 impl RestApi {
-	pub fn new(local_domain: String, endpoints: Arc<Endpoints>, fetcher: Arc<ContentFetcher>) -> Box<Endpoint> {
+	pub fn new(cors_domains: Vec<String>, endpoints: Arc<Endpoints>, fetcher: Arc<ContentFetcher>) -> Box<Endpoint> {
 		Box::new(RestApi {
-			local_domain: local_domain,
+			cors_domains: Some(cors_domains.into_iter().map(AccessControlAllowOrigin::Value).collect()),
 			endpoints: endpoints,
 			fetcher: fetcher,
 		})
@@ -53,6 +60,7 @@ impl Endpoint for RestApi {
 
 struct RestApiRouter {
 	api: RestApi,
+	origin: Option<String>,
 	path: Option<EndpointPath>,
 	control: Option<Control>,
 	handler: Box<Handler>,
@@ -62,9 +70,10 @@ impl RestApiRouter {
 	fn new(api: RestApi, path: EndpointPath, control: Control) -> Self {
 		RestApiRouter {
 			path: Some(path),
+			origin: None,
 			control: Some(control),
 			api: api,
-			handler: as_json_error(&ApiError {
+			handler: response::as_json_error(&ApiError {
 				code: "404".into(),
 				title: "Not Found".into(),
 				detail: "Resource you requested has not been found.".into(),
@@ -80,11 +89,40 @@ impl RestApiRouter {
 			_ => None
 		}
 	}
+
+	/// Returns basic headers for a response (it may be overwritten by the handler)
+	fn response_headers(&self) -> header::Headers {
+		let mut headers = header::Headers::new();
+		headers.set(header::AccessControlAllowCredentials);
+		headers.set(header::AccessControlAllowMethods(vec![
+			Method::Options,
+			Method::Post,
+			Method::Get,
+		]));
+		headers.set(header::AccessControlAllowHeaders(vec![
+			UniCase("origin".to_owned()),
+			UniCase("content-type".to_owned()),
+			UniCase("accept".to_owned()),
+		]));
+
+		if let Some(cors_header) = cors::get_cors_header(&self.api.cors_domains, &self.origin) {
+			headers.set(cors_header);
+		}
+
+		headers
+	}
 }
 
 impl server::Handler<net::HttpStream> for RestApiRouter {
 
 	fn on_request(&mut self, request: server::Request<net::HttpStream>) -> Next {
+		self.origin = cors::read_origin(&request);
+
+		if let Method::Options = *request.method() {
+			self.handler = response::empty();
+			return Next::write();
+		}
+
 		let url = extract_url(&request);
 		if url.is_none() {
 			// Just return 404 if we can't parse URL
@@ -99,11 +137,11 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 		let hash = url.path.get(2).map(|v| v.as_str());
 		// at this point path.app_id contains 'api', adjust it to the hash properly, otherwise
 		// we will try and retrieve 'api' as the hash when doing the /api/content route
-		if let Some(hash) = hash.clone() { path.app_id = hash.to_owned() }
+		if let Some(ref hash) = hash { path.app_id = hash.clone().to_owned() }
 
 		let handler = endpoint.and_then(|v| match v {
-			"apps" => Some(as_json(&self.api.list_apps())),
-			"ping" => Some(ping_response(&self.api.local_domain)),
+			"apps" => Some(response::as_json(&self.api.list_apps())),
+			"ping" => Some(response::ping()),
 			"content" => self.resolve_content(hash, path, control),
 			_ => None
 		});
@@ -121,6 +159,7 @@ impl server::Handler<net::HttpStream> for RestApiRouter {
 	}
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
+		*res.headers_mut() = self.response_headers();
 		self.handler.on_response(res)
 	}
 

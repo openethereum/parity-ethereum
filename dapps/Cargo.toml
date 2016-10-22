@@ -11,6 +11,7 @@ build = "build.rs"
 [dependencies]
 rand = "0.3.14"
 log = "0.3"
+env_logger = "0.3"
 jsonrpc-core = "3.0"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
@@ -30,10 +31,6 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
-### DEPRECATED
-parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-### /DEPRECATED
 
 mime_guess = { version = "1.6.1" }
 clippy = { version = "0.0.90", optional = true}
@@ -47,7 +44,4 @@ nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
 
 ui = ["parity-ui/no-precompiled-js"]
-ui-precompiled = [
-	"parity-ui/use-precompiled-js",
-	"parity-dapps-home/use-precompiled-js"
-]
+ui-precompiled = ["parity-ui/use-precompiled-js"]

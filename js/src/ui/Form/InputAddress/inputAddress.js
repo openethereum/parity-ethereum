@@ -44,10 +44,24 @@ class InputAddress extends Component {
 
   componentWillMount () {
     const { value, text, accountsInfo, tokens } = this.props;
+
     const account = accountsInfo[value] || tokens[value];
-    const hasAccount = account && !account.meta.deleted;
+    const hasAccount = account && (!account.meta || !account.meta.deleted);
     const inputValue = text && hasAccount ? account.name : value;
-    const isEmpty = (inputValue.length === 0);
+    const isEmpty = (!inputValue || inputValue.length === 0);
+
+    this.setState({ isEmpty });
+  }
+
+  componentWillReceiveProps (newProps) {
+    const { value, text } = newProps;
+
+    if (value === this.props.value && text === this.props.text) {
+      return;
+    }
+
+    const inputValue = text || value;
+    const isEmpty = (!inputValue || inputValue.length === 0);
 
     this.setState({ isEmpty });
   }
@@ -60,7 +74,7 @@ class InputAddress extends Component {
     classes.push(isEmpty ? styles.inputEmpty : styles.input);
 
     const account = accountsInfo[value] || tokens[value];
-    const hasAccount = account && !account.meta.deleted;
+    const hasAccount = account && (!account.meta || !account.meta.deleted);
 
     return (
       <div className={ styles.container }>

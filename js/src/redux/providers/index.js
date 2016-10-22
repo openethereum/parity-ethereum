@@ -19,8 +19,10 @@ export Personal from './personal';
 export Signer from './signer';
 export Status from './status';
 
+export apiReducer from './apiReducer';
 export balancesReducer from './balancesReducer';
 export imagesReducer from './imagesReducer';
 export personalReducer from './personalReducer';
 export signerReducer from './signerReducer';
 export statusReducer from './statusReducer';
+export blockchainReducer from './blockchainReducer';
