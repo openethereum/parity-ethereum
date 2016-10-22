@@ -38,6 +38,7 @@ class Modal extends Component {
     busy: PropTypes.bool,
     children: PropTypes.node,
     className: PropTypes.string,
+    compact: PropTypes.bool,
     current: PropTypes.number,
     waiting: PropTypes.array,
     scroll: PropTypes.bool,
@@ -51,7 +52,7 @@ class Modal extends Component {
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, busy, className, current, children, scroll, steps, waiting, title, visible, settings } = this.props;
+    const { actions, busy, className, current, children, compact, scroll, steps, waiting, title, visible, settings } = this.props;
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
@@ -82,7 +83,7 @@ class Modal extends Component {
         style={ DIALOG_STYLE }
         title={ header }
         titleStyle={ TITLE_STYLE }>
-        <Container light style={ { transition: 'none' } }>
+        <Container light compact={ compact } style={ { transition: 'none' } }>
           { children }
         </Container>
       </Dialog>
