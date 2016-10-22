@@ -162,7 +162,7 @@ export default class Ethcore {
 
   signerPort () {
     return this._transport
-      .execute('ethcore_dappsPort')
+      .execute('ethcore_signerPort')
       .then(outNumber);
   }
 
