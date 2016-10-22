@@ -300,14 +300,16 @@ export default class Transfer extends Component {
   validateDecimals (num) {
     const { balance } = this.props;
     const { tag } = this.state;
+
+    if (tag === 'ETH') {
+      return null;
+    }
+
     const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
+    const s = new BigNumber(num).mul(token.format || 1).toString();
 
-    if (tag !== 'ETH') {
-      const s = new BigNumber(num).mul(token.format || 1).toString();
-
-      if (s.indexOf('.') !== -1) {
-        return ERRORS.invalidDecimals;
-      }
+    if (s.indexOf('.') !== -1) {
+      return ERRORS.invalidDecimals;
     }
 
     return null;
@@ -520,6 +522,7 @@ export default class Transfer extends Component {
     })
     .catch((error) => {
       console.error('etimateGas', error);
+      this.recalculate();
     });
   }
 
@@ -585,7 +588,7 @@ export default class Transfer extends Component {
         }, this.recalculate);
       })
       .catch((error) => {
-        console.error('getDefaults', error);
+        console.warn('getDefaults', error);
       });
   }
 
