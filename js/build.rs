@@ -17,6 +17,10 @@
 extern crate parity_dapps_glue;
 
 fn main() {
-	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
+  // FIXME: Currently creates an issue when
+  //          (a) always trying to build &
+  //          (b) trying to install node_modules inside the build directory (no package.json)
+  // Uncomment the next line when fixed to perfection
+	// parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
 	parity_dapps_glue::generate();
 }
