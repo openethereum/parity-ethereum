@@ -119,10 +119,10 @@ export default class Details extends Component {
     const { balance, images, tag } = this.props;
 
     const items = balance.tokens
-      .filter((token) => token.value.gt(0))
-      .map((balance, idx) => {
+      .filter((token, index) => !index || token.value.gt(0))
+      .map((balance, index) => {
         const token = balance.token;
-        const isEth = idx === 0;
+        const isEth = index === 0;
         const imagesrc = token.image || images[token.address] || imageUnknown;
         let value = 0;
 
@@ -167,7 +167,7 @@ export default class Details extends Component {
     );
   }
 
-  onChangeToken = (event, idx, tag) => {
+  onChangeToken = (event, index, tag) => {
     this.props.onChange('tag', tag);
   }
 
