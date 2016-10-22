@@ -18,7 +18,7 @@ UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
 
 # Create proper directory structure
 mkdir -p build
-mv * build || true
+mv *.* build
 mkdir -p src
 
 # Copy rust files
