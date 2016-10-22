@@ -51,11 +51,11 @@
 }
 
 .networklive {
-  background: rgb(75, 255, 75);
+  background: rgb(0, 136, 0);
 }
 
 .networktest {
-  background: rgb(255, 75, 75);
+  background: rgb(136, 0, 0);
 }
 
 .peers {
