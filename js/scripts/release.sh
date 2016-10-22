@@ -50,9 +50,9 @@ cargo update -p parity-ui-precompiled
 setup_git_user
 git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
 git fetch origin
-git add .
-git commit -m "[ci skip] js-precompiled $UTCDATE"
-git push origin
+git add . || true
+git commit -m "[ci skip] js-precompiled $UTCDATE" || true
+git push origin || true
 
 # exit with exit code
 exit 0
