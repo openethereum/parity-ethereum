@@ -30,6 +30,7 @@ pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl};
 
 use url::Url;
 use hyper::{server, header, net, uri};
+use signer_address;
 
 /// Adds security-related headers to the Response.
 pub fn add_security_headers(headers: &mut header::Headers, embeddable_at: Option<u16>) {
@@ -40,7 +41,7 @@ pub fn add_security_headers(headers: &mut header::Headers, embeddable_at: Option
 	if let Some(port) = embeddable_at {
 		headers.set_raw(
 			"X-Frame-Options",
-			vec![format!("ALLOW-FROM http://127.0.0.1:{}", port).into_bytes()]
+			vec![format!("ALLOW-FROM http://{}", signer_address(port)).into_bytes()]
 			);
 	} else {
 		// TODO [ToDr] Should we be more strict here (DENY?)?

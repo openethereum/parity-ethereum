@@ -156,9 +156,9 @@ impl URLHintContract {
 			}
 
 			let mut it = vec.into_iter();
-			let account_slash_repo = it.next().unwrap();
-			let commit = it.next().unwrap();
-			let owner = it.next().unwrap();
+			let account_slash_repo = it.next().expect("element 0 of 3-len vector known to exist; qed");
+			let commit = it.next().expect("element 1 of 3-len vector known to exist; qed");
+			let owner = it.next().expect("element 2 of 3-len vector known to exist qed");
 
 			match (account_slash_repo, commit, owner) {
 				(Token::String(account_slash_repo), Token::FixedBytes(commit), Token::Address(owner)) => {

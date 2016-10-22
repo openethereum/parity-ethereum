@@ -26,6 +26,8 @@ import styles from './TransactionFinished.css';
 import * as tUtil from '../util/transaction';
 import { capitalize } from '../util/util';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class TransactionFinished extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -42,7 +44,10 @@ export default class TransactionFinished extends Component {
     to: PropTypes.string, // undefined if it's a contract
     txHash: PropTypes.string, // undefined if transacation is rejected
     className: PropTypes.string,
-    data: PropTypes.string
+    data: PropTypes.string,
+    chain: nullable(PropTypes.object),
+    fromBalance: nullable(PropTypes.object),
+    toBalance: nullable(PropTypes.object)
   };
 
   state = {
@@ -81,7 +86,6 @@ export default class TransactionFinished extends Component {
     }
 
     const { className, date, id } = this.props;
-    const { totalValue } = this.state;
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>

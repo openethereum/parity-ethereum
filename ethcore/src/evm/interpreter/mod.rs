@@ -102,7 +102,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 		let mut informant = informant::EvmInformant::new(ext.depth());
 
-		let code = &params.code.as_ref().unwrap();
+		let code = &params.code.as_ref().expect("exec always called with code; qed");
 		let valid_jump_destinations = self.cache.jump_destinations(&params.code_hash, code);
 
 		let mut gasometer = Gasometer::<Cost>::new(try!(Cost::from_u256(params.gas)));
@@ -318,11 +318,11 @@ impl<Cost: CostType> Interpreter<Cost> {
 				// Get sender & receive addresses, check if we have balance
 				let (sender_address, receive_address, has_balance, call_type) = match instruction {
 					instructions::CALL => {
-						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						let has_balance = ext.balance(&params.address) >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &code_address, has_balance, CallType::Call)
 					},
 					instructions::CALLCODE => {
-						let has_balance = ext.balance(&params.address) >= value.unwrap();
+						let has_balance = ext.balance(&params.address) >= value.expect("value set for all but delegate call; qed");
 						(&params.address, &params.address, has_balance, CallType::CallCode)
 					},
 					instructions::DELEGATECALL => (&params.sender, &params.address, true, CallType::DelegateCall),

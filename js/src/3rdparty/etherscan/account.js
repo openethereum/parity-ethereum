@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 const PAGE_SIZE = 25;
 
 import util from '../../api/util';
@@ -56,7 +58,7 @@ function transactions (address, page, test = false) {
         from: util.toChecksumAddress(tx.from),
         to: util.toChecksumAddress(tx.to),
         hash: tx.hash,
-        blockNumber: tx.blockNumber,
+        blockNumber: new BigNumber(tx.blockNumber),
         timeStamp: tx.timeStamp,
         value: tx.value
       };

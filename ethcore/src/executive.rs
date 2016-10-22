@@ -250,7 +250,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -269,7 +269,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -289,7 +289,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_to_snapshot();
+				self.state.revert_to_checkpoint();
 
 				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
@@ -335,7 +335,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -354,7 +354,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -427,8 +427,16 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
-		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		let sender = match t.sender() {
+			Ok(sender) => sender,
+			Err(e) => {
+				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
+				return Err(ExecutionError::Internal);
+			}
+		};
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		self.state.add_balance(&sender, &refund_value);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
@@ -477,10 +485,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_to_snapshot();
+					self.state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 				substate.accrue(un_substate);
 			}
 		}

@@ -129,7 +129,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new(&tracesdb);
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
-		tracesdb.write(batch).unwrap();
+		tracesdb.write(batch).expect("failed to update version");
 
 		TraceDB {
 			traces: RwLock::new(HashMap::new()),

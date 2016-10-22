@@ -22,6 +22,8 @@ import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
 
+const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
+
 export default class SignRequest extends Component {
   static contextTypes = {
     api: PropTypes.object
@@ -37,7 +39,9 @@ export default class SignRequest extends Component {
     onConfirm: PropTypes.func,
     onReject: PropTypes.func,
     status: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    chain: nullable(PropTypes.object),
+    balance: nullable(PropTypes.object)
   };
 
   state = {

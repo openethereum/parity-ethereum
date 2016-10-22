@@ -46,7 +46,7 @@ use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use log_entry::LocalizedLogEntry;
-use verification::queue::{BlockQueue, QueueInfo as BlockQueueInfo};
+use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
@@ -71,6 +71,7 @@ use state_db::StateDB;
 pub use types::blockchain_info::BlockChainInfo;
 pub use types::block_status::BlockStatus;
 pub use blockchain::CacheSize as BlockChainCacheSize;
+pub use verification::queue::QueueInfo as BlockQueueInfo;
 
 const MAX_TX_QUEUE_SIZE: usize = 4096;
 const MAX_QUEUE_SIZE_TO_SLEEP_ON: usize = 2;
@@ -361,16 +362,19 @@ impl Client {
 
 	/// This is triggered by a message coming from a block queue when the block is ready for insertion
 	pub fn import_verified_blocks(&self) -> usize {
-		let max_blocks_to_import = 64;
-		let (imported_blocks, import_results, invalid_blocks, imported, duration) = {
+		let max_blocks_to_import = 4;
+		let (imported_blocks, import_results, invalid_blocks, imported, duration, is_empty) = {
 			let mut imported_blocks = Vec::with_capacity(max_blocks_to_import);
 			let mut invalid_blocks = HashSet::new();
 			let mut import_results = Vec::with_capacity(max_blocks_to_import);
 
 			let _import_lock = self.import_lock.lock();
+			let blocks = self.block_queue.drain(max_blocks_to_import);
+			if blocks.is_empty() {
+				return 0;
+			}
 			let _timer = PerfTimer::new("import_verified_blocks");
 			let start = precise_time_ns();
-			let blocks = self.block_queue.drain(max_blocks_to_import);
 
 			for block in blocks {
 				let header = &block.header;
@@ -394,23 +398,19 @@ impl Client {
 			let imported = imported_blocks.len();
 			let invalid_blocks = invalid_blocks.into_iter().collect::<Vec<H256>>();
 
-			{
-				if !invalid_blocks.is_empty() {
-					self.block_queue.mark_as_bad(&invalid_blocks);
-				}
-				if !imported_blocks.is_empty() {
-					self.block_queue.mark_as_good(&imported_blocks);
-				}
+			if !invalid_blocks.is_empty() {
+				self.block_queue.mark_as_bad(&invalid_blocks);
 			}
+			let is_empty = self.block_queue.mark_as_good(&imported_blocks);
 			let duration_ns = precise_time_ns() - start;
-			(imported_blocks, import_results, invalid_blocks, imported, duration_ns)
+			(imported_blocks, import_results, invalid_blocks, imported, duration_ns, is_empty)
 		};
 
 		{
-			if !imported_blocks.is_empty() && self.block_queue.queue_info().is_empty() {
+			if !imported_blocks.is_empty() && is_empty {
 				let (enacted, retracted) = self.calculate_enacted_retracted(&import_results);
 
-				if self.queue_info().is_empty() {
+				if is_empty {
 					self.miner.chain_new_blocks(self, &imported_blocks, &invalid_blocks, &enacted, &retracted);
 				}
 
@@ -478,7 +478,11 @@ impl Client {
 
 		if number >= self.history {
 			let n = number - self.history;
-			state.mark_canonical(&mut batch, n, &chain.block_hash(n).unwrap()).expect("DB commit failed");
+			if let Some(ancient_hash) = chain.block_hash(n) {
+				state.mark_canonical(&mut batch, n, &ancient_hash).expect("DB commit failed");
+			} else {
+				debug!(target: "client", "Missing expected hash for block {}", n);
+			}
 		}
 
 		let route = chain.insert_block(&mut batch, block_data, receipts);

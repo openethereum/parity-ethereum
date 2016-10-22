@@ -24,7 +24,7 @@ pub fn rpc(handler: Arc<IoHandler>, panic_handler: Arc<Mutex<Option<Box<Fn() -> 
 	Box::new(RpcEndpoint {
 		handler: handler,
 		panic_handler: panic_handler,
-		cors_domain: Some(vec![AccessControlAllowOrigin::Null]),
+		cors_domain: None,
 		// NOTE [ToDr] We don't need to do any hosts validation here. It's already done in router.
 		allowed_hosts: None,
 	})

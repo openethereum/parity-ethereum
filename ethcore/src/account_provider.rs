@@ -176,7 +176,8 @@ impl AccountProvider {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
 			address_book: Mutex::new(AddressBook::new(Default::default())),
-			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).unwrap())
+			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
+				.expect("NullDir load always succeeds; qed"))
 		}
 	}
 
@@ -187,7 +188,7 @@ impl AccountProvider {
 
 	/// Creates new random account and returns address and public key
 	pub fn new_account_and_public(&self, password: &str) -> Result<(Address, Public), Error> {
-		let acc = Random.generate().unwrap();
+		let acc = Random.generate().expect("secp context has generation capabilities; qed");
 		let public = acc.public().clone();
 		let secret = acc.secret().clone();
 		let address = try!(self.sstore.insert_account(secret, password));
@@ -263,6 +264,20 @@ impl AccountProvider {
 		try!(self.sstore.set_meta(&account, meta));
 		Ok(())
 	}
+
+	/// Returns `true` if the password for `account` is `password`. `false` if not.
+	pub fn test_password(&self, account: &Address, password: String) -> Result<bool, Error> {
+		match self.sstore.sign(&account, &password, &Default::default()) {
+			Ok(_) => Ok(true),
+			Err(SSError::InvalidPassword) => Ok(false),
+			Err(e) => Err(Error::SStore(e)),
+		}
+	} 
+
+	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
+	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
+		self.sstore.change_password(&account, &password, &new_password).map_err(Error::SStore)
+	} 
 
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {

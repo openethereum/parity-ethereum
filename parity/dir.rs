@@ -77,7 +77,8 @@ pub struct DatabaseDirectories {
 }
 
 impl DatabaseDirectories {
-	fn fork_path(&self) -> PathBuf {
+	/// Base DB directory for the given fork.
+	pub fn fork_path(&self) -> PathBuf {
 		let mut dir = Path::new(&self.path).to_path_buf();
 		dir.push(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()));
 		dir

@@ -85,7 +85,7 @@ impl<R: URLHint> ContentFetcher<R> {
 		// fallback to resolver
 		if let Ok(content_id) = content_id.from_hex() {
 			// if app_id is valid, but we are syncing always return true.
-			if self.sync.is_major_syncing() {
+			if self.sync.is_major_importing() {
 				return true;
 			}
 			// else try to resolve the app_id
@@ -99,7 +99,7 @@ impl<R: URLHint> ContentFetcher<R> {
 		let mut cache = self.cache.lock();
 		let content_id = path.app_id.clone();
 
-		if self.sync.is_major_syncing() {
+		if self.sync.is_major_importing() {
 			return Box::new(ContentHandler::error(
 				StatusCode::ServiceUnavailable,
 				"Sync In Progress",
