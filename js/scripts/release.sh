@@ -1,6 +1,14 @@
 #!/bin/bash
 set -e
 
+# setup the git user defaults for the current repo
+function setup_git_user {
+  git config push.default simple
+  git config merge.ours.driver true
+  git config user.email "jaco+gitlab@ethcore.io"
+  git config user.name "GitLab Build Bot"
+}
+
 # change into the build directory
 pushd `dirname $0`
 cd ../.build
@@ -22,13 +30,8 @@ cp ../src/lib.rs* ./src/
 rm -rf ./.git
 git init
 
-# our user details
-git config push.default simple
-git config merge.ours.driver true
-git config user.email "jaco+gitlab@ethcore.io"
-git config user.name "GitLab Build Bot"
-
 # add local files and send it up
+setup_git_user
 git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git
 git fetch origin
 git checkout -b $CI_BUILD_REF_NAME
@@ -39,6 +42,17 @@ git push origin $CI_BUILD_REF_NAME
 
 # back to root
 popd
+
+# bump js-precompiled
+cargo update -p parity-ui-precompiled
+
+# add to git and push
+setup_git_user
+git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
+git fetch origin
+git add .
+git commit -m "[ci skip] js-precompiled $UTCDATE"
+git push origin
 
 # exit with exit code
 exit 0

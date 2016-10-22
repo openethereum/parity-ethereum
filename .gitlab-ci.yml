@@ -3,7 +3,7 @@ stages:
   - test
 variables:
   GIT_DEPTH: "3"
-  SIMPLECOV: "true" 
+  SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
@@ -20,7 +20,7 @@ linux-stable:
     - cargo build --release --verbose
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -43,7 +43,7 @@ linux-stable-14.04:
     - cargo build --release --verbose
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
@@ -106,7 +106,7 @@ linux-centos:
     - cargo build --release --verbose
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
@@ -133,7 +133,7 @@ linux-armv7:
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -161,7 +161,7 @@ linux-arm:
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -188,8 +188,8 @@ linux-armv6:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release --verbose
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5 
-    - aws configure set aws_access_key_id $s3_key 
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
@@ -217,7 +217,7 @@ linux-aarch64:
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -239,7 +239,7 @@ darwin:
   script:
     - cargo build --release --verbose
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
@@ -314,7 +314,7 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
-    - js
+    - jg-auto-bump-precompiled
     - master
     - beta
     - tags
