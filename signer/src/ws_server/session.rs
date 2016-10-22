@@ -24,7 +24,7 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::{H256, Mutex, version};
 
-#[cfg(feature = "ui")]
+#[cfg(feature = "parity-ui")]
 mod ui {
 	extern crate parity_ui as ui;
 	extern crate parity_dapps_glue as dapps;
@@ -46,7 +46,7 @@ mod ui {
 		}
 	}
 }
-#[cfg(not(feature = "ui"))]
+#[cfg(not(feature = "parity-ui"))]
 mod ui {
 	pub struct File {
 		pub content: &'static [u8],

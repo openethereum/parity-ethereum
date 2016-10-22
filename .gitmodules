@@ -2,6 +2,3 @@
 	path = ethcore/res/ethereum/tests
 	url = https://github.com/ethereum/tests.git
 	branch = develop
-[submodule "js/build"]
-	path = js/build
-	url = https://github.com/ethcore/js-precompiled
