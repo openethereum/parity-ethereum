@@ -16,6 +16,8 @@
 
 import React from 'react';
 
+import { parityNode } from '../../../environment';
+
 const styles = {
   padding: '.5em',
   border: '1px solid #777'
@@ -23,7 +25,7 @@ const styles = {
 
 export default (address) => (
   <img
-    src={ `http://127.0.0.1:8080/${address}/` }
+    src={ `${parityNode}/${address}/` }
     alt={ address }
     style={ styles }
   />
