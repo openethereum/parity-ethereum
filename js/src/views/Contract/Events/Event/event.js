@@ -52,10 +52,10 @@ class Event extends Component {
     const keys = Object.keys(event.params).map((key, index) => {
       return <div className={ styles.key } key={ `${event.key}_key_${index}` }>{ key }</div>;
     });
-    const values = Object.values(event.params).map((value, index) => {
+    const values = Object.values(event.params).map((param, index) => {
       return (
         <div className={ styles.value } key={ `${event.key}_val_${index}` }>
-          { this.renderValue(value) }
+          { this.renderParam(param) }
         </div>
       );
     });
@@ -82,16 +82,16 @@ class Event extends Component {
     );
   }
 
-  renderValue (value) {
+  renderParam (param) {
     const { api } = this.context;
 
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      return value.toFormat(0);
-    } else if (api.util.isArray(value)) {
-      return api.util.bytesToHex(value);
+    if (api.util.isInstanceOf(param.value, BigNumber)) {
+      return param.value.toFormat(0);
+    } else if (api.util.isArray(param.value)) {
+      return api.util.bytesToHex(param.value);
     }
 
-    return value.toString();
+    return param.value.toString();
   }
 
   formatBlockTimestamp (block) {

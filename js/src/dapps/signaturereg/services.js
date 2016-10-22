@@ -30,7 +30,10 @@ const logToEvent = (log) => {
     logIndex,
     transactionHash,
     transactionIndex,
-    params,
+    params: Object.keys(params).reduce((data, name) => {
+      data[name] = params[name].value;
+      return data;
+    }, {}),
     key
   };
 };
