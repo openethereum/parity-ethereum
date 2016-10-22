@@ -314,7 +314,6 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
-    - jg-auto-bump-precompiled
     - master
     - beta
     - tags
