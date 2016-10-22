@@ -137,3 +137,15 @@ impl NonReservedPeerMode {
 		}
 	}
 }
+
+/// IP fiter
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
+pub enum AllowIP {
+	/// Connect to any address
+	All,
+	/// Connect to private network only
+	Private,
+	/// Connect to public network only
+	Public,
+}
+

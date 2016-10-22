@@ -30,6 +30,7 @@ use util::UtilError;
 use rlp::*;
 use time::Tm;
 use error::NetworkError;
+use ::AllowIP;
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
 pub use rustc_serialize::json::Json;
@@ -148,6 +149,14 @@ impl Node {
 			last_attempted: None,
 		}
 	}
+
+	fn is_allowed(&self, filter: AllowIP) -> bool {
+		match filter {
+			AllowIP::All => true,
+			AllowIP::Private => !self.endpoint.address.ip().is_global_s(),
+			AllowIP::Public => self.endpoint.address.ip().is_global_s(),
+		}
+	}
 }
 
 impl Display for Node {
@@ -219,8 +228,8 @@ impl NodeTable {
 	}
 
 	/// Returns node ids sorted by number of failures
-	pub fn nodes(&self) -> Vec<NodeId> {
-		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id)).collect();
+	pub fn nodes(&self, filter: AllowIP) -> Vec<NodeId> {
+		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.is_allowed(filter)).collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
 	}
@@ -278,7 +287,7 @@ impl NodeTable {
 			let mut json = String::new();
 			json.push_str("{\n");
 			json.push_str("\"nodes\": [\n");
-			let node_ids = self.nodes();
+			let node_ids = self.nodes(AllowIP::All);
 			for i in 0 .. node_ids.len() {
 				let node = self.nodes.get(&node_ids[i]).unwrap();
 				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
@@ -406,7 +415,7 @@ mod tests {
 		table.note_failure(&id1);
 		table.note_failure(&id2);
 
-		let r = table.nodes();
+		let r = table.nodes(AllowIP::All);
 		assert_eq!(r[0][..], id3[..]);
 		assert_eq!(r[1][..], id2[..]);
 		assert_eq!(r[2][..], id1[..]);
@@ -428,7 +437,7 @@ mod tests {
 
 		{
 			let table = NodeTable::new(Some(temp_path.as_path().to_str().unwrap().to_owned()));
-			let r = table.nodes();
+			let r = table.nodes(AllowIP::All);
 			assert_eq!(r[0][..], id1[..]);
 			assert_eq!(r[1][..], id2[..]);
 		}
