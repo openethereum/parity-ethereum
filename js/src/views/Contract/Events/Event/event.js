@@ -21,6 +21,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
+import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 
 import styles from '../../contract.css';
 
@@ -49,13 +50,13 @@ class Event extends Component {
     const transaction = transactions[event.transactionHash] || {};
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${event.transactionHash}`;
-    const keys = Object.keys(event.params).map((key, index) => {
-      return <div className={ styles.key } key={ `${event.key}_key_${index}` }>{ key }</div>;
-    });
-    const values = Object.values(event.params).map((param, index) => {
+    const keys = Object.keys(event.params).join(', ');
+    const values = Object.keys(event.params).map((name, index) => {
+      const param = event.params[name];
+
       return (
-        <div className={ styles.value } key={ `${event.key}_val_${index}` }>
-          { this.renderParam(param) }
+        <div className={ styles.eventValue } key={ `${event.key}_val_${index}` }>
+          { this.renderParam(name, param) }
         </div>
       );
     });
@@ -67,31 +68,72 @@ class Event extends Component {
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         <td className={ styles.txhash }>
-          <div>{ transaction.from }</div>
-          <a href={ url } target='_blank'>{ event.transactionHash }</a>
+          { this.renderAddressName(transaction.from) }
         </td>
-        <td>
-          <div>{ event.type } =></div>
-          { keys }
+        <td className={ styles.txhash }>
+          <div className={ styles.eventType }>
+            { event.type }({ keys })
+          </div>
+          <a href={ url } target='_blank'>{ this.formatHash(event.transactionHash) }</a>
         </td>
-        <td>
-          <div>&nbsp;</div>
-          { values }
+        <td className={ styles.eventDetails }>
+          <div className={ styles.eventParams }>
+            { values }
+          </div>
         </td>
       </tr>
     );
   }
 
-  renderParam (param) {
-    const { api } = this.context;
-
-    if (api.util.isInstanceOf(param.value, BigNumber)) {
-      return param.value.toFormat(0);
-    } else if (api.util.isArray(param.value)) {
-      return api.util.bytesToHex(param.value);
+  formatHash (hash) {
+    if (!hash || hash.length <= 16) {
+      return hash;
     }
 
-    return param.value.toString();
+    return `${hash.substr(2, 6)}...${hash.slice(-6)}`;
+  }
+
+  renderAddressName (address, withName = true) {
+    return (
+      <span className={ styles.eventAddress }>
+        <IdentityIcon center inline address={ address } className={ styles.eventIdentityicon } />
+        { withName ? <IdentityName address={ address } /> : address }
+      </span>
+    );
+  }
+
+  renderParam (name, param) {
+    const { api } = this.context;
+
+    switch (param.type) {
+      case 'address':
+        return (
+          <InputAddress
+            disabled
+            text
+            className={ styles.input }
+            value={ param.value }
+            label={ name } />
+        );
+
+      default:
+        let value;
+        if (api.util.isInstanceOf(param.value, BigNumber)) {
+          value = param.value.toFormat(0);
+        } else if (api.util.isArray(param.value)) {
+          value = api.util.bytesToHex(param.value);
+        } else {
+          value = param.value.toString();
+        }
+
+        return (
+          <Input
+            disabled
+            className={ styles.input }
+            value={ value }
+            label={ name } />
+        );
+    }
   }
 
   formatBlockTimestamp (block) {
