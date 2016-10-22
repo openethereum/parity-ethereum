@@ -47,7 +47,7 @@ pub fn utils() -> Box<Endpoint> {
 
 pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path);
+	let mut pages = fs::local_endpoints(dapps_path, signer_port);
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
 	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_port));

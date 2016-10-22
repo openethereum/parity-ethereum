@@ -46,6 +46,7 @@ pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
+	embeddable_at: Option<u16>,
 }
 
 impl<R: URLHint> Drop for ContentFetcher<R> {
@@ -57,7 +58,7 @@ impl<R: URLHint> Drop for ContentFetcher<R> {
 
 impl<R: URLHint> ContentFetcher<R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_at: Option<u16>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
@@ -66,6 +67,7 @@ impl<R: URLHint> ContentFetcher<R> {
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
+			embeddable_at: embeddable_at,
 		}
 	}
 
@@ -150,6 +152,7 @@ impl<R: URLHint> ContentFetcher<R> {
 									id: content_id.clone(),
 									dapps_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
+									embeddable_at: self.embeddable_at,
 								}
 							);
 
@@ -271,6 +274,7 @@ struct DappInstaller {
 	id: String,
 	dapps_path: PathBuf,
 	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
+	embeddable_at: Option<u16>,
 }
 
 impl DappInstaller {
@@ -363,7 +367,7 @@ impl ContentValidator for DappInstaller {
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
 		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into());
+		let app = LocalPageEndpoint::new(target, manifest.clone().into(), self.embeddable_at);
 
 		// Return modified app manifest
 		Ok((manifest.id.clone(), app))
@@ -396,14 +400,14 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false));
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
-		});
+		}, None);
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));
