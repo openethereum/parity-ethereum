@@ -541,6 +541,7 @@ impl Host {
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
 		let public_address = self.info.read().config.public_address.clone();
+		let allow_ips = self.info.read().config.allow_ips;
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
@@ -572,7 +573,7 @@ impl Host {
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
 				let mut udp_addr = local_endpoint.address.clone();
 				udp_addr.set_port(local_endpoint.udp_port);
-				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY))
+				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY, allow_ips))
 			} else { None }
 		};
 

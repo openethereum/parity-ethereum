@@ -30,7 +30,7 @@ use util::UtilError;
 use rlp::*;
 use time::Tm;
 use error::NetworkError;
-use ::AllowIP;
+use AllowIP;
 use discovery::{TableUpdates, NodeEntry};
 use ip_utils::*;
 pub use rustc_serialize::json::Json;
@@ -54,9 +54,15 @@ impl NodeEndpoint {
 			SocketAddr::V6(a) => SocketAddr::V6(SocketAddrV6::new(a.ip().clone(), self.udp_port, a.flowinfo(), a.scope_id())),
 		}
 	}
-}
 
-impl NodeEndpoint {
+	pub fn is_allowed(&self, filter: AllowIP) -> bool {
+		match filter {
+			AllowIP::All => true,
+			AllowIP::Private => !self.address.ip().is_global_s(),
+			AllowIP::Public => self.address.ip().is_global_s(),
+		}
+	}
+
 	pub fn from_rlp(rlp: &UntrustedRlp) -> Result<Self, DecoderError> {
 		let tcp_port = try!(rlp.val_at::<u16>(2));
 		let udp_port = try!(rlp.val_at::<u16>(1));
@@ -97,13 +103,6 @@ impl NodeEndpoint {
 		match self.address {
 			SocketAddr::V4(a) => !a.ip().is_unspecified_s(),
 			SocketAddr::V6(a) => !a.ip().is_unspecified_s()
-		}
-	}
-
-	pub fn is_global(&self) -> bool {
-		match self.address {
-			SocketAddr::V4(a) => a.ip().is_global_s(),
-			SocketAddr::V6(a) => a.ip().is_global_s()
 		}
 	}
 }
@@ -147,14 +146,6 @@ impl Node {
 			peer_type: PeerType::Optional,
 			failures: 0,
 			last_attempted: None,
-		}
-	}
-
-	fn is_allowed(&self, filter: AllowIP) -> bool {
-		match filter {
-			AllowIP::All => true,
-			AllowIP::Private => !self.endpoint.address.ip().is_global_s(),
-			AllowIP::Public => self.endpoint.address.ip().is_global_s(),
 		}
 	}
 }
@@ -229,7 +220,7 @@ impl NodeTable {
 
 	/// Returns node ids sorted by number of failures
 	pub fn nodes(&self, filter: AllowIP) -> Vec<NodeId> {
-		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.is_allowed(filter)).collect();
+		let mut refs: Vec<&Node> = self.nodes.values().filter(|n| !self.useless_nodes.contains(&n.id) && n.endpoint.is_allowed(filter)).collect();
 		refs.sort_by(|a, b| a.failures.cmp(&b.failures));
 		refs.iter().map(|n| n.id.clone()).collect()
 	}
