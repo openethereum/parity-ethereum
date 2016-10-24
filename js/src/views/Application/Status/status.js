@@ -40,8 +40,6 @@ class Status extends Component {
     const { newTransactions } = nextProps;
     const oldNewTransactions = this.props.newTransactions;
 
-    console.log('TXS', newTransactions, oldNewTransactions);
-
     const newTxs = newTransactions.map(t => t.hash).sort();
     const oldTxs = oldNewTransactions.map(t => t.hash).sort();
 
