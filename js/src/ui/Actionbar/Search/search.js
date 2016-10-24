@@ -175,8 +175,6 @@ export default class ActionbarSearch extends Component {
       .concat(searchTokens || tokens, inputValue)
       .filter(v => v.length > 0);
 
-    console.log('handleSearchChange', newSearchTokens, newSearchValues);
-
     onChange(newSearchTokens, newSearchValues);
   }
 

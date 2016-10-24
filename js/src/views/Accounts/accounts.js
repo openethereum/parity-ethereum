@@ -139,7 +139,7 @@ class Accounts extends Component {
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
-    this.setState({ searchTokens: newSearchTokens, searchValues: newSearchTokens });
+    this.setState({ searchTokens: newSearchTokens });
   }
 
   onNewAccountClick = () => {
