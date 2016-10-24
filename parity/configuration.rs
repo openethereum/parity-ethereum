@@ -154,6 +154,7 @@ impl Configuration {
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -173,6 +174,7 @@ impl Configuration {
 				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 		} else if self.args.cmd_snapshot {
@@ -251,6 +253,7 @@ impl Configuration {
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -738,6 +741,7 @@ mod tests {
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
+			check_seal: true,
 		})));
 	}
 
@@ -761,6 +765,7 @@ mod tests {
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
+			check_seal: true,
 		})));
 	}
 
@@ -784,6 +789,7 @@ mod tests {
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
+			check_seal: true,
 		})));
 	}
 
@@ -832,6 +838,7 @@ mod tests {
 			custom_bootnodes: false,
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
+			check_seal: true,
 		}));
 	}
 

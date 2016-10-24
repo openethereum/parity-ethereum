@@ -234,6 +234,7 @@ usage! {
 		flag_from: String = "1", or |_| None,
 		flag_to: String = "latest", or |_| None,
 		flag_format: Option<String> = None, or |_| None,
+		flag_no_seal_check: bool = false, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -561,6 +562,7 @@ mod tests {
 			flag_from: "1".into(),
 			flag_to: "latest".into(),
 			flag_format: None,
+			flag_no_seal_check: false,
 
 			// -- Snapshot Optons
 			flag_at: "latest".into(),
