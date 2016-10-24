@@ -21,7 +21,7 @@ import Checkbox from 'material-ui/Checkbox';
 
 import { Modal, Button } from '../../../ui';
 
-import styles from './addDapps.css';
+import styles from './AddDapps.css';
 
 export default class AddDapps extends Component {
   static propTypes = {
