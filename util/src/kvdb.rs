@@ -419,7 +419,7 @@ impl Database {
 	}
 
 	/// Commit buffered changes to database. Must be called under `flush_lock`
-	fn write_flushing(&self) -> Result<(), String> {
+	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<(), String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let batch = WriteBatch::new();
@@ -474,7 +474,7 @@ impl Database {
 			return Err("Database write failure. Running low on memory perhaps?".to_owned());
 		}
 		*lock = true;
-		let result = self.write_flushing();
+		let result = self.write_flushing_with_lock(&mut lock);
 		*lock = false;
 		result
 	}
