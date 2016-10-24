@@ -22,7 +22,7 @@ import { uniq } from 'lodash';
 
 import List from '../Accounts/List';
 import { AddAddress } from '../../modals';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
+import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -93,12 +93,19 @@ class Addresses extends Component {
   }
 
   renderActionbar () {
+    const { contacts } = this.props;
+
     const buttons = [
       <Button
         key='newAddress'
         icon={ <ContentAdd /> }
         label='new address'
         onClick={ this.onOpenAdd } />,
+
+      <ActionbarExport
+        key='exportAddressbook'
+        content={ contacts }
+        filename='addressbook.json' />,
 
       this.renderSearchButton(),
       this.renderSortButton()
