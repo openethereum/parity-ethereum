@@ -22,9 +22,6 @@ import { cyanA100, cyanA200, cyanA400 } from 'material-ui/styles/colors';
 
 const lightTheme = getMuiTheme(lightBaseTheme);
 const muiTheme = getMuiTheme(darkBaseTheme, {
-  paper: {
-    backgroundColor: 'green'
-  },
   palette: {
     accent1Color: cyanA100,
     accent2Color: cyanA200,
