@@ -44,7 +44,17 @@ class Status extends Component {
     const oldTxs = oldNewTransactions.map(t => t.hash).sort();
 
     if (!isEqual(newTxs, oldTxs)) {
-      this.setState({ newTransactions });
+      const transactions = [].concat(newTransactions);
+
+      if (transactions.length > 0) {
+        transactions[0].open = true;
+      }
+
+      console.log('GOT TXS', transactions);
+
+      this.setState({
+        newTransactions: transactions
+      });
     }
   }
 
@@ -84,13 +94,29 @@ class Status extends Component {
   renderNewTransaction () {
     const { newTransactions } = this.state;
 
-    return newTransactions.map(tx => (
-      <Snackbar
-        key={ tx.hash }
-        message={ `A new transaction has been detected: ${tx.hash}` }
-        autoHideDuration={ 4000 }
-      />
-    ));
+    return newTransactions.map((tx, index) => {
+      const onClose = () => {
+        const transactions = this.state
+          .newTransactions
+          .filter(t => t.hash !== tx.hash);
+
+        if (transactions.length > 0) {
+          transactions[0].open = true;
+        }
+
+        this.setState({ newTransactions: transactions });
+      };
+
+      return (
+        <Snackbar
+          key={ tx.hash }
+          open={ tx.open || false }
+          message={ `A new transaction has been detected: ${tx.hash}` }
+          autoHideDuration={ 4000 }
+          onRequestClose={ onClose }
+        />
+      );
+    });
   }
 }
 

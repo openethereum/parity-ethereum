@@ -47,6 +47,7 @@ export default class Personal {
               .concat(fromTraces, toTraces)
               .reduce((txs, trace) => {
                 txs[trace.transactionHash] = trace;
+                return txs;
               }, {}));
 
             if (traces.length === 0) {
