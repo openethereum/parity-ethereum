@@ -24,3 +24,16 @@ extern crate rustc_serialize;
 
 pub mod uint;
 pub mod hash;
+
+/// A prelude module for re-exporting all the types defined in this crate.
+///
+/// ```rust
+/// use ethcore_bigint::prelude::*;
+///
+/// let x: U256 = U256::zero();
+/// let y = x + 1.into();
+/// ```
+pub mod prelude {
+	pub use ::uint::*;
+	pub use ::hash::*;
+}
