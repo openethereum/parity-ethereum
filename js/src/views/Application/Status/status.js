@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { isEqual } from 'lodash';
+import Snackbar from 'material-ui/Snackbar';
 
 import styles from './status.css';
 
@@ -26,11 +28,31 @@ class Status extends Component {
     clientVersion: PropTypes.string,
     netPeers: PropTypes.object,
     netChain: PropTypes.string,
-    isTest: PropTypes.bool
+    isTest: PropTypes.bool,
+    newTransactions: PropTypes.array
+  }
+
+  state = {
+    newTransactions: []
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { newTransactions } = nextProps;
+    const oldNewTransactions = this.props.newTransactions;
+
+    console.log('TXS', newTransactions, oldNewTransactions);
+
+    const newTxs = newTransactions.map(t => t.hash).sort();
+    const oldTxs = oldNewTransactions.map(t => t.hash).sort();
+
+    if (!isEqual(newTxs, oldTxs)) {
+      this.setState({ newTransactions });
+    }
   }
 
   render () {
     const { clientVersion, blockNumber, netChain, netPeers, isTest } = this.props;
+
     const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
 
     if (!blockNumber) {
@@ -39,6 +61,8 @@ class Status extends Component {
 
     return (
       <div className={ styles.status }>
+        { this.renderNewTransaction() }
+
         <div className={ styles.version }>
           { clientVersion }
         </div>
@@ -58,17 +82,30 @@ class Status extends Component {
       </div>
     );
   }
+
+  renderNewTransaction () {
+    const { newTransactions } = this.state;
+
+    return newTransactions.map(tx => (
+      <Snackbar
+        key={ tx.hash }
+        message={ `A new transaction has been detected: ${tx.hash}` }
+        autoHideDuration={ 4000 }
+      />
+    ));
+  }
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
+  const { blockNumber, clientVersion, netPeers, netChain, isTest, newTransactions } = state.nodeStatus;
 
   return {
     blockNumber,
     clientVersion,
     netPeers,
     netChain,
-    isTest
+    isTest,
+    newTransactions
   };
 }
 

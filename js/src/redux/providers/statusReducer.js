@@ -42,7 +42,8 @@ const initialState = {
   isApiConnected: true,
   isPingConnected: true,
   isTest: false,
-  traceMode: undefined
+  traceMode: undefined,
+  newTransactions: []
 };
 
 export default handleActions({
@@ -72,5 +73,11 @@ export default handleActions({
 
   clearStatusLogs (state, action) {
     return Object.assign({}, state, { devLogs: [] });
+  },
+
+  statusNewTransactions (state, action) {
+    const { transactions } = action;
+
+    return Object.assign({}, state, { newTransactions: transactions });
   }
 }, initialState);
