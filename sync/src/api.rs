@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::collections::HashMap;
 use util::Bytes;
-use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
+use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
 use util::{U256, H256};
 use io::{TimerToken};
@@ -30,6 +30,9 @@ use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
+use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+
+pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"bam";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -78,7 +81,7 @@ pub struct PeerInfo {
 	/// Node client ID
 	pub client_version: String,
 	/// Capabilities
-	pub capabilities: Vec<String>, 
+	pub capabilities: Vec<String>,
 	/// Remote endpoint address
 	pub remote_address: String,
 	/// Local endpoint address
@@ -150,7 +153,9 @@ struct SyncProtocolHandler {
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext) {
-		io.register_timer(0, 1000).expect("Error registering sync timer");
+		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+			io.register_timer(0, 1000).expect("Error registering sync timer");
+		}
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
@@ -158,11 +163,18 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		// If warp protocol is supported only allow warp handshake
+		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
+		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
+		if warp_protocol == warp_context {
+			self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		}
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		}
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
@@ -195,8 +207,11 @@ impl ChainNotify for EthSync {
 
 	fn start(&self) {
 		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, &[62u8, 63u8, 64u8])
+		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
+		// register the warp sync subprotocol
+		self.network.register_protocol(self.handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
+			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 	}
 
 	fn stop(&self) {

@@ -155,6 +155,8 @@ pub enum NetworkIoMessage {
 		protocol: ProtocolId,
 		/// Supported protocol versions.
 		versions: Vec<u8>,
+		/// Number of packet IDs reserved by the protocol.
+		packet_count: u8,
 	},
 	/// Register a new protocol timer
 	AddTimer {
@@ -251,9 +253,8 @@ impl<'s> NetworkContext<'s> {
 		self.io.channel()
 	}
 
-	/// Disable current protocol capability for given peer. If no capabilities left peer gets disconnected.
+	/// Disconnect a peer and prevent it from connecting again.
 	pub fn disable_peer(&self, peer: PeerId) {
-		//TODO: remove capability, disconnect if no capabilities left
 		self.io.message(NetworkIoMessage::DisablePeer(peer))
 			.unwrap_or_else(|e| warn!("Error sending network IO message: {:?}", e));
 	}
@@ -290,7 +291,7 @@ impl<'s> NetworkContext<'s> {
 	}
 
 	/// Returns max version for a given protocol.
-	pub fn protocol_version(&self, peer: PeerId, protocol: ProtocolId) -> Option<u8> {
+	pub fn protocol_version(&self, protocol: ProtocolId, peer: PeerId) -> Option<u8> {
 		let session = self.resolve_session(peer);
 		session.and_then(|s| s.lock().capability_version(protocol))
 	}
@@ -1018,7 +1019,8 @@ impl IoHandler<NetworkIoMessage> for Host {
 			NetworkIoMessage::AddHandler {
 				ref handler,
 				ref protocol,
-				ref versions
+				ref versions,
+				ref packet_count,
 			} => {
 				let h = handler.clone();
 				let reserved = self.reserved_nodes.read();
@@ -1026,7 +1028,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				self.handlers.write().insert(*protocol, h);
 				let mut info = self.info.write();
 				for v in versions {
-					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count:0 });
+					info.capabilities.push(CapabilityInfo { protocol: *protocol, version: *v, packet_count: *packet_count });
 				}
 			},
 			NetworkIoMessage::AddTimer {

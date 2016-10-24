@@ -73,11 +73,12 @@ impl NetworkService {
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), NetworkError> {
 		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
 			versions: versions.to_vec(),
+			packet_count: packet_count,
 		}));
 		Ok(())
 	}
