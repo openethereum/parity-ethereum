@@ -218,7 +218,7 @@ impl Server {
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_port));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port.clone()));
 		let cors_domains = Self::cors_domains(signer_port);
 
