@@ -107,7 +107,7 @@ export default class Header extends Component {
                   />
                 </IconButton>
               </CopyToClipboard>
-              { address }
+              <span>{ address } </span>
             </div>
             { uuidText }
             <div className={ styles.infoline }>
