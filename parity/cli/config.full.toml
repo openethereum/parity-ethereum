@@ -38,13 +38,13 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
-apis = ["web3", "eth", "net", "personal", "ethcore", "traces", "rpc"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc"]
 hosts = ["none"]
 
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "personal", "ethcore", "traces", "rpc"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc"]
 
 [dapps]
 disable = false

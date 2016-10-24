@@ -131,10 +131,10 @@ impl ApiSet {
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
-			_ => {
+			ApiSet::SafeContext => {
 				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
@@ -245,7 +245,7 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
 			.into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
