@@ -141,8 +141,11 @@ export default class EditMeta extends Component {
 
     const tokens = value.split(/[\s,;]+/);
 
-    const newTokens = tokens.slice(0, -1);
-    const inputValue = tokens.slice(-1)[0];
+    const newTokens = tokens
+      .slice(0, -1)
+      .filter(t => t.length > 0);
+
+    const inputValue = tokens.slice(-1)[0].trim();
 
     this.onMetaChange('tags', [].concat(tags, newTokens));
     this.refs.tagsInput.setState({ inputValue });
