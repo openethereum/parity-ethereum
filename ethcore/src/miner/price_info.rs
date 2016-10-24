@@ -52,7 +52,8 @@ impl<F: Fn(PriceInfo) + Sync + Send + 'static> Handler<HttpStream> for SetPriceH
 			.and_then(|json| json.find_path(&["result", "ethusd"])
 				.and_then(|obj| match *obj {
 					Json::String(ref s) => Some((self.set_price)(PriceInfo {
-						ethusd: FromStr::from_str(s).unwrap()
+						ethusd: FromStr::from_str(s)
+							.expect("Etherscan API will always return properly formatted price; qed")
 					})),
 					_ => None,
 				}));
@@ -67,10 +68,14 @@ impl PriceInfo {
 		let client = try!(Client::new().map_err(|_| ()));
 		thread::spawn(move || {
 			let (tx, rx) = mpsc::channel();
-			let _ = client.request(FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice").unwrap(), SetPriceHandler {
-				set_price: set_price,
-				channel: tx,
-			}).ok().and_then(|_| rx.recv().ok());
+			let url = FromStr::from_str("http://api.etherscan.io/api?module=stats&action=ethprice")
+				.expect("string known to be a valid URL; qed");
+			let _ = client.request(
+				url,
+				SetPriceHandler {
+					set_price: set_price,
+					channel: tx,
+				}).ok().and_then(|_| rx.recv().ok());
 			client.close();
 		});
 		Ok(())

@@ -49,6 +49,7 @@ use v1::types::{
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::block_import::is_major_importing;
 use v1::helpers::auto_args::Trailing;
 
 /// Eth RPC options
@@ -254,8 +255,9 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		try!(self.active());
 		let status = take_weak!(self.sync).status();
-		if status.is_major_syncing() {
-			let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
+		let client = take_weak!(self.client);
+		if is_major_importing(Some(status.state), client.queue_info()) {
+			let current_block = U256::from(client.chain_info().best_block_number);
 			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
 			let info = SyncInfo {
 				starting_block: status.start_block_number.into(),

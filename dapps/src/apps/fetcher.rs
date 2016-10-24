@@ -69,6 +69,15 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 	}
 
+	fn still_syncing() -> Box<Handler> {
+		Box::new(ContentHandler::error(
+			StatusCode::ServiceUnavailable,
+			"Sync In Progress",
+			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
+			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
+		))
+	}
+
 	#[cfg(test)]
 	fn set_status(&self, content_id: &str, status: ContentStatus) {
 		self.cache.lock().insert(content_id.to_owned(), status);
@@ -84,12 +93,10 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 		// fallback to resolver
 		if let Ok(content_id) = content_id.from_hex() {
-			// if app_id is valid, but we are syncing always return true.
-			if self.sync.is_major_syncing() {
-				return true;
-			}
 			// else try to resolve the app_id
-			self.resolver.resolve(content_id).is_some()
+			let has_content = self.resolver.resolve(content_id).is_some();
+			// if there is content or we are syncing return true
+			has_content || self.sync.is_major_importing()
 		} else {
 			false
 		}
@@ -99,28 +106,19 @@ impl<R: URLHint> ContentFetcher<R> {
 		let mut cache = self.cache.lock();
 		let content_id = path.app_id.clone();
 
-		if self.sync.is_major_syncing() {
-			return Box::new(ContentHandler::error(
-				StatusCode::ServiceUnavailable,
-				"Sync In Progress",
-				"Your node is still syncing. We cannot resolve any content before it's fully synced.",
-				Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
-			));
-		}
-
 		let (new_status, handler) = {
 			let status = cache.get(&content_id);
 			match status {
-				// Just server dapp
+				// Just serve the content
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
 					(None, endpoint.to_async_handler(path, control))
 				},
-				// App is already being fetched
+				// Content is already being fetched
 				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
 					trace!(target: "dapps", "Content fetching in progress. Waiting...");
 					(None, fetch_control.to_handler(control))
 				},
-				// We need to start fetching app
+				// We need to start fetching the content
 				None => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
@@ -141,6 +139,10 @@ impl<R: URLHint> ContentFetcher<R> {
 					};
 
 					match content {
+						// Don't serve dapps if we are still syncing (but serve content)
+						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
+							(None, Self::still_syncing())
+						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								dapp.url(),
@@ -169,6 +171,9 @@ impl<R: URLHint> ContentFetcher<R> {
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+						},
+						None if self.sync.is_major_importing() => {
+							(None, Self::still_syncing())
 						},
 						None => {
 							// This may happen when sync status changes in between

@@ -46,7 +46,6 @@ export default class RequestFinishedWeb3 extends Component {
           id={ id }
           address={ sign.address }
           hash={ sign.hash }
-          result={ result }
           msg={ msg }
           status={ status }
           error={ error }

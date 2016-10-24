@@ -30,7 +30,7 @@ use std::sync::Arc;
 trait Oracle: Send + Sync {
 	fn to_number(&self, hash: H256) -> Option<u64>;
 
-	fn is_major_syncing(&self) -> bool;
+	fn is_major_importing(&self) -> bool;
 }
 
 struct StandardOracle<F> where F: 'static + Send + Sync + Fn() -> bool {
@@ -45,7 +45,7 @@ impl<F> Oracle for StandardOracle<F>
 		self.client.block_header(BlockID::Hash(hash)).map(|h| HeaderView::new(&h).number())
 	}
 
-	fn is_major_syncing(&self) -> bool {
+	fn is_major_importing(&self) -> bool {
 		(self.sync_status)()
 	}
 }
@@ -108,7 +108,7 @@ impl ChainNotify for Watcher {
 		_: Vec<H256>,
 		_duration: u64)
 	{
-		if self.oracle.is_major_syncing() { return }
+		if self.oracle.is_major_importing() { return }
 
 		trace!(target: "snapshot_watcher", "{} imported", imported.len());
 
@@ -143,7 +143,7 @@ mod tests {
 			self.0.get(&hash).cloned()
 		}
 
-		fn is_major_syncing(&self) -> bool { false }
+		fn is_major_importing(&self) -> bool { false }
 	}
 
 	struct TestBroadcast(Option<u64>);

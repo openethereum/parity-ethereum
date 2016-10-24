@@ -12,16 +12,15 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity. If not, see <http://www.gnu.org/licenses/>.
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const defaultDapps = ['gavcoin', 'basiccoin', 'tokenreg'];
+import { handleActions } from 'redux-actions';
 
-export function read () {
-  const stored = localStorage.getItem('visible-dapps');
-  if (stored) return JSON.parse(stored);
-  return defaultDapps;
-}
+const initialState = {};
 
-export function write (visible) {
-  localStorage.setItem('visible-dapps', JSON.stringify(visible));
-}
+export default handleActions({
+  setApi (state, action) {
+    const { api } = action;
+    return api;
+  }
+}, initialState);

@@ -141,3 +141,24 @@ export function inOptions (options) {
 
   return options;
 }
+
+export function inTraceFilter (filterObject) {
+  if (filterObject) {
+    Object.keys(filterObject).forEach((key) => {
+      switch (key) {
+        case 'fromAddress':
+        case 'toAddress':
+          filterObject[key] = [].concat(filterObject[key])
+            .map(address => inAddress(address));
+          break;
+
+        case 'toBlock':
+        case 'fromBlock':
+          filterObject[key] = inBlockNumber(filterObject[key]);
+          break;
+      }
+    });
+  }
+
+  return filterObject;
+}

@@ -21,7 +21,7 @@ use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
 use util::{H256, Address, U256, Bytes, HeapSizeOf};
-use ethkey::{Signature, sign, Secret, Public, recover, public_to_address, Error as EthkeyError};
+use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
@@ -143,7 +143,8 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = sign(secret, &self.hash()).unwrap();
+		let sig = ::ethkey::sign(secret, &self.hash())
+			.expect("data is valid and context has signing capabilities; qed");
 		self.with_signature(sig)
 	}
 

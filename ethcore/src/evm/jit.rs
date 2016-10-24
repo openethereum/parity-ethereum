@@ -359,7 +359,7 @@ impl evm::Evm for JitEvm {
 		data.timestamp = ext.env_info().timestamp as i64;
 
 		self.context = Some(unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) });
-		let mut context = self.context.as_mut().unwrap();
+		let mut context = self.context.as_mut().expect("context handle set on the prior line; qed");
 		let res = context.exec();
 
 		match res {

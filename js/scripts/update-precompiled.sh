@@ -1,19 +1,11 @@
 #!/bin/bash
+set -e
 
-
-# change into the submodule build directory
+# change into main dir
 pushd `dirname $0`
-cd ../build
+cd ../../
 
-if [ -z "$1" ]; then
-  popd
-  echo "Usage: $0 <sha-commit>"
-  exit 1
-fi
-
-git fetch
-git fetch origin $1
-git merge $1 -X theirs
+cargo update -p parity-ui-precompiled
 
 popd
 exit 0

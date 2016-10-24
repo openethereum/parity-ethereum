@@ -1,4 +1,5 @@
 #!/bin/bash
+set -e
 
 # change into the build directory
 pushd `dirname $0`
@@ -6,6 +7,16 @@ cd ../.build
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
+
+# Create proper directory structure
+mkdir -p build
+mv * build || true
+mkdir -p src
+
+# Copy rust files
+cp ../Cargo.precompiled.toml Cargo.toml
+cp ../build.rs .
+cp ../src/lib.rs* ./src/
 
 # init git
 rm -rf ./.git

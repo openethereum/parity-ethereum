@@ -53,11 +53,11 @@ fn die<T : fmt::Debug>(s: &'static str, e: T) -> ! {
 pub fn test(_path: &str) {
 }
 #[cfg(feature = "use-precompiled-js")]
-pub fn build(_path: &str) {
+pub fn build(_path: &str, _dest: &str) {
 }
 
 #[cfg(not(feature = "use-precompiled-js"))]
-pub fn build(path: &str) {
+pub fn build(path: &str, dest: &str) {
 	let child = platform::handle_fd(&mut Command::new(platform::NPM_CMD))
 		.arg("install")
 		.arg("--no-progress")
@@ -70,7 +70,7 @@ pub fn build(path: &str) {
 		.arg("run")
 		.arg("build")
 		.env("NODE_ENV", "production")
-		.env("BUILD_DEST", "build")
+		.env("BUILD_DEST", dest)
 		.current_dir(path)
 		.status()
 		.unwrap_or_else(|e| die("Building JS code", e));
