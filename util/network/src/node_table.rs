@@ -361,6 +361,7 @@ mod tests {
 	use std::net::*;
 	use util::hash::*;
 	use devtools::*;
+	use AllowIP;
 
 	#[test]
 	fn endpoint_parse() {

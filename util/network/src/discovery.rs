@@ -551,6 +551,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use ethkey::{Random, Generator};
+	use AllowIP;
 
 	#[test]
 	fn find_node() {
@@ -575,8 +576,8 @@ mod tests {
 		let key2 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
-		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0);
+		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0, AllowIP::All);
+		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0, AllowIP::All);
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
@@ -608,7 +609,7 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, AllowIP::All);
 		for _ in 0..1200 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
@@ -636,7 +637,7 @@ mod tests {
 	fn packets() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, AllowIP::All);
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 
