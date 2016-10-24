@@ -29,12 +29,13 @@ libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint" }
-parking_lot = "0.2.6"
+parking_lot = "0.3"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
 ansi_term = "0.7"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
+regex = "0.1"
 
 [features]
 default = []

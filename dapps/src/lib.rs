@@ -43,10 +43,8 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
-#[macro_use]
-extern crate log;
-extern crate url as url_lib;
 extern crate hyper;
+extern crate url as url_lib;
 extern crate unicase;
 extern crate serde;
 extern crate serde_json;
@@ -57,13 +55,23 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
-extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
+
+#[macro_use]
+extern crate log;
+
+#[macro_use]
+extern crate mime;
+
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+
+extern crate parity_dapps_glue;
+// TODO [ToDr] - Deprecate when we get rid of old dapps.
+extern crate parity_dapps;
 
 mod endpoint;
 mod apps;
@@ -92,11 +100,11 @@ static DAPPS_DOMAIN : &'static str = ".parity";
 /// Indicates sync status
 pub trait SyncStatus: Send + Sync {
 	/// Returns true if there is a major sync happening.
-	fn is_major_syncing(&self) -> bool;
+	fn is_major_importing(&self) -> bool;
 }
 
 impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_syncing(&self) -> bool { self() }
+	fn is_major_importing(&self) -> bool { self() }
 }
 
 /// Webapps HTTP+RPC server build.
@@ -105,6 +113,7 @@ pub struct ServerBuilder {
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	signer_port: Option<u16>,
 }
 
 impl Extendable for ServerBuilder {
@@ -121,12 +130,18 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			signer_port: None,
 		}
 	}
 
 	/// Change default sync status.
 	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
 		self.sync_status = status;
+	}
+
+	/// Change default signer port.
+	pub fn with_signer_port(&mut self, signer_port: Option<u16>) {
+		self.signer_port = signer_port;
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -138,6 +153,7 @@ impl ServerBuilder {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -152,6 +168,7 @@ impl ServerBuilder {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -186,13 +203,14 @@ impl Server {
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
+		signer_port: Option<u16>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
 		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port));
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));

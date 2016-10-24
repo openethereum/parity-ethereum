@@ -14,9 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use network::{NetworkContext, PeerId, PacketId, NetworkError};
+use std::collections::HashMap;
+use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo};
+use util::Bytes;
 use ethcore::client::BlockChainClient;
+use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
+use parking_lot::RwLock;
 
 /// IO interface for the syning handler.
 /// Provides peer connection management and an interface to the blockchain client.
@@ -34,10 +38,12 @@ pub trait SyncIo {
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
 	fn snapshot_service(&self) -> &SnapshotService;
-	/// Returns peer client identifier string
+	/// Returns peer identifier string
 	fn peer_info(&self, peer_id: PeerId) -> String {
 		peer_id.to_string()
 	}
+	/// Returns information on p2p session
+	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
 	/// Maximum mutuallt supported ETH protocol version
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
@@ -46,6 +52,8 @@ pub trait SyncIo {
 	}
 	/// Check if the session is expired
 	fn is_expired(&self) -> bool;
+	/// Return sync overlay
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>>;
 }
 
 /// Wraps `NetworkContext` and the blockchain client
@@ -53,15 +61,20 @@ pub struct NetSyncIo<'s, 'h> where 'h: 's {
 	network: &'s NetworkContext<'h>,
 	chain: &'s BlockChainClient,
 	snapshot_service: &'s SnapshotService,
+	chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h>, chain: &'s BlockChainClient, snapshot_service: &'s SnapshotService) -> NetSyncIo<'s, 'h> {
+	pub fn new(network: &'s NetworkContext<'h>, 
+		chain: &'s BlockChainClient,
+		snapshot_service: &'s SnapshotService,
+		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s, 'h> {
 		NetSyncIo {
 			network: network,
 			chain: chain,
 			snapshot_service: snapshot_service,
+			chain_overlay: chain_overlay,
 		}
 	}
 }
@@ -87,12 +100,16 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.chain
 	}
 
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
+		self.chain_overlay
+	}
+
 	fn snapshot_service(&self) -> &SnapshotService {
 		self.snapshot_service
 	}
 
-	fn peer_info(&self, peer_id: PeerId) -> String {
-		self.network.peer_info(peer_id)
+	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo> {
+		self.network.session_info(peer_id)
 	}
 
 	fn is_expired(&self) -> bool {

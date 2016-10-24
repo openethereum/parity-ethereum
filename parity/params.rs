@@ -206,7 +206,7 @@ impl Default for MinerExtras {
 			extra_data: version_data(),
 			gas_floor_target: U256::from(4_700_000),
 			gas_ceil_target: U256::from(6_283_184),
-			transactions_limit: 2048,
+			transactions_limit: 1024,
 		}
 	}
 }

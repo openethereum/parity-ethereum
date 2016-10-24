@@ -21,25 +21,66 @@ use util::sha3::*;
 use bit_set::BitSet;
 use super::super::instructions;
 
-const CACHE_CODE_ITEMS: usize = 65536;
+const INITIAL_CAPACITY: usize = 32;
+const DEFAULT_CACHE_SIZE: usize = 4 * 1024 * 1024;
 
-/// GLobal cache for EVM interpreter
+/// Global cache for EVM interpreter
 pub struct SharedCache {
-	jump_destinations: Mutex<LruCache<H256, Arc<BitSet>>>
+	jump_destinations: Mutex<LruCache<H256, Arc<BitSet>>>,
+	max_size: usize,
+	cur_size: Mutex<usize>,
 }
 
 impl SharedCache {
-	/// Get jump destincations bitmap for a contract.
+	/// Create a jump destinations cache with a maximum size in bytes
+	/// to cache.
+	pub fn new(max_size: usize) -> Self {
+		SharedCache {
+			jump_destinations: Mutex::new(LruCache::new(INITIAL_CAPACITY)),
+			max_size: max_size * 8, // dealing with bits here.
+			cur_size: Mutex::new(0),
+		}
+	}
+
+	/// Get jump destinations bitmap for a contract.
 	pub fn jump_destinations(&self, code_hash: &H256, code: &[u8]) -> Arc<BitSet> {
 		if code_hash == &SHA3_EMPTY {
 			return Self::find_jump_destinations(code);
 		}
+
 		if let Some(d) = self.jump_destinations.lock().get_mut(code_hash) {
 			return d.clone();
 		}
 
 		let d = Self::find_jump_destinations(code);
-		self.jump_destinations.lock().insert(code_hash.clone(), d.clone());
+
+		{
+			let mut cur_size = self.cur_size.lock();
+			*cur_size += d.capacity();
+
+			let mut jump_dests = self.jump_destinations.lock();
+			let cap = jump_dests.capacity();
+
+			// grow the cache as necessary; it operates on amount of items
+			// but we're working based on memory usage.
+			if jump_dests.len() == cap && *cur_size < self.max_size {
+				jump_dests.set_capacity(cap * 2);
+			}
+
+			// account for any element displaced from the cache.
+			if let Some(lru) = jump_dests.insert(code_hash.clone(), d.clone()) {
+				*cur_size -= lru.capacity();
+			}
+
+			// remove elements until we are below the memory target.
+			while *cur_size > self.max_size {
+				match jump_dests.remove_lru() {
+					Some((_, v)) => *cur_size -= v.capacity(),
+					_ => break,
+				}
+			}
+		}
+
 		d
 	}
 
@@ -57,15 +98,15 @@ impl SharedCache {
 			}
 			position += 1;
 		}
+
+		jump_dests.shrink_to_fit();
 		Arc::new(jump_dests)
 	}
 }
 
 impl Default for SharedCache {
-	fn default() -> SharedCache {
-		SharedCache {
-			jump_destinations: Mutex::new(LruCache::new(CACHE_CODE_ITEMS)),
-		}
+	fn default() -> Self {
+		SharedCache::new(DEFAULT_CACHE_SIZE)
 	}
 }
 

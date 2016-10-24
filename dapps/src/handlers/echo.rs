@@ -82,7 +82,7 @@ impl server::Handler<HttpStream> for EchoHandler {
 
 		// Don't even read the payload if origin is forbidden!
 		if let Cors::Forbidden = self.cors {
-			self.handler = Some(ContentHandler::ok(String::new(), "text/plain".into()));
+			self.handler = Some(ContentHandler::ok(String::new(), mime!(Text/Plain)));
 			Next::write()
 		} else {
 			Next::read()
@@ -92,7 +92,7 @@ impl server::Handler<HttpStream> for EchoHandler {
 	fn on_request_readable(&mut self, decoder: &mut Decoder<HttpStream>) -> Next {
 		match decoder.read_to_string(&mut self.content) {
 			Ok(0) => {
-				self.handler = Some(ContentHandler::ok(self.content.clone(), "application/json".into()));
+				self.handler = Some(ContentHandler::ok(self.content.clone(), mime!(Application/Json)));
 				Next::write()
 			},
 			Ok(_) => Next::read(),
@@ -114,11 +114,15 @@ impl server::Handler<HttpStream> for EchoHandler {
 			]));
 			headers.set(header::AccessControlAllowOrigin::Value(domain.clone()));
 		}
-		self.handler.as_mut().unwrap().on_response(res)
+		self.handler.as_mut()
+			.expect("handler always set in on_request, which is before now; qed")
+			.on_response(res)
 	}
 
 	fn on_response_writable(&mut self, encoder: &mut Encoder<HttpStream>) -> Next {
-		self.handler.as_mut().unwrap().on_response_writable(encoder)
+		self.handler.as_mut()
+			.expect("handler always set in on_request, which is before now; qed")
+			.on_response_writable(encoder)
 	}
 }
 

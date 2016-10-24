@@ -29,7 +29,7 @@ use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy};
+use util::{Bytes, Hashable, HashDB, snappy, U256, Uint};
 use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
@@ -44,6 +44,7 @@ use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
+use super::state::Account as StateAccount;
 
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
@@ -409,6 +410,7 @@ impl StateRebuilder {
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
+		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
@@ -476,7 +478,9 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				bloom.set(&*hash);
+				if &thin_rlp[..] != &empty_rlp[..] {
+					bloom.set(&*hash);
+				}
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
@@ -564,6 +568,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// After all chunks have been submitted, we "glue" the chunks together.
 pub struct BlockRebuilder {
 	chain: BlockChain,
+	db: Arc<Database>,
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
@@ -571,9 +576,10 @@ pub struct BlockRebuilder {
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
+			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
 			best_number: best_number,
@@ -616,15 +622,17 @@ impl BlockRebuilder {
 			}
 
 			let is_best = cur_number == self.best_number;
+			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_total_difficulty), is_best) {
+				if self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, Some(parent_total_difficulty), is_best, false) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
-				self.chain.insert_snapshot_block(&block_bytes, receipts, None, is_best);
+				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
 			}
+			self.db.write(batch).expect("Error writing to the DB");
 			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();

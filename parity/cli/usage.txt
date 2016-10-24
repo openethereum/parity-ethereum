@@ -67,6 +67,7 @@ Account Options:
 
 Networking Options:
   --no-network             Disable p2p networking. (default: {flag_no_network})
+  --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).
   --min-peers NUM          Try to maintain at least NUM peers (default: {flag_min_peers}).
@@ -186,8 +187,14 @@ Sealing/Mining Options:
                            to be included in next block) (default: {flag_tx_queue_size}).
   --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
                            the queue. LIMIT can be either an amount of gas or
-                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. (default: {flag_tx_queue_gas}).
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas - Prioritize txs with low gas limit;
+                           gas_price - Prioritize txs with high gas price;
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio (default: {flag_tx_queue_strategy}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -209,11 +216,15 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
+  --pruning-history NUM    Set a number of recent states to keep when pruning
+                           is active. [default: {flag_pruning_history}].
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue (default: {flag_cache_size_queue}).
+  --cache-size-state MB    Specify the maximum size of memory to use for
+                           the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.a (default: {flag_cache_size:?})
@@ -221,7 +232,8 @@ Footprint Options:
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
-                           hdd - suitable for slow HDDs (default: {flag_db_compaction}).
+                           hdd - suitable for slow HDDs;
+                           auto - determine automatically (default: {flag_db_compaction}).
   --fat-db BOOL            Build appropriate information to allow enumeration
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off

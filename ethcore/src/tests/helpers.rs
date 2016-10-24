@@ -22,7 +22,6 @@ use spec::*;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
-use state::State;
 use evm::Schedule;
 use engines::Engine;
 use ethereum;
@@ -35,19 +34,20 @@ use db::COL_STATE;
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-	DaoHardfork,
+	Eip150,
+	TransitionTest,
 }
 
 pub struct TestEngine {
 	engine: Arc<Engine>,
-	max_depth: usize
+	max_depth: usize,
 }
 
 impl TestEngine {
 	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
 			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }
@@ -347,7 +347,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
 	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
-	StateDB::new(journal_db)
+	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
 #[cfg(test)]

@@ -427,8 +427,16 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
-		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		let sender = match t.sender() {
+			Ok(sender) => sender,
+			Err(e) => {
+				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
+				return Err(ExecutionError::Internal);
+			}
+		};
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		self.state.add_balance(&sender, &refund_value);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
@@ -598,7 +606,7 @@ mod tests {
 	#[test]
 	// Tracing is not suported in JIT
 	fn test_call_to_create() {
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 
 		// code:
 		//
@@ -697,7 +705,7 @@ mod tests {
 				VMOperation { pc: 33, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99985.into(), stack_push: vec_into![29], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 35, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99982.into(), stack_push: vec_into![3], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 37, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![23], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 39, instruction: 240, gas_cost: 32000.into(), executed: Some(VMExecutedOperation { gas_used: 67979.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 39, instruction: 240, gas_cost: 99979.into(), executed: Some(VMExecutedOperation { gas_used: 64755.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 40, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 64752.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 42, instruction: 85, gas_cost: 20000.into(), executed: Some(VMExecutedOperation { gas_used: 44752.into(), stack_push: vec_into![], mem_diff: None, store_diff: Some(StorageDiff { location: 0.into(), value: U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap() }) }) }
 			],
@@ -724,7 +732,7 @@ mod tests {
 	#[test]
 	fn test_create_contract() {
 		// Tracing is not supported in JIT
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 		// code:
 		//
 		// 60 10 - push 16

@@ -23,6 +23,10 @@ pub enum RestorationStatus {
 	Inactive,
 	/// Ongoing restoration.
 	Ongoing {
+		/// Total number of state chunks.
+		state_chunks: u32,
+		/// Total number of block chunks.
+		block_chunks: u32,
 		/// Number of state chunks completed.
 		state_chunks_done: u32,
 		/// Number of block chunks completed.

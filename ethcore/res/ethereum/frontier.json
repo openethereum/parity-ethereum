@@ -8,11 +8,11 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
-				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0x118c30",
+				"registrar" : "0x3bb2bb5c6c9c9b7f4ef430b47dc7e026310042ea",
+				"homesteadTransition": "0x118c30",
 				"daoHardforkTransition": "0x1d4c00",
 				"daoHardforkBeneficiary": "0xbf4ed7b27f1d666546e30d74d50d173d20bca754",
-				"daoHardforkAccounts": [  
+				"daoHardforkAccounts": [
 					"0xd4fe7bc31cedb7bfb8a345f31e668033056b2728",
 					"0xb3fb0e5aba0e20e5c49d252dfd30e102b171a425",
 					"0x2c19c7f9ae8b751e37aeb2d93a699722395ae18f",
@@ -129,7 +129,8 @@
 					"0x7602b46df5390e432ef1c307d4f2c9ff6d65cc97",
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
-				]
+				],
+				"eip150Transition": "0x259518"
 			}
 		}
 	},
@@ -163,7 +164,8 @@
 		"enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@52.16.188.185:30303",
 		"enode://de471bccee3d042261d52e9bff31458daecc406142b401d4cd848f677479f73104b9fdeb090af9583d3391b7f10cb2ba9e26865dd5fca4fcdc0fb1e3b723c786@54.94.239.50:30303",
 		"enode://1118980bf48b0a3640bdba04e0fe78b1add18e1cd99bf22d53daac1fd9972ad650df52176e7c7d89d1114cfef2bc23a2959aa54998a46afcf7d91809f0855082@52.74.57.123:30303",
-		"enode://248f12bc8b18d5289358085520ac78cd8076485211e6d96ab0bc93d6cd25442db0ce3a937dc404f64f207b0b9aed50e25e98ce32af5ac7cb321ff285b97de485@zero.parity.io:30303"
+		"enode://4cd540b2c3292e17cff39922e864094bf8b0741fcc8c5dcea14957e389d7944c70278d872902e3d0345927f621547efa659013c400865485ab4bfa0c6596936f@zero.parity.io:30303",
+		"enode://cc92c4c40d612a10c877ca023ef0496c843fbc92b6c6c0d55ce0b863d51d821c4bd70daebb54324a6086374e6dc05708fed39862b275f169cb678e655da9d07d@136.243.154.246:30303"
 	],
 	"accounts": {
 		"0000000000000000000000000000000000000001": { "builtin": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } } },

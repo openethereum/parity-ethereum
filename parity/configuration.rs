@@ -30,7 +30,7 @@ use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
 use cache::CacheConfig;
 use helpers::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_price, replace_home,
-geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit};
+geth_ipc_path, parity_ipc_path, to_bootnodes, to_addresses, to_address, to_gas_limit, to_queue_strategy};
 use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
@@ -73,6 +73,7 @@ impl Configuration {
 	pub fn into_command(self) -> Result<Cmd, String> {
 		let dirs = self.directories();
 		let pruning = try!(self.args.flag_pruning.parse());
+		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = try!(self.vm_type());
 		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
 		let miner_options = try!(self.miner_options());
@@ -88,6 +89,7 @@ impl Configuration {
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
 		let enable_network = self.enable_network(&mode);
+		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
 		let dapps_conf = self.dapps_config();
@@ -145,6 +147,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				format: format,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
 				mode: mode,
@@ -162,6 +165,7 @@ impl Configuration {
 				file_path: self.args.arg_file.clone(),
 				format: format,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
 				mode: mode,
@@ -177,6 +181,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
@@ -194,6 +199,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
@@ -217,6 +223,7 @@ impl Configuration {
 				dirs: dirs,
 				spec: spec,
 				pruning: pruning,
+				pruning_history: pruning_history,
 				daemon: daemon,
 				logger_config: logger_config,
 				miner_options: miner_options,
@@ -234,6 +241,7 @@ impl Configuration {
 				wal: wal,
 				vm_type: vm_type,
 				enable_network: enable_network,
+				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
 				signer_port: signer_port,
 				net_settings: self.network_settings(),
@@ -291,7 +299,12 @@ impl Configuration {
 	fn cache_config(&self) -> CacheConfig {
 		match self.args.flag_cache_size.or(self.args.flag_cache) {
 			Some(size) => CacheConfig::new_with_total_cache_size(size),
-			None => CacheConfig::new(self.args.flag_cache_size_db, self.args.flag_cache_size_blocks, self.args.flag_cache_size_queue),
+			None => CacheConfig::new(
+				self.args.flag_cache_size_db,
+				self.args.flag_cache_size_blocks,
+				self.args.flag_cache_size_queue,
+				self.args.flag_cache_size_state,
+			),
 		}
 	}
 
@@ -349,6 +362,7 @@ impl Configuration {
 			},
 			tx_queue_size: self.args.flag_tx_queue_size,
 			tx_queue_gas_limit: try!(to_gas_limit(&self.args.flag_tx_queue_gas)),
+			tx_queue_strategy: try!(to_queue_strategy(&self.args.flag_tx_queue_strategy)),
 			pending_set: try!(to_pending_set(&self.args.flag_relay_set)),
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
@@ -552,10 +566,10 @@ impl Configuration {
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
 		let signer_path = replace_home(&self.args.flag_signer_path);
 
-		if self.args.flag_geth {
-			let geth_path = path::ethereum::default();
-			::std::fs::create_dir_all(geth_path.as_path()).unwrap_or_else(
-				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_path.to_str().unwrap(), e));
+		if self.args.flag_geth  && !cfg!(windows) {
+			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
+			::std::fs::create_dir_all(geth_root.as_path()).unwrap_or_else(
+				|e| warn!("Failed to create '{}' for geth mode: {}", &geth_root.to_str().unwrap(), e));
 		}
 
 		if cfg!(feature = "ipc") && !cfg!(feature = "windows") {
@@ -636,6 +650,7 @@ mod tests {
 	use cli::Args;
 	use ethcore_rpc::NetworkSettings;
 	use ethcore::client::{VMType, BlockID};
+	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
 	use signer::Configuration as SignerConfiguration;
@@ -716,6 +731,7 @@ mod tests {
 			file_path: Some("blockchain.json".into()),
 			format: Default::default(),
 			pruning: Default::default(),
+			pruning_history: 64,
 			compaction: Default::default(),
 			wal: true,
 			mode: Default::default(),
@@ -736,6 +752,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
+			pruning_history: 64,
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
@@ -758,6 +775,7 @@ mod tests {
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
 			pruning: Default::default(),
+			pruning_history: 64,
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
@@ -786,6 +804,7 @@ mod tests {
 			dirs: Default::default(),
 			spec: Default::default(),
 			pruning: Default::default(),
+			pruning_history: 64,
 			daemon: None,
 			logger_config: Default::default(),
 			miner_options: Default::default(),
@@ -793,6 +812,7 @@ mod tests {
 			ipc_conf: Default::default(),
 			net_conf: default_network_config(),
 			network_id: None,
+			warp_sync: false,
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
@@ -813,6 +833,27 @@ mod tests {
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
 		}));
+	}
+
+	#[test]
+	fn should_parse_mining_options() {
+		// given
+		let mut mining_options = MinerOptions::default();
+
+		// when
+		let conf0 = parse(&["parity"]);
+		let conf1 = parse(&["parity", "--tx-queue-strategy", "gas_factor"]);
+		let conf2 = parse(&["parity", "--tx-queue-strategy", "gas_price"]);
+		let conf3 = parse(&["parity", "--tx-queue-strategy", "gas"]);
+
+		// then
+		assert_eq!(conf0.miner_options().unwrap(), mining_options);
+		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
+		assert_eq!(conf1.miner_options().unwrap(), mining_options);
+		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
+		assert_eq!(conf2.miner_options().unwrap(), mining_options);
+		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
+		assert_eq!(conf3.miner_options().unwrap(), mining_options);
 	}
 
 	#[test]

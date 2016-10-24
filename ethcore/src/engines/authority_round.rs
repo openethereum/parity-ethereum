@@ -197,7 +197,7 @@ impl Engine for AuthorityRound {
 		if self.is_step_proposer(step, header.author()) {
 			if let Some(ap) = accounts {
 				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), header.bare_hash()) {
+				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
 					trace!(target: "authorityround", "generate_seal: FAIL: accounts secret key unavailable");

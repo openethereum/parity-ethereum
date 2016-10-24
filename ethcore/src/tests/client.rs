@@ -24,6 +24,7 @@ use common::*;
 use devtools::*;
 use miner::Miner;
 use rlp::{Rlp, View};
+use spec::Spec;
 
 #[test]
 fn imports_from_empty() {
@@ -222,7 +223,7 @@ fn can_handle_long_fork() {
 	push_blocks_to_client(client, 49, 1201, 800);
 	push_blocks_to_client(client, 53, 1201, 600);
 
-	for _ in 0..40 {
+	for _ in 0..400 {
 		client.import_verified_blocks();
 	}
 	assert_eq!(2000, client.chain_info().best_block_number);
@@ -237,4 +238,28 @@ fn can_mine() {
 	let b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]).close();
 
 	assert_eq!(*b.block().header().parent_hash(), BlockView::new(&dummy_blocks[0]).header_view().sha3());
+}
+
+#[test]
+fn change_history_size() {
+	let dir = RandomTempPath::new();
+	let test_spec = Spec::new_null();
+	let mut config = ClientConfig::default();
+	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	config.history = 2;
+	let address = Address::random();
+	{
+		let client = Client::new(ClientConfig::default(), &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
+		for _ in 0..20 {
+			let mut b = client.prepare_open_block(Address::default(), (3141562.into(), 31415620.into()), vec![]);
+			b.block_mut().fields_mut().state.add_balance(&address, &5.into());
+			b.block_mut().fields_mut().state.commit().unwrap();
+			let b = b.close_and_lock().seal(&*test_spec.engine, vec![]).unwrap();
+			client.import_sealed_block(b).unwrap(); // account change is in the journal overlay
+		}
+	}
+	let mut config = ClientConfig::default();
+	config.history = 10;
+	let client = Client::new(config, &test_spec, dir.as_path(), Arc::new(Miner::with_spec(&test_spec)), IoChannel::disconnected(), &db_config).unwrap();
+	assert_eq!(client.state().balance(&address), 100.into());
 }

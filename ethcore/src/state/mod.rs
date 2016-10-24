@@ -239,15 +239,15 @@ impl State {
 
 	/// Create a recoverable snaphot of this state.
 	pub fn snapshot(&mut self) {
-		self.snapshots.borrow_mut().push(HashMap::new());
+		self.snapshots.get_mut().push(HashMap::new());
 	}
 
 	/// Merge last snapshot with previous.
 	pub fn discard_snapshot(&mut self) {
 		// merge with previous snapshot
-		let last = self.snapshots.borrow_mut().pop();
+		let last = self.snapshots.get_mut().pop();
 		if let Some(mut snapshot) = last {
-			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
+			if let Some(ref mut prev) = self.snapshots.get_mut().last_mut() {
 				if prev.is_empty() {
 					**prev = snapshot;
 				} else {
@@ -261,11 +261,11 @@ impl State {
 
 	/// Revert to the last snapshot and discard it.
 	pub fn revert_to_snapshot(&mut self) {
-		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
+		if let Some(mut snapshot) = self.snapshots.get_mut().pop() {
 			for (k, v) in snapshot.drain() {
 				match v {
 					Some(v) => {
-						match self.cache.borrow_mut().entry(k) {
+						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(mut e) => {
 								// Merge snapshotted changes back into the main account
 								// storage preserving the cache.
@@ -277,7 +277,7 @@ impl State {
 						}
 					},
 					None => {
-						match self.cache.borrow_mut().entry(k) {
+						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(e) => {
 								if e.get().is_dirty() {
 									e.remove();
@@ -340,18 +340,20 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.ensure_cached(a, RequireCache::None, |a| a.is_some())
+		// Bloom filter does not contain empty accounts, so it is important here to
+		// check if account exists in the database directly before EIP-158 is in effect.
+		self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
@@ -415,18 +417,18 @@ impl State {
 
 	/// Get accounts' code.
 	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
-		self.ensure_cached(a, RequireCache::Code,
+		self.ensure_cached(a, RequireCache::Code, true,
 			|a| a.as_ref().map_or(None, |a| a.code().clone()))
 	}
 
 	pub fn code_hash(&self, a: &Address) -> H256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> Option<usize> {
-		self.ensure_cached(a, RequireCache::CodeSize,
+		self.ensure_cached(a, RequireCache::CodeSize, true,
 			|a| a.as_ref().and_then(|a| a.code_size()))
 	}
 
@@ -505,7 +507,9 @@ impl State {
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 			match a.account {
 				Some(ref mut account) => {
-					db.note_account_bloom(&address);
+					if !account.is_empty() {
+						db.note_account_bloom(&address);
+					}
 					let addr_hash = account.address_hash(address);
 					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
 					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
@@ -516,7 +520,7 @@ impl State {
 		}
 
 		{
-			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root).unwrap();
+			let mut trie = try!(factories.trie.from_existing(db.as_hashdb_mut(), root));
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
@@ -559,7 +563,6 @@ impl State {
 	pub fn populate_from(&mut self, accounts: PodState) {
 		assert!(self.snapshots.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.db.note_account_bloom(&add);
 			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(Some(Account::from_pod(acc))));
 		}
 	}
@@ -578,14 +581,14 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (address, pod_account) in query.get() {
-			self.ensure_cached(address, RequireCache::Code, |a| {
-				if a.is_some() {
-					for key in pod_account.storage.keys() {
-						self.storage_at(address, key);
-					}
-				}
-			});
+		for (address, pod_account) in query.get().into_iter()
+			.filter(|&(ref a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
+		{
+			// needs to be split into two parts for the refcell code here
+			// to work.
+			for key in pod_account.storage.keys() {
+				self.storage_at(address, key);
+			}
 		}
 	}
 
@@ -613,7 +616,7 @@ impl State {
 	/// Check caches for required data
 	/// First searches for account in the local, then the shared cache.
 	/// Populates local cache if nothing found.
-	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, f: F) -> U
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_bloom: bool, f: F) -> U
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
@@ -636,7 +639,7 @@ impl State {
 			Some(r) => r,
 			None => {
 				// first check bloom if it is not in database for sure
-				if !self.db.check_account_bloom(a) { return f(None); }
+				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -688,14 +691,15 @@ impl State {
 		}
 		self.note_cache(a);
 
-		match &mut self.cache.borrow_mut().get_mut(a).unwrap().account {
-			&mut Some(ref mut acc) => not_default(acc),
-			slot => *slot = Some(default()),
-		}
-
-		// at this point the account is guaranteed to be in the cache.
+		// at this point the entry is guaranteed to be in the cache.
 		RefMut::map(self.cache.borrow_mut(), |c| {
-			let mut entry = c.get_mut(a).unwrap();
+			let mut entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
+
+			match &mut entry.account {
+				&mut Some(ref mut acc) => not_default(acc),
+				slot => *slot = Some(default()),
+			}
+
 			// set the dirty flag after changing account data.
 			entry.state = AccountState::Dirty;
 			match entry.account {
@@ -1668,6 +1672,21 @@ fn remove() {
 }
 
 #[test]
+fn empty_account_exists() {
+	let a = Address::zero();
+	let path = RandomTempPath::new();
+	let db = get_temp_state_db_in(path.as_path());
+	let (root, db) = {
+		let mut state = State::new(db, U256::from(0), Default::default());
+		state.add_balance(&a, &U256::default()); // create an empty account
+		state.commit().unwrap();
+		state.drop()
+	};
+	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+	assert!(state.exists(&a));
+}
+
+#[test]
 fn remove_from_database() {
 	let a = Address::zero();
 	let temp = RandomTempPath::new();
@@ -1795,6 +1814,22 @@ fn create_empty() {
 	let mut state = state_result.reference_mut();
 	state.commit().unwrap();
 	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+}
+
+#[test]
+fn should_not_panic_on_state_diff_with_storage() {
+	let state = get_temp_state();
+	let mut state = state.reference().clone();
+
+	let a: Address = 0xa.into();
+	state.init_code(&a, b"abcdefg".to_vec());
+	state.add_balance(&a, &256.into());
+	state.set_storage(&a, 0xb.into(), 0xc.into());
+
+	let mut new_state = state.clone();
+	new_state.set_storage(&a, 0xb.into(), 0xd.into());
+
+	new_state.diff_from(state);
 }
 
 }

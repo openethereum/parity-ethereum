@@ -19,12 +19,16 @@ use serde_json;
 use endpoint::Handler;
 use handlers::{ContentHandler, EchoHandler};
 
-pub fn as_json<T : Serialize>(val: &T) -> Box<Handler> {
-	Box::new(ContentHandler::ok(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+pub fn as_json<T: Serialize>(val: &T) -> Box<Handler> {
+	let json = serde_json::to_string(val)
+		.expect("serialization to string is infallible; qed");
+	Box::new(ContentHandler::ok(json, mime!(Application/Json)))
 }
 
-pub fn as_json_error<T : Serialize>(val: &T) -> Box<Handler> {
-	Box::new(ContentHandler::not_found(serde_json::to_string(val).unwrap(), "application/json".to_owned()))
+pub fn as_json_error<T: Serialize>(val: &T) -> Box<Handler> {
+	let json = serde_json::to_string(val)
+		.expect("serialization to string is infallible; qed");
+	Box::new(ContentHandler::not_found(json, mime!(Application/Json)))
 }
 
 pub fn ping_response(local_domain: &str) -> Box<Handler> {

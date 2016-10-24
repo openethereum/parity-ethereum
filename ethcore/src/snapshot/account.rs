@@ -19,11 +19,19 @@
 use account_db::{AccountDB, AccountDBMut};
 use snapshot::Error;
 
-use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY};
+use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
 use util::trie::{TrieDB, Trie};
 use rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
 
 use std::collections::{HashMap, HashSet};
+
+// An empty account -- these are replaced with RLP null data for a space optimization.
+const ACC_EMPTY: Account = Account {
+	nonce: U256([0, 0, 0, 0]),
+	balance: U256([0, 0, 0, 0]),
+	storage_root: SHA3_NULL_RLP,
+	code_hash: SHA3_EMPTY,
+};
 
 // whether an encoded account has code and how it is referred to.
 #[repr(u8)]
@@ -88,6 +96,10 @@ impl Account {
 	// walk the account's storage trie, returning an RLP item containing the
 	// account properties and the storage.
 	pub fn to_fat_rlp(&self, acct_db: &AccountDB, used_code: &mut HashSet<H256>) -> Result<Bytes, Error> {
+		if self == &ACC_EMPTY {
+			return Ok(::rlp::NULL_RLP.to_vec());
+		}
+
 		let db = try!(TrieDB::new(acct_db, &self.storage_root));
 
 		let mut pairs = Vec::new();
@@ -141,6 +153,11 @@ impl Account {
 		code_map: &HashMap<H256, Bytes>,
 	) -> Result<(Self, Option<Bytes>), Error> {
 		use util::{TrieDBMut, TrieMut};
+
+		// check for special case of empty account.
+		if rlp.is_empty() {
+			return Ok((ACC_EMPTY, None));
+		}
 
 		let nonce = try!(rlp.val_at(0));
 		let balance = try!(rlp.val_at(1));
@@ -214,7 +231,7 @@ mod tests {
 
 	use std::collections::{HashSet, HashMap};
 
-	use super::Account;
+	use super::{ACC_EMPTY, Account};
 
 	#[test]
 	fn encoding_basic() {
@@ -309,5 +326,15 @@ mod tests {
 		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1, &code_map).unwrap();
 		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
 		assert_eq!(acc, account1);
+	}
+
+	#[test]
+	fn encoding_empty_acc() {
+		let mut db = get_temp_state_db();
+		let mut used_code = HashSet::new();
+		let code_map = HashMap::new();
+
+		assert_eq!(ACC_EMPTY.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &Address::default()), &mut used_code).unwrap(), ::rlp::NULL_RLP.to_vec());
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &Address::default()), UntrustedRlp::new(&::rlp::NULL_RLP), &code_map).unwrap(), (ACC_EMPTY, None));
 	}
 }

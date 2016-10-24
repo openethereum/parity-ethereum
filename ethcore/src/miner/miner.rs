@@ -30,7 +30,7 @@ use transaction::{Action, SignedTransaction};
 use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
-use miner::{MinerService, MinerStatus, TransactionQueue, AccountDetails, TransactionOrigin};
+use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
@@ -76,6 +76,8 @@ pub struct MinerOptions {
 	pub tx_gas_limit: U256,
 	/// Maximum size of the transaction queue.
 	pub tx_queue_size: usize,
+	/// Strategy to use for prioritizing transactions in the queue.
+	pub tx_queue_strategy: PrioritizationStrategy,
 	/// Whether we should fallback to providing all the queue's transactions or just pending.
 	pub pending_set: PendingSet,
 	/// How many historical work packages can we store before running out?
@@ -94,12 +96,13 @@ impl Default for MinerOptions {
 			reseal_on_external_tx: false,
 			reseal_on_own_tx: true,
 			tx_gas_limit: !U256::zero(),
-			tx_queue_size: 2048,
+			tx_queue_size: 1024,
+			tx_queue_gas_limit: GasLimit::Auto,
+			tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
-			tx_queue_gas_limit: GasLimit::Auto,
 		}
 	}
 }
@@ -133,7 +136,7 @@ impl GasPriceCalibrator {
 				let gas_per_tx: f32 = 21000.0;
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
 				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
-				set_price(U256::from_dec_str(&format!("{:.0}", wei_per_gas)).unwrap());
+				set_price(U256::from(wei_per_gas as u64));
 			}) {
 				self.next_calibration = Instant::now() + self.options.recalibration_period;
 			} else {
@@ -212,7 +215,9 @@ impl Miner {
 			GasLimit::Fixed(ref limit) => *limit,
 			_ => !U256::zero(),
 		};
-		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, gas_limit, options.tx_gas_limit)));
+		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(
+			options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit
+		)));
 		Miner {
 			transaction_queue: txq,
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -282,6 +287,7 @@ impl Miner {
 			trace!(target: "miner", "prepare_block: done recalibration.");
 		}
 
+		let _timer = PerfTimer::new("prepare_block");
 		let (transactions, mut open_block, original_work_hash) = {
 			let transactions = {self.transaction_queue.lock().top_transactions()};
 			let mut sealing_work = self.sealing_work.lock();
@@ -468,8 +474,8 @@ impl Miner {
 		let mut queue = self.transaction_queue.lock();
 		queue.set_gas_limit(gas_limit);
 		if let GasLimit::Auto = self.options.tx_queue_gas_limit {
-			// Set total tx queue gas limit to be 2x the block gas limit.
-			queue.set_total_gas_limit(gas_limit << 1);
+			// Set total tx queue gas limit to be 20x the block gas limit.
+			queue.set_total_gas_limit(gas_limit * 20.into());
 		}
 	}
 
@@ -747,7 +753,7 @@ impl MinerService for Miner {
 			let mut transaction_queue = self.transaction_queue.lock();
 			let import = self.add_transactions_to_queue(
 				chain, vec![transaction], TransactionOrigin::Local, &mut transaction_queue
-			).pop().unwrap();
+			).pop().expect("one result returned per added transaction; one added => one result; qed");
 
 			match import {
 				Ok(ref res) => {
@@ -869,7 +875,11 @@ impl MinerService for Miner {
 							gas_used: receipt.gas_used - prev_gas,
 							contract_address: match tx.action {
 								Action::Call(_) => None,
-								Action::Create => Some(contract_address(&tx.sender().unwrap(), &tx.nonce)),
+								Action::Create => {
+									let sender = tx.sender()
+										.expect("transactions in pending block have already been checked for valid sender; qed");
+									Some(contract_address(&sender, &tx.nonce))
+								}
 							},
 							logs: receipt.logs.clone(),
 						}
@@ -1035,7 +1045,7 @@ impl MinerService for Miner {
 mod tests {
 
 	use std::time::Duration;
-	use super::super::MinerService;
+	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
 	use util::*;
 	use ethkey::{Generator, Random};
@@ -1089,6 +1099,7 @@ mod tests {
 				tx_gas_limit: !U256::zero(),
 				tx_queue_size: 1024,
 				tx_queue_gas_limit: GasLimit::None,
+				tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
 				pending_set: PendingSet::AlwaysSealing,
 				work_queue_size: 5,
 				enable_resubmission: true,

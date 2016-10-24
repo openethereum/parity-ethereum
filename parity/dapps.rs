@@ -58,6 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
+	let signer_port = deps.apis.signer_port.clone();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
@@ -72,7 +73,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_port))))
 }
 
 pub use self::server::WebappServer;
@@ -90,6 +91,7 @@ mod server {
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
+		_signer_port: Option<u16>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -106,6 +108,7 @@ mod server {
 	use ethcore::client::{Client, BlockChainClient, BlockID};
 
 	use rpc_apis;
+	use ethcore_rpc::is_major_importing;
 	use ethcore_dapps::ContractClient;
 
 	pub use ethcore_dapps::Server as WebappServer;
@@ -115,7 +118,8 @@ mod server {
 		dapps_path: String,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
-		auth: Option<(String, String)>
+		auth: Option<(String, String)>,
+		signer_port: Option<u16>,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
@@ -124,7 +128,10 @@ mod server {
 			Arc::new(Registrar { client: deps.client.clone() })
 		);
 		let sync = deps.sync.clone();
-		server.with_sync_status(Arc::new(move || sync.status().is_major_syncing()));
+		let client = deps.client.clone();
+		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
+		server.with_signer_port(signer_port);
+
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {
 			None => {
