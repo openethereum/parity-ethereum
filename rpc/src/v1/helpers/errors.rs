@@ -39,6 +39,7 @@ mod codes {
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
+	pub const DAPPS_DISABLED: i64 = -32031;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
@@ -163,6 +164,14 @@ pub fn signer_disabled() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::SIGNER_DISABLED),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
+		data: None
+	}
+}
+
+pub fn dapps_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DAPPS_DISABLED),
+		message: "Dapps Server is disabled. This API is not available.".into(),
 		data: None
 	}
 }
