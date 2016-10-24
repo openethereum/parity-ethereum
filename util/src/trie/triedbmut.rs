@@ -744,7 +744,8 @@ impl<'a> TrieDBMut<'a> {
 					(UsedIndex::One(a), None) => {
 						// only one onward node. make an extension.
 						let new_partial = NibbleSlice::new_offset(&[a], 1).encoded(false);
-						let new_node = Node::Extension(new_partial, children[a as usize].take().unwrap());
+						let child = children[a as usize].take().expect("used_index only set if occupied; qed");
+						let new_node = Node::Extension(new_partial, child);
 						self.fix(new_node)
 					}
 					(UsedIndex::None, Some(value)) => {

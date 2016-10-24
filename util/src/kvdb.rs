@@ -344,7 +344,8 @@ impl Database {
 				let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 				match DB::open_cf(&opts, path, &cfnames, &cf_options) {
 					Ok(db) => {
-						cfs = cfnames.iter().map(|n| db.cf_handle(n).unwrap()).collect();
+						cfs = cfnames.iter().map(|n| db.cf_handle(n)
+							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
 						assert!(cfs.len() == columns as usize);
 						Ok(db)
 					}
@@ -352,7 +353,7 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i]).unwrap()).collect();
+								cfs = try!(cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect());
 								Ok(db)
 							},
 							err @ Err(_) => err,
@@ -523,7 +524,8 @@ impl Database {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let mut iter = col.map_or_else(|| db.iterator_opt(IteratorMode::From(prefix, Direction::Forward), &self.read_opts),
-					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts).unwrap());
+					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts)
+						.expect("iterator params are valid; qed"));
 				match iter.next() {
 					// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 					Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
@@ -540,7 +542,8 @@ impl Database {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				col.map_or_else(|| DatabaseIterator { iter: db.iterator_opt(IteratorMode::Start, &self.read_opts) },
-					|c| DatabaseIterator { iter: db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts).unwrap() })
+					|c| DatabaseIterator { iter: db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
+						.expect("iterator params are valid; qed") })
 			},
 			None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
 		}

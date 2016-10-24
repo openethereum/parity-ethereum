@@ -148,7 +148,7 @@ impl MemoryDB {
 				(*p).insert(key.clone(), (value, 0));
 			}
 		}
-		self.raw(key).unwrap()
+		self.raw(key).expect("entry just inserted into data; qed")
 	}
 
 	/// Returns the size of allocated heap memory
