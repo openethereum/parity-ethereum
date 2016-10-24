@@ -247,6 +247,7 @@ Import/Export Options:
   --format FORMAT          For import/export in given format. FORMAT must be
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
+  --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an

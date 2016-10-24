@@ -159,7 +159,7 @@ struct Verification<K: Kind> {
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
+	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
@@ -198,7 +198,7 @@ impl<K: Kind> VerificationQueue<K> {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-						VerificationQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+						VerificationQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty, check_seal)
 					}).unwrap()
 				})
 				.expect("Error starting block verification thread")
@@ -219,7 +219,7 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 	}
 
-	fn verify(verification: Arc<Verification<K>>, engine: Arc<Engine>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>) {
+	fn verify(verification: Arc<Verification<K>>, engine: Arc<Engine>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>, check_seal: bool) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				let mut more_to_verify = verification.more_to_verify.lock().unwrap();
@@ -253,7 +253,7 @@ impl<K: Kind> VerificationQueue<K> {
 			};
 
 			let hash = item.hash();
-			let is_ready = match K::verify(item, &*engine) {
+			let is_ready = match K::verify(item, &*engine, check_seal) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					let mut idx = None;

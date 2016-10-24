@@ -117,6 +117,8 @@ pub struct ClientConfig {
 	pub jump_table_size: usize,
 	/// State pruning history size.
 	pub history: u64,
+	/// Check seal valididity on block import
+	pub check_seal: bool,
 }
 
 #[cfg(test)]

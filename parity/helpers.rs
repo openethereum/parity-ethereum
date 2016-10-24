@@ -21,7 +21,7 @@ use std::path::Path;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
 use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
@@ -215,6 +215,7 @@ pub fn to_client_config(
 		name: String,
 		pruning: Algorithm,
 		pruning_history: u64,
+		check_seal: bool,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -247,6 +248,7 @@ pub fn to_client_config(
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
+	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config
 }
 

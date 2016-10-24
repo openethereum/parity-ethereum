@@ -90,6 +90,7 @@ pub struct RunCmd {
 	pub name: String,
 	pub custom_bootnodes: bool,
 	pub no_periodic_snapshot: bool,
+	pub check_seal: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -197,6 +198,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.name,
 		algorithm,
 		cmd.pruning_history,
+		cmd.check_seal,
 	);
 
 	// set up bootnodes
