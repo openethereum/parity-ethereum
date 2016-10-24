@@ -36,7 +36,7 @@ export default class EditMeta extends Component {
   }
 
   state = {
-    meta: this.props.account.meta,
+    meta: Object.assign({}, this.props.account.meta),
     metaErrors: {},
     name: this.props.account.name,
     nameError: null

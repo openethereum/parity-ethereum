@@ -27,19 +27,6 @@
   width: 500px !important;
 }
 
-.input > div:nth-child(2) {
-  bottom: 16px !important;
-  left: 2px;
-}
-
-.input > div:nth-child(3) {
-  margin-bottom: 18px !important;
-}
-
-.input > div:nth-child(3) > div:first-child {
-  height: 42px !important;
-}
-
 .inputContainer {
   transition: width 450ms ease-in-out 0ms, height 0ms ease-in-out 0ms;
   white-space: nowrap;

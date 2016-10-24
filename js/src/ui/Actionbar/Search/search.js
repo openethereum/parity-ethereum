@@ -79,15 +79,24 @@ export default class ActionbarSearch extends Component {
             className={ styles.input }
             chipRenderer={ this.chipRenderer }
             hintText='Enter search input...'
-            hintStyle={ {
-              transition: 'none'
-            } }
             ref='searchInput'
             value={ tokens }
             onBlur={ this.handleSearchBlur }
             onRequestAdd={ this.handleTokenAdd }
             onRequestDelete={ this.handleTokenDelete }
-            onUpdateInput={ this.handleInputChange } />
+            onUpdateInput={ this.handleInputChange }
+            hintStyle={ {
+              bottom: 16,
+              left: 2,
+              transition: 'none'
+            } }
+            inputStyle={ {
+              marginBottom: 18
+            } }
+            textFieldStyle={ {
+              height: 42
+            } }
+          />
         </div>
 
         <Button
