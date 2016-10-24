@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
+import { parityNode } from '../../environment';
+
 const builtinApps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
@@ -72,7 +74,7 @@ const builtinApps = [
 ];
 
 export default function () {
-  return fetch('http://127.0.0.1:8080/api/apps')
+  return fetch(`${parityNode}/api/apps`)
     .then((response) => {
       return response.ok
         ? response.json()
@@ -84,7 +86,7 @@ export default function () {
     })
     .then((localApps) => {
       return builtinApps
-        .concat(localApps)
+        .concat(localApps.filter((app) => !['ui'].includes(app.id)))
         .sort((a, b) => a.name.localeCompare(b.name));
     });
 }
