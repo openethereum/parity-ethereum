@@ -608,7 +608,6 @@ mod tests {
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;
-	use std::path::PathBuf;
 
 	fn test_db(config: &DatabaseConfig) {
 		let path = RandomTempPath::create_dir();
@@ -673,6 +672,7 @@ mod tests {
 	#[test]
 	#[cfg(target_os = "linux")]
 	fn df_to_rotational() {
+		use std::path::PathBuf;
 		// Example df output.
 		let example_df = vec![70, 105, 108, 101, 115, 121, 115, 116, 101, 109, 32, 32, 32, 32, 32, 49, 75, 45, 98, 108, 111, 99, 107, 115, 32, 32, 32, 32, 32, 85, 115, 101, 100, 32, 65, 118, 97, 105, 108, 97, 98, 108, 101, 32, 85, 115, 101, 37, 32, 77, 111, 117, 110, 116, 101, 100, 32, 111, 110, 10, 47, 100, 101, 118, 47, 115, 100, 97, 49, 32, 32, 32, 32, 32, 32, 32, 54, 49, 52, 48, 57, 51, 48, 48, 32, 51, 56, 56, 50, 50, 50, 51, 54, 32, 32, 49, 57, 52, 52, 52, 54, 49, 54, 32, 32, 54, 55, 37, 32, 47, 10];
 		let expected_output = Some(PathBuf::from("/sys/block/sda/queue/rotational"));

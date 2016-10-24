@@ -18,6 +18,9 @@ discovery = true
 nat = "any"
 min_peers = 10
 max_peers = 20
+max_pending_peers = 30
+snapshot_peers = 40
+allow_ips = "public"
 
 reserved_only = true
 reserved_peers = "./path/to/reserved_peers"

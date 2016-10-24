@@ -34,7 +34,7 @@ use rlp::*;
 use session::{Session, SessionInfo, SessionData};
 use error::*;
 use io::*;
-use {NetworkProtocolHandler, NonReservedPeerMode, PROTOCOL_VERSION};
+use {NetworkProtocolHandler, NonReservedPeerMode, AllowIP, PROTOCOL_VERSION};
 use node_table::*;
 use stats::NetworkStats;
 use discovery::{Discovery, TableUpdates, NodeEntry};
@@ -45,8 +45,7 @@ use parking_lot::{Mutex, RwLock};
 type Slab<T> = ::slab::Slab<T, usize>;
 
 const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
-const MAX_HANDSHAKES: usize = 80;
-const MAX_HANDSHAKES_PER_ROUND: usize = 32;
+const MAX_HANDSHAKES: usize = 1024;
 
 // Tokens
 const TCP_ACCEPT: usize = SYS_TIMER + 1;
@@ -89,12 +88,18 @@ pub struct NetworkConfiguration {
 	pub use_secret: Option<Secret>,
 	/// Minimum number of connected peers to maintain
 	pub min_peers: u32,
-	/// Maximum allowd number of peers
+	/// Maximum allowed number of peers
 	pub max_peers: u32,
+	/// Maximum handshakes
+	pub max_handshakes: u32,
+	/// Reserved protocols. Peers with <key> protocol get additional <value> connection slots.
+	pub reserved_protocols: HashMap<ProtocolId, u32>,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
 	pub non_reserved_mode: NonReservedPeerMode,
+	/// IP filter
+	pub allow_ips: AllowIP,
 }
 
 impl Default for NetworkConfiguration {
@@ -118,6 +123,9 @@ impl NetworkConfiguration {
 			use_secret: None,
 			min_peers: 25,
 			max_peers: 50,
+			max_handshakes: 64,
+			reserved_protocols: HashMap::new(),
+			allow_ips: AllowIP::All,
 			reserved_nodes: Vec::new(),
 			non_reserved_mode: NonReservedPeerMode::Accept,
 		}
@@ -364,7 +372,7 @@ pub struct Host {
 
 impl Host {
 	/// Create a new instance
-	pub fn new(config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, NetworkError> {
+	pub fn new(mut config: NetworkConfiguration, stats: Arc<NetworkStats>) -> Result<Host, NetworkError> {
 		trace!(target: "host", "Creating new Host object");
 
 		let mut listen_address = match config.listen_address {
@@ -394,6 +402,7 @@ impl Host {
 
 		let boot_nodes = config.boot_nodes.clone();
 		let reserved_nodes = config.reserved_nodes.clone();
+		config.max_handshakes = min(config.max_handshakes, MAX_HANDSHAKES as u32);
 
 		let mut host = Host {
 			info: RwLock::new(HostInfo {
@@ -532,6 +541,7 @@ impl Host {
 		}
 		let local_endpoint = self.info.read().local_endpoint.clone();
 		let public_address = self.info.read().config.public_address.clone();
+		let allow_ips = self.info.read().config.allow_ips;
 		let public_endpoint = match public_address {
 			None => {
 				let public_address = select_public_address(local_endpoint.address.port());
@@ -563,7 +573,7 @@ impl Host {
 			if info.config.discovery_enabled && info.config.non_reserved_mode == NonReservedPeerMode::Accept {
 				let mut udp_addr = local_endpoint.address.clone();
 				udp_addr.set_port(local_endpoint.udp_port);
-				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY))
+				Some(Discovery::new(&info.keys, udp_addr, public_endpoint, DISCOVERY, allow_ips))
 			} else { None }
 		};
 
@@ -618,14 +628,14 @@ impl Host {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
-		let (min_peers, mut pin) = {
+		let (min_peers, mut pin, max_handshakes, allow_ips) = {
 			let info = self.info.read();
 			if info.capabilities.is_empty() {
 				return;
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny)
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips)
 		};
 
 		let session_count = self.session_count();
@@ -642,22 +652,22 @@ impl Host {
 
 		let handshake_count = self.handshake_count();
 		// allow 16 slots for incoming connections
-		let handshake_limit = MAX_HANDSHAKES - 16;
-		if handshake_count >= handshake_limit {
+		if handshake_count >= max_handshakes {
 			return;
 		}
 
 		// iterate over all nodes, reserved ones coming first.
 		// if we are pinned to only reserved nodes, ignore all others.
 		let nodes = reserved_nodes.iter().cloned().chain(if !pin {
-			self.nodes.read().nodes()
+			self.nodes.read().nodes(allow_ips)
 		} else {
 			Vec::new()
 		});
 
+		let max_handshakes_per_round = max_handshakes / 2;
 		let mut started: usize = 0;
 		for id in nodes.filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
-			.take(min(MAX_HANDSHAKES_PER_ROUND, handshake_limit - handshake_count)) {
+			.take(min(max_handshakes_per_round, max_handshakes - handshake_count)) {
 			self.connect_peer(&id, io);
 			started += 1;
 		}
@@ -790,7 +800,14 @@ impl Host {
 							let session_count = self.session_count();
 							let (max_peers, reserved_only) = {
 								let info = self.info.read();
-								(info.config.max_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+								let mut max_peers = info.config.max_peers;
+								for cap in s.info.capabilities.iter() {
+									if let Some(num) = info.config.reserved_protocols.get(&cap.protocol) {
+										max_peers += *num;
+										break;
+									}
+								}
+								(max_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
 							};
 
 							if session_count >= max_peers as usize || reserved_only {
