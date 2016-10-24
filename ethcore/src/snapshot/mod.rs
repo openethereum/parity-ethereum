@@ -178,6 +178,8 @@ impl<'a> BlockChunker<'a> {
 	// Loops until we reach the first desired block, and writes out the remainder.
 	fn chunk_all(&mut self) -> Result<(), Error> {
 		let mut loaded_size = 0;
+		let mut last = self.current_hash;
+
 		let genesis_hash = self.chain.genesis_hash();
 
 		for _ in 0..SNAPSHOT_BLOCKS {
@@ -200,21 +202,21 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large.
 
-			if new_loaded_size > PREFERRED_CHUNK_SIZE {
-				try!(self.write_chunk());
+			if new_loaded_size > PREFERRED_CHUNK_SIZE && self.rlps.len() > 0 {
+				try!(self.write_chunk(last));
 				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
 			}
 
 			self.rlps.push_front(pair);
+
+			last = self.current_hash;
 			self.current_hash = view.header_view().parent_hash();
 		}
 
 		if loaded_size != 0 {
-			// we don't store the first block, so once we get to this point,
-			// the "first" block will be first_number + 1.
-			try!(self.write_chunk());
+			try!(self.write_chunk(last));
 		}
 
 		Ok(())
@@ -222,23 +224,24 @@ impl<'a> BlockChunker<'a> {
 
 	// write out the data in the buffers to a chunk on disk
 	//
-	// we preface each chunk with the parent of the first block's details.
-	fn write_chunk(&mut self) -> Result<(), Error> {
-		// since the block we're inspecting now doesn't go into the
-		// chunk if it's too large, the current hash is the parent hash
-		// for the first block in that chunk.
-		let parent_hash = self.current_hash;
-
+	// we preface each chunk with the parent of the first block's details,
+	// obtained from the details of the last block written.
+	fn write_chunk(&mut self, last: H256) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
-		let (parent_number, parent_details) = try!(self.chain.block_number(&parent_hash)
-			.and_then(|n| self.chain.block_details(&parent_hash).map(|d| (n, d)))
-			.ok_or(Error::BlockNotFound(parent_hash)));
 
-		let parent_total_difficulty = parent_details.total_difficulty;
+		let (last_header, last_details) = try!(self.chain.block_header(&last)
+			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
+			.ok_or(Error::BlockNotFound(last)));
+
+		let parent_number = last_header.number() - 1;
+		let parent_hash = last_header.parent_hash();
+		let parent_total_difficulty = last_details.total_difficulty - *last_header.difficulty();
+
+		trace!(target: "snapshot", "parent last written block: {}", parent_hash);
 
 		let num_entries = self.rlps.len();
 		let mut rlp_stream = RlpStream::new_list(3 + num_entries);
-		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
+		rlp_stream.append(&parent_number).append(parent_hash).append(&parent_total_difficulty);
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -589,7 +592,7 @@ impl BlockRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
 
-		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 2);
+		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
