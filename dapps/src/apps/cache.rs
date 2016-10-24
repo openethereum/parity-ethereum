@@ -66,10 +66,10 @@ impl ContentCache {
 				},
 				ContentStatus::Ready(ref endpoint) => {
 					trace!(target: "dapps", "Removing {} because of limit.", entry.0);
-					// Remove path
-					let res = fs::remove_dir_all(&endpoint.path());
+					// Remove path (dir or file)
+					let res = fs::remove_dir_all(&endpoint.path()).or_else(|_| fs::remove_file(&endpoint.path()));
 					if let Err(e) = res {
-						warn!(target: "dapps", "Unable to remove dapp: {:?}", e);
+						warn!(target: "dapps", "Unable to remove dapp/content from cache: {:?}", e);
 					}
 				}
 			}
