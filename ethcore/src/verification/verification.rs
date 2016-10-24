@@ -21,10 +21,14 @@
 /// 2. Signatures verification done in the queue.
 /// 3. Final verification against the blockchain done before enactment.
 
-use common::*;
+use util::*;
 use engines::Engine;
+use error::{BlockError, Error};
 use blockchain::*;
+use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
+use transaction::SignedTransaction;
+use views::BlockView;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
