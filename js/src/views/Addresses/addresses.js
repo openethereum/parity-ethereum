@@ -40,7 +40,8 @@ class Addresses extends Component {
   state = {
     showAdd: false,
     sortOrder: '',
-    searchValues: []
+    searchValues: [],
+    searchTokens: []
   }
 
   render () {
@@ -79,14 +80,14 @@ class Addresses extends Component {
   }
 
   renderSearchButton () {
-    const onChange = (searchValues) => {
-      this.setState({ searchValues });
+    const onChange = (searchTokens, searchValues) => {
+      this.setState({ searchTokens, searchValues });
     };
 
     return (
       <ActionbarSearch
         key='searchAddress'
-        tokens={ this.state.searchValues }
+        tokens={ this.state.searchTokens }
         onChange={ onChange } />
     );
   }
@@ -127,9 +128,9 @@ class Addresses extends Component {
   }
 
   onAddSearchToken = (token) => {
-    const { searchValues } = this.state;
-    const newSearchValues = uniq([].concat(searchValues, token));
-    this.setState({ searchValues: newSearchValues });
+    const { searchTokens } = this.state;
+    const newSearchTokens = uniq([].concat(searchTokens, token));
+    this.setState({ searchTokens: newSearchTokens });
   }
 
   onOpenAdd = () => {
