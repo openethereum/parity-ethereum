@@ -19,8 +19,9 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
+import LockIcon from 'material-ui/svg-icons/action/lock';
 
-import { EditMeta, Shapeshift, Transfer } from '../../modals';
+import { EditMeta, Shapeshift, Transfer, PasswordManager } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
@@ -44,7 +45,8 @@ class Account extends Component {
   state = {
     showEditDialog: false,
     showFundDialog: false,
-    showTransferDialog: false
+    showTransferDialog: false,
+    showPasswordDialog: false
   }
 
   render () {
@@ -63,6 +65,7 @@ class Account extends Component {
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
         { this.renderTransferDialog() }
+        { this.renderPasswordDialog() }
         { this.renderActionbar() }
         <Page>
           <Header
@@ -93,7 +96,12 @@ class Account extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />
+        onClick={ this.onEditClick } />,
+      <Button
+        key='passwordManager'
+        icon={ <LockIcon /> }
+        label='password'
+        onClick={ this.onPasswordClick } />
     ];
 
     return (
@@ -156,6 +164,24 @@ class Account extends Component {
     );
   }
 
+  renderPasswordDialog () {
+    const { showPasswordDialog } = this.state;
+
+    if (!showPasswordDialog) {
+      return null;
+    }
+
+    const { address } = this.props.params;
+    const { accounts } = this.props;
+    const account = accounts[address];
+
+    return (
+      <PasswordManager
+        account={ account }
+        onClose={ this.onPasswordClose } />
+    );
+  }
+
   onEditClick = () => {
     this.setState({
       showEditDialog: !this.state.showEditDialog
@@ -180,6 +206,16 @@ class Account extends Component {
 
   onTransferClose = () => {
     this.onTransferClick();
+  }
+
+  onPasswordClick = () => {
+    this.setState({
+      showPasswordDialog: !this.state.showPasswordDialog
+    });
+  }
+
+  onPasswordClose = () => {
+    this.onPasswordClick();
   }
 }
 

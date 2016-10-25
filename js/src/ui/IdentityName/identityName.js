@@ -22,6 +22,7 @@ const defaultName = 'UNNAMED';
 
 class IdentityName extends Component {
   static propTypes = {
+    className: PropTypes.string,
     address: PropTypes.string,
     accountsInfo: PropTypes.object,
     tokens: PropTypes.object,
@@ -31,7 +32,7 @@ class IdentityName extends Component {
   }
 
   render () {
-    const { address, accountsInfo, tokens, empty, shorten, unknown } = this.props;
+    const { address, accountsInfo, tokens, empty, shorten, unknown, className } = this.props;
     const account = accountsInfo[address] || tokens[address];
     const hasAccount = account && (!account.meta || !account.meta.deleted);
 
@@ -47,7 +48,9 @@ class IdentityName extends Component {
       : fallback;
 
     return (
-      <span>{ name && name.length ? name : fallback }</span>
+      <span className={ className }>
+        { name && name.length ? name : fallback }
+      </span>
     );
   }
 

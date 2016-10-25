@@ -44,13 +44,18 @@ export default class Input extends Component {
     onSubmit: PropTypes.func,
     rows: PropTypes.number,
     type: PropTypes.string,
+    submitOnBlur: PropTypes.bool,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ])
   }
 
+  static defaultProps = {
+    submitOnBlur: true
+  }
+
   state = {
-    value: this.props.value
+    value: this.props.value || ''
   }
 
   componentWillReceiveProps (newProps) {
@@ -97,8 +102,11 @@ export default class Input extends Component {
 
   onBlur = (event) => {
     const { value } = event.target;
+    const { submitOnBlur } = this.props;
 
-    this.onSubmit(value);
+    if (submitOnBlur) {
+      this.onSubmit(value);
+    }
 
     this.props.onBlur && this.props.onBlur(event);
   }
