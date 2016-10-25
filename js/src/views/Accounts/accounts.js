@@ -108,7 +108,7 @@ class Accounts extends Component {
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }
-        filename='accounts.json' />,
+        filename='accounts' />,
 
       this.renderSearchButton(),
       this.renderSortButton()
