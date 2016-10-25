@@ -33,6 +33,11 @@ export default class Personal {
       .execute('personal_confirmRequest', inNumber16(requestId), options, password);
   }
 
+  changePassword (account, password, newPassword) {
+    return this._transport
+      .execute('personal_changePassword', inAddress(account), password, newPassword);
+  }
+
   generateAuthorizationToken () {
     return this._transport
       .execute('personal_generateAuthorizationToken');
@@ -103,6 +108,11 @@ export default class Personal {
   signerEnabled () {
     return this._transport
       .execute('personal_signerEnabled');
+  }
+
+  testPassword (account, password) {
+    return this._transport
+      .execute('personal_testPassword', inAddress(account), password);
   }
 
   unlockAccount (account, password, duration = 1) {
