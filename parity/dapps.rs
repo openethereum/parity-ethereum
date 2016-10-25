@@ -145,7 +145,7 @@ mod server {
 
 		match start_result {
 			Err(dapps::ServerError::IoError(err)) => match err.kind() {
-				io::ErrorKind::AddrInUse => Err(format!("WebApps address {} is already in use, you can change it using the --dapps-port and --dapps-interface options.", url)),
+				io::ErrorKind::AddrInUse => Err(format!("WebApps address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --dapps-port and --dapps-interface options.", url)),
 				_ => Err(format!("WebApps io error: {}", err)),
 			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),

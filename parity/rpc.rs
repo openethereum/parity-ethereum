@@ -110,7 +110,7 @@ pub fn setup_http_rpc_server(
 	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
 	match start_result {
 		Err(RpcServerError::IoError(err)) => match err.kind() {
-			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, you can change it using the --jsonrpc-port and --jsonrpc-interface options.", url)),
+			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
 			_ => Err(format!("RPC io error: {}", err)),
 		},
 		Err(e) => Err(format!("RPC error: {:?}", e)),
