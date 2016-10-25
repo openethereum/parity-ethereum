@@ -6,6 +6,7 @@ cd ..
 
 # run build (production) and store the exit code
 EXITCODE=0
+rm -rf .build
 npm run ci:build || EXITCODE=1
 
 # back to root
