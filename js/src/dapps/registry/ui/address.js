@@ -32,9 +32,9 @@ const align = {
 export default (address, accounts, contacts, shortenHash = true) => {
   let caption;
   if (accounts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ accounts[address].name }</abbr>);
+    caption = (<abbr title={ address } style={ align }>{ accounts[address].name || address }</abbr>);
   } else if (contacts[address]) {
-    caption = (<abbr title={ address } style={ align }>{ contacts[address].name }</abbr>);
+    caption = (<abbr title={ address } style={ align }>{ contacts[address].name || address }</abbr>);
   } else {
     caption = (<code style={ align }>{ shortenHash ? renderHash(address) : address }</code>);
   }

@@ -46,16 +46,17 @@ export function attachInterface (callback) {
       return Promise
         .all([
           registry.getAddress.call({}, [api.util.sha3('signaturereg'), 'A']),
-          api.personal.listAccounts(),
-          api.personal.accountsInfo()
+          api.eth.accounts(),
+          null // api.personal.accountsInfo()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {
+      accountsInfo = accountsInfo || {};
       console.log(`signaturereg was found at ${address}`);
 
       const contract = api.newContract(abis.signaturereg, address);
       const accounts = addresses.reduce((obj, address) => {
-        const info = accountsInfo[address];
+        const info = accountsInfo[address] || {};
 
         return Object.assign(obj, {
           [address]: {

@@ -21,16 +21,13 @@ export const set = (addresses) => ({ type: 'addresses set', addresses });
 export const fetch = () => (dispatch) => {
   return Promise
     .all([
-      api.personal.listAccounts(),
-      api.personal.accountsInfo()
+      api.eth.accounts(),
+      null // api.personal.accountsInfo()
     ])
     .then(([ accounts, data ]) => {
-      const addresses = Object.keys(data)
-        .filter((address) => data[address] && !data[address].meta.deleted)
-        .map((address) => ({
-          ...data[address], address,
-          isAccount: accounts.includes(address)
-        }));
+      const addresses = accounts.map((address) => {
+        return { address, isAccount: true };
+      });
       dispatch(set(addresses));
     })
     .catch((error) => {
