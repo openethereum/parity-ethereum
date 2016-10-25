@@ -30,7 +30,7 @@ git checkout -b $CI_BUILD_REF_NAME
 git add .
 git commit -m "$UTCDATE [compiled]"
 git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
-git push origin $CI_BUILD_REF_NAME 2>$GITLOG
+git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # back to root
 popd
@@ -38,7 +38,8 @@ popd
 # inti git with right origin
 setup_git_user
 git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
-git fetch origin 2>$GITLOG
+
+# at this point we have a detached head on GitLab, reste
 git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # bump js-precompiled
@@ -46,8 +47,8 @@ cargo update -p parity-ui-precompiled
 
 # add and push
 git add . || true
-git commit -m "[ci skip] js-precompiled $UTCDATE" || true
-git push origin $CI_BUILD_REF_NAME 2>$GITLOG || true
+git commit -m "[ci skip] js-precompiled $UTCDATE"
+git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # exit with exit code
 exit 0
