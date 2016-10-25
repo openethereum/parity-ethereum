@@ -44,7 +44,7 @@
 mod miner;
 mod external;
 mod transaction_queue;
-mod blacklisting_queue;
+mod banning_queue;
 mod work_notify;
 mod price_info;
 

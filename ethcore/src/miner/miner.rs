@@ -31,7 +31,7 @@ use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-use miner::blacklisting_queue::{BanningTransactionQueue, Threshold};
+use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
