@@ -28,6 +28,5 @@ echo "Vcs-Browser: https://github.com/ethcore/parity" >> $control
 echo "Architecture: $1" >> $control
 echo "Description: Ethereum network client by Ethcore" >> $control
 #build .deb package
-cp parity deb/usr/bin
 dpkg-deb -b deb ./
 exit
