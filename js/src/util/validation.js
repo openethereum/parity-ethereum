@@ -82,7 +82,7 @@ export function validateCode (code, api) {
 }
 
 export function validateName (name) {
-  const nameError = !name || name.length < 2 ? ERRORS.invalidName : null;
+  const nameError = !name || name.trim().length < 2 ? ERRORS.invalidName : null;
 
   return {
     name,
