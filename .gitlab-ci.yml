@@ -316,6 +316,7 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
+    - js-bump-fix
     - master
     - beta
     - tags
