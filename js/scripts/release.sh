@@ -39,13 +39,11 @@ popd
 setup_git_user
 git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
 
-# at this point we have a detached head on GitLab, reste
+# at this point we have a detached head on GitLab, reset
 git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
 
-# bump js-precompiled
+# bump js-precompiled, add, commit & push
 cargo update -p parity-ui-precompiled
-
-# add and push
 git add . || true
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
