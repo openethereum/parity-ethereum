@@ -16,6 +16,7 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
@@ -194,7 +195,11 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+		match self.network.start() {
+			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+			Err(err) => warn!("Error starting network: {}", err),
+			_ => {},
+		}
 		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, &[62u8, 63u8, 64u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 	}
