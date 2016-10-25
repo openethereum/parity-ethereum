@@ -316,7 +316,6 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
-    - jg-gitlab-detached
     - master
     - beta
     - tags
