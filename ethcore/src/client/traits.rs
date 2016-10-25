@@ -194,15 +194,20 @@ pub trait BlockChainClient : Sync + Send {
 	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
-		for _ in 0..sample_size {
-			let block_bytes = self.block(BlockID::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
-			let block = BlockView::new(&block_bytes);
-			let header = block.header_view();
-			if header.number() == 0 {
-				break;
+		while corpus.is_empty() {
+			for _ in 0..sample_size {
+				let block_bytes = self.block(BlockID::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
+				let block = BlockView::new(&block_bytes);
+				let header = block.header_view();
+				if header.number() == 0 {
+					if corpus.is_empty() {
+						corpus.push(20_000_000_000u64.into());	// we have literally no information - it' as good a number as any.
+					}
+					break;
+				}
+				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
+				h = header.parent_hash().clone();
 			}
-			block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
-			h = header.parent_hash().clone();
 		}
 		corpus.sort();
 		let n = corpus.len();

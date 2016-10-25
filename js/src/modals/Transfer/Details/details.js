@@ -119,17 +119,19 @@ export default class Details extends Component {
     const { balance, images, tag } = this.props;
 
     const items = balance.tokens
-      .filter((token) => token.value.gt(0))
-      .map((balance, idx) => {
+      .filter((token, index) => !index || token.value.gt(0))
+      .map((balance, index) => {
         const token = balance.token;
-        const isEth = idx === 0;
+        const isEth = index === 0;
         const imagesrc = token.image || images[token.address] || imageUnknown;
         let value = 0;
 
         if (isEth) {
           value = api.util.fromWei(balance.value).toFormat(3);
         } else {
-          value = new BigNumber(balance.value).div(balance.token.format || 1).toFormat(3);
+          const format = balance.token.format || 1;
+          const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
+          value = new BigNumber(balance.value).div(format).toFormat(decimals);
         }
 
         const label = (
@@ -165,7 +167,7 @@ export default class Details extends Component {
     );
   }
 
-  onChangeToken = (event, idx, tag) => {
+  onChangeToken = (event, index, tag) => {
     this.props.onChange('tag', tag);
   }
 

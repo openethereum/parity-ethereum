@@ -17,6 +17,7 @@
 use super::test_common::*;
 use tests::helpers::*;
 use pod_state::{self, PodState};
+use log_entry::LogEntry;
 use ethereum;
 use ethjson;
 

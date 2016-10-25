@@ -232,9 +232,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

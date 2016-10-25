@@ -57,7 +57,7 @@ fn chunk_and_restore(amount: u64) {
 
 	// snapshot it.
 	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
-	let block_hashes = chunk_blocks(&bc, (amount, best_hash), &writer, &Progress::default()).unwrap();
+	let block_hashes = chunk_blocks(&bc, best_hash, &writer, &Progress::default()).unwrap();
 	writer.into_inner().finish(::snapshot::ManifestData {
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,

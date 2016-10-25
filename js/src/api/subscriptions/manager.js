@@ -29,17 +29,14 @@ const events = {
   'personal_requestsToConfirm': { module: 'signer' }
 };
 
-let nextSubscriptionId = 0;
-
 export default class Manager {
   constructor (api) {
     this._api = api;
 
-    this.subscriptions = {};
+    this.subscriptions = [];
     this.values = {};
 
     Object.keys(events).forEach((subscriptionName) => {
-      this.subscriptions[subscriptionName] = {};
       this.values[subscriptionName] = {
         error: null,
         data: null
@@ -71,61 +68,59 @@ export default class Manager {
         return;
       }
 
-      const subscriptionId = nextSubscriptionId++;
+      const subscriptionId = this.subscriptions.length;
       const { error, data } = this.values[subscriptionName];
       const engine = this[`_${subscription.module}`];
 
-      this.subscriptions[subscriptionName][subscriptionId] = callback;
+      this.subscriptions[subscriptionId] = {
+        name: subscriptionName,
+        id: subscriptionId,
+        callback
+      };
 
       if (!engine.isStarted) {
         engine.start();
       } else {
-        this._sendData(subscriptionName, subscriptionId, callback, error, data);
+        this._sendData(subscriptionId, error, data);
       }
 
       resolve(subscriptionId);
     });
   }
 
-  unsubscribe (subscriptionName, subscriptionId) {
+  unsubscribe (subscriptionId) {
     return new Promise((resolve, reject) => {
-      const subscription = this._validateType(subscriptionName);
-
-      if (isError(subscription)) {
-        reject(subscription);
+      if (!this.subscriptions[subscriptionId]) {
+        reject(new Error(`Cannot find subscription ${subscriptionId}`));
         return;
       }
 
-      if (!this.subscriptions[subscriptionName][subscriptionId]) {
-        reject(new Error(`Cannot find subscription ${subscriptionId} for type ${subscriptionName}`));
-        return;
-      }
-
-      delete this.subscriptions[subscriptionName][subscriptionId];
+      delete this.subscriptions[subscriptionId];
       resolve();
     });
   }
 
-  _sendData (subscriptionName, subscriptionId, callback, error, data) {
+  _sendData (subscriptionId, error, data) {
+    const { callback } = this.subscriptions[subscriptionId];
+
     try {
       callback(error, data);
     } catch (error) {
-      console.error(`Unable to update callback for ${subscriptionName}, subscriptionId ${subscriptionId}`, error);
-      this.unsubscribe(subscriptionName, subscriptionId);
+      console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
+      this.unsubscribe(subscriptionId);
     }
   }
 
   _updateSubscriptions = (subscriptionName, error, data) => {
-    if (!this.subscriptions[subscriptionName]) {
-      throw new Error(`Cannot find entry point for subscriptions of type ${subscriptionName}`);
-    }
+    const subscriptions = this.subscriptions
+      .filter(subscription => subscription.name === subscriptionName);
 
     this.values[subscriptionName] = { error, data };
-    Object.keys(this.subscriptions[subscriptionName]).forEach((subscriptionId) => {
-      const callback = this.subscriptions[subscriptionName][subscriptionId];
 
-      this._sendData(subscriptionName, subscriptionId, callback, error, data);
-    });
+    subscriptions
+      .forEach((subscription) => {
+        this._sendData(subscription.id, error, data);
+      });
   }
 }
 

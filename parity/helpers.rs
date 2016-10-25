@@ -185,7 +185,7 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::NetworkConfiguration;
+	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
 		net_config_path: None,
@@ -198,6 +198,9 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		use_secret: None,
 		max_peers: 50,
 		min_peers: 25,
+		snapshot_peers: 0,
+		max_pending_peers: 64,
+		allow_ips: AllowIP::All,
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}

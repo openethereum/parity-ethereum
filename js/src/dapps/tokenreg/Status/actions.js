@@ -82,7 +82,7 @@ export const loadContractDetails = () => (dispatch, getState) => {
 
   Promise
     .all([
-      api.personal.listAccounts(),
+      api.eth.accounts(),
       instance.owner.call(),
       instance.fee.call()
     ])
@@ -148,27 +148,27 @@ export const subscribeEvents = () => (dispatch, getState) => {
           return dispatch(setTokenData(params.id.toNumber(), {
             tla: '...',
             base: -1,
-            address: params.addr,
-            name: params.name,
+            address: params.addr.value,
+            name: params.name.value,
             isPending: true
           }));
         }
 
         if (event === 'Registered' && type === 'mined') {
-          return dispatch(loadToken(params.id.toNumber()));
+          return dispatch(loadToken(params.id.value.toNumber()));
         }
 
         if (event === 'Unregistered' && type === 'pending') {
-          return dispatch(setTokenPending(params.id.toNumber(), true));
+          return dispatch(setTokenPending(params.id.value.toNumber(), true));
         }
 
         if (event === 'Unregistered' && type === 'mined') {
-          return dispatch(deleteToken(params.id.toNumber()));
+          return dispatch(deleteToken(params.id.value.toNumber()));
         }
 
         if (event === 'MetaChanged' && type === 'pending') {
           return dispatch(setTokenData(
-            params.id.toNumber(),
+            params.id.value.toNumber(),
             { metaPending: true, metaMined: false }
           ));
         }
@@ -176,13 +176,13 @@ export const subscribeEvents = () => (dispatch, getState) => {
         if (event === 'MetaChanged' && type === 'mined') {
           setTimeout(() => {
             dispatch(setTokenData(
-              params.id.toNumber(),
+              params.id.value.toNumber(),
               { metaPending: false, metaMined: false }
             ));
           }, 5000);
 
           return dispatch(setTokenData(
-            params.id.toNumber(),
+            params.id.value.toNumber(),
             { metaPending: false, metaMined: true }
           ));
         }

@@ -43,7 +43,8 @@ class Contracts extends Component {
     addContract: false,
     deployContract: false,
     sortOrder: '',
-    searchValues: []
+    searchValues: [],
+    searchTokens: []
   }
 
   render () {
@@ -84,14 +85,14 @@ class Contracts extends Component {
   }
 
   renderSearchButton () {
-    const onChange = (searchValues) => {
-      this.setState({ searchValues });
+    const onChange = (searchTokens, searchValues) => {
+      this.setState({ searchTokens, searchValues });
     };
 
     return (
       <ActionbarSearch
         key='searchContract'
-        tokens={ this.state.searchValues }
+        tokens={ this.state.searchTokens }
         onChange={ onChange } />
     );
   }
@@ -152,9 +153,9 @@ class Contracts extends Component {
   }
 
   onAddSearchToken = (token) => {
-    const { searchValues } = this.state;
-    const newSearchValues = uniq([].concat(searchValues, token));
-    this.setState({ searchValues: newSearchValues });
+    const { searchTokens } = this.state;
+    const newSearchTokens = uniq([].concat(searchTokens, token));
+    this.setState({ searchTokens: newSearchTokens });
   }
 
   onDeployContractClose = () => {

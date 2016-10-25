@@ -48,9 +48,9 @@ const renderEvent = (classNames, verb) => (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classes }>
-      <td>{ renderAddress(e.parameters.owner, accounts, contacts) }</td>
+      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
       <td><abbr title={ e.transaction }>{ verb }</abbr></td>
-      <td><code>{ renderHash(bytesToHex(e.parameters.name)) }</code></td>
+      <td><code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code></td>
       <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
     </tr>
   );
@@ -64,10 +64,10 @@ const renderDataChanged = (e, accounts, contacts) => {
 
   return (
     <tr key={ e.key } className={ classNames }>
-      <td>{ renderAddress(e.parameters.owner, accounts, contacts) }</td>
+      <td>{ renderAddress(e.parameters.owner.value, accounts, contacts) }</td>
       <td><abbr title={ e.transaction }>updated</abbr></td>
       <td>
-        key <code>{ new Buffer(e.parameters.plainKey).toString('utf8') }</code> of <code>{ renderHash(bytesToHex(e.parameters.name)) }</code>
+        key <code>{ new Buffer(e.parameters.plainKey.value).toString('utf8') }</code> of <code>{ renderHash(bytesToHex(e.parameters.name.value)) }</code>
       </td>
       <td>{ renderStatus(e.timestamp, e.state === 'pending') }</td>
     </tr>

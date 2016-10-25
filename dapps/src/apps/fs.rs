@@ -97,12 +97,12 @@ fn read_manifest(name: &str, mut path: PathBuf) -> EndpointInfo {
 		})
 }
 
-pub fn local_endpoints(dapps_path: String) -> Endpoints {
+pub fn local_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
 	let mut pages = Endpoints::new();
 	for dapp in local_dapps(dapps_path) {
 		pages.insert(
 			dapp.id,
-			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info))
+			Box::new(LocalPageEndpoint::new(dapp.path, dapp.info, signer_port))
 		);
 	}
 	pages

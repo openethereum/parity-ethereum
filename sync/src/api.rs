@@ -16,9 +16,11 @@
 
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
+	AllowIP as NetworkAllowIP};
 use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
@@ -102,13 +104,15 @@ pub struct EthSync {
 	handler: Arc<SyncProtocolHandler>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
+	/// Configuration
+	config: NetworkConfiguration,
 }
 
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
 		let chain_sync = ChainSync::new(config, &*chain);
-		let service = try!(NetworkService::new(try!(network_config.into_basic())));
+		let service = try!(NetworkService::new(try!(network_config.clone().into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
 			handler: Arc::new(SyncProtocolHandler {
@@ -118,6 +122,7 @@ impl EthSync {
 				overlay: RwLock::new(HashMap::new()),
 			}),
 			subprotocol_name: config.subprotocol_name,
+			config: network_config,
 		});
 
 		Ok(sync)
@@ -206,7 +211,11 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
+		match self.network.start() {
+			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+			Err(err) => warn!("Error starting network: {}", err),
+			_ => {},
+		}
 		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
 		// register the warp sync subprotocol
@@ -276,6 +285,29 @@ impl ManageNetwork for EthSync {
 	}
 }
 
+/// IP fiter
+#[derive(Binary, Clone, Debug, PartialEq, Eq)]
+pub enum AllowIP {
+	/// Connect to any address
+	All,
+	/// Connect to private network only
+	Private,
+	/// Connect to public network only
+	Public,
+}
+
+impl AllowIP {
+	/// Attempt to parse the peer mode from a string.
+	pub fn parse(s: &str) -> Option<Self> {
+		match s {
+			"all" => Some(AllowIP::All),
+			"private" => Some(AllowIP::Private),
+			"public" => Some(AllowIP::Public),
+			_ => None,
+		}
+	}
+}
+
 #[derive(Binary, Debug, Clone, PartialEq, Eq)]
 /// Network service configuration
 pub struct NetworkConfiguration {
@@ -301,10 +333,16 @@ pub struct NetworkConfiguration {
 	pub max_peers: u32,
 	/// Min number of connected peers to maintain
 	pub min_peers: u32,
+	/// Max pending peers.
+	pub max_pending_peers: u32,
+	/// Reserved snapshot sync peers.
+	pub snapshot_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
 	pub allow_non_reserved: bool,
+	/// IP Filtering
+	pub allow_ips: AllowIP,
 }
 
 impl NetworkConfiguration {
@@ -340,7 +378,14 @@ impl NetworkConfiguration {
 			use_secret: self.use_secret,
 			max_peers: self.max_peers,
 			min_peers: self.min_peers,
+			max_handshakes: self.max_pending_peers,
+			reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
 			reserved_nodes: self.reserved_nodes,
+			allow_ips: match self.allow_ips {
+				AllowIP::All => NetworkAllowIP::All,
+				AllowIP::Private => NetworkAllowIP::Private,
+				AllowIP::Public => NetworkAllowIP::Public,
+			},
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 		})
 	}
@@ -360,7 +405,14 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			use_secret: other.use_secret,
 			max_peers: other.max_peers,
 			min_peers: other.min_peers,
+			max_pending_peers: other.max_handshakes,
+			snapshot_peers: *other.reserved_protocols.get(&WARP_SYNC_PROTOCOL_ID).unwrap_or(&0),
 			reserved_nodes: other.reserved_nodes,
+			allow_ips: match other.allow_ips {
+				NetworkAllowIP::All => AllowIP::All,
+				NetworkAllowIP::Private => AllowIP::Private,
+				NetworkAllowIP::Public => AllowIP::Public,
+			},
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}
 	}

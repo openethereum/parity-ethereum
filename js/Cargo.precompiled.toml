@@ -7,7 +7,7 @@ authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
 [features]
-default = ["with-syntex"]
+default = ["with-syntex", "use-precompiled-js"]
 use-precompiled-js = ["parity-dapps-glue/use-precompiled-js"]
 with-syntex = ["parity-dapps-glue/with-syntex"]
 

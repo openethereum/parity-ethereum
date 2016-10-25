@@ -100,21 +100,31 @@ export default class Balances {
       })
       .then(([_tokens, images]) => {
         const tokens = {};
-        this._tokens = _tokens.map((_token, index) => {
-          const [address, tag, format, name] = _token;
+        this._tokens = _tokens
+          .map((_token, index) => {
+            const [address, tag, format, name] = _token;
 
-          const token = {
-            address,
-            name,
-            tag,
-            format: format.toString(),
-            contract: this._api.newContract(abis.eip20, address)
-          };
-          tokens[address] = token;
-          this._store.dispatch(setAddressImage(address, images[index]));
+            const token = {
+              address,
+              name,
+              tag,
+              format: format.toString(),
+              contract: this._api.newContract(abis.eip20, address)
+            };
+            tokens[address] = token;
+            this._store.dispatch(setAddressImage(address, images[index]));
 
-          return token;
-        });
+            return token;
+          })
+          .sort((a, b) => {
+            if (a.tag < b.tag) {
+              return -1;
+            } else if (a.tag > b.tag) {
+              return 1;
+            }
+
+            return 0;
+          });
 
         this._store.dispatch(getTokens(tokens));
         this._retrieveBalances();

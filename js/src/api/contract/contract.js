@@ -150,7 +150,9 @@ export default class Contract {
       log.event = event.name;
 
       decoded.params.forEach((param) => {
-        log.params[param.name] = param.token.value;
+        const { type, value } = param.token;
+
+        log.params[param.name] = { type, value };
       });
 
       return log;

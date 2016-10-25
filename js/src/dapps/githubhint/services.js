@@ -28,21 +28,22 @@ export function attachInterface () {
       return Promise
         .all([
           registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A']),
-          api.personal.listAccounts(),
-          api.personal.accountsInfo()
+          api.eth.accounts(),
+          null // api.personal.accountsInfo()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {
+      accountsInfo = accountsInfo || {};
       console.log(`githubhint was found at ${address}`);
 
       const contract = api.newContract(abis.githubhint, address);
       const accounts = addresses.reduce((obj, address) => {
-        const info = accountsInfo[address];
+        const info = accountsInfo[address] || {};
 
         return Object.assign(obj, {
           [address]: {
             address,
-            name: info.name || 'Unnamed',
+            name: info.name,
             uuid: info.uuid
           }
         });

@@ -1880,7 +1880,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.2"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#e3d21c119350e753fdf4475b8cd88103b2280540"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#00bd2134b07b4bc8ea47b7f6c7afce16bbe34c8f"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
