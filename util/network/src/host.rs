@@ -241,9 +241,14 @@ impl<'s> NetworkContext<'s> {
 
 	/// Send a packet over the network to another peer.
 	pub fn send(&self, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+		self.send_protocol(self.protocol, peer, packet_id, data)
+	}
+
+	/// Send a packet over the network to another peer using specified protocol.
+	pub fn send_protocol(&self, protocol: ProtocolId, peer: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		let session = self.resolve_session(peer);
 		if let Some(session) = session {
-			try!(session.lock().send_packet(self.io, self.protocol, packet_id as u8, &data));
+			try!(session.lock().send_packet(self.io, protocol, packet_id as u8, &data));
 		} else  {
 			trace!(target: "network", "Send: Peer no longer exist")
 		}
@@ -911,7 +916,7 @@ impl Host {
 		}
 	}
 
-	fn update_nodes(&self, io: &IoContext<NetworkIoMessage>, node_changes: TableUpdates) {
+	fn update_nodes(&self, _io: &IoContext<NetworkIoMessage>, node_changes: TableUpdates) {
 		let mut to_remove: Vec<PeerId> = Vec::new();
 		{
 			let sessions = self.sessions.write();
@@ -926,7 +931,6 @@ impl Host {
 		}
 		for i in to_remove {
 			trace!(target: "network", "Removed from node table: {}", i);
-			self.kill_connection(i, io, false);
 		}
 		self.nodes.write().update(node_changes, &*self.reserved_nodes.read());
 	}

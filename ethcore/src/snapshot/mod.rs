@@ -38,6 +38,7 @@ use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use bloom_journal::Bloom;
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -390,6 +391,7 @@ pub struct StateRebuilder {
 	state_root: H256,
 	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
+	bloom: Bloom,
 }
 
 impl StateRebuilder {
@@ -400,6 +402,7 @@ impl StateRebuilder {
 			state_root: SHA3_NULL_RLP,
 			code_map: HashMap::new(),
 			missing_code: HashMap::new(),
+			bloom: StateDB::load_bloom(&*db),
 		}
 	}
 
@@ -462,9 +465,6 @@ impl StateRebuilder {
 
 		let backing = self.db.backing().clone();
 
-		// bloom has to be updated
-		let mut bloom = StateDB::load_bloom(&backing);
-
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
@@ -475,17 +475,17 @@ impl StateRebuilder {
 
 			for (hash, thin_rlp) in pairs {
 				if &thin_rlp[..] != &empty_rlp[..] {
-					bloom.set(&*hash);
+					self.bloom.set(&*hash);
 				}
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let bloom_journal = bloom.drain_journal();
+		let bloom_journal = self.bloom.drain_journal();
 		let mut batch = backing.transaction();
 		try!(StateDB::commit_bloom(&mut batch, bloom_journal));
 		try!(self.db.inject(&mut batch));
-		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
+		backing.write_buffered(batch);
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 		Ok(())
 	}
@@ -628,7 +628,7 @@ impl BlockRebuilder {
 			} else {
 				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
 			}
-			self.db.write(batch).expect("Error writing to the DB");
+			self.db.write_buffered(batch);
 			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();
