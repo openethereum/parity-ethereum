@@ -164,13 +164,19 @@ module.exports = {
     if (isProd) {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          chunks: [ 'index' ],
+          chunks: ['index'],
           name: 'commons'
         })
       );
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          chunks: [ 'parity' ],
+          chunks: ['inject'],
+          name: 'inject'
+        })
+      );
+      plugins.push(
+        new webpack.optimize.CommonsChunkPlugin({
+          chunks: ['parity'],
           name: 'parity'
         })
       );
