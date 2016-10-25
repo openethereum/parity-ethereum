@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+const defaultName = 'UNNAMED';
+
 class IdentityName extends Component {
   static propTypes = {
     address: PropTypes.string,
@@ -38,14 +40,14 @@ class IdentityName extends Component {
     }
 
     const addressFallback = shorten ? this.formatHash(address) : address;
-    const fallback = unknown ? 'UNNAMED' : addressFallback;
+    const fallback = unknown ? defaultName : addressFallback;
     const isUuid = hasAccount && account.name === account.uuid;
     const name = hasAccount && !isUuid
-      ? account.name.toUpperCase()
+      ? account.name.toUpperCase().trim()
       : fallback;
 
     return (
-      <span>{ name }</span>
+      <span>{ name && name.length ? name : fallback }</span>
     );
   }
 
