@@ -14,14 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { account } from './account';
-import { stats } from './stats';
-import txLink from './txLink';
-
-const etherscan = {
-  account: account,
-  stats: stats,
-  txLink: txLink
+export default (hash, isTestnet = false) => {
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/tx/${hash}`;
 };
-
-export default etherscan;
