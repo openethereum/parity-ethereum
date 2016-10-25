@@ -2,7 +2,6 @@
 
 set -e # fail on any error
 set -u # treat unset variables as error
-cd ..
 rm -rf deb
 #create DEBIAN files
 mkdir -p deb/usr/bin/
