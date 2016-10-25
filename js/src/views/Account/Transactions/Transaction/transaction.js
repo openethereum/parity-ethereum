@@ -23,6 +23,7 @@ import { bindActionCreators } from 'redux';
 import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
+import txLink from '../../../../3rdparty/etherscan/txLink';
 
 import styles from '../transactions.css';
 
@@ -93,15 +94,16 @@ class Transaction extends Component {
   renderTransaction () {
     const { transaction, isTest } = this.props;
 
-    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
-    const hashLink = `${prefix}tx/${transaction.hash}`;
-
     return (
       <td className={ styles.transaction }>
         { this.renderEtherValue() }
         <div>⇒</div>
         <div>
-          <a href={ hashLink } target='_blank' className={ styles.link }>
+          <a
+            className={ styles.link }
+            href={ txLink(transaction.hash, isTest) }
+            target='_blank'
+          >
             { this.formatHash(transaction.hash) }
           </a>
         </div>

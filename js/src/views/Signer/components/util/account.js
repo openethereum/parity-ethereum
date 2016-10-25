@@ -14,7 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { BASE_LINK_ACCOUNT_MORDEN, BASE_LINK_ACCOUNT_HOMESTEAD } from '../constants/constants';
+export const BASE_LINK_ACCOUNT_MORDEN = 'https://testnet.etherscan.io/address/';
+export const BASE_LINK_ACCOUNT_HOMESTEAD = 'https://etherscan.io/address/';
 
 export const getAccountLink = _getAccountLink;
 
