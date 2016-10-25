@@ -31,13 +31,12 @@ use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-use miner::blacklisting_queue::BlacklistingTransactionQueue;
+use miner::blacklisting_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 use header::BlockNumber;
 
-const BLACKLIST_THRESHOLD: usize = 1;
 const HEAVY_TRANSACTION_THRESHOLD_MS: u64 = 200;
 
 /// Different possible definitions for pending transaction set.
@@ -190,7 +189,7 @@ struct SealingWork {
 /// Handles preparing work for "work sealing" or seals "internally" if Engine does not require work.
 pub struct Miner {
 	// NOTE [ToDr]  When locking always lock in this order!
-	transaction_queue: Arc<Mutex<BlacklistingTransactionQueue>>,
+	transaction_queue: Arc<Mutex<BanningTransactionQueue>>,
 	sealing_work: Mutex<SealingWork>,
 	next_allowed_reseal: Mutex<Instant>,
 	sealing_block_last_request: Mutex<u64>,
@@ -221,7 +220,7 @@ impl Miner {
 		};
 
 		let txq = TransactionQueue::with_limits(options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit);
-		let txq = BlacklistingTransactionQueue::new(txq, BLACKLIST_THRESHOLD);
+		let txq = BanningTransactionQueue::new(txq, Threshold::BanAfter(1));
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -326,17 +325,15 @@ impl Miner {
 		// TODO Push new uncles too.
 		for tx in transactions {
 			let hash = tx.hash();
-			let sender = tx.sender().expect("Sender is valid, because transaction was in the queue");
 			let start = Instant::now();
 			let result = open_block.push_transaction(tx, None);
 			let took = start.elapsed();
 
 			// Check for heavy transactions
 			if took > Duration::from_millis(HEAVY_TRANSACTION_THRESHOLD_MS) {
-				// TODO [ToDr] Blacklist codehash too
-				match self.transaction_queue.lock().blacklist_sender(sender) {
+				match self.transaction_queue.lock().ban_transaction(&hash) {
 					true => {
-						warn!(target: "miner", "Detected heavy transaction. Blacklisting the sender.");
+						warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
 					},
 					false => {
 						transactions_to_penalize.insert(hash);
@@ -530,7 +527,7 @@ impl Miner {
 		prepare_new
 	}
 
-	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut BlacklistingTransactionQueue) ->
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
 		Vec<Result<TransactionImportResult, Error>> {
 
 		let fetch_account = |a: &Address| AccountDetails {
@@ -544,7 +541,7 @@ impl Miner {
 					transaction_queue.add(tx, &fetch_account, origin)
 				},
 				TransactionOrigin::External => {
-					transaction_queue.add_with_blacklist(tx, &fetch_account)
+					transaction_queue.add_with_banlist(tx, &fetch_account)
 				}
 			})
 			.collect()
