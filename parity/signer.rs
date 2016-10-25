@@ -103,7 +103,10 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 	};
 
 	match start_result {
-		Err(signer::ServerError::IoError(err)) => Err(format!("Trusted Signer Error: {}", err)),
+		Err(signer::ServerError::IoError(err)) => match err.kind() {
+			io::ErrorKind::AddrInUse => Err(format!("Trusted Signer address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --signer-port and --signer-interface options.", addr)),
+			_ => Err(format!("Trusted Signer io error: {}", err)),
+		},
 		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
