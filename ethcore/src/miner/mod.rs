@@ -49,7 +49,7 @@ mod work_notify;
 mod price_info;
 
 pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
 

@@ -21,12 +21,12 @@ use std::ops::{Deref, DerefMut};
 use std::cell::Cell;
 use transaction::{SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
-use miner::{TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
+use miner::{Banning, TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
 use error::{Error, TransactionError};
 use util::{Uint, U256, H256, Address, Hashable};
 
-type Count = usize;
-const BAN_LIFETIME_SEC: u64 = 60;
+type Count = u16;
+const BAN_LIFETIME_SEC: u64 = 180;
 
 /// Auto-Banning threshold
 pub enum Threshold {
@@ -34,6 +34,15 @@ pub enum Threshold {
 	BanAfter(Count),
 	/// Should never ban anything
 	NeverBan
+}
+
+impl From<Banning> for Threshold {
+	fn from(banning: Banning) -> Self {
+		match banning {
+			Banning::Disabled => Threshold::NeverBan,
+			Banning::Enabled { min_offends, .. } => Threshold::BanAfter(min_offends),
+		}
+	}
 }
 
 impl Default for Threshold {
@@ -143,7 +152,7 @@ impl BanningTransactionQueue {
 	fn ban_sender(&mut self, address: Address) -> bool {
 		let count = {
 			let mut count = self.senders_bans.entry(address).or_insert_with(|| Cell::new(0));
-			*count.get_mut() += 1;
+			*count.get_mut() = count.get().saturating_add(1);
 			count.get()
 		};
 		match self.ban_threshold {
@@ -163,7 +172,7 @@ impl BanningTransactionQueue {
 	fn ban_recipient(&mut self, address: Address) -> bool {
 		let count = {
 			let mut count = self.recipients_bans.entry(address).or_insert_with(|| Cell::new(0));
-			*count.get_mut() += 1;
+			*count.get_mut() = count.get().saturating_add(1);
 			count.get()
 		};
 		match self.ban_threshold {
@@ -179,7 +188,7 @@ impl BanningTransactionQueue {
 	/// Returns true if bans threshold has been reached.
 	fn ban_codehash(&mut self, code_hash: H256) -> bool {
 		let mut count = self.codes_bans.entry(code_hash).or_insert_with(|| Cell::new(0));
-		*count.get_mut() += 1;
+		*count.get_mut() = count.get().saturating_add(1);
 
 		match self.ban_threshold {
 			// TODO [ToDr] Consider removing other transactions with the same code from the queue?

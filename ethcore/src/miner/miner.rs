@@ -31,13 +31,11 @@ use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-use miner::banning_queue::{BanningTransactionQueue, Threshold};
+use miner::banning_queue::BanningTransactionQueue;
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 use header::BlockNumber;
-
-const HEAVY_TRANSACTION_THRESHOLD_MS: u64 = 200;
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -60,6 +58,20 @@ pub enum GasLimit {
 	None,
 	/// Set to a fixed gas value.
 	Fixed(U256),
+}
+
+/// Transaction queue banning settings.
+#[derive(Debug, PartialEq, Clone)]
+pub enum Banning {
+	/// Banning in transaction queue is disabled
+	Disabled,
+	/// Banning in transaction queue is enabled
+	Enabled {
+		/// Upper limit of transaction processing time before banning.
+		offend_threshold: Duration,
+		/// Number of similar offending transactions before banning.
+		min_offends: u16,
+	},
 }
 
 /// Configures the behaviour of the miner.
@@ -89,6 +101,8 @@ pub struct MinerOptions {
 	pub enable_resubmission: bool,
 	/// Global gas limit for all transaction in the queue except for local and retracted.
 	pub tx_queue_gas_limit: GasLimit,
+	/// Banning settings
+	pub tx_queue_banning: Banning,
 }
 
 impl Default for MinerOptions {
@@ -106,6 +120,7 @@ impl Default for MinerOptions {
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
 			enable_resubmission: true,
+			tx_queue_banning: Banning::Disabled,
 		}
 	}
 }
@@ -220,7 +235,7 @@ impl Miner {
 		};
 
 		let txq = TransactionQueue::with_limits(options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit);
-		let txq = BanningTransactionQueue::new(txq, Threshold::BanAfter(1));
+		let txq = BanningTransactionQueue::new(txq, options.tx_queue_banning.clone().into());
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),
@@ -330,16 +345,19 @@ impl Miner {
 			let took = start.elapsed();
 
 			// Check for heavy transactions
-			if took > Duration::from_millis(HEAVY_TRANSACTION_THRESHOLD_MS) {
-				match self.transaction_queue.lock().ban_transaction(&hash) {
-					true => {
-						warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
-					},
-					false => {
-						transactions_to_penalize.insert(hash);
-						debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
+			match self.options.tx_queue_banning {
+				Banning::Enabled { ref offend_threshold, .. } if &took > offend_threshold => {
+					match self.transaction_queue.lock().ban_transaction(&hash) {
+						true => {
+							warn!(target: "miner", "Detected heavy transaction. Banning the sender and recipient/code.");
+						},
+						false => {
+							transactions_to_penalize.insert(hash);
+							debug!(target: "miner", "Detected heavy transaction. Penalizing sender.")
+						}
 					}
-				}
+				},
+				_ => {},
 			}
 
 			match result {
@@ -1125,6 +1143,7 @@ mod tests {
 				pending_set: PendingSet::AlwaysSealing,
 				work_queue_size: 5,
 				enable_resubmission: true,
+				tx_queue_banning: Banning::Disabled,
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
