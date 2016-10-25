@@ -25,13 +25,9 @@ export const fetch = () => (dispatch) => {
       null // api.personal.accountsInfo()
     ])
     .then(([ accounts, data ]) => {
-      data = data || {};
-      const addresses = Object.keys(data)
-        .filter((address) => data[address] && !data[address].meta.deleted)
-        .map((address) => ({
-          ...data[address], address,
-          isAccount: accounts.includes(address)
-        }));
+      const addresses = accounts.map((address) => {
+        return { address, isAccount: true };
+      });
       dispatch(set(addresses));
     })
     .catch((error) => {
