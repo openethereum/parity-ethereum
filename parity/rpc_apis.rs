@@ -93,7 +93,6 @@ impl FromStr for ApiSet {
 }
 
 pub struct Dependencies {
-	pub signer_port: Option<u16>,
 	pub signer_service: Arc<SignerService>,
 	pub client: Arc<Client>,
 	pub sync: Arc<SyncProvider>,
@@ -105,6 +104,7 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub geth_compatibility: bool,
+	pub dapps_port: Option<u16>,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -131,10 +131,10 @@ impl ApiSet {
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
-			_ => {
+			ApiSet::SafeContext => {
 				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
@@ -172,21 +172,33 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
 				server.add_delegate(filter_client.to_delegate());
 
-				if deps.signer_port.is_some() {
+				if deps.signer_service.is_enabled() {
 					server.add_delegate(EthSigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
 			},
 			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_port, deps.geth_compatibility).to_delegate());
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
 			},
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
 			Api::Ethcore => {
-				let signer = deps.signer_port.map(|_| deps.signer_service.clone());
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, &deps.sync, &deps.net_service, deps.logger.clone(), deps.settings.clone(), signer).to_delegate())
+				let signer = match deps.signer_service.is_enabled() {
+					true => Some(deps.signer_service.clone()),
+					false => None,
+				};
+				server.add_delegate(EthcoreClient::new(
+					&deps.client,
+					&deps.miner,
+					&deps.sync,
+					&deps.net_service,
+					deps.logger.clone(),
+					deps.settings.clone(),
+					signer,
+					deps.dapps_port,
+				).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
@@ -233,7 +245,7 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
 			.into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}

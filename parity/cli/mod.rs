@@ -114,8 +114,14 @@ usage! {
 			or |c: &Config| otry!(c.network).min_peers.clone(),
 		flag_max_peers: u16 = 50u16,
 			or |c: &Config| otry!(c.network).max_peers.clone(),
+		flag_max_pending_peers: u16 = 64u16,
+			or |c: &Config| otry!(c.network).max_pending_peers.clone(),
+		flag_snapshot_peers: u16 = 0u16,
+			or |c: &Config| otry!(c.network).snapshot_peers.clone(),
 		flag_nat: String = "any",
 			or |c: &Config| otry!(c.network).nat.clone(),
+		flag_allow_ips: String = "all",
+			or |c: &Config| otry!(c.network).allow_ips.clone(),
 		flag_network_id: Option<String> = None,
 			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
@@ -139,7 +145,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
+		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,traces,rpc",
 			or |c: &Config| otry!(c.rpc).apis.clone().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.clone().map(|vec| vec.join(",")),
@@ -149,7 +155,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
+		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -234,6 +240,7 @@ usage! {
 		flag_from: String = "1", or |_| None,
 		flag_to: String = "latest", or |_| None,
 		flag_format: Option<String> = None, or |_| None,
+		flag_no_seal_check: bool = false, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -306,7 +313,10 @@ struct Network {
 	port: Option<u16>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
+	snapshot_peers: Option<u16>,
+	max_pending_peers: Option<u16>,
 	nat: Option<String>,
+	allow_ips: Option<String>,
 	id: Option<String>,
 	bootnodes: Option<Vec<String>>,
 	discovery: Option<bool>,
@@ -493,6 +503,9 @@ mod tests {
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
+			flag_max_pending_peers: 64u16,
+			flag_snapshot_peers: 0u16,
+			flag_allow_ips: "all".into(),
 			flag_nat: "any".into(),
 			flag_network_id: Some("0x1".into()),
 			flag_bootnodes: Some("".into()),
@@ -507,13 +520,13 @@ mod tests {
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
 			flag_jsonrpc_cors: Some("null".into()),
-			flag_jsonrpc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
+			flag_jsonrpc_apis: "web3,eth,net,ethcore,traces,rpc".into(),
 			flag_jsonrpc_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc".into(),
 
 			// DAPPS
 			flag_no_dapps: false,
@@ -561,6 +574,7 @@ mod tests {
 			flag_from: "1".into(),
 			flag_to: "latest".into(),
 			flag_format: None,
+			flag_no_seal_check: false,
 
 			// -- Snapshot Optons
 			flag_at: "latest".into(),
@@ -651,6 +665,9 @@ mod tests {
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
+				max_pending_peers: Some(30),
+				snapshot_peers: Some(40),
+				allow_ips: Some("public".into()),
 				nat: Some("any".into()),
 				id: None,
 				bootnodes: None,

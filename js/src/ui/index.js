@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Actionbar from './Actionbar';
+import ActionbarExport from './Actionbar/Export';
 import ActionbarSearch from './Actionbar/Search';
 import ActionbarSort from './Actionbar/Sort';
 import Badge from './Badge';
@@ -39,6 +40,7 @@ import TxHash from './TxHash';
 
 export {
   Actionbar,
+  ActionbarExport,
   ActionbarSearch,
   ActionbarSort,
   AddressSelect,

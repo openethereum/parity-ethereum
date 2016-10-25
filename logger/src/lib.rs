@@ -65,11 +65,10 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	builder.filter(Some("rustls"), LogLevelFilter::Warn);
 	builder.filter(None, LogLevelFilter::Info);
 
-	if env::var("RUST_LOG").is_ok() {
-		let lvl = &env::var("RUST_LOG").unwrap();
-		levels.push_str(lvl);
+	if let Ok(lvl) = env::var("RUST_LOG") {
+		levels.push_str(&lvl);
 		levels.push_str(",");
-		builder.parse(lvl);
+		builder.parse(&lvl);
 	}
 
 	if let Some(ref s) = config.mode {
@@ -119,7 +118,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
     };
 
 	builder.format(format);
-	builder.init().unwrap();
+	builder.init().expect("Logger initialized only once.");
 
 	Ok(logs)
 }

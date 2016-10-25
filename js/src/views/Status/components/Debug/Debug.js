@@ -74,7 +74,7 @@ export default class Debug extends Component {
 
     return (
       <pre className={ styles.logs }>
-        { devLogs.join('\n') }
+        { devLogs.reverse().join('\n') }
       </pre>
     );
   }

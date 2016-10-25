@@ -16,6 +16,8 @@
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 
+import { parityNode } from '../../environment';
+
 export default class Status {
   constructor (store, api) {
     this._api = api;
@@ -49,7 +51,7 @@ export default class Status {
       setTimeout(this._pollPing, timeout);
     };
 
-    fetch('/', { method: 'GET' })
+    fetch(`${parityNode}/api/ping`, { method: 'GET' })
       .then((response) => dispatch(!!response.ok))
       .catch(() => dispatch(false));
   }

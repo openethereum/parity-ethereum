@@ -163,7 +163,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history);
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,
@@ -232,9 +232,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

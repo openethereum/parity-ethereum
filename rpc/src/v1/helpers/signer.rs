@@ -22,16 +22,18 @@ use v1::helpers::signing_queue::{ConfirmationsQueue};
 pub struct SignerService {
 	queue: Arc<ConfirmationsQueue>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
+	port: Option<u16>,
 }
 
 impl SignerService {
 
 	/// Creates new Signer Service given function to generate new tokens.
-	pub fn new<F>(new_token: F) -> Self
+	pub fn new<F>(new_token: F, port: Option<u16>) -> Self
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
 			generate_new_token: Box::new(new_token),
+			port: port,
 		}
 	}
 
@@ -45,10 +47,20 @@ impl SignerService {
 		self.queue.clone()
 	}
 
+	/// Returns signer port (if signer enabled) or `None` otherwise
+	pub fn port(&self) -> Option<u16> {
+		self.port
+	}
+
+	/// Returns true if Signer is enabled.
+	pub fn is_enabled(&self) -> bool {
+		self.port.is_some()
+	}
+
 	#[cfg(test)]
 	/// Creates new Signer Service for tests.
-	pub fn new_test() -> Self {
-		SignerService::new(|| Ok("new_token".into()))
+	pub fn new_test(port: Option<u16>) -> Self {
+		SignerService::new(|| Ok("new_token".into()), port)
 	}
 }
 

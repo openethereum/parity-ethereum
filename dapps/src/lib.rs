@@ -59,19 +59,17 @@ extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
-
+extern crate parity_dapps_glue as parity_dapps;
 #[macro_use]
 extern crate log;
-
 #[macro_use]
 extern crate mime;
 
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+#[cfg(test)]
+extern crate env_logger;
 
-extern crate parity_dapps_glue;
-// TODO [ToDr] - Deprecate when we get rid of old dapps.
-extern crate parity_dapps;
 
 mod endpoint;
 mod apps;
@@ -95,7 +93,7 @@ use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
 
-static DAPPS_DOMAIN : &'static str = ".parity";
+use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
 /// Indicates sync status
 pub trait SyncStatus: Send + Sync {
@@ -197,6 +195,17 @@ impl Server {
 		Some(allowed)
 	}
 
+	/// Returns a list of CORS domains for API endpoint.
+	fn cors_domains(signer_port: Option<u16>) -> Vec<String> {
+		match signer_port {
+			Some(port) => vec![
+				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
+				format!("http://{}", signer_address(port)),
+			],
+			None => vec![],
+		}
+	}
+
 	fn start_http<A: Authorization + 'static>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
@@ -209,15 +218,17 @@ impl Server {
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_port));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port.clone()));
+		let cors_domains = Self::cors_domains(signer_port);
+
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special.insert(
 				router::SpecialEndpoint::Api,
-				api::RestApi::new(format!("{}", addr), endpoints.clone(), content_fetcher.clone())
+				api::RestApi::new(cors_domains, endpoints.clone(), content_fetcher.clone())
 			);
 			special
 		});
@@ -226,7 +237,7 @@ impl Server {
 		try!(hyper::Server::http(addr))
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
-				apps::main_page(),
+				signer_port.clone(),
 				content_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
@@ -290,6 +301,10 @@ pub fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
+fn signer_address(port: u16) -> String {
+	format!("127.0.0.1:{}", port)
+}
+
 #[cfg(test)]
 mod util_tests {
 	use super::Server;
@@ -308,5 +323,18 @@ mod util_tests {
 		assert_eq!(all, None);
 		assert_eq!(address, Some(vec!["localhost".into(), "127.0.0.1".into()]));
 		assert_eq!(some, Some(vec!["ethcore.io".into(), "localhost".into(), "127.0.0.1".into()]));
+	}
+
+	#[test]
+	fn should_return_cors_domains() {
+		// given
+
+		// when
+		let none = Server::cors_domains(None);
+		let some = Server::cors_domains(Some(18180));
+
+		// then
+		assert_eq!(none, Vec::<String>::new());
+		assert_eq!(some, vec!["http://home.parity".to_owned(), "http://127.0.0.1:18180".into()]);
 	}
 }

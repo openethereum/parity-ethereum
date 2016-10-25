@@ -14,14 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-const defaultDapps = ['gavcoin', 'basiccoin', 'tokenreg'];
+const defaultHidden = [];
 
-export function read () {
-  const stored = localStorage.getItem('visible-dapps');
-  if (stored) return JSON.parse(stored);
-  return defaultDapps;
+export function readHiddenApps () {
+  const stored = localStorage.getItem('hiddenApps');
+
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (error) {
+      console.warn('readHiddenApps', error);
+    }
+  }
+
+  return defaultHidden;
 }
 
-export function write (visible) {
-  localStorage.setItem('visible-dapps', JSON.stringify(visible));
+export function writeHiddenApps (hidden) {
+  localStorage.setItem('hiddenApps', JSON.stringify(hidden));
 }

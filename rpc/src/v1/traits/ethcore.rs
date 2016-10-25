@@ -117,5 +117,13 @@ build_rpc_trait! {
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "ethcore_hashContent")]
 		fn hash_content(&self, Ready<H256>, String);
+
+		/// Returns current Trusted Signer port or an error if signer is disabled.
+		#[rpc(name = "ethcore_signerPort")]
+		fn signer_port(&self) -> Result<u16, Error>;
+
+		/// Returns current Dapps Server port or an error if dapps server is disabled.
+		#[rpc(name = "ethcore_dappsPort")]
+		fn dapps_port(&self) -> Result<u16, Error>;
 	}
 }

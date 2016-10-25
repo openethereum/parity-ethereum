@@ -50,7 +50,7 @@ class TxHash extends Component {
     const { api } = this.context;
     const { subscriptionId } = this.state;
 
-    api.unsubscribe('eth_blockNumber', subscriptionId);
+    api.unsubscribe(subscriptionId);
   }
 
   render () {

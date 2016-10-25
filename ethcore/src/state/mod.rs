@@ -16,14 +16,18 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use common::*;
+use util::*;
+use receipt::Receipt;
 use engines::Engine;
+use env_info::EnvInfo;
+use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+use transaction::SignedTransaction;
 use state_db::StateDB;
 
 mod account;
@@ -167,24 +171,24 @@ impl AccountEntry {
 /// Upon destruction all the local cache data propagated into the global cache.
 /// Propagated items might be rejected if current state is non-canonical.
 ///
-/// State snapshotting.
+/// State checkpointing.
 ///
-/// A new snapshot can be created with `snapshot()`. Snapshots can be
+/// A new checkpoint can be created with `checkpoint()`. checkpoints can be
 /// created in a hierarchy.
-/// When a snapshot is active all changes are applied directly into
-/// `cache` and the original value is copied into an active snapshot.
-/// Reverting a snapshot with `revert_to_snapshot` involves copying
-/// original values from the latest snapshot back into `cache`. The code
+/// When a checkpoint is active all changes are applied directly into
+/// `cache` and the original value is copied into an active checkpoint.
+/// Reverting a checkpoint with `revert_to_checkpoint` involves copying
+/// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// Snapshot can be discateded with `discard_snapshot`. All of the orignal
-/// backed-up values are moved into a parent snapshot (if any).
+/// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
+/// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State {
 	db: StateDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
 	// The original account is preserved in
-	snapshots: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
+	checkpoints: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
 }
@@ -213,7 +217,7 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
 		}
@@ -229,7 +233,7 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories
 		};
@@ -237,21 +241,21 @@ impl State {
 		Ok(state)
 	}
 
-	/// Create a recoverable snaphot of this state.
-	pub fn snapshot(&mut self) {
-		self.snapshots.get_mut().push(HashMap::new());
+	/// Create a recoverable checkpoint of this state.
+	pub fn checkpoint(&mut self) {
+		self.checkpoints.get_mut().push(HashMap::new());
 	}
 
-	/// Merge last snapshot with previous.
-	pub fn discard_snapshot(&mut self) {
-		// merge with previous snapshot
-		let last = self.snapshots.get_mut().pop();
-		if let Some(mut snapshot) = last {
-			if let Some(ref mut prev) = self.snapshots.get_mut().last_mut() {
+	/// Merge last checkpoint with previous.
+	pub fn discard_checkpoint(&mut self) {
+		// merge with previous checkpoint
+		let last = self.checkpoints.get_mut().pop();
+		if let Some(mut checkpoint) = last {
+			if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
 				if prev.is_empty() {
-					**prev = snapshot;
+					**prev = checkpoint;
 				} else {
-					for (k, v) in snapshot.drain() {
+					for (k, v) in checkpoint.drain() {
 						prev.entry(k).or_insert(v);
 					}
 				}
@@ -259,15 +263,15 @@ impl State {
 		}
 	}
 
-	/// Revert to the last snapshot and discard it.
-	pub fn revert_to_snapshot(&mut self) {
-		if let Some(mut snapshot) = self.snapshots.get_mut().pop() {
-			for (k, v) in snapshot.drain() {
+	/// Revert to the last checkpoint and discard it.
+	pub fn revert_to_checkpoint(&mut self) {
+		if let Some(mut checkpoint) = self.checkpoints.get_mut().pop() {
+			for (k, v) in checkpoint.drain() {
 				match v {
 					Some(v) => {
 						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(mut e) => {
-								// Merge snapshotted changes back into the main account
+								// Merge checkpointed changes back into the main account
 								// storage preserving the cache.
 								e.get_mut().overwrite_with(v);
 							},
@@ -293,14 +297,14 @@ impl State {
 
 	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		// Dirty account which is not in the cache means this is a new account.
-		// It goes directly into the snapshot as there's nothing to rever to.
+		// It goes directly into the checkpoint as there's nothing to rever to.
 		//
 		// In all other cases account is read as clean first, and after that made
-		// dirty in and added to the snapshot with `note_cache`.
+		// dirty in and added to the checkpoint with `note_cache`.
 		if account.is_dirty() {
-			if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-				if !snapshot.contains_key(address) {
-					snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
+			if let Some(ref mut checkpoint) = self.checkpoints.borrow_mut().last_mut() {
+				if !checkpoint.contains_key(address) {
+					checkpoint.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
 					return;
 				}
 			}
@@ -309,9 +313,9 @@ impl State {
 	}
 
 	fn note_cache(&self, address: &Address) {
-		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(address) {
-				snapshot.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_dirty));
+		if let Some(ref mut checkpoint) = self.checkpoints.borrow_mut().last_mut() {
+			if !checkpoint.contains_key(address) {
+				checkpoint.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_dirty));
 			}
 		}
 	}
@@ -548,7 +552,7 @@ impl State {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		Self::commit_into(&self.factories, &mut self.db, &mut self.root, &mut *self.cache.borrow_mut())
 	}
 
@@ -561,7 +565,7 @@ impl State {
 	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
 			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(Some(Account::from_pod(acc))));
 		}
@@ -569,7 +573,7 @@ impl State {
 
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
@@ -739,7 +743,7 @@ impl Clone for State {
 			db: self.db.boxed_clone(),
 			root: self.root.clone(),
 			cache: RefCell::new(cache),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
 		}
@@ -756,7 +760,7 @@ use super::*;
 use util::{U256, H256, FixedHash, Address, Hashable};
 use tests::helpers::*;
 use devtools::*;
-use env_info::*;
+use env_info::EnvInfo;
 use spec::*;
 use transaction::*;
 use util::log::init_log;
@@ -1777,34 +1781,34 @@ fn ensure_cached() {
 }
 
 #[test]
-fn snapshot_basic() {
+fn checkpoint_basic() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	state.snapshot();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.discard_snapshot();
+	state.discard_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.snapshot();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(1u64));
 	assert_eq!(state.balance(&a), U256::from(70u64));
-	state.revert_to_snapshot();
+	state.revert_to_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 }
 
 #[test]
-fn snapshot_nested() {
+fn checkpoint_nested() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	state.snapshot();
-	state.snapshot();
+	state.checkpoint();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.discard_snapshot();
+	state.discard_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.revert_to_snapshot();
+	state.revert_to_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(0));
 }
 

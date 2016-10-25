@@ -58,7 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
-	let signer_port = deps.apis.signer_port.clone();
+	let signer_port = deps.apis.signer_service.port();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 

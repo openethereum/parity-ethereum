@@ -587,10 +587,17 @@ pub fn enact_verified(
 mod tests {
 	use tests::helpers::*;
 	use super::*;
-	use common::*;
 	use engines::Engine;
+	use env_info::LastHashes;
+	use error::Error;
+	use header::Header;
 	use factory::Factories;
 	use state_db::StateDB;
+	use views::BlockView;
+	use util::Address;
+	use util::hash::FixedHash;
+
+	use std::sync::Arc;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
 	#[cfg_attr(feature="dev", allow(too_many_arguments))]

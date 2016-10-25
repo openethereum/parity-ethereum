@@ -34,18 +34,16 @@ pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
 	miner: Weak<M>,
-	signer_port: Option<u16>,
 	allow_perm_unlock: bool,
 }
 
 impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, signer_port: Option<u16>, allow_perm_unlock: bool) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
-			signer_port: signer_port,
 			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
@@ -58,15 +56,6 @@ impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService
 }
 
 impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-
-	fn signer_enabled(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		try!(expect_no_params(params));
-
-		Ok(self.signer_port
-			.map(|v| to_value(&v))
-			.unwrap_or_else(|| to_value(&false)))
-	}
 
 	fn accounts(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
@@ -119,7 +108,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 	fn unlock_account(&self, params: Params) -> Result<Value, Error> {
 		try!(self.active());
 		from_params::<(RpcH160, String, Option<u64>)>(params).and_then(
-			|(account, account_pass, duration)|{
+			|(account, account_pass, duration)| {
 				let account: Address = account.into();
 				let store = take_weak!(self.accounts);
 				let r = match (self.allow_perm_unlock, duration) {
@@ -132,7 +121,34 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 					Ok(_) => Ok(Value::Bool(true)),
 					Err(_) => Ok(Value::Bool(false)),
 				}
-			})
+			}
+		)
+	}
+
+	fn test_password(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, String)>(params).and_then(
+			|(account, password)| {
+				let account: Address = account.into();
+				take_weak!(self.accounts)
+					.test_password(&account, password)
+					.map(|b| Value::Bool(b))
+					.map_err(|e| errors::account("Could not fetch account info.", e))
+			}
+		)
+	}
+
+	fn change_password(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH160, String, String)>(params).and_then(
+			|(account, password, new_password)| {
+				let account: Address = account.into();
+				take_weak!(self.accounts)
+					.change_password(&account, password, new_password)
+					.map(|_| Value::Null)
+					.map_err(|e| errors::account("Could not fetch account info.", e))
+			}
+		)
 	}
 
 	fn sign_and_send_transaction(&self, params: Params) -> Result<Value, Error> {

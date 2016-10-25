@@ -29,11 +29,13 @@ use self::memory::Memory;
 pub use self::shared_cache::SharedCache;
 
 use std::marker::PhantomData;
-use common::*;
+use action_params::{ActionParams, ActionValue};
 use types::executed::CallType;
-use super::instructions::{self, Instruction, InstructionInfo};
+use evm::instructions::{self, Instruction, InstructionInfo};
 use evm::{self, MessageCallResult, ContractCreateResult, GasLeft, CostType};
 use bit_set::BitSet;
+
+use util::*;
 
 type CodePosition = usize;
 type ProgramCounter = usize;

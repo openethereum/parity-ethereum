@@ -45,7 +45,7 @@
 //!
 //! fn main () {
 //! 	let mut service = NetworkService::new(NetworkConfiguration::new_local()).expect("Error creating network service");
-//! 	service.register_protocol(Arc::new(MyHandler), *b"myp", &[1u8]);
+//! 	service.register_protocol(Arc::new(MyHandler), *b"myp", 1, &[1u8]);
 //! 	service.start().expect("Error starting service");
 //!
 //! 	// Wait for quit condition
@@ -91,13 +91,9 @@ mod ip_utils;
 #[cfg(test)]
 mod tests;
 
-pub use host::PeerId;
-pub use host::PacketId;
-pub use host::NetworkContext;
+pub use host::{PeerId, PacketId, ProtocolId, NetworkContext, NetworkIoMessage, NetworkConfiguration};
 pub use service::NetworkService;
-pub use host::NetworkIoMessage;
 pub use error::NetworkError;
-pub use host::NetworkConfiguration;
 pub use stats::NetworkStats;
 pub use session::SessionInfo;
 
@@ -141,3 +137,15 @@ impl NonReservedPeerMode {
 		}
 	}
 }
+
+/// IP fiter
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
+pub enum AllowIP {
+	/// Connect to any address
+	All,
+	/// Connect to private network only
+	Private,
+	/// Connect to public network only
+	Public,
+}
+

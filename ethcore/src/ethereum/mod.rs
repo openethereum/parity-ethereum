@@ -65,10 +65,11 @@ pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.jso
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;
+	use views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {

@@ -21,6 +21,7 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use sync_io::SyncIo;
+use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
 use ::SyncConfig;
 
@@ -90,7 +91,11 @@ impl<'p> SyncIo for TestIo<'p> {
 	}
 
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		64
+		63
+	}
+
+	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
+		if protocol == &WARP_SYNC_PROTOCOL_ID { 1 } else { self.eth_protocol_version(peer_id) }
 	}
 
 	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {

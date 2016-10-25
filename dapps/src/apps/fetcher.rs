@@ -46,6 +46,7 @@ pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
+	embeddable_at: Option<u16>,
 }
 
 impl<R: URLHint> Drop for ContentFetcher<R> {
@@ -57,7 +58,7 @@ impl<R: URLHint> Drop for ContentFetcher<R> {
 
 impl<R: URLHint> ContentFetcher<R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_at: Option<u16>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
@@ -66,7 +67,17 @@ impl<R: URLHint> ContentFetcher<R> {
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
+			embeddable_at: embeddable_at,
 		}
+	}
+
+	fn still_syncing() -> Box<Handler> {
+		Box::new(ContentHandler::error(
+			StatusCode::ServiceUnavailable,
+			"Sync In Progress",
+			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
+			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
+		))
 	}
 
 	#[cfg(test)]
@@ -84,12 +95,10 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 		// fallback to resolver
 		if let Ok(content_id) = content_id.from_hex() {
-			// if app_id is valid, but we are syncing always return true.
-			if self.sync.is_major_importing() {
-				return true;
-			}
 			// else try to resolve the app_id
-			self.resolver.resolve(content_id).is_some()
+			let has_content = self.resolver.resolve(content_id).is_some();
+			// if there is content or we are syncing return true
+			has_content || self.sync.is_major_importing()
 		} else {
 			false
 		}
@@ -99,28 +108,19 @@ impl<R: URLHint> ContentFetcher<R> {
 		let mut cache = self.cache.lock();
 		let content_id = path.app_id.clone();
 
-		if self.sync.is_major_importing() {
-			return Box::new(ContentHandler::error(
-				StatusCode::ServiceUnavailable,
-				"Sync In Progress",
-				"Your node is still syncing. We cannot resolve any content before it's fully synced.",
-				Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
-			));
-		}
-
 		let (new_status, handler) = {
 			let status = cache.get(&content_id);
 			match status {
-				// Just server dapp
+				// Just serve the content
 				Some(&mut ContentStatus::Ready(ref endpoint)) => {
 					(None, endpoint.to_async_handler(path, control))
 				},
-				// App is already being fetched
+				// Content is already being fetched
 				Some(&mut ContentStatus::Fetching(ref fetch_control)) => {
 					trace!(target: "dapps", "Content fetching in progress. Waiting...");
 					(None, fetch_control.to_handler(control))
 				},
-				// We need to start fetching app
+				// We need to start fetching the content
 				None => {
 					trace!(target: "dapps", "Content unavailable. Fetching... {:?}", content_id);
 					let content_hex = content_id.from_hex().expect("to_handler is called only when `contains` returns true.");
@@ -141,6 +141,10 @@ impl<R: URLHint> ContentFetcher<R> {
 					};
 
 					match content {
+						// Don't serve dapps if we are still syncing (but serve content)
+						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
+							(None, Self::still_syncing())
+						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								dapp.url(),
@@ -150,6 +154,7 @@ impl<R: URLHint> ContentFetcher<R> {
 									id: content_id.clone(),
 									dapps_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
+									embeddable_at: self.embeddable_at,
 								}
 							);
 
@@ -169,6 +174,9 @@ impl<R: URLHint> ContentFetcher<R> {
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
+						},
+						None if self.sync.is_major_importing() => {
+							(None, Self::still_syncing())
 						},
 						None => {
 							// This may happen when sync status changes in between
@@ -271,6 +279,7 @@ struct DappInstaller {
 	id: String,
 	dapps_path: PathBuf,
 	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
+	embeddable_at: Option<u16>,
 }
 
 impl DappInstaller {
@@ -363,7 +372,7 @@ impl ContentValidator for DappInstaller {
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
 		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into());
+		let app = LocalPageEndpoint::new(target, manifest.clone().into(), self.embeddable_at);
 
 		// Return modified app manifest
 		Ok((manifest.id.clone(), app))
@@ -396,14 +405,14 @@ mod tests {
 	fn should_true_if_contains_the_app() {
 		// given
 		let path = env::temp_dir();
-		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false));
+		let fetcher = ContentFetcher::new(FakeResolver, Arc::new(|| false), None);
 		let handler = LocalPageEndpoint::new(path, EndpointInfo {
 			name: "fake".into(),
 			description: "".into(),
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
-		});
+		}, None);
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));

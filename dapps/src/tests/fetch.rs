@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve_with_registrar, request, assert_security_headers};
+use tests::helpers::{serve_with_registrar, serve_with_registrar_and_sync, request, assert_security_headers};
 
 #[test]
 fn should_resolve_dapp() {
@@ -37,3 +37,31 @@ fn should_resolve_dapp() {
 	assert_security_headers(&response.headers);
 }
 
+#[test]
+fn should_return_503_when_syncing_but_should_make_the_calls() {
+	// given
+	let (server, registrar) = serve_with_registrar_and_sync();
+	{
+		let mut responses = registrar.responses.lock();
+		let res1 = responses.get(0).unwrap().clone();
+		let res2 = responses.get(1).unwrap().clone();
+		// Registrar will be called twice - fill up the responses.
+		responses.push(res1);
+		responses.push(res2);
+	}
+
+	// when
+	let response = request(server,
+		"\
+			GET / HTTP/1.1\r\n\
+			Host: 1472a9e190620cdf6b31f383373e45efcfe869a820c91f9ccd7eb9fb45e4985d.parity\r\n\
+			Connection: close\r\n\
+			\r\n\
+		"
+	);
+
+	// then
+	assert_eq!(response.status, "HTTP/1.1 503 Service Unavailable".to_owned());
+	assert_eq!(registrar.calls.lock().len(), 4);
+	assert_security_headers(&response.headers);
+}

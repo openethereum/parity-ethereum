@@ -45,6 +45,14 @@ pub struct Informant {
 	skipped: AtomicUsize,
 }
 
+/// Format byte counts to standard denominations.
+pub fn format_bytes(b: usize) -> String {
+	match binary_prefix(b as f64) {
+		Standalone(bytes)   => format!("{} bytes", bytes),
+		Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
+	}
+}
+
 /// Something that can be converted to milliseconds.
 pub trait MillisecondDuration {
 	/// Get the value in milliseconds.
@@ -72,13 +80,6 @@ impl Informant {
 			net: net,
 			last_import: Mutex::new(Instant::now()),
 			skipped: AtomicUsize::new(0),
-		}
-	}
-
-	fn format_bytes(b: usize) -> String {
-		match binary_prefix(b as f64) {
-			Standalone(bytes)   => format!("{} bytes", bytes),
-			Prefixed(prefix, n) => format!("{:.0} {}B", n, prefix),
 		}
 	}
 
@@ -156,11 +157,11 @@ impl Informant {
 				_ => String::new(),
 			},
 			format!("{} db {} chain {} queue{}",
-				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(report.state_db_mem))),
-				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(cache_info.total()))),
-				paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(queue_info.mem_used))),
+				paint(Blue.bold(), format!("{:>8}", format_bytes(report.state_db_mem))),
+				paint(Blue.bold(), format!("{:>8}", format_bytes(cache_info.total()))),
+				paint(Blue.bold(), format!("{:>8}", format_bytes(queue_info.mem_used))),
 				match sync_status {
-					Some(ref sync_info) => format!(" {} sync", paint(Blue.bold(), format!("{:>8}", Informant::format_bytes(sync_info.mem_used)))),
+					Some(ref sync_info) => format!(" {} sync", paint(Blue.bold(), format!("{:>8}", format_bytes(sync_info.mem_used)))),
 					_ => String::new(),
 				}
 			)
