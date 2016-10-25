@@ -87,7 +87,7 @@ class Contract extends Component {
     const { api } = this.context;
     const { subscriptionId, blockSubscriptionId, contract } = this.state;
 
-    api.unsubscribe('eth_blockNumber', blockSubscriptionId);
+    api.unsubscribe(blockSubscriptionId);
     contract.unsubscribe(subscriptionId);
   }
 

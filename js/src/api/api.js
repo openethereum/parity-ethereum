@@ -90,8 +90,8 @@ export default class Api {
     return this._subscriptions.subscribe(subscriptionName, callback);
   }
 
-  unsubscribe (subscriptionName, subscriptionId) {
-    return this._subscriptions.unsubscribe(subscriptionName, subscriptionId);
+  unsubscribe (subscriptionId) {
+    return this._subscriptions.unsubscribe(subscriptionId);
   }
 
   pollMethod (method, input, validate) {
