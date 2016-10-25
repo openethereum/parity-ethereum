@@ -48,7 +48,8 @@ export default class PasswordManager extends Component {
     currentPass: '',
     newPass: '',
     repeatNewPass: '',
-    repeatValid: true
+    repeatValid: true,
+    passwordHint: this.props.account.meta && this.props.account.meta.passwordHint || ''
   }
 
   render () {
@@ -56,7 +57,6 @@ export default class PasswordManager extends Component {
       <Modal
         actions={ this.renderDialogActions() }
         title='Password Manager'
-        wa
         visible>
         { this.renderAccount() }
         { this.renderPage() }
@@ -126,6 +126,7 @@ export default class PasswordManager extends Component {
   }
 
   renderPage () {
+    const { account } = this.props;
     const { waiting, repeatValid } = this.state;
     const disabled = !!waiting;
 
@@ -133,13 +134,25 @@ export default class PasswordManager extends Component {
       ? null
       : 'the two passwords differ';
 
+    const { meta } = account;
+    const passwordHint = meta && meta.passwordHint || '';
+
     return (
-      <Tabs>
+      <Tabs
+        inkBarStyle={ {
+          backgroundColor: 'rgba(255, 255, 255, 0.55)'
+        } }
+        tabItemContainerStyle={ {
+          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+        } }
+      >
         <Tab
           onActive={ this.handleTestActive }
           label='Test Password'
         >
-          <Form>
+          <Form
+            className={ styles.form }
+          >
             <div>
               <Input
                 label='password'
@@ -156,7 +169,9 @@ export default class PasswordManager extends Component {
           onActive={ this.handleChangeActive }
           label='Change Password'
         >
-          <Form>
+          <Form
+            className={ styles.form }
+          >
             <div>
               <Input
                 label='current password'
@@ -166,6 +181,7 @@ export default class PasswordManager extends Component {
                 disabled={ disabled }
                 onSubmit={ this.handleChangePassword }
                 onChange={ this.onEditCurrent } />
+
               <Input
                 label='new password'
                 hint='the new password for this account'
@@ -183,6 +199,15 @@ export default class PasswordManager extends Component {
                 disabled={ disabled }
                 onSubmit={ this.handleChangePassword }
                 onChange={ this.onEditRepeatNew } />
+
+              <Input
+                label='new password hint'
+                hint='hint for the new password'
+                submitOnBlur={ false }
+                value={ passwordHint }
+                disabled={ disabled }
+                onSubmit={ this.handleChangePassword }
+                onChange={ this.onEditHint } />
             </div>
           </Form>
         </Tab>
@@ -260,6 +285,13 @@ export default class PasswordManager extends Component {
     });
   }
 
+  onEditHint = (event, value) => {
+    this.setState({
+      passwordHint: value,
+      showMessage: false
+    });
+  }
+
   handleTestActive = () => {
     this.setState({
       action: TEST_ACTION,
@@ -298,7 +330,7 @@ export default class PasswordManager extends Component {
 
   handleChangePassword = () => {
     const { account } = this.props;
-    const { currentPass, newPass, repeatNewPass } = this.state;
+    const { currentPass, newPass, repeatNewPass, passwordHint } = this.state;
 
     if (repeatNewPass !== newPass) {
       return;
@@ -321,9 +353,19 @@ export default class PasswordManager extends Component {
           return false;
         }
 
-        return this.context
-          .api.personal
-          .changePassword(account.address, currentPass, newPass)
+        const meta = Object.assign({}, account.meta, {
+          passwordHint
+        });
+
+        return Promise.all([
+          this.context
+            .api.personal
+            .setAccountMeta(account.address, meta),
+
+          this.context
+            .api.personal
+            .changePassword(account.address, currentPass, newPass)
+        ])
           .then(() => {
             const message = {
               value: 'Your password has been successfully changed',

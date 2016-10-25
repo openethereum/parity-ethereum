@@ -83,11 +83,6 @@ class Account extends Component {
   renderActionbar () {
     const buttons = [
       <Button
-        key='passwordManager'
-        icon={ <LockIcon /> }
-        label='password'
-        onClick={ this.onPasswordClick } />,
-      <Button
         key='transferFunds'
         icon={ <ContentSend /> }
         label='transfer'
@@ -101,7 +96,12 @@ class Account extends Component {
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
-        onClick={ this.onEditClick } />
+        onClick={ this.onEditClick } />,
+      <Button
+        key='passwordManager'
+        icon={ <LockIcon /> }
+        label='password'
+        onClick={ this.onPasswordClick } />
     ];
 
     return (

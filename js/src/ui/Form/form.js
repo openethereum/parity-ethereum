@@ -20,15 +20,23 @@ import styles from './form.css';
 
 export default class Form extends Component {
   static propTypes = {
-    children: PropTypes.node
+    children: PropTypes.node,
+    className: PropTypes.string
   }
 
   render () {
+    const { className } = this.props;
+    const classes = [ styles.form ];
+
+    if (className) {
+      classes.push(className);
+    }
+
     // HACK: hidden inputs to disable Chrome's autocomplete
     return (
       <form
         autoComplete='new-password'
-        className={ styles.form }>
+        className={ classes.join(' ') }>
         <div className={ styles.autofill }>
           <input type='text' name='fakeusernameremembered' />
           <input type='password' name='fakepasswordremembered' />
