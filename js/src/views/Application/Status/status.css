@@ -63,3 +63,7 @@
 
 .version {
 }
+
+.accountName, .txHash {
+  font-family: monospace;
+}

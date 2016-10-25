@@ -29,6 +29,20 @@ export default class Personal {
   start () {
     this._subscribeAccountsInfo();
 
+    // window.setInterval(() => {
+    //   const s = 'abcdefgABCDEFG0123456789';
+    //   const h = Array(40).join().split(',').map(() => s.charAt(Math.floor(Math.random() * s.length))).join('');
+    //   const tx = {
+    //     from: '0x639ba260535Db072A41115c472830846E4e9AD0F',
+    //     hash: '0x' + h,
+    //     to: '0xEa534800E457da57Af9C5666e735426E580C1B48'
+    //   };
+
+    //   const transactions = [ tx ];
+
+    //   this._store.dispatch(statusNewTransactions(transactions));
+    // }, 10000);
+
     this._api
       .subscribe('eth_blockNumber', () => {
         const addresses = this._addresses;
