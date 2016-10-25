@@ -383,7 +383,10 @@ impl JournalDB for EarlyMergeDB {
 		let trace = false;
 
 		// record new commit's details.
-		let mut refs = self.refs.as_ref().unwrap().write();
+		let mut refs = match self.refs.as_ref() {
+			Some(refs) => refs.write(),
+			None => return Ok(0),
+		};
 
 		{
 			let mut index = 0usize;

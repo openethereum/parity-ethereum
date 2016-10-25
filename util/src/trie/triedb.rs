@@ -296,7 +296,7 @@ impl<'a> TrieDBIterator<'a> {
 			status: Status::Entering,
 			node: try!(self.db.get_node(d, &mut NoOp, 0)),
 		});
-		match self.trail.last().unwrap().node {
+		match self.trail.last().expect("just pushed item; qed").node {
 			Node::Leaf(n, _) | Node::Extension(n, _) => { self.key_nibbles.extend(n.iter()); },
 			_ => {}
 		}
@@ -346,7 +346,8 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 				(Status::AtChild(i), Node::Branch(children, _)) if children[i].len() > 0 => {
 					match i {
 						0 => self.key_nibbles.push(0),
-						i => *self.key_nibbles.last_mut().unwrap() = i as u8,
+						i => *self.key_nibbles.last_mut()
+							.expect("pushed as 0; moves sequentially; removed afterwards; qed") = i as u8,
 					}
 					if let Err(e) = self.descend(children[i]) {
 						return Some(Err(e));

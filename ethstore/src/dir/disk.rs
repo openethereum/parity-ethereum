@@ -28,7 +28,9 @@ const IGNORED_FILES: &'static [&'static str] = &["thumbs.db", "address_book.json
 fn restrict_permissions_to_owner(file_path: &Path) -> Result<(), i32>  {
 	use std::ffi;
 	use libc;
-	let cstr = ffi::CString::new(file_path.to_str().unwrap()).unwrap();
+
+	let cstr = try!(ffi::CString::new(&*file_path.to_string_lossy())
+		.map_err(|_| -1));
 	match unsafe { libc::chmod(cstr.as_ptr(), libc::S_IWUSR | libc::S_IRUSR) } {
 		0 => Ok(()),
 		x => Err(x),
@@ -63,15 +65,15 @@ impl DiskDirectory {
 		let paths = try!(fs::read_dir(&self.path))
 			.flat_map(Result::ok)
 			.filter(|entry| {
-				let metadata = entry.metadata();
+				let metadata = entry.metadata().ok();
 				let file_name = entry.file_name();
-				let name = file_name.to_str().unwrap();
+				let name = file_name.to_string_lossy();
 				// filter directories
-				metadata.is_ok() && !metadata.unwrap().is_dir() &&
+				metadata.map_or(false, |m| !m.is_dir()) &&
 				// hidden files
 				!name.starts_with(".") &&
 				// other ignored files
-				!IGNORED_FILES.contains(&name)
+				!IGNORED_FILES.contains(&&*name)
 			})
 			.map(|entry| entry.path())
 			.collect::<Vec<PathBuf>>();
