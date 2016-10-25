@@ -110,6 +110,10 @@ export default class Events extends Component {
 
   logToEvent = (log) => {
     log.key = api.util.sha3(JSON.stringify(log));
+    log.params = Object.keys(log.params).reduce((params, name) => {
+      params[name] = log.params[name].value;
+      return params;
+    }, {});
 
     return log;
   }
