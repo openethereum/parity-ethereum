@@ -17,7 +17,7 @@
 //! Test implementation of SyncProvider.
 
 use util::{RwLock, U256};
-use ethsync::{SyncProvider, SyncStatus, SyncState};
+use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -51,14 +51,47 @@ impl TestSyncProvider {
 				mem_used: 0,
 				num_snapshot_chunks: 0,
 				snapshot_chunks_done: 0,
+				last_imported_old_block_number: None,
 			}),
 		}
+	}
+
+	/// Simulate importing blocks.
+	pub fn increase_imported_block_number(&self, count: u64) {
+		let mut status =  self.status.write();
+		let current_number = status.last_imported_block_number.unwrap_or(0);
+		status.last_imported_block_number = Some(current_number + count);
 	}
 }
 
 impl SyncProvider for TestSyncProvider {
 	fn status(&self) -> SyncStatus {
 		self.status.read().clone()
+	}
+
+	fn peers(&self) -> Vec<PeerInfo> {
+		vec![
+			PeerInfo {
+				id: Some("node1".to_owned()),
+    			client_version: "Parity/1".to_owned(),
+				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()], 
+    			remote_address: "127.0.0.1:7777".to_owned(),
+				local_address: "127.0.0.1:8888".to_owned(),
+				eth_version: 62,
+				eth_difficulty: Some(40.into()),
+				eth_head: 50.into()
+			},
+			PeerInfo {
+				id: None,
+    			client_version: "Parity/2".to_owned(),
+				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()], 
+    			remote_address: "Handshake".to_owned(),
+				local_address: "127.0.0.1:3333".to_owned(),
+				eth_version: 64,
+				eth_difficulty: None,
+				eth_head: 60.into()
+			}
+		]
 	}
 }
 

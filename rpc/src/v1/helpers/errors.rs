@@ -21,7 +21,7 @@ macro_rules! rpc_unimplemented {
 }
 
 use std::fmt;
-use ethcore::error::Error as EthcoreError;
+use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
@@ -34,14 +34,17 @@ mod codes {
 	pub const NO_NEW_WORK: i64 = -32003;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
+	pub const EXECUTION_ERROR: i64 = -32015;
 	pub const ACCOUNT_LOCKED: i64 = -32020;
 	pub const PASSWORD_INVALID: i64 = -32021;
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
+	pub const DAPPS_DISABLED: i64 = -32031;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
 	pub const COMPILATION_ERROR: i64 = -32050;
+	pub const ENCRYPTION_ERROR: i64 = -32055;
 	pub const FETCH_ERROR: i64 = -32060;
 }
 
@@ -109,6 +112,14 @@ pub fn invalid_params<T: fmt::Debug>(param: &str, details: T) -> Error {
 	}
 }
 
+pub fn execution<T: fmt::Debug>(data: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::EXECUTION_ERROR),
+		message: "Transaction execution error.".into(),
+		data: Some(Value::String(format!("{:?}", data))),
+	}
+}
+
 pub fn state_pruned() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
@@ -154,6 +165,22 @@ pub fn signer_disabled() -> Error {
 		code: ErrorCode::ServerError(codes::SIGNER_DISABLED),
 		message: "Trusted Signer is disabled. This API is not available.".into(),
 		data: None
+	}
+}
+
+pub fn dapps_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::DAPPS_DISABLED),
+		message: "Dapps Server is disabled. This API is not available.".into(),
+		data: None
+	}
+}
+
+pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
+		message: "Encryption error.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
 
@@ -219,4 +246,10 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 	}
 }
 
-
+pub fn from_call_error(error: CallError) -> Error {
+	match error {
+		CallError::StatePruned => state_pruned(),
+		CallError::Execution(e) => execution(e),
+		CallError::TransactionNotFound => internal("{}, this should not be the case with eth_call, most likely a bug.", CallError::TransactionNotFound),
+	}
+}

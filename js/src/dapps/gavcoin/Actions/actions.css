@@ -1,0 +1,72 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.actions {
+  text-align: center;
+  padding: 2em 2em 0 2em;
+  width: 100%;
+}
+
+.button {
+  margin: 0 0.5em;
+}
+
+.button button {
+  background-color: rgba(50, 100, 150, 1) !important;
+  height: 56px !important;
+  padding: 0 10px !important;
+}
+
+.button button[disabled] {
+  background-color: rgba(50, 50, 50, 0.25) !important;
+}
+
+.dialog {
+}
+
+.dialog h3 {
+  color: rgba(50, 100, 150, 1) !important;
+  text-transform: uppercase;
+}
+
+.dialogtext {
+  padding-top: 1em;
+}
+
+.link, .link:hover, .link:visited {
+  color: rgb(0, 188, 212);
+  text-decoration: none;
+}
+
+.overlay {
+  position: relative;
+}
+
+.overlay svg {
+  opacity: 0;
+}
+
+.toggle {
+  text-align: right;
+}
+
+.overlaytoggle {
+  position: absolute !important;
+  top: 40px;
+  right: 0;
+  display: inline-block !important;
+  width: auto !important;
+}

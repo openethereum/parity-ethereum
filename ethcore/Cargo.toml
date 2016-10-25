@@ -25,9 +25,9 @@ semver = "0.2"
 bit-set = "0.4"
 time = "0.1"
 rand = "0.3"
-lru-cache = "0.0.7"
 byteorder = "0.5"
 transient-hashmap = "0.1"
+lru-cache = { git = "https://github.com/contain-rs/lru-cache" }
 evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.90", optional = true}
 ethash = { path = "../ethash" }

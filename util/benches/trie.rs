@@ -21,7 +21,7 @@ extern crate ethcore_util;
 #[macro_use]
 extern crate log;
 
-use test::Bencher;
+use test::{Bencher, black_box};
 use ethcore_util::hash::*;
 use ethcore_util::bytes::*;
 use ethcore_util::trie::*;
@@ -77,6 +77,32 @@ fn trie_insertions_32_mir_1k(b: &mut Bencher) {
 		hash_count = t.hash_count;
 	});
 //	println!("hash_count: {}", hash_count);
+}
+#[bench]
+fn trie_iter(b: &mut Bencher) {
+	let st = StandardMap {
+		alphabet: Alphabet::All,
+		min_key: 32,
+		journal_key: 0,
+		value_mode: ValueMode::Mirror,
+		count: 1000,
+	};
+	let d = st.make();
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for i in d.iter() {
+			t.insert(&i.0, &i.1).unwrap();
+		}
+	}
+
+	b.iter(&mut ||{
+		let t = TrieDB::new(&memdb, &root).unwrap();
+		for n in t.iter().unwrap() {
+			black_box(n).unwrap();
+		}
+	});
 }
 
 #[bench]

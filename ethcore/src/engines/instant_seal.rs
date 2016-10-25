@@ -18,11 +18,11 @@ use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
 use engines::Engine;
+use env_info::EnvInfo;
 use spec::CommonParams;
 use evm::Schedule;
-use env_info::EnvInfo;
 use block::ExecutedBlock;
-use common::Bytes;
+use util::Bytes;
 use account_provider::AccountProvider;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
@@ -67,10 +67,11 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use header::Header;
 	use block::*;
 
 	#[test]

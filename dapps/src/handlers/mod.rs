@@ -30,7 +30,26 @@ pub use self::fetch::{ContentFetcherHandler, ContentValidator, FetchControl};
 
 use url::Url;
 use hyper::{server, header, net, uri};
+use signer_address;
 
+/// Adds security-related headers to the Response.
+pub fn add_security_headers(headers: &mut header::Headers, embeddable_at: Option<u16>) {
+	headers.set_raw("X-XSS-Protection", vec![b"1; mode=block".to_vec()]);
+	headers.set_raw("X-Content-Type-Options", vec![b"nosniff".to_vec()]);
+
+	// Embedding header:
+	if let Some(port) = embeddable_at {
+		headers.set_raw(
+			"X-Frame-Options",
+			vec![format!("ALLOW-FROM http://{}", signer_address(port)).into_bytes()]
+			);
+	} else {
+		// TODO [ToDr] Should we be more strict here (DENY?)?
+		headers.set_raw("X-Frame-Options",  vec![b"SAMEORIGIN".to_vec()]);
+	}
+}
+
+/// Extracts URL part from the Request.
 pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
 	match *req.uri() {
 		uri::RequestUri::AbsoluteUri(ref url) => {

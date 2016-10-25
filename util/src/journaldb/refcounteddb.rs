@@ -34,6 +34,17 @@ use std::env;
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
+///
+/// journal format:
+/// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
+/// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
+/// [era, n] => [ ... ]
+///
+/// when we make a new commit, we journal the inserts and removes.
+/// for each end_era that we journaled that we are no passing by,
+/// we remove all of its removes assuming it is canonical and all
+/// of its inserts otherwise.
+// TODO: store last_era, reclaim_period.
 pub struct RefCountedDB {
 	forward: OverlayDB,
 	backing: Arc<Database>,
@@ -109,77 +120,66 @@ impl JournalDB for RefCountedDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
-	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format:
-		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
-		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
-		// [era, n] => [ ... ]
-
-		// TODO: store last_era, reclaim_period.
-
-		// when we make a new commit, we journal the inserts and removes.
-		// for each end_era that we journaled that we are no passing by,
-		// we remove all of its removes assuming it is canonical and all
-		// of its inserts otherwise.
-
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		// record new commit's details.
-		{
-			let mut index = 0usize;
-			let mut last;
+		let mut index = 0usize;
+		let mut last;
 
-			while try!(self.backing.get(self.column, {
+		while try!(self.backing.get(self.column, {
+			let mut r = RlpStream::new_list(3);
+			r.append(&now);
+			r.append(&index);
+			r.append(&&PADDING[..]);
+			last = r.drain();
+			&last
+		})).is_some() {
+			index += 1;
+		}
+
+		let mut r = RlpStream::new_list(3);
+		r.append(id);
+		r.append(&self.inserts);
+		r.append(&self.removes);
+		batch.put(self.column, &last, r.as_raw());
+
+		let ops = self.inserts.len() + self.removes.len();
+
+		trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
+
+		self.inserts.clear();
+		self.removes.clear();
+
+		if self.latest_era.map_or(true, |e| now > e) {
+			batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
+			self.latest_era = Some(now);
+		}
+
+		Ok(ops as u32)
+	}
+
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+		// apply old commits' details
+		let mut index = 0usize;
+		let mut last;
+		while let Some(rlp_data) = {
+			try!(self.backing.get(self.column, {
 				let mut r = RlpStream::new_list(3);
-				r.append(&now);
+				r.append(&end_era);
 				r.append(&index);
 				r.append(&&PADDING[..]);
 				last = r.drain();
 				&last
-			})).is_some() {
-				index += 1;
+			}))
+		} {
+			let rlp = Rlp::new(&rlp_data);
+			let our_id: H256 = rlp.val_at(0);
+			let to_remove: Vec<H256> = rlp.val_at(if *canon_id == our_id {2} else {1});
+			trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
+			for i in &to_remove {
+				self.forward.remove(i);
 			}
-
-			let mut r = RlpStream::new_list(3);
-			r.append(id);
-			r.append(&self.inserts);
-			r.append(&self.removes);
-			batch.put(self.column, &last, r.as_raw());
-
-			trace!(target: "rcdb", "new journal for time #{}.{} => {}: inserts={:?}, removes={:?}", now, index, id, self.inserts, self.removes);
-
-			self.inserts.clear();
-			self.removes.clear();
-
-			if self.latest_era.map_or(true, |e| now > e) {
-				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
-				self.latest_era = Some(now);
-			}
-		}
-
-		// apply old commits' details
-		if let Some((end_era, canon_id)) = end {
-			let mut index = 0usize;
-			let mut last;
-			while let Some(rlp_data) = {
-//				trace!(target: "rcdb", "checking for journal #{}.{}", end_era, index);
-				try!(self.backing.get(self.column, {
-					let mut r = RlpStream::new_list(3);
-					r.append(&end_era);
-					r.append(&index);
-					r.append(&&PADDING[..]);
-					last = r.drain();
-					&last
-				}))
-			} {
-				let rlp = Rlp::new(&rlp_data);
-				let our_id: H256 = rlp.val_at(0);
-				let to_remove: Vec<H256> = rlp.val_at(if canon_id == our_id {2} else {1});
-				trace!(target: "rcdb", "delete journal for time #{}.{}=>{}, (canon was {}): deleting {:?}", end_era, index, our_id, canon_id, to_remove);
-				for i in &to_remove {
-					self.forward.remove(i);
-				}
-				batch.delete(self.column, &last);
-				index += 1;
-			}
+			batch.delete(self.column, &last);
+			index += 1;
 		}
 
 		let r = try!(self.forward.commit_to_batch(batch));

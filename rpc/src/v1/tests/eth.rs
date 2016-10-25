@@ -24,7 +24,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet};
+use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
@@ -33,9 +33,10 @@ use util::{U256, H256, Uint, Address};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
-use v1::types::U256 as NU256;
-use v1::traits::eth::{Eth, EthSigning};
 use v1::impls::{EthClient, EthSigningUnsafeClient};
+use v1::types::U256 as NU256;
+use v1::traits::eth::Eth;
+use v1::traits::eth_signing::EthSigning;
 use v1::tests::helpers::{TestSyncProvider, Config};
 
 fn account_provider() -> Arc<AccountProvider> {
@@ -58,6 +59,8 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			reseal_on_own_tx: true,
 			tx_queue_size: 1024,
 			tx_gas_limit: !U256::zero(),
+			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
+			tx_queue_gas_limit: GasLimit::None,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
@@ -207,7 +210,7 @@ const TRANSACTION_COUNT_SPEC: &'static [u8] = br#"{
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
 				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
 				"daoHardforkAccounts": []
@@ -255,7 +258,7 @@ const POSITIVE_NONCE_SPEC: &'static [u8] = br#"{
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-				"frontierCompatibilityModeLimit": "0xffffffffffffffff",
+				"homesteadTransition": "0xffffffffffffffff",
 				"daoHardforkTransition": "0xffffffffffffffff",
 				"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
 				"daoHardforkAccounts": []

@@ -25,6 +25,15 @@ known_heap_size!(0, HeaderId);
 struct SyncBlock {
 	header: Bytes,
 	body: Option<Bytes>,
+	receipts: Option<Bytes>,
+}
+
+/// Block with optional receipt
+pub struct BlockAndReceipts {
+	/// Block data.
+	pub block: Bytes,
+	/// Block receipts RLP list.
+	pub receipts: Option<Bytes>,
 }
 
 impl HeapSizeOf for SyncBlock {
@@ -45,6 +54,8 @@ struct HeaderId {
 /// the downloaded blocks.
 #[derive(Default)]
 pub struct BlockCollection {
+	/// Does this collection need block receipts.
+	need_receipts: bool,
 	/// Heads of subchains to download
 	heads: Vec<H256>,
 	/// Downloaded blocks.
@@ -53,25 +64,32 @@ pub struct BlockCollection {
 	parents: HashMap<H256, H256>,
 	/// Used to map body to header.
 	header_ids: HashMap<HeaderId, H256>,
+	/// Used to map receipts root to header.
+	receipt_ids: HashMap<H256, H256>,
 	/// First block in `blocks`.
 	head: Option<H256>,
 	/// Set of block header hashes being downloaded
 	downloading_headers: HashSet<H256>,
 	/// Set of block bodies being downloaded identified by block hash.
 	downloading_bodies: HashSet<H256>,
+	/// Set of block receipts being downloaded identified by block hash.
+	downloading_receipts: HashSet<H256>,
 }
 
 impl BlockCollection {
 	/// Create a new instance.
-	pub fn new() -> BlockCollection {
+	pub fn new(download_receipts: bool) -> BlockCollection {
 		BlockCollection {
+			need_receipts: download_receipts,
 			blocks: HashMap::new(),
 			header_ids: HashMap::new(),
+			receipt_ids: HashMap::new(),
 			heads: Vec::new(),
 			parents: HashMap::new(),
 			head: None,
 			downloading_headers: HashSet::new(),
 			downloading_bodies: HashSet::new(),
+			downloading_receipts: HashSet::new(),
 		}
 	}
 
@@ -80,10 +98,12 @@ impl BlockCollection {
 		self.blocks.clear();
 		self.parents.clear();
 		self.header_ids.clear();
+		self.receipt_ids.clear();
 		self.heads.clear();
 		self.head = None;
 		self.downloading_headers.clear();
 		self.downloading_bodies.clear();
+		self.downloading_receipts.clear();
 	}
 
 	/// Reset collection for a new sync round with given subchain block hashes.
@@ -108,8 +128,23 @@ impl BlockCollection {
 		for b in bodies.into_iter() {
 			if let Err(e) =  self.insert_body(b) {
 				trace!(target: "sync", "Ignored invalid body: {:?}", e);
+			} else {
+				inserted += 1;
 			}
-			else {
+		}
+		inserted
+	}
+
+	/// Insert a collection of block receipts for previously downloaded headers.
+	pub fn insert_receipts(&mut self, receipts: Vec<Bytes>) -> usize {
+		if !self.need_receipts {
+			return 0;
+		}
+		let mut inserted = 0;
+		for r in receipts.into_iter() {
+			if let Err(e) =  self.insert_receipt(r) {
+				trace!(target: "sync", "Ignored invalid receipt: {:?}", e);
+			} else {
 				inserted += 1;
 			}
 		}
@@ -147,6 +182,38 @@ impl BlockCollection {
 		needed_bodies
 	}
 
+
+	/// Returns a set of block hashes that require a receipt download. The returned set is marked as being downloaded.
+	pub fn needed_receipts(&mut self, count: usize, _ignore_downloading: bool) -> Vec<H256> {
+		if self.head.is_none() || !self.need_receipts {
+			return Vec::new();
+		}
+		let mut needed_receipts: Vec<H256> = Vec::new();
+		let mut head = self.head;
+		while head.is_some() && needed_receipts.len() < count {
+			head = self.parents.get(&head.unwrap()).cloned();
+			if let Some(head) = head {
+				match self.blocks.get(&head) {
+					Some(block) if block.receipts.is_none() && !self.downloading_receipts.contains(&head) => {
+						self.downloading_receipts.insert(head.clone());
+						needed_receipts.push(head.clone());
+					}
+					_ => (),
+				}
+			}
+		}
+		for h in self.receipt_ids.values() {
+			if needed_receipts.len() >= count {
+				break;
+			}
+			if !self.downloading_receipts.contains(h) {
+				needed_receipts.push(h.clone());
+				self.downloading_receipts.insert(h.clone());
+			}
+		}
+		needed_receipts
+	}
+
 	/// Returns a set of block hashes that require a header download. The returned set is marked as being downloaded.
 	pub fn needed_headers(&mut self, count: usize, ignore_downloading: bool) -> Option<(H256, usize)> {
 		// find subchain to download
@@ -163,18 +230,27 @@ impl BlockCollection {
 		download.map(|h| (h, count))
 	}
 
-	/// Unmark a header as being downloaded.
+	/// Unmark header as being downloaded.
 	pub fn clear_header_download(&mut self, hash: &H256) {
 		self.downloading_headers.remove(hash);
 	}
 
-	/// Unmark a block body as being downloaded.
-	pub fn clear_body_download(&mut self, hash: &H256) {
-		self.downloading_bodies.remove(hash);
+	/// Unmark block body as being downloaded.
+	pub fn clear_body_download(&mut self, hashes: &[H256]) {
+		for h in hashes {
+			self.downloading_bodies.remove(h);
+		}
+	}
+
+	/// Unmark block receipt as being downloaded.
+	pub fn clear_receipt_download(&mut self, hashes: &[H256]) {
+		for h in hashes {
+			self.downloading_receipts.remove(h);
+		}
 	}
 
 	/// Get a valid chain of blocks ordered in descending order and ready for importing into blockchain.
-	pub fn drain(&mut self) -> Vec<Bytes> {
+	pub fn drain(&mut self) -> Vec<BlockAndReceipts> {
 		if self.blocks.is_empty() || self.head.is_none() {
 			return Vec::new();
 		}
@@ -184,11 +260,11 @@ impl BlockCollection {
 		{
 			let mut blocks = Vec::new();
 			let mut head = self.head;
-			while head.is_some() {
-				head = self.parents.get(&head.unwrap()).cloned();
+			while let Some(h) = head {
+				head = self.parents.get(&h).cloned();
 				if let Some(head) = head {
 					match self.blocks.get(&head) {
-						Some(block) if block.body.is_some() => {
+						Some(block) if block.body.is_some() && (!self.need_receipts || block.receipts.is_some()) => {
 							blocks.push(block);
 							hashes.push(head);
 							self.head = Some(head);
@@ -198,19 +274,24 @@ impl BlockCollection {
 				}
 			}
 
-			for block in blocks.drain(..) {
+			for block in blocks {
 				let mut block_rlp = RlpStream::new_list(3);
 				block_rlp.append_raw(&block.header, 1);
-				let body = Rlp::new(block.body.as_ref().unwrap()); // incomplete blocks are filtered out in the loop above
-				block_rlp.append_raw(body.at(0).as_raw(), 1);
-				block_rlp.append_raw(body.at(1).as_raw(), 1);
-				drained.push(block_rlp.out());
+				{
+					let body = Rlp::new(block.body.as_ref().expect("blocks contains only full blocks; qed"));
+					block_rlp.append_raw(body.at(0).as_raw(), 1);
+					block_rlp.append_raw(body.at(1).as_raw(), 1);
+				}
+				drained.push(BlockAndReceipts {
+					block: block_rlp.out(),
+					receipts: block.receipts.clone(),
+				});
 			}
 		}
 		for h in hashes {
 			self.blocks.remove(&h);
 		}
-		trace!("Drained {} blocks, new head :{:?}", drained.len(), self.head);
+		trace!(target: "sync", "Drained {} blocks, new head :{:?}", drained.len(), self.head);
 		drained
 	}
 
@@ -241,14 +322,17 @@ impl BlockCollection {
 	}
 
 	fn insert_body(&mut self, b: Bytes) -> Result<(), NetworkError> {
-		let body = UntrustedRlp::new(&b);
-		let tx = try!(body.at(0));
-		let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
-		let uncles = try!(body.at(1)).as_raw().sha3();
-		let header_id = HeaderId {
-			transactions_root: tx_root,
-			uncles: uncles
+		let header_id = {
+			let body = UntrustedRlp::new(&b);
+			let tx = try!(body.at(0));
+			let tx_root = ordered_trie_root(tx.iter().map(|r| r.as_raw().to_vec())); //TODO: get rid of vectors here
+			let uncles = try!(body.at(1)).as_raw().sha3();
+			HeaderId {
+				transactions_root: tx_root,
+				uncles: uncles
+			}
 		};
+
 		match self.header_ids.get(&header_id).cloned() {
 			Some(h) => {
 				self.header_ids.remove(&header_id);
@@ -256,7 +340,7 @@ impl BlockCollection {
 				match self.blocks.get_mut(&h) {
 					Some(ref mut block) => {
 						trace!(target: "sync", "Got body {}", h);
-						block.body = Some(body.as_raw().to_vec());
+						block.body = Some(b);
 						Ok(())
 					},
 					None => {
@@ -266,7 +350,35 @@ impl BlockCollection {
 				}
 			}
 			None => {
-				trace!(target: "sync", "Ignored unknown/stale block body");
+				trace!(target: "sync", "Ignored unknown/stale block body. tx_root = {:?}, uncles = {:?}", header_id.transactions_root, header_id.uncles);
+				Err(NetworkError::BadProtocol)
+			}
+		}
+	}
+
+	fn insert_receipt(&mut self, r: Bytes) -> Result<(), NetworkError> {
+		let receipt_root = {
+			let receipts = UntrustedRlp::new(&r);
+			ordered_trie_root(receipts.iter().map(|r| r.as_raw().to_vec())) //TODO: get rid of vectors here
+		};
+		match self.receipt_ids.get(&receipt_root).cloned() {
+			Some(h) => {
+				self.receipt_ids.remove(&receipt_root);
+				self.downloading_receipts.remove(&h);
+				match self.blocks.get_mut(&h) {
+					Some(ref mut block) => {
+						trace!(target: "sync", "Got receipt {}", h);
+						block.receipts = Some(r);
+						Ok(())
+					},
+					None => {
+						warn!("Got receipt with no header {}", h);
+						Err(NetworkError::BadProtocol)
+					}
+				}
+			}
+			None => {
+				trace!(target: "sync", "Ignored unknown/stale block receipt {:?}", receipt_root);
 				Err(NetworkError::BadProtocol)
 			}
 		}
@@ -280,7 +392,7 @@ impl BlockCollection {
 		}
 		match self.head {
 			None if hash == self.heads[0] => {
-				trace!("New head {}", hash);
+				trace!(target: "sync", "New head {}", hash);
 				self.head = Some(info.parent_hash().clone());
 			},
 			_ => ()
@@ -289,6 +401,7 @@ impl BlockCollection {
 		let mut block = SyncBlock {
 			header: header,
 			body: None,
+			receipts: None,
 		};
 		let header_id = HeaderId {
 			transactions_root: info.transactions_root().clone(),
@@ -302,7 +415,20 @@ impl BlockCollection {
 			block.body = Some(body_stream.out());
 		}
 		else {
+			trace!("Queueing body tx_root = {:?}, uncles = {:?}, block = {:?}, number = {}", header_id.transactions_root, header_id.uncles, hash, info.number());
 			self.header_ids.insert(header_id, hash.clone());
+		}
+		if self.need_receipts {
+			let receipt_root = info.receipts_root().clone();
+			if receipt_root == sha3::SHA3_NULL_RLP {
+				let receipts_stream = RlpStream::new_list(0);
+				block.receipts = Some(receipts_stream.out());
+			} else {
+				if self.receipt_ids.contains_key(&receipt_root) {
+					warn!(target: "sync", "Duplicate receipt root {:?}, block: {:?}", receipt_root, hash);
+				}
+				self.receipt_ids.insert(receipt_root, hash.clone());
+			}
 		}
 
 		self.parents.insert(info.parent_hash().clone(), hash.clone());
@@ -326,7 +452,7 @@ impl BlockCollection {
 					Some(next) => {
 						h = next.clone();
 						if old_subchains.contains(&h) {
-							trace!("Completed subchain {:?}", s);
+							trace!(target: "sync", "Completed subchain {:?}", s);
 							break; // reached head of the other subchain, merge by not adding
 						}
 					},
@@ -362,7 +488,7 @@ mod test {
 
 	#[test]
 	fn create_clear() {
-		let mut bc = BlockCollection::new();
+		let mut bc = BlockCollection::new(false);
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		client.add_blocks(100, EachBlockWith::Nothing);
@@ -375,7 +501,7 @@ mod test {
 
 	#[test]
 	fn insert_headers() {
-		let mut bc = BlockCollection::new();
+		let mut bc = BlockCollection::new(false);
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
@@ -407,7 +533,7 @@ mod test {
 		assert!(!bc.is_downloading(&hashes[0]));
 		assert!(bc.contains(&hashes[0]));
 
-		assert_eq!(&bc.drain()[..], &blocks[0..6]);
+		assert_eq!(&bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>()[..], &blocks[0..6]);
 		assert!(!bc.contains(&hashes[0]));
 		assert_eq!(hashes[5], bc.head.unwrap());
 
@@ -418,7 +544,7 @@ mod test {
 		bc.insert_headers(headers[10..16].to_vec());
 		assert!(bc.drain().is_empty());
 		bc.insert_headers(headers[5..10].to_vec());
-		assert_eq!(&bc.drain()[..], &blocks[6..16]);
+		assert_eq!(&bc.drain().into_iter().map(|b| b.block).collect::<Vec<_>>()[..], &blocks[6..16]);
 		assert_eq!(hashes[15], bc.heads[0]);
 
 		bc.insert_headers(headers[15..].to_vec());
@@ -428,7 +554,7 @@ mod test {
 
 	#[test]
 	fn insert_headers_with_gap() {
-		let mut bc = BlockCollection::new();
+		let mut bc = BlockCollection::new(false);
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;
@@ -450,7 +576,7 @@ mod test {
 
 	#[test]
 	fn insert_headers_no_gap() {
-		let mut bc = BlockCollection::new();
+		let mut bc = BlockCollection::new(false);
 		assert!(is_empty(&bc));
 		let client = TestBlockChainClient::new();
 		let nblocks = 200;

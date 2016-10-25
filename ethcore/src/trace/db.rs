@@ -129,7 +129,7 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new(&tracesdb);
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
-		tracesdb.write(batch).unwrap();
+		tracesdb.write(batch).expect("failed to update version");
 
 		TraceDB {
 			traces: RwLock::new(HashMap::new()),
@@ -256,16 +256,6 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			return;
 		}
 
-		// at first, let's insert new block traces
-		{
-			let mut traces = self.traces.write();
-			// it's important to use overwrite here,
-			// cause this value might be queried by hash later
-			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
-			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
-			self.note_used(CacheID::Trace(request.block_hash.clone()));
-		}
-
 		// now let's rebuild the blooms
 		if !request.enacted.is_empty() {
 			let range_start = request.block_number as Number + 1 - request.enacted.len();
@@ -276,8 +266,11 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 				// all traces are expected to be found here. That's why `expect` has been used
 				// instead of `filter_map`. If some traces haven't been found, it meens that
 				// traces database is corrupted or incomplete.
-				.map(|block_hash| self.traces(block_hash).expect("Traces database is incomplete."))
-				.map(|block_traces| block_traces.bloom())
+				.map(|block_hash| if block_hash == &request.block_hash {
+					request.traces.bloom()
+				} else {
+					self.traces(block_hash).expect("Traces database is incomplete.").bloom()
+				})
 				.map(blooms::Bloom::from)
 				.map(Into::into)
 				.collect();
@@ -295,6 +288,16 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			for key in blooms_keys.into_iter() {
 				self.note_used(CacheID::Bloom(key));
 			}
+		}
+
+		// insert new block traces into the cache and the database
+		{
+			let mut traces = self.traces.write();
+			// it's important to use overwrite here,
+			// cause this value might be queried by hash later
+			batch.write_with_cache(db::COL_TRACE, &mut *traces, request.block_hash, request.traces, CacheUpdatePolicy::Overwrite);
+			// note_used must be called after locking traces to avoid cache/traces deadlock on garbage collection
+			self.note_used(CacheID::Trace(request.block_hash.clone()));
 		}
 	}
 
@@ -501,6 +504,28 @@ mod tests {
 		}
 	}
 
+	fn create_noncanon_import_request(block_number: BlockNumber, block_hash: H256) -> ImportRequest {
+		ImportRequest {
+			traces: FlatBlockTraces::from(vec![FlatTransactionTraces::from(vec![FlatTrace {
+				trace_address: Default::default(),
+				subtraces: 0,
+				action: Action::Call(Call {
+					from: 1.into(),
+					to: 2.into(),
+					value: 3.into(),
+					gas: 4.into(),
+					input: vec![],
+					call_type: CallType::Call,
+				}),
+				result: Res::FailedCall(TraceError::OutOfGas),
+			}])]),
+			block_hash: block_hash.clone(),
+			block_number: block_number,
+			enacted: vec![],
+			retracted: 0,
+		}
+	}
+
 	fn create_simple_localized_trace(block_number: BlockNumber, block_hash: H256, tx_hash: H256) -> LocalizedTrace {
 		LocalizedTrace {
 			action: Action::Call(Call {
@@ -519,6 +544,34 @@ mod tests {
 			block_number: block_number,
 			block_hash: block_hash,
 		}
+	}
+
+	#[test]
+	fn test_import_non_canon_traces() {
+		let temp = RandomTempPath::new();
+		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
+		let mut config = Config::default();
+		config.enabled = true;
+		let block_0 = H256::from(0xa1);
+		let block_1 = H256::from(0xa2);
+		let tx_0 = H256::from(0xff);
+		let tx_1 = H256::from(0xaf);
+
+		let mut extras = Extras::default();
+		extras.block_hashes.insert(0, block_0.clone());
+		extras.block_hashes.insert(1, block_1.clone());
+		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
+
+		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
+
+		// import block 0
+		let request = create_noncanon_import_request(0, block_0.clone());
+		let mut batch = DBTransaction::new(&db);
+		tracedb.import(&mut batch, request);
+		db.write(batch).unwrap();
+
+		assert!(tracedb.traces(&block_0).is_some(), "Traces should be available even if block is non-canon.");
 	}
 
 

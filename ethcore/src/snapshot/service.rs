@@ -98,7 +98,7 @@ impl Restoration {
 			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
+		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), manifest.block_number));
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
@@ -346,7 +346,7 @@ impl Service {
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
-			if client.chain_info().best_block_number >= num + ::client::HISTORY {
+			if client.chain_info().best_block_number >= num + client.pruning_history() {
 				// "Cancelled" is mincing words a bit -- what really happened
 				// is that the state we were snapshotting got pruned out
 				// before we could finish.
@@ -415,9 +415,14 @@ impl Service {
 			guard: Guard::new(rest_dir),
 		};
 
+		let state_chunks = params.manifest.state_hashes.len();
+		let block_chunks = params.manifest.block_hashes.len();
+
 		*res = Some(try!(Restoration::new(params)));
 
 		*self.status.lock() = RestorationStatus::Ongoing {
+			state_chunks: state_chunks as u32,
+			block_chunks: block_chunks as u32,
 			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
 			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
@@ -535,7 +540,7 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
-		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done } = *cur_status {
+		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } = *cur_status {
 			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
 			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
 		}

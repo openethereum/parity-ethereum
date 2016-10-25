@@ -43,10 +43,8 @@
 #![warn(missing_docs)]
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
-#[macro_use]
-extern crate log;
-extern crate url as url_lib;
 extern crate hyper;
+extern crate url as url_lib;
 extern crate unicase;
 extern crate serde;
 extern crate serde_json;
@@ -57,13 +55,21 @@ extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
-extern crate parity_dapps;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
 extern crate linked_hash_map;
 extern crate fetch;
+extern crate parity_dapps_glue as parity_dapps;
+#[macro_use]
+extern crate log;
+#[macro_use]
+extern crate mime;
+
 #[cfg(test)]
 extern crate ethcore_devtools as devtools;
+#[cfg(test)]
+extern crate env_logger;
+
 
 mod endpoint;
 mod apps;
@@ -87,16 +93,16 @@ use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
 
-static DAPPS_DOMAIN : &'static str = ".parity";
+use self::apps::{HOME_PAGE, DAPPS_DOMAIN};
 
 /// Indicates sync status
 pub trait SyncStatus: Send + Sync {
 	/// Returns true if there is a major sync happening.
-	fn is_major_syncing(&self) -> bool;
+	fn is_major_importing(&self) -> bool;
 }
 
 impl<F> SyncStatus for F where F: Fn() -> bool + Send + Sync {
-	fn is_major_syncing(&self) -> bool { self() }
+	fn is_major_importing(&self) -> bool { self() }
 }
 
 /// Webapps HTTP+RPC server build.
@@ -105,6 +111,7 @@ pub struct ServerBuilder {
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
+	signer_port: Option<u16>,
 }
 
 impl Extendable for ServerBuilder {
@@ -121,12 +128,18 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
+			signer_port: None,
 		}
 	}
 
 	/// Change default sync status.
 	pub fn with_sync_status(&mut self, status: Arc<SyncStatus>) {
 		self.sync_status = status;
+	}
+
+	/// Change default signer port.
+	pub fn with_signer_port(&mut self, signer_port: Option<u16>) {
+		self.signer_port = signer_port;
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -138,6 +151,7 @@ impl ServerBuilder {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -152,6 +166,7 @@ impl ServerBuilder {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
+			self.signer_port.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -180,26 +195,40 @@ impl Server {
 		Some(allowed)
 	}
 
+	/// Returns a list of CORS domains for API endpoint.
+	fn cors_domains(signer_port: Option<u16>) -> Vec<String> {
+		match signer_port {
+			Some(port) => vec![
+				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
+				format!("http://{}", signer_address(port)),
+			],
+			None => vec![],
+		}
+	}
+
 	fn start_http<A: Authorization + 'static>(
 		addr: &SocketAddr,
 		hosts: Option<Vec<String>>,
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
+		signer_port: Option<u16>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_port));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port.clone()));
+		let cors_domains = Self::cors_domains(signer_port);
+
 		let special = Arc::new({
 			let mut special = HashMap::new();
 			special.insert(router::SpecialEndpoint::Rpc, rpc::rpc(handler, panic_handler.clone()));
 			special.insert(router::SpecialEndpoint::Utils, apps::utils());
 			special.insert(
 				router::SpecialEndpoint::Api,
-				api::RestApi::new(format!("{}", addr), endpoints.clone(), content_fetcher.clone())
+				api::RestApi::new(cors_domains, endpoints.clone(), content_fetcher.clone())
 			);
 			special
 		});
@@ -208,7 +237,7 @@ impl Server {
 		try!(hyper::Server::http(addr))
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
-				apps::main_page(),
+				signer_port.clone(),
 				content_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
@@ -272,6 +301,10 @@ pub fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
+fn signer_address(port: u16) -> String {
+	format!("127.0.0.1:{}", port)
+}
+
 #[cfg(test)]
 mod util_tests {
 	use super::Server;
@@ -290,5 +323,18 @@ mod util_tests {
 		assert_eq!(all, None);
 		assert_eq!(address, Some(vec!["localhost".into(), "127.0.0.1".into()]));
 		assert_eq!(some, Some(vec!["ethcore.io".into(), "localhost".into(), "127.0.0.1".into()]));
+	}
+
+	#[test]
+	fn should_return_cors_domains() {
+		// given
+
+		// when
+		let none = Server::cors_domains(None);
+		let some = Server::cors_domains(Some(18180));
+
+		// then
+		assert_eq!(none, Vec::<String>::new());
+		assert_eq!(some, vec!["http://home.parity".to_owned(), "http://127.0.0.1:18180".into()]);
 	}
 }

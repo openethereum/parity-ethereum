@@ -62,6 +62,13 @@ pub mod ethereum {
 	/// Default path for ethereum installation on Mac Os
 	pub fn default() -> PathBuf { super::config_path("Ethereum") }
 
+	/// Default path for ethereum installation (testnet)
+	pub fn test() -> PathBuf {
+		let mut path = default();
+		path.push("testnet");
+		path
+	}
+
 	/// Get the specific folder inside default ethereum installation
 	pub fn with_default(s: &str) -> PathBuf {
 		let mut path = default();

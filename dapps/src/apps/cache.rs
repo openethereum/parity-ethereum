@@ -47,15 +47,17 @@ impl ContentCache {
 	}
 
 	pub fn clear_garbage(&mut self, expected_size: usize) -> Vec<(String, ContentStatus)> {
-		let mut len = self.cache.len();
+		let len = self.cache.len();
 
 		if len <= expected_size {
 			return Vec::new();
 		}
 
 		let mut removed = Vec::with_capacity(len - expected_size);
-		while len > expected_size {
-			let entry = self.cache.pop_front().unwrap();
+
+		while self.cache.len() > expected_size {
+			let entry = self.cache.pop_front().expect("expected_size bounded at 0, len is greater; qed");
+
 			match entry.1 {
 				ContentStatus::Fetching(ref fetch) => {
 					trace!(target: "dapps", "Aborting {} because of limit.", entry.0);
@@ -64,16 +66,15 @@ impl ContentCache {
 				},
 				ContentStatus::Ready(ref endpoint) => {
 					trace!(target: "dapps", "Removing {} because of limit.", entry.0);
-					// Remove path
-					let res = fs::remove_dir_all(&endpoint.path());
+					// Remove path (dir or file)
+					let res = fs::remove_dir_all(&endpoint.path()).or_else(|_| fs::remove_file(&endpoint.path()));
 					if let Err(e) = res {
-						warn!(target: "dapps", "Unable to remove dapp: {:?}", e);
+						warn!(target: "dapps", "Unable to remove dapp/content from cache: {:?}", e);
 					}
 				}
 			}
 
 			removed.push(entry);
-			len -= 1;
 		}
 		removed
 	}
