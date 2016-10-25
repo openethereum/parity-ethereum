@@ -13,20 +13,10 @@ function setup_git_user {
 BASEDIR=`dirname $0`
 GITLOG=./.git/gitcommand.log
 pushd $BASEDIR
-cd ../.build
+cd ../.dist
 
 # variables
 UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-
-# Create proper directory structure
-mkdir -p build
-mv *.* build
-mkdir -p src
-
-# Copy rust files
-cp ../Cargo.precompiled.toml Cargo.toml
-cp ../build.rs .
-cp ../src/lib.rs* ./src/
 
 # init git
 rm -rf ./.git
@@ -40,21 +30,23 @@ git checkout -b $CI_BUILD_REF_NAME
 git add .
 git commit -m "$UTCDATE [compiled]"
 git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
-git push origin $CI_BUILD_REF_NAME 2>$GITLOG
+git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # back to root
 popd
 
-# bump js-precompiled
-cargo update -p parity-ui-precompiled
-
-# add to git and push
+# inti git with right origin
 setup_git_user
 git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
-git fetch origin 2>$GITLOG
+
+# at this point we have a detached head on GitLab, reset
+git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
+
+# bump js-precompiled, add, commit & push
+cargo update -p parity-ui-precompiled
 git add . || true
-git commit -m "[ci skip] js-precompiled $UTCDATE" || true
-git push origin $CI_BUILD_REF_NAME 2>$GITLOG || true
+git commit -m "[ci skip] js-precompiled $UTCDATE"
+git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # exit with exit code
 exit 0
