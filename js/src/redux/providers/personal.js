@@ -22,8 +22,6 @@ export default class Personal {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-
-    this._addresses = [];
   }
 
   start () {
@@ -45,7 +43,8 @@ export default class Personal {
 
     this._api
       .subscribe('eth_blockNumber', () => {
-        const addresses = this._addresses;
+        const { accounts } = this._store.getState().personal;
+        const addresses = Object.keys(accounts);
 
         if (!addresses || addresses.length === 0) {
           return;
@@ -53,8 +52,14 @@ export default class Personal {
 
         Promise
           .all([
-            this._api.trace.filter({ fromAddress: addresses }),
-            this._api.trace.filter({ toAddress: addresses })
+            this._api.trace.filter({
+              fromAddress: addresses,
+              toBlock: 'pending'
+            }),
+            this._api.trace.filter({
+              toAddress: addresses,
+              toBlock: 'pending'
+            })
           ])
           .then(([ fromTraces, toTraces ]) => {
             const traces = Object.values([]
@@ -89,14 +94,6 @@ export default class Personal {
         if (error) {
           console.error('personal_accountsInfo', error);
           return;
-        }
-
-        if (accountsInfo) {
-          const addresses = Object.keys(accountsInfo).sort();
-
-          if (!isEqual(addresses, this._addresses)) {
-            this._addresses = addresses;
-          }
         }
 
         this._store.dispatch(personalAccountsInfo(accountsInfo));
