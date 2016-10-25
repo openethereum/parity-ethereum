@@ -103,7 +103,10 @@ fn do_start(conf: Configuration, deps: Dependencies) -> Result<SignerServer, Str
 	};
 
 	match start_result {
-		Err(signer::ServerError::IoError(err)) => Err(format!("Trusted Signer Error: {}", err)),
+		Err(signer::ServerError::IoError(err)) => match err.kind() {
+			io::ErrorKind::AddrInUse => Err(format!("Trusted Signer address {} is already in use, you can change it using the --signer-port and --signer-interface options.", addr)),
+			_ => Err(format!("Trusted Signer io error: {}", err)),
+		},
 		Err(e) => Err(format!("Trusted Signer Error: {:?}", e)),
 		Ok(server) => {
 			deps.panic_handler.forward_from(&server);
