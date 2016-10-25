@@ -37,11 +37,11 @@ export const setSelectedAccount = (address) => ({
 export const loadAccounts = () => (dispatch) => {
   Promise
     .all([
-      api.personal.listAccounts(),
-      api.personal.accountsInfo()
+      api.eth.accounts(),
+      null // api.personal.accountsInfo()
     ])
-    .then(results => {
-      const [ accounts, accountsInfo ] = results;
+    .then(([ accounts, accountsInfo ]) => {
+      accountsInfo = accountsInfo || {};
 
       const accountsList = accounts
         .map(address => ({
