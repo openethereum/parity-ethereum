@@ -161,6 +161,9 @@ export default class Extras extends Component {
 
     return (
       <Form>
+
+        { this.renderData() }
+
         <div>
           <p className={ styles.contentTitle }>Gas Price Selection</p>
           <p>
@@ -174,32 +177,26 @@ export default class Extras extends Component {
           </p>
         </div>
 
-        { this.renderGasPrice() }
-        { this.renderGasPriceSlider() }
-
         <div className={ styles.columns }>
-          <div>
+          <div style={ { flex: 65 } }>
+            { this.renderGasPrice() }
+            { this.renderGasPriceSlider() }
+          </div>
+          <div style={ { flex: 35, paddingLeft: '1rem' } }>
             <Input
               label={ gasLabel }
               hint='the amount of gas to use for the transaction'
               error={ gasError }
               value={ gas }
               onChange={ this.onEditGas } />
-          </div>
-          <div>
+
             <Input
               label={ priceLabel }
               hint='the price of gas to use for the transaction'
               error={ gasPriceError }
               value={ (gasPrice || '').toString() }
               onChange={ this.onEditGasPrice } />
-          </div>
-        </div>
 
-        { this.renderData() }
-
-        <div className={ styles.columns }>
-          <div>
             <Input
               disabled
               label='total transaction amount'
@@ -208,6 +205,7 @@ export default class Extras extends Component {
               value={ `${total} ETH` } />
           </div>
         </div>
+
       </Form>
     );
   }
@@ -225,7 +223,7 @@ export default class Extras extends Component {
         onChange={ this.onEditGasPriceSlider }
         style={ {
           flex: 1,
-          padding: '0 50px'
+          padding: '0 2em'
         } }
         sliderStyle={ {
           marginBottom: 12
