@@ -41,6 +41,7 @@ cache:
   directories:
   - $TRAVIS_BUILD_DIR/target
   - $TRAVIS_BUILD_DIR/kcov-master
+  - $TRAVIS_BUILD_DIR/js/node_modules
   - $HOME/.cargo
 
 addons:
@@ -64,9 +65,14 @@ install:
       make && make install DESTDIR=../tmp &&
       cd
     )
+  - if [ "$RUN_TESTS" = "true" ]; then ./js/scripts/install-deps.sh; fi
 
 script:
-  - if [ "$RUN_TESTS" = "true" ]; then ./test.sh $TEST_OPTIONS --verbose; fi
+  - if [ "$RUN_TESTS" = "true" ]; then
+      ./js/scripts/lint.sh &&
+      ./js/scripts/test.sh &&
+      ./test.sh $TEST_OPTIONS --verbose;
+    fi
   - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
 
 after_success: |
