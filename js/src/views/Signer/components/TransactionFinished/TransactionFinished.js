@@ -80,7 +80,7 @@ export default class TransactionFinished extends Component {
     if (!chain || !fromBalance || !toBalance) {
       return (
         <div className={ `${styles.container} ${className}` }>
-          <CircularProgress size={ 1 } />
+          <CircularProgress size={ 60 } />
         </div>
       );
     }
