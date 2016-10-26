@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
-import txLink from '../../3rdparty/etherscan/txLink';
+import { txLink } from '../../3rdparty/etherscan/links';
 
 import styles from './txHash.css';
 

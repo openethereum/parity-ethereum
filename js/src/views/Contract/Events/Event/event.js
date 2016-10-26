@@ -22,7 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
-import txLink from '../../../../3rdparty/etherscan/txLink';
+import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import addressLink from '../../../../../3rdparty/etherscan/addressLink';
+import { addressLink } from '../../../../../3rdparty/etherscan/links';
 import styles from './AccountLink.css';
 
 export default class AccountLink extends Component {

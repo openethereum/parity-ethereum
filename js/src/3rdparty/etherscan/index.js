@@ -16,8 +16,7 @@
 
 import { account } from './account';
 import { stats } from './stats';
-import txLink from './txLink';
-import addressLink from './addressLink';
+import { txLink, addressLink } from './links';
 
 const etherscan = {
   account: account,
