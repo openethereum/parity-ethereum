@@ -21,6 +21,7 @@ use account_db::AccountDBMut;
 use rand::Rng;
 use snapshot::account::Account;
 
+use util::DBValue;
 use util::hash::{FixedHash, H256};
 use util::hashdb::HashDB;
 use util::trie::{Alphabet, StandardMap, SecTrieDBMut, TrieMut, ValueMode};
@@ -66,7 +67,7 @@ impl StateProducer {
 			let mut account = Account::from_thin_rlp(&*account_data);
 			let acct_db = AccountDBMut::from_hash(db, *address_hash);
 			fill_storage(acct_db, account.storage_root_mut(), &mut self.storage_seed);
-			*account_data = account.to_thin_rlp();
+			*account_data = DBValue::from_vec(account.to_thin_rlp());
 		}
 
 		// sweep again to alter account trie.

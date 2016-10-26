@@ -18,7 +18,7 @@
 
 use std::fmt;
 use hash::H256;
-use hashdb::HashDB;
+use hashdb::{HashDB, DBValue};
 
 /// Export the standardmap module.
 pub mod standardmap;
@@ -76,7 +76,7 @@ impl fmt::Display for TrieError {
 pub type Result<T> = ::std::result::Result<T, Box<TrieError>>;
 
 /// Trie-Item type.
-pub type TrieItem<'a> = Result<(Vec<u8>, &'a [u8])>;
+pub type TrieItem<'a> = Result<(Vec<u8>, DBValue)>;
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
 pub trait Trie {
@@ -92,13 +92,13 @@ pub trait Trie {
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key {
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>> where 'a: 'key {
 		self.get_recorded(key, &mut recorder::NoOp)
 	}
 
 	/// Query the value of the given key in this trie while recording visited nodes
 	/// to the given recorder. If the query fails, the nodes passed to the recorder are unspecified.
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> Result<Option<&'a [u8]>>
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder;
 
 	/// Returns an iterator over elements of trie.
@@ -119,7 +119,7 @@ pub trait TrieMut {
 	}
 
 	/// What is the value of the given key in this trie?
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<&'a [u8]>> where 'a: 'key;
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> Result<Option<DBValue>> where 'a: 'key;
 
 	/// Insert a `key`/`value` pair into the trie. An `empty` value is equivalent to removing
 	/// `key` from the trie.
@@ -188,7 +188,7 @@ impl<'db> Trie for TrieKinds<'db> {
 		wrapper!(self, contains, key)
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], r: &'b mut R) -> Result<Option<&'a [u8]>>
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], r: &'b mut R) -> Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder {
 		wrapper!(self, get_recorded, key, r)
 	}

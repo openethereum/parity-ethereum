@@ -43,7 +43,7 @@
 .expanded {
   right: 16px;
   width: 964px;
-  height: 288px;
+  height: 300px;
   border-radius: 4px 4px 0 0;
   overflow-y: auto;
   display: flex;
@@ -53,6 +53,7 @@
 .expanded .content {
   flex: 1;
   overflow: auto;
+  display: flex;
 }
 
 .corner {

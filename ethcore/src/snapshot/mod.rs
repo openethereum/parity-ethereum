@@ -29,8 +29,7 @@ use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, U256, Uint};
-use util::memorydb::MemoryDB;
+use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -38,6 +37,7 @@ use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use bloom_journal::Bloom;
 
 use self::account::Account;
 use self::block::AbridgedBlock;
@@ -46,7 +46,7 @@ use self::io::SnapshotWriter;
 use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
-use crossbeam::{scope, ScopedJoinHandle};
+use crossbeam::scope;
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
@@ -368,7 +368,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	// account_key here is the address' hash.
 	for item in try!(account_trie.iter()) {
 		let (account_key, account_data) = try!(item);
-		let account = Account::from_thin_rlp(account_data);
+		let account = Account::from_thin_rlp(&*account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
@@ -390,6 +390,7 @@ pub struct StateRebuilder {
 	state_root: H256,
 	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
+	bloom: Bloom,
 }
 
 impl StateRebuilder {
@@ -400,6 +401,7 @@ impl StateRebuilder {
 			state_root: SHA3_NULL_RLP,
 			code_map: HashMap::new(),
 			missing_code: HashMap::new(),
+			bloom: StateDB::load_bloom(&*db),
 		}
 	}
 
@@ -418,52 +420,25 @@ impl StateRebuilder {
 		// new code contained within this chunk.
 		let mut chunk_code = HashMap::new();
 
-		// build account tries in parallel.
-		// Todo [rob] keep a thread pool around so we don't do this per-chunk.
-		try!(scope(|scope| {
-			let mut handles = Vec::new();
-			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let code_map = &self.code_map;
-				let handle: ScopedJoinHandle<Result<_, ::error::Error>> = scope.spawn(move || {
-					let mut db = MemoryDB::new();
-					let status = try!(rebuild_accounts(&mut db, account_chunk, out_pairs_chunk, code_map));
-
-					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
-					Ok((db, status))
-				});
-
-				handles.push(handle);
+		for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
+			let code_map = &self.code_map;
+			let status = try!(rebuild_accounts(self.db.as_hashdb_mut(), account_chunk, out_pairs_chunk, code_map));
+			chunk_code.extend(status.new_code);
+			for (addr_hash, code_hash) in status.missing_code {
+				self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
 			}
-
-			// consolidate all edits into the main overlay.
-			for handle in handles {
-				let (thread_db, status): (MemoryDB, _) = try!(handle.join());
-				self.db.consolidate(thread_db);
-
-				chunk_code.extend(status.new_code);
-
-				for (addr_hash, code_hash) in status.missing_code {
-					self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
-				}
-			}
-
-			Ok::<_, ::error::Error>(())
-		}));
-
+		}
 		// patch up all missing code. must be done after collecting all new missing code entries.
 		for (code_hash, code) in chunk_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
-				db.emplace(code_hash, code.clone());
+				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
 			self.code_map.insert(code_hash, code);
 		}
 
 		let backing = self.db.backing().clone();
-
-		// bloom has to be updated
-		let mut bloom = StateDB::load_bloom(&backing);
 
 		// batch trie writes
 		{
@@ -475,17 +450,17 @@ impl StateRebuilder {
 
 			for (hash, thin_rlp) in pairs {
 				if &thin_rlp[..] != &empty_rlp[..] {
-					bloom.set(&*hash);
+					self.bloom.set(&*hash);
 				}
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let bloom_journal = bloom.drain_journal();
+		let bloom_journal = self.bloom.drain_journal();
 		let mut batch = backing.transaction();
 		try!(StateDB::commit_bloom(&mut batch, bloom_journal));
 		try!(self.db.inject(&mut batch));
-		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
+		backing.write_buffered(batch);
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 		Ok(())
 	}
@@ -628,7 +603,7 @@ impl BlockRebuilder {
 			} else {
 				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
 			}
-			self.db.write(batch).expect("Error writing to the DB");
+			self.db.write_buffered(batch);
 			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();

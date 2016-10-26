@@ -17,7 +17,7 @@
 //! Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 use std::cmp::*;
 use std::fmt;
-use bytes::*;
+use elastic_array::ElasticArray36;
 
 /// Nibble-orientated view onto byte-slice, allowing nibble-precision offsets.
 ///
@@ -149,9 +149,9 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 	}
 
 	/// Encode while nibble slice in prefixed hex notation, noting whether it `is_leaf`.
-	pub fn encoded(&self, is_leaf: bool) -> Bytes {
+	pub fn encoded(&self, is_leaf: bool) -> ElasticArray36<u8> {
 		let l = self.len();
-		let mut r = Bytes::with_capacity(l / 2 + 1);
+		let mut r = ElasticArray36::new();
 		let mut i = l % 2;
 		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
 		while i < l {
@@ -163,9 +163,9 @@ impl<'a, 'view> NibbleSlice<'a> where 'a: 'view {
 
 	/// Encode only the leftmost `n` bytes of the nibble slice in prefixed hex notation,
 	/// noting whether it `is_leaf`.
-	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> Bytes {
+	pub fn encoded_leftmost(&self, n: usize, is_leaf: bool) -> ElasticArray36<u8> {
 		let l = min(self.len(), n);
-		let mut r = Bytes::with_capacity(l / 2 + 1);
+		let mut r = ElasticArray36::new();
 		let mut i = l % 2;
 		r.push(if i == 1 {0x10 + self.at(0)} else {0} + if is_leaf {0x20} else {0});
 		while i < l {
@@ -212,6 +212,7 @@ impl<'a> fmt::Debug for NibbleSlice<'a> {
 #[cfg(test)]
 mod tests {
 	use super::NibbleSlice;
+	use elastic_array::ElasticArray36;
 	static D: &'static [u8;3] = &[0x01u8, 0x23, 0x45];
 
 	#[test]
@@ -254,10 +255,10 @@ mod tests {
 	#[test]
 	fn encoded() {
 		let n = NibbleSlice::new(D);
-		assert_eq!(n.encoded(false), &[0x00, 0x01, 0x23, 0x45]);
-		assert_eq!(n.encoded(true), &[0x20, 0x01, 0x23, 0x45]);
-		assert_eq!(n.mid(1).encoded(false), &[0x11, 0x23, 0x45]);
-		assert_eq!(n.mid(1).encoded(true), &[0x31, 0x23, 0x45]);
+		assert_eq!(n.encoded(false), ElasticArray36::from_slice(&[0x00, 0x01, 0x23, 0x45]));
+		assert_eq!(n.encoded(true), ElasticArray36::from_slice(&[0x20, 0x01, 0x23, 0x45]));
+		assert_eq!(n.mid(1).encoded(false), ElasticArray36::from_slice(&[0x11, 0x23, 0x45]));
+		assert_eq!(n.mid(1).encoded(true), ElasticArray36::from_slice(&[0x31, 0x23, 0x45]));
 	}
 
 	#[test]

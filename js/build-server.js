@@ -24,12 +24,29 @@ var express = require('express');
 var proxy = require('http-proxy-middleware');
 
 var app = express();
+var wsProxy = proxy('ws://127.0.0.1:8180', { changeOrigin: true });
 
-app.use(express.static('build'));
+app.use(express.static('.build'));
 
 app.use('/api/*', proxy({
   target: 'http://127.0.0.1:8080',
   changeOrigin: true
+}));
+
+app.use('/app/*', proxy({
+  target: 'http://127.0.0.1:8080',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/app': ''
+  }
+}));
+
+app.use('/parity-utils/*', proxy({
+  target: 'http://127.0.0.1:3000',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/parity-utils': ''
+  }
 }));
 
 app.use('/rpc/*', proxy({
@@ -37,4 +54,8 @@ app.use('/rpc/*', proxy({
   changeOrigin: true
 }));
 
-app.listen(3000);
+app.use(wsProxy);
+
+var server = app.listen(3000);
+
+server.on('upgrade', wsProxy.upgrade);

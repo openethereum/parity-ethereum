@@ -74,6 +74,7 @@ struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
+	db: Arc<Database>,
 }
 
 struct RestorationParams<'a> {
@@ -105,12 +106,13 @@ impl Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
-			state: StateRebuilder::new(raw_db, params.pruning),
+			state: StateRebuilder::new(raw_db.clone(), params.pruning),
 			blocks: blocks,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
+			db: raw_db,
 		})
 	}
 
@@ -467,39 +469,47 @@ impl Service {
 	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
 		// TODO: be able to process block chunks and state chunks at same time?
-		let mut restoration = self.restoration.lock();
+		let (result, db) = {
+			let mut restoration = self.restoration.lock();
 
-		match self.status() {
-			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
-			RestorationStatus::Ongoing { .. } => {
-				let res = {
-					let rest = match *restoration {
-						Some(ref mut r) => r,
-						None => return Ok(()),
-					};
-
-					match is_state {
-						true => rest.feed_state(hash, chunk),
-						false => rest.feed_blocks(hash, chunk, &*self.engine),
-					}.map(|_| rest.is_done())
-				};
-
-				match res {
-					Ok(is_done) => {
-						match is_state {
-							true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
-							false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
+			match self.status() {
+				RestorationStatus::Inactive | RestorationStatus::Failed => return Ok(()),
+				RestorationStatus::Ongoing { .. } => {
+					let (res, db) = {
+						let rest = match *restoration {
+							Some(ref mut r) => r,
+							None => return Ok(()),
 						};
 
-						match is_done {
-							true => self.finalize_restoration(&mut *restoration),
-							false => Ok(())
+						(match is_state {
+							true => rest.feed_state(hash, chunk),
+							false => rest.feed_blocks(hash, chunk, &*self.engine),
+						}.map(|_| rest.is_done()), rest.db.clone())
+					};
+
+					let res = match res {
+						Ok(is_done) => {
+							match is_state {
+								true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
+								false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
+							};
+
+							match is_done {
+								true => {
+									try!(db.flush().map_err(::util::UtilError::SimpleString));
+									drop(db);
+									return self.finalize_restoration(&mut *restoration);
+								},
+								false => Ok(())
+							}
 						}
-					}
-					other => other.map(drop),
+						other => other.map(drop),
+					};
+					(res, db)
 				}
 			}
-		}
+		};
+		result.and_then(|_| db.flush().map_err(|e| ::util::UtilError::SimpleString(e).into()))
 	}
 
 	/// Feed a state chunk to be processed synchronously.
@@ -549,8 +559,9 @@ impl SnapshotService for Service {
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {
-		self.io_channel.send(ClientIoMessage::BeginRestoration(manifest))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.send(ClientIoMessage::BeginRestoration(manifest)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
 	}
 
 	fn abort_restore(&self) {
@@ -559,13 +570,15 @@ impl SnapshotService for Service {
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
 	}
 }
 

@@ -18,7 +18,7 @@ rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 lazy_static = "0.2"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = "0.5"
+elastic-array = { git = "https://github.com/ethcore/elastic-array" }
 rlp = { path = "rlp" }
 heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.4"

@@ -404,7 +404,7 @@ impl State {
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
-			Ok(acc) => acc.map(Account::from_rlp),
+			Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
@@ -642,7 +642,7 @@ impl State {
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
-					Ok(acc) => acc.map(Account::from_rlp),
+					Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 					Err(e) => panic!("Potential DB corruption encountered: {}", e),
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
@@ -674,7 +674,7 @@ impl State {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 						match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(acc))),
+							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
 							Ok(None) => AccountEntry::new_clean(None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
 						}

@@ -1254,7 +1254,12 @@ impl ChainSync {
 			}
 			peer.asking = asking;
 			peer.ask_time = time::precise_time_s();
-			if let Err(e) = sync.send(peer_id, packet_id, packet) {
+			let result = if packet_id >= ETH_PACKET_COUNT {
+				sync.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
+			} else {
+				sync.send(peer_id, packet_id, packet)
+			};
+			if let Err(e) = result {
 				debug!(target:"sync", "Error sending request: {:?}", e);
 				sync.disable_peer(peer_id);
 			}
@@ -1271,8 +1276,9 @@ impl ChainSync {
 
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
-		// accepting transactions once only fully synced
-		if !io.is_chain_queue_empty() {
+		// Accept transactions only when fully synced
+		if !io.is_chain_queue_empty() || self.state != SyncState::Idle || self.state != SyncState::NewBlocks {
+			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);
 			return Ok(());
 		}
 		if !self.peers.get(&peer_id).map_or(false, |p| p.can_sync()) {
@@ -1571,7 +1577,7 @@ impl ChainSync {
 			SNAPSHOT_MANIFEST_PACKET => self.on_snapshot_manifest(io, peer, &rlp),
 			SNAPSHOT_DATA_PACKET => self.on_snapshot_data(io, peer, &rlp),
 			_ => {
-				debug!(target: "sync", "Unknown packet {}", packet_id);
+				debug!(target: "sync", "{}: Unknown packet {}", peer, packet_id);
 				Ok(())
 			}
 		};

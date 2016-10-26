@@ -24,8 +24,6 @@ use hashdb::*;
 use heapsize::*;
 use std::mem;
 use std::collections::HashMap;
-
-const STATIC_NULL_RLP: (&'static [u8], i32) = (&[0x80; 1], 1);
 use std::collections::hash_map::Entry;
 
 /// Reference-counted memory-based `HashDB` implementation.
@@ -73,8 +71,8 @@ use std::collections::hash_map::Entry;
 /// ```
 #[derive(Default, Clone, PartialEq)]
 pub struct MemoryDB {
-	data: H256FastMap<(Bytes, i32)>,
-	aux: HashMap<Bytes, Bytes>,
+	data: H256FastMap<(DBValue, i32)>,
+	aux: HashMap<Bytes, DBValue>,
 }
 
 impl MemoryDB {
@@ -116,12 +114,12 @@ impl MemoryDB {
 	}
 
 	/// Return the internal map of hashes to data, clearing the current state.
-	pub fn drain(&mut self) -> H256FastMap<(Bytes, i32)> {
+	pub fn drain(&mut self) -> H256FastMap<(DBValue, i32)> {
 		mem::replace(&mut self.data, H256FastMap::default())
 	}
 
 	/// Return the internal map of auxiliary data, clearing the current state.
-	pub fn drain_aux(&mut self) -> HashMap<Bytes, Bytes> {
+	pub fn drain_aux(&mut self) -> HashMap<Bytes, DBValue> {
 		mem::replace(&mut self.aux, HashMap::new())
 	}
 
@@ -130,25 +128,11 @@ impl MemoryDB {
 	///
 	/// Even when Some is returned, the data is only guaranteed to be useful
 	/// when the refs > 0.
-	pub fn raw(&self, key: &H256) -> Option<(&[u8], i32)> {
+	pub fn raw(&self, key: &H256) -> Option<(DBValue, i32)> {
 		if key == &SHA3_NULL_RLP {
-			return Some(STATIC_NULL_RLP.clone());
+			return Some((DBValue::from_slice(&NULL_RLP_STATIC), 1));
 		}
-		self.data.get(key).map(|&(ref val, rc)| (&val[..], rc))
-	}
-
-	/// Denote than an existing value has the given key. Used when a key gets removed without
-	/// a prior insert and thus has a negative reference with no value.
-	///
-	/// May safely be called even if the key's value is known, in which case it will be a no-op.
-	pub fn denote(&self, key: &H256, value: Bytes) -> (&[u8], i32) {
-		if self.raw(key) == None {
-			unsafe {
-				let p = &self.data as *const H256FastMap<(Bytes, i32)> as *mut H256FastMap<(Bytes, i32)>;
-				(*p).insert(key.clone(), (value, 0));
-			}
-		}
-		self.raw(key).unwrap()
+		self.data.get(key).cloned()
 	}
 
 	/// Returns the size of allocated heap memory
@@ -170,7 +154,7 @@ impl MemoryDB {
 					entry.get_mut().1 -= 1;
 				},
 			Entry::Vacant(entry) => {
-				entry.insert((Bytes::new(), -1));
+				entry.insert((DBValue::new(), -1));
 			}
 		}
 	}
@@ -197,13 +181,13 @@ impl MemoryDB {
 static NULL_RLP_STATIC: [u8; 1] = [0x80; 1];
 
 impl HashDB for MemoryDB {
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(&NULL_RLP_STATIC);
+			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
 		}
 
 		match self.data.get(key) {
-			Some(&(ref d, rc)) if rc > 0 => Some(d),
+			Some(&(ref d, rc)) if rc > 0 => Some(d.clone()),
 			_ => None
 		}
 	}
@@ -230,20 +214,20 @@ impl HashDB for MemoryDB {
 		let key = value.sha3();
 		if match self.data.get_mut(&key) {
 			Some(&mut (ref mut old_value, ref mut rc @ -0x80000000i32 ... 0)) => {
-				*old_value = value.into();
+				*old_value = DBValue::from_slice(value);
 				*rc += 1;
 				false
 			},
 			Some(&mut (_, ref mut x)) => { *x += 1; false } ,
 			None => true,
 		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (value.into(), 1));
+			self.data.insert(key.clone(), (DBValue::from_slice(value), 1));
 		}
 		key
 	}
 
-	fn emplace(&mut self, key: H256, value: Bytes) {
-		if value == &NULL_RLP {
+	fn emplace(&mut self, key: H256, value: DBValue) {
+		if &*value == &NULL_RLP {
 			return;
 		}
 
@@ -269,39 +253,21 @@ impl HashDB for MemoryDB {
 			Some(&mut (_, ref mut x)) => { *x -= 1; false }
 			None => true
 		}{	// ... None falls through into...
-			self.data.insert(key.clone(), (Bytes::new(), -1));
+			self.data.insert(key.clone(), (DBValue::new(), -1));
 		}
 	}
 
 	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
-		self.aux.insert(hash, value);
+		self.aux.insert(hash, DBValue::from_vec(value));
 	}
 
-	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
 		self.aux.get(hash).cloned()
 	}
 
 	fn remove_aux(&mut self, hash: &[u8]) {
 		self.aux.remove(hash);
 	}
-}
-
-#[test]
-fn memorydb_denote() {
-	let mut m = MemoryDB::new();
-	let hello_bytes = b"Hello world!";
-	let hash = m.insert(hello_bytes);
-	assert_eq!(m.get(&hash).unwrap(), b"Hello world!");
-
-	for _ in 0..1000 {
-		let r = H256::random();
-		let k = r.sha3();
-		let (v, rc) = m.denote(&k, r.to_vec());
-		assert_eq!(v, &*r);
-		assert_eq!(rc, 0);
-	}
-
-	assert_eq!(m.get(&hash).unwrap(), b"Hello world!");
 }
 
 #[test]
@@ -337,12 +303,12 @@ fn consolidate() {
 	main.remove(&remove_key);
 
 	let insert_key = other.insert(b"arf");
-	main.emplace(insert_key, b"arf".to_vec());
+	main.emplace(insert_key, DBValue::from_slice(b"arf"));
 
 	main.consolidate(other);
 
 	let overlay = main.drain();
 
-	assert_eq!(overlay.get(&remove_key).unwrap(), &(b"doggo".to_vec(), 0));
-	assert_eq!(overlay.get(&insert_key).unwrap(), &(b"arf".to_vec(), 2));
+	assert_eq!(overlay.get(&remove_key).unwrap(), &(DBValue::from_slice(b"doggo"), 0));
+	assert_eq!(overlay.get(&insert_key).unwrap(), &(DBValue::from_slice(b"arf"), 2));
 }
