@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Bar as BarChart } from 'react-chartjs-2';
+import { isEqual } from 'lodash';
 
 import Form, { Input } from '../../../ui/Form';
 
@@ -37,6 +39,62 @@ export default class Extras extends Component {
     onChange: PropTypes.func.isRequired
   }
 
+  state = {
+    gasPriceChartData: {}
+  }
+
+  componentWillMount () {
+    this.computeGasPriceChart();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const newGasStats = nextProps
+      .gasPriceStatistics
+      .map(stat => stat.toNumber())
+      .sort();
+
+    const curGasStats = this.props
+      .gasPriceStatistics
+      .map(stat => stat.toNumber())
+      .sort();
+
+    if (!isEqual(newGasStats, curGasStats)) {
+      this.computeGasPriceChart(nextProps);
+    }
+  }
+
+  computeGasPriceChart (props = this.props) {
+    const { gasPriceStatistics } = props;
+
+    const data = gasPriceStatistics.map(stat => stat.toNumber());
+
+    const gasPriceChartData = {
+      labels: data.map((d, index) => index + 1),
+      datasets: [{
+        label: 'Sales',
+        type: 'line',
+        fill: false,
+        borderColor: '#EC932F',
+        backgroundColor: '#EC932F',
+        pointBorderColor: '#EC932F',
+        pointBackgroundColor: '#EC932F',
+        pointHoverBackgroundColor: '#EC932F',
+        pointHoverBorderColor: '#EC932F',
+        yAxisID: 'y-axis-2',
+        data
+      }, {
+        label: 'Gas Price',
+        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+        borderColor: 'rgba(255,99,132,1)',
+        borderWidth: 1,
+        yAxisID: 'y-axis-1',
+        data
+      }]
+    };
+
+    this.setState({ gasPriceChartData });
+  }
+
   render () {
     const { gas, gasError, gasEst, gasPrice, gasPriceDefault, gasPriceError, total, totalError } = this.props;
     const gasLabel = `gas amount (estimated: ${gasEst})`;
@@ -45,6 +103,10 @@ export default class Extras extends Component {
     return (
       <Form>
         { this.renderData() }
+        <div className={ styles.columns }>
+          { this.renderGasPrice() }
+        </div>
+
         <div className={ styles.columns }>
           <div>
             <Input
@@ -74,6 +136,23 @@ export default class Extras extends Component {
           </div>
         </div>
       </Form>
+    );
+  }
+
+  renderGasPrice () {
+    const { gasPriceChartData } = this.state;
+    const chartOptions = {
+      legend: { display: false },
+      tooltips: { callbacks: {
+        title: () => ''
+      } }
+    };
+
+    return (
+      <BarChart
+        data={ gasPriceChartData }
+        options={ chartOptions }
+      />
     );
   }
 

@@ -72,7 +72,7 @@ export default class Ethcore {
   gasPriceStatistics () {
     return this._transport
       .execute('ethcore_gasPriceStatistics')
-      .then(stats => stats.map(stat => outNumber(stat)));
+      .then(prices => prices.map(outNumber));
   }
 
   generateSecretPhrase () {
