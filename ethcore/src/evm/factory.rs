@@ -118,11 +118,12 @@ impl Factory {
 		}
 	}
 
-	/// Create new instance of specific `VMType` factory
-	pub fn new(evm: VMType) -> Self {
+	/// Create new instance of specific `VMType` factory, with a size in bytes
+	/// for caching jump destinations.
+	pub fn new(evm: VMType, cache_size: usize) -> Self {
 		Factory {
 			evm: evm,
-			evm_cache: Arc::new(SharedCache::default()),
+			evm_cache: Arc::new(SharedCache::new(cache_size)),
 		}
 	}
 
@@ -164,22 +165,22 @@ macro_rules! evm_test(
 		#[ignore]
 		#[cfg(feature = "jit")]
 		fn $name_jit() {
-			$name_test(Factory::new(VMType::Jit));
+			$name_test(Factory::new(VMType::Jit, 1024 * 32));
 		}
 		#[test]
 		fn $name_int() {
-			$name_test(Factory::new(VMType::Interpreter));
+			$name_test(Factory::new(VMType::Interpreter, 1024 * 32));
 		}
 	};
 	($name_test: ident: $name_jit: ident, $name_int: ident) => {
 		#[test]
 		#[cfg(feature = "jit")]
 		fn $name_jit() {
-			$name_test(Factory::new(VMType::Jit));
+			$name_test(Factory::new(VMType::Jit, 1024 * 32));
 		}
 		#[test]
 		fn $name_int() {
-			$name_test(Factory::new(VMType::Interpreter));
+			$name_test(Factory::new(VMType::Interpreter, 1024 * 32));
 		}
 	}
 );
@@ -193,13 +194,13 @@ macro_rules! evm_test_ignore(
 		#[cfg(feature = "jit")]
 		#[cfg(feature = "ignored-tests")]
 		fn $name_jit() {
-			$name_test(Factory::new(VMType::Jit));
+			$name_test(Factory::new(VMType::Jit, 1024 * 32));
 		}
 		#[test]
 		#[ignore]
 		#[cfg(feature = "ignored-tests")]
 		fn $name_int() {
-			$name_test(Factory::new(VMType::Interpreter));
+			$name_test(Factory::new(VMType::Interpreter, 1024 * 32));
 		}
 	}
 );

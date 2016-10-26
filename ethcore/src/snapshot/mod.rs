@@ -29,7 +29,7 @@ use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy};
+use util::{Bytes, Hashable, HashDB, snappy, U256, Uint};
 use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
@@ -38,12 +38,14 @@ use util::kvdb::Database;
 use util::trie::{TrieDB, TrieDBMut, Trie, TrieMut};
 use util::sha3::SHA3_NULL_RLP;
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
+use bloom_journal::Bloom;
 
 use self::account::Account;
 use self::block::AbridgedBlock;
 use self::io::SnapshotWriter;
 
 use super::state_db::StateDB;
+use super::state::Account as StateAccount;
 
 use crossbeam::{scope, ScopedJoinHandle};
 use rand::{Rng, OsRng};
@@ -51,7 +53,7 @@ use rand::{Rng, OsRng};
 pub use self::error::Error;
 
 pub use self::service::{Service, DatabaseRestore};
-pub use self::traits::{SnapshotService, RemoteSnapshotService};
+pub use self::traits::SnapshotService;
 pub use self::watcher::Watcher;
 pub use types::snapshot_manifest::ManifestData;
 pub use types::restoration_status::RestorationStatus;
@@ -66,6 +68,12 @@ mod watcher;
 
 #[cfg(test)]
 mod tests;
+
+/// IPC interfaces
+#[cfg(feature="ipc")]
+pub mod remote {
+	pub use super::traits::RemoteSnapshotService;
+}
 
 mod traits {
 	#![allow(dead_code, unused_assignments, unused_variables, missing_docs)] // codegen issues
@@ -129,7 +137,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 
 	let writer = Mutex::new(writer);
 	let (state_hashes, block_hashes) = try!(scope(|scope| {
-		let block_guard = scope.spawn(|| chunk_blocks(chain, (number, block_at), &writer, p));
+		let block_guard = scope.spawn(|| chunk_blocks(chain, block_at, &writer, p));
 		let state_res = chunk_state(state_db, state_root, &writer, p);
 
 		state_res.and_then(|state_hashes| {
@@ -169,10 +177,15 @@ struct BlockChunker<'a> {
 impl<'a> BlockChunker<'a> {
 	// Repeatedly fill the buffers and writes out chunks, moving backwards from starting block hash.
 	// Loops until we reach the first desired block, and writes out the remainder.
-	fn chunk_all(&mut self, first_hash: H256) -> Result<(), Error> {
+	fn chunk_all(&mut self) -> Result<(), Error> {
 		let mut loaded_size = 0;
+		let mut last = self.current_hash;
 
-		while self.current_hash != first_hash {
+		let genesis_hash = self.chain.genesis_hash();
+
+		for _ in 0..SNAPSHOT_BLOCKS {
+			if self.current_hash == genesis_hash { break }
+
 			let (block, receipts) = try!(self.chain.block(&self.current_hash)
 				.and_then(|b| self.chain.block_receipts(&self.current_hash).map(|r| (b, r)))
 				.ok_or(Error::BlockNotFound(self.current_hash)));
@@ -190,21 +203,21 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large.
 
-			if new_loaded_size > PREFERRED_CHUNK_SIZE {
-				try!(self.write_chunk());
+			if new_loaded_size > PREFERRED_CHUNK_SIZE && self.rlps.len() > 0 {
+				try!(self.write_chunk(last));
 				loaded_size = pair.len();
 			} else {
 				loaded_size = new_loaded_size;
 			}
 
 			self.rlps.push_front(pair);
+
+			last = self.current_hash;
 			self.current_hash = view.header_view().parent_hash();
 		}
 
 		if loaded_size != 0 {
-			// we don't store the first block, so once we get to this point,
-			// the "first" block will be first_number + 1.
-			try!(self.write_chunk());
+			try!(self.write_chunk(last));
 		}
 
 		Ok(())
@@ -212,23 +225,24 @@ impl<'a> BlockChunker<'a> {
 
 	// write out the data in the buffers to a chunk on disk
 	//
-	// we preface each chunk with the parent of the first block's details.
-	fn write_chunk(&mut self) -> Result<(), Error> {
-		// since the block we're inspecting now doesn't go into the
-		// chunk if it's too large, the current hash is the parent hash
-		// for the first block in that chunk.
-		let parent_hash = self.current_hash;
-
+	// we preface each chunk with the parent of the first block's details,
+	// obtained from the details of the last block written.
+	fn write_chunk(&mut self, last: H256) -> Result<(), Error> {
 		trace!(target: "snapshot", "prepared block chunk with {} blocks", self.rlps.len());
-		let (parent_number, parent_details) = try!(self.chain.block_number(&parent_hash)
-			.and_then(|n| self.chain.block_details(&parent_hash).map(|d| (n, d)))
-			.ok_or(Error::BlockNotFound(parent_hash)));
 
-		let parent_total_difficulty = parent_details.total_difficulty;
+		let (last_header, last_details) = try!(self.chain.block_header(&last)
+			.and_then(|n| self.chain.block_details(&last).map(|d| (n, d)))
+			.ok_or(Error::BlockNotFound(last)));
+
+		let parent_number = last_header.number() - 1;
+		let parent_hash = last_header.parent_hash();
+		let parent_total_difficulty = last_details.total_difficulty - *last_header.difficulty();
+
+		trace!(target: "snapshot", "parent last written block: {}", parent_hash);
 
 		let num_entries = self.rlps.len();
 		let mut rlp_stream = RlpStream::new_list(3 + num_entries);
-		rlp_stream.append(&parent_number).append(&parent_hash).append(&parent_total_difficulty);
+		rlp_stream.append(&parent_number).append(parent_hash).append(&parent_total_difficulty);
 
 		for pair in self.rlps.drain(..) {
 			rlp_stream.append_raw(&pair, 1);
@@ -257,17 +271,7 @@ impl<'a> BlockChunker<'a> {
 /// The path parameter is the directory to store the block chunks in.
 /// This function assumes the directory exists already.
 /// Returns a list of chunk hashes, with the first having the blocks furthest from the genesis.
-pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
-	let (start_number, start_hash) = start_block_info;
-
-	let first_hash = if start_number < SNAPSHOT_BLOCKS {
-		// use the genesis hash.
-		chain.genesis_hash()
-	} else {
-		let first_num = start_number - SNAPSHOT_BLOCKS;
-		try!(chain.block_hash(first_num).ok_or(Error::IncompleteChain))
-	};
-
+pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_hash: H256, writer: &Mutex<SnapshotWriter + 'a>, progress: &'a Progress) -> Result<Vec<H256>, Error> {
 	let mut chunker = BlockChunker {
 		chain: chain,
 		rlps: VecDeque::new(),
@@ -278,7 +282,7 @@ pub fn chunk_blocks<'a>(chain: &'a BlockChain, start_block_info: (u64, H256), wr
 		progress: progress,
 	};
 
-	try!(chunker.chunk_all(first_hash));
+	try!(chunker.chunk_all());
 
 	Ok(chunker.hashes)
 }
@@ -387,6 +391,7 @@ pub struct StateRebuilder {
 	state_root: H256,
 	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
+	bloom: Bloom,
 }
 
 impl StateRebuilder {
@@ -397,12 +402,14 @@ impl StateRebuilder {
 			state_root: SHA3_NULL_RLP,
 			code_map: HashMap::new(),
 			missing_code: HashMap::new(),
+			bloom: StateDB::load_bloom(&*db),
 		}
 	}
 
 	/// Feed an uncompressed state chunk into the rebuilder.
 	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
+		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
 		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
@@ -458,9 +465,6 @@ impl StateRebuilder {
 
 		let backing = self.db.backing().clone();
 
-		// bloom has to be updated
-		let mut bloom = StateDB::load_bloom(&backing);
-
 		// batch trie writes
 		{
 			let mut account_trie = if self.state_root != SHA3_NULL_RLP {
@@ -470,16 +474,18 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
-				bloom.set(&*hash);
+				if &thin_rlp[..] != &empty_rlp[..] {
+					self.bloom.set(&*hash);
+				}
 				try!(account_trie.insert(&hash, &thin_rlp));
 			}
 		}
 
-		let bloom_journal = bloom.drain_journal();
+		let bloom_journal = self.bloom.drain_journal();
 		let mut batch = backing.transaction();
 		try!(StateDB::commit_bloom(&mut batch, bloom_journal));
 		try!(self.db.inject(&mut batch));
-		try!(backing.write(batch).map_err(::util::UtilError::SimpleString));
+		backing.write_buffered(batch);
 		trace!(target: "snapshot", "current state root: {:?}", self.state_root);
 		Ok(())
 	}
@@ -558,6 +564,7 @@ const POW_VERIFY_RATE: f32 = 0.02;
 /// After all chunks have been submitted, we "glue" the chunks together.
 pub struct BlockRebuilder {
 	chain: BlockChain,
+	db: Arc<Database>,
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
@@ -565,9 +572,10 @@ pub struct BlockRebuilder {
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
+			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
 			best_number: best_number,
@@ -584,7 +592,7 @@ impl BlockRebuilder {
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
 
-		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 2);
+		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
@@ -610,15 +618,17 @@ impl BlockRebuilder {
 			}
 
 			let is_best = cur_number == self.best_number;
+			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
 			if idx == 3 {
-				if self.chain.insert_snapshot_block(&block_bytes, receipts, Some(parent_total_difficulty), is_best) {
+				if self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, Some(parent_total_difficulty), is_best, false) {
 					self.disconnected.push((cur_number, block.header.hash()));
 				}
 			} else {
-				self.chain.insert_snapshot_block(&block_bytes, receipts, None, is_best);
+				self.chain.insert_unordered_block(&mut batch, &block_bytes, receipts, None, is_best, false);
 			}
+			self.db.write_buffered(batch);
 			self.chain.commit();
 
 			parent_hash = BlockView::new(&block_bytes).hash();

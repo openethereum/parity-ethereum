@@ -19,57 +19,60 @@
 use std::io::Write;
 use hyper::{header, server, Decoder, Encoder, Next};
 use hyper::net::HttpStream;
+use hyper::mime::Mime;
 use hyper::status::StatusCode;
 
 use util::version;
+
+use handlers::add_security_headers;
 
 #[derive(Clone)]
 pub struct ContentHandler {
 	code: StatusCode,
 	content: String,
-	mimetype: String,
+	mimetype: Mime,
 	write_pos: usize,
+	safe_to_embed_at_port: Option<u16>,
 }
 
 impl ContentHandler {
-	pub fn ok(content: String, mimetype: String) -> Self {
-		ContentHandler {
-			code: StatusCode::Ok,
-			content: content,
-			mimetype: mimetype,
-			write_pos: 0
-		}
+	pub fn ok(content: String, mimetype: Mime) -> Self {
+		Self::new(StatusCode::Ok, content, mimetype)
 	}
 
-	pub fn not_found(content: String, mimetype: String) -> Self {
-		ContentHandler {
-			code: StatusCode::NotFound,
-			content: content,
-			mimetype: mimetype,
-			write_pos: 0
-		}
+	pub fn not_found(content: String, mimetype: Mime) -> Self {
+		Self::new(StatusCode::NotFound, content, mimetype)
 	}
 
-	pub fn html(code: StatusCode, content: String) -> Self {
-		Self::new(code, content, "text/html".into())
+	pub fn html(code: StatusCode, content: String, embeddable_at: Option<u16>) -> Self {
+		Self::new_embeddable(code, content, mime!(Text/Html), embeddable_at)
 	}
 
 	pub fn error(code: StatusCode, title: &str, message: &str, details: Option<&str>) -> Self {
+		Self::error_embeddable(code, title, message, details, None)
+	}
+
+	pub fn error_embeddable(code: StatusCode, title: &str, message: &str, details: Option<&str>, embeddable_at: Option<u16>) -> Self {
 		Self::html(code, format!(
 			include_str!("../error_tpl.html"),
 			title=title,
 			message=message,
 			details=details.unwrap_or_else(|| ""),
 			version=version(),
-		))
+		), embeddable_at)
 	}
 
-	pub fn new(code: StatusCode, content: String, mimetype: String) -> Self {
+	pub fn new(code: StatusCode, content: String, mimetype: Mime) -> Self {
+		Self::new_embeddable(code, content, mimetype, None)
+	}
+
+	pub fn new_embeddable(code: StatusCode, content: String, mimetype: Mime, embeddable_at: Option<u16>) -> Self {
 		ContentHandler {
 			code: code,
 			content: content,
 			mimetype: mimetype,
 			write_pos: 0,
+			safe_to_embed_at_port: embeddable_at,
 		}
 	}
 }
@@ -85,7 +88,8 @@ impl server::Handler<HttpStream> for ContentHandler {
 
 	fn on_response(&mut self, res: &mut server::Response) -> Next {
 		res.set_status(self.code);
-		res.headers_mut().set(header::ContentType(self.mimetype.parse().unwrap()));
+		res.headers_mut().set(header::ContentType(self.mimetype.clone()));
+		add_security_headers(&mut res.headers_mut(), self.safe_to_embed_at_port.clone());
 		Next::write()
 	}
 

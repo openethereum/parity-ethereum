@@ -37,6 +37,7 @@ Usage:
     ethstore import-wallet <path> <password> [--dir DIR]
     ethstore remove <address> <password> [--dir DIR]
     ethstore sign <address> <password> <message> [--dir DIR]
+    ethstore public <address> <password>
     ethstore [-h | --help]
 
 Options:
@@ -56,6 +57,7 @@ Commands:
     import-wallet      Import presale wallet.
     remove             Remove account.
     sign               Sign message.
+    public             Displays public key for an address.
 "#;
 
 #[derive(Debug, RustcDecodable)]
@@ -67,6 +69,7 @@ struct Args {
 	cmd_import_wallet: bool,
 	cmd_remove: bool,
 	cmd_sign: bool,
+	cmd_public: bool,
 	arg_secret: String,
 	arg_password: String,
 	arg_old_pwd: String,
@@ -103,7 +106,7 @@ fn key_dir(location: &str) -> Result<Box<KeyDirectory>, Error> {
 fn format_accounts(accounts: &[Address]) -> String {
 	accounts.iter()
 		.enumerate()
-		.map(|(i, a)| format!("{:2}: {}", i, a))
+		.map(|(i, a)| format!("{:2}: 0x{:?}", i, a))
 		.collect::<Vec<String>>()
 		.join("\n")
 }
@@ -128,7 +131,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let secret = try!(args.arg_secret.parse().map_err(|_| Error::InvalidSecret));
 		let password = try!(load_password(&args.arg_password));
 		let address = try!(store.insert_account(secret, &password));
-		Ok(format!("{}", address))
+		Ok(format!("0x{:?}", address))
 	} else if args.cmd_change_pwd {
 		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
 		let old_pwd = try!(load_password(&args.arg_old_pwd));
@@ -148,7 +151,7 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let password = try!(load_password(&args.arg_password));
 		let kp = try!(wallet.decrypt(&password));
 		let address = try!(store.insert_account(kp.secret().clone(), &password));
-		Ok(format!("{}", address))
+		Ok(format!("0x{:?}", address))
 	} else if args.cmd_remove {
 		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
 		let password = try!(load_password(&args.arg_password));
@@ -159,7 +162,12 @@ fn execute<S, I>(command: I) -> Result<String, Error> where I: IntoIterator<Item
 		let message = try!(args.arg_message.parse().map_err(|_| Error::InvalidMessage));
 		let password = try!(load_password(&args.arg_password));
 		let signature = try!(store.sign(&address, &password, &message));
-		Ok(format!("{}", signature))
+		Ok(format!("0x{:?}", signature))
+	} else if args.cmd_public {
+		let address = try!(args.arg_address.parse().map_err(|_| Error::InvalidAccount));
+		let password = try!(load_password(&args.arg_password));
+		let public = try!(store.public(&address, &password));
+		Ok(format!("0x{:?}", public))
 	} else {
 		Ok(format!("{}", USAGE))
 	}

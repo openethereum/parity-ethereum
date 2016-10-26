@@ -32,12 +32,18 @@ pub trait JournalDB: HashDB {
 	/// Check if this database has any commits
 	fn is_empty(&self) -> bool;
 
+	/// Get the earliest era in the DB. None if there isn't yet any data in there.
+	fn earliest_era(&self) -> Option<u64> { None }
+
 	/// Get the latest era in the DB. None if there isn't yet any data in there.
 	fn latest_era(&self) -> Option<u64>;
 
-	/// Commit all recent insert operations and canonical historical commits' removals from the
-	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
-	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError>;
+	/// Journal recent database operations as being associated with a given era and id.
+	// TODO: give the overlay to this function so journaldbs don't manage the overlays themeselves.
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError>;
+
+	/// Mark a given block as canonical, indicating that competing blocks' states may be pruned out.
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, era: u64, id: &H256) -> Result<u32, UtilError>;
 
 	/// Commit all queued insert and delete operations without affecting any journalling -- this requires that all insertions
 	/// and deletions are indeed canonical and will likely lead to an invalid database if that assumption is violated.
@@ -68,8 +74,13 @@ pub trait JournalDB: HashDB {
 	#[cfg(test)]
 	fn commit_batch(&mut self, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
 		let mut batch = self.backing().transaction();
-		let res = try!(self.commit(&mut batch, now, id, end));
-		let result = self.backing().write(batch).map(|_| res).map_err(Into::into);
+		let mut ops = try!(self.journal_under(&mut batch, now, id));
+
+		if let Some((end_era, canon_id)) = end {
+			ops += try!(self.mark_canonical(&mut batch, end_era, &canon_id));
+		}
+
+		let result = self.backing().write(batch).map(|_| ops).map_err(Into::into);
 		self.flush();
 		result
 	}

@@ -15,9 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
-use common::*;
+use util::*;
 use block::*;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::{BlockError, Error};
+use header::Header;
 use spec::CommonParams;
+use transaction::SignedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -41,7 +46,7 @@ pub struct EthashParams {
 	/// Namereg contract address.
 	pub registrar: Address,
 	/// Homestead transition block number.
-	pub frontier_compatibility_mode_limit: u64,
+	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
@@ -54,6 +59,8 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
+	/// Bad gas transition block number.
+	pub eip150_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -66,13 +73,14 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map_or(0, Into::into),
+			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
 			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -117,12 +125,14 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
+		if env_info.number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else {
+		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
+		} else {
+			Schedule::new_homestead_gas_fix()
 		}
 	}
 
@@ -182,8 +192,8 @@ impl Engine for Ethash {
 
 		// Commit state so that we can actually figure out the state root.
 		if let Err(e) = fields.state.commit() {
-			warn!("Encountered error on state commit: {}", e);		
-		}		
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -264,7 +274,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.frontier_compatibility_mode_limit {
+		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
 		Ok(())
@@ -290,7 +300,7 @@ impl Ethash {
 			false => self.ethash_params.difficulty_bound_divisor,
 		};
 		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
+		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number() < frontier_limit {
 			if header.timestamp() >= parent.timestamp() + duration_limit {
@@ -366,9 +376,12 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
 	use tests::helpers::*;
+	use env_info::EnvInfo;
+	use error::{BlockError, Error};
+	use header::Header;
 	use super::super::new_morden;
 	use super::Ethash;
 	use rlp;

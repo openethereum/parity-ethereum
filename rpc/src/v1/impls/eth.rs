@@ -24,7 +24,7 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 use time::get_time;
-use ethsync::{SyncProvider, SyncState};
+use ethsync::{SyncProvider};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
@@ -33,7 +33,7 @@ use util::{FromHex, Mutex};
 use rlp::{self, UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{MiningBlockChainClient, BlockID, TransactionID, UncleID};
-use ethcore::header::Header as BlockHeader;
+use ethcore::header::{Header as BlockHeader, BlockNumber as EthBlockNumber};
 use ethcore::block::IsBlock;
 use ethcore::views::*;
 use ethcore::ethereum::Ethash;
@@ -49,6 +49,7 @@ use v1::types::{
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::block_import::is_major_importing;
 use v1::helpers::auto_args::Trailing;
 
 /// Eth RPC options
@@ -198,8 +199,8 @@ impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
 	}
 }
 
-pub fn pending_logs<M>(miner: &M, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
-	let receipts = miner.pending_receipts();
+pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFilter) -> Vec<Log> where M: MinerService {
+	let receipts = miner.pending_receipts(best_block);
 
 	let pending_logs = receipts.into_iter()
 		.flat_map(|(hash, r)| r.logs.into_iter().map(|l| (hash.clone(), l)).collect::<Vec<(H256, LogEntry)>>())
@@ -253,26 +254,19 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {
 		try!(self.active());
-
 		let status = take_weak!(self.sync).status();
-		match status.state {
-			SyncState::Idle => Ok(SyncStatus::None),
-			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead
-				| SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState::SnapshotWaiting => {
-				let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
-				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
-
-				if highest_block > current_block + U256::from(6) {
-					let info = SyncInfo {
-						starting_block: status.start_block_number.into(),
-						current_block: current_block.into(),
-						highest_block: highest_block.into(),
-					};
-					Ok(SyncStatus::Info(info))
-				} else {
-					Ok(SyncStatus::None)
-				}
-			}
+		let client = take_weak!(self.client);
+		if is_major_importing(Some(status.state), client.queue_info()) {
+			let current_block = U256::from(client.chain_info().best_block_number);
+			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+			let info = SyncInfo {
+				starting_block: status.start_block_number.into(),
+				current_block: current_block.into(),
+				highest_block: highest_block.into(),
+			};
+			Ok(SyncStatus::Info(info))
+		} else {
+			Ok(SyncStatus::None)
 		}
 	}
 
@@ -426,7 +420,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 		let hash: H256 = hash.into();
 		let miner = take_weak!(self.miner);
-		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(&hash).map(Into::into)))
+		let client = take_weak!(self.client);
+		Ok(try!(self.transaction(TransactionID::Hash(hash))).or_else(|| miner.transaction(client.chain_info().best_block_number, &hash).map(Into::into)))
 	}
 
 	fn transaction_by_block_hash_and_index(&self, hash: RpcH256, index: Index) -> Result<Option<Transaction>, Error> {
@@ -445,8 +440,9 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 		try!(self.active());
 
 		let miner = take_weak!(self.miner);
+		let best_block = take_weak!(self.client).chain_info().best_block_number;
 		let hash: H256 = hash.into();
-		match (miner.pending_receipt(&hash), self.options.allow_pending_receipt_query) {
+		match (miner.pending_receipt(best_block, &hash), self.options.allow_pending_receipt_query) {
 			(Some(receipt), true) => Ok(Some(receipt.into())),
 			_ => {
 				let client = take_weak!(self.client);
@@ -488,7 +484,8 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			.collect::<Vec<Log>>();
 
 		if include_pending {
-			let pending = pending_logs(&*take_weak!(self.miner), &filter);
+			let best_block = take_weak!(self.client).chain_info().best_block_number;
+			let pending = pending_logs(&*take_weak!(self.miner), best_block, &filter);
 			logs.extend(pending);
 		}
 
@@ -590,7 +587,10 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-		Ok(r.map(|e| Bytes(e.output)).unwrap_or(Bytes::new(vec![])))
+		match r {
+			Ok(b) => Ok(Bytes(b.output)),
+			Err(e) => Err(errors::from_call_error(e)),
+		}
 	}
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {

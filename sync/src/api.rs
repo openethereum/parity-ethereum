@@ -15,9 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::str;
-use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
-	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
+use std::collections::HashMap;
+use std::io;
+use util::Bytes;
+use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
+	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
+	AllowIP as NetworkAllowIP};
 use util::{U256, H256};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
@@ -29,6 +32,9 @@ use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
+use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
+
+pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"bam";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -41,6 +47,8 @@ pub struct SyncConfig {
 	pub subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
+	/// Enable snapshot sync
+	pub warp_sync: bool,
 }
 
 impl Default for SyncConfig {
@@ -50,6 +58,7 @@ impl Default for SyncConfig {
 			network_id: U256::from(1),
 			subprotocol_name: *b"eth",
 			fork_block: None,
+			warp_sync: true,
 		}
 	}
 }
@@ -61,6 +70,30 @@ binary_fixed_size!(SyncStatus);
 pub trait SyncProvider: Send + Sync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus;
+
+	/// Get peers information
+	fn peers(&self) -> Vec<PeerInfo>;
+}
+
+/// Peer connection information
+#[derive(Debug, Binary)]
+pub struct PeerInfo {
+	/// Public node id
+	pub id: Option<String>,
+	/// Node client ID
+	pub client_version: String,
+	/// Capabilities
+	pub capabilities: Vec<String>,
+	/// Remote endpoint address
+	pub remote_address: String,
+	/// Local endpoint address
+	pub local_address: String,
+	/// Ethereum protocol version
+	pub eth_version: u32,
+	/// SHA3 of peer best block hash
+	pub eth_head: H256,
+	/// Peer total difficulty if known
+	pub eth_difficulty: Option<U256>,
 }
 
 /// Ethereum network protocol handler
@@ -71,17 +104,25 @@ pub struct EthSync {
 	handler: Arc<SyncProtocolHandler>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
+	/// Configuration
+	config: NetworkConfiguration,
 }
 
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
 		let chain_sync = ChainSync::new(config, &*chain);
-		let service = try!(NetworkService::new(try!(network_config.into_basic())));
+		let service = try!(NetworkService::new(try!(network_config.clone().into_basic())));
 		let sync = Arc::new(EthSync{
 			network: service,
-			handler: Arc::new(SyncProtocolHandler { sync: RwLock::new(chain_sync), chain: chain, snapshot_service: snapshot_service }),
+			handler: Arc::new(SyncProtocolHandler {
+				sync: RwLock::new(chain_sync),
+				chain: chain,
+				snapshot_service: snapshot_service,
+				overlay: RwLock::new(HashMap::new()),
+			}),
 			subprotocol_name: config.subprotocol_name,
+			config: network_config,
 		});
 
 		Ok(sync)
@@ -94,6 +135,14 @@ impl SyncProvider for EthSync {
 	fn status(&self) -> SyncStatus {
 		self.handler.sync.write().status()
 	}
+
+	/// Get sync peers
+	fn peers(&self) -> Vec<PeerInfo> {
+		self.network.with_context_eval(self.subprotocol_name, |context| {
+			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
+			self.handler.sync.write().peers(&sync_io)
+		}).unwrap_or(Vec::new())
+	}
 }
 
 struct SyncProtocolHandler {
@@ -103,29 +152,40 @@ struct SyncProtocolHandler {
 	snapshot_service: Arc<SnapshotService>,
 	/// Sync strategy
 	sync: RwLock<ChainSync>,
+	/// Chain overlay used to cache data such as fork block.
+	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl NetworkProtocolHandler for SyncProtocolHandler {
 	fn initialize(&self, io: &NetworkContext) {
-		io.register_timer(0, 1000).expect("Error registering sync timer");
+		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+			io.register_timer(0, 1000).expect("Error registering sync timer");
+		}
 	}
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer, packet_id, data);
+		ChainSync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
 	}
 
 	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
+		// If warp protocol is supported only allow warp handshake
+		let warp_protocol = io.protocol_version(WARP_SYNC_PROTOCOL_ID, *peer).unwrap_or(0) != 0;
+		let warp_context = io.subprotocol_name() == WARP_SYNC_PROTOCOL_ID;
+		if warp_protocol == warp_context {
+			self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		}
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service), *peer);
+		if io.subprotocol_name() != WARP_SYNC_PROTOCOL_ID {
+			self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
+		}
 	}
 
 	fn timeout(&self, io: &NetworkContext, _timer: TimerToken) {
-		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
-		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
-		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service));
+		self.sync.write().maintain_peers(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
+		self.sync.write().maintain_sync(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
+		self.sync.write().propagate_new_transactions(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay));
 	}
 }
 
@@ -139,7 +199,7 @@ impl ChainNotify for EthSync {
 		_duration: u64)
 	{
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().chain_new_blocks(
 				&mut sync_io,
 				&imported,
@@ -151,9 +211,16 @@ impl ChainNotify for EthSync {
 	}
 
 	fn start(&self) {
-		self.network.start().unwrap_or_else(|e| warn!("Error starting network: {:?}", e));
-		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, &[62u8, 63u8, 64u8])
+		match self.network.start() {
+			Err(NetworkError::StdIo(ref e)) if  e.kind() == io::ErrorKind::AddrInUse => warn!("Network port {:?} is already in use, make sure that another instance of an Ethereum client is not running or change the port using the --port option.", self.network.config().listen_address.expect("Listen address is not set.")),
+			Err(err) => warn!("Error starting network: {}", err),
+			_ => {},
+		}
+		self.network.register_protocol(self.handler.clone(), self.subprotocol_name, ETH_PACKET_COUNT, &[62u8, 63u8])
 			.unwrap_or_else(|e| warn!("Error registering ethereum protocol: {:?}", e));
+		// register the warp sync subprotocol
+		self.network.register_protocol(self.handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
+			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
 	}
 
 	fn stop(&self) {
@@ -207,7 +274,7 @@ impl ManageNetwork for EthSync {
 
 	fn stop_network(&self) {
 		self.network.with_context(self.subprotocol_name, |context| {
-			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service);
+			let mut sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().abort(&mut sync_io);
 		});
 		self.stop();
@@ -215,6 +282,29 @@ impl ManageNetwork for EthSync {
 
 	fn network_config(&self) -> NetworkConfiguration {
 		NetworkConfiguration::from(self.network.config().clone())
+	}
+}
+
+/// IP fiter
+#[derive(Binary, Clone, Debug, PartialEq, Eq)]
+pub enum AllowIP {
+	/// Connect to any address
+	All,
+	/// Connect to private network only
+	Private,
+	/// Connect to public network only
+	Public,
+}
+
+impl AllowIP {
+	/// Attempt to parse the peer mode from a string.
+	pub fn parse(s: &str) -> Option<Self> {
+		match s {
+			"all" => Some(AllowIP::All),
+			"private" => Some(AllowIP::Private),
+			"public" => Some(AllowIP::Public),
+			_ => None,
+		}
 	}
 }
 
@@ -243,10 +333,16 @@ pub struct NetworkConfiguration {
 	pub max_peers: u32,
 	/// Min number of connected peers to maintain
 	pub min_peers: u32,
+	/// Max pending peers.
+	pub max_pending_peers: u32,
+	/// Reserved snapshot sync peers.
+	pub snapshot_peers: u32,
 	/// List of reserved node addresses.
 	pub reserved_nodes: Vec<String>,
 	/// The non-reserved peer mode.
 	pub allow_non_reserved: bool,
+	/// IP Filtering
+	pub allow_ips: AllowIP,
 }
 
 impl NetworkConfiguration {
@@ -282,7 +378,14 @@ impl NetworkConfiguration {
 			use_secret: self.use_secret,
 			max_peers: self.max_peers,
 			min_peers: self.min_peers,
+			max_handshakes: self.max_pending_peers,
+			reserved_protocols: hash_map![WARP_SYNC_PROTOCOL_ID => self.snapshot_peers],
 			reserved_nodes: self.reserved_nodes,
+			allow_ips: match self.allow_ips {
+				AllowIP::All => NetworkAllowIP::All,
+				AllowIP::Private => NetworkAllowIP::Private,
+				AllowIP::Public => NetworkAllowIP::Public,
+			},
 			non_reserved_mode: if self.allow_non_reserved { NonReservedPeerMode::Accept } else { NonReservedPeerMode::Deny },
 		})
 	}
@@ -302,7 +405,14 @@ impl From<BasicNetworkConfiguration> for NetworkConfiguration {
 			use_secret: other.use_secret,
 			max_peers: other.max_peers,
 			min_peers: other.min_peers,
+			max_pending_peers: other.max_handshakes,
+			snapshot_peers: *other.reserved_protocols.get(&WARP_SYNC_PROTOCOL_ID).unwrap_or(&0),
 			reserved_nodes: other.reserved_nodes,
+			allow_ips: match other.allow_ips {
+				NetworkAllowIP::All => AllowIP::All,
+				NetworkAllowIP::Private => AllowIP::Private,
+				NetworkAllowIP::Public => AllowIP::Public,
+			},
 			allow_non_reserved: match other.non_reserved_mode { NonReservedPeerMode::Accept => true, _ => false } ,
 		}
 	}

@@ -15,20 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
+use env_info::EnvInfo;
+use error::ExecutionError;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
-/// Max depth to avoid stack overflow (when it's reached we start a new thread with VM)
+/// Roughly estimate what stack size each level of evm depth will use
 /// TODO [todr] We probably need some more sophisticated calculations here (limit on my machine 132)
 /// Maybe something like here: `https://github.com/ethereum/libethereum/blob/4db169b8504f2b87f7d5a481819cfb959fc65f6c/libethereum/ExtVM.cpp`
-const MAX_VM_DEPTH_FOR_THREAD: usize = 64;
+const STACK_SIZE_PER_DEPTH: usize = 24*1024;
 
 /// Returns new address created from address and given nonce.
 pub fn contract_address(address: &Address, nonce: &U256) -> Address {
@@ -149,12 +153,13 @@ impl<'a> Executive<'a> {
 
 		// TODO: we might need bigints here, or at least check overflows.
 		let balance = self.state.balance(&sender);
-		let gas_cost = U512::from(t.gas) * U512::from(t.gas_price);
+		let gas_cost = t.gas.full_mul(t.gas_price);
 		let total_cost = U512::from(t.value) + gas_cost;
 
 		// avoid unaffordable transactions
-		if U512::from(balance) < total_cost {
-			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: U512::from(balance) }));
+		let balance512 = U512::from(balance);
+		if balance512 < total_cost {
+			return Err(From::from(ExecutionError::NotEnoughCash { required: total_cost, got: balance512 }));
 		}
 
 		// NOTE: there can be no invalid transactions from this point.
@@ -212,8 +217,11 @@ impl<'a> Executive<'a> {
 		tracer: &mut T,
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
+
+		let depth_threshold = ::io::LOCAL_STACK_SIZE.with(|sz| sz.get() / STACK_SIZE_PER_DEPTH);
+
 		// Ordinary execution - keep VM in same thread
-		if (self.depth + 1) % MAX_VM_DEPTH_FOR_THREAD != 0 {
+		if (self.depth + 1) % depth_threshold != 0 {
 			let vm_factory = self.vm_factory;
 			let mut ext = self.as_externalities(OriginInfo::from(&params), unconfirmed_substate, output_policy, tracer, vm_tracer);
 			trace!(target: "executive", "ext.schedule.have_delegate_call: {}", ext.schedule().have_delegate_call);
@@ -246,7 +254,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -265,7 +273,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.clear_snapshot();
+				self.state.discard_checkpoint();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -285,7 +293,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_snapshot();
+				self.state.revert_to_checkpoint();
 
 				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
@@ -331,7 +339,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.clear_snapshot();
+				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -350,7 +358,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -413,7 +421,7 @@ impl<'a> Executive<'a> {
 
 		// real ammount to refund
 		let gas_left_prerefund = match result { Ok(x) => x, _ => 0.into() };
-		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) / U256::from(2));
+		let refunded = cmp::min(refunds_bound, (t.gas - gas_left_prerefund) >> 1);
 		let gas_left = gas_left_prerefund + refunded;
 
 		let gas_used = t.gas - gas_left;
@@ -423,8 +431,16 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
-		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		let sender = match t.sender() {
+			Ok(sender) => sender,
+			Err(e) => {
+				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
+				return Err(ExecutionError::Internal);
+			}
+		};
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		self.state.add_balance(&sender, &refund_value);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value);
 
@@ -473,10 +489,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_snapshot();
+					self.state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.clear_snapshot();
+				self.state.discard_checkpoint();
 				substate.accrue(un_substate);
 			}
 		}
@@ -488,13 +504,18 @@ impl<'a> Executive<'a> {
 mod tests {
 	use ethkey::{Generator, Random};
 	use super::*;
-	use common::*;
+	use util::*;
+	use action_params::{ActionParams, ActionValue};
+	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
+	use error::ExecutionError;
 	use state::Substate;
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
+	use transaction::{Action, Transaction};
+
 	use types::executed::CallType;
 
 	#[test]
@@ -594,7 +615,7 @@ mod tests {
 	#[test]
 	// Tracing is not suported in JIT
 	fn test_call_to_create() {
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 
 		// code:
 		//
@@ -693,7 +714,7 @@ mod tests {
 				VMOperation { pc: 33, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99985.into(), stack_push: vec_into![29], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 35, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99982.into(), stack_push: vec_into![3], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 37, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 99979.into(), stack_push: vec_into![23], mem_diff: None, store_diff: None }) },
-				VMOperation { pc: 39, instruction: 240, gas_cost: 32000.into(), executed: Some(VMExecutedOperation { gas_used: 67979.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
+				VMOperation { pc: 39, instruction: 240, gas_cost: 99979.into(), executed: Some(VMExecutedOperation { gas_used: 64755.into(), stack_push: vec_into![U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap()], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 40, instruction: 96, gas_cost: 3.into(), executed: Some(VMExecutedOperation { gas_used: 64752.into(), stack_push: vec_into![0], mem_diff: None, store_diff: None }) },
 				VMOperation { pc: 42, instruction: 85, gas_cost: 20000.into(), executed: Some(VMExecutedOperation { gas_used: 44752.into(), stack_push: vec_into![], mem_diff: None, store_diff: Some(StorageDiff { location: 0.into(), value: U256::from_dec_str("1135198453258042933984631383966629874710669425204").unwrap() }) }) }
 			],
@@ -720,7 +741,7 @@ mod tests {
 	#[test]
 	fn test_create_contract() {
 		// Tracing is not supported in JIT
-		let factory = Factory::new(VMType::Interpreter);
+		let factory = Factory::new(VMType::Interpreter, 1024 * 32);
 		// code:
 		//
 		// 60 10 - push 16

@@ -104,6 +104,7 @@ extern crate parking_lot;
 extern crate ansi_term;
 extern crate tiny_keccak;
 extern crate rlp;
+extern crate regex;
 
 #[macro_use]
 extern crate heapsize;

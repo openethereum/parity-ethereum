@@ -11,6 +11,7 @@ build = "build.rs"
 [dependencies]
 rand = "0.3.14"
 log = "0.3"
+env_logger = "0.3"
 jsonrpc-core = "3.0"
 jsonrpc-http-server = { git = "https://github.com/ethcore/jsonrpc-http-server.git" }
 hyper = { default-features = false, git = "https://github.com/ethcore/hyper" }
@@ -19,19 +20,18 @@ url = "1.0"
 rustc-serialize = "0.3"
 serde = "0.8"
 serde_json = "0.8"
-serde_macros = { version = "0.8", optional = true }
-zip = { version = "0.1", default-features = false }
 ethabi = "0.2.2"
 linked-hash-map = "0.3"
+parity-dapps-glue = "1.4"
+mime = "0.2"
+serde_macros = { version = "0.8", optional = true }
+zip = { version = "0.1", default-features = false }
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
 fetch = { path = "../util/fetch" }
-parity-dapps = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-# List of apps
-parity-dapps-status = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-parity-dapps-home = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4" }
-parity-dapps-wallet = { git = "https://github.com/ethcore/parity-ui.git", version = "1.4", optional = true }
+parity-ui = { path = "./ui" }
+
 mime_guess = { version = "1.6.1" }
 clippy = { version = "0.0.90", optional = true}
 
@@ -39,13 +39,9 @@ clippy = { version = "0.0.90", optional = true}
 serde_codegen = { version = "0.8", optional = true }
 
 [features]
-default = ["serde_codegen", "extra-dapps"]
-extra-dapps = ["parity-dapps-wallet"]
+default = ["serde_codegen"]
 nightly = ["serde_macros"]
 dev = ["clippy", "ethcore-rpc/dev", "ethcore-util/dev"]
 
-use-precompiled-js = [
-	"parity-dapps-status/use-precompiled-js",
-	"parity-dapps-home/use-precompiled-js",
-	"parity-dapps-wallet/use-precompiled-js"
-]
+ui = ["parity-ui/no-precompiled-js"]
+ui-precompiled = ["parity-ui/use-precompiled-js"]

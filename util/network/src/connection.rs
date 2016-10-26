@@ -104,12 +104,13 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	}
 
 	/// Add a packet to send queue.
-	pub fn send<Message>(&mut self, io: &IoContext<Message>, data: Bytes) where Message: Send + Clone {
+	pub fn send<Message>(&mut self, io: &IoContext<Message>, data: Bytes) where Message: Send + Clone + Sync + 'static {
 		if !data.is_empty() {
+			trace!(target:"network", "{}: Sending {} bytes", self.token, data.len());
 			self.send_queue.push_back(Cursor::new(data));
-		}
-		if !self.interest.is_writable() {
-			self.interest.insert(EventSet::writable());
+			if !self.interest.is_writable() {
+				self.interest.insert(EventSet::writable());
+			}
 			io.update_registration(self.token).ok();
 		}
 	}
@@ -120,7 +121,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 	}
 
 	/// Writable IO handler. Called when the socket is ready to send.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone + Sync + 'static {
 		if self.send_queue.is_empty() {
 			return Ok(WriteStatus::Complete)
 		}
@@ -189,6 +190,11 @@ impl Connection {
 	/// Get remote peer address string
 	pub fn remote_addr_str(&self) -> String {
 		self.socket.peer_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
+	}
+
+	/// Get local peer address string
+	pub fn local_addr_str(&self) -> String {
+		self.socket.local_addr().map(|a| a.to_string()).unwrap_or_else(|_| "Unknown".to_owned())
 	}
 
 	/// Clone this connection. Clears the receiving buffer of the returned connection.
@@ -340,7 +346,7 @@ impl EncryptedConnection {
 	}
 
 	/// Send a packet
-	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone {
+	pub fn send_packet<Message>(&mut self, io: &IoContext<Message>, payload: &[u8]) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		let mut header = RlpStream::new();
 		let len = payload.len() as usize;
 		header.append_raw(&[(len >> 16) as u8, (len >> 8) as u8, len as u8], 1);
@@ -435,7 +441,7 @@ impl EncryptedConnection {
 	}
 
 	/// Readable IO handler. Tracker receive status and returns decoded packet if avaialable.
-	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, NetworkError> where Message: Send + Clone{
+	pub fn readable<Message>(&mut self, io: &IoContext<Message>) -> Result<Option<Packet>, NetworkError> where Message: Send + Clone + Sync + 'static {
 		try!(io.clear_timer(self.connection.token));
 		if let EncryptedConnectionState::Header = self.read_state {
 			if let Some(data) = try!(self.connection.readable()) {
@@ -458,7 +464,7 @@ impl EncryptedConnection {
 	}
 
 	/// Writable IO handler. Processes send queeue.
-	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone {
+	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<(), NetworkError> where Message: Send + Clone + Sync + 'static {
 		try!(self.connection.writable(io));
 		Ok(())
 	}

@@ -26,11 +26,14 @@ extern crate serde_json;
 extern crate rustc_serialize;
 extern crate crypto as rcrypto;
 extern crate tiny_keccak;
-#[macro_use]
-extern crate lazy_static;
+extern crate parking_lot;
+
 // reexport it nicely
 extern crate ethkey as _ethkey;
 extern crate ethcrypto as crypto;
+
+#[macro_use]
+extern crate lazy_static;
 
 pub mod dir;
 pub mod ethkey;

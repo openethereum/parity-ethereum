@@ -24,11 +24,16 @@ pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 
-use common::*;
+use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
+use header::Header;
+use transaction::SignedTransaction;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -123,10 +128,14 @@ pub trait Engine : Sync + Send {
 	fn is_builtin(&self, a: &Address) -> bool { self.builtins().contains_key(a) }
 	/// Determine the code execution cost of the builtin contract with address `a`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
+	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 {
+		self.builtins().get(a).expect("queried cost of nonexistent builtin").cost(input.len())
+	}
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
+		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
+	}
 
 	// TODO: sealing stuff - though might want to leave this for later.
 }
