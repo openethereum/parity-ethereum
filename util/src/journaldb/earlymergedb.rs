@@ -150,7 +150,7 @@ impl EarlyMergeDB {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
 			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
@@ -268,8 +268,8 @@ impl EarlyMergeDB {
 		}
 	}
 
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_refs(db: &Database, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
@@ -317,19 +317,12 @@ impl HashDB for EarlyMergeDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		let k = self.overlay.raw(key);
-		match k {
-			Some((d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
+		if let Some((d, rc)) = k {
+			if rc > 0 { return Some(d) }
 		}
+		self.payload(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -339,7 +332,7 @@ impl HashDB for EarlyMergeDB {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.overlay.insert(value)
 	}
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		self.overlay.emplace(key, value);
 	}
 	fn remove(&mut self, key: &H256) {
@@ -413,7 +406,7 @@ impl JournalDB for EarlyMergeDB {
 				.iter()
 				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
 				.collect();
-			let inserts: Vec<(H256, Bytes)> = drained
+			let inserts: Vec<(H256, _)> = drained
 				.into_iter()
 				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
 				.collect();
@@ -832,7 +825,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
@@ -1088,7 +1081,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

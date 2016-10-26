@@ -18,12 +18,14 @@
 
 use super::{TrieError, TrieMut};
 use super::node::Node as RlpNode;
+use super::node::NodeKey;
 
-use ::{Bytes, HashDB, H256};
+use ::{HashDB, H256};
 use ::bytes::ToPretty;
 use ::nibbleslice::NibbleSlice;
 use ::rlp::{Rlp, RlpStream, View, Stream};
 use ::sha3::SHA3_NULL_RLP;
+use hashdb::DBValue;
 
 use elastic_array::ElasticArray1024;
 
@@ -72,14 +74,14 @@ enum Node {
 	/// A leaf node contains the end of a key and a value.
 	/// This key is encoded from a `NibbleSlice`, meaning it contains
 	/// a flag indicating it is a leaf.
-	Leaf(Bytes, Bytes),
+	Leaf(NodeKey, DBValue),
 	/// An extension contains a shared portion of a key and a child node.
 	/// The shared portion is encoded from a `NibbleSlice` meaning it contains
 	/// a flag indicating it is an extension.
 	/// The child node is always a branch.
-	Extension(Bytes, NodeHandle),
+	Extension(NodeKey, NodeHandle),
 	/// A branch has up to 16 children and an optional value.
-	Branch(Box<[Option<NodeHandle>; 16]>, Option<Bytes>)
+	Branch(Box<[Option<NodeHandle>; 16]>, Option<DBValue>)
 }
 
 impl Node {
@@ -98,21 +100,18 @@ impl Node {
 	fn from_rlp(rlp: &[u8], db: &HashDB, storage: &mut NodeStorage) -> Self {
 		match RlpNode::decoded(rlp) {
 			RlpNode::Empty => Node::Empty,
-			RlpNode::Leaf(k, v) => Node::Leaf(k.encoded(true), v.to_owned()),
-			RlpNode::Extension(partial, cb) => {
-				let key = partial.encoded(false);
-
-				Node::Extension(key, Self::inline_or_hash(cb, db, storage))
+			RlpNode::Leaf(k, v) => Node::Leaf(k, v),
+			RlpNode::Extension(key, cb) => {
+				Node::Extension(key, Self::inline_or_hash(&*cb, db, storage))
 			}
-			RlpNode::Branch(children_rlp, v) => {
-				let val = v.map(|x| x.to_owned());
+			RlpNode::Branch(children_rlp, val) => {
 				let mut children = empty_children();
 
 				for i in 0..16 {
-					let raw = children_rlp[i];
-					let child_rlp = Rlp::new(raw);
+					let raw = &children_rlp[i];
+					let child_rlp = Rlp::new(&*raw);
 					if !child_rlp.is_empty()  {
-						children[i] = Some(Self::inline_or_hash(raw, db, storage));
+						children[i] = Some(Self::inline_or_hash(&*raw, db, storage));
 					}
 				}
 
@@ -134,13 +133,13 @@ impl Node {
 			}
 			Node::Leaf(partial, value) => {
 				let mut stream = RlpStream::new_list(2);
-				stream.append(&partial);
-				stream.append(&value);
+				stream.append(&&*partial);
+				stream.append(&&*value);
 				stream.drain()
 			}
 			Node::Extension(partial, child) => {
 				let mut stream = RlpStream::new_list(2);
-				stream.append(&partial);
+				stream.append(&&*partial);
 				child_cb(child, &mut stream);
 				stream.drain()
 			}
@@ -154,7 +153,7 @@ impl Node {
 					}
 				}
 				if let Some(value) = value {
-					stream.append(&value);
+					stream.append(&&*value);
 				} else {
 					stream.append_empty_data();
 				}
@@ -276,7 +275,7 @@ impl<'a> Index<&'a StorageHandle> for NodeStorage {
 ///   assert_eq!(*t.root(), ::util::sha3::SHA3_NULL_RLP);
 ///   t.insert(b"foo", b"bar").unwrap();
 ///   assert!(t.contains(b"foo").unwrap());
-///   assert_eq!(t.get(b"foo").unwrap().unwrap(), b"bar");
+///   assert_eq!(t.get(b"foo").unwrap().unwrap(), DBValue::from_slice(b"bar"));
 ///   t.remove(b"foo").unwrap();
 ///   assert!(!t.contains(b"foo").unwrap());
 /// }
@@ -338,7 +337,7 @@ impl<'a> TrieDBMut<'a> {
 	// cache a node by hash
 	fn cache(&mut self, hash: H256) -> super::Result<StorageHandle> {
 		let node_rlp = try!(self.db.get(&hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(hash))));
-		let node = Node::from_rlp(node_rlp, &*self.db, &mut self.storage);
+		let node = Node::from_rlp(&node_rlp, &*self.db, &mut self.storage);
 		Ok(self.storage.alloc(Stored::Cached(node, hash)))
 	}
 
@@ -367,7 +366,7 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	// walk the trie, attempting to find the key's node.
-	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<&'x [u8]>>
+	fn lookup<'x, 'key>(&'x self, partial: NibbleSlice<'key>, handle: &NodeHandle) -> super::Result<Option<DBValue>>
 		where 'x: 'key
 	{
 		match *handle {
@@ -376,7 +375,7 @@ impl<'a> TrieDBMut<'a> {
 				Node::Empty => Ok(None),
 				Node::Leaf(ref key, ref value) => {
 					if NibbleSlice::from_encoded(key).0 == partial {
-						Ok(Some(value))
+						Ok(Some(DBValue::from_slice(value)))
 					} else {
 						Ok(None)
 					}
@@ -391,7 +390,7 @@ impl<'a> TrieDBMut<'a> {
 				}
 				Node::Branch(ref children, ref value) => {
 					if partial.is_empty() {
-						Ok(value.as_ref().map(|v| &v[..]))
+						Ok(value.as_ref().map(|v| DBValue::from_slice(v)))
 					} else {
 						let idx = partial.at(0);
 						match children[idx as usize].as_ref() {
@@ -405,28 +404,33 @@ impl<'a> TrieDBMut<'a> {
 	}
 
 	/// Return optional data for a key given as a `NibbleSlice`. Returns `None` if no data exists.
-	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<Option<&'x [u8]>>
+	fn do_db_lookup<'x, 'key>(&'x self, hash: &H256, key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
 		where 'x: 'key
 	{
 		self.db.get(hash).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(*hash)))
-			.and_then(|node_rlp| self.get_from_db_node(node_rlp, key))
+			.and_then(|node_rlp| self.get_from_db_node(&node_rlp, key))
 	}
 
 	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
 	/// value exists for the key.
 	///
 	/// Note: Not a public API; use Trie trait functions.
-	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<Option<&'x [u8]>>
+	fn get_from_db_node<'x, 'key>(&'x self, node: &'x [u8], key: NibbleSlice<'key>) -> super::Result<Option<DBValue>>
 		where 'x: 'key
 	{
 		match RlpNode::decoded(node) {
-			RlpNode::Leaf(ref slice, value) if &key == slice => Ok(Some(value)),
-			RlpNode::Extension(ref slice, item) if key.starts_with(slice) => {
-				self.get_from_db_node(try!(self.get_raw_or_lookup(item)), key.mid(slice.len()))
+			RlpNode::Leaf(ref slice, ref value) if NibbleSlice::from_encoded(slice).0 == key => Ok(Some(value.clone())),
+			RlpNode::Extension(ref slice, ref item) => {
+				let slice = &NibbleSlice::from_encoded(slice).0;
+				if key.starts_with(slice) {
+					self.get_from_db_node(&try!(self.get_raw_or_lookup(&*item)), key.mid(slice.len()))
+				} else {
+					Ok(None)
+				}
 			},
-			RlpNode::Branch(ref nodes, value) => match key.is_empty() {
-				true => Ok(value),
-				false => self.get_from_db_node(try!(self.get_raw_or_lookup(nodes[key.at(0) as usize])), key.mid(1))
+			RlpNode::Branch(ref nodes, ref value) => match key.is_empty() {
+				true => Ok(value.clone()),
+				false => self.get_from_db_node(&try!(self.get_raw_or_lookup(&*nodes[key.at(0) as usize])), key.mid(1))
 			},
 			_ => Ok(None),
 		}
@@ -435,7 +439,7 @@ impl<'a> TrieDBMut<'a> {
 	/// Given some node-describing data `node`, return the actual node RLP.
 	/// This could be a simple identity operation in the case that the node is sufficiently small, but
 	/// may require a database lookup.
-	fn get_raw_or_lookup<'x>(&'x self, node: &'x [u8]) -> super::Result<&'x [u8]> {
+	fn get_raw_or_lookup<'x>(&'x self, node: &'x [u8]) -> super::Result<DBValue> {
 		// check if its sha3 + len
 		let r = Rlp::new(node);
 		match r.is_data() && r.size() == 32 {
@@ -443,12 +447,12 @@ impl<'a> TrieDBMut<'a> {
 				let key = r.as_val::<H256>();
 				self.db.get(&key).ok_or_else(|| Box::new(TrieError::IncompleteDatabase(key)))
 			}
-			false => Ok(node)
+			false => Ok(DBValue::from_slice(node))
 		}
 	}
 
 	/// insert a key, value pair into the trie, creating new nodes if necessary.
-	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: Bytes) -> super::Result<(StorageHandle, bool)> {
+	fn insert_at(&mut self, handle: NodeHandle, partial: NibbleSlice, value: DBValue) -> super::Result<(StorageHandle, bool)> {
 		let h = match handle {
 			NodeHandle::InMemory(h) => h,
 			NodeHandle::Hash(h) => try!(self.cache(h)),
@@ -463,7 +467,7 @@ impl<'a> TrieDBMut<'a> {
 
 	/// the insertion inspector.
 	#[cfg_attr(feature = "dev", allow(cyclomatic_complexity))]
-	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: Bytes) -> super::Result<InsertAction> {
+	fn insert_inspector(&mut self, node: Node, partial: NibbleSlice, value: DBValue) -> super::Result<InsertAction> {
 		trace!(target: "trie", "augmented (partial: {:?}, value: {:?})", partial, value.pretty());
 
 		Ok(match node {
@@ -898,7 +902,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 		}
 	}
 
-	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<&'x [u8]>> where 'x: 'key {
+	fn get<'x, 'key>(&'x self, key: &'key [u8]) -> super::Result<Option<DBValue>> where 'x: 'key {
 		self.lookup(NibbleSlice::new(key), &self.root_handle)
 	}
 
@@ -911,7 +915,7 @@ impl<'a> TrieMut for TrieDBMut<'a> {
 		trace!(target: "trie", "insert: key={:?}, value={:?}", key.pretty(), value.pretty());
 
 		let root_handle = self.root_handle();
-		let (new_handle, changed) = try!(self.insert_at(root_handle, NibbleSlice::new(key), value.to_owned()));
+		let (new_handle, changed) = try!(self.insert_at(root_handle, NibbleSlice::new(key), DBValue::from_slice(value)));
 
 		trace!(target: "trie", "insert: altered trie={}", changed);
 		self.root_handle = NodeHandle::InMemory(new_handle);
@@ -1180,9 +1184,9 @@ mod tests {
 		let mut root = H256::new();
 		let mut t = TrieDBMut::new(&mut memdb, &mut root);
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
-		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), &[0x1u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x1u8, 0x23]));
 		t.commit();
-		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), &[0x1u8, 0x23]);
+		assert_eq!(t.get(&[0x1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x1u8, 0x23]));
 	}
 
 	#[test]
@@ -1193,14 +1197,14 @@ mod tests {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 		t.insert(&[0xf1u8, 0x23], &[0xf1u8, 0x23]).unwrap();
 		t.insert(&[0x81u8, 0x23], &[0x81u8, 0x23]).unwrap();
-		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
-		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), &[0xf1u8, 0x23]);
-		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0xf1u8, 0x23]));
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x81u8, 0x23]));
 		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
 		t.commit();
-		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
-		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), &[0xf1u8, 0x23]);
-		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), &[0x81u8, 0x23]);
+		assert_eq!(t.get(&[0x01, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+		assert_eq!(t.get(&[0xf1, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0xf1u8, 0x23]));
+		assert_eq!(t.get(&[0x81, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x81u8, 0x23]));
 		assert_eq!(t.get(&[0x82, 0x23]), Ok(None));
 	}
 

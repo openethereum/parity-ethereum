@@ -29,7 +29,7 @@ use engines::Engine;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, U256, Uint};
+use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
@@ -369,7 +369,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	// account_key here is the address' hash.
 	for item in try!(account_trie.iter()) {
 		let (account_key, account_data) = try!(item);
-		let account = Account::from_thin_rlp(account_data);
+		let account = Account::from_thin_rlp(&*account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
@@ -457,7 +457,7 @@ impl StateRebuilder {
 		for (code_hash, code) in chunk_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
-				db.emplace(code_hash, code.clone());
+				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
 			self.code_map.insert(code_hash, code);

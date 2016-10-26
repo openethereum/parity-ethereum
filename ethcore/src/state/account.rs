@@ -172,7 +172,7 @@ impl Account {
 			using it will not fail.");
 
 		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, decode),
+			Ok(x) => x.map_or_else(U256::zero, |v| decode(&*v)),
 			Err(e) => panic!("Encountered potential DB corruption: {}", e),
 		};
 		let value: H256 = item.into();
@@ -253,8 +253,8 @@ impl Account {
 		self.is_cached() ||
 		match db.get(&self.code_hash) {
 			Some(x) => {
-				self.code_cache = Arc::new(x.to_vec());
 				self.code_size = Some(x.len());
+				self.code_cache = Arc::new(x.to_vec());
 				true
 			},
 			_ => {
@@ -351,7 +351,7 @@ impl Account {
 				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				db.emplace(self.code_hash.clone(), (*self.code_cache).clone());
+				db.emplace(self.code_hash.clone(), DBValue::from_slice(&*self.code_cache));
 				self.code_size = Some(self.code_cache.len());
 				self.code_filth = Filth::Clean;
 			},

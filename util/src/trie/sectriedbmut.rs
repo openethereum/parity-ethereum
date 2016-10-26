@@ -16,7 +16,7 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::HashDB;
+use hashdb::{HashDB, DBValue};
 use super::triedbmut::TrieDBMut;
 use super::TrieMut;
 
@@ -62,7 +62,7 @@ impl<'db> TrieMut for SecTrieDBMut<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<&'a [u8]>>
+	fn get<'a, 'key>(&'a self, key: &'key [u8]) -> super::Result<Option<DBValue>>
 		where 'a: 'key
 	{
 		self.raw.get(&key.sha3())
@@ -90,5 +90,5 @@ fn sectrie_to_trie() {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = TrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap().unwrap(), &[0x01u8, 0x23]);
+	assert_eq!(t.get(&(&[0x01u8, 0x23]).sha3()).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

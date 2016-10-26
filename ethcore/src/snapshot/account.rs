@@ -19,7 +19,7 @@
 use account_db::{AccountDB, AccountDBMut};
 use snapshot::Error;
 
-use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
+use util::{U256, FixedHash, H256, Bytes, HashDB, DBValue, SHA3_EMPTY, SHA3_NULL_RLP};
 use util::trie::{TrieDB, Trie};
 use rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
 
@@ -112,7 +112,7 @@ impl Account {
 		let mut stream = RlpStream::new_list(pairs.len());
 
 		for (k, v) in pairs {
-			stream.begin_list(2).append(&k).append(&v);
+			stream.begin_list(2).append(&k).append(&&*v);
 		}
 
 		let pairs_rlp = stream.out();
@@ -130,7 +130,7 @@ impl Account {
 			match acct_db.get(&self.code_hash) {
 				Some(c) => {
 					used_code.insert(self.code_hash.clone());
-					account_stream.append(&CodeState::Inline.raw()).append(&c);
+					account_stream.append(&CodeState::Inline.raw()).append(&&*c);
 				}
 				None => {
 					warn!("code lookup failed during snapshot");
@@ -178,7 +178,7 @@ impl Account {
 			CodeState::Hash => {
 				let code_hash = try!(rlp.val_at(3));
 				if let Some(code) = code_map.get(&code_hash) {
-					acct_db.emplace(code_hash.clone(), code.clone());
+					acct_db.emplace(code_hash.clone(), DBValue::from_slice(&code));
 				}
 
 				(code_hash, None)
@@ -226,7 +226,7 @@ mod tests {
 	use snapshot::tests::helpers::fill_storage;
 
 	use util::sha3::{SHA3_EMPTY, SHA3_NULL_RLP};
-	use util::{Address, FixedHash, H256, HashDB};
+	use util::{Address, FixedHash, H256, HashDB, DBValue};
 	use rlp::{UntrustedRlp, View};
 
 	use std::collections::{HashSet, HashMap};
@@ -292,7 +292,7 @@ mod tests {
 
 		{
 			let mut acct_db = AccountDBMut::new(db.as_hashdb_mut(), &addr2);
-			acct_db.emplace(code_hash.clone(), b"this is definitely code".to_vec());
+			acct_db.emplace(code_hash.clone(), DBValue::from_slice(b"this is definitely code"));
 		}
 
 		let account1 = Account {
