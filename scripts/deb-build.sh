@@ -18,7 +18,7 @@ echo "Version: $version" >> $control
 echo "Source: parity" >> $control
 echo "Section: science" >> $control
 echo "Priority: extra" >> $control
-echo "Maintainer: Ethcore <admin@ethcore.io>" >> $control
+echo "Maintainer: Ethcore <devops@ethcore.io>" >> $control
 echo "Build-Depends: debhelper (>=9)" >> $control
 echo "Standards-Version: 3.9.5" >> $control
 echo "Homepage: https://ethcore.io" >> $control
