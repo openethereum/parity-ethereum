@@ -16,7 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Bar as BarChart } from 'react-chartjs-2';
+import Slider from 'material-ui/Slider';
 import { isEqual } from 'lodash';
+import BigNumber from 'bignumber.js';
 
 import Form, { Input } from '../../../ui/Form';
 
@@ -30,7 +32,10 @@ export default class Extras extends Component {
     gas: PropTypes.string,
     gasEst: PropTypes.string,
     gasError: PropTypes.string,
-    gasPrice: PropTypes.string,
+    gasPrice: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.object
+    ]),
     gasPriceDefault: PropTypes.string,
     gasPriceError: PropTypes.string,
     gasPriceStatistics: PropTypes.array,
@@ -40,11 +45,14 @@ export default class Extras extends Component {
   }
 
   state = {
-    gasPriceChartData: {}
+    gasPriceChartData: {},
+    gasPrice: null,
+    gasPriceIndex: 0
   }
 
   componentWillMount () {
     this.computeGasPriceChart();
+    this.setGasPrice();
   }
 
   componentWillReceiveProps (nextProps) {
@@ -56,10 +64,15 @@ export default class Extras extends Component {
     const curGasStats = this.props
       .gasPriceStatistics
       .map(stat => stat.toNumber())
-      .sort();
+      .sort()
+      ;
 
     if (!isEqual(newGasStats, curGasStats)) {
       this.computeGasPriceChart(nextProps);
+    }
+
+    if (nextProps.gasPrice !== this.props.gasPrice) {
+      this.setGasPrice(nextProps);
     }
   }
 
@@ -71,7 +84,7 @@ export default class Extras extends Component {
     const gasPriceChartData = {
       labels: data.map((d, index) => index + 1),
       datasets: [{
-        label: 'Sales',
+        label: 'Gas Price',
         type: 'line',
         fill: false,
         borderColor: '#EC932F',
@@ -84,6 +97,7 @@ export default class Extras extends Component {
         data
       }, {
         label: 'Gas Price',
+        type: 'bar',
         backgroundColor: 'rgba(255, 99, 132, 0.2)',
         borderColor: 'rgba(255,99,132,1)',
         borderWidth: 1,
@@ -95,17 +109,73 @@ export default class Extras extends Component {
     this.setState({ gasPriceChartData });
   }
 
+  setGasPrice (props = this.props) {
+    const { gasPrice, gasPriceStatistics } = props;
+
+    if (!gasPrice) {
+      const index = Math.floor(gasPriceStatistics.length / 2);
+
+      return this.setState({
+        gasPrice: gasPriceStatistics[index],
+        gasPriceIndex: index
+      });
+    }
+
+    const bnGasPrice = (typeof gasPrice === 'string')
+      ? new BigNumber(gasPrice)
+      : gasPrice;
+
+    if (this.state.gasPrice && bnGasPrice.equals(this.state.gasPrice)) {
+      return;
+    }
+
+    const exactPrices = gasPriceStatistics.filter(p => p.equals(bnGasPrice));
+
+    if (exactPrices.length > 0) {
+      const startIndex = gasPriceStatistics.findIndex(p => p.equals(bnGasPrice));
+      const index = startIndex + Math.floor(exactPrices.length / 2);
+
+      return this.setState({
+        gasPrice: exactPrices[0],
+        gasPriceIndex: index
+      });
+    }
+
+    let index;
+
+    for (index = 0; index < gasPriceStatistics.length - 1; index++) {
+      if (gasPriceStatistics[index].greaterThanOrEqualTo(bnGasPrice)) {
+        break;
+      }
+    }
+
+    this.setState({ gasPrice: bnGasPrice, gasPriceIndex: index });
+  }
+
   render () {
-    const { gas, gasError, gasEst, gasPrice, gasPriceDefault, gasPriceError, total, totalError } = this.props;
+    const { gasPrice } = this.state;
+    const { gas, gasError, gasEst, gasPriceDefault, gasPriceError, total, totalError } = this.props;
+
     const gasLabel = `gas amount (estimated: ${gasEst})`;
     const priceLabel = `gas price (current: ${gasPriceDefault})`;
 
     return (
       <Form>
-        { this.renderData() }
-        <div className={ styles.columns }>
-          { this.renderGasPrice() }
+        <div>
+          <p className={ styles.contentTitle }>Gas Price Selection</p>
+          <p>
+            You can choose the gas price based on the  the octile
+            distribution of recent transactions' gas prices.
+          </p>
+          <p>
+            The lower the gas price is, the cheaper the transaction will
+            be. The higher the gas price is, the faster it should
+            get mined by the network.
+          </p>
         </div>
+
+        { this.renderGasPrice() }
+        { this.renderGasPriceSlider() }
 
         <div className={ styles.columns }>
           <div>
@@ -121,10 +191,13 @@ export default class Extras extends Component {
               label={ priceLabel }
               hint='the price of gas to use for the transaction'
               error={ gasPriceError }
-              value={ gasPrice }
+              value={ (gasPrice || '').toString() }
               onChange={ this.onEditGasPrice } />
           </div>
         </div>
+
+        { this.renderData() }
+
         <div className={ styles.columns }>
           <div>
             <Input
@@ -139,21 +212,77 @@ export default class Extras extends Component {
     );
   }
 
+  renderGasPriceSlider () {
+    const { gasPriceIndex } = this.state;
+    const { gasPriceStatistics } = this.props;
+
+    return (<div className={ styles.columns }>
+      <Slider
+        min={ 0 }
+        max={ gasPriceStatistics.length - 1 }
+        step={ 1 }
+        value={ gasPriceIndex }
+        onChange={ this.onEditGasPriceSlider }
+        style={ {
+          flex: 1,
+          padding: '0 50px'
+        } }
+        sliderStyle={ {
+          marginBottom: 12
+        } }
+      />
+    </div>);
+  }
+
   renderGasPrice () {
     const { gasPriceChartData } = this.state;
+
     const chartOptions = {
+      maintainAspectRatio: false,
       legend: { display: false },
       tooltips: { callbacks: {
-        title: () => ''
-      } }
+        title: () => '',
+        label: (item, data) => {
+          const { index } = item;
+          const gasPrice = this.props.gasPriceStatistics[index];
+          return gasPrice.toFormat(0);
+        }
+      } },
+      scales: {
+        xAxes: [{
+          display: true,
+          gridLines: { display: false },
+          labels: { show: true }
+        }],
+        yAxes: [{
+          type: 'linear',
+          height: 250,
+          display: false,
+          position: 'left',
+          id: 'y-axis-1',
+          gridLines: { display: false },
+          labels: { show: true }
+        }, {
+          type: 'linear',
+          height: 250,
+          display: false,
+          position: 'right',
+          id: 'y-axis-2',
+          gridLines: { display: false },
+          labels: { show: true }
+        }]
+      }
     };
 
-    return (
+    return (<div className={ styles.columns }>
       <BarChart
+        responsive
+        height={ 250 }
         data={ gasPriceChartData }
         options={ chartOptions }
+        onElementsClick={ this.onClickGasPrice }
       />
-    );
+    </div>);
   }
 
   renderData () {
@@ -175,12 +304,25 @@ export default class Extras extends Component {
     );
   }
 
+  onClickGasPrice = (items) => {
+    const index = items.shift()._index;
+    this.onEditGasPriceSlider(null, index);
+  }
+
   onEditGas = (event) => {
     this.props.onChange('gas', event.target.value);
   }
 
-  onEditGasPrice = (event) => {
-    this.props.onChange('gasPrice', event.target.value);
+  onEditGasPriceSlider = (event, index) => {
+    const { gasPriceStatistics } = this.props;
+    const value = gasPriceStatistics[index];
+
+    this.setState({ gasPriceIndex: index });
+    this.props.onChange('gasPrice', value);
+  }
+
+  onEditGasPrice = (event, value) => {
+    this.props.onChange('gasPrice', value);
   }
 
   onEditData = (event) => {

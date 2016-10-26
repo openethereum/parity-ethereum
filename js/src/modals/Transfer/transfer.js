@@ -90,7 +90,9 @@ export default class Transfer extends Component {
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
         waiting={ extras ? [2] : [1] }
-        visible>
+        visible
+        scroll
+      >
         { this.renderPage() }
       </Modal>
     );

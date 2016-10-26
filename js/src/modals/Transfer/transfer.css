@@ -124,3 +124,7 @@
 .inputoverride {
   padding-top: 24px !important;
 }
+
+.contentTitle {
+  font-size: 1.2rem;
+}
