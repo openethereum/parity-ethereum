@@ -136,6 +136,7 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
+    - master
     - beta
     - tags
     - stable
@@ -171,6 +172,7 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
+    - master
     - beta
     - tags
     - stable
@@ -206,6 +208,7 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
+    - master
     - beta
     - tags
     - stable
@@ -234,6 +237,7 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
+    - master
     - beta
     - tags
     - stable
