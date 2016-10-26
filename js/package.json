@@ -23,7 +23,7 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run build:dll && npm run build:app",
+    "build": "npm run build:app",
     "build:app": "webpack --progress",
     "build:dll": "webpack --config webpack.vendor.js --progress",
     "ci:build": "npm run ci:build:dll && npm run ci:build:app",

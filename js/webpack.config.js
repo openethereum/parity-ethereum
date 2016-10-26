@@ -136,10 +136,6 @@ module.exports = {
           'babel?cacheDirectory=true'
         ]
       }),
-      new webpack.DllReferencePlugin({
-        context: '.',
-        manifest: require(`./${DEST}/vendor-manifest.json`)
-      }),
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
       new WebpackErrorNotificationPlugin(),
       new webpack.DefinePlugin({
@@ -153,6 +149,13 @@ module.exports = {
     ];
 
     if (!isProd) {
+      plugins.push(
+        new webpack.DllReferencePlugin({
+          context: '.',
+          manifest: require(`./${DEST}/vendor-manifest.json`)
+        })
+      );
+
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
           filename: 'commons.js',
