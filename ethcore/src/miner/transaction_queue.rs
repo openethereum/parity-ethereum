@@ -115,7 +115,9 @@ impl Ord for TransactionOrigin {
 		}
 
 		match (*self, *other) {
-			(TransactionOrigin::RetractedBlock, _) | (TransactionOrigin::Local, _) => Ordering::Less,
+			(TransactionOrigin::RetractedBlock, _) => Ordering::Less,
+			(_, TransactionOrigin::RetractedBlock) => Ordering::Greater,
+			(TransactionOrigin::Local, _) => Ordering::Less,
 			_ => Ordering::Greater,
 		}
 	}
