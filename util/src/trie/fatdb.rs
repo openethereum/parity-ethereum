@@ -16,7 +16,7 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::HashDB;
+use hashdb::{HashDB, DBValue};
 use super::{TrieDB, Trie, TrieDBIterator, TrieItem, Recorder};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
@@ -58,7 +58,7 @@ impl<'db> Trie for FatDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<&'a [u8]>>
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder
 	{
 		self.raw.get_recorded(&key.sha3(), rec)
@@ -88,7 +88,7 @@ impl<'db> Iterator for FatDBIterator<'db> {
 		self.trie_iterator.next()
 			.map(|res|
 				res.map(|(hash, value)| {
-					(self.trie.db().get_aux(&hash).expect("Missing fatdb hash"), value)
+					(self.trie.db().get_aux(&hash).expect("Missing fatdb hash").to_vec(), value)
 				})
 			)
 	}
@@ -106,6 +106,6 @@ fn fatdb_to_trie() {
 		t.insert(&[0x01u8, 0x23], &[0x01u8, 0x23]).unwrap();
 	}
 	let t = FatDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
-	assert_eq!(t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], &[0x01u8, 0x23] as &[u8])]);
+	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
+	assert_eq!(t.iter().unwrap().map(Result::unwrap).collect::<Vec<_>>(), vec![(vec![0x01u8, 0x23], DBValue::from_slice(&[0x01u8, 0x23] as &[u8]))]);
 }

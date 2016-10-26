@@ -81,7 +81,7 @@ export default class TransactionPending extends Component {
     if (!this.state.chain) {
       return (
         <div className={ `${styles.container} ${className}` }>
-          <CircularProgress size={ 1 } />
+          <CircularProgress size={ 60 } />
         </div>
       );
     }
