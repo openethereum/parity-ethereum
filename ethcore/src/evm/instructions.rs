@@ -173,7 +173,7 @@ lazy_static! {
 		arr[SIGNEXTEND as usize] =		InstructionInfo::new("SIGNEXTEND",		0, 2, 1, false, GasPriceTier::Low);
 		arr[SHA3 as usize] =			InstructionInfo::new("SHA3",			0, 2, 1, false, GasPriceTier::Special);
 		arr[ADDRESS as usize] = 		InstructionInfo::new("ADDRESS",			0, 0, 1, false, GasPriceTier::Base);
-		arr[BALANCE as usize] = 		InstructionInfo::new("BALANCE",			0, 1, 1, false, GasPriceTier::Ext);
+		arr[BALANCE as usize] = 		InstructionInfo::new("BALANCE",			0, 1, 1, false, GasPriceTier::Special);
 		arr[ORIGIN as usize] =			InstructionInfo::new("ORIGIN",			0, 0, 1, false, GasPriceTier::Base);
 		arr[CALLER as usize] =			InstructionInfo::new("CALLER",			0, 0, 1, false, GasPriceTier::Base);
 		arr[CALLVALUE as usize] =		InstructionInfo::new("CALLVALUE",		0, 0, 1, false, GasPriceTier::Base);
@@ -183,8 +183,8 @@ lazy_static! {
 		arr[CODESIZE as usize] =		InstructionInfo::new("CODESIZE",		0, 0, 1, false, GasPriceTier::Base);
 		arr[CODECOPY as usize] =		InstructionInfo::new("CODECOPY",		0, 3, 0, true, GasPriceTier::VeryLow);
 		arr[GASPRICE as usize] =		InstructionInfo::new("GASPRICE",		0, 0, 1, false, GasPriceTier::Base);
-		arr[EXTCODESIZE as usize] = 	InstructionInfo::new("EXTCODESIZE",		0, 1, 1, false, GasPriceTier::Ext);
-		arr[EXTCODECOPY as usize] = 	InstructionInfo::new("EXTCODECOPY",		0, 4, 0, true, GasPriceTier::Ext);
+		arr[EXTCODESIZE as usize] = 	InstructionInfo::new("EXTCODESIZE",		0, 1, 1, false, GasPriceTier::Special);
+		arr[EXTCODECOPY as usize] = 	InstructionInfo::new("EXTCODECOPY",		0, 4, 0, true, GasPriceTier::Special);
 		arr[BLOCKHASH as usize] =		InstructionInfo::new("BLOCKHASH",		0, 1, 1, false, GasPriceTier::Ext);
 		arr[COINBASE as usize] =		InstructionInfo::new("COINBASE",		0, 0, 1, false, GasPriceTier::Base);
 		arr[TIMESTAMP as usize] =		InstructionInfo::new("TIMESTAMP",		0, 0, 1, false, GasPriceTier::Base);
@@ -277,7 +277,7 @@ lazy_static! {
 		arr[CALLCODE as usize] =		InstructionInfo::new("CALLCODE",		0, 7, 1, true, GasPriceTier::Special);
 		arr[RETURN as usize] =			InstructionInfo::new("RETURN",			0, 2, 0, true, GasPriceTier::Zero);
 		arr[DELEGATECALL as usize] =	InstructionInfo::new("DELEGATECALL",	0, 6, 1, true, GasPriceTier::Special);
-		arr[SUICIDE as usize] = 		InstructionInfo::new("SUICIDE",			0, 1, 0, true, GasPriceTier::Zero);
+		arr[SUICIDE as usize] = 		InstructionInfo::new("SUICIDE",			0, 1, 0, true, GasPriceTier::Special);
 		arr
 	};
 }
