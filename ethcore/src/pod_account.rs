@@ -163,7 +163,7 @@ pub fn diff_pod(pre: Option<&PodAccount>, post: Option<&PodAccount>) -> Option<A
 
 #[cfg(test)]
 mod test {
-	use common::*;
+	use util::*;
 	use types::account_diff::*;
 	use super::{PodAccount, diff_pod};
 

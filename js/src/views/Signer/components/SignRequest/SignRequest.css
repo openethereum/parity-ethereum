@@ -15,6 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .container {
+  position: relative;
   padding: 25px 0 15px;
 }
 
@@ -61,7 +62,6 @@
 }
 
 .actions {
-  width: 180px;
   display: inline-block;
   min-height: 120px;
 }

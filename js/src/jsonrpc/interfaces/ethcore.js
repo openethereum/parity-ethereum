@@ -40,6 +40,15 @@ export default {
     }
   },
 
+  dappsPort: {
+    desc: 'Returns the port the dapps are running on, error if not enabled',
+    params: [],
+    returns: {
+      type: Quantity,
+      desc: 'The port number'
+    }
+  },
+
   defaultExtraData: {
     desc: 'Returns the default extra data',
     params: [],
@@ -291,6 +300,15 @@ export default {
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
+    }
+  },
+
+  signerPort: {
+    desc: 'Returns the port the signer is running on, error if not enabled',
+    params: [],
+    returns: {
+      type: Quantity,
+      desc: 'The port number'
     }
   },
 

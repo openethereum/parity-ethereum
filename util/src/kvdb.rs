@@ -21,6 +21,7 @@ use common::*;
 use elastic_array::*;
 use std::default::Default;
 use std::path::PathBuf;
+use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
@@ -43,12 +44,12 @@ enum DBOp {
 	Insert {
 		col: Option<u32>,
 		key: ElasticArray32<u8>,
-		value: Bytes,
+		value: DBValue,
 	},
 	InsertCompressed {
 		col: Option<u32>,
 		key: ElasticArray32<u8>,
-		value: Bytes,
+		value: DBValue,
 	},
 	Delete {
 		col: Option<u32>,
@@ -71,7 +72,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: value.to_vec(),
+			value: DBValue::from_slice(value),
 		});
 	}
 
@@ -82,7 +83,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: value,
+			value: DBValue::from_vec(value),
 		});
 	}
 
@@ -94,7 +95,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
-			value: value,
+			value: DBValue::from_vec(value),
 		});
 	}
 
@@ -110,8 +111,8 @@ impl DBTransaction {
 }
 
 enum KeyState {
-	Insert(Bytes),
-	InsertCompressed(Bytes),
+	Insert(DBValue),
+	InsertCompressed(DBValue),
 	Delete,
 }
 
@@ -277,7 +278,8 @@ pub struct Database {
 	// Values currently being flushed. Cleared when `flush` completes.
 	flushing: RwLock<Vec<HashMap<ElasticArray32<u8>, KeyState>>>,
 	// Prevents concurrent flushes.
-	flushing_lock: Mutex<()>,
+	// Value indicates if a flush is in progress.
+	flushing_lock: Mutex<bool>,
 }
 
 impl Database {
@@ -344,7 +346,8 @@ impl Database {
 				let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 				match DB::open_cf(&opts, path, &cfnames, &cf_options) {
 					Ok(db) => {
-						cfs = cfnames.iter().map(|n| db.cf_handle(n).unwrap()).collect();
+						cfs = cfnames.iter().map(|n| db.cf_handle(n)
+							.expect("rocksdb opens a cf_handle for each cfname; qed")).collect();
 						assert!(cfs.len() == columns as usize);
 						Ok(db)
 					}
@@ -352,7 +355,7 @@ impl Database {
 						// retry and create CFs
 						match DB::open_cf(&opts, path, &[], &[]) {
 							Ok(mut db) => {
-								cfs = cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i]).unwrap()).collect();
+								cfs = try!(cfnames.iter().enumerate().map(|(i, n)| db.create_cf(n, &cf_options[i])).collect());
 								Ok(db)
 							},
 							err @ Err(_) => err,
@@ -379,7 +382,7 @@ impl Database {
 			write_opts: write_opts,
 			overlay: RwLock::new((0..(num_cols + 1)).map(|_| HashMap::new()).collect()),
 			flushing: RwLock::new((0..(num_cols + 1)).map(|_| HashMap::new()).collect()),
-			flushing_lock: Mutex::new(()),
+			flushing_lock: Mutex::new((false)),
 			path: path.to_owned(),
 			read_opts: read_opts,
 		})
@@ -417,11 +420,10 @@ impl Database {
 		};
 	}
 
-	/// Commit buffered changes to database.
-	pub fn flush(&self) -> Result<(), String> {
+	/// Commit buffered changes to database. Must be called under `flush_lock`
+	fn write_flushing_with_lock(&self, _lock: &mut MutexGuard<bool>) -> Result<(), String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
-				let _lock = self.flushing_lock.lock();
 				let batch = WriteBatch::new();
 				mem::swap(&mut *self.overlay.write(), &mut *self.flushing.write());
 				{
@@ -464,6 +466,20 @@ impl Database {
 		}
 	}
 
+	/// Commit buffered changes to database.
+	pub fn flush(&self) -> Result<(), String> {
+		let mut lock = self.flushing_lock.lock();
+		// If RocksDB batch allocation fails the thread gets terminated and the lock is released.
+		// The value inside the lock is used to detect that.
+		if *lock {
+			// This can only happen if another flushing thread is terminated unexpectedly.
+			return Err("Database write failure. Running low on memory perhaps?".to_owned());
+		}
+		*lock = true;
+		let result = self.write_flushing_with_lock(&mut lock);
+		*lock = false;
+		result
+	}
 
 	/// Commit transaction to database.
 	pub fn write(&self, tr: DBTransaction) -> Result<(), String> {
@@ -492,7 +508,7 @@ impl Database {
 	}
 
 	/// Get value by key.
-	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
@@ -506,8 +522,8 @@ impl Database {
 							Some(&KeyState::Delete) => Ok(None),
 							None => {
 								col.map_or_else(
-									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| v.to_vec())),
-									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| v.to_vec())))
+									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))),
+									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))))
 							},
 						}
 					},
@@ -523,7 +539,8 @@ impl Database {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let mut iter = col.map_or_else(|| db.iterator_opt(IteratorMode::From(prefix, Direction::Forward), &self.read_opts),
-					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts).unwrap());
+					|c| db.iterator_cf_opt(cfs[c as usize], IteratorMode::From(prefix, Direction::Forward), &self.read_opts)
+						.expect("iterator params are valid; qed"));
 				match iter.next() {
 					// TODO: use prefix_same_as_start read option (not availabele in C API currently)
 					Some((k, v)) => if k[0 .. prefix.len()] == prefix[..] { Some(v) } else { None },
@@ -540,7 +557,8 @@ impl Database {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				col.map_or_else(|| DatabaseIterator { iter: db.iterator_opt(IteratorMode::Start, &self.read_opts) },
-					|c| DatabaseIterator { iter: db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts).unwrap() })
+					|c| DatabaseIterator { iter: db.iterator_cf_opt(cfs[c as usize], IteratorMode::Start, &self.read_opts)
+						.expect("iterator params are valid; qed") })
 			},
 			None => panic!("Not supported yet") //TODO: return an empty iterator or change return type
 		}
@@ -595,13 +613,19 @@ impl Database {
 	}
 }
 
+impl Drop for Database {
+	fn drop(&mut self) {
+		// write all buffered changes if we can.
+		let _ = self.flush();
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use hash::*;
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;
-	use std::path::PathBuf;
 
 	fn test_db(config: &DatabaseConfig) {
 		let path = RandomTempPath::create_dir();
@@ -666,6 +690,7 @@ mod tests {
 	#[test]
 	#[cfg(target_os = "linux")]
 	fn df_to_rotational() {
+		use std::path::PathBuf;
 		// Example df output.
 		let example_df = vec![70, 105, 108, 101, 115, 121, 115, 116, 101, 109, 32, 32, 32, 32, 32, 49, 75, 45, 98, 108, 111, 99, 107, 115, 32, 32, 32, 32, 32, 85, 115, 101, 100, 32, 65, 118, 97, 105, 108, 97, 98, 108, 101, 32, 85, 115, 101, 37, 32, 77, 111, 117, 110, 116, 101, 100, 32, 111, 110, 10, 47, 100, 101, 118, 47, 115, 100, 97, 49, 32, 32, 32, 32, 32, 32, 32, 54, 49, 52, 48, 57, 51, 48, 48, 32, 51, 56, 56, 50, 50, 50, 51, 54, 32, 32, 49, 57, 52, 52, 52, 54, 49, 54, 32, 32, 54, 55, 37, 32, 47, 10];
 		let expected_output = Some(PathBuf::from("/sys/block/sda/queue/rotational"));

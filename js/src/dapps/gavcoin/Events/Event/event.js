@@ -80,7 +80,7 @@ export default class Event extends Component {
     const { accounts } = this.context;
     const account = accounts.find((_account) => _account.address === address);
 
-    if (account) {
+    if (account && account.name) {
       return (
         <div className={ styles.name }>
           { account.name }

@@ -14,14 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-pub use util::*;
-pub use basic_types::*;
-pub use error::*;
-pub use env_info::*;
-pub use views::*;
-pub use builtin::*;
-pub use header::*;
-pub use transaction::*;
-pub use log_entry::*;
-pub use receipt::*;
-pub use action_params::*;
+#[cfg(feature = "with-syntex")]
+include!(concat!(env!("OUT_DIR"), "/lib.rs"));
+
+#[cfg(not(feature = "with-syntex"))]
+include!("lib.rs.in");
+

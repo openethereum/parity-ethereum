@@ -154,7 +154,7 @@ impl OverlayRecentV7 {
 	// and commit the altered entries.
 	fn migrate_journal(&self, source: Arc<Database>, mut batch: Batch, dest: &mut Database) -> Result<(), Error> {
 		if let Some(val) = try!(source.get(None, V7_LATEST_ERA_KEY).map_err(Error::Custom)) {
-			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.to_owned(), dest));
+			try!(batch.insert(V7_LATEST_ERA_KEY.into(), val.clone().to_vec(), dest));
 
 			let mut era = decode::<u64>(&val);
 			loop {

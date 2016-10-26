@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo};
+use network::{NetworkContext, PeerId, PacketId, NetworkError, SessionInfo, ProtocolId};
 use util::Bytes;
 use ethcore::client::BlockChainClient;
 use ethcore::header::BlockNumber;
@@ -34,6 +34,8 @@ pub trait SyncIo {
 	fn respond(&mut self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Send a packet to a peer.
 	fn send(&mut self, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
+	/// Send a packet to a peer using specified protocol.
+	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>;
 	/// Get the blockchain
 	fn chain(&self) -> &BlockChainClient;
 	/// Get the snapshot service.
@@ -44,8 +46,10 @@ pub trait SyncIo {
 	}
 	/// Returns information on p2p session
 	fn peer_session_info(&self, peer_id: PeerId) -> Option<SessionInfo>;
-	/// Maximum mutuallt supported ETH protocol version
+	/// Maximum mutually supported ETH protocol version
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8;
+	/// Maximum mutually supported version of a gien protocol.
+	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8;
 	/// Returns if the chain block queue empty
 	fn is_chain_queue_empty(&self) -> bool {
 		self.chain().queue_info().is_empty()
@@ -96,6 +100,10 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 		self.network.send(peer_id, packet_id, data)
 	}
 
+	fn send_protocol(&mut self, protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError>{
+		self.network.send_protocol(protocol, peer_id, packet_id, data)
+	}
+
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
@@ -117,7 +125,11 @@ impl<'s, 'h> SyncIo for NetSyncIo<'s, 'h> {
 	}
 
 	fn eth_protocol_version(&self, peer_id: PeerId) -> u8 {
-		self.network.protocol_version(peer_id, self.network.subprotocol_name()).unwrap_or(0)
+		self.network.protocol_version(self.network.subprotocol_name(), peer_id).unwrap_or(0)
+	}
+
+	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
+		self.network.protocol_version(*protocol, peer_id).unwrap_or(0)
 	}
 }
 

@@ -17,7 +17,7 @@
 //! Block header.
 
 use util::*;
-use basic_types::*;
+use basic_types::{LogBloom, Seal, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 

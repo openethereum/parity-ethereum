@@ -24,7 +24,7 @@ use std::str::FromStr;
 use jsonrpc_core::IoHandler;
 use util::{H256, Mutex, version};
 
-#[cfg(feature = "ui")]
+#[cfg(feature = "parity-ui")]
 mod ui {
 	extern crate parity_ui as ui;
 	extern crate parity_dapps_glue as dapps;
@@ -46,7 +46,7 @@ mod ui {
 		}
 	}
 }
-#[cfg(not(feature = "ui"))]
+#[cfg(not(feature = "parity-ui"))]
 mod ui {
 	pub struct File {
 		pub content: &'static [u8],
@@ -63,6 +63,8 @@ mod ui {
 	}
 }
 
+const HOME_DOMAIN: &'static str = "home.parity";
+
 fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 	match header {
 		None => false,
@@ -72,6 +74,8 @@ fn origin_is_allowed(self_origin: &str, header: Option<&[u8]>) -> bool {
 				Some(ref origin) if origin.starts_with("chrome-extension://") => true,
 				Some(ref origin) if origin.starts_with(self_origin) => true,
 				Some(ref origin) if origin.starts_with(&format!("http://{}", self_origin)) => true,
+				Some(ref origin) if origin.starts_with(HOME_DOMAIN) => true,
+				Some(ref origin) if origin.starts_with(&format!("http://{}", HOME_DOMAIN)) => true,
 				_ => false
 			}
 		}
@@ -134,13 +138,20 @@ pub struct Session {
 impl ws::Handler for Session {
 	#[cfg_attr(feature="dev", allow(collapsible_if))]
 	fn on_request(&mut self, req: &ws::Request) -> ws::Result<(ws::Response)> {
-		let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
-		let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
+		trace!(target: "signer", "Handling request: {:?}", req);
+
+		// TODO [ToDr] ws server is not handling proxied requests correctly:
+		// Trim domain name from resource part:
+		let resource = req.resource().trim_left_matches(&format!("http://{}", HOME_DOMAIN));
+
 		// Styles file is allowed for error pages to display nicely.
-		let is_styles_file = req.resource() == "/styles.css";
+		let is_styles_file = resource == "/styles.css";
 
 		// Check request origin and host header.
 		if !self.skip_origin_validation {
+			let origin = req.header("origin").or_else(|| req.header("Origin")).map(|x| &x[..]);
+			let host = req.header("host").or_else(|| req.header("Host")).map(|x| &x[..]);
+
 			let is_valid = origin_is_allowed(&self.self_origin, origin) || (origin.is_none() && origin_is_allowed(&self.self_origin, host));
 			let is_valid = is_styles_file || is_valid;
 
@@ -153,6 +164,14 @@ impl ws::Handler for Session {
 						Some(&format!("Use: http://{}", self.self_origin)),
 				));
 			}
+		}
+
+		// PROXY requests when running behind home.parity
+		if req.method() == "CONNECT" {
+			let mut res = ws::Response::ok("".into());
+			res.headers_mut().push(("Content-Length".into(), b"0".to_vec()));
+			res.headers_mut().push(("Connection".into(), b"keep-alive".to_vec()));
+			return Ok(res);
 		}
 
 		// Detect if it's a websocket request
@@ -173,8 +192,9 @@ impl ws::Handler for Session {
 			});
 		}
 
+		debug!(target: "signer", "Requesting resource: {:?}", resource);
 		// Otherwise try to serve a page.
-		Ok(self.file_handler.handle(req.resource())
+		Ok(self.file_handler.handle(resource)
 			.map_or_else(
 				// return 404 not found
 				|| error(ErrorType::NotFound, "Not found", "Requested file was not found.", None),

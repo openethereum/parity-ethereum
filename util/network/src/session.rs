@@ -16,6 +16,7 @@
 
 use std::{str, io};
 use std::net::SocketAddr;
+use std::cmp::Ordering;
 use std::sync::*;
 use mio::*;
 use mio::tcp::*;
@@ -122,12 +123,29 @@ impl ToString for PeerCapabilityInfo {
 	}
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SessionCapabilityInfo {
 	pub protocol: [u8; 3],
 	pub version: u8,
 	pub packet_count: u8,
 	pub id_offset: u8,
+}
+
+impl PartialOrd for SessionCapabilityInfo {
+	fn partial_cmp(&self, other: &SessionCapabilityInfo) -> Option<Ordering> {
+		Some(self.cmp(other))
+	}
+}
+
+impl Ord for SessionCapabilityInfo {
+	fn cmp(&self, b: &SessionCapabilityInfo) -> Ordering {
+		// By protocol id first
+		if self.protocol != b.protocol {
+			return self.protocol.cmp(&b.protocol);
+		}
+		// By version
+		self.version.cmp(&b.version)
+	}
 }
 
 const PACKET_HELLO: u8 = 0x80;
@@ -377,7 +395,7 @@ impl Session {
 			PACKET_PEERS => Ok(SessionData::None),
 			PACKET_USER ... PACKET_LAST => {
 				let mut i = 0usize;
-				while packet_id < self.info.capabilities[i].id_offset {
+				while packet_id > self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
 					i += 1;
 					if i == self.info.capabilities.len() {
 						debug!(target: "network", "Unknown packet: {:?}", packet_id);
@@ -441,6 +459,9 @@ impl Session {
 			}
 		}
 
+		// Sort capabilities alphabeticaly.
+		caps.sort();
+
 		i = 0;
 		let mut offset: u8 = PACKET_USER;
 		while i < caps.len() {
@@ -448,7 +469,7 @@ impl Session {
 			offset += caps[i].packet_count;
 			i += 1;
 		}
-		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		debug!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;

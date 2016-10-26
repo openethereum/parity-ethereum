@@ -16,10 +16,12 @@
 
 //! Parameters for a block chain.
 
-use common::*;
+use util::*;
+use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
 use pod_state::*;
 use account_db::*;
+use header::{BlockNumber, Header};
 use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;

@@ -22,3 +22,9 @@
 .amount {
   display: inline-block;
 }
+
+.symbol {
+  font-variant: small-caps;
+  margin-left: 0.1rem;
+  font-size: 0.8em;
+}

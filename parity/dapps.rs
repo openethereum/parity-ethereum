@@ -58,7 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
-	let signer_port = deps.apis.signer_port.clone();
+	let signer_port = deps.apis.signer_service.port();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
@@ -102,6 +102,7 @@ mod server {
 	use super::Dependencies;
 	use std::sync::Arc;
 	use std::net::SocketAddr;
+	use std::io;
 	use util::{Bytes, Address, U256};
 
 	use ethcore::transaction::{Transaction, Action};
@@ -143,7 +144,10 @@ mod server {
 		};
 
 		match start_result {
-			Err(dapps::ServerError::IoError(err)) => Err(format!("WebApps io error: {}", err)),
+			Err(dapps::ServerError::IoError(err)) => match err.kind() {
+				io::ErrorKind::AddrInUse => Err(format!("WebApps address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --dapps-port and --dapps-interface options.", url)),
+				_ => Err(format!("WebApps io error: {}", err)),
+			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),
 			Ok(server) => {
 				server.set_panic_handler(move || {

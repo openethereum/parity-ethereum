@@ -29,6 +29,7 @@ use node_table::*;
 use error::NetworkError;
 use io::{StreamToken, IoContext};
 use ethkey::{Secret, KeyPair, sign, recover};
+use AllowIP;
 
 use PROTOCOL_VERSION;
 
@@ -95,6 +96,7 @@ pub struct Discovery {
 	send_queue: VecDeque<Datagramm>,
 	check_timestamps: bool,
 	adding_nodes: Vec<NodeEntry>,
+	allow_ips: AllowIP,
 }
 
 pub struct TableUpdates {
@@ -103,7 +105,7 @@ pub struct TableUpdates {
 }
 
 impl Discovery {
-	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken) -> Discovery {
+	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken, allow_ips: AllowIP) -> Discovery {
 		let socket = UdpSocket::bound(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
@@ -118,14 +120,17 @@ impl Discovery {
 			send_queue: VecDeque::new(),
 			check_timestamps: true,
 			adding_nodes: Vec::new(),
+			allow_ips: allow_ips,
 		}
 	}
 
 	/// Add a new node to discovery table. Pings the node.
 	pub fn add_node(&mut self, e: NodeEntry) {
-		let endpoint = e.endpoint.clone();
-		self.update_node(e);
-		self.ping(&endpoint);
+		if e.endpoint.is_allowed(self.allow_ips) {
+			let endpoint = e.endpoint.clone();
+			self.update_node(e);
+			self.ping(&endpoint);
+		}
 	}
 
 	/// Add a list of nodes. Pings a few nodes each round
@@ -137,7 +142,9 @@ impl Discovery {
 	/// Add a list of known nodes to the table.
 	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
 		for n in nodes.drain(..) {
-			self.update_node(n);
+			if n.endpoint.is_allowed(self.allow_ips) {
+				self.update_node(n);
+			}
 		}
 	}
 
@@ -394,10 +401,11 @@ impl Discovery {
 		try!(self.check_timestamp(timestamp));
 		let mut added_map = HashMap::new();
 		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
-		if !entry.endpoint.is_valid() || !entry.endpoint.is_global() {
+		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
-		}
-		else {
+		} else if !entry.endpoint.is_allowed(self.allow_ips) {
+			debug!(target: "discovery", "Address not allowed: {:?}", entry);
+		} else {
 			self.update_node(entry.clone());
 			added_map.insert(node.clone(), entry);
 		}
@@ -470,6 +478,10 @@ impl Discovery {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
+			if !endpoint.is_allowed(self.allow_ips) {
+				debug!(target: "discovery", "Address not allowed: {:?}", endpoint);
+				continue;
+			}
 			let node_id: NodeId = try!(r.val_at(3));
 			if node_id == self.id {
 				continue;
@@ -539,6 +551,7 @@ mod tests {
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use ethkey::{Random, Generator};
+	use AllowIP;
 
 	#[test]
 	fn find_node() {
@@ -563,8 +576,8 @@ mod tests {
 		let key2 = Random.generate().unwrap();
 		let ep1 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40444").unwrap(), udp_port: 40444 };
 		let ep2 = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40445").unwrap(), udp_port: 40445 };
-		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0);
-		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0);
+		let mut discovery1 = Discovery::new(&key1, ep1.address.clone(), ep1.clone(), 0, AllowIP::All);
+		let mut discovery2 = Discovery::new(&key2, ep2.address.clone(), ep2.clone(), 0, AllowIP::All);
 
 		let node1 = Node::from_str("enode://a979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7770").unwrap();
 		let node2 = Node::from_str("enode://b979fb575495b8d6db44f750317d0f4622bf4c2aa3365d6af7c284339968eef29b69ad0dce72a4d8db5ebb4968de0e3bec910127f134779fbcb0cb6d3331163c@127.0.0.1:7771").unwrap();
@@ -596,7 +609,7 @@ mod tests {
 	fn removes_expired() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40446").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, AllowIP::All);
 		for _ in 0..1200 {
 			discovery.add_node(NodeEntry { id: NodeId::random(), endpoint: ep.clone() });
 		}
@@ -624,7 +637,7 @@ mod tests {
 	fn packets() {
 		let key = Random.generate().unwrap();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
-		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0);
+		let mut discovery = Discovery::new(&key, ep.address.clone(), ep.clone(), 0, AllowIP::All);
 		discovery.check_timestamps = false;
 		let from = SocketAddr::from_str("99.99.99.99:40445").unwrap();
 

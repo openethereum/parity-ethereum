@@ -65,8 +65,8 @@ impl ArchiveDB {
 		Self::new(backing, None)
 	}
 
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 }
 
@@ -85,19 +85,12 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		let k = self.overlay.raw(key);
-		match k {
-			Some((d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
+		if let Some((d, rc)) = k {
+			if rc > 0 { return Some(d); }
 		}
+		self.payload(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -108,7 +101,7 @@ impl HashDB for ArchiveDB {
 		self.overlay.insert(value)
 	}
 
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		self.overlay.emplace(key, value);
 	}
 
@@ -120,7 +113,7 @@ impl HashDB for ArchiveDB {
 		self.overlay.insert_aux(hash, value);
 	}
 
-	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
 		if let Some(res) = self.overlay.get_aux(hash) {
 			return Some(res)
 		}
@@ -130,7 +123,6 @@ impl HashDB for ArchiveDB {
 
 		self.backing.get(self.column, &db_hash)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|v| v.to_vec())
 	}
 
 	fn remove_aux(&mut self, hash: &[u8]) {
@@ -396,7 +388,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			foo
 		};
@@ -497,7 +489,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

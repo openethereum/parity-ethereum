@@ -20,13 +20,13 @@
 pub mod auth;
 mod host_validation;
 
-use DAPPS_DOMAIN;
+use signer_address;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
 use hyper::{self, server, Next, Encoder, Decoder, Control, StatusCode};
 use hyper::net::HttpStream;
-use apps;
+use apps::{self, DAPPS_DOMAIN};
 use apps::fetcher::ContentFetcher;
 use endpoint::{Endpoint, Endpoints, EndpointPath};
 use handlers::{Redirection, extract_url, ContentHandler};
@@ -43,7 +43,7 @@ pub enum SpecialEndpoint {
 
 pub struct Router<A: Authorization + 'static> {
 	control: Option<Control>,
-	main_page: &'static str,
+	signer_port: Option<u16>,
 	endpoints: Arc<Endpoints>,
 	fetch: Arc<ContentFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
@@ -61,57 +61,78 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 		let endpoint = extract_endpoint(&url);
 		let is_utils = endpoint.1 == SpecialEndpoint::Utils;
 
+		trace!(target: "dapps", "Routing request to {:?}. Details: {:?}", url, req);
+
 		// Validate Host header
 		if let Some(ref hosts) = self.allowed_hosts {
+			trace!(target: "dapps", "Validating host headers against: {:?}", hosts);
 			let is_valid = is_utils || host_validation::is_valid(&req, hosts, self.endpoints.keys().cloned().collect());
 			if !is_valid {
+				debug!(target: "dapps", "Rejecting invalid host header.");
 				self.handler = host_validation::host_invalid_response();
 				return self.handler.on_request(req);
 			}
 		}
 
+		trace!(target: "dapps", "Checking authorization.");
 		// Check authorization
 		let auth = self.authorization.is_authorized(&req);
 		if let Authorized::No(handler) = auth {
+			debug!(target: "dapps", "Authorization denied.");
 			self.handler = handler;
 			return self.handler.on_request(req);
 		}
 
 		let control = self.control.take().expect("on_request is called only once; control is always defined at start; qed");
+		debug!(target: "dapps", "Handling endpoint request: {:?}", endpoint);
 		self.handler = match endpoint {
 			// First check special endpoints
 			(ref path, ref endpoint) if self.special.contains_key(endpoint) => {
+				trace!(target: "dapps", "Resolving to special endpoint.");
 				self.special.get(endpoint)
 					.expect("special known to contain key; qed")
 					.to_async_handler(path.clone().unwrap_or_default(), control)
 			},
 			// Then delegate to dapp
 			(Some(ref path), _) if self.endpoints.contains_key(&path.app_id) => {
+				trace!(target: "dapps", "Resolving to local/builtin dapp.");
 				self.endpoints.get(&path.app_id)
 					.expect("special known to contain key; qed")
 					.to_async_handler(path.clone(), control)
 			},
 			// Try to resolve and fetch the dapp
 			(Some(ref path), _) if self.fetch.contains(&path.app_id) => {
+				trace!(target: "dapps", "Resolving to fetchable content.");
 				self.fetch.to_async_handler(path.clone(), control)
 			},
 			// 404 for non-existent content
-			(Some(ref path), _) if *req.method() == hyper::method::Method::Get => {
-				let address = apps::redirection_address(path.using_dapps_domains, self.main_page);
+			(Some(_), _) if *req.method() == hyper::method::Method::Get => {
+				trace!(target: "dapps", "Resolving to 404.");
 				Box::new(ContentHandler::error(
 					StatusCode::NotFound,
 					"404 Not Found",
 					"Requested content was not found.",
-					Some(&format!("Go back to the <a href=\"{}\">Home Page</a>.", address))
+					None,
 				))
 			},
-			// Redirect any GET request to home.
+			// Redirect any other GET request to signer.
 			_ if *req.method() == hyper::method::Method::Get => {
-				let address = apps::redirection_address(false, self.main_page);
-				Redirection::boxed(address.as_str())
+				if let Some(port) = self.signer_port {
+					trace!(target: "dapps", "Redirecting to signer interface.");
+					Redirection::boxed(&format!("http://{}", signer_address(port)))
+				} else {
+					trace!(target: "dapps", "Signer disabled, returning 404.");
+					Box::new(ContentHandler::error(
+						StatusCode::NotFound,
+						"404 Not Found",
+						"Your homepage is not available when Trusted Signer is disabled.",
+						Some("You can still access dapps by writing a correct address, though. Re-enabled Signer to get your homepage back."),
+					))
+				}
 			},
 			// RPC by default
 			_ => {
+				trace!(target: "dapps", "Resolving to RPC call.");
 				self.special.get(&SpecialEndpoint::Rpc)
 					.expect("RPC endpoint always stored; qed")
 					.to_async_handler(EndpointPath::default(), control)
@@ -141,7 +162,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 impl<A: Authorization> Router<A> {
 	pub fn new(
 		control: Control,
-		main_page: &'static str,
+		signer_port: Option<u16>,
 		content_fetcher: Arc<ContentFetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
@@ -154,7 +175,7 @@ impl<A: Authorization> Router<A> {
 			.to_handler(EndpointPath::default());
 		Router {
 			control: Some(control),
-			main_page: main_page,
+			signer_port: signer_port,
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,

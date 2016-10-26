@@ -22,7 +22,7 @@ use std::cmp::max;
 use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
-use ethsync::{NetworkConfiguration, is_valid_node_url};
+use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::client::{VMType, Mode};
 use ethcore::miner::MinerOptions;
 
@@ -154,6 +154,7 @@ impl Configuration {
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -173,6 +174,7 @@ impl Configuration {
 				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
 				to_block: try!(to_block_id(&self.args.flag_to)),
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
 		} else if self.args.cmd_snapshot {
@@ -251,6 +253,7 @@ impl Configuration {
 				name: self.args.flag_identity,
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
+				check_seal: !self.args.flag_no_seal_check,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -329,8 +332,25 @@ impl Configuration {
 		max(self.min_peers(), peers)
 	}
 
+	fn allow_ips(&self) -> Result<AllowIP, String> {
+		match self.args.flag_allow_ips.as_str() {
+			"all" => Ok(AllowIP::All),
+			"public" => Ok(AllowIP::Public),
+			"private" => Ok(AllowIP::Private),
+			_ => Err("Invalid IP filter value".to_owned()),
+		}
+	}
+
 	fn min_peers(&self) -> u32 {
 		self.args.flag_peers.unwrap_or(self.args.flag_min_peers) as u32
+	}
+
+	fn max_pending_peers(&self) -> u32 {
+		self.args.flag_max_pending_peers as u32
+	}
+
+	fn snapshot_peers(&self) -> u32 {
+		self.args.flag_snapshot_peers as u32
 	}
 
 	fn work_notify(&self) -> Vec<String> {
@@ -471,6 +491,9 @@ impl Configuration {
 		ret.discovery_enabled = !self.args.flag_no_discovery && !self.args.flag_nodiscover;
 		ret.max_peers = self.max_peers();
 		ret.min_peers = self.min_peers();
+		ret.snapshot_peers = self.snapshot_peers();
+		ret.allow_ips = try!(self.allow_ips());
+		ret.max_pending_peers = self.max_pending_peers();
 		let mut net_path = PathBuf::from(self.directories().db);
 		net_path.push("network");
 		ret.config_path = Some(net_path.to_str().unwrap().to_owned());
@@ -738,6 +761,7 @@ mod tests {
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
+			check_seal: true,
 		})));
 	}
 
@@ -761,6 +785,7 @@ mod tests {
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
+			check_seal: true,
 		})));
 	}
 
@@ -784,6 +809,7 @@ mod tests {
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
 			to_block: BlockID::Latest,
+			check_seal: true,
 		})));
 	}
 
@@ -832,6 +858,7 @@ mod tests {
 			custom_bootnodes: false,
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
+			check_seal: true,
 		}));
 	}
 

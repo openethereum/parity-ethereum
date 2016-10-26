@@ -6,7 +6,15 @@ cd ..
 
 # run build (production) and store the exit code
 EXITCODE=0
-npm run ci:build || EXITCODE=1
+BUILDDIR=./.dist
+rm -rf $BUILDDIR
+mkdir -p $BUILDDIR/src
+BUILD_DEST=$BUILDDIR/build npm run ci:build || EXITCODE=1
+
+# Copy rust files
+cp Cargo.precompiled.toml $BUILDDIR/Cargo.toml
+cp build.rs $BUILDDIR
+cp src/lib.rs* $BUILDDIR/src
 
 # back to root
 popd

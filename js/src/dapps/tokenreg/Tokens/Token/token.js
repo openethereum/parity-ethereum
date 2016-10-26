@@ -30,6 +30,7 @@ import styles from './token.css';
 import { metaDataKeys } from '../../constants';
 
 import { api } from '../../parity';
+import { parityNode } from '../../../../environment';
 
 export default class Token extends Component {
   static propTypes = {
@@ -267,7 +268,7 @@ export default class Token extends Component {
           </span> meta-data:
         </p>
         <div className={ styles['meta-image'] }>
-          <img src={ `http://127.0.0.1:8080/api/content/${imageHash}/` } />
+          <img src={ `${parityNode}/api/content/${imageHash}/` } />
         </div>
       </div>);
     }

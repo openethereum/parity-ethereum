@@ -173,12 +173,12 @@ describe('api/contract/Contract', () => {
       expect(log.event).to.equal('Message');
       expect(log.address).to.equal('0x22bff18ec62281850546a664bb63a5c06ac5f76c');
       expect(log.params).to.deep.equal({
-        at: new BigNumber('1457965151'),
-        message: 'post(message)',
-        messageId: new BigNumber('281474976731085'),
-        parentId: new BigNumber(0),
-        postId: new BigNumber('281474976731104'),
-        sender: '0x63Cf90D3f0410092FC0fca41846f596223979195'
+        at: { type: 'uint', value: new BigNumber('1457965151') },
+        message: { type: 'string', value: 'post(message)' },
+        messageId: { type: 'uint', value: new BigNumber('281474976731085') },
+        parentId: { type: 'uint', value: new BigNumber(0) },
+        postId: { type: 'uint', value: new BigNumber('281474976731104') },
+        sender: { type: 'address', value: '0x63Cf90D3f0410092FC0fca41846f596223979195' }
       });
     });
   });
@@ -464,12 +464,12 @@ describe('api/contract/Contract', () => {
       event: 'Message',
       logIndex: new BigNumber(0),
       params: {
-        at: new BigNumber(1457965151),
-        message: 'post(message)',
-        messageId: new BigNumber(281474976731085),
-        parentId: new BigNumber(0),
-        postId: new BigNumber(281474976731104),
-        sender: '0x63Cf90D3f0410092FC0fca41846f596223979195'
+        at: { type: 'uint', value: new BigNumber(1457965151) },
+        message: { type: 'string', value: 'post(message)' },
+        messageId: { type: 'uint', value: new BigNumber(281474976731085) },
+        parentId: { type: 'uint', value: new BigNumber(0) },
+        postId: { type: 'uint', value: new BigNumber(281474976731104) },
+        sender: { type: 'address', value: '0x63Cf90D3f0410092FC0fca41846f596223979195' }
       },
       topics: [
         '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5', '0x0000000000000000000000000000000000000000000000000001000000004fe0'

@@ -159,7 +159,7 @@ struct Verification<K: Kind> {
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
+	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
@@ -198,7 +198,7 @@ impl<K: Kind> VerificationQueue<K> {
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
-						VerificationQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty)
+						VerificationQueue::verify(verification, engine, more_to_verify, ready_signal, deleting, empty, check_seal)
 					}).unwrap()
 				})
 				.expect("Error starting block verification thread")
@@ -219,7 +219,7 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 	}
 
-	fn verify(verification: Arc<Verification<K>>, engine: Arc<Engine>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>) {
+	fn verify(verification: Arc<Verification<K>>, engine: Arc<Engine>, wait: Arc<SCondvar>, ready: Arc<QueueSignal>, deleting: Arc<AtomicBool>, empty: Arc<SCondvar>, check_seal: bool) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				let mut more_to_verify = verification.more_to_verify.lock().unwrap();
@@ -253,7 +253,7 @@ impl<K: Kind> VerificationQueue<K> {
 			};
 
 			let hash = item.hash();
-			let is_ready = match K::verify(item, &*engine) {
+			let is_ready = match K::verify(item, &*engine, check_seal) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					let mut idx = None;
@@ -529,7 +529,7 @@ mod tests {
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		BlockQueue::new(Config::default(), engine, IoChannel::disconnected())
+		BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true)
 	}
 
 	#[test]
@@ -537,7 +537,7 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.engine;
-		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected());
+		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true);
 	}
 
 	#[test]
@@ -601,7 +601,7 @@ mod tests {
 		let engine = spec.engine;
 		let mut config = Config::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
-		let queue = BlockQueue::new(config, engine, IoChannel::disconnected());
+		let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {

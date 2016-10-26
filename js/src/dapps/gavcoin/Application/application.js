@@ -205,11 +205,12 @@ export default class Application extends Component {
         return Promise
           .all([
             registry.getAddress.call({}, [api.util.sha3('gavcoin'), 'A']),
-            api.personal.listAccounts(),
-            api.personal.accountsInfo()
+            api.eth.accounts(),
+            null // api.personal.accountsInfo()
           ]);
       })
       .then(([address, addresses, infos]) => {
+        infos = infos || {};
         console.log(`gavcoin was found at ${address}`);
 
         const contract = api.newContract(abis.gavcoin, address);
@@ -220,11 +221,11 @@ export default class Application extends Component {
           contract,
           instance: contract.instance,
           accounts: addresses.map((address) => {
-            const info = infos[address];
+            const info = infos[address] || {};
 
             return {
               address,
-              name: info.name || 'Unnamed',
+              name: info.name,
               uuid: info.uuid
             };
           })

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use common::*;
+use util::*;
 use super::u256_to_address;
 use evm::{self, CostType};
 use evm::instructions::{self, Instruction, InstructionInfo};
@@ -64,14 +64,14 @@ impl<Gas: CostType> Gasometer<Gas> {
 			Some(cap_divisor) if self.current_gas >= needed => {
 				let gas_remaining = self.current_gas - needed;
 				let max_gas_provided = gas_remaining - gas_remaining / Gas::from(cap_divisor);
-				if let Some(Ok(r)) = requested { 
+				if let Some(Ok(r)) = requested {
 					Ok(min(r, max_gas_provided))
 				} else {
 					Ok(max_gas_provided)
 				}
 			},
 			_ => {
-				if let Some(r) = requested { 
+				if let Some(r) = requested {
 					r
 				} else if self.current_gas >= needed {
 					Ok(self.current_gas - needed)
@@ -84,10 +84,10 @@ impl<Gas: CostType> Gasometer<Gas> {
 
 	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
 	/// Determine how much gas is used by the given instruction, given the machine's state.
-	/// 
+	///
 	/// We guarantee that the final element of the returned tuple (`provided`) will be `Some`
 	/// iff the `instruction` is one of `CREATE`, or any of the `CALL` variants. In this case,
-	/// it will be the amount of gas that the current context provides to the child context. 
+	/// it will be the amount of gas that the current context provides to the child context.
 	pub fn get_gas_cost_mem(
 		&mut self,
 		ext: &evm::Ext,
@@ -183,7 +183,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 					gas = overflowing!(gas.overflow_add(schedule.call_value_transfer_gas.into()));
 				};
 
-				// TODO: refactor to avoid duplicate calculation here and later on. 
+				// TODO: refactor to avoid duplicate calculation here and later on.
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
 				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
 				let requested = Gas::from_u256(*stack.peek(0));
@@ -199,7 +199,7 @@ impl<Gas: CostType> Gasometer<Gas> {
 					try!(mem_needed(stack.peek(2), stack.peek(3)))
 				);
 
-				// TODO: refactor to avoid duplicate calculation here and later on. 
+				// TODO: refactor to avoid duplicate calculation here and later on.
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
 				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
 				let requested = Gas::from_u256(*stack.peek(0));
@@ -212,9 +212,9 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let mut gas = Gas::from(schedule.create_gas);
 				let mem = try!(mem_needed(stack.peek(1), stack.peek(2)));
 
-				// TODO: refactor to avoid duplicate calculation here and later on. 
+				// TODO: refactor to avoid duplicate calculation here and later on.
 				let (mem_gas_cost, _, _) = try!(self.mem_gas_cost(schedule, current_mem_size, &mem));
-				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into())); 
+				let cost_so_far = overflowing!(gas.overflow_add(mem_gas_cost.into()));
 				let provided = try!(self.gas_provided(schedule, cost_so_far, None));
 				gas = overflowing!(gas.overflow_add(provided));
 

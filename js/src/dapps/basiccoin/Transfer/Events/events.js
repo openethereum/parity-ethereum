@@ -114,6 +114,10 @@ export default class Events extends Component {
 
   logToEvent = (log) => {
     log.key = api.util.sha3(JSON.stringify(log));
+    log.params = Object.keys(log.params).reduce((params, name) => {
+      params[name] = log.params[name].value;
+      return params;
+    }, {});
 
     return log;
   }
@@ -139,7 +143,6 @@ export default class Events extends Component {
       .concat(pendingEvents)
       .filter((log) => !minedNew.find((event) => event.transactionHash === log.transactionHash));
     const events = [].concat(pendingNew).concat(minedNew);
-    console.log('*** events', events.map((event) => event.address));
     this.setState({ loading: false, events, minedEvents: minedNew, pendingEvents: pendingNew });
   }
 }

@@ -222,8 +222,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "elastic-array"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
+version = "0.6.0"
+source = "git+https://github.com/ethcore/elastic-array#70e4012e691b732c7c4cb04e9232799e6aa268bc"
+dependencies = [
+ "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "env_logger"
@@ -328,6 +331,7 @@ name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
  "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-rpc 1.4.0",
@@ -340,9 +344,7 @@ dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
- "parity-dapps-glue 1.4.0",
- "parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
+ "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -509,7 +511,7 @@ dependencies = [
  "ethcore-util 1.4.0",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "parity-dapps-glue 1.4.0",
+ "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -541,7 +543,7 @@ dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
  "ethcore-bigint 0.1.1",
@@ -614,6 +616,7 @@ dependencies = [
  "itertools 0.4.13 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -813,7 +816,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "json-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/json-ipc-server.git#5fbd0253750d3097b9a8fb27effa84c18d630bbb"
+source = "git+https://github.com/ethcore/json-ipc-server.git#4642cd03ec1d23db89df80d22d5a88e7364ab885"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -854,7 +857,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "6.1.1"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#ee72e4778583daf901b5692468fc622f46abecb6"
+source = "git+https://github.com/ethcore/jsonrpc-http-server.git#cd6d4cb37d672cc3057aecd0692876f9e85f3ba5"
 dependencies = [
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1176,22 +1179,9 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "parity-dapps"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
- "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "quasi_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "syntex_syntax 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "parity-dapps-glue"
 version = "1.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "aster 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "glob 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1200,21 +1190,30 @@ dependencies = [
  "quasi_codegen 0.11.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "syntex_syntax 0.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "parity-dapps-home"
-version = "1.4.0"
-source = "git+https://github.com/ethcore/parity-ui.git#8b1c31319228ad4cf9bd4ae740a0b933aa9e19c7"
-dependencies = [
- "parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)",
 ]
 
 [[package]]
 name = "parity-ui"
 version = "1.4.0"
 dependencies = [
- "parity-dapps-glue 1.4.0",
+ "parity-ui-dev 1.4.0",
+ "parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git)",
+ "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-dev"
+version = "1.4.0"
+dependencies = [
+ "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "parity-ui-precompiled"
+version = "1.4.0"
+source = "git+https://github.com/ethcore/js-precompiled.git#9f8baa9d0e54056c41a842b351597d0565beda98"
+dependencies = [
+ "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1425,7 +1424,7 @@ dependencies = [
 name = "rlp"
 version = "0.1.0"
 dependencies = [
- "elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "ethcore-bigint 0.1.1",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1884,7 +1883,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.2"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#609b21fdab96c8fffedec8699755ce3bea9454cb"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#00bd2134b07b4bc8ea47b7f6c7afce16bbe34c8f"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1958,7 +1957,7 @@ dependencies = [
 "checksum deque 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "1614659040e711785ed8ea24219140654da1729f3ec8a47a9719d041112fe7bf"
 "checksum docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)" = "4cc0acb4ce0828c6a5a11d47baa432fe885881c27428c3a4e473e454ffe57a76"
 "checksum dtoa 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0dd841b58510c9618291ffa448da2e4e0f699d984d436122372f446dae62263d"
-"checksum elastic-array 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "4bc9250a632e7c001b741eb0ec6cee93c9a5b6d5f1879696a4b94d62b012210a"
+"checksum elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)" = "<none>"
 "checksum env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "aba65b63ffcc17ffacd6cf5aa843da7c5a25e3bd4bbe0b7def8b214e411250e5"
 "checksum eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)" = "<none>"
 "checksum ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "f7b0c53453517f620847be51943db329276ae52f2e210cfc659e81182864be2f"
@@ -2016,8 +2015,8 @@ dependencies = [
 "checksum number_prefix 0.2.5 (registry+https://github.com/rust-lang/crates.io-index)" = "084d05f4bf60621a9ac9bde941a410df548f4de9545f06e5ee9d3aef4b97cd77"
 "checksum odds 0.2.12 (registry+https://github.com/rust-lang/crates.io-index)" = "b28c06e81b0f789122d415d6394b5fe849bde8067469f4c2980d3cdc10c78ec1"
 "checksum owning_ref 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "8d91377085359426407a287ab16884a0111ba473aa6844ff01d4ec20ce3d75e7"
-"checksum parity-dapps 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
-"checksum parity-dapps-home 1.4.0 (git+https://github.com/ethcore/parity-ui.git)" = "<none>"
+"checksum parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "98378dec0a185da2b7180308752f0bad73aaa949c3e0a3b0528d0e067945f7ab"
+"checksum parity-ui-precompiled 1.4.0 (git+https://github.com/ethcore/js-precompiled.git)" = "<none>"
 "checksum parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)" = "968f685642555d2f7e202c48b8b11de80569e9bfea817f7f12d7c61aac62d4e6"
 "checksum parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)" = "dbc5847584161f273e69edc63c1a86254a22f570a0b5dd87aa6f9773f6f7d125"
 "checksum parking_lot_core 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "fb1b97670a2ffadce7c397fb80a3d687c4f3060140b885621ef1653d0e5d5068"

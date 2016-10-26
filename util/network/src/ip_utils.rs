@@ -56,6 +56,22 @@ impl SocketAddrExt for Ipv6Addr {
 	}
 }
 
+impl SocketAddrExt for IpAddr {
+	fn is_unspecified_s(&self) -> bool {
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_unspecified_s(),
+			IpAddr::V6(ref ip) => ip.is_unspecified_s(),
+		}
+	}
+
+	fn is_global_s(&self) -> bool {
+		match *self {
+			IpAddr::V4(ref ip) => ip.is_global_s(),
+			IpAddr::V6(ref ip) => ip.is_global_s(),
+		}
+	}
+}
+
 #[cfg(not(windows))]
 mod getinterfaces {
 	use std::{mem, io, ptr};

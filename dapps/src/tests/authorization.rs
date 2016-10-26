@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve_with_auth, request, assert_security_headers};
+use tests::helpers::{serve_with_auth, request, assert_security_headers_for_embed};
 
 #[test]
 fn should_require_authorization() {
@@ -66,7 +66,7 @@ fn should_allow_on_valid_auth() {
 	// when
 	let response = request(server,
 		"\
-			GET /home/ HTTP/1.1\r\n\
+			GET /ui/ HTTP/1.1\r\n\
 			Host: 127.0.0.1:8080\r\n\
 			Connection: close\r\n\
 			Authorization: Basic QWxhZGRpbjpPcGVuU2VzYW1l\r\n
@@ -76,5 +76,5 @@ fn should_allow_on_valid_auth() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 200 OK".to_owned());
-	assert_security_headers(&response.headers);
+	assert_security_headers_for_embed(&response.headers);
 }

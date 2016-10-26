@@ -26,10 +26,10 @@ import styles from './AddDapps.css';
 export default class AddDapps extends Component {
   static propTypes = {
     available: PropTypes.array.isRequired,
-    visible: PropTypes.array.isRequired,
+    hidden: PropTypes.array.isRequired,
     open: PropTypes.bool.isRequired,
-    onAdd: PropTypes.func.isRequired,
-    onRemove: PropTypes.func.isRequired,
+    onHideApp: PropTypes.func.isRequired,
+    onShowApp: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   };
 
@@ -38,13 +38,13 @@ export default class AddDapps extends Component {
 
     return (
       <Modal
-        title='Select Distributed Apps to be shown'
+        compact
+        title='visible applications'
         actions={ [
-          <Button label={ 'Done' } onClick={ onClose } icon={ <DoneIcon /> } />
+          <Button label={ 'Done' } key='done' onClick={ onClose } icon={ <DoneIcon /> } />
         ] }
         visible={ open }
-        scroll
-      >
+        scroll>
         <List>
           { available.map(this.renderApp) }
         </List>
@@ -53,20 +53,27 @@ export default class AddDapps extends Component {
   }
 
   renderApp = (app) => {
-    const { visible, onAdd, onRemove } = this.props;
-    const isVisible = visible.includes(app.id);
+    const { hidden, onHideApp, onShowApp } = this.props;
+    const isHidden = hidden.includes(app.id);
+    const description = (
+      <div className={ styles.description }>
+        { app.description }
+      </div>
+    );
     const onCheck = () => {
-      if (isVisible) onRemove(app.id);
-      else onAdd(app.id);
+      if (isHidden) {
+        onShowApp(app.id);
+      } else {
+        onHideApp(app.id);
+      }
     };
 
     return (
       <ListItem
         key={ app.id }
-        leftCheckbox={ <Checkbox checked={ isVisible } onCheck={ onCheck } /> }
+        leftCheckbox={ <Checkbox checked={ !isHidden } onCheck={ onCheck } /> }
         primaryText={ app.name }
-        secondaryText={ <pre className={ styles.hash }><code>{ app.hash }</code></pre> }
-      />
+        secondaryText={ description } />
     );
   }
 }

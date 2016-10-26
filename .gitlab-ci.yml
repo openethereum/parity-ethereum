@@ -5,6 +5,7 @@ variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true" 
   RUST_BACKTRACE: "1"
+  RUSTFLAGS: "-D warnings"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -20,10 +21,17 @@ linux-stable:
     - cargo build --release --verbose
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
+    - sh scripts/deb-build.sh amd64
+    - cp target/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
+    - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
   tags:
     - rust
     - rust-stable
@@ -43,10 +51,17 @@ linux-stable-14.04:
     - cargo build --release --verbose
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
+    - sh scripts/deb-build.sh amd64
+    - cp target/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
+    - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
   tags:
     - rust
     - rust-14.04
@@ -133,10 +148,17 @@ linux-armv7:
     - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - sh scripts/deb-build.sh armhf
+    - cp target/armv7-unknown-linux-gnueabihf/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
+    - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/"parity_"$VER"_armhf.deb" --body "parity_"$VER"_armhf.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/"parity_"$VER"_armhf.deb.md5" --body "parity_"$VER"_armhf.deb.md5"
   tags:
     - rust
     - rust-arm
@@ -161,10 +183,17 @@ linux-arm:
     - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - sh scripts/deb-build.sh armhf
+    - cp target/arm-unknown-linux-gnueabihf/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
+    - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/"parity_"$VER"_armhf.deb" --body "parity_"$VER"_armhf.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/"parity_"$VER"_armhf.deb.md5" --body "parity_"$VER"_armhf.deb.md5"
   tags:
     - rust
     - rust-arm
@@ -217,10 +246,17 @@ linux-aarch64:
     - cargo build --target aarch64-unknown-linux-gnu --release --verbose
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
+    - sh scripts/deb-build.sh arm64
+    - cp target/aarch64-unknown-linux-gnu/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
+    - md5sum "parity_"$VER"_arm64.deb" >> "parity_"$VER"_arm64.deb.md5"
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb" --body "parity_"$VER"_arm64.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb.md5" --body "parity_"$VER"_arm64.deb.md5"
   tags:
     - rust
     - rust-arm
@@ -262,7 +298,6 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
     - rustup default stable-x86_64-pc-windows-msvc
-    - git submodule update --init
     - cargo build --release --verbose
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
@@ -298,7 +333,6 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
-  allow_failure: true
 test-linux:
   stage: test
   before_script:
@@ -314,7 +348,6 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
-    - js
     - master
     - beta
     - tags

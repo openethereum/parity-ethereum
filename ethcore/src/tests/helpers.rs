@@ -17,18 +17,22 @@
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
-use common::*;
+use util::*;
 use spec::*;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
+use builtin::Builtin;
 use evm::Schedule;
 use engines::Engine;
+use env_info::EnvInfo;
 use ethereum;
 use devtools::*;
 use miner::Miner;
+use header::Header;
+use transaction::{Action, SignedTransaction, Transaction};
 use rlp::{self, RlpStream, Stream};
-use db::COL_STATE;
+use views::BlockView;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
@@ -346,7 +350,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 

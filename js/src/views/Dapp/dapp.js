@@ -18,10 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './dapp.css';
 
-const hostname = `${window.location.hostname}:${window.location.port}`;
-const dapphost = (hostname === 'localhost:3000') || (hostname === '127.0.0.1:3000')
-  ? hostname
-  : '127.0.0.1:8080/ui';
+const dapphost = process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:8080/ui' : '';
 
 export default class Dapp extends Component {
   static propTypes = {
@@ -31,7 +28,7 @@ export default class Dapp extends Component {
   render () {
     const { name, type } = this.props.params;
     const src = type === 'global'
-      ? `http://${dapphost}/${name}.html`
+      ? `${dapphost}/${name}.html`
       : `http://127.0.0.1:8080/${name}/`;
 
     return (

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { api } from '../parity';
+// import { api } from '../parity';
 import { attachInstances } from '../services';
 
 import Header from './Header';
@@ -83,9 +83,10 @@ export default class Application extends Component {
     Promise
       .all([
         attachInstances(),
-        api.personal.accountsInfo()
+        null // api.personal.accountsInfo()
       ])
       .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
+        accountsInfo = accountsInfo || {};
         this.setState({
           loading: false,
           managerInstance,

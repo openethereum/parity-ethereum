@@ -16,40 +16,7 @@
 
 extern crate parity_dapps_glue;
 
-use std::collections::HashMap;
-use parity_dapps_glue::{WebApp, File, Info};
-
-#[derive(WebAppFiles)]
-#[webapp(path = "../../../js/build")]
-pub struct App {
-	pub files: HashMap<&'static str, File>,
-}
-
-impl Default for App {
-	fn default() -> App {
-		App {
-			files: Self::files(),
-		}
-	}
-}
-
-impl WebApp for App {
-	fn file(&self, path: &str) -> Option<&File> {
-		self.files.get(path)
-	}
-
-	fn info(&self) -> Info {
-		Info {
-			name: "Parity UI",
-			version: env!("CARGO_PKG_VERSION"),
-			author: "Ethcore <admin@ethcore.io>",
-			description: "New UI for Parity. (Experimental)",
-			icon_url: "icon.png",
-		}
-	}
-}
-
-#[test]
-fn test_js() {
-	parity_dapps_glue::js::build(concat!(env!("CARGO_MANIFEST_DIR"), "/../../js"));
+fn main() {
+	parity_dapps_glue::js::build(env!("CARGO_MANIFEST_DIR"), "build");
+	parity_dapps_glue::generate();
 }

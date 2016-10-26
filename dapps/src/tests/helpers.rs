@@ -18,6 +18,7 @@ use std::env;
 use std::str;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
+use env_logger::LogBuilder;
 
 use ServerBuilder;
 use Server;
@@ -27,6 +28,7 @@ use devtools::http_client;
 
 const REGISTRAR: &'static str = "8e4e9b13d4b45cb0befc93c3061b1408f67316b2";
 const URLHINT: &'static str = "deadbeefcafe0000000000000000000000000000";
+const SIGNER_PORT: u16 = 18180;
 
 pub struct FakeRegistrar {
 	pub calls: Arc<Mutex<Vec<(String, String)>>>,
@@ -58,11 +60,23 @@ impl ContractClient for FakeRegistrar {
 	}
 }
 
-pub fn init_server(hosts: Option<Vec<String>>) -> (Server, Arc<FakeRegistrar>) {
+fn init_logger() {
+	// Initialize logger
+	if let Ok(log) = env::var("RUST_LOG") {
+		let mut builder = LogBuilder::new();
+		builder.parse(&log);
+		builder.init().expect("Logger is initialized only once.");
+	}
+}
+
+pub fn init_server(hosts: Option<Vec<String>>, is_syncing: bool) -> (Server, Arc<FakeRegistrar>) {
+	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar.clone());
+	builder.with_sync_status(Arc::new(move || is_syncing));
+	builder.with_signer_port(Some(SIGNER_PORT));
 	(
 		builder.start_unsecured_http(&"127.0.0.1:0".parse().unwrap(), hosts).unwrap(),
 		registrar,
@@ -70,23 +84,29 @@ pub fn init_server(hosts: Option<Vec<String>>) -> (Server, Arc<FakeRegistrar>) {
 }
 
 pub fn serve_with_auth(user: &str, pass: &str) -> Server {
+	init_logger();
 	let registrar = Arc::new(FakeRegistrar::new());
 	let mut dapps_path = env::temp_dir();
 	dapps_path.push("non-existent-dir-to-prevent-fs-files-from-loading");
-	let builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
+	let mut builder = ServerBuilder::new(dapps_path.to_str().unwrap().into(), registrar);
+	builder.with_signer_port(Some(SIGNER_PORT));
 	builder.start_basic_auth_http(&"127.0.0.1:0".parse().unwrap(), None, user, pass).unwrap()
 }
 
 pub fn serve_hosts(hosts: Option<Vec<String>>) -> Server {
-	init_server(hosts).0
+	init_server(hosts, false).0
 }
 
 pub fn serve_with_registrar() -> (Server, Arc<FakeRegistrar>) {
-	init_server(None)
+	init_server(None, false)
+}
+
+pub fn serve_with_registrar_and_sync() -> (Server, Arc<FakeRegistrar>) {
+	init_server(None, true)
 }
 
 pub fn serve() -> Server {
-	init_server(None).0
+	init_server(None, false).0
 }
 
 pub fn request(server: Server, request: &str) -> http_client::Response {
@@ -94,5 +114,8 @@ pub fn request(server: Server, request: &str) -> http_client::Response {
 }
 
 pub fn assert_security_headers(headers: &[String]) {
-	http_client::assert_security_headers_present(headers)
+	http_client::assert_security_headers_present(headers, None)
+}
+pub fn assert_security_headers_for_embed(headers: &[String]) {
+	http_client::assert_security_headers_present(headers, Some(SIGNER_PORT))
 }

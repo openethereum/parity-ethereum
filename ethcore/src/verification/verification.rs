@@ -21,10 +21,14 @@
 /// 2. Signatures verification done in the queue.
 /// 3. Final verification against the blockchain done before enactment.
 
-use common::*;
+use util::*;
 use engines::Engine;
+use error::{BlockError, Error};
 use blockchain::*;
+use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
+use transaction::SignedTransaction;
+use views::BlockView;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -66,10 +70,12 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
-	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&try!(u), None));
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+	if check_seal {
+		try!(engine.verify_block_unordered(&header, Some(&bytes)));
+		for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+			try!(engine.verify_block_unordered(&try!(u), None));
+		}
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();

@@ -23,6 +23,7 @@ import ExecuteContract from './ExecuteContract';
 import FirstRun from './FirstRun';
 import Shapeshift from './Shapeshift';
 import Transfer from './Transfer';
+import PasswordManager from './PasswordManager';
 
 export {
   AddAddress,
@@ -33,5 +34,6 @@ export {
   ExecuteContract,
   FirstRun,
   Shapeshift,
-  Transfer
+  Transfer,
+  PasswordManager
 };

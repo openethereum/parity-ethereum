@@ -15,13 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
 use types::executed::CallType;
+use env_info::EnvInfo;
+use error::ExecutionError;
 use evm::{self, Ext, Factory, Finalize};
 use externalities::*;
 use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer, VMTrace, VMTracer, ExecutiveVMTracer, NoopVMTracer};
+use transaction::{Action, SignedTransaction};
 use crossbeam;
 pub use types::executed::{Executed, ExecutionResult};
 
@@ -250,7 +254,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
@@ -269,7 +273,7 @@ impl<'a> Executive<'a> {
 			let cost = self.engine.cost_of_builtin(&params.code_address, data);
 			if cost <= params.gas {
 				self.engine.execute_builtin(&params.code_address, data, &mut output);
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 
 				// trace only top level calls to builtins to avoid DDoS attacks
 				if self.depth == 0 {
@@ -289,7 +293,7 @@ impl<'a> Executive<'a> {
 				Ok(params.gas - cost)
 			} else {
 				// just drain the whole gas
-				self.state.revert_to_snapshot();
+				self.state.revert_to_checkpoint();
 
 				tracer.trace_failed_call(trace_info, vec![], evm::Error::OutOfGas.into());
 
@@ -335,7 +339,7 @@ impl<'a> Executive<'a> {
 				res
 			} else {
 				// otherwise it's just a basic transaction, only do tracing, if necessary.
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 
 				tracer.trace_call(trace_info, U256::zero(), trace_output, vec![]);
 				Ok(params.gas)
@@ -354,7 +358,7 @@ impl<'a> Executive<'a> {
 		vm_tracer: &mut V
 	) -> evm::Result<U256> where T: Tracer, V: VMTracer {
 		// backup used in case of running out of gas
-		self.state.snapshot();
+		self.state.checkpoint();
 
 		// part of substate that may be reverted
 		let mut unconfirmed_substate = Substate::new();
@@ -485,10 +489,10 @@ impl<'a> Executive<'a> {
 				| Err(evm::Error::BadInstruction {.. })
 				| Err(evm::Error::StackUnderflow {..})
 				| Err(evm::Error::OutOfStack {..}) => {
-					self.state.revert_to_snapshot();
+					self.state.revert_to_checkpoint();
 			},
 			Ok(_) | Err(evm::Error::Internal) => {
-				self.state.discard_snapshot();
+				self.state.discard_checkpoint();
 				substate.accrue(un_substate);
 			}
 		}
@@ -500,13 +504,18 @@ impl<'a> Executive<'a> {
 mod tests {
 	use ethkey::{Generator, Random};
 	use super::*;
-	use common::*;
+	use util::*;
+	use action_params::{ActionParams, ActionValue};
+	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
+	use error::ExecutionError;
 	use state::Substate;
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
+	use transaction::{Action, Transaction};
+
 	use types::executed::CallType;
 
 	#[test]

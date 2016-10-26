@@ -16,14 +16,20 @@
 
 //! A blockchain engine that supports a basic, non-BFT proof-of-authority.
 
-use common::*;
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
+use builtin::Builtin;
 use spec::CommonParams;
 use engines::Engine;
+use env_info::EnvInfo;
+use error::{BlockError, Error};
 use evm::Schedule;
 use ethjson;
+use header::Header;
+use transaction::SignedTransaction;
+
+use util::*;
 
 /// `BasicAuthority` params.
 #[derive(Debug, PartialEq)]
@@ -177,10 +183,13 @@ impl Engine for BasicAuthority {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
+	use env_info::EnvInfo;
+	use error::{BlockError, Error};
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
+	use header::Header;
 	use spec::Spec;
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.

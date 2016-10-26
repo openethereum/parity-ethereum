@@ -32,6 +32,12 @@ export default class Ethcore {
       .execute('ethcore_addReservedPeer', encode);
   }
 
+  dappsPort () {
+    return this._transport
+      .execute('ethcore_dappsPort')
+      .then(outNumber);
+  }
+
   defaultExtraData () {
     return this._transport
       .execute('ethcore_defaultExtraData');
@@ -152,6 +158,12 @@ export default class Ethcore {
   setTransactionsLimit (quantity) {
     return this._transport
       .execute('ethcore_setTransactionsLimit', inNumber16(quantity));
+  }
+
+  signerPort () {
+    return this._transport
+      .execute('ethcore_signerPort')
+      .then(outNumber);
   }
 
   transactionsLimit () {
