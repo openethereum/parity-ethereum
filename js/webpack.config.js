@@ -42,6 +42,8 @@ module.exports = {
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
     'parity': ['./parity.js'],
+    'inject': ['./web3.js'],
+    'web3': ['./web3.js'],
     // app
     'index': ['./index.js']
   },
@@ -166,12 +168,6 @@ module.exports = {
         new webpack.optimize.CommonsChunkPlugin({
           chunks: ['index'],
           name: 'commons'
-        })
-      );
-      plugins.push(
-        new webpack.optimize.CommonsChunkPlugin({
-          chunks: ['parity'],
-          name: 'parity'
         })
       );
 
