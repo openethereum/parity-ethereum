@@ -395,7 +395,7 @@ impl Session {
 			PACKET_PEERS => Ok(SessionData::None),
 			PACKET_USER ... PACKET_LAST => {
 				let mut i = 0usize;
-				while packet_id < self.info.capabilities[i].id_offset {
+				while packet_id > self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
 					i += 1;
 					if i == self.info.capabilities.len() {
 						debug!(target: "network", "Unknown packet: {:?}", packet_id);
@@ -469,7 +469,7 @@ impl Session {
 			offset += caps[i].packet_count;
 			i += 1;
 		}
-		trace!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
+		debug!(target: "network", "Hello: {} v{} {} {:?}", client_version, protocol, id, caps);
 		self.info.protocol_version = protocol;
 		self.info.client_version = client_version;
 		self.info.capabilities = caps;

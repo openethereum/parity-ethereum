@@ -78,6 +78,10 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
+	fn send_protocol(&mut self, _protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+		self.send(peer_id, packet_id, data)
+	}
+
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}

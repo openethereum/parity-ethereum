@@ -79,7 +79,7 @@ export default class Application extends Component {
             </p>
           </div>
         ) : (
-          <CircularProgress size={ 1 } />
+          <CircularProgress size={ 60 } />
         ) }
       </div>
     );

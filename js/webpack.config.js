@@ -41,7 +41,8 @@ module.exports = {
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
-    'inject': ['./inject.js'],
+    'inject': ['./web3.js'],
+    'web3': ['./web3.js'],
     'parity': ['./parity.js'],
     // app
     'index': ['./index.js']
@@ -136,10 +137,6 @@ module.exports = {
           'babel?cacheDirectory=true'
         ]
       }),
-      new webpack.DllReferencePlugin({
-        context: '.',
-        manifest: require(`./${DEST}/vendor-manifest.json`)
-      }),
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
       new WebpackErrorNotificationPlugin(),
       new webpack.DefinePlugin({
@@ -149,6 +146,11 @@ module.exports = {
           PARITY_URL: JSON.stringify(process.env.PARITY_URL),
           LOGGING: JSON.stringify(!isProd)
         }
+      }),
+
+      new webpack.DllReferencePlugin({
+        context: '.',
+        manifest: require(`./${DEST}/vendor-manifest.json`)
       })
     ];
 
@@ -164,14 +166,8 @@ module.exports = {
     if (isProd) {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          chunks: [ 'index' ],
+          chunks: ['index'],
           name: 'commons'
-        })
-      );
-      plugins.push(
-        new webpack.optimize.CommonsChunkPlugin({
-          chunks: [ 'parity' ],
-          name: 'parity'
         })
       );
 
@@ -208,8 +204,11 @@ module.exports = {
         }
       },
       '/parity-utils/*': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/parity-utils': ''
+        }
       },
       '/rpc/*': {
         target: 'http://localhost:8080',

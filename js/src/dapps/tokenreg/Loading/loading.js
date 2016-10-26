@@ -25,9 +25,11 @@ export default class Loading extends Component {
   };
 
   render () {
+    const size = (this.props.size || 2) * 60;
+
     return (
       <div className={ styles.loading }>
-        <CircularProgress size={ this.props.size || 2 } />
+        <CircularProgress size={ size } />
       </div>
     );
   }

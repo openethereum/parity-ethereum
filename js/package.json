@@ -23,17 +23,22 @@
     "Promise"
   ],
   "scripts": {
-    "build": "npm run build:dll && npm run build:app",
+    "build": "npm run build:dll && npm run build:app && npm run build:lib",
     "build:app": "webpack --progress",
-    "build:dll": "webpack --config webpack.vendor.js --progress",
-    "ci:build": "npm run ci:build:dll && npm run ci:build:app",
+    "build:lib": "webpack --config webpack.libraries --progress",
+    "build:dll": "webpack --config webpack.vendor --progress",
+
+    "ci:build": "npm run ci:build:dll && npm run ci:build:app && npm run ci:build:lib",
     "ci:build:app": "NODE_ENV=production webpack",
-    "ci:build:dll": "NODE_ENV=production webpack --config webpack.vendor.js",
+    "ci:build:lib": "NODE_ENV=production webpack --config webpack.libraries",
+    "ci:build:dll": "NODE_ENV=production webpack --config webpack.vendor",
+
+    "start": "npm install && npm run build:dll && npm run start:app",
+    "start:app": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
+
     "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
-    "start": "npm install && npm run build:dll && npm run start:app",
-    "start:app": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "test": "mocha 'src/**/*.spec.js'",
     "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
     "test:e2e": "mocha 'src/**/*.e2e.js'"

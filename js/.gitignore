@@ -3,4 +3,5 @@ npm-debug.log
 build
 .build
 .coverage
+.dist
 .happypack
