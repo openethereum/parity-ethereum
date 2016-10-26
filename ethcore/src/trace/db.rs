@@ -285,7 +285,7 @@ impl<T> TraceDatabase for TraceDB<T> where T: DatabaseExtras {
 			let mut blooms = self.blooms.write();
 			batch.extend_with_cache(db::COL_TRACE, &mut *blooms, blooms_to_insert, CacheUpdatePolicy::Remove);
 			// note_used must be called after locking blooms to avoid cache/traces deadlock on garbage collection
-			for key in blooms_keys.into_iter() {
+			for key in blooms_keys {
 				self.note_used(CacheID::Bloom(key));
 			}
 		}

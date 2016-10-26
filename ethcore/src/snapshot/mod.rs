@@ -202,7 +202,7 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large.
 
-			if new_loaded_size > PREFERRED_CHUNK_SIZE && self.rlps.len() > 0 {
+			if new_loaded_size > PREFERRED_CHUNK_SIZE && !self.rlps.is_empty() {
 				try!(self.write_chunk(last));
 				loaded_size = pair.len();
 			} else {

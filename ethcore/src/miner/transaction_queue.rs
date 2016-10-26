@@ -115,9 +115,7 @@ impl Ord for TransactionOrigin {
 		}
 
 		match (*self, *other) {
-			(TransactionOrigin::RetractedBlock, _) => Ordering::Less,
-			(_, TransactionOrigin::RetractedBlock) => Ordering::Greater,
-			(TransactionOrigin::Local, _) => Ordering::Less,
+			(TransactionOrigin::RetractedBlock, _) | (TransactionOrigin::Local, _) => Ordering::Less,
 			_ => Ordering::Greater,
 		}
 	}
@@ -446,6 +444,7 @@ pub struct AccountDetails {
 const GAS_LIMIT_HYSTERESIS: usize = 10; // (100/GAS_LIMIT_HYSTERESIS) %
 
 /// Describes the strategy used to prioritize transactions in the queue.
+#[cfg_attr(feature="dev", allow(enum_variant_names))]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum PrioritizationStrategy {
 	/// Use only gas price. Disregards the actual computation cost of the transaction.

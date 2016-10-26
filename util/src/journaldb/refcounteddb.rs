@@ -36,12 +36,14 @@ use std::env;
 /// the removals actually take effect.
 ///
 /// journal format:
+/// ```
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
+/// ```
 ///
 /// when we make a new commit, we journal the inserts and removes.
-/// for each end_era that we journaled that we are no passing by,
+/// for each `end_era` that we journaled that we are no passing by,
 /// we remove all of its removes assuming it is canonical and all
 /// of its inserts otherwise.
 // TODO: store last_era, reclaim_period.

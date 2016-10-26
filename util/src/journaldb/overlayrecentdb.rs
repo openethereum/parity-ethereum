@@ -379,7 +379,7 @@ impl HashDB for OverlayRecentDB {
 			ret.insert(h, 1);
 		}
 
-		for (key, refs) in self.transaction_overlay.keys().into_iter() {
+		for (key, refs) in self.transaction_overlay.keys() {
 			let refs = *ret.get(&key).unwrap_or(&0) + refs;
 			ret.insert(key, refs);
 		}
