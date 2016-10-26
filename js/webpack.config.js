@@ -40,10 +40,6 @@ module.exports = {
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
-    // library
-    'parity': ['./parity.js'],
-    'inject': ['./web3.js'],
-    'web3': ['./web3.js'],
     // app
     'index': ['./index.js']
   },
