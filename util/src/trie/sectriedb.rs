@@ -16,7 +16,7 @@
 
 use hash::H256;
 use sha3::Hashable;
-use hashdb::HashDB;
+use hashdb::{HashDB, DBValue};
 use super::triedb::TrieDB;
 use super::{Trie, TrieItem, Recorder};
 
@@ -59,7 +59,7 @@ impl<'db> Trie for SecTrieDB<'db> {
 		self.raw.contains(&key.sha3())
 	}
 
-	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<&'a [u8]>>
+	fn get_recorded<'a, 'b, R: 'b>(&'a self, key: &'b [u8], rec: &'b mut R) -> super::Result<Option<DBValue>>
 		where 'a: 'b, R: Recorder
 	{
 		self.raw.get_recorded(&key.sha3(), rec)
@@ -79,5 +79,5 @@ fn trie_to_sectrie() {
 		t.insert(&(&[0x01u8, 0x23]).sha3(), &[0x01u8, 0x23]).unwrap();
 	}
 	let t = SecTrieDB::new(&memdb, &root).unwrap();
-	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), &[0x01u8, 0x23]);
+	assert_eq!(t.get(&[0x01u8, 0x23]).unwrap().unwrap(), DBValue::from_slice(&[0x01u8, 0x23]));
 }

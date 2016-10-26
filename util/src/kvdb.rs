@@ -21,6 +21,7 @@ use common::*;
 use elastic_array::*;
 use std::default::Default;
 use std::path::PathBuf;
+use hashdb::DBValue;
 use rlp::{UntrustedRlp, RlpType, View, Compressible};
 use rocksdb::{DB, Writable, WriteBatch, WriteOptions, IteratorMode, DBIterator,
 	Options, DBCompactionStyle, BlockBasedOptions, Direction, Cache, Column, ReadOptions};
@@ -43,12 +44,12 @@ enum DBOp {
 	Insert {
 		col: Option<u32>,
 		key: ElasticArray32<u8>,
-		value: Bytes,
+		value: DBValue,
 	},
 	InsertCompressed {
 		col: Option<u32>,
 		key: ElasticArray32<u8>,
-		value: Bytes,
+		value: DBValue,
 	},
 	Delete {
 		col: Option<u32>,
@@ -71,7 +72,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: value.to_vec(),
+			value: DBValue::from_slice(value),
 		});
 	}
 
@@ -82,7 +83,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::Insert {
 			col: col,
 			key: ekey,
-			value: value,
+			value: DBValue::from_vec(value),
 		});
 	}
 
@@ -94,7 +95,7 @@ impl DBTransaction {
 		self.ops.push(DBOp::InsertCompressed {
 			col: col,
 			key: ekey,
-			value: value,
+			value: DBValue::from_vec(value),
 		});
 	}
 
@@ -110,8 +111,8 @@ impl DBTransaction {
 }
 
 enum KeyState {
-	Insert(Bytes),
-	InsertCompressed(Bytes),
+	Insert(DBValue),
+	InsertCompressed(DBValue),
 	Delete,
 }
 
@@ -507,7 +508,7 @@ impl Database {
 	}
 
 	/// Get value by key.
-	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<Bytes>, String> {
+	pub fn get(&self, col: Option<u32>, key: &[u8]) -> Result<Option<DBValue>, String> {
 		match *self.db.read() {
 			Some(DBAndColumns { ref db, ref cfs }) => {
 				let overlay = &self.overlay.read()[Self::to_overlay_column(col)];
@@ -521,8 +522,8 @@ impl Database {
 							Some(&KeyState::Delete) => Ok(None),
 							None => {
 								col.map_or_else(
-									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| v.to_vec())),
-									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| v.to_vec())))
+									|| db.get_opt(key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))),
+									|c| db.get_cf_opt(cfs[c as usize], key, &self.read_opts).map(|r| r.map(|v| DBValue::from_slice(&v))))
 							},
 						}
 					},

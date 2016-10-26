@@ -16,8 +16,11 @@
 
 //! Database of byte-slices keyed to their Keccak hash.
 use hash::*;
-use bytes::*;
 use std::collections::HashMap;
+use elastic_array::ElasticArray256;
+
+/// `HashDB` value type.
+pub type DBValue = ElasticArray256<u8>;
 
 /// Trait modelling datastore keyed by a 32-byte Keccak hash.
 pub trait HashDB: AsHashDB + Send + Sync {
@@ -39,7 +42,7 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	///   assert_eq!(m.get(&hash).unwrap(), hello_bytes);
 	/// }
 	/// ```
-	fn get(&self, key: &H256) -> Option<&[u8]>;
+	fn get(&self, key: &H256) -> Option<DBValue>;
 
 	/// Check for the existance of a hash-key.
 	///
@@ -80,7 +83,7 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	fn insert(&mut self, value: &[u8]) -> H256;
 
 	/// Like `insert()` , except you provide the key and the data is all moved.
-	fn emplace(&mut self, key: H256, value: Bytes);
+	fn emplace(&mut self, key: H256, value: DBValue);
 
 	/// Remove a datum previously inserted. Insertions can be "owed" such that the same number of `insert()`s may
 	/// happen without the data being eventually being inserted into the DB.
@@ -111,7 +114,7 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	}
 
 	/// Get auxiliary data from hashdb.
-	fn get_aux(&self, _hash: &[u8]) -> Option<Vec<u8>> {
+	fn get_aux(&self, _hash: &[u8]) -> Option<DBValue> {
 		unimplemented!();
 	}
 
