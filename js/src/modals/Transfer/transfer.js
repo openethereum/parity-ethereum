@@ -62,6 +62,7 @@ export default class Transfer extends Component {
     gasEst: '0',
     gasError: null,
     gasPrice: DEFAULT_GASPRICE,
+    gasPriceStatistics: [],
     gasPriceError: null,
     recipient: '',
     recipientError: ERRORS.requireRecipient,
@@ -180,6 +181,7 @@ export default class Transfer extends Component {
         gasPrice={ this.state.gasPrice }
         gasPriceDefault={ this.state.gasPriceDefault }
         gasPriceError={ this.state.gasPriceError }
+        gasPriceStatistics={ this.state.gasPriceStatistics }
         total={ this.state.total }
         totalError={ this.state.totalError }
         onChange={ this.onUpdateDetails } />
@@ -579,12 +581,16 @@ export default class Transfer extends Component {
   getDefaults = () => {
     const { api } = this.context;
 
-    api.eth
-      .gasPrice()
-      .then((gasPrice) => {
+    Promise
+      .all([
+        api.ethcore.gasPriceStatistics(),
+        api.eth.gasPrice()
+      ])
+      .then(([gasPriceStatistics, gasPrice]) => {
         this.setState({
           gasPrice: gasPrice.toString(),
-          gasPriceDefault: gasPrice.toFormat()
+          gasPriceDefault: gasPrice.toFormat(),
+          gasPriceStatistics
         }, this.recalculate);
       })
       .catch((error) => {

@@ -31,6 +31,7 @@ export default class Extras extends Component {
     gasPrice: PropTypes.string,
     gasPriceDefault: PropTypes.string,
     gasPriceError: PropTypes.string,
+    gasPriceStatistics: PropTypes.array,
     total: PropTypes.string,
     totalError: PropTypes.string,
     onChange: PropTypes.func.isRequired
