@@ -30,7 +30,6 @@ use ids::BlockID;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
-use util::memorydb::MemoryDB;
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -47,7 +46,7 @@ use self::io::SnapshotWriter;
 use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
-use crossbeam::{scope, ScopedJoinHandle};
+use crossbeam::scope;
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
@@ -421,38 +420,14 @@ impl StateRebuilder {
 		// new code contained within this chunk.
 		let mut chunk_code = HashMap::new();
 
-		// build account tries in parallel.
-		// Todo [rob] keep a thread pool around so we don't do this per-chunk.
-		try!(scope(|scope| {
-			let mut handles = Vec::new();
-			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let code_map = &self.code_map;
-				let handle: ScopedJoinHandle<Result<_, ::error::Error>> = scope.spawn(move || {
-					let mut db = MemoryDB::new();
-					let status = try!(rebuild_accounts(&mut db, account_chunk, out_pairs_chunk, code_map));
-
-					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
-					Ok((db, status))
-				});
-
-				handles.push(handle);
+		for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
+			let code_map = &self.code_map;
+			let status = try!(rebuild_accounts(self.db.as_hashdb_mut(), account_chunk, out_pairs_chunk, code_map));
+			chunk_code.extend(status.new_code);
+			for (addr_hash, code_hash) in status.missing_code {
+				self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
 			}
-
-			// consolidate all edits into the main overlay.
-			for handle in handles {
-				let (thread_db, status): (MemoryDB, _) = try!(handle.join());
-				self.db.consolidate(thread_db);
-
-				chunk_code.extend(status.new_code);
-
-				for (addr_hash, code_hash) in status.missing_code {
-					self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
-				}
-			}
-
-			Ok::<_, ::error::Error>(())
-		}));
-
+		}
 		// patch up all missing code. must be done after collecting all new missing code entries.
 		for (code_hash, code) in chunk_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
