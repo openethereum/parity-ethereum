@@ -497,6 +497,7 @@ impl Service {
 							match is_done {
 								true => {
 									try!(db.flush().map_err(::util::UtilError::SimpleString));
+									drop(db);
 									return self.finalize_restoration(&mut *restoration);
 								},
 								false => Ok(())
