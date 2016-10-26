@@ -35,8 +35,8 @@ const AUX_FLAG: u8 = 255;
 ///
 /// Like `OverlayDB`, there is a memory overlay; `commit()` must be called in order to
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
-/// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
-/// the removals actually take effect.
+/// immediately. As this is an "archive" database, nothing is ever removed. This means
+/// that the states of any block the node has ever processed will be accessible.
 pub struct ArchiveDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -65,8 +65,8 @@ impl ArchiveDB {
 		Self::new(backing, None)
 	}
 
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 }
 
@@ -85,19 +85,12 @@ impl HashDB for ArchiveDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		let k = self.overlay.raw(key);
-		match k {
-			Some((d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
+		if let Some((d, rc)) = k {
+			if rc > 0 { return Some(d); }
 		}
+		self.payload(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -108,7 +101,7 @@ impl HashDB for ArchiveDB {
 		self.overlay.insert(value)
 	}
 
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		self.overlay.emplace(key, value);
 	}
 
@@ -120,7 +113,7 @@ impl HashDB for ArchiveDB {
 		self.overlay.insert_aux(hash, value);
 	}
 
-	fn get_aux(&self, hash: &[u8]) -> Option<Vec<u8>> {
+	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
 		if let Some(res) = self.overlay.get_aux(hash) {
 			return Some(res)
 		}
@@ -130,7 +123,6 @@ impl HashDB for ArchiveDB {
 
 		self.backing.get(self.column, &db_hash)
 			.expect("Low-level database error. Some issue with your hard disk?")
-			.map(|v| v.to_vec())
 	}
 
 	fn remove_aux(&mut self, hash: &[u8]) {
@@ -156,7 +148,7 @@ impl JournalDB for ArchiveDB {
 		self.latest_era.is_none()
 	}
 
-	fn commit(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256, _end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, _id: &H256) -> Result<u32, UtilError> {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
@@ -182,6 +174,11 @@ impl JournalDB for ArchiveDB {
 			self.latest_era = Some(now);
 		}
 		Ok((inserts + deletes) as u32)
+	}
+
+	fn mark_canonical(&mut self, _batch: &mut DBTransaction, _end_era: u64, _canon_id: &H256) -> Result<u32, UtilError> {
+		// keep everything! it's an archive, after all.
+		Ok(0)
 	}
 
 	fn inject(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
@@ -391,7 +388,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			foo
 		};
@@ -492,7 +489,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

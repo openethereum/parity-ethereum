@@ -15,27 +15,29 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::io::ErrorKind;
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
-use ethcore_rpc::NetworkSettings;
+use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::{SyncConfig, SyncProvider};
+use ethsync::SyncConfig;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch, tracing_switch_to_bool};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool,
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
@@ -59,6 +61,7 @@ pub struct RunCmd {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -67,11 +70,13 @@ pub struct RunCmd {
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<U256>,
+	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
@@ -85,6 +90,7 @@ pub struct RunCmd {
 	pub name: String,
 	pub custom_bootnodes: bool,
 	pub no_periodic_snapshot: bool,
+	pub check_seal: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -115,18 +121,21 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// load user defaults
 	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
+	// select pruning algorithm
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
 	// check if tracing is on
 	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
 
-	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -135,7 +144,17 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match fat_db {
+			true => Colour::White.bold().paint(" +Fat").to_string(),
+			false => "".to_owned(),
+		},
+		match tracing {
+			true => Colour::White.bold().paint(" +Trace").to_string(),
+			false => "".to_owned(),
+		}
+	);
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -148,7 +167,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	if spec.subprotocol_name().len() != 3 {
+		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");
+	} else {
+		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
+	}
 	sync_config.fork_block = spec.fork_block();
+	sync_config.warp_sync = cmd.warp_sync;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -166,11 +191,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		&cmd.cache_config,
 		cmd.mode,
 		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
 		algorithm,
+		cmd.pruning_history,
+		cmd.check_seal,
 	);
 
 	// set up bootnodes
@@ -178,6 +206,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
@@ -204,7 +235,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -217,8 +248,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_port: cmd.signer_port,
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		}, cmd.signer_port)),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -229,6 +261,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_port: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.port),
+			false => None,
+		},
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -258,7 +294,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
 
-	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let informant = Arc::new(Informant::new(
+		service.client(),
+		Some(sync_provider.clone()),
+		Some(manage_network.clone()),
+		Some(snapshot_service.clone()),
+		cmd.logger_config.color
+	));
 	let info_notify: Arc<ChainNotify> = informant.clone();
 	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {
@@ -278,7 +320,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || sync.status().is_major_syncing(),
+				move || is_major_importing(Some(sync.status().state), client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,
@@ -335,27 +377,10 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::{import_accounts, EthStore};
-	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-	use ethcore::ethstore::Error;
+	use ethcore::ethstore::EthStore;
+	use ethcore::ethstore::dir::DiskDirectory;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
-
-	if cfg.import_keys {
-		let t = if cfg.testnet {
-			DirectoryType::Testnet
-		} else {
-			DirectoryType::Main
-		};
-
-		let from = GethDirectory::open(t);
-		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
-		match import_accounts(&from, &to) {
-			Ok(_) => {}
-			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
-			Err(err) => warn!("Import geth accounts failed. {}", err)
-		}
-	}
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(

@@ -14,10 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
-use common::*;
+use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
+use util::*;
 use block::*;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::{BlockError, Error};
+use header::Header;
 use spec::CommonParams;
+use transaction::SignedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -32,6 +37,8 @@ pub struct EthashParams {
 	pub minimum_difficulty: U256,
 	/// Difficulty bound divisor.
 	pub difficulty_bound_divisor: U256,
+	/// Difficulty increment divisor.
+	pub difficulty_increment_divisor: u64,
 	/// Block duration.
 	pub duration_limit: u64,
 	/// Block reward.
@@ -39,13 +46,21 @@ pub struct EthashParams {
 	/// Namereg contract address.
 	pub registrar: Address,
 	/// Homestead transition block number.
-	pub frontier_compatibility_mode_limit: u64,
+	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
 	pub dao_hardfork_beneficiary: Address,
 	/// DAO hard-fork DAO accounts list (L)
 	pub dao_hardfork_accounts: Vec<Address>,
+	/// Transition block for a change of difficulty params (currently just bound_divisor).
+	pub difficulty_hardfork_transition: u64,
+	/// Difficulty param after the difficulty transition.
+	pub difficulty_hardfork_bound_divisor: U256,
+	/// Block on which there is no additional difficulty from the exponential bomb.
+	pub bomb_defuse_transition: u64,
+	/// Bad gas transition block number.
+	pub eip150_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -54,13 +69,18 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			minimum_difficulty: p.minimum_difficulty.into(),
 			difficulty_bound_divisor: p.difficulty_bound_divisor.into(),
+			difficulty_increment_divisor: p.difficulty_increment_divisor.map_or(10, Into::into),
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map_or(0, Into::into),
+			homestead_transition: p.homestead_transition.map_or(0, Into::into),
 			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
+			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
+			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 		}
 	}
 }
@@ -105,12 +125,14 @@ impl Engine for Ethash {
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
+		if env_info.number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else {
+		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
+		} else {
+			Schedule::new_homestead_gas_fix()
 		}
 	}
 
@@ -168,6 +190,10 @@ impl Engine for Ethash {
 			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
 		}
 
+		// Commit state so that we can actually figure out the state root.
+		if let Err(e) = fields.state.commit() {
+			warn!("Encountered error on state commit: {}", e);
+		}
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> result::Result<(), Error> {
@@ -217,6 +243,7 @@ impl Engine for Ethash {
 		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
 		let mix = Ethash::from_ethash(result.mix_hash);
 		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, Ethash::from_ethash(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), Ethash::from_ethash(result.mix_hash), Ethash::from_ethash(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
@@ -247,7 +274,7 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.frontier_compatibility_mode_limit {
+		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
 		Ok(())
@@ -267,9 +294,13 @@ impl Ethash {
 		}
 
 		let min_difficulty = self.ethash_params.minimum_difficulty;
-		let difficulty_bound_divisor = self.ethash_params.difficulty_bound_divisor;
+		let difficulty_hardfork = header.number() >= self.ethash_params.difficulty_hardfork_transition;
+		let difficulty_bound_divisor = match difficulty_hardfork {
+			true => self.ethash_params.difficulty_hardfork_bound_divisor,
+			false => self.ethash_params.difficulty_bound_divisor,
+		};
 		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
+		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number() < frontier_limit {
 			if header.timestamp() >= parent.timestamp() + duration_limit {
@@ -281,17 +312,19 @@ impl Ethash {
 		else {
 			trace!(target: "ethash", "Calculating difficulty parent.difficulty={}, header.timestamp={}, parent.timestamp={}", parent.difficulty(), header.timestamp(), parent.timestamp());
 			//block_diff = parent_diff + parent_diff // 2048 * max(1 - (block_timestamp - parent_timestamp) // 10, -99)
-			let diff_inc = (header.timestamp() - parent.timestamp()) / 10;
+			let diff_inc = (header.timestamp() - parent.timestamp()) / self.ethash_params.difficulty_increment_divisor;
 			if diff_inc <= 1 {
-				parent.difficulty().clone() + parent.difficulty().clone() / From::from(2048) * From::from(1 - diff_inc)
+				parent.difficulty().clone() + parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(1 - diff_inc)
 			} else {
-				parent.difficulty().clone() - parent.difficulty().clone() / From::from(2048) * From::from(min(diff_inc - 1, 99))
+				parent.difficulty().clone() - parent.difficulty().clone() / From::from(difficulty_bound_divisor) * From::from(min(diff_inc - 1, 99))
 			}
 		};
 		target = max(min_difficulty, target);
-		let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
-		if period > 1 {
-			target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+		if header.number() < self.ethash_params.bomb_defuse_transition {
+			let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+			if period > 1 {
+				target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+			}
 		}
 		target
 	}
@@ -343,9 +376,12 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
 	use tests::helpers::*;
+	use env_info::EnvInfo;
+	use error::{BlockError, Error};
+	use header::Header;
 	use super::super::new_morden;
 	use super::Ethash;
 	use rlp;
@@ -355,9 +391,9 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close();
@@ -369,9 +405,9 @@ mod tests {
 		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle = Header::new();

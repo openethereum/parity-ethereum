@@ -25,7 +25,7 @@ pub mod executed;
 pub mod block_status;
 pub mod account_diff;
 pub mod state_diff;
-pub mod block_queue_info;
+pub mod verification_queue_info;
 pub mod filter;
 pub mod trace_filter;
 pub mod call_analytics;

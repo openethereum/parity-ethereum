@@ -26,7 +26,11 @@ lazy_static = "0.2"
 regex = "0.1"
 isatty = "0.1"
 toml = "0.2"
+serde = "0.8.0"
+serde_json = "0.8.0"
+hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
+json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
 fdlimit = { path = "util/fdlimit" }
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
@@ -40,12 +44,9 @@ ethcore-ipc = { path = "ipc/rpc" }
 ethcore-ipc-hypervisor = { path = "ipc/hypervisor" }
 ethcore-logger = { path = "logger" }
 rlp = { path = "util/rlp" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
+ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.90", optional = true}
-ethcore-stratum = { path = "stratum" }
-serde = "0.8.0"
-serde_json = "0.8.0"
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -53,29 +54,38 @@ winapi = "0.2"
 [target.'cfg(not(windows))'.dependencies]
 daemonize = "0.2"
 
-[dependencies.hyper]
-version = "0.9"
-default-features = false
-
 [features]
-default = ["ui", "use-precompiled-js", "ipc"]
-ui = ["dapps", "ethcore-signer/ui"]
-use-precompiled-js = ["ethcore-dapps/use-precompiled-js", "ethcore-signer/use-precompiled-js"]
+default = ["ui-precompiled"]
+
+ui = [
+	"dapps",
+	"ethcore-dapps/ui",
+	"ethcore-signer/ui",
+]
+ui-precompiled = [
+	"dapps",
+	"ethcore-signer/ui-precompiled",
+	"ethcore-dapps/ui-precompiled",
+]
+
 dapps = ["ethcore-dapps"]
-ipc = ["ethcore/ipc"]
+ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
+test-heavy = ["ethcore/test-heavy"]
 stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
+evm-debug-tests = ["ethcore/evm-debug-tests"]
+slow-blocks = ["ethcore/slow-blocks"]
 
 [[bin]]
 path = "parity/main.rs"
 name = "parity"
 
 [profile.release]
-debug = true
+debug = false
 lto = false
 

@@ -31,6 +31,7 @@ use url::Url;
 pub enum FetchError {
 	InvalidAddress,
 	ReadingCaCertificates,
+	UnexpectedStatus(String),
 	CaCertificates(io::Error),
 	Io(io::Error),
 	Notify(mio::NotifyError<ClientMessage>),
@@ -78,6 +79,10 @@ impl Drop for Client {
 
 impl Client {
 	pub fn new() -> Result<Self, FetchError> {
+		Self::with_limit(None)
+	}
+
+	pub fn with_limit(size_limit: Option<usize>) -> Result<Self, FetchError> {
 		let mut event_loop = try!(mio::EventLoop::new());
 		let channel = event_loop.channel();
 
@@ -85,6 +90,7 @@ impl Client {
 			let mut client = ClientLoop {
 				next_token: 0,
 				sessions: HashMap::new(),
+				size_limit: size_limit,
 			};
 			event_loop.run(&mut client).unwrap();
 		});
@@ -128,6 +134,7 @@ impl Client {
 pub struct ClientLoop {
 	next_token: usize,
 	sessions: HashMap<usize, TlsClient>,
+	size_limit: Option<usize>,
 }
 
 impl mio::Handler for ClientLoop {
@@ -154,12 +161,15 @@ impl mio::Handler for ClientLoop {
 				let token = self.next_token;
 				self.next_token += 1;
 
-				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, abort, callback) {
+				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, abort, callback, self.size_limit.clone()) {
 					let httpreq = format!(
-						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
+						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nUser-Agent: {}/{}\r\nAccept-Encoding: identity\r\n\r\n",
 						url.path(),
-						url.hostname()
+						url.hostname(),
+						env!("CARGO_PKG_NAME"),
+						env!("CARGO_PKG_VERSION")
 					);
+					debug!("Requesting content: {}", httpreq);
 					let _ = tlsclient.write(httpreq.as_bytes());
 					tlsclient.register(event_loop);
 

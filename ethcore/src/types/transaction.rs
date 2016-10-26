@@ -20,8 +20,8 @@ use std::ops::Deref;
 use std::cell::*;
 use rlp::*;
 use util::sha3::Hashable;
-use util::{H256, Address, U256, Bytes};
-use ethkey::{Signature, sign, Secret, Public, recover, public_to_address, Error as EthkeyError};
+use util::{H256, Address, U256, Bytes, HeapSizeOf};
+use ethkey::{Signature, Secret, Public, recover, public_to_address, Error as EthkeyError};
 use error::*;
 use evm::Schedule;
 use header::BlockNumber;
@@ -86,6 +86,12 @@ impl Transaction {
 	}
 }
 
+impl HeapSizeOf for Transaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.data.heap_size_of_children()
+	}
+}
+
 impl From<ethjson::state::Transaction> for SignedTransaction {
 	fn from(t: ethjson::state::Transaction) -> Self {
 		let to: Option<ethjson::hash::Address> = t.to.into();
@@ -137,7 +143,8 @@ impl Transaction {
 
 	/// Signs the transaction as coming from `sender`.
 	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = sign(secret, &self.hash()).unwrap();
+		let sig = ::ethkey::sign(secret, &self.hash())
+			.expect("data is valid and context has signing capabilities; qed");
 		self.with_signature(sig)
 	}
 
@@ -249,6 +256,12 @@ impl Decodable for SignedTransaction {
 
 impl Encodable for SignedTransaction {
 	fn rlp_append(&self, s: &mut RlpStream) { self.rlp_append_sealed_transaction(s) }
+}
+
+impl HeapSizeOf for SignedTransaction {
+	fn heap_size_of_children(&self) -> usize {
+		self.unsigned.heap_size_of_children()
+	}
 }
 
 impl SignedTransaction {

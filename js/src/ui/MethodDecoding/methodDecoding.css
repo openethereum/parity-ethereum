@@ -1,0 +1,75 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.container {
+}
+
+.details,
+.gasDetails {
+  color: #aaa;
+}
+
+.gasDetails {
+  padding-top: 1em;
+  font-size: 0.75em;
+  line-height: 2em;
+  opacity: 0.5;
+}
+
+.description {
+  line-height: 2em;
+  padding-bottom: 0.5em;
+}
+
+.name,
+.highlight {
+  color: white;
+  padding: 0.25em;
+}
+
+.name,
+.inputs,
+.highlight {
+}
+
+.inputs {
+  padding-left: 2em;
+}
+
+.input {
+  margin-top: -16px;
+  font-family: inherit !important;
+}
+
+.inputs img {
+  position: absolute;
+  top: -16px;
+}
+
+.etherValue,
+.tokenValue {
+}
+
+.address {
+  display: inline-block;
+  position: relative;
+}
+
+.identityicon {
+  margin-bottom: -10px;
+  margin-right: 0.5em;
+}

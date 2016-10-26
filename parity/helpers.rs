@@ -21,8 +21,8 @@ use std::path::Path;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::PendingSet;
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::upgrade;
@@ -90,6 +90,23 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 		"strict" => Ok(PendingSet::AlwaysSealing),
 		"lenient" => Ok(PendingSet::SealingOrElseQueue),
 		other => Err(format!("Invalid pending set value: {:?}", other)),
+	}
+}
+
+pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
+	match s {
+		"auto" => Ok(GasLimit::Auto),
+		"off" => Ok(GasLimit::None),
+		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+	}
+}
+
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
+	match s {
+		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
@@ -168,10 +185,10 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::NetworkConfiguration;
+	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
-		net_config_path: Some(replace_home("$HOME/.parity/network/1")),
+		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
 		udp_port: None,
@@ -181,6 +198,9 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		use_secret: None,
 		max_peers: 50,
 		min_peers: 25,
+		snapshot_peers: 0,
+		max_pending_peers: 64,
+		allow_ips: AllowIP::All,
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}
@@ -191,11 +211,14 @@ pub fn to_client_config(
 		cache_config: &CacheConfig,
 		mode: Mode,
 		tracing: bool,
+		fat_db: bool,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
 		vm_type: VMType,
 		name: String,
 		pruning: Algorithm,
+		pruning_history: u64,
+		check_seal: bool,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -214,14 +237,21 @@ pub fn to_client_config(
 	client_config.tracing.max_cache_size = cache_config.traces() as usize * mb;
 	// in bytes
 	client_config.tracing.pref_cache_size = cache_config.traces() as usize * 3 / 4 * mb;
+	// in bytes
+	client_config.state_cache_size = cache_config.state() as usize * mb;
+	// in bytes
+	client_config.jump_table_size = cache_config.jump_tables() as usize * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
+	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
+	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
+	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config
 }
 
@@ -271,9 +301,10 @@ pub fn password_prompt() -> Result<String, String> {
 pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
 	let mut file = try!(File::open(path).map_err(|_| "Unable to open password file."));
 	let mut file_content = String::new();
-	try!(file.read_to_string(&mut file_content).map_err(|_| "Unable to read password file."));
-	// remove eof
-	Ok((&file_content[..file_content.len() - 1]).to_owned())
+	match file.read_to_string(&mut file_content) {
+		Ok(_) => Ok(file_content.trim().into()),
+		Err(_) => Err("Unable to read password file.".into()),
+	}
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
@@ -292,10 +323,13 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 #[cfg(test)]
 mod tests {
 	use std::time::Duration;
+	use std::fs::File;
+	use std::io::Write;
+	use devtools::RandomTempPath;
 	use util::{U256};
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
 
 	#[test]
 	fn test_to_duration() {
@@ -376,6 +410,14 @@ mod tests {
 				"D9A111feda3f362f55Ef1744347CDC8Dd9964a42".parse().unwrap(),
 			]
 		);
+	}
+
+	#[test]
+	fn test_password() {
+		let path = RandomTempPath::new();
+		let mut file = File::create(path.as_path()).unwrap();
+		file.write_all(b"a bc ").unwrap();
+		assert_eq!(password_from_file(path).unwrap().as_bytes(), b"a bc");
 	}
 
 	#[test]

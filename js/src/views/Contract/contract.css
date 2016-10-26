@@ -1,0 +1,90 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.contract {
+}
+
+.events {
+  width: 100%;
+  border: none;
+  border-spacing: 0;
+}
+
+.events tr {
+  line-height: 32px;
+  vertical-align: top;
+}
+
+.event {
+}
+
+.event td {
+  vertical-align: top;
+  padding: 1em 0.5em;
+}
+
+.txhash {
+  text-overflow: ellipsis;
+}
+
+.key {
+  text-align: right;
+  color: #aaa;
+}
+
+.event td div {
+  white-space: nowrap;
+}
+
+.mined {
+}
+
+.pending {
+  opacity: 0.5;
+}
+
+.timestamp {
+  padding-top: 1.5em;
+  text-align: right;
+  line-height: 1.5em;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+.eventDetails {
+}
+
+.eventType {
+}
+
+.eventParams {
+  padding-left: 2em;
+}
+
+.eventValue {
+  margin-top: -16px;
+}
+
+.eventAddress {
+  display: inline-block;
+  position: relative;
+}
+
+.eventIdentityicon {
+  margin-bottom: -10px;
+  margin-right: 0.5em;
+}

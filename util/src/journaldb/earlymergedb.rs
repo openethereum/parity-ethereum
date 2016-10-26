@@ -61,6 +61,49 @@ enum RemoveFrom {
 /// write operations out to disk. Unlike `OverlayDB`, `remove()` operations do not take effect
 /// immediately. Rather some age (based on a linear but arbitrary metric) must pass before
 /// the removals actually take effect.
+///
+/// journal format:
+/// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
+/// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
+/// [era, n] => [ ... ]
+///
+/// When we make a new commit, we make a journal of all blocks in the recent history and record
+/// all keys that were inserted and deleted. The journal is ordered by era; multiple commits can
+/// share the same era. This forms a data structure similar to a queue but whose items are tuples.
+/// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
+/// into ancient history) then only one commit from the tuple is considered canonical. This commit
+/// is kept in the main backing database, whereas any others from the same era are reverted.
+///
+/// It is possible that a key, properly available in the backing database be deleted and re-inserted
+/// in the recent history queue, yet have both operations in commits that are eventually non-canonical.
+/// To avoid the original, and still required, key from being deleted, we maintain a reference count
+/// which includes an original key, if any.
+///
+/// The semantics of the `counter` are:
+/// insert key k:
+///   counter already contains k: count += 1
+///   counter doesn't contain k:
+///     backing db contains k: count = 1
+///     backing db doesn't contain k: insert into backing db, count = 0
+/// delete key k:
+///   counter contains k (count is asserted to be non-zero):
+///     count > 1: counter -= 1
+///     count == 1: remove counter
+///     count == 0: remove key from backing db
+///   counter doesn't contain k: remove key from backing db
+///
+/// Practically, this means that for each commit block turning from recent to ancient we do the
+/// following:
+/// is_canonical:
+///   inserts: Ignored (left alone in the backing database).
+///   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
+///            reduced as a preference to deletion from the backing database.
+/// !is_canonical:
+///   inserts: Reverted; however, recent history queue is checked for ongoing references. This is
+///            reduced as a preference to deletion from the backing database.
+///   deletes: Ignored (they were never inserted).
+///
+/// TODO: store_reclaim_period
 pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -107,7 +150,7 @@ impl EarlyMergeDB {
 		backing.get(col, &Self::morph_key(key, 0)).expect("Low-level database error. Some issue with your hard disk?").is_some()
 	}
 
-	fn insert_keys(inserts: &[(H256, Bytes)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
+	fn insert_keys(inserts: &[(H256, DBValue)], backing: &Database, col: Option<u32>, refs: &mut HashMap<H256, RefInfo>, batch: &mut DBTransaction, trace: bool) {
 		for &(ref h, ref d) in inserts {
 			if let Some(c) = refs.get_mut(h) {
 				// already counting. increment.
@@ -225,8 +268,8 @@ impl EarlyMergeDB {
 		}
 	}
 
-	fn payload(&self, key: &H256) -> Option<Bytes> {
-		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?").map(|v| v.to_vec())
+	fn payload(&self, key: &H256) -> Option<DBValue> {
+		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
 	fn read_refs(db: &Database, col: Option<u32>) -> (Option<u64>, HashMap<H256, RefInfo>) {
@@ -274,19 +317,12 @@ impl HashDB for EarlyMergeDB {
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		let k = self.overlay.raw(key);
-		match k {
-			Some((d, rc)) if rc > 0 => Some(d),
-			_ => {
-				if let Some(x) = self.payload(key) {
-					Some(self.overlay.denote(key, x).0)
-				}
-				else {
-					None
-				}
-			}
+		if let Some((d, rc)) = k {
+			if rc > 0 { return Some(d) }
 		}
+		self.payload(key)
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -296,7 +332,7 @@ impl HashDB for EarlyMergeDB {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.overlay.insert(value)
 	}
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		self.overlay.emplace(key, value);
 	}
 	fn remove(&mut self, key: &H256) {
@@ -336,55 +372,15 @@ impl JournalDB for EarlyMergeDB {
 		self.backing.get_by_prefix(self.column, &id[0..DB_PREFIX_LEN]).map(|b| b.to_vec())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
-	fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
-		// journal format:
-		// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
-		// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
-		// [era, n] => [ ... ]
-
-		// TODO: store reclaim_period.
-
-		// When we make a new commit, we make a journal of all blocks in the recent history and record
-		// all keys that were inserted and deleted. The journal is ordered by era; multiple commits can
-		// share the same era. This forms a data structure similar to a queue but whose items are tuples.
-		// By the time comes to remove a tuple from the queue (i.e. then the era passes from recent history
-		// into ancient history) then only one commit from the tuple is considered canonical. This commit
-		// is kept in the main backing database, whereas any others from the same era are reverted.
-		//
-		// It is possible that a key, properly available in the backing database be deleted and re-inserted
-		// in the recent history queue, yet have both operations in commits that are eventually non-canonical.
-		// To avoid the original, and still required, key from being deleted, we maintain a reference count
-		// which includes an original key, if any.
-		//
-		// The semantics of the `counter` are:
-		// insert key k:
-		//   counter already contains k: count += 1
-		//   counter doesn't contain k:
-		//     backing db contains k: count = 1
-		//     backing db doesn't contain k: insert into backing db, count = 0
-		// delete key k:
-		//   counter contains k (count is asserted to be non-zero):
-		//     count > 1: counter -= 1
-		//     count == 1: remove counter
-		//     count == 0: remove key from backing db
-		//   counter doesn't contain k: remove key from backing db
-		//
-		// Practically, this means that for each commit block turning from recent to ancient we do the
-		// following:
-		// is_canonical:
-		//   inserts: Ignored (left alone in the backing database).
-		//   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
-		//            reduced as a preference to deletion from the backing database.
-		// !is_canonical:
-		//   inserts: Reverted; however, recent history queue is checked for ongoing references. This is
-		//            reduced as a preference to deletion from the backing database.
-		//   deletes: Ignored (they were never inserted).
-		//
+	fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
+		let trace = false;
 
 		// record new commit's details.
-		let mut refs = self.refs.as_ref().unwrap().write();
-		let trace = false;
+		let mut refs = match self.refs.as_ref() {
+			Some(refs) => refs.write(),
+			None => return Ok(0),
+		};
+
 		{
 			let mut index = 0usize;
 			let mut last;
@@ -403,14 +399,14 @@ impl JournalDB for EarlyMergeDB {
 			let drained = self.overlay.drain();
 
 			if trace {
-				trace!(target: "jdb", "commit: #{} ({}), end era: {:?}", now, id, end);
+				trace!(target: "jdb", "commit: #{} ({})", now, id);
 			}
 
 			let removes: Vec<H256> = drained
 				.iter()
 				.filter_map(|(k, &(_, c))| if c < 0 {Some(k.clone())} else {None})
 				.collect();
-			let inserts: Vec<(H256, Bytes)> = drained
+			let inserts: Vec<(H256, _)> = drained
 				.into_iter()
 				.filter_map(|(k, (v, r))| if r > 0 { assert!(r == 1); Some((k, v)) } else { assert!(r >= -1); None })
 				.collect();
@@ -431,85 +427,86 @@ impl JournalDB for EarlyMergeDB {
 			inserts.iter().foreach(|&(k, _)| {r.append(&k);});
 			r.append(&removes);
 			Self::insert_keys(&inserts, &self.backing, self.column, &mut refs, batch, trace);
+
+			let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
+
 			if trace {
-				let ins = inserts.iter().map(|&(k, _)| k).collect::<Vec<_>>();
-				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 				trace!(target: "jdb.ops", "  Deletes: {:?}", removes);
+				trace!(target: "jdb.ops", "  Inserts: {:?}", ins);
 			}
+
 			batch.put(self.column, &last, r.as_raw());
 			if self.latest_era.map_or(true, |e| now > e) {
 				batch.put(self.column, &LATEST_ERA_KEY, &encode(&now));
 				self.latest_era = Some(now);
 			}
+
+			Ok((ins.len() + removes.len()) as u32)
 		}
+	}
+
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+		let trace = false;
+
+		let mut refs = self.refs.as_ref().unwrap().write();
 
 		// apply old commits' details
-		if let Some((end_era, canon_id)) = end {
-			let mut index = 0usize;
-			let mut last;
-			while let Some(rlp_data) = try!(self.backing.get(self.column, {
-				let mut r = RlpStream::new_list(3);
-				r.append(&end_era);
-				r.append(&index);
-				r.append(&&PADDING[..]);
-				last = r.drain();
-				&last
-			})) {
-				let rlp = Rlp::new(&rlp_data);
-				let inserts: Vec<H256> = rlp.val_at(1);
+		let mut index = 0usize;
+		let mut last;
 
-				if canon_id == rlp.val_at(0) {
-					// Collect keys to be removed. Canon block - remove the (enacted) deletes.
-					let deletes: Vec<H256> = rlp.val_at(2);
-					if trace {
-						trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
-					}
-					Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
+		while let Some(rlp_data) = try!(self.backing.get(self.column, {
+			let mut r = RlpStream::new_list(3);
+			r.append(&end_era);
+			r.append(&index);
+			r.append(&&PADDING[..]);
+			last = r.drain();
+			&last
+		})) {
+			let rlp = Rlp::new(&rlp_data);
+			let inserts: Vec<H256> = rlp.val_at(1);
 
-					if trace {
-						trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
-					}
-					for k in &inserts {
-						match refs.get(k).cloned() {
-							None => {
-								// [in archive] -> SHIFT remove -> SHIFT insert None->Some{queue_refs: 1, in_archive: true} -> TAKE remove Some{queue_refs: 1, in_archive: true}->None -> TAKE insert
-								// already expunged from the queue (which is allowed since the key is in the archive).
-								// leave well alone.
-							}
-							Some( RefInfo{queue_refs: 1, in_archive: false} ) => {
-								// just delete the refs entry.
-								refs.remove(k);
-							}
-							Some( RefInfo{queue_refs: x, in_archive: false} ) => {
-								// must set already in; ,
-								Self::set_already_in(batch, self.column, k);
-								refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
-							}
-							Some( RefInfo{in_archive: true, ..} ) => {
-								// Invalid! Reinserted the same key twice.
-								warn!("Key {} inserted twice into same fork.", k);
-							}
+			if canon_id == &rlp.val_at::<H256>(0) {
+				// Collect keys to be removed. Canon block - remove the (enacted) deletes.
+				let deletes: Vec<H256> = rlp.val_at(2);
+				trace!(target: "jdb.ops", "  Expunging: {:?}", deletes);
+				Self::remove_keys(&deletes, &mut refs, batch, self.column, RemoveFrom::Archive, trace);
+
+					trace!(target: "jdb.ops", "  Finalising: {:?}", inserts);
+				for k in &inserts {
+					match refs.get(k).cloned() {
+						None => {
+							// [in archive] -> SHIFT remove -> SHIFT insert None->Some{queue_refs: 1, in_archive: true} -> TAKE remove Some{queue_refs: 1, in_archive: true}->None -> TAKE insert
+							// already expunged from the queue (which is allowed since the key is in the archive).
+							// leave well alone.
+						}
+						Some( RefInfo{queue_refs: 1, in_archive: false} ) => {
+							// just delete the refs entry.
+							refs.remove(k);
+						}
+						Some( RefInfo{queue_refs: x, in_archive: false} ) => {
+							// must set already in; ,
+							Self::set_already_in(batch, self.column, k);
+							refs.insert(k.clone(), RefInfo{ queue_refs: x - 1, in_archive: true });
+						}
+						Some( RefInfo{in_archive: true, ..} ) => {
+							// Invalid! Reinserted the same key twice.
+							warn!("Key {} inserted twice into same fork.", k);
 						}
 					}
-				} else {
-					// Collect keys to be removed. Non-canon block - remove the (reverted) inserts.
-					if trace {
-						trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
-					}
-					Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
 				}
+			} else {
+				// Collect keys to be removed. Non-canon block - remove the (reverted) inserts.
+				trace!(target: "jdb.ops", "  Reverting: {:?}", inserts);
+				Self::remove_keys(&inserts, &mut refs, batch, self.column, RemoveFrom::Queue, trace);
+			}
 
-				batch.delete(self.column, &last);
-				index += 1;
-			}
-			if trace {
-				trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
-			}
+			batch.delete(self.column, &last);
+			index += 1;
 		}
 
-		if trace {
-			trace!(target: "jdb", "OK: {:?}", refs.clone());
-		}
+		trace!(target: "jdb", "EarlyMergeDB: delete journal for time #{}.{}, (canon was {})", end_era, index, canon_id);
+		trace!(target: "jdb", "OK: {:?}", refs.clone());
 
 		Ok(0)
 	}
@@ -828,7 +825,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
@@ -1084,7 +1081,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

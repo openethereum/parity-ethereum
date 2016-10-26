@@ -21,10 +21,14 @@
 /// 2. Signatures verification done in the queue.
 /// 3. Final verification against the blockchain done before enactment.
 
-use common::*;
+use util::*;
 use engines::Engine;
+use error::{BlockError, Error};
 use blockchain::*;
+use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
+use transaction::SignedTransaction;
+use views::BlockView;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -36,14 +40,22 @@ pub struct PreverifiedBlock {
 	pub bytes: Bytes,
 }
 
+impl HeapSizeOf for PreverifiedBlock {
+	fn heap_size_of_children(&self) -> usize {
+		self.header.heap_size_of_children()
+			+ self.transactions.heap_size_of_children()
+			+ self.bytes.heap_size_of_children()
+	}
+}
+
 /// Phase 1 quick block verification. Only does checks that are cheap. Operates on a single block
 pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Result<(), Error> {
-	try!(verify_header(&header, engine));
+	try!(verify_header_params(&header, engine));
 	try!(verify_block_integrity(bytes, &header.transactions_root(), &header.uncles_hash()));
 	try!(engine.verify_block_basic(&header, Some(bytes)));
 	for u in try!(UntrustedRlp::new(bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
 		let u = try!(u);
-		try!(verify_header(&u, engine));
+		try!(verify_header_params(&u, engine));
 		try!(engine.verify_block_basic(&u, None));
 	}
 	// Verify transactions.
@@ -58,10 +70,12 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
-	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&try!(u), None));
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+	if check_seal {
+		try!(engine.verify_block_unordered(&header, Some(&bytes)));
+		for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+			try!(engine.verify_block_unordered(&try!(u), None));
+		}
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
@@ -100,7 +114,8 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			match bc.block_details(&hash) {
 				Some(details) => {
 					excluded.insert(details.parent.clone());
-					let b = bc.block(&hash).unwrap();
+					let b = bc.block(&hash)
+						.expect("parent already known to be stored; qed");
 					excluded.extend(BlockView::new(&b).uncle_hashes());
 					hash = details.parent;
 				}
@@ -179,7 +194,7 @@ pub fn verify_block_final(expected: &Header, got: &Header) -> Result<(), Error> 
 }
 
 /// Check basic header parameters.
-fn verify_header(header: &Header, engine: &Engine) -> Result<(), Error> {
+pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Error> {
 	if header.number() >= From::from(BlockNumber::max_value()) {
 		return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { max: Some(From::from(BlockNumber::max_value())), min: None, found: header.number() })))
 	}
@@ -288,7 +303,7 @@ mod tests {
 			self.blocks.contains_key(hash)
 		}
 
-		fn first_block(&self) -> H256 {
+		fn first_block(&self) -> Option<H256> {
 			unimplemented!()
 		}
 
@@ -303,6 +318,10 @@ mod tests {
 
 		fn block_body(&self, hash: &H256) -> Option<Bytes> {
 			self.block(hash).map(|b| BlockChain::block_to_body(&b))
+		}
+
+		fn best_ancient_block(&self) -> Option<H256> {
+			None
 		}
 
 		/// Get the familial details concerning a block.

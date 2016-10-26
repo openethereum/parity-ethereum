@@ -31,6 +31,9 @@ pub struct Params {
 	/// Network id.
 	#[serde(rename="networkID")]
 	pub network_id: Uint,
+	/// Name of the main ("eth") subprotocol.
+	#[serde(rename="subprotocolName")]
+	pub subprotocol_name: Option<String>,
 	/// Minimum gas limit.
 	#[serde(rename="minGasLimit")]
 	pub min_gas_limit: Uint,
@@ -50,9 +53,10 @@ mod tests {
 	#[test]
 	fn params_deserialization() {
 		let s = r#"{
-			"frontierCompatibilityModeLimit": "0x118c30",
+			"homesteadTransition": "0x118c30",
 			"maximumExtraDataSize": "0x20",
 			"networkID" : "0x1",
+			"subprotocolName" : "exp",
 			"minGasLimit": "0x1388",
 			"accountStartNonce": "0x00"
 		}"#;

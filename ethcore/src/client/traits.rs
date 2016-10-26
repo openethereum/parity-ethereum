@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
 use blockchain::TreeRoute;
-use block_queue::BlockQueueInfo;
+use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
 use header::{BlockNumber};
 use transaction::{LocalizedTransaction, SignedTransaction};
@@ -38,7 +38,6 @@ use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -112,6 +111,9 @@ pub trait BlockChainClient : Sync + Send {
 			Therefore storage_at has returned Some; qed")
 	}
 
+	/// Get a list of all accounts in the block `id`, if fat DB is in operation, otherwise `None`.
+	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>>;
+
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;
 
@@ -136,6 +138,9 @@ pub trait BlockChainClient : Sync + Send {
 
 	/// Import a block into the blockchain.
 	fn import_block(&self, bytes: Bytes) -> Result<H256, BlockImportError>;
+
+	/// Import a block with transaction receipts. Does no sealing and transaction validation.
+	fn import_block_with_receipts(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, BlockImportError>;
 
 	/// Get block queue information.
 	fn queue_info(&self) -> BlockQueueInfo;
@@ -189,15 +194,20 @@ pub trait BlockChainClient : Sync + Send {
 	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
-		for _ in 0..sample_size {
-			let block_bytes = self.block(BlockID::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
-			let block = BlockView::new(&block_bytes);
-			let header = block.header_view();
-			if header.number() == 0 {
-				break;
+		while corpus.is_empty() {
+			for _ in 0..sample_size {
+				let block_bytes = self.block(BlockID::Hash(h)).expect("h is either the best_block_hash or an ancestor; qed");
+				let block = BlockView::new(&block_bytes);
+				let header = block.header_view();
+				if header.number() == 0 {
+					if corpus.is_empty() {
+						corpus.push(20_000_000_000u64.into());	// we have literally no information - it' as good a number as any.
+					}
+					break;
+				}
+				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
+				h = header.parent_hash().clone();
 			}
-			block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
-			h = header.parent_hash().clone();
 		}
 		corpus.sort();
 		let n = corpus.len();

@@ -26,8 +26,9 @@ heapsize = "0.3"
 ethcore-ipc = { path = "../ipc/rpc" }
 semver = "0.2"
 ethcore-ipc-nano = { path = "../ipc/nano" }
-parking_lot = "0.2.6"
+parking_lot = "0.3"
 
 [features]
-default = []
+default = ["ipc"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev"]
+ipc = []

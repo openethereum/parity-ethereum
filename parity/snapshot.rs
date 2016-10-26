@@ -30,7 +30,7 @@ use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning, Switch, tracing_switch_to_bool};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
 use user_defaults::UserDefaults;
@@ -54,9 +54,11 @@ pub struct SnapshotCommand {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub wal: bool,
@@ -79,7 +81,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));
@@ -139,9 +141,6 @@ impl SnapshotCommand {
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
-		// check if tracing is on
-		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
-
 		// Setup logging
 		let _logger = setup_log(&self.logger_config);
 
@@ -150,15 +149,21 @@ impl SnapshotCommand {
 		// select pruning algorithm
 		let algorithm = self.pruning.to_algorithm(&user_defaults);
 
+		// check if tracing is on
+		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+
+		// check if fatdb is on
+		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
+
 		// prepare client and snapshot paths.
 		let client_path = db_dirs.client_path(algorithm);
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile()));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,
@@ -227,9 +232,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));
