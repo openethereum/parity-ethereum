@@ -137,7 +137,7 @@ export default class EditMeta extends Component {
 
   onTagsInputChange = (value) => {
     const { meta } = this.state;
-    const { tags } = meta || [];
+    const { tags = [] } = meta;
 
     const tokens = value.split(/[\s,;]+/);
 
