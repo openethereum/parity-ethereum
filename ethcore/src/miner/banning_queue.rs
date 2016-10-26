@@ -95,6 +95,7 @@ impl BanningTransactionQueue {
 			if let Ok(sender) = transaction.sender() {
 				let count = self.senders_bans.direct().get(&sender).map(|v| v.get()).unwrap_or(0);
 				if count > threshold {
+					debug!(target: "txqueue", "Ignoring transaction {:?} because sender is banned.", transaction.hash());
 					return Err(Error::Transaction(TransactionError::SenderBanned));
 				}
 			}
@@ -103,6 +104,7 @@ impl BanningTransactionQueue {
 			if let Action::Call(recipient) = transaction.action {
 				let count = self.recipients_bans.direct().get(&recipient).map(|v| v.get()).unwrap_or(0);
 				if count > threshold {
+					debug!(target: "txqueue", "Ignoring transaction {:?} because recipient is banned.", transaction.hash());
 					return Err(Error::Transaction(TransactionError::RecipientBanned));
 				}
 			}
@@ -112,6 +114,7 @@ impl BanningTransactionQueue {
 				let code_hash = transaction.data.sha3();
 				let count = self.codes_bans.direct().get(&code_hash).map(|v| v.get()).unwrap_or(0);
 				if count > threshold {
+					debug!(target: "txqueue", "Ignoring transaction {:?} because code is banned.", transaction.hash());
 					return Err(Error::Transaction(TransactionError::CodeBanned));
 				}
 			}
