@@ -24,6 +24,7 @@ import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockc
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
 import txLink from '../../../../3rdparty/etherscan/txLink';
+import addressLink from '../../../../3rdparty/etherscan/addressLink';
 
 import styles from '../transactions.css';
 
@@ -56,9 +57,7 @@ class Transaction extends Component {
   }
 
   render () {
-    const { block, transaction, isTest } = this.props;
-
-    const prefix = `https://${isTest ? 'testnet.' : ''}etherscan.io/`;
+    const { block, transaction } = this.props;
 
     return (
       <tr>
@@ -66,9 +65,9 @@ class Transaction extends Component {
           <div>{ this.formatBlockTimestamp(block) }</div>
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
-        { this.renderAddress(prefix, transaction.from) }
+        { this.renderAddress(transaction.from) }
         { this.renderTransaction() }
-        { this.renderAddress(prefix, transaction.to) }
+        { this.renderAddress(transaction.to) }
         <td className={ styles.method }>
           { this.renderMethod() }
         </td>
@@ -111,10 +110,12 @@ class Transaction extends Component {
     );
   }
 
-  renderAddress (prefix, address) {
+  renderAddress (address) {
+    const { isTest } = this.props;
+
     const eslink = address ? (
       <a
-        href={ `${prefix}address/${address}` }
+        href={ addressLink(address, isTest) }
         target='_blank'
         className={ styles.link }>
         <IdentityName address={ address } shorten />
