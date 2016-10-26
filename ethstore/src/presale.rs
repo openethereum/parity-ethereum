@@ -33,7 +33,8 @@ impl From<json::PresaleWallet> for PresaleWallet {
 impl PresaleWallet {
 	pub fn open<P>(path: P) -> Result<Self, Error> where P: AsRef<Path> {
 		let file = try!(fs::File::open(path));
-		let presale = json::PresaleWallet::load(file).unwrap();
+		let presale = try!(json::PresaleWallet::load(file)
+			.map_err(|e| Error::InvalidKeyFile(format!("{}", e))));
 		Ok(PresaleWallet::from(presale))
 	}
 

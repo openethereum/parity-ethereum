@@ -24,9 +24,12 @@
   border-spacing: 0;
 }
 
-.event {
+.events tr {
+  line-height: 32px;
   vertical-align: top;
-  line-height: 26px;
+}
+
+.event {
 }
 
 .event td {
@@ -43,9 +46,6 @@
   color: #aaa;
 }
 
-.value {
-}
-
 .event td div {
   white-space: nowrap;
 }
@@ -55,4 +55,36 @@
 
 .pending {
   opacity: 0.5;
+}
+
+.timestamp {
+  padding-top: 1.5em;
+  text-align: right;
+  line-height: 1.5em;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+
+.eventDetails {
+}
+
+.eventType {
+}
+
+.eventParams {
+  padding-left: 2em;
+}
+
+.eventValue {
+  margin-top: -16px;
+}
+
+.eventAddress {
+  display: inline-block;
+  position: relative;
+}
+
+.eventIdentityicon {
+  margin-bottom: -10px;
+  margin-right: 0.5em;
 }

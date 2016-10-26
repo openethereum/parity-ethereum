@@ -17,6 +17,7 @@
 use std::fmt;
 use std::sync::Arc;
 use std::net::SocketAddr;
+use std::io;
 use io::PanicHandler;
 use ethcore_rpc::{RpcServerError, RpcServer as Server};
 use jsonipc;
@@ -108,7 +109,10 @@ pub fn setup_http_rpc_server(
 	let ph = dependencies.panic_handler.clone();
 	let start_result = server.start_http(url, cors_domains, allowed_hosts, ph);
 	match start_result {
-		Err(RpcServerError::IoError(err)) => Err(format!("RPC io error: {}", err)),
+		Err(RpcServerError::IoError(err)) => match err.kind() {
+			io::ErrorKind::AddrInUse => Err(format!("RPC address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --jsonrpc-port and --jsonrpc-interface options.", url)),
+			_ => Err(format!("RPC io error: {}", err)),
+		},
 		Err(e) => Err(format!("RPC error: {:?}", e)),
 		Ok(server) => Ok(server),
 	}

@@ -106,7 +106,10 @@ export default class Events extends Component {
         logIndex,
         transactionHash,
         transactionIndex,
-        params,
+        params: Object.keys(params).reduce((data, name) => {
+          data[name] = params[name].value;
+          return data;
+        }, {}),
         key
       };
     };

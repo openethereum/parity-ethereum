@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::BTreeMap;
-use std::sync::RwLock;
 use std::mem;
 use ethkey::KeyPair;
 use crypto::KEY_ITERATIONS;
@@ -26,6 +25,7 @@ use account::SafeAccount;
 use {Error, SecretStore};
 use json;
 use json::UUID;
+use parking_lot::RwLock;
 use presale::PresaleWallet;
 use import;
 
@@ -56,13 +56,13 @@ impl EthStore {
 		let account = try!(self.dir.insert(account.clone()));
 
 		// update cache
-		let mut cache = self.cache.write().unwrap();
+		let mut cache = self.cache.write();
 		cache.insert(account.address.clone(), account);
 		Ok(())
 	}
 
 	fn reload_accounts(&self) -> Result<(), Error> {
-		let mut cache = self.cache.write().unwrap();
+		let mut cache = self.cache.write();
 		let accounts = try!(self.dir.load());
 		let new_accounts: BTreeMap<_, _> = accounts.into_iter().map(|account| (account.address.clone(), account)).collect();
 		mem::replace(&mut *cache, new_accounts);
@@ -71,13 +71,13 @@ impl EthStore {
 
 	fn get(&self, address: &Address) -> Result<SafeAccount, Error> {
 		{
-			let cache = self.cache.read().unwrap();
+			let cache = self.cache.read();
 			if let Some(account) = cache.get(address) {
 				return Ok(account.clone())
 			}
 		}
 		try!(self.reload_accounts());
-		let cache = self.cache.read().unwrap();
+		let cache = self.cache.read();
 		cache.get(address).cloned().ok_or(Error::InvalidAccount)
 	}
 }
@@ -111,7 +111,7 @@ impl SecretStore for EthStore {
 
 	fn accounts(&self) -> Result<Vec<Address>, Error> {
 		try!(self.reload_accounts());
-		Ok(self.cache.read().unwrap().keys().cloned().collect())
+		Ok(self.cache.read().keys().cloned().collect())
 	}
 
 	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
@@ -131,7 +131,7 @@ impl SecretStore for EthStore {
 
 		if can_remove {
 			try!(self.dir.remove(address));
-			let mut cache = self.cache.write().unwrap();
+			let mut cache = self.cache.write();
 			cache.remove(address);
 			Ok(())
 		} else {
