@@ -41,7 +41,6 @@ module.exports = {
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
     // library
-    'inject': ['./inject.js'],
     'parity': ['./parity.js'],
     // app
     'index': ['./index.js']
@@ -145,17 +144,15 @@ module.exports = {
           PARITY_URL: JSON.stringify(process.env.PARITY_URL),
           LOGGING: JSON.stringify(!isProd)
         }
+      }),
+
+      new webpack.DllReferencePlugin({
+        context: '.',
+        manifest: require(`./${DEST}/vendor-manifest.json`)
       })
     ];
 
     if (!isProd) {
-      plugins.push(
-        new webpack.DllReferencePlugin({
-          context: '.',
-          manifest: require(`./${DEST}/vendor-manifest.json`)
-        })
-      );
-
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
           filename: 'commons.js',
@@ -169,12 +166,6 @@ module.exports = {
         new webpack.optimize.CommonsChunkPlugin({
           chunks: ['index'],
           name: 'commons'
-        })
-      );
-      plugins.push(
-        new webpack.optimize.CommonsChunkPlugin({
-          chunks: ['inject'],
-          name: 'inject'
         })
       );
       plugins.push(
