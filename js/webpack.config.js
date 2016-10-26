@@ -208,8 +208,11 @@ module.exports = {
         }
       },
       '/parity-utils/*': {
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        target: 'http://127.0.0.1:3000',
+        changeOrigin: true,
+        pathRewrite: {
+          '^/parity-utils': ''
+        }
       },
       '/rpc/*': {
         target: 'http://localhost:8080',

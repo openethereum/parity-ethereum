@@ -42,8 +42,11 @@ app.use('/app/*', proxy({
 }));
 
 app.use('/parity-utils/*', proxy({
-  target: 'http://127.0.0.1:8080',
-  changeOrigin: true
+  target: 'http://127.0.0.1:3000',
+  changeOrigin: true,
+  pathRewrite: {
+    '^/parity-utils': ''
+  }
 }));
 
 app.use('/rpc/*', proxy({
