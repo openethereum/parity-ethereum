@@ -1222,6 +1222,7 @@ impl MayPanic for Client {
 fn should_not_cache_details_before_commit() {
 	use tests::helpers::*;
 	use std::thread;
+	use std::time::Duration;
 	use std::sync::atomic::{AtomicBool, Ordering};
 
 	let client = generate_dummy_client(0);
@@ -1241,7 +1242,7 @@ fn should_not_cache_details_before_commit() {
 		go
 	};
 
-	while !go.load(Ordering::SeqCst) { thread::park_timeout_ms(5); }
+	while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
 
 	assert!(client.tree_route(&genesis, &new_hash).is_none());
 }
