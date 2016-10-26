@@ -44,40 +44,13 @@ class ActionbarExport extends Component {
     );
   }
 
-  onDownloadBackup = (filetype) => {
+  handleExport = () => {
     const { filename, content } = this.props;
 
-    const text = this.contentAsString(content, filetype);
-    const extension = this.getExtension(filetype);
+    const text = JSON.stringify(content, null, 4);
 
-    const blob = new Blob([ text ], { type: 'text/plain;charset=utf-8' });
-    FileSaver.saveAs(blob, `${filename}.${extension}`);
-  }
-
-  getExtension = (filetype) => {
-    switch (filetype) {
-      case 'json':
-        return filetype;
-      default:
-        return 'txt';
-    }
-  }
-
-  contentAsString = (data, filetype) => {
-    if (typeof data === 'string') {
-      return data;
-    }
-
-    switch (filetype) {
-      case 'json':
-        return JSON.stringify(data, null, 4);
-      default:
-        return data.toString();
-    }
-  }
-
-  handleExport = () => {
-    this.onDownloadBackup('json');
+    const blob = new Blob([ text ], { type: 'application/json' });
+    FileSaver.saveAs(blob, `${filename}.json`);
   }
 }
 
