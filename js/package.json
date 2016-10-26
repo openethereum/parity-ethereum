@@ -115,7 +115,6 @@
     "geopattern": "^1.2.3",
     "isomorphic-fetch": "^2.2.1",
     "js-sha3": "^0.5.2",
-    "json2csv": "^3.7.1",
     "lodash": "^4.11.1",
     "marked": "^0.3.6",
     "material-ui": "^0.16.1",
