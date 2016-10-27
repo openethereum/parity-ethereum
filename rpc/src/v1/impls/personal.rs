@@ -77,12 +77,4 @@ impl<C: 'static> Personal for PersonalClient<C> where C: MiningBlockChainClient 
 			(format!("0x{}", a.hex()), Value::Object(m))
 		}).collect::<BTreeMap<_, _>>()))
 	}
-
-	fn geth_accounts(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		try!(expect_no_params(params));
-		let store = take_weak!(self.accounts);
-		Ok(to_value(&store.list_geth_accounts(false).into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
-	}
-
 }

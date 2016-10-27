@@ -22,6 +22,7 @@ use ethkey::{Brain, Generator};
 use v1::traits::PersonalAccounts;
 use v1::types::{H160 as RpcH160, TransactionRequest};
 use v1::helpers::errors;
+use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
@@ -182,5 +183,12 @@ impl<C: 'static, M: 'static> PersonalAccounts for PersonalAccountsClient<C, M> w
 				.map_err(|e| errors::account("Couldn't import Geth accounts", e))
 			).into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
 		})
+	}
+
+	fn geth_accounts(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		try!(expect_no_params(params));
+		let store = take_weak!(self.accounts);
+		Ok(to_value(&store.list_geth_accounts(false).into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
 	}
 }
