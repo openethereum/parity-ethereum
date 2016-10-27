@@ -334,4 +334,17 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 		self.dapps_port
 			.ok_or_else(|| errors::dapps_disabled())
 	}
+
+	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
+		try!(self.active());
+		let address: Address = address.into();
+		let miner = take_weak!(self.miner);
+		let client = take_weak!(self.client);
+
+		Ok(miner.last_nonce(&address)
+			.map(|n| n + 1.into())
+			.unwrap_or_else(|| client.latest_nonce(&address))
+			.into()
+		)
+	}
 }
