@@ -48,7 +48,7 @@ setup_git_user
 git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
 git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
 
-echo "Updating cargo package parity-ui-precompiled"
+echo "Updating cargo package parity-ui-precompiled#$PRECOMPILED_HASH"
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
