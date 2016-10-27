@@ -16,6 +16,7 @@
 
 use std::collections::{VecDeque, HashSet};
 use lru_cache::LruCache;
+use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
 use util::hash::{H256};
 use util::hashdb::HashDB;
@@ -31,9 +32,10 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
-const CODE_CACHE_ITEMS: usize = 4096;
-
 const STATE_CACHE_BLOCKS: usize = 12;
+
+// The percentage of supplied cache size to go to accounts.
+const ACCOUNT_CACHE_RATIO: usize = 90;
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -42,7 +44,7 @@ struct AccountCache {
 	// `new`.
 	accounts: LruCache<Address, Option<Account>>,
 	/// DB Code cache. Maps code hashes to shared bytes.
-	code: LruCache<H256, Arc<Vec<u8>>>,
+	code: MemoryLruCache<H256, Arc<Vec<u8>>>,
 	/// Information on the modifications in recently committed blocks; specifically which addresses
 	/// changed in which block. Ordered by block number.
 	modifications: VecDeque<BlockChanges>,
@@ -115,13 +117,15 @@ impl StateDB {
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
 	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
 		let bloom = Self::load_bloom(db.backing());
-		let cache_items = cache_size / ::std::mem::size_of::<Option<Account>>();
+		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
+		let code_cache_size = cache_size - acc_cache_size;
+		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
 
 		StateDB {
 			db: db,
 			account_cache: Arc::new(Mutex::new(AccountCache {
 				accounts: LruCache::new(cache_items),
-				code: LruCache::new(CODE_CACHE_ITEMS),
+				code: MemoryLruCache::new(code_cache_size),
 				modifications: VecDeque::new(),
 			})),
 			local_cache: Vec::new(),
