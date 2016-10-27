@@ -28,9 +28,10 @@ git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-pr
 git fetch origin 2>$GITLOG
 git checkout -b $CI_BUILD_REF_NAME
 git add .
-git commit -m "$UTCDATE [compiled]"
+git commit -m "$UTCDATE"
 git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
 git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
+PRECOMPILED_HASH=$(git rev-parse HEAD)
 
 # back to root
 popd
@@ -43,7 +44,7 @@ git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/p
 git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # bump js-precompiled, add, commit & push
-cargo update -p parity-ui-precompiled
+cargo update -p parity-ui-precompiled --precise $PRECOMPILED_HASH
 git add . || true
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
