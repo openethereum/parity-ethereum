@@ -1428,16 +1428,18 @@ impl ChainSync {
 		}
 		count = min(count, MAX_NODE_DATA_TO_SEND);
 		let mut added = 0usize;
-		let mut data = Bytes::new();
+		let mut data = Vec::new();
 		for i in 0..count {
-			if let Some(mut hdr) = io.chain().state_data(&try!(r.val_at::<H256>(i))) {
-				data.append(&mut hdr);
+			if let Some(hdr) = io.chain().state_data(&try!(r.val_at::<H256>(i))) {
+				data.push(hdr);
 				added += 1;
 			}
 		}
 		trace!(target: "sync", "{} -> GetNodeData: return {} entries", peer_id, added);
 		let mut rlp = RlpStream::new_list(added);
-		rlp.append_raw(&data, added);
+		for d in data.into_iter() {
+			rlp.append(&d);
+		}
 		Ok(Some((NODE_DATA_PACKET, rlp)))
 	}
 
@@ -2026,7 +2028,9 @@ mod tests {
 		assert!(rlp_result.is_some());
 
 		// the length of one rlp-encoded hashe
-		assert_eq!(34, rlp_result.unwrap().1.out().len());
+		let rlp = rlp_result.unwrap().1.out();
+		let rlp = Rlp::new(&rlp);
+		assert_eq!(1, rlp.item_count());
 
 		io.sender = Some(2usize);
 
