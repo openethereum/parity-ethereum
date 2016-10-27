@@ -205,7 +205,7 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_tx_queue_gas: String = "auto",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
-		flag_tx_queue_strategy: String = "gas_factor",
+		flag_tx_queue_strategy: String = "gas_price",
 			or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
