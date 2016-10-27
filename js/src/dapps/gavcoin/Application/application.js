@@ -206,7 +206,7 @@ export default class Application extends Component {
           .all([
             registry.getAddress.call({}, [api.util.sha3('gavcoin'), 'A']),
             api.eth.accounts(),
-            null // api.personal.accountsInfo()
+            api.personal.accountsInfo()
           ]);
       })
       .then(([address, addresses, infos]) => {
