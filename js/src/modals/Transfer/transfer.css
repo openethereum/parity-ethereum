@@ -25,6 +25,13 @@
   position: relative;
 }
 
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
+}
+
 .columns>div {
   flex: 0 1 50%;
   width: 50%;
@@ -127,4 +134,9 @@
 
 .contentTitle {
   font-size: 1.2rem;
+}
+
+.chart {
+  position: absolute;
+  width: 100%;
 }
