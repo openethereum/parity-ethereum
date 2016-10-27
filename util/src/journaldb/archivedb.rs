@@ -78,7 +78,7 @@ impl HashDB for ArchiveDB {
 			ret.insert(h, 1);
 		}
 
-		for (key, refs) in self.overlay.keys().into_iter() {
+		for (key, refs) in self.overlay.keys() {
 			let refs = *ret.get(&key).unwrap_or(&0) + refs;
 			ret.insert(key, refs);
 		}
@@ -152,7 +152,7 @@ impl JournalDB for ArchiveDB {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
-		for i in self.overlay.drain().into_iter() {
+		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				batch.put(self.column, &key, &value);
@@ -164,7 +164,7 @@ impl JournalDB for ArchiveDB {
 			}
 		}
 
-		for (mut key, value) in self.overlay.drain_aux().into_iter() {
+		for (mut key, value) in self.overlay.drain_aux() {
 			key.push(AUX_FLAG);
 			batch.put(self.column, &key, &value);
 		}
@@ -185,7 +185,7 @@ impl JournalDB for ArchiveDB {
 		let mut inserts = 0usize;
 		let mut deletes = 0usize;
 
-		for i in self.overlay.drain().into_iter() {
+		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc > 0 {
 				if try!(self.backing.get(self.column, &key)).is_some() {
@@ -204,7 +204,7 @@ impl JournalDB for ArchiveDB {
 			}
 		}
 
-		for (mut key, value) in self.overlay.drain_aux().into_iter() {
+		for (mut key, value) in self.overlay.drain_aux() {
 			key.push(AUX_FLAG);
 			batch.put(self.column, &key, &value);
 		}

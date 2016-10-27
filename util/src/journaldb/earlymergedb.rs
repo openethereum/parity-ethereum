@@ -63,9 +63,11 @@ enum RemoveFrom {
 /// the removals actually take effect.
 ///
 /// journal format:
+/// ```
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
+/// ```
 ///
 /// When we make a new commit, we make a journal of all blocks in the recent history and record
 /// all keys that were inserted and deleted. The journal is ordered by era; multiple commits can
@@ -80,6 +82,7 @@ enum RemoveFrom {
 /// which includes an original key, if any.
 ///
 /// The semantics of the `counter` are:
+/// ```
 /// insert key k:
 ///   counter already contains k: count += 1
 ///   counter doesn't contain k:
@@ -91,9 +94,11 @@ enum RemoveFrom {
 ///     count == 1: remove counter
 ///     count == 0: remove key from backing db
 ///   counter doesn't contain k: remove key from backing db
+/// ```
 ///
 /// Practically, this means that for each commit block turning from recent to ancient we do the
 /// following:
+/// ```
 /// is_canonical:
 ///   inserts: Ignored (left alone in the backing database).
 ///   deletes: Enacted; however, recent history queue is checked for ongoing references. This is
@@ -102,8 +107,9 @@ enum RemoveFrom {
 ///   inserts: Reverted; however, recent history queue is checked for ongoing references. This is
 ///            reduced as a preference to deletion from the backing database.
 ///   deletes: Ignored (they were never inserted).
+/// ```
 ///
-/// TODO: store_reclaim_period
+/// TODO: `store_reclaim_period`
 pub struct EarlyMergeDB {
 	overlay: MemoryDB,
 	backing: Arc<Database>,
@@ -310,7 +316,7 @@ impl HashDB for EarlyMergeDB {
 			ret.insert(h, 1);
 		}
 
-		for (key, refs) in self.overlay.keys().into_iter() {
+		for (key, refs) in self.overlay.keys() {
 			let refs = *ret.get(&key).unwrap_or(&0) + refs;
 			ret.insert(key, refs);
 		}

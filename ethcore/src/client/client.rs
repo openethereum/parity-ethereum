@@ -314,7 +314,7 @@ impl Client {
 		if let Some(parent) = chain_has_parent {
 			// Enact Verified Block
 			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-			let db = self.state_db.lock().boxed_clone_canon(&header.parent_hash());
+			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
 			let locked_block = try!(enact_result.map_err(|e| {

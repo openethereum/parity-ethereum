@@ -17,7 +17,7 @@ ethcore-network = { path = "../util/network" }
 ethcore-io = { path = "../util/io" }
 ethcore = { path = "../ethcore" }
 rlp = { path = "../util/rlp" }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 log = "0.3"
 env_logger = "0.3"
 time = "0.1.34"

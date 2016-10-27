@@ -25,7 +25,7 @@ semver = "0.2"
 bit-set = "0.4"
 time = "0.1"
 evmjit = { path = "../evmjit", optional = true }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }

@@ -23,7 +23,7 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-devtools = { path = "../devtools" }
 parity-ui = { path = "../dapps/ui", version = "1.4", optional = true }
 
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 
 [features]
 dev = ["clippy"]
