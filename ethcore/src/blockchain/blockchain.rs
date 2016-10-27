@@ -414,6 +414,7 @@ impl<'a> Iterator for AncestryIter<'a> {
 }
 
 impl BlockChain {
+	#[cfg_attr(feature="dev", allow(useless_let_if_seq))]
 	/// Create new instance of blockchain from given Genesis
 	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
 		// 400 is the avarage size of the key
@@ -565,7 +566,7 @@ impl BlockChain {
 				let range = extras.number as bc::Number .. extras.number as bc::Number;
 				let chain = bc::group::BloomGroupChain::new(self.blooms_config, self);
 				let changes = chain.replace(&range, vec![]);
-				for (k, v) in changes.into_iter() {
+				for (k, v) in changes {
 					batch.write(db::COL_EXTRA, &LogGroupPosition::from(k), &BloomGroup::from(v));
 				}
 				batch.put(db::COL_EXTRA, b"best", &hash);

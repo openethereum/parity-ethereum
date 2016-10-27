@@ -209,8 +209,8 @@ pub struct SyncStatus {
 impl SyncStatus {
 	/// Indicates if snapshot download is in progress
 	pub fn is_snapshot_syncing(&self) -> bool {
-		self.state == SyncState::SnapshotManifest 
-			|| self.state == SyncState::SnapshotData 
+		self.state == SyncState::SnapshotManifest
+			|| self.state == SyncState::SnapshotData
 			|| self.state == SyncState::SnapshotWaiting
 	}
 
@@ -381,7 +381,7 @@ impl ChainSync {
 	/// Returns information on peers connections
 	pub fn peers(&self, io: &SyncIo) -> Vec<PeerInfoDigest> {
 		self.peers.iter()
-			.filter_map(|(&peer_id, ref peer_data)|
+			.filter_map(|(&peer_id, peer_data)|
 				io.peer_session_info(peer_id).map(|session_info|
 					PeerInfoDigest {
 						id: session_info.id.map(|id| id.hex()),
@@ -453,7 +453,7 @@ impl ChainSync {
 		self.init_downloaders(io.chain());
 		self.reset_and_continue(io);
 	}
-  
+
 	/// Restart sync after bad block has been detected. May end up re-downloading up to QUEUE_SIZE blocks
 	fn init_downloaders(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
@@ -1017,7 +1017,7 @@ impl ChainSync {
 			return;
 		}
 		let (peer_latest, peer_difficulty, peer_snapshot_number, peer_snapshot_hash) = {
-			if let Some(ref peer) = self.peers.get_mut(&peer_id) {
+			if let Some(peer) = self.peers.get_mut(&peer_id) {
 				if peer.asking != PeerAsking::Nothing || !peer.can_sync() {
 					return;
 				}
@@ -1142,6 +1142,7 @@ impl ChainSync {
 	}
 
 	/// Checks if there are blocks fully downloaded that can be imported into the blockchain and does the import.
+	#[cfg_attr(feature="dev", allow(block_in_if_condition_stmt))]
 	fn collect_blocks(&mut self, io: &mut SyncIo, block_set: BlockSet) {
 		match block_set {
 			BlockSet::NewBlocks => {
@@ -1150,9 +1151,9 @@ impl ChainSync {
 				}
 			},
 			BlockSet::OldBlocks => {
-				 if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					 self.restart(io);
-				 } else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
+					self.restart(io);
+				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
 					trace!(target: "sync", "Background block download is complete");
 					self.old_blocks = None;
 				}
@@ -1242,7 +1243,7 @@ impl ChainSync {
 				return true;
 			}
 		}
-		return false;
+		false
 	}
 
 	/// Generic request sender
@@ -1370,7 +1371,7 @@ impl ChainSync {
 		while number <= last && count < max_count {
 			if let Some(hdr) = overlay.get(&number) {
 				trace!(target: "sync", "{}: Returning cached fork header", peer_id);
-				data.extend(hdr);
+				data.extend_from_slice(hdr);
 				count += 1;
 			} else if let Some(mut hdr) = io.chain().block_header(BlockID::Number(number)) {
 				data.append(&mut hdr);
@@ -1707,7 +1708,7 @@ impl ChainSync {
 					self.send_packet(io, *peer_id, NEW_BLOCK_PACKET, rlp);
 				}
 			}
-			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+			if let Some(ref mut peer) = self.peers.get_mut(peer_id) {
 				peer.latest_hash = chain_info.best_block_hash.clone();
 			}
 			sent += 1;
@@ -1725,7 +1726,7 @@ impl ChainSync {
 			sent += match ChainSync::create_new_hashes_rlp(io.chain(), &last_parent, &chain_info.best_block_hash) {
 				Some(rlp) => {
 					{
-						if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
+						if let Some(ref mut peer) = self.peers.get_mut(peer_id) {
 							peer.latest_hash = chain_info.best_block_hash.clone();
 						}
 					}
@@ -1793,7 +1794,7 @@ impl ChainSync {
 		// Send RLPs
 		let sent = lucky_peers.len();
 		if sent > 0 {
-			for (peer_id, rlp) in lucky_peers.into_iter() {
+			for (peer_id, rlp) in lucky_peers {
 				self.send_packet(io, peer_id, TRANSACTIONS_PACKET, rlp);
 			}
 

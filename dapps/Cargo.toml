@@ -33,7 +33,7 @@ fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
 
 mime_guess = { version = "1.6.1" }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 
 [build-dependencies]
 serde_codegen = { version = "0.8", optional = true }

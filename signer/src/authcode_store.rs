@@ -99,6 +99,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 	}
 
 	/// Checks if given hash is correct identifier of `SignerUI`
+	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 	pub fn is_valid(&mut self, hash: &H256, time: u64) -> bool {
 		let now = self.now.now();
 		// check time

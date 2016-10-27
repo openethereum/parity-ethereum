@@ -84,7 +84,7 @@ impl Journal {
 	pub fn apply(self, db: &mut HashDB) -> Score {
 		trace!("applying {:?} changes", self.0.len());
 		let mut ret = Score{inserts: 0, removes: 0};
-		for d in self.0.into_iter() {
+		for d in self.0 {
 			match d {
 				Operation::Delete(h) => {
 					trace!("TrieDBMut::apply --- {:?}", &h);
