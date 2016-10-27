@@ -31,7 +31,7 @@ use receipt::{Receipt, RichReceipt};
 use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-use miner::banning_queue::BanningTransactionQueue;
+use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
@@ -71,6 +71,8 @@ pub enum Banning {
 		offend_threshold: Duration,
 		/// Number of similar offending transactions before banning.
 		min_offends: u16,
+		/// Number of seconds the offender is banned for.
+		ban_duration: Duration,
 	},
 }
 
@@ -235,7 +237,14 @@ impl Miner {
 		};
 
 		let txq = TransactionQueue::with_limits(options.tx_queue_strategy, options.tx_queue_size, gas_limit, options.tx_gas_limit);
-		let txq = BanningTransactionQueue::new(txq, options.tx_queue_banning.clone().into());
+		let txq = match options.tx_queue_banning {
+			Banning::Disabled => BanningTransactionQueue::new(txq, Threshold::NeverBan, Duration::from_secs(180)),
+			Banning::Enabled { ban_duration, min_offends, .. } => BanningTransactionQueue::new(
+				txq,
+				Threshold::BanAfter(min_offends),
+				ban_duration,
+			),
+		};
 		Miner {
 			transaction_queue: Arc::new(Mutex::new(txq)),
 			next_allowed_reseal: Mutex::new(Instant::now()),

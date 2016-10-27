@@ -17,16 +17,16 @@
 //! Banning Queue
 //! Transacton Queue wrapper maintaining additional list of banned senders and contract hashes.
 
+use std::time::Duration;
 use std::ops::{Deref, DerefMut};
 use std::cell::Cell;
 use transaction::{SignedTransaction, Action};
 use transient_hashmap::TransientHashMap;
-use miner::{Banning, TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
+use miner::{TransactionQueue, TransactionImportResult, TransactionOrigin, AccountDetails};
 use error::{Error, TransactionError};
 use util::{Uint, U256, H256, Address, Hashable};
 
 type Count = u16;
-const BAN_LIFETIME_SEC: u64 = 180;
 
 /// Auto-Banning threshold
 pub enum Threshold {
@@ -34,15 +34,6 @@ pub enum Threshold {
 	BanAfter(Count),
 	/// Should never ban anything
 	NeverBan
-}
-
-impl From<Banning> for Threshold {
-	fn from(banning: Banning) -> Self {
-		match banning {
-			Banning::Disabled => Threshold::NeverBan,
-			Banning::Enabled { min_offends, .. } => Threshold::BanAfter(min_offends),
-		}
-	}
 }
 
 impl Default for Threshold {
@@ -62,13 +53,15 @@ pub struct BanningTransactionQueue {
 
 impl BanningTransactionQueue {
 	/// Creates new banlisting transaction queue
-	pub fn new(queue: TransactionQueue, ban_threshold: Threshold) -> Self {
+	pub fn new(queue: TransactionQueue, ban_threshold: Threshold, ban_lifetime: Duration) -> Self {
+		let ban_lifetime_sec = ban_lifetime.as_secs();
+		assert!(ban_lifetime_sec > 0, "Lifetime has to be specified in seconds.");
 		BanningTransactionQueue {
 			queue: queue,
 			ban_threshold: ban_threshold,
-			senders_bans: TransientHashMap::new(BAN_LIFETIME_SEC),
-			recipients_bans: TransientHashMap::new(BAN_LIFETIME_SEC),
-			codes_bans: TransientHashMap::new(BAN_LIFETIME_SEC),
+			senders_bans: TransientHashMap::new(ban_lifetime_sec),
+			recipients_bans: TransientHashMap::new(ban_lifetime_sec),
+			codes_bans: TransientHashMap::new(ban_lifetime_sec),
 		}
 	}
 
@@ -215,6 +208,7 @@ impl DerefMut for BanningTransactionQueue {
 
 #[cfg(test)]
 mod tests {
+	use std::time::Duration;
 	use super::{BanningTransactionQueue, Threshold};
 	use ethkey::{Random, Generator};
 	use transaction::{Transaction, SignedTransaction, Action};
@@ -224,7 +218,7 @@ mod tests {
 	use util::{Uint, U256, Address, FromHex, Hashable};
 
 	fn queue() -> BanningTransactionQueue {
-		BanningTransactionQueue::new(TransactionQueue::default(), Threshold::BanAfter(1))
+		BanningTransactionQueue::new(TransactionQueue::default(), Threshold::BanAfter(1), Duration::from_secs(180))
 	}
 
 	fn default_account_details(_address: &Address) -> AccountDetails {

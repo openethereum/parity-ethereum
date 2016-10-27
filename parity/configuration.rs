@@ -391,6 +391,7 @@ impl Configuration {
 				Some(limit) => Banning::Enabled {
 					min_offends: self.args.flag_tx_queue_ban_count,
 					offend_threshold: Duration::from_millis(limit),
+					ban_duration: Duration::from_secs(self.args.flag_tx_queue_ban_time as u64),
 				},
 				None => Banning::Disabled,
 			}

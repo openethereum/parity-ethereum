@@ -211,6 +211,10 @@ Sealing/Mining Options:
   --tx-queue-ban-count C   Number of times maximal time for execution (--tx-time-limit)
                            can be exceeded before banning sender/recipient/code.
                            (default: {flag_tx_queue_ban_count})
+  --tx-queue-ban-time SEC  Banning time (in seconds) for offenders of specified
+                           execution time limit. Also number of offending actions
+                           have to reach the threshold within that time.
+                           (default: {flag_tx_queue_ban_time} seconds)
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -233,7 +237,7 @@ Footprint Options:
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
   --pruning-history NUM    Set a number of recent states to keep when pruning
-                           is active. [default: {flag_pruning_history}].
+                           is active. (default: {flag_pruning_history}).
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).

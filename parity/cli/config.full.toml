@@ -75,6 +75,7 @@ tx_queue_size = 1024
 tx_queue_gas = "auto"
 tx_queue_strategy = "gas_factor"
 tx_queue_ban_count = 1
+tx_queue_ban_time = 180 #s
 tx_gas_limit = "6283184"
 tx_time_limit = 100 #ms
 extra_data = "Parity"
@@ -84,7 +85,7 @@ notify_work = ["http://localhost:3001"]
 [footprint]
 tracing = "auto"
 pruning = "auto"
-pruning_history = 64
+pruning_history = 128
 cache_size_db = 64
 cache_size_blocks = 8
 cache_size_queue = 50
