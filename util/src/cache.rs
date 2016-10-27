@@ -71,4 +71,9 @@ impl<K: Eq + Hash, V: HeapSizeOf> MemoryLruCache<K, V> {
 	pub fn get_mut(&mut self, key: &K) -> Option<&mut V> {
 		self.inner.get_mut(key)
 	}
+
+	/// Currently-used size of values in bytes.
+	pub fn current_size(&self) -> usize {
+		self.cur_size
+	}
 }
