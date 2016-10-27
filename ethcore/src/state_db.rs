@@ -31,6 +31,8 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
+const CODE_CACHE_ITEMS: usize = 4096;
+
 const STATE_CACHE_BLOCKS: usize = 12;
 
 /// Shared canonical state cache.
@@ -39,6 +41,8 @@ struct AccountCache {
 	// When changing the type of the values here, be sure to update `mem_used` and
 	// `new`.
 	accounts: LruCache<Address, Option<Account>>,
+	/// DB Code cache. Maps code hashes to shared bytes.
+	code: LruCache<H256, Arc<Vec<u8>>>,
 	/// Information on the modifications in recently committed blocks; specifically which addresses
 	/// changed in which block. Ordered by block number.
 	modifications: VecDeque<BlockChanges>,
@@ -117,6 +121,7 @@ impl StateDB {
 			db: db,
 			account_cache: Arc::new(Mutex::new(AccountCache {
 				accounts: LruCache::new(cache_items),
+				code: LruCache::new(CODE_CACHE_ITEMS),
 				modifications: VecDeque::new(),
 			})),
 			local_cache: Vec::new(),
@@ -362,6 +367,15 @@ impl StateDB {
 		})
 	}
 
+	/// Add a global code cache entry. This doesn't need to worry about canonicality because
+	/// it simply maps hashes to raw code and will always be correct in the absence of
+	/// hash collisions.
+	pub fn cache_code(&self, hash: H256, code: Arc<Vec<u8>>) {
+		let mut cache = self.account_cache.lock();
+
+		cache.code.insert(hash, code);
+	}
+
 	/// Get basic copy of the cached account. Does not include storage.
 	/// Returns 'None' if cache is disabled or if the account is not cached.
 	pub fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
@@ -370,6 +384,13 @@ impl StateDB {
 			return None;
 		}
 		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+	}
+
+	/// Get cached code based on hash.
+	pub fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
+		let mut cache = self.account_cache.lock();
+
+		cache.code.get_mut(hash).map(|code| code.clone())
 	}
 
 	/// Get value from a cached account.
