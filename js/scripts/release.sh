@@ -38,7 +38,7 @@ git commit -m "$UTCDATE"
 echo "Merging remote"
 git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
 git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
-PRECOMPILED_HASH=$(git rev-parse HEAD)
+PRECOMPILED_HASH=`git rev-parse HEAD`
 
 # back to root
 popd
@@ -49,7 +49,8 @@ git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/p
 git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
 
 echo "Updating cargo package parity-ui-precompiled#$PRECOMPILED_HASH"
-cargo update -p parity-ui-precompiled --precise "$PRECOMPILED_HASH"
+cargo update -p parity-ui-precompiled
+# --precise "$PRECOMPILED_HASH"
 
 echo "Committing updated files"
 git add .
