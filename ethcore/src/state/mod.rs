@@ -127,11 +127,10 @@ impl AccountEntry {
 	fn overwrite_with(&mut self, other: AccountEntry) {
 		self.state = other.state;
 		match other.account {
-			Some(acc) => match self.account {
-				Some(ref mut ours) => {
+			Some(acc) => {
+				if let Some(ref mut ours) = self.account {
 					ours.overwrite_with(acc);
-				},
-				None => {},
+				}
 			},
 			None => self.account = None,
 		}
@@ -281,13 +280,10 @@ impl State {
 						}
 					},
 					None => {
-						match self.cache.get_mut().entry(k) {
-							Entry::Occupied(e) => {
-								if e.get().is_dirty() {
-									e.remove();
-								}
-							},
-							_ => {}
+						if let Entry::Occupied(e) = self.cache.get_mut().entry(k) {
+							if e.get().is_dirty() {
+								e.remove();
+							}
 						}
 					}
 				}
@@ -501,6 +497,7 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	fn commit_into(
 		factories: &Factories,
 		db: &mut StateDB,
@@ -509,17 +506,14 @@ impl State {
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
-			match a.account {
-				Some(ref mut account) => {
-					if !account.is_empty() {
-						db.note_account_bloom(&address);
-					}
-					let addr_hash = account.address_hash(address);
-					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
-					account.commit_code(account_db.as_hashdb_mut());
+			if let Some(ref mut account) = a.account {
+				if !account.is_empty() {
+					db.note_account_bloom(address);
 				}
-				_ => {}
+				let addr_hash = account.address_hash(address);
+				let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
+				account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+				account.commit_code(account_db.as_hashdb_mut());
 			}
 		}
 
@@ -586,7 +580,7 @@ impl State {
 
 	fn query_pod(&mut self, query: &PodState) {
 		for (address, pod_account) in query.get().into_iter()
-			.filter(|&(ref a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
+			.filter(|&(a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
 		{
 			// needs to be split into two parts for the refcell code here
 			// to work.
@@ -679,14 +673,12 @@ impl State {
 				None => {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						let maybe_acc = match db.get(a) {
+						match db.get(a) {
 							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
 							Ok(None) => AccountEntry::new_clean(None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
-						};
-						maybe_acc
-					}
-					else {
+						}
+					} else {
 						AccountEntry::new_clean(None)
 					};
 					self.insert_cache(a, maybe_acc);

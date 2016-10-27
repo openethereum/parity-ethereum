@@ -114,7 +114,7 @@ impl BlockCollection {
 
 	/// Insert a set of headers into collection and advance subchain head pointers.
 	pub fn insert_headers(&mut self, headers: Vec<Bytes>) {
-		for h in headers.into_iter() {
+		for h in headers {
 			if let Err(e) =  self.insert_header(h) {
 				trace!(target: "sync", "Ignored invalid header: {:?}", e);
 			}
@@ -125,7 +125,7 @@ impl BlockCollection {
 	/// Insert a collection of block bodies for previously downloaded headers.
 	pub fn insert_bodies(&mut self, bodies: Vec<Bytes>) -> usize {
 		let mut inserted = 0;
-		for b in bodies.into_iter() {
+		for b in bodies {
 			if let Err(e) =  self.insert_body(b) {
 				trace!(target: "sync", "Ignored invalid body: {:?}", e);
 			} else {
@@ -141,7 +141,7 @@ impl BlockCollection {
 			return 0;
 		}
 		let mut inserted = 0;
-		for r in receipts.into_iter() {
+		for r in receipts {
 			if let Err(e) =  self.insert_receipt(r) {
 				trace!(target: "sync", "Ignored invalid receipt: {:?}", e);
 			} else {

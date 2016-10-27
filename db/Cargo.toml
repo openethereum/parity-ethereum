@@ -11,7 +11,7 @@ build = "build.rs"
 ethcore-ipc-codegen = { path = "../ipc/codegen" }
 
 [dependencies]
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 ethcore-devtools = { path = "../devtools" }
 ethcore-ipc = { path = "../ipc/rpc" }
 rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }

@@ -61,7 +61,7 @@ pub fn generate_bloom(source: Arc<Database>, dest: &mut Database) -> Result<(), 
 		let account_trie = try!(TrieDB::new(state_db.as_hashdb(), &state_root).map_err(|e| Error::Custom(format!("Cannot open trie: {:?}", e))));
 		for item in try!(account_trie.iter().map_err(|_| Error::MigrationImpossible)) {
 			let (ref account_key, _) = try!(item.map_err(|_| Error::MigrationImpossible));
-			let account_key_hash = H256::from_slice(&account_key);
+			let account_key_hash = H256::from_slice(account_key);
 			bloom.set(&*account_key_hash);
 		}
 

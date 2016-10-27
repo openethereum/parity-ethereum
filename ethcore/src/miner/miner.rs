@@ -362,7 +362,7 @@ impl Miner {
 
 		{
 			let mut queue = self.transaction_queue.lock();
-			for hash in invalid_transactions.into_iter() {
+			for hash in invalid_transactions {
 				queue.remove_invalid(&hash, &fetch_account);
 			}
 			for hash in transactions_to_penalize {
@@ -522,6 +522,8 @@ impl Miner {
 	/// Are we allowed to do a non-mandatory reseal?
 	fn tx_reseal_allowed(&self) -> bool { Instant::now() > *self.next_allowed_reseal.lock() }
 
+	#[cfg_attr(feature="dev", allow(wrong_self_convention))]
+	#[cfg_attr(feature="dev", allow(redundant_closure))]
 	fn from_pending_block<H, F, G>(&self, latest_block_number: BlockNumber, from_chain: F, map_block: G) -> H
 		where F: Fn() -> H, G: Fn(&ClosedBlock) -> H {
 		let sealing_work = self.sealing_work.lock();
@@ -885,7 +887,7 @@ impl MinerService for Miner {
 	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt> {
 		self.from_pending_block(
 			best_block,
-			|| BTreeMap::new(),
+			BTreeMap::new,
 			|pending| {
 				let hashes = pending.transactions()
 					.iter()
@@ -1019,7 +1021,7 @@ impl MinerService for Miner {
 							tx.sender().expect("Transaction is in block, so sender has to be defined.")
 						})
 						.collect::<HashSet<Address>>();
-				for sender in to_remove.into_iter() {
+				for sender in to_remove {
 					transaction_queue.remove_all(sender, chain.latest_nonce(&sender));
 				}
 			});

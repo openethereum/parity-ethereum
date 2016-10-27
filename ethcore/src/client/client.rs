@@ -314,7 +314,7 @@ impl Client {
 		if let Some(parent) = chain_has_parent {
 			// Enact Verified Block
 			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-			let db = self.state_db.lock().boxed_clone_canon(&header.parent_hash());
+			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
 			let locked_block = try!(enact_result.map_err(|e| {
@@ -1215,4 +1215,34 @@ impl MayPanic for Client {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
+}
+
+
+#[test]
+fn should_not_cache_details_before_commit() {
+	use tests::helpers::*;
+	use std::thread;
+	use std::time::Duration;
+	use std::sync::atomic::{AtomicBool, Ordering};
+
+	let client = generate_dummy_client(0);
+	let genesis = client.chain_info().best_block_hash;
+	let (new_hash, new_block) = get_good_dummy_block_hash();
+
+	let go = {
+		// Separate thread uncommited transaction
+		let go = Arc::new(AtomicBool::new(false));
+		let go_thread = go.clone();
+		let another_client = client.reference().clone();
+		thread::spawn(move || {
+			let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+			another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+			go_thread.store(true, Ordering::SeqCst);
+		});
+		go
+	};
+
+	while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+
+	assert!(client.tree_route(&genesis, &new_hash).is_none());
 }

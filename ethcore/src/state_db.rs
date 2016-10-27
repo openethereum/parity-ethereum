@@ -170,7 +170,7 @@ impl StateDB {
 
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &vec![journal.hash_functions as u8]);
+		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
 		let mut key = [0u8; 8];
 		let mut val = [0u8; 8];
 
@@ -216,7 +216,7 @@ impl StateDB {
 		let mut clear = false;
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Reverting enacted block {:?}", block);
 					m.is_canon = true;
 					for a in &m.accounts {
@@ -232,7 +232,7 @@ impl StateDB {
 
 		for block in retracted {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Retracting block {:?}", block);
 					m.is_canon = false;
 					for a in &m.accounts {
@@ -286,7 +286,7 @@ impl StateDB {
 				is_canon: is_best,
 				parent: parent.clone(),
 			};
-			let insert_at = cache.modifications.iter().enumerate().find(|&(_, ref m)| m.number < *number).map(|(i, _)| i);
+			let insert_at = cache.modifications.iter().enumerate().find(|&(_, m)| m.number < *number).map(|(i, _)| i);
 			trace!("inserting modifications at {:?}", insert_at);
 			if let Some(insert_at) = insert_at {
 				cache.modifications.insert(insert_at, block_changes);
@@ -369,7 +369,7 @@ impl StateDB {
 		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
 			return None;
 		}
-		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
 	/// Get value from a cached account.
@@ -406,8 +406,7 @@ impl StateDB {
 		// We search for our parent in that list first and then for
 		// all its parent until we hit the canonical block,
 		// checking against all the intermediate modifications.
-		let mut iter = modifications.iter();
-		while let Some(ref m) = iter.next() {
+		for m in modifications {
 			if &m.hash == parent {
 				if m.is_canon {
 					return true;
@@ -420,7 +419,7 @@ impl StateDB {
 			}
 		}
 		trace!("Cache lookup skipped for {:?}: parent hash is unknown", addr);
-		return false;
+		false
 	}
 }
 

@@ -32,19 +32,25 @@
   border-radius: 16px;
   margin: 0.75em 0.5em 0 0;
   max-height: 24px;
+  max-width: 100%;
+  display: flex;
+  align-items: center;
 }
 
 .balance img {
-  display: inline-block;
   height: 32px;
   margin: -4px 1em 0 0;
   width: 32px;
 }
 
-.balance div {
-  display: inline-block;
-  /*font-family: 'Roboto Mono', monospace;*/
-  line-height: 24px;
+.balanceValue {
   margin: 0 1em 0 0;
-  vertical-align: top;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.balanceTag {
+  font-size: 0.85em;
+  padding-right: 0.75rem;
 }

@@ -3,7 +3,7 @@ name = "parity"
 version = "1.4.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)",
  "daemonize 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -145,15 +145,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "clippy"
-version = "0.0.90"
+version = "0.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "clippy_lints 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy_lints 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "clippy_lints"
-version = "0.0.90"
+version = "0.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "matches 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -279,7 +279,7 @@ dependencies = [
  "bit-set 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "bloomchain 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.4.0",
@@ -330,7 +330,7 @@ dependencies = [
 name = "ethcore-dapps"
 version = "1.4.0"
 dependencies = [
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
@@ -473,7 +473,7 @@ dependencies = [
 name = "ethcore-rpc"
 version = "1.4.0"
 dependencies = [
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.4.0",
  "ethcore 1.4.0",
  "ethcore-devtools 1.4.0",
@@ -503,7 +503,7 @@ dependencies = [
 name = "ethcore-signer"
 version = "1.4.0"
 dependencies = [
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-io 1.4.0",
@@ -542,7 +542,7 @@ version = "1.4.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "arrayvec 0.3.16 (registry+https://github.com/rust-lang/crates.io-index)",
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
@@ -631,7 +631,7 @@ dependencies = [
 name = "ethsync"
 version = "1.4.0"
 dependencies = [
- "clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore 1.4.0",
  "ethcore-io 1.4.0",
@@ -1211,7 +1211,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#51b61fdce036bc8c01923fc73206cfa9fc5ec473"
+source = "git+https://github.com/ethcore/js-precompiled.git#0668ff1d25ddd1db11f44a1b1e6d050e41b3841b"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1948,8 +1948,8 @@ dependencies = [
 "checksum bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c129aff112dcc562970abb69e2508b40850dd24c274761bb50fb8a0067ba6c27"
 "checksum bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)" = "<none>"
 "checksum cfg-if 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "de1e760d7b6535af4241fca8bd8adf68e2e7edacc6b29f5d399050c5e48cf88c"
-"checksum clippy 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "d19bda68c3db98e3a780342f6101b44312fef20a5f13ce756d1202a35922b01b"
-"checksum clippy_lints 0.0.90 (registry+https://github.com/rust-lang/crates.io-index)" = "3d4ed67c69b9bb35169be2538691d290a3aa0cbfd4b9f0bfb7c221fc1d399a96"
+"checksum clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)" = "6eacf01b0aad84a0817703498f72d252df7c0faf6a5b86d0be4265f1829e459f"
+"checksum clippy_lints 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)" = "a49960c9aab544ce86b004dcb61620e8b898fea5fc0f697a028f460f48221ed6"
 "checksum cookie 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "90266f45846f14a1e986c77d1e9c2626b8c342ed806fe60241ec38cc8697b245"
 "checksum crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)" = "fb974f835e90390c5f9dfac00f05b06dc117299f5ea4e85fbc7bb443af4911cc"
 "checksum ctrlc 1.1.1 (git+https://github.com/ethcore/rust-ctrlc.git)" = "<none>"
