@@ -6,8 +6,6 @@ variables:
   SIMPLECOV: "true" 
   RUST_BACKTRACE: "1"
   RUSTFLAGS: "-D warnings"
-  HOST_CC: "gcc"
-  HOST_CXX: "g++"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -145,6 +143,8 @@ linux-armv7:
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -183,6 +183,8 @@ linux-arm:
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
@@ -220,6 +222,8 @@ linux-armv6:
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
@@ -251,6 +255,8 @@ linux-aarch64:
   script:
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
@@ -310,8 +316,6 @@ windows:
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
-    - set HOST_CC=x86_64-pc-windows-msvc
-    - set HOST_CXX=x86_64-pc-windows-msvc
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release --verbose
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
