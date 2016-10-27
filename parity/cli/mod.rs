@@ -446,6 +446,20 @@ mod tests {
 	}
 
 	#[test]
+	fn should_use_config_if_cli_is_missing() {
+		let mut config = Config::default();
+		let mut footprint = Footprint::default();
+		footprint.pruning_history = Some(128);
+		config.footprint = Some(footprint);
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_pruning_history, 128);
+	}
+
+	#[test]
 	fn should_parse_full_config() {
 		// given
 		let config = toml::decode_str(include_str!("./config.full.toml")).unwrap();
