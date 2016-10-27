@@ -24,8 +24,10 @@ use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, NetworkError, PeerId};
 use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
+use parking_lot::{Mutex, RwLock};
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
@@ -84,29 +86,18 @@ mod packet {
 	pub const GET_TRANSACTION_PROOFS: u8 = 0x12;
 	pub const TRANSACTION_PROOFS: u8 = 0x13;
 }
-// which direction a request should go in.
-enum Direction {
-	Forwards,
-	Reverse,
-}
 
-// A request made to a peer.
-enum Request {
-	// a request for headers:
-	// (number, hash), maximum, skip, direction.
-	Headers((u64, H256), u64, u64, Direction),
-	// a request for block bodies by hashes.
-	Bodies(Vec<H256>),
-	// a request for tx receipts by hashes.
-	Receipts(Vec<H256>),
-	// a request for contract code by (block hash, address hash).
-	Code(Vec<(H256, H256)>),
+struct Request;
+
+struct Requested {
+	timestamp: usize,
+	total: Request,
 }
 
 // data about each peer.
 struct Peer {
-	pending_requests: HashMap<usize, Request>, // requests pending for peer.
 	buffer: u64, // remaining buffer value.
+	current_asking: HashSet<usize>, // pending request ids.
 }
 
 /// This handles synchronization of the header chain for a light client.
@@ -115,15 +106,25 @@ pub struct Chain {
 	genesis_hash: H256,
 	mainnet: bool,
 	peers: RwLock<HashMap<PeerId, Peer>>,
+	pending_requests: RwLock<HashMap<usize, Requested>>,
+	req_id: AtomicUsize,
 }
 
 impl Chain {
+	// make a request to a given peer.
+	fn request_from(&self, peer: &PeerId, req: Request) {
+		unimplemented!()
+	}
+
 	// called when a peer connects.
 	fn on_connect(&self, peer: &PeerId, io: &NetworkContext) {
 		let peer = *peer;
 		match self.send_status(peer, io) {
 			Ok(()) => {
-				self.peers.write().insert(peer, Peer);
+				self.peers.write().insert(peer, Peer {
+					buffer: 0,
+					current_asking: HashSet::new(),
+				});
 			}
 			Err(e) => {
 				trace!(target: "les", "Error while sending status: {}", e);
@@ -133,8 +134,9 @@ impl Chain {
 	}
 
 	// called when a peer disconnects.
-	fn on_disconnect(&self, peer: PeerId) {
-		self.peers.write().remove(peer);
+	fn on_disconnect(&self, peer: PeerId, io: &NetworkContext) {
+		// TODO: reassign all requests assigned to this peer.
+		self.peers.write().remove(&peer);
 	}
 
 	fn send_status(&self, peer: PeerId, io: &NetworkContext) -> Result<(), NetworkError> {
@@ -165,6 +167,11 @@ impl Chain {
 		io.send(peer, packet::STATUS, stream.out())
 	}
 
+	/// Check on the status of all pending requests.
+	fn check_pending_requests(&self) {
+		unimplemented!()
+	}
+
 	fn status(&self, peer: &PeerId, io: &NetworkContext) {
 		unimplemented!()
 	}
@@ -177,7 +184,9 @@ impl Chain {
 	}
 
 	// Handle a request for block headers.
-	fn get_block_headers(&self, peers: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+		const MAX_HEADERS: usize = 512;
+
 		unimplemented!()
 	}
 

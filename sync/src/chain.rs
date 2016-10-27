@@ -209,8 +209,8 @@ pub struct SyncStatus {
 impl SyncStatus {
 	/// Indicates if snapshot download is in progress
 	pub fn is_snapshot_syncing(&self) -> bool {
-		self.state == SyncState::SnapshotManifest 
-			|| self.state == SyncState::SnapshotData 
+		self.state == SyncState::SnapshotManifest
+			|| self.state == SyncState::SnapshotData
 			|| self.state == SyncState::SnapshotWaiting
 	}
 
@@ -453,7 +453,7 @@ impl ChainSync {
 		self.init_downloaders(io.chain());
 		self.reset_and_continue(io);
 	}
-  
+
 	/// Restart sync after bad block has been detected. May end up re-downloading up to QUEUE_SIZE blocks
 	fn init_downloaders(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
@@ -1150,9 +1150,9 @@ impl ChainSync {
 				}
 			},
 			BlockSet::OldBlocks => {
-				 if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
-					 self.restart(io);
-				 } else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
+				if self.old_blocks.as_mut().map_or(false, |downloader| { downloader.collect_blocks(io, false) == Err(DownloaderImportError::Invalid) }) {
+					self.restart(io);
+				} else if self.old_blocks.as_ref().map_or(false, |downloader| { downloader.is_complete() }) {
 					trace!(target: "sync", "Background block download is complete");
 					self.old_blocks = None;
 				}

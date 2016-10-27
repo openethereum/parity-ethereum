@@ -68,6 +68,11 @@ impl Client {
 	pub fn queue_info(&self) -> QueueInfo {
 		self.header_queue.queue_info()
 	}
+
+	/// Get the chain info.
+	pub fn chain_info(&self) -> ChainInfo {
+
+	}
 }
 
 impl Provider for Client {
