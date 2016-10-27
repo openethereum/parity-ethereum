@@ -98,7 +98,7 @@ impl Default for MinerOptions {
 			tx_gas_limit: !U256::zero(),
 			tx_queue_size: 1024,
 			tx_queue_gas_limit: GasLimit::Auto,
-			tx_queue_strategy: PrioritizationStrategy::GasFactorAndGasPrice,
+			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			pending_set: PendingSet::AlwaysQueue,
 			reseal_min_period: Duration::from_secs(2),
 			work_queue_size: 20,
