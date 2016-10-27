@@ -34,7 +34,7 @@ use io::IoChannel;
 use util::hash::H256;
 use util::Bytes;
 
-/// A light client.
+/// Light client implementation.
 pub struct Client {
 	engine: Arc<Engine>,
 	header_queue: HeaderQueue,
@@ -67,5 +67,35 @@ impl Client {
 	/// Get the header queue info.
 	pub fn queue_info(&self) -> QueueInfo {
 		self.header_queue.queue_info()
+	}
+}
+
+impl Provider for Client {
+	fn block_headers(&self, block: H256, skip: usize, max: usize, reverse: bool) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn block_bodies(&self, blocks: Vec<H256>) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn receipts(&self, blocks: Vec<H256>) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn proofs(&self, requests: Vec<(H256, ProofRequest)>) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn code(&self, accounts: Vec<(H256, H256)>) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn header_proofs(&self, requests: Vec<CHTProofRequest>) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		Vec::new()
 	}
 }

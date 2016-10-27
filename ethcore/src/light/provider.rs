@@ -19,12 +19,15 @@
 
 pub use proof_request::{CHTProofRequest, ProofRequest};
 
+use transaction::SignedTransaction;
+
 use util::Bytes;
 use util::hash::H256;
 
 /// Defines the operations that a provider for `LES` must fulfill.
 ///
 /// These are defined at [1], but may be subject to change.
+/// Requests which can't be fulfilled should return an empty RLP list.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 pub trait Provider {
@@ -54,4 +57,7 @@ pub trait Provider {
 
 	/// Provide header proofs from the Canonical Hash Tries.
 	fn header_proofs(&self, requests: Vec<CHTProofRequest>) -> Vec<Bytes>;
+
+	/// Provide pending transactions.
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 }
