@@ -6,6 +6,8 @@ variables:
   SIMPLECOV: "true" 
   RUST_BACKTRACE: "1"
   RUSTFLAGS: "-D warnings"
+  HOST_CC: "gcc"
+  HOST_CXX: "g++"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -141,6 +143,8 @@ linux-armv7:
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -177,6 +181,8 @@ linux-arm:
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
@@ -213,6 +219,8 @@ linux-armv6:
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabi-gcc
+    - export CXX=arm-linux-gnueabi-g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
@@ -242,6 +250,8 @@ linux-aarch64:
     - tags
     - stable
   script:
+    - export CC=aarch64-linux-gnu-gcc
+    - export CXX=aarch64-linux-gnu-g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
