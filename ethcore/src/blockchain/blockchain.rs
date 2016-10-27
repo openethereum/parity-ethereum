@@ -907,7 +907,7 @@ impl BlockChain {
 			batch.extend_with_cache(db::COL_EXTRA, &mut *write_blocks_blooms, update.blocks_blooms, CacheUpdatePolicy::Remove);
 		}
 
-		// These cached values must be updated last with all three locks taken to avoid
+		// These cached values must be updated last with all four locks taken to avoid
 		// cache decoherence
 		{
 			let mut best_block = self.pending_best_block.write();
