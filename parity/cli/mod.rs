@@ -572,7 +572,7 @@ mod tests {
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
 			flag_pruning: "auto".into(),
-			flag_pruning_history: 128u64,
+			flag_pruning_history: 64u64,
 			flag_cache_size_db: 64u32,
 			flag_cache_size_blocks: 8u32,
 			flag_cache_size_queue: 50u32,
