@@ -16,14 +16,18 @@
 
 use std::cell::{RefCell, RefMut};
 use std::collections::hash_map::Entry;
-use common::*;
+use util::*;
+use receipt::Receipt;
 use engines::Engine;
+use env_info::EnvInfo;
+use error::Error;
 use executive::{Executive, TransactOptions};
 use factory::Factories;
 use trace::FlatTrace;
 use pod_account::*;
 use pod_state::{self, PodState};
 use types::state_diff::StateDiff;
+use transaction::SignedTransaction;
 use state_db::StateDB;
 
 mod account;
@@ -123,11 +127,10 @@ impl AccountEntry {
 	fn overwrite_with(&mut self, other: AccountEntry) {
 		self.state = other.state;
 		match other.account {
-			Some(acc) => match self.account {
-				Some(ref mut ours) => {
+			Some(acc) => {
+				if let Some(ref mut ours) = self.account {
 					ours.overwrite_with(acc);
-				},
-				None => {},
+				}
 			},
 			None => self.account = None,
 		}
@@ -167,24 +170,24 @@ impl AccountEntry {
 /// Upon destruction all the local cache data propagated into the global cache.
 /// Propagated items might be rejected if current state is non-canonical.
 ///
-/// State snapshotting.
+/// State checkpointing.
 ///
-/// A new snapshot can be created with `snapshot()`. Snapshots can be
+/// A new checkpoint can be created with `checkpoint()`. checkpoints can be
 /// created in a hierarchy.
-/// When a snapshot is active all changes are applied directly into
-/// `cache` and the original value is copied into an active snapshot.
-/// Reverting a snapshot with `revert_to_snapshot` involves copying
-/// original values from the latest snapshot back into `cache`. The code
+/// When a checkpoint is active all changes are applied directly into
+/// `cache` and the original value is copied into an active checkpoint.
+/// Reverting a checkpoint with `revert_to_checkpoint` involves copying
+/// original values from the latest checkpoint back into `cache`. The code
 /// takes care not to overwrite cached storage while doing that.
-/// Snapshot can be discateded with `discard_snapshot`. All of the orignal
-/// backed-up values are moved into a parent snapshot (if any).
+/// checkpoint can be discateded with `discard_checkpoint`. All of the orignal
+/// backed-up values are moved into a parent checkpoint (if any).
 ///
 pub struct State {
 	db: StateDB,
 	root: H256,
 	cache: RefCell<HashMap<Address, AccountEntry>>,
 	// The original account is preserved in
-	snapshots: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
+	checkpoints: RefCell<Vec<HashMap<Address, Option<AccountEntry>>>>,
 	account_start_nonce: U256,
 	factories: Factories,
 }
@@ -213,7 +216,7 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories,
 		}
@@ -229,7 +232,7 @@ impl State {
 			db: db,
 			root: root,
 			cache: RefCell::new(HashMap::new()),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: account_start_nonce,
 			factories: factories
 		};
@@ -237,21 +240,21 @@ impl State {
 		Ok(state)
 	}
 
-	/// Create a recoverable snaphot of this state.
-	pub fn snapshot(&mut self) {
-		self.snapshots.borrow_mut().push(HashMap::new());
+	/// Create a recoverable checkpoint of this state.
+	pub fn checkpoint(&mut self) {
+		self.checkpoints.get_mut().push(HashMap::new());
 	}
 
-	/// Merge last snapshot with previous.
-	pub fn discard_snapshot(&mut self) {
-		// merge with previous snapshot
-		let last = self.snapshots.borrow_mut().pop();
-		if let Some(mut snapshot) = last {
-			if let Some(ref mut prev) = self.snapshots.borrow_mut().last_mut() {
+	/// Merge last checkpoint with previous.
+	pub fn discard_checkpoint(&mut self) {
+		// merge with previous checkpoint
+		let last = self.checkpoints.get_mut().pop();
+		if let Some(mut checkpoint) = last {
+			if let Some(ref mut prev) = self.checkpoints.get_mut().last_mut() {
 				if prev.is_empty() {
-					**prev = snapshot;
+					**prev = checkpoint;
 				} else {
-					for (k, v) in snapshot.drain() {
+					for (k, v) in checkpoint.drain() {
 						prev.entry(k).or_insert(v);
 					}
 				}
@@ -259,15 +262,15 @@ impl State {
 		}
 	}
 
-	/// Revert to the last snapshot and discard it.
-	pub fn revert_to_snapshot(&mut self) {
-		if let Some(mut snapshot) = self.snapshots.borrow_mut().pop() {
-			for (k, v) in snapshot.drain() {
+	/// Revert to the last checkpoint and discard it.
+	pub fn revert_to_checkpoint(&mut self) {
+		if let Some(mut checkpoint) = self.checkpoints.get_mut().pop() {
+			for (k, v) in checkpoint.drain() {
 				match v {
 					Some(v) => {
-						match self.cache.borrow_mut().entry(k) {
+						match self.cache.get_mut().entry(k) {
 							Entry::Occupied(mut e) => {
-								// Merge snapshotted changes back into the main account
+								// Merge checkpointed changes back into the main account
 								// storage preserving the cache.
 								e.get_mut().overwrite_with(v);
 							},
@@ -277,13 +280,10 @@ impl State {
 						}
 					},
 					None => {
-						match self.cache.borrow_mut().entry(k) {
-							Entry::Occupied(e) => {
-								if e.get().is_dirty() {
-									e.remove();
-								}
-							},
-							_ => {}
+						if let Entry::Occupied(e) = self.cache.get_mut().entry(k) {
+							if e.get().is_dirty() {
+								e.remove();
+							}
 						}
 					}
 				}
@@ -293,14 +293,14 @@ impl State {
 
 	fn insert_cache(&self, address: &Address, account: AccountEntry) {
 		// Dirty account which is not in the cache means this is a new account.
-		// It goes directly into the snapshot as there's nothing to rever to.
+		// It goes directly into the checkpoint as there's nothing to rever to.
 		//
 		// In all other cases account is read as clean first, and after that made
-		// dirty in and added to the snapshot with `note_cache`.
+		// dirty in and added to the checkpoint with `note_cache`.
 		if account.is_dirty() {
-			if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-				if !snapshot.contains_key(address) {
-					snapshot.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
+			if let Some(ref mut checkpoint) = self.checkpoints.borrow_mut().last_mut() {
+				if !checkpoint.contains_key(address) {
+					checkpoint.insert(address.clone(), self.cache.borrow_mut().insert(address.clone(), account));
 					return;
 				}
 			}
@@ -309,9 +309,9 @@ impl State {
 	}
 
 	fn note_cache(&self, address: &Address) {
-		if let Some(ref mut snapshot) = self.snapshots.borrow_mut().last_mut() {
-			if !snapshot.contains_key(address) {
-				snapshot.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_dirty));
+		if let Some(ref mut checkpoint) = self.checkpoints.borrow_mut().last_mut() {
+			if !checkpoint.contains_key(address) {
+				checkpoint.insert(address.clone(), self.cache.borrow().get(address).map(AccountEntry::clone_dirty));
 			}
 		}
 	}
@@ -340,18 +340,20 @@ impl State {
 
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
-		self.ensure_cached(a, RequireCache::None, |a| a.is_some())
+		// Bloom filter does not contain empty accounts, so it is important here to
+		// check if account exists in the database directly before EIP-158 is in effect.
+		self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
 	}
 
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(U256::zero(), |account| *account.balance()))
 	}
 
 	/// Get the nonce of account `a`.
 	pub fn nonce(&self, a: &Address) -> U256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
@@ -402,7 +404,7 @@ impl State {
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
-			Ok(acc) => acc.map(Account::from_rlp),
+			Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
@@ -415,18 +417,18 @@ impl State {
 
 	/// Get accounts' code.
 	pub fn code(&self, a: &Address) -> Option<Arc<Bytes>> {
-		self.ensure_cached(a, RequireCache::Code,
+		self.ensure_cached(a, RequireCache::Code, true,
 			|a| a.as_ref().map_or(None, |a| a.code().clone()))
 	}
 
 	pub fn code_hash(&self, a: &Address) -> H256 {
-		self.ensure_cached(a, RequireCache::None,
+		self.ensure_cached(a, RequireCache::None, true,
 			|a| a.as_ref().map_or(SHA3_EMPTY, |a| a.code_hash()))
 	}
 
 	/// Get accounts' code size.
 	pub fn code_size(&self, a: &Address) -> Option<usize> {
-		self.ensure_cached(a, RequireCache::CodeSize,
+		self.ensure_cached(a, RequireCache::CodeSize, true,
 			|a| a.as_ref().and_then(|a| a.code_size()))
 	}
 
@@ -495,6 +497,7 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	fn commit_into(
 		factories: &Factories,
 		db: &mut StateDB,
@@ -503,20 +506,19 @@ impl State {
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
-			match a.account {
-				Some(ref mut account) => {
-					db.note_account_bloom(&address);
-					let addr_hash = account.address_hash(address);
-					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
-					account.commit_code(account_db.as_hashdb_mut());
+			if let Some(ref mut account) = a.account {
+				if !account.is_empty() {
+					db.note_account_bloom(address);
 				}
-				_ => {}
+				let addr_hash = account.address_hash(address);
+				let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
+				account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+				account.commit_code(account_db.as_hashdb_mut());
 			}
 		}
 
 		{
-			let mut trie = factories.trie.from_existing(db.as_hashdb_mut(), root).unwrap();
+			let mut trie = try!(factories.trie.from_existing(db.as_hashdb_mut(), root));
 			for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 				a.state = AccountState::Committed;
 				match a.account {
@@ -544,7 +546,7 @@ impl State {
 
 	/// Commits our cached account changes into the trie.
 	pub fn commit(&mut self) -> Result<(), Error> {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		Self::commit_into(&self.factories, &mut self.db, &mut self.root, &mut *self.cache.borrow_mut())
 	}
 
@@ -557,16 +559,15 @@ impl State {
 	#[cfg(feature = "json-tests")]
 	/// Populate the state from `accounts`.
 	pub fn populate_from(&mut self, accounts: PodState) {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		for (add, acc) in accounts.drain().into_iter() {
-			self.db.note_account_bloom(&add);
 			self.cache.borrow_mut().insert(add, AccountEntry::new_dirty(Some(Account::from_pod(acc))));
 		}
 	}
 
 	/// Populate a PodAccount map from this state.
 	pub fn to_pod(&self) -> PodState {
-		assert!(self.snapshots.borrow().is_empty());
+		assert!(self.checkpoints.borrow().is_empty());
 		// TODO: handle database rather than just the cache.
 		// will need fat db.
 		PodState::from(self.cache.borrow().iter().fold(BTreeMap::new(), |mut m, (add, opt)| {
@@ -578,14 +579,14 @@ impl State {
 	}
 
 	fn query_pod(&mut self, query: &PodState) {
-		for (address, pod_account) in query.get() {
-			self.ensure_cached(address, RequireCache::Code, |a| {
-				if a.is_some() {
-					for key in pod_account.storage.keys() {
-						self.storage_at(address, key);
-					}
-				}
-			});
+		for (address, pod_account) in query.get().into_iter()
+			.filter(|&(a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
+		{
+			// needs to be split into two parts for the refcell code here
+			// to work.
+			for key in pod_account.storage.keys() {
+				self.storage_at(address, key);
+			}
 		}
 	}
 
@@ -613,7 +614,7 @@ impl State {
 	/// Check caches for required data
 	/// First searches for account in the local, then the shared cache.
 	/// Populates local cache if nothing found.
-	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, f: F) -> U
+	fn ensure_cached<F, U>(&self, a: &Address, require: RequireCache, check_bloom: bool, f: F) -> U
 		where F: Fn(Option<&Account>) -> U {
 		// check local cache first
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
@@ -636,12 +637,12 @@ impl State {
 			Some(r) => r,
 			None => {
 				// first check bloom if it is not in database for sure
-				if !self.db.check_account_bloom(a) { return f(None); }
+				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
-					Ok(acc) => acc.map(Account::from_rlp),
+					Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 					Err(e) => panic!("Potential DB corruption encountered: {}", e),
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
@@ -672,14 +673,12 @@ impl State {
 				None => {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						let maybe_acc = match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(acc))),
+						match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
 							Ok(None) => AccountEntry::new_clean(None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
-						};
-						maybe_acc
-					}
-					else {
+						}
+					} else {
 						AccountEntry::new_clean(None)
 					};
 					self.insert_cache(a, maybe_acc);
@@ -688,14 +687,15 @@ impl State {
 		}
 		self.note_cache(a);
 
-		match &mut self.cache.borrow_mut().get_mut(a).unwrap().account {
-			&mut Some(ref mut acc) => not_default(acc),
-			slot => *slot = Some(default()),
-		}
-
-		// at this point the account is guaranteed to be in the cache.
+		// at this point the entry is guaranteed to be in the cache.
 		RefMut::map(self.cache.borrow_mut(), |c| {
-			let mut entry = c.get_mut(a).unwrap();
+			let mut entry = c.get_mut(a).expect("entry known to exist in the cache; qed");
+
+			match &mut entry.account {
+				&mut Some(ref mut acc) => not_default(acc),
+				slot => *slot = Some(default()),
+			}
+
 			// set the dirty flag after changing account data.
 			entry.state = AccountState::Dirty;
 			match entry.account {
@@ -735,7 +735,7 @@ impl Clone for State {
 			db: self.db.boxed_clone(),
 			root: self.root.clone(),
 			cache: RefCell::new(cache),
-			snapshots: RefCell::new(Vec::new()),
+			checkpoints: RefCell::new(Vec::new()),
 			account_start_nonce: self.account_start_nonce.clone(),
 			factories: self.factories.clone(),
 		}
@@ -752,7 +752,7 @@ use super::*;
 use util::{U256, H256, FixedHash, Address, Hashable};
 use tests::helpers::*;
 use devtools::*;
-use env_info::*;
+use env_info::EnvInfo;
 use spec::*;
 use transaction::*;
 use util::log::init_log;
@@ -1668,6 +1668,21 @@ fn remove() {
 }
 
 #[test]
+fn empty_account_exists() {
+	let a = Address::zero();
+	let path = RandomTempPath::new();
+	let db = get_temp_state_db_in(path.as_path());
+	let (root, db) = {
+		let mut state = State::new(db, U256::from(0), Default::default());
+		state.add_balance(&a, &U256::default()); // create an empty account
+		state.commit().unwrap();
+		state.drop()
+	};
+	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+	assert!(state.exists(&a));
+}
+
+#[test]
 fn remove_from_database() {
 	let a = Address::zero();
 	let temp = RandomTempPath::new();
@@ -1758,34 +1773,34 @@ fn ensure_cached() {
 }
 
 #[test]
-fn snapshot_basic() {
+fn checkpoint_basic() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	state.snapshot();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.discard_snapshot();
+	state.discard_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.snapshot();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(1u64));
 	assert_eq!(state.balance(&a), U256::from(70u64));
-	state.revert_to_snapshot();
+	state.revert_to_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 }
 
 #[test]
-fn snapshot_nested() {
+fn checkpoint_nested() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
-	state.snapshot();
-	state.snapshot();
+	state.checkpoint();
+	state.checkpoint();
 	state.add_balance(&a, &U256::from(69u64));
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.discard_snapshot();
+	state.discard_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(69u64));
-	state.revert_to_snapshot();
+	state.revert_to_checkpoint();
 	assert_eq!(state.balance(&a), U256::from(0));
 }
 
@@ -1795,6 +1810,22 @@ fn create_empty() {
 	let mut state = state_result.reference_mut();
 	state.commit().unwrap();
 	assert_eq!(state.root().hex(), "56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421");
+}
+
+#[test]
+fn should_not_panic_on_state_diff_with_storage() {
+	let state = get_temp_state();
+	let mut state = state.reference().clone();
+
+	let a: Address = 0xa.into();
+	state.init_code(&a, b"abcdefg".to_vec());
+	state.add_balance(&a, &256.into());
+	state.set_storage(&a, 0xb.into(), 0xc.into());
+
+	let mut new_state = state.clone();
+	new_state.set_storage(&a, 0xb.into(), 0xd.into());
+
+	new_state.diff_from(state);
 }
 
 }

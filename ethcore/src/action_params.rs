@@ -15,9 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Evm input params.
-use common::*;
+use util::{Address, Bytes, Uint, U256};
+use util::hash::{H256, FixedHash};
+use util::sha3::{Hashable, SHA3_EMPTY};
 use ethjson;
 use types::executed::CallType;
+
+use std::sync::Arc;
 
 /// Transaction value
 #[derive(Clone, Debug)]

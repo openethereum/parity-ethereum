@@ -54,6 +54,7 @@ pub struct SnapshotCommand {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
@@ -80,7 +81,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));
@@ -159,10 +160,10 @@ impl SnapshotCommand {
 		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile()));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm);
+		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,
@@ -231,9 +232,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

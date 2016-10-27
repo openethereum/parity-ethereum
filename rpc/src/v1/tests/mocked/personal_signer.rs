@@ -49,7 +49,7 @@ fn miner_service() -> Arc<TestMinerService> {
 }
 
 fn signer_tester() -> PersonalSignerTester {
-	let signer = Arc::new(SignerService::new_test());
+	let signer = Arc::new(SignerService::new_test(None));
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
@@ -186,7 +186,7 @@ fn should_confirm_transaction_and_dispatch() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "test".into()).unwrap();
-	let signature = tester.accounts.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	assert_eq!(tester.signer.requests().len(), 1);

@@ -77,12 +77,14 @@ pub struct ImportBlockchain {
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub mode: Mode,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub vm_type: VMType,
+	pub check_seal: bool,
 }
 
 #[derive(Debug, PartialEq)]
@@ -94,6 +96,7 @@ pub struct ExportBlockchain {
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub mode: Mode,
@@ -101,6 +104,7 @@ pub struct ExportBlockchain {
 	pub tracing: Switch,
 	pub from_block: BlockID,
 	pub to_block: BlockID,
+	pub check_seal: bool,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
@@ -153,10 +157,10 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -192,7 +196,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
+	let informant = Informant::new(client.clone(), None, None, None, cmd.logger_config.color);
 
 	try!(service.register_io_handler(Arc::new(ImportIoHandler {
 		info: Arc::new(informant),
@@ -304,10 +308,10 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm);
+	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	let service = try!(ClientService::start(
 		client_config,

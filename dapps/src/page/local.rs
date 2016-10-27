@@ -26,14 +26,16 @@ pub struct LocalPageEndpoint {
 	path: PathBuf,
 	mime: Option<String>,
 	info: Option<EndpointInfo>,
+	embeddable_at: Option<u16>,
 }
 
 impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo) -> Self {
+	pub fn new(path: PathBuf, info: EndpointInfo, embeddable_at: Option<u16>) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: None,
 			info: Some(info),
+			embeddable_at: embeddable_at,
 		}
 	}
 
@@ -42,6 +44,7 @@ impl LocalPageEndpoint {
 			path: path,
 			mime: Some(mime),
 			info: None,
+			embeddable_at: None,
 		}
 	}
 
@@ -61,16 +64,16 @@ impl Endpoint for LocalPageEndpoint {
 				app: LocalSingleFile { path: self.path.clone(), mime: mime.clone() },
 				prefix: None,
 				path: path,
-				file: Default::default(),
-				safe_to_embed: false,
+				file: handler::ServedFile::new(None),
+				safe_to_embed_at_port: self.embeddable_at,
 			})
 		} else {
 			Box::new(handler::PageHandler {
 				app: LocalDapp { path: self.path.clone() },
 				prefix: None,
 				path: path,
-				file: Default::default(),
-				safe_to_embed: false,
+				file: handler::ServedFile::new(None),
+				safe_to_embed_at_port: self.embeddable_at,
 			})
 		}
 	}

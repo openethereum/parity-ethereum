@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{Address, Message, Signature, Secret};
+use ethkey::{Address, Message, Signature, Secret, Public};
 use Error;
 use json::UUID;
 
@@ -27,6 +27,7 @@ pub trait SecretStore: Send + Sync {
 
 	fn sign(&self, account: &Address, password: &str, message: &Message) -> Result<Signature, Error>;
 	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error>;
+	fn public(&self, account: &Address, password: &str) -> Result<Public, Error>;
 
 	fn accounts(&self) -> Result<Vec<Address>, Error>;
 	fn uuid(&self, account: &Address) -> Result<UUID, Error>;

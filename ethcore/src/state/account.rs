@@ -172,7 +172,7 @@ impl Account {
 			using it will not fail.");
 
 		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, decode),
+			Ok(x) => x.map_or_else(U256::zero, |v| decode(&*v)),
 			Err(e) => panic!("Encountered potential DB corruption: {}", e),
 		};
 		let value: H256 = item.into();
@@ -253,8 +253,8 @@ impl Account {
 		self.is_cached() ||
 		match db.get(&self.code_hash) {
 			Some(x) => {
-				self.code_cache = Arc::new(x.to_vec());
 				self.code_size = Some(x.len());
+				self.code_cache = Arc::new(x.to_vec());
 				true
 			},
 			_ => {
@@ -287,6 +287,15 @@ impl Account {
 
 	/// Determine whether there are any un-`commit()`-ed storage-setting operations.
 	pub fn storage_is_clean(&self) -> bool { self.storage_changes.is_empty() }
+
+	/// Check if account has zero nonce, balance, no code and no storage.
+	pub fn is_empty(&self) -> bool {
+		self.storage_changes.is_empty() &&
+		self.balance.is_zero() &&
+		self.nonce.is_zero() &&
+		self.storage_root == SHA3_NULL_RLP &&
+		self.code_hash == SHA3_EMPTY
+	}
 
 	#[cfg(test)]
 	/// return the storage root associated with this account or None if it has been altered via the overlay.
@@ -342,7 +351,7 @@ impl Account {
 				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				db.emplace(self.code_hash.clone(), (*self.code_cache).clone());
+				db.emplace(self.code_hash.clone(), DBValue::from_slice(&*self.code_cache));
 				self.code_size = Some(self.code_cache.len());
 				self.code_filth = Filth::Clean;
 			},
@@ -404,7 +413,7 @@ impl Account {
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
 		let mut cache = self.storage_cache.borrow_mut();
-		for (k, v) in other.storage_cache.into_inner().into_iter() {
+		for (k, v) in other.storage_cache.into_inner() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
 		self.storage_changes = other.storage_changes;

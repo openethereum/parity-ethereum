@@ -104,6 +104,7 @@ extern crate parking_lot;
 extern crate ansi_term;
 extern crate tiny_keccak;
 extern crate rlp;
+extern crate regex;
 
 #[macro_use]
 extern crate heapsize;
@@ -147,7 +148,7 @@ mod timer;
 pub use common::*;
 pub use misc::*;
 pub use hashdb::*;
-pub use memorydb::*;
+pub use memorydb::MemoryDB;
 pub use overlaydb::*;
 pub use journaldb::JournalDB;
 pub use triehash::*;

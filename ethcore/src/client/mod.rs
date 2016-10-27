@@ -37,6 +37,7 @@ pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
 pub use self::traits::{BlockChainClient, MiningBlockChainClient};
+pub use verification::VerifierType;
 
 /// IPC interfaces
 #[cfg(feature="ipc")]

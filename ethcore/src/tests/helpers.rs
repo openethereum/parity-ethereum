@@ -17,37 +17,42 @@
 use ethkey::KeyPair;
 use io::*;
 use client::{BlockChainClient, Client, ClientConfig};
-use common::*;
+use util::*;
 use spec::*;
 use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
+use builtin::Builtin;
 use state::*;
 use evm::Schedule;
 use engines::Engine;
+use env_info::EnvInfo;
 use ethereum;
 use devtools::*;
 use miner::Miner;
+use header::Header;
+use transaction::{Action, SignedTransaction, Transaction};
 use rlp::{self, RlpStream, Stream};
-use db::COL_STATE;
+use views::BlockView;
 
 #[cfg(feature = "json-tests")]
 pub enum ChainEra {
 	Frontier,
 	Homestead,
-	DaoHardfork,
+	Eip150,
+	TransitionTest,
 }
 
 pub struct TestEngine {
 	engine: Arc<Engine>,
-	max_depth: usize
+	max_depth: usize,
 }
 
 impl TestEngine {
 	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
 			engine: ethereum::new_frontier_test().engine,
-			max_depth: max_depth
+			max_depth: max_depth,
 		}
 	}
 }
@@ -345,7 +350,7 @@ pub fn get_temp_state() -> GuardedTempResult<State> {
 
 pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	let db = new_db(path.to_str().expect("Only valid utf8 paths for tests."));
-	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, COL_STATE);
+	let journal_db = journaldb::new(db.clone(), journaldb::Algorithm::EarlyMerge, ::db::COL_STATE);
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
@@ -383,7 +388,7 @@ pub fn get_good_dummy_block_fork_seq(start_number: usize, count: usize, parent_h
 	r
 }
 
-pub fn get_good_dummy_block() -> Bytes {
+pub fn get_good_dummy_block_hash() -> (H256, Bytes) {
 	let mut block_header = Header::new();
 	let test_spec = get_test_spec();
 	let test_engine = &test_spec.engine;
@@ -394,7 +399,12 @@ pub fn get_good_dummy_block() -> Bytes {
 	block_header.set_parent_hash(test_spec.genesis_header().hash());
 	block_header.set_state_root(test_spec.genesis_header().state_root().clone());
 
-	create_test_block(&block_header)
+	(block_header.hash(), create_test_block(&block_header))
+}
+
+pub fn get_good_dummy_block() -> Bytes {
+	let (_, bytes) = get_good_dummy_block_hash();
+	bytes
 }
 
 pub fn get_bad_state_dummy_block() -> Bytes {

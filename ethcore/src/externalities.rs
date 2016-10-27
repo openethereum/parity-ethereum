@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
+use env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use types::executed::CallType;
@@ -253,6 +255,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+		use log_entry::LogEntry;
+
 		let address = self.origin_info.address.clone();
 		self.substate.logs.push(LogEntry {
 			address: address,
@@ -303,8 +307,9 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use engines::Engine;
+	use env_info::EnvInfo;
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;

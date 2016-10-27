@@ -166,7 +166,9 @@ pub mod ecies {
 
 	/// Encrypt a message with a public key
 	pub fn encrypt(public: &Public, shared_mac: &[u8], plain: &[u8]) -> Result<Vec<u8>, Error> {
-		let r = Random.generate().unwrap();
+		let r = Random.generate()
+			.expect("context known to have key-generation capabilities; qed");
+
 		let z = try!(ecdh::agree(r.secret(), public));
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];
@@ -201,7 +203,9 @@ pub mod ecies {
 
 	/// Encrypt a message with a public key
 	pub fn encrypt_single_message(public: &Public, plain: &[u8]) -> Result<Vec<u8>, Error> {
-		let r = Random.generate().unwrap();
+		let r = Random.generate()
+			.expect("context known to have key-generation capabilities");
+
 		let z = try!(ecdh::agree(r.secret(), public));
 		let mut key = [0u8; 32];
 		let mut mkey = [0u8; 32];

@@ -28,4 +28,4 @@ pub mod types;
 
 pub use self::traits::{Web3, Eth, EthFilter, EthSigning, Personal, PersonalSigner, Net, Ethcore, EthcoreSet, Traces, Rpc};
 pub use self::impls::*;
-pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
+pub use self::helpers::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings, block_import};

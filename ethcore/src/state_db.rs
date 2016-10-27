@@ -31,8 +31,7 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
-const STATE_CACHE_BLOCKS: usize = 8;
-
+const STATE_CACHE_BLOCKS: usize = 12;
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -135,10 +134,11 @@ impl StateDB {
 		let hash_count_entry = db.get(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY)
 			.expect("Low-level database error");
 
-		if hash_count_entry.is_none() {
-			return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET);
-		}
-		let hash_count_bytes = hash_count_entry.unwrap();
+		let hash_count_bytes = match hash_count_entry {
+			Some(bytes) => bytes,
+			None => return Bloom::new(ACCOUNT_BLOOM_SPACE, DEFAULT_ACCOUNT_PRESET),
+		};
+
 		assert_eq!(hash_count_bytes.len(), 1);
 		let hash_count = hash_count_bytes[0];
 
@@ -170,7 +170,7 @@ impl StateDB {
 
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &vec![journal.hash_functions as u8]);
+		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
 		let mut key = [0u8; 8];
 		let mut val = [0u8; 8];
 
@@ -182,17 +182,22 @@ impl StateDB {
 		Ok(())
 	}
 
-	/// Commit all recent insert operations and canonical historical commits' removals from the
-	/// old era to the backing database, reverting any non-canonical historical commit's inserts.
-	pub fn commit(&mut self, batch: &mut DBTransaction, now: u64, id: &H256, end: Option<(u64, H256)>) -> Result<u32, UtilError> {
+	/// Journal all recent operations under the given era and ID.
+	pub fn journal_under(&mut self, batch: &mut DBTransaction, now: u64, id: &H256) -> Result<u32, UtilError> {
 		{
  			let mut bloom_lock = self.account_bloom.lock();
  			try!(Self::commit_bloom(batch, bloom_lock.drain_journal()));
  		}
-		let records = try!(self.db.commit(batch, now, id, end));
+		let records = try!(self.db.journal_under(batch, now, id));
 		self.commit_hash = Some(id.clone());
 		self.commit_number = Some(now);
 		Ok(records)
+	}
+
+	/// Mark a given candidate from an ancient era as canonical, enacting its removals from the
+	/// backing database and reverting any non-canonical historical commit's insertions.
+	pub fn mark_canonical(&mut self, batch: &mut DBTransaction, end_era: u64, canon_id: &H256) -> Result<u32, UtilError> {
+		self.db.mark_canonical(batch, end_era, canon_id)
 	}
 
 	/// Propagate local cache into the global cache and synchonize
@@ -211,7 +216,7 @@ impl StateDB {
 		let mut clear = false;
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Reverting enacted block {:?}", block);
 					m.is_canon = true;
 					for a in &m.accounts {
@@ -227,7 +232,7 @@ impl StateDB {
 
 		for block in retracted {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Retracting block {:?}", block);
 					m.is_canon = false;
 					for a in &m.accounts {
@@ -281,7 +286,7 @@ impl StateDB {
 				is_canon: is_best,
 				parent: parent.clone(),
 			};
-			let insert_at = cache.modifications.iter().enumerate().find(|&(_, ref m)| m.number < *number).map(|(i, _)| i);
+			let insert_at = cache.modifications.iter().enumerate().find(|&(_, m)| m.number < *number).map(|(i, _)| i);
 			trace!("inserting modifications at {:?}", insert_at);
 			if let Some(insert_at) = insert_at {
 				cache.modifications.insert(insert_at, block_changes);
@@ -364,7 +369,7 @@ impl StateDB {
 		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
 			return None;
 		}
-		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
 	}
 
 	/// Get value from a cached account.
@@ -401,8 +406,7 @@ impl StateDB {
 		// We search for our parent in that list first and then for
 		// all its parent until we hit the canonical block,
 		// checking against all the intermediate modifications.
-		let mut iter = modifications.iter();
-		while let Some(ref m) = iter.next() {
+		for m in modifications {
 			if &m.hash == parent {
 				if m.is_canon {
 					return true;
@@ -415,7 +419,7 @@ impl StateDB {
 			}
 		}
 		trace!("Cache lookup skipped for {:?}: parent hash is unknown", addr);
-		return false;
+		false
 	}
 }
 
@@ -448,30 +452,30 @@ mod tests {
 	    // balance [ 5     5     4  3  2     2 ]
 		let mut s = state_db.boxed_clone_canon(&root_parent);
 		s.add_to_account_cache(address, Some(Account::new_basic(2.into(), 0.into())), false);
-		s.commit(&mut batch, 0, &h0, None).unwrap();
+		s.journal_under(&mut batch, 0, &h0).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h0);
-		s.commit(&mut batch, 1, &h1a, None).unwrap();
+		s.journal_under(&mut batch, 1, &h1a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h0);
 		s.add_to_account_cache(address, Some(Account::new_basic(3.into(), 0.into())), true);
-		s.commit(&mut batch, 1, &h1b, None).unwrap();
+		s.journal_under(&mut batch, 1, &h1b).unwrap();
 		s.sync_cache(&[], &[], false);
 
 		let mut s = state_db.boxed_clone_canon(&h1b);
 		s.add_to_account_cache(address, Some(Account::new_basic(4.into(), 0.into())), true);
-		s.commit(&mut batch, 2, &h2b, None).unwrap();
+		s.journal_under(&mut batch, 2, &h2b).unwrap();
 		s.sync_cache(&[], &[], false);
 
 		let mut s = state_db.boxed_clone_canon(&h1a);
 		s.add_to_account_cache(address, Some(Account::new_basic(5.into(), 0.into())), true);
-		s.commit(&mut batch, 2, &h2a, None).unwrap();
+		s.journal_under(&mut batch, 2, &h2a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let mut s = state_db.boxed_clone_canon(&h2a);
-		s.commit(&mut batch, 3, &h3a, None).unwrap();
+		s.journal_under(&mut batch, 3, &h3a).unwrap();
 		s.sync_cache(&[], &[], true);
 
 		let s = state_db.boxed_clone_canon(&h3a);
@@ -489,7 +493,7 @@ mod tests {
 		// reorg to 3b
 		// blocks  [ 3b(c) 3a 2a 2b(c) 1b 1a 0 ]
 		let mut s = state_db.boxed_clone_canon(&h2b);
-		s.commit(&mut batch, 3, &h3b, None).unwrap();
+		s.journal_under(&mut batch, 3, &h3b).unwrap();
 		s.sync_cache(&[h1b.clone(), h2b.clone(), h3b.clone()], &[h1a.clone(), h2a.clone(), h3a.clone()], true);
 		let s = state_db.boxed_clone_canon(&h3a);
 		assert!(s.get_cached_account(&address).is_none());

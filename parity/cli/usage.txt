@@ -67,10 +67,13 @@ Account Options:
 
 Networking Options:
   --no-network             Disable p2p networking. (default: {flag_no_network})
+  --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).
   --min-peers NUM          Try to maintain at least NUM peers (default: {flag_min_peers}).
-  --max-peers NUM          Allow up to that many peers (default: {flag_max_peers}).
+  --max-peers NUM          Allow up to NUM peers (default: {flag_max_peers}).
+  --snapshot-peers NUM     Allow additional NUM peers for a snapshot sync
+                           (default: {flag_snapshot_peers}).
   --nat METHOD             Specify method to use for determining public
                            address. Must be one of: any, none, upnp,
                            extip:<IP> (default: {flag_nat}).
@@ -85,6 +88,12 @@ Networking Options:
                            These nodes will always have a reserved slot on top
                            of the normal maximum peers. (default: {flag_reserved_peers:?})
   --reserved-only          Connect only to reserved nodes. (default: {flag_reserved_only})
+  --allow-ips FILTER       Filter outbound connections. Must be one of:
+                           private - connect to private network IP addresses only;
+                           public - connect to public network IP addresses only;
+                           all - connect to any IP address.
+                           (default: {flag_allow_ips})
+  --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
@@ -186,8 +195,14 @@ Sealing/Mining Options:
                            to be included in next block) (default: {flag_tx_queue_size}).
   --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
                            the queue. LIMIT can be either an amount of gas or
-                           'auto' or 'off'. 'auto' sets the limit to be 2x
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
                            the current block gas limit. (default: {flag_tx_queue_gas}).
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas - Prioritize txs with low gas limit;
+                           gas_price - Prioritize txs with high gas price;
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio (default: {flag_tx_queue_strategy}).
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -209,6 +224,8 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
+  --pruning-history NUM    Set a number of recent states to keep when pruning
+                           is active. [default: {flag_pruning_history}].
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).
@@ -223,7 +240,8 @@ Footprint Options:
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
-                           hdd - suitable for slow HDDs (default: {flag_db_compaction}).
+                           hdd - suitable for slow HDDs;
+                           auto - determine automatically (default: {flag_db_compaction}).
   --fat-db BOOL            Build appropriate information to allow enumeration
                            of all accounts and storage keys. Doubles the size
                            of the state database. BOOL may be one of on, off
@@ -237,6 +255,7 @@ Import/Export Options:
   --format FORMAT          For import/export in given format. FORMAT must be
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
+  --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an

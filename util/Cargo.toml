@@ -18,23 +18,24 @@ rocksdb = { git = "https://github.com/ethcore/rust-rocksdb" }
 lazy_static = "0.2"
 eth-secp256k1 = { git = "https://github.com/ethcore/rust-secp256k1" }
 rust-crypto = "0.2.34"
-elastic-array = "0.5"
+elastic-array = { git = "https://github.com/ethcore/elastic-array" }
 rlp = { path = "rlp" }
 heapsize = { version = "0.3", features = ["unstable"] }
 itertools = "0.4"
 sha3 = { path = "sha3" }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 ethcore-devtools = { path = "../devtools" }
 libc = "0.2.7"
 vergen = "0.1"
 target_info = "0.1"
 ethcore-bigint = { path = "bigint" }
-parking_lot = "0.2.6"
+parking_lot = "0.3"
 using_queue = { path = "using_queue" }
 table = { path = "table" }
 ansi_term = "0.7"
 tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
+regex = "0.1"
 
 [features]
 default = []
