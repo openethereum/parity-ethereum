@@ -141,11 +141,29 @@ export default {
   },
 
   newAccountFromPhrase: {
-    desc: 'Creates a new account from a brainwallet passphrase',
+    desc: 'Creates a new account from a recovery passphrase',
     params: [
       {
         type: String,
         desc: 'Phrase'
+      },
+      {
+        type: String,
+        desc: 'Password'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'The created address'
+    }
+  },
+
+  newAccountFromSecret: {
+    desc: 'Creates a new account from a private ethstore secret key',
+    params: [
+      {
+        type: Data,
+        desc: 'Secret, 32-byte hex'
       },
       {
         type: String,
