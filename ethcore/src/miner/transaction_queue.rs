@@ -109,6 +109,7 @@ impl PartialOrd for TransactionOrigin {
 }
 
 impl Ord for TransactionOrigin {
+	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	fn cmp(&self, other: &TransactionOrigin) -> Ordering {
 		if *other == *self {
 			return Ordering::Equal;

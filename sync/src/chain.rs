@@ -1437,7 +1437,7 @@ impl ChainSync {
 		}
 		trace!(target: "sync", "{} -> GetNodeData: return {} entries", peer_id, added);
 		let mut rlp = RlpStream::new_list(added);
-		for d in data.into_iter() {
+		for d in data {
 			rlp.append(&d);
 		}
 		Ok(Some((NODE_DATA_PACKET, rlp)))
