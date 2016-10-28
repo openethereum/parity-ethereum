@@ -31,7 +31,7 @@ pub struct FakeExt {
 impl Default for FakeExt {
 	fn default() -> Self {
 		FakeExt {
-			schedule: Schedule::new_homestead(),
+			schedule: Schedule::new_homestead_gas_fix(),
 			store: HashMap::new(),
 			depth: 1,
 		}
