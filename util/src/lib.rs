@@ -143,6 +143,7 @@ pub mod semantic_version;
 pub mod log;
 pub mod path;
 pub mod snappy;
+pub mod stats;
 mod timer;
 
 pub use common::*;
