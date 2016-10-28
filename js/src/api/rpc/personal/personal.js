@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inNumber10, inNumber16, inOptions } from '../../format/input';
+import { inAddress, inHex, inNumber10, inNumber16, inOptions } from '../../format/input';
 import { outAccountInfo, outAddress, outSignerRequest } from '../../format/output';
 
 export default class Personal {
@@ -70,6 +70,12 @@ export default class Personal {
   newAccountFromPhrase (phrase, password) {
     return this._transport
       .execute('personal_newAccountFromPhrase', phrase, password)
+      .then(outAddress);
+  }
+
+  newAccountFromSecret (secret, password) {
+    return this._transport
+      .execute('personal_newAccountFromSecret', inHex(secret), password)
       .then(outAddress);
   }
 
