@@ -604,9 +604,9 @@ impl TransactionQueue {
 		origin: TransactionOrigin,
 		fetch_account: &F,
 		gas_estimator: &G,
-	) -> Result<TransactionImportResult, Error>
-		where F: Fn(&Address) -> AccountDetails,
-			  G: Fn(&SignedTransaction) -> U256,
+	) -> Result<TransactionImportResult, Error> where
+		F: Fn(&Address) -> AccountDetails,
+		G: Fn(&SignedTransaction) -> U256,
 	{
 
 		if tx.gas_price < self.minimal_gas_price && origin != TransactionOrigin::Local {

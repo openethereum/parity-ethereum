@@ -80,9 +80,9 @@ impl BanningTransactionQueue {
 		transaction: SignedTransaction,
 		account_details: &F,
 		gas_estimator: &G,
-	) -> Result<TransactionImportResult, Error>
-		where F: Fn(&Address) -> AccountDetails,
-			  G: Fn(&SignedTransaction) -> U256,
+	) -> Result<TransactionImportResult, Error> where
+		F: Fn(&Address) -> AccountDetails,
+		G: Fn(&SignedTransaction) -> U256,
 	{
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
