@@ -56,7 +56,10 @@ class Balance extends Component {
             <img
               src={ imagesrc }
               alt={ token.name } />
-            <div>{ value }<small> { token.tag }</small></div>
+            <div className={ styles.balanceValue }>
+              <span title={ value }> { value } </span>
+            </div>
+            <div className={ styles.balanceTag }> { token.tag } </div>
           </div>
         );
       });

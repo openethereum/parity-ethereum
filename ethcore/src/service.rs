@@ -87,7 +87,7 @@ impl ClientService {
 			db_config.set_cache(::db::COL_STATE, size);
 		}
 
-		db_config.compaction = config.db_compaction.compaction_profile(&client_path);
+		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
 		let pruning = config.pruning;

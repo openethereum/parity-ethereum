@@ -75,6 +75,7 @@ export default class ActionTransfer extends Component {
     if (complete) {
       return (
         <FlatButton
+          className={ styles.dlgbtn }
           label='Done'
           primary
           onTouchTap={ this.props.onClose } />
@@ -85,10 +86,12 @@ export default class ActionTransfer extends Component {
 
     return ([
       <FlatButton
+        className={ styles.dlgbtn }
         label='Cancel'
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
+        className={ styles.dlgbtn }
         label='Transfer'
         primary
         disabled={ hasError || sending }

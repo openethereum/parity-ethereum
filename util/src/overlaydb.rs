@@ -66,7 +66,7 @@ impl OverlayDB {
 	pub fn commit_to_batch(&mut self, batch: &mut DBTransaction) -> Result<u32, UtilError> {
 		let mut ret = 0u32;
 		let mut deletes = 0usize;
-		for i in self.overlay.drain().into_iter() {
+		for i in self.overlay.drain() {
 			let (key, (value, rc)) = i;
 			if rc != 0 {
 				match self.payload(&key) {
@@ -133,7 +133,7 @@ impl HashDB for OverlayDB {
 			ret.insert(h, r as i32);
 		}
 
-		for (key, refs) in self.overlay.keys().into_iter() {
+		for (key, refs) in self.overlay.keys() {
 			let refs = *ret.get(&key).unwrap_or(&0) + refs;
 			ret.insert(key, refs);
 		}

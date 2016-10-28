@@ -40,7 +40,7 @@ export default class Title extends Component {
           { this.props.title }
         </h3>
         <div className={ styles.byline }>
-          { this.props.byline }
+          <span title={ this.props.byline }>{ this.props.byline }</span>
         </div>
       </div>
     );

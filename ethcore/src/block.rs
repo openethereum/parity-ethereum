@@ -542,7 +542,7 @@ pub fn enact(
 	Ok(b.close_and_lock())
 }
 
-#[inline(always)]
+#[inline]
 #[cfg(not(feature = "slow-blocks"))]
 fn push_transactions(block: &mut OpenBlock, transactions: &[SignedTransaction]) -> Result<(), Error> {
 	for t in transactions {
