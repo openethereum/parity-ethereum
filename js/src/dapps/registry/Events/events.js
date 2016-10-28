@@ -93,6 +93,13 @@ export default class Events extends Component {
 
   render () {
     const { subscriptions, pending, accounts, contacts } = this.props;
+
+    const events = this.props.events
+      .filter((e) => eventTypes[e.type])
+      .map((e) => eventTypes[e.type](e, accounts, contacts));
+
+    console.log(events);
+
     return (
       <Card className={ styles.events }>
         <CardHeader title='Event Log' />
@@ -122,11 +129,7 @@ export default class Events extends Component {
         <CardText>
           <table className={ styles.eventsList }>
             <tbody>
-              {
-                this.props.events
-                  .filter((e) => eventTypes[e.type])
-                  .map((e) => eventTypes[e.type](e, accounts, contacts))
-              }
+              { events }
             </tbody>
           </table>
         </CardText>

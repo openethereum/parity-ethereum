@@ -49,7 +49,9 @@ export default class Accounts extends Component {
         value={ selected ? this.renderAccount(selected) : null }
         onChange={ this.onAccountSelect }
         iconButtonElement={ accountsButton }
-        animated={ false }
+
+        anchorOrigin={ { horizontal: 'right', vertical: 'top' } }
+        targetOrigin={ { horizontal: 'right', vertical: 'top' } }
       >
         { Object.values(all).map(this.renderAccount) }
       </IconMenu>
