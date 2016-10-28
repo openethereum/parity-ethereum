@@ -594,7 +594,10 @@ impl TransactionQueue {
 		}
 	}
 
-	/// Add signed transaction to queue to be verified and imported
+	/// Add signed transaction to queue to be verified and imported.
+	///
+	/// NOTE fetch_account and gas_estimator should be cheap to compute
+	/// otherwise it might open up an attack vector.
 	pub fn add<F, G>(
 		&mut self,
 		tx: SignedTransaction,
