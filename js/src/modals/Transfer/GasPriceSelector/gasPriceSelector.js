@@ -18,10 +18,10 @@ import React, { Component, PropTypes } from 'react';
 
 import {
   Area, AreaChart,
-  Line,
-  LineChart,
+  Scatter, ScatterChart,
   Tooltip,
   XAxis, YAxis,
+  Dot,
   ResponsiveContainer
 } from 'recharts';
 
@@ -32,6 +32,47 @@ import componentStyles from './gasPriceSelector.css';
 import mainStyles from '../transfer.css';
 
 const styles = Object.assign({}, mainStyles, componentStyles);
+
+const COLORS = {
+  default: 'rgba(255, 99, 132, 0.2)',
+  selected: 'rgba(255, 99, 132, 0.5)',
+  hover: 'rgba(255, 99, 132, 0.35)',
+  grid: 'rgba(255, 99, 132, 0.5)',
+  line: 'rgb(255, 99, 132)',
+  intersection: '#fff'
+};
+
+class CustomizedShape extends Component {
+  static propTypes = {
+    gasPrice: PropTypes.number.isRequired,
+    cx: PropTypes.number,
+    cy: PropTypes.number,
+    payload: PropTypes.object
+  }
+
+  render () {
+    const { cx, cy, gasPrice, payload } = this.props;
+
+    if (!cx || gasPrice !== payload.y) {
+      return null;
+    }
+
+    return (<g>
+      <Dot
+        style={ { fill: 'white' } }
+        cx={ cx }
+        cy={ cy }
+        r={ 5 }
+      />
+      <Dot
+        style={ { fill: 'rgb(255, 99, 132)' } }
+        cx={ cx }
+        cy={ cy }
+        r={ 3 }
+      />
+    </g>);
+  }
+}
 
 class CustomTooltip extends Component {
   static propTypes = {
@@ -76,7 +117,14 @@ export default class GasPriceSelector extends Component {
     sliderValue: 0,
     selectedIndex: 0,
 
-    chartData: []
+    gradients: [],
+    chartData: {
+      values: [],
+      xDomain: [],
+      yDomain: [],
+      gradientValues: [],
+      N: 0
+    }
   }
 
   componentWillMount () {
@@ -127,75 +175,13 @@ export default class GasPriceSelector extends Component {
   }
 
   renderChart () {
-    const { chartData, selectedIndex, sliderValue } = this.state;
+    const { chartData, sliderValue, gasPrice, gradients } = this.state;
 
-    if (chartData.length === 0) {
+    if (chartData.values.length === 0) {
       return null;
     }
 
     const height = 350;
-
-    const axis = {
-      xDomain: [0, chartData.length],
-      yDomain: [0, this.props.gasPriceStatistics.slice(-1)[0].toNumber() * 1.1]
-    };
-
-    const N = chartData.length - 1;
-
-    const offsets = {
-      min: 100 * selectedIndex / N,
-      max: 100 * (selectedIndex + 1) / N
-    };
-
-    const colors = {
-      default: 'rgba(255, 99, 132, 0.2)',
-      selected: 'rgba(255, 99, 132, 0.5)',
-      hover: 'rgba(255, 99, 132, 0.35)',
-      grid: 'rgba(255, 99, 132, 0.5)',
-      line: 'rgb(255, 99, 132)',
-      intersection: '#fff'
-    };
-
-    const gradientValues = chartData.map((d, index) => ({
-      start: (100 * index / N) - 0.25,
-      end: (100 * index / N) + 0.25,
-      color: colors.grid
-    }));
-
-    gradientValues.push({
-      start: offsets.min,
-      end: offsets.max,
-      color: colors.selected
-    });
-
-    const gradients = gradientValues
-      .sort((a, b) => a.start - b.start)
-      .reduce((current, datum) => {
-        current.push({
-          value: datum.start,
-          color: colors.default
-        });
-
-        current.push({
-          value: datum.start,
-          color: datum.color
-        });
-
-        current.push({
-          value: datum.end,
-          color: datum.color
-        });
-
-        current.push({
-          value: datum.end,
-          color: colors.default
-        });
-
-        return current;
-      }, [])
-      .map((data, index) => (
-        <stop key={ index } offset={ `${data.value}%` } stopColor={ data.color } />
-      ));
 
     return (<div className={ styles.columns }>
       <div style={ { flex: 1, height } }>
@@ -203,34 +189,33 @@ export default class GasPriceSelector extends Component {
           <ResponsiveContainer
             height={ height }
           >
-            <LineChart
-              data={ [
-                { value: sliderValue },
-                { value: sliderValue }
-              ] }
+            <ScatterChart
               margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
-              layout='vertical'
             >
-
-              <Line
-                dataKey='value'
-                stroke={ colors.intersection }
+              <Scatter
+                data={ [
+                  { x: sliderValue, y: 0 },
+                  { x: sliderValue, y: gasPrice.toNumber() },
+                  { x: sliderValue, y: chartData.values.slice(-1)[0].value }
+                ] }
+                shape={ <CustomizedShape gasPrice={ gasPrice.toNumber() } /> }
+                line
                 isAnimationActive={ false }
-                dot={ false }
               />
 
-              <YAxis
-                hide
-                dataKey='value'
-                type='category'
-                domain={ axis.yDomain }
-              />
               <XAxis
                 hide
-                type='number'
-                domain={ [0, N] }
+                height={ 0 }
+                dataKey='x'
+                domain={ [0, chartData.N] }
               />
-            </LineChart>
+              <YAxis
+                hide
+                width={ 0 }
+                dataKey='y'
+                domain={ chartData.yDomain }
+              />
+            </ScatterChart>
           </ResponsiveContainer>
         </div>
 
@@ -239,7 +224,7 @@ export default class GasPriceSelector extends Component {
             height={ height }
           >
             <AreaChart
-              data={ chartData }
+              data={ chartData.values }
               margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
             >
               <defs>
@@ -247,14 +232,23 @@ export default class GasPriceSelector extends Component {
                   id='selectedColor'
                   x1='0' y1='0' x2='1' y2='0'
                 >
-                  { gradients }
+                  {
+                    gradients
+                      .map((data, index) => (
+                        <stop
+                          key={ index }
+                          offset={ `${data.value}%` }
+                          stopColor={ data.color }
+                        />
+                      ))
+                  }
                 </linearGradient>
               </defs>
 
               <Area
-                type='monotone'
+                type='linear'
                 dataKey='value'
-                stroke={ colors.line }
+                stroke={ COLORS.line }
                 fillOpacity={ 1 }
                 fill='url(#selectedColor)'
                 onClick={ this.onClickGasPrice }
@@ -273,12 +267,12 @@ export default class GasPriceSelector extends Component {
                 hide
                 dataKey='value'
                 type='category'
-                domain={ axis.xDomain }
+                domain={ chartData.xDomain }
               />
               <YAxis
                 hide
                 type='number'
-                domain={ axis.yDomain }
+                domain={ chartData.yDomain }
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -289,10 +283,31 @@ export default class GasPriceSelector extends Component {
 
   computeChartsData () {
     const { gasPriceChartData } = this.state;
-    const chartData = gasPriceChartData
+    const { gasPriceStatistics } = this.props;
+
+    const values = gasPriceChartData
       .map(value => ({ value }));
 
-    this.setState({ chartData });
+    const N = values.length - 1;
+
+    const xDomain = [0, values.length];
+    const yDomain = [0, gasPriceStatistics.slice(-1)[0].toNumber() * 1.1];
+
+    const gradientValues = values.map((d, index) => ({
+      start: (100 * index / N) - 0.25,
+      end: (100 * index / N) + 0.25,
+      color: COLORS.grid
+    }));
+
+    const chartData = {
+      values, N,
+      gradientValues,
+      xDomain, yDomain
+    };
+
+    this.setState({ chartData }, () => {
+      this.updateSelectedBarChart();
+    });
   }
 
   computeCharts (props = this.props) {
@@ -308,6 +323,48 @@ export default class GasPriceSelector extends Component {
   }
 
   updateSelectedBarChart (state = this.state) {
+    const { selectedIndex, chartData } = state;
+
+    const offsets = {
+      min: 100 * selectedIndex / chartData.N,
+      max: 100 * (selectedIndex + 1) / chartData.N
+    };
+
+    const gradientValues = [].concat(
+      chartData.gradientValues, {
+        start: offsets.min,
+        end: offsets.max,
+        color: COLORS.selected
+      }
+    );
+
+    const gradients = gradientValues
+      .sort((a, b) => a.start - b.start)
+      .reduce((current, datum) => {
+        current.push({
+          value: datum.start,
+          color: COLORS.default
+        });
+
+        current.push({
+          value: datum.start,
+          color: datum.color
+        });
+
+        current.push({
+          value: datum.end,
+          color: datum.color
+        });
+
+        current.push({
+          value: datum.end,
+          color: COLORS.default
+        });
+
+        return current;
+      }, []);
+
+    this.setState({ gradients });
   }
 
   setGasPrice (props = this.props) {
