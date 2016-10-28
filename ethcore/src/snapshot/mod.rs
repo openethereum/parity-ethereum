@@ -615,7 +615,7 @@ impl BlockRebuilder {
 
 			if is_best {
 				if block.header.hash() != self.best_hash {
-					return Err(Error::WrongBestHash(self.best_hash, block.header.hash()).into())
+					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
 				}
 
 				if block.header.state_root() != &self.best_root {
@@ -655,7 +655,7 @@ impl BlockRebuilder {
 	}
 
 	/// Glue together any disconnected chunks and check that the chain is complete.
-	pub fn finalize(self) -> Result<(), Error> {
+	pub fn finalize(self, canonical: HashMap<u64, H256>) -> Result<(), Error> {
 		let mut batch = self.db.transaction();
 
 		for (first_num, first_hash) in self.disconnected {
@@ -673,8 +673,13 @@ impl BlockRebuilder {
 
 		let best_number = self.best_number;
 		for num in (0..self.fed_blocks).map(|x| best_number - x) {
-			if self.chain.block_hash(num).is_none() {
-				return Err(Error::IncompleteChain)
+
+			let hash = try!(self.chain.block_hash(num).ok_or(Error::IncompleteChain));
+
+			if let Some(canon_hash) = canonical.get(&num).cloned() {
+				if canon_hash != hash {
+					return Err(Error::WrongBlockHash(num, canon_hash, hash));
+				}
 			}
 		}
 

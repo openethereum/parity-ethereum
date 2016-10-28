@@ -16,7 +16,7 @@
 
 //! Snapshot network service implementation.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::fs;
 use std::path::PathBuf;
@@ -74,6 +74,7 @@ struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
+	canonical_hashes: HashMap<u64, H256>,
 	db: Arc<Database>,
 }
 
@@ -112,6 +113,7 @@ impl Restoration {
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
+			canonical_hashes: HashMap::new(),
 			db: raw_db,
 		})
 	}
@@ -138,11 +140,16 @@ impl Restoration {
 
 			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
 			if let Some(ref mut writer) = self.writer.as_mut() {
-				try!(writer.write_block_chunk(hash, chunk));
+				 try!(writer.write_block_chunk(hash, chunk));
 			}
 		}
 
 		Ok(())
+	}
+
+	// note canonical hashes.
+	fn note_canonical(&mut self, hashes: &[(u64, H256)]) {
+		self.canonical_hashes.extend(hashes.iter().cloned());
 	}
 
 	// finish up restoration.
@@ -162,7 +169,7 @@ impl Restoration {
 		try!(self.state.check_missing());
 
 		// connect out-of-order chunks and verify chain integrity.
-		try!(self.blocks.finalize());
+		try!(self.blocks.finalize(self.canonical_hashes));
 
 		if let Some(writer) = self.writer {
 			try!(writer.finish(self.manifest));
@@ -579,6 +586,14 @@ impl SnapshotService for Service {
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
 		if let Err(e) = self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
 			trace!("Error sending snapshot service message: {:?}", e);
+		}
+	}
+
+	fn provide_canon_hashes(&self, canonical: &[(u64, H256)]) {
+		let mut rest = self.restoration.lock();
+
+		if let Some(ref mut rest) = rest.as_mut() {
+			rest.note_canonical(canonical);
 		}
 	}
 }

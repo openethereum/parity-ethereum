@@ -26,6 +26,7 @@ use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use util::{Mutex, snappy};
 use util::kvdb::{Database, DatabaseConfig};
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 fn chunk_and_restore(amount: u64) {
@@ -80,7 +81,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, &engine).unwrap();
 	}
 
-	rebuilder.finalize().unwrap();
+	rebuilder.finalize(HashMap::new()).unwrap();
 
 	// and test it.
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);

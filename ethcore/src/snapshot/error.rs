@@ -35,8 +35,8 @@ pub enum Error {
 	IncompleteChain,
 	/// Best block has wrong state root.
 	WrongStateRoot(H256, H256),
-	/// Best block has wrong hash.
-	WrongBestHash(H256, H256),
+	/// Wrong block hash.
+	WrongBlockHash(u64, H256, H256),
 	/// Too many blocks contained within the snapshot.
 	TooManyBlocks(u64, u64),
 	/// Old starting block in a pruned database.
@@ -60,7 +60,8 @@ impl fmt::Display for Error {
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
 			Error::IncompleteChain => write!(f, "Incomplete blockchain."),
 			Error::WrongStateRoot(ref expected, ref found) => write!(f, "Final block has wrong state root. Expected {:?}, got {:?}", expected, found),
-			Error::WrongBestHash(ref expected, ref found) => write!(f, "Final block has wrong hash. Expected {:?}, got {:?}", expected, found),
+			Error::WrongBlockHash(ref num, ref expected, ref found) =>
+				write!(f, "Block {} had wrong hash. expected {:?}, got {:?}", num, expected, found),
 			Error::TooManyBlocks(ref expected, ref found) => write!(f, "Snapshot contained too many blocks. Expected {}, got {}", expected, found),
 			Error::OldBlockPrunedDB => write!(f, "Attempted to create a snapshot at an old block while using \
 				a pruned database. Please re-run with the --pruning archive flag."),
