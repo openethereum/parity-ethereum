@@ -22,12 +22,16 @@ export const fetch = () => (dispatch) => {
   return Promise
     .all([
       api.eth.accounts(),
-      null // api.personal.accountsInfo()
+      api.personal.accountsInfo()
     ])
     .then(([ accounts, data ]) => {
-      const addresses = accounts.map((address) => {
-        return { address, isAccount: true };
-      });
+      data = data || {};
+      const addresses = Object.keys(data)
+        .filter((address) => data[address] && !data[address].meta.deleted)
+        .map((address) => ({
+          ...data[address], address,
+          isAccount: accounts.includes(address)
+        }));
       dispatch(set(addresses));
     })
     .catch((error) => {

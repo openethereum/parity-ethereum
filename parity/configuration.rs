@@ -24,7 +24,7 @@ use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::client::{VMType, Mode};
-use ethcore::miner::MinerOptions;
+use ethcore::miner::{MinerOptions, Banning};
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
@@ -387,6 +387,14 @@ impl Configuration {
 			reseal_min_period: Duration::from_millis(self.args.flag_reseal_min_period),
 			work_queue_size: self.args.flag_work_queue_size,
 			enable_resubmission: !self.args.flag_remove_solved,
+			tx_queue_banning: match self.args.flag_tx_time_limit {
+				Some(limit) => Banning::Enabled {
+					min_offends: self.args.flag_tx_queue_ban_count,
+					offend_threshold: Duration::from_millis(limit),
+					ban_duration: Duration::from_secs(self.args.flag_tx_queue_ban_time as u64),
+				},
+				None => Banning::Disabled,
+			}
 		};
 
 		Ok(options)

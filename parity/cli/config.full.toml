@@ -41,13 +41,13 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
 hosts = ["none"]
 
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
 
 [dapps]
 disable = false
@@ -74,7 +74,10 @@ gas_cap = "6283184"
 tx_queue_size = 1024
 tx_queue_gas = "auto"
 tx_queue_strategy = "gas_factor"
+tx_queue_ban_count = 1
+tx_queue_ban_time = 180 #s
 tx_gas_limit = "6283184"
+tx_time_limit = 100 #ms
 extra_data = "Parity"
 remove_solved = false
 notify_work = ["http://localhost:3001"]

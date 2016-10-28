@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use util::log::RotatingLogger;
-use util::U256;
+use util::{U256, Address};
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
 use ethstore::ethkey::{Generator, Random};
@@ -319,4 +319,26 @@ fn rpc_ethcore_dapps_port() {
 	// then
 	assert_eq!(io1.handle_request_sync(request), Some(response1.to_owned()));
 	assert_eq!(io2.handle_request_sync(request), Some(response2.to_owned()));
+}
+
+#[test]
+fn rpc_ethcore_next_nonce() {
+	let deps = Dependencies::new();
+	let address = Address::default();
+	let io1 = deps.default_client();
+	let deps = Dependencies::new();
+	deps.miner.last_nonces.write().insert(address.clone(), 2.into());
+	let io2 = deps.default_client();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "ethcore_nextNonce",
+		"params": [""#.to_owned() + &format!("0x{:?}", address) + r#""],
+		"id": 1
+	}"#;
+	let response1 = r#"{"jsonrpc":"2.0","result":"0x0","id":1}"#;
+	let response2 = r#"{"jsonrpc":"2.0","result":"0x3","id":1}"#;
+
+	assert_eq!(io1.handle_request_sync(&request), Some(response1.to_owned()));
+	assert_eq!(io2.handle_request_sync(&request), Some(response2.to_owned()));
 }

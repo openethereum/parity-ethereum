@@ -293,6 +293,7 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
+    - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
