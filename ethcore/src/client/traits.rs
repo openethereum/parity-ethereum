@@ -190,8 +190,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
-	/// Get the gas price distribution.
-	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
+	/// Sorted list of transaction gas prices from at least last sample_size blocks.
+	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
 		while corpus.is_empty() {
@@ -210,15 +210,44 @@ pub trait BlockChainClient : Sync + Send {
 			}
 		}
 		corpus.sort();
-		let n = corpus.len();
-		if n > 0 {
-			Ok((0..(distribution_size + 1))
-				.map(|i| corpus[i * (n - 1) / distribution_size])
-				.collect::<Vec<_>>()
-			)
+		corpus
+	}
+
+	/// Calculate median gas price from recent blocks.
+	fn gas_price_median(&self, sample_size: usize) -> U256 {
+		let corpus = self.gas_price_corpus(sample_size);
+		corpus.get(corpus.len()/2).expect("corpus returns at least one element; qed").clone()
+	}
+
+	/// Get the gas price distribution based on recent blocks.
+	fn gas_price_histogram(&self, sample_size: usize, bucket_number: usize) -> (Vec<U256>, Vec<u64>) {
+		let raw_corpus = self.gas_price_corpus(sample_size);
+		let raw_len = raw_corpus.len();
+		// Throw out outliers.
+		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
+		let corpus_end = corpus.last().expect("corpus returns at least one element; qed").clone();
+		// If there are extremely few transactions, go from zero.
+		let corpus_start = if raw_len > bucket_number {
+			corpus.first().expect("corpus returns at least one element; qed").clone()
 		} else {
-			Err(())
+			0.into()	
+		};
+		let bucket_size = (corpus_end - corpus_start + 1.into()) / bucket_number.into();
+		let mut bucket_end = corpus_start + bucket_size;
+
+		let mut bucket_bounds = vec![corpus_start; bucket_number + 1];
+		let mut counts = vec![0; bucket_number];
+		let mut corpus_i = 0;
+		// Go through the corpus adding to buckets.
+		for bucket in 0..bucket_number {
+			while corpus[corpus_i] < bucket_end {
+				counts[bucket] += 1;
+				corpus_i += 1;
+			}
+			bucket_bounds[bucket + 1] = bucket_end;
+			bucket_end = bucket_end + bucket_size;
 		}
+		(bucket_bounds, counts)
 	}
 }
 
