@@ -66,6 +66,7 @@ use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
 use state_db::StateDB;
+use rand::OsRng;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -144,6 +145,7 @@ pub struct Client {
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
 	history: u64,
+	rng: Mutex<OsRng>,
 }
 
 impl Client {
@@ -239,6 +241,7 @@ impl Client {
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
+			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 		};
 		Ok(Arc::new(client))
 	}
@@ -434,13 +437,25 @@ impl Client {
 	/// Import a block with transaction receipts.
 	/// The block is guaranteed to be the next best blocks in the first block sequence.
 	/// Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> H256 {
+	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
 		let block = BlockView::new(&block_bytes);
-		let hash = block.header().hash();
+		let header = block.header();
+		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 		{
 			let _timer = PerfTimer::new("import_old_block");
+			let mut rng = self.rng.lock();
 			let chain = self.chain.read();
+
+			// verify block.
+			try!(::snapshot::verify_old_block(
+				&mut *rng,
+				&header,
+				&*self.engine,
+				&*chain,
+				Some(&block_bytes),
+				false,
+			));
 
 			// Commit results
 			let receipts = ::rlp::decode(&receipts_bytes);
@@ -451,7 +466,7 @@ impl Client {
 			chain.commit();
 		}
 		self.db.read().flush().expect("DB flush failed.");
-		hash
+		Ok(hash)
 	}
 
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
@@ -1036,7 +1051,7 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		Ok(self.import_old_block(block_bytes, receipts_bytes))
+		self.import_old_block(block_bytes, receipts_bytes).map_err(Into::into)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {

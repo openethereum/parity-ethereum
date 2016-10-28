@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use header::Header;
 use ids::BlockID;
 use views::BlockView;
 
@@ -528,6 +529,20 @@ fn rebuild_accounts(
 /// Proportion of blocks which we will verify `PoW` for.
 const POW_VERIFY_RATE: f32 = 0.02;
 
+/// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
+/// the fullest verification possible. If not, it will take a random sample to determine whether it will
+/// do heavy or light verification.
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
+	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
+		match chain.block_header(header.parent_hash()) {
+			Some(parent) => engine.verify_block_family(&header, &parent, body),
+			None => engine.verify_block_seal(&header),
+		}
+	} else {
+		engine.verify_block_basic(&header, body)
+	}
+}
+
 /// Rebuilds the blockchain from chunks.
 ///
 /// Does basic verification for all blocks, but `PoW` verification for some.
@@ -543,17 +558,23 @@ pub struct BlockRebuilder {
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
+	best_hash: H256,
+	best_root: H256,
+	fed_blocks: u64,
 }
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, manifest: &ManifestData) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
-			best_number: best_number,
+			best_number: manifest.block_number,
+			best_hash: manifest.block_hash,
+			best_root: manifest.state_root,
+			fed_blocks: 0,
 		})
 	}
 
@@ -566,8 +587,13 @@ impl BlockRebuilder {
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
+		let num_blocks = (item_count - 3) as u64;
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
+
+		if self.fed_blocks + num_blocks > SNAPSHOT_BLOCKS {
+			return Err(Error::TooManyBlocks(SNAPSHOT_BLOCKS, self.fed_blocks).into())
+		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
@@ -585,14 +611,27 @@ impl BlockRebuilder {
 
 			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
+			let is_best = cur_number == self.best_number;
 
-			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-				try!(engine.verify_block_seal(&block.header))
-			} else {
-				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+			if is_best {
+				if block.header.hash() != self.best_hash {
+					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
+				}
+
+				if block.header.state_root() != &self.best_root {
+					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+				}
 			}
 
-			let is_best = cur_number == self.best_number;
+			try!(verify_old_block(
+				&mut self.rng,
+				&block.header,
+				engine,
+				&self.chain,
+				Some(&block_bytes),
+				is_best
+			));
+
 			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
@@ -610,11 +649,15 @@ impl BlockRebuilder {
 			cur_number += 1;
 		}
 
-		Ok(item_count as u64 - 3)
+		self.fed_blocks += num_blocks;
+
+		Ok(num_blocks)
 	}
 
-	/// Glue together any disconnected chunks. To be called at the end.
-	pub fn glue_chunks(self) {
+	/// Glue together any disconnected chunks and check that the chain is complete.
+	pub fn finalize(self, canonical: HashMap<u64, H256>) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+
 		for (first_num, first_hash) in self.disconnected {
 			let parent_num = first_num - 1;
 
@@ -623,8 +666,23 @@ impl BlockRebuilder {
 			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				self.chain.add_child(parent_hash, first_hash);
+				self.chain.add_child(&mut batch, parent_hash, first_hash);
 			}
 		}
+		self.db.write_buffered(batch);
+
+		let best_number = self.best_number;
+		for num in (0..self.fed_blocks).map(|x| best_number - x) {
+
+			let hash = try!(self.chain.block_hash(num).ok_or(Error::IncompleteChain));
+
+			if let Some(canon_hash) = canonical.get(&num).cloned() {
+				if canon_hash != hash {
+					return Err(Error::WrongBlockHash(num, canon_hash, hash));
+				}
+			}
+		}
+
+		Ok(())
 	}
 }
