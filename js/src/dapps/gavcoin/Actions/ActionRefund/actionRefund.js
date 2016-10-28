@@ -72,6 +72,7 @@ export default class ActionRefund extends Component {
     if (this.state.complete) {
       return (
         <FlatButton
+          className={ styles.dlgbtn }
           label='Done'
           primary
           onTouchTap={ this.props.onClose } />
@@ -82,10 +83,12 @@ export default class ActionRefund extends Component {
 
     return ([
       <FlatButton
+        className={ styles.dlgbtn }
         label='Cancel'
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
+        className={ styles.dlgbtn }
         label='Refund'
         primary
         disabled={ hasError || this.state.sending }

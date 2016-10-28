@@ -293,6 +293,7 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
+    - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
@@ -363,6 +364,28 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+test-darwin:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - osx
+  dependencies:
+    - darwin
+test-windows:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - rust-windows
+  dependencies:
+    - windows
 js-release:
   stage: build
   image: ethcore/javascript:latest

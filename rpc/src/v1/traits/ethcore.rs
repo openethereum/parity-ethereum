@@ -125,5 +125,9 @@ build_rpc_trait! {
 		/// Returns current Dapps Server port or an error if dapps server is disabled.
 		#[rpc(name = "ethcore_dappsPort")]
 		fn dapps_port(&self) -> Result<u16, Error>;
+
+		/// Returns next nonce for particular sender. Should include all transactions in the queue.
+		#[rpc(name = "ethcore_nextNonce")]
+		fn next_nonce(&self, H160) -> Result<U256, Error>;
 	}
 }
