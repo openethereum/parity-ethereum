@@ -514,8 +514,10 @@ impl Miner {
 			balance: chain.latest_balance(a),
 		};
 
+		let schedule = chain.latest_schedule();
+		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		transactions.into_iter()
-			.map(|tx| transaction_queue.add(tx, &fetch_account, origin))
+			.map(|tx| transaction_queue.add(tx, origin, &fetch_account, &gas_required))
 			.collect()
 	}
 

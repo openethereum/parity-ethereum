@@ -60,7 +60,7 @@ use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
@@ -1141,6 +1141,23 @@ impl BlockChainClient for Client {
 }
 
 impl MiningBlockChainClient for Client {
+
+	fn latest_schedule(&self) -> Schedule {
+		let header_data = self.best_block_header();
+		let view = HeaderView::new(&header_data);
+
+		let env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: self.build_last_hashes(view.hash()),
+			gas_used: U256::default(),
+			gas_limit: view.gas_limit(),
+		};
+		self.engine.schedule(&env_info)
+	}
+
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
