@@ -147,12 +147,13 @@ const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 
 pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x15;
 
-const HEADERS_TIMEOUT_SEC: f64 = 15f64;
-const BODIES_TIMEOUT_SEC: f64 = 10f64;
-const RECEIPTS_TIMEOUT_SEC: f64 = 10f64;
-const FORK_HEADER_TIMEOUT_SEC: f64 = 3f64;
-const SNAPSHOT_MANIFEST_TIMEOUT_SEC: f64 = 3f64;
-const SNAPSHOT_DATA_TIMEOUT_SEC: f64 = 60f64;
+const STATUS_TIMEOUT_SEC: u64 = 5;
+const HEADERS_TIMEOUT_SEC: u64 = 15;
+const BODIES_TIMEOUT_SEC: u64 = 10;
+const RECEIPTS_TIMEOUT_SEC: u64 = 10;
+const FORK_HEADER_TIMEOUT_SEC: u64 = 3;
+const SNAPSHOT_MANIFEST_TIMEOUT_SEC: u64 = 3;
+const SNAPSHOT_DATA_TIMEOUT_SEC: u64 = 60;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
@@ -276,7 +277,7 @@ struct PeerInfo {
 	/// Holds requested snapshot chunk hash if any.
 	asking_snapshot_data: Option<H256>,
 	/// Request timestamp
-	ask_time: f64,
+	ask_time: u64,
 	/// Holds a set of transactions recently sent to this peer to avoid spamming.
 	last_sent_transactions: HashSet<H256>,
 	/// Pending request is expired and result should be ignored
@@ -328,6 +329,9 @@ pub struct ChainSync {
 	snapshot_sync_enabled: bool,
 	/// Snapshot downloader.
 	snapshot: Snapshot,
+	/// Connected peers pending Status message.
+	/// Value is request timestamp.
+	handshaking_peers: HashMap<PeerId, u64>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -341,6 +345,7 @@ impl ChainSync {
 			starting_block: chain.chain_info().best_block_number,
 			highest_block: None,
 			peers: HashMap::new(),
+			handshaking_peers: HashMap::new(),
 			active_peers: HashSet::new(),
 			new_blocks: BlockDownloader::new(false, &chain_info.best_block_hash, chain_info.best_block_number),
 			old_blocks: None,
@@ -475,6 +480,7 @@ impl ChainSync {
 
 	/// Called by peer to report status
 	fn on_peer_status(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		self.handshaking_peers.remove(&peer_id);
 		let protocol_version: u8 = try!(r.val_at(0));
 		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer_id) != 0;
 		let peer = PeerInfo {
@@ -486,7 +492,7 @@ impl ChainSync {
 			asking: PeerAsking::Nothing,
 			asking_blocks: Vec::new(),
 			asking_hash: None,
-			ask_time: 0f64,
+			ask_time: 0,
 			last_sent_transactions: HashSet::new(),
 			expired: false,
 			confirmation: if self.fork_block.is_none() { ForkConfirmation::Confirmed } else { ForkConfirmation::Unconfirmed },
@@ -960,6 +966,7 @@ impl ChainSync {
 	/// Called by peer when it is disconnecting
 	pub fn on_peer_aborting(&mut self, io: &mut SyncIo, peer: PeerId) {
 		trace!(target: "sync", "== Disconnecting {}: {}", peer, io.peer_info(peer));
+		self.handshaking_peers.remove(&peer);
 		if self.peers.contains_key(&peer) {
 			debug!(target: "sync", "Disconnected {}", peer);
 			self.clear_peer_download(peer);
@@ -975,6 +982,8 @@ impl ChainSync {
 		if let Err(e) = self.send_status(io, peer) {
 			debug!(target:"sync", "Error sending status request: {:?}", e);
 			io.disable_peer(peer);
+		} else {
+			self.handshaking_peers.insert(peer, time::precise_time_ns());
 		}
 	}
 
@@ -1253,7 +1262,7 @@ impl ChainSync {
 				warn!(target:"sync", "Asking {:?} while requesting {:?}", peer.asking, asking);
 			}
 			peer.asking = asking;
-			peer.ask_time = time::precise_time_s();
+			peer.ask_time = time::precise_time_ns();
 			let result = if packet_id >= ETH_PACKET_COUNT {
 				sync.send_protocol(WARP_SYNC_PROTOCOL_ID, peer_id, packet_id, packet)
 			} else {
@@ -1590,17 +1599,18 @@ impl ChainSync {
 
 	#[cfg_attr(feature="dev", allow(match_same_arms))]
 	pub fn maintain_peers(&mut self, io: &mut SyncIo) {
-		let tick = time::precise_time_s();
+		let tick = time::precise_time_ns();
 		let mut aborting = Vec::new();
 		for (peer_id, peer) in &self.peers {
+			let elapsed = (tick - peer.ask_time) / 1_000_000_000;
 			let timeout = match peer.asking {
-				PeerAsking::BlockHeaders => (tick - peer.ask_time) > HEADERS_TIMEOUT_SEC,
-				PeerAsking::BlockBodies => (tick - peer.ask_time) > BODIES_TIMEOUT_SEC,
-				PeerAsking::BlockReceipts => (tick - peer.ask_time) > RECEIPTS_TIMEOUT_SEC,
+				PeerAsking::BlockHeaders => elapsed > HEADERS_TIMEOUT_SEC,
+				PeerAsking::BlockBodies => elapsed > BODIES_TIMEOUT_SEC,
+				PeerAsking::BlockReceipts => elapsed > RECEIPTS_TIMEOUT_SEC,
 				PeerAsking::Nothing => false,
-				PeerAsking::ForkHeader => (tick - peer.ask_time) > FORK_HEADER_TIMEOUT_SEC,
-				PeerAsking::SnapshotManifest => (tick - peer.ask_time) > SNAPSHOT_MANIFEST_TIMEOUT_SEC,
-				PeerAsking::SnapshotData => (tick - peer.ask_time) > SNAPSHOT_DATA_TIMEOUT_SEC,
+				PeerAsking::ForkHeader => elapsed > FORK_HEADER_TIMEOUT_SEC,
+				PeerAsking::SnapshotManifest => elapsed > SNAPSHOT_MANIFEST_TIMEOUT_SEC,
+				PeerAsking::SnapshotData => elapsed > SNAPSHOT_DATA_TIMEOUT_SEC,
 			};
 			if timeout {
 				trace!(target:"sync", "Timeout {}", peer_id);
@@ -1610,6 +1620,15 @@ impl ChainSync {
 		}
 		for p in aborting {
 			self.on_peer_aborting(io, p);
+		}
+
+		// Check for handshake timeouts
+		for (peer, ask_time) in &self.handshaking_peers {
+			let elapsed = (tick - ask_time) / 1_000_000_000;
+			if elapsed > STATUS_TIMEOUT_SEC {
+				trace!(target:"sync", "Status timeout {}", peer);
+				io.disconnect_peer(*peer);
+			}
 		}
 	}
 
@@ -2050,7 +2069,7 @@ mod tests {
 				asking: PeerAsking::Nothing,
 				asking_blocks: Vec::new(),
 				asking_hash: None,
-				ask_time: 0f64,
+				ask_time: 0,
 				last_sent_transactions: HashSet::new(),
 				expired: false,
 				confirmation: super::ForkConfirmation::Confirmed,
