@@ -352,7 +352,8 @@ impl Service {
 				// "Cancelled" is mincing words a bit -- what really happened
 				// is that the state we were snapshotting got pruned out
 				// before we could finish.
-				info!("Cancelled prematurely-started periodic snapshot.");
+				info!("Periodic snapshot failed: block state pruned.\
+					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
 				return Ok(())
 			} else {
 				return Err(e);
