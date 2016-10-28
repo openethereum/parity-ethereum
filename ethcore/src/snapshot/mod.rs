@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use header::Header;
 use ids::BlockID;
 use views::BlockView;
 
@@ -528,6 +529,20 @@ fn rebuild_accounts(
 /// Proportion of blocks which we will verify `PoW` for.
 const POW_VERIFY_RATE: f32 = 0.02;
 
+/// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
+/// the fullest verification possible. If not, it will take a random sample to determine whether it will
+/// do heavy or light verification.
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
+	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
+		match chain.block_header(header.parent_hash()) {
+			Some(parent) => engine.verify_block_family(&header, &parent, body),
+			None => engine.verify_block_seal(&header),
+		}
+	} else {
+		engine.verify_block_basic(&header, body)
+	}
+}
+
 /// Rebuilds the blockchain from chunks.
 ///
 /// Does basic verification for all blocks, but `PoW` verification for some.
@@ -604,11 +619,14 @@ impl BlockRebuilder {
 				}
 			}
 
-			if is_best || self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-				try!(engine.verify_block_seal(&block.header))
-			} else {
-				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
-			}
+			try!(verify_old_block(
+				&mut self.rng,
+				&block.header,
+				engine,
+				&self.chain,
+				Some(&block_bytes),
+				is_best
+			));
 
 			let mut batch = self.db.transaction();
 
