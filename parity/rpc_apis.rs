@@ -23,6 +23,7 @@ use util::RotatingLogger;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
+use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::SignerService;
@@ -97,6 +98,7 @@ impl FromStr for ApiSet {
 pub struct Dependencies {
 	pub signer_service: Arc<SignerService>,
 	pub client: Arc<Client>,
+	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
@@ -161,6 +163,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 			Api::Eth => {
 				let client = EthClient::new(
 					&deps.client,
+					&deps.snapshot,
 					&deps.sync,
 					&deps.secret_store,
 					&deps.miner,

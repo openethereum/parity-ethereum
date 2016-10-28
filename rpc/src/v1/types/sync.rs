@@ -30,6 +30,12 @@ pub struct SyncInfo {
 	/// Highest block seen so far
 	#[serde(rename="highestBlock")]
 	pub highest_block: U256,
+	/// Warp sync snapshot chunks total.
+	#[serde(rename="warpChunksAmount")]
+	pub warp_chunks_amount: Option<u32>,
+	/// Warp sync snpashot chunks processed.
+	#[serde(rename="warpChunksProcessed")]
+	pub warp_chunks_processed: Option<u32>,
 }
 
 /// Peers info
@@ -53,7 +59,7 @@ pub struct PeerInfo {
 	/// Node client ID
 	pub name: String,
 	/// Capabilities
-	pub caps: Vec<String>, 
+	pub caps: Vec<String>,
 	/// Network information
 	pub network: PeerNetworkInfo,
 	/// Protocols information
