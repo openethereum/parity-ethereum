@@ -201,7 +201,7 @@ pub trait BlockChainClient : Sync + Send {
 				let block = BlockView::new(&block_bytes);
 				let header = block.header_view();
 				if header.number() == 0 {
-					break;
+					return corpus;
 				}
 				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
 				h = header.parent_hash().clone();
