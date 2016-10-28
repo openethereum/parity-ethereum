@@ -33,7 +33,7 @@ use ethcore::ids::BlockID;
 
 use jsonrpc_core::Error;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::helpers::auto_args::Ready;
@@ -222,13 +222,9 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_statistics(&self) -> Result<Vec<U256>, Error> {
+	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
 		try!(self.active());
-
-		match take_weak!(self.client).gas_price_statistics(100, 8) {
-			Ok(stats) => Ok(stats.into_iter().map(Into::into).collect()),
-			_ => Err(Error::internal_error()),
-		}
+		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
