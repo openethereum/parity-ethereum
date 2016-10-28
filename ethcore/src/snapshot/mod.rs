@@ -591,6 +591,10 @@ impl BlockRebuilder {
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
+		if self.fed_blocks + num_blocks > SNAPSHOT_BLOCKS {
+			return Err(Error::TooManyBlocks(SNAPSHOT_BLOCKS, self.fed_blocks).into())
+		}
+
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
 		let mut parent_hash = try!(rlp.val_at::<H256>(1));
@@ -646,6 +650,7 @@ impl BlockRebuilder {
 		}
 
 		self.fed_blocks += num_blocks;
+
 		Ok(num_blocks)
 	}
 
