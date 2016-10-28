@@ -599,14 +599,30 @@ impl State {
 		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
-	fn update_account_cache(require: RequireCache, account: &mut Account, db: &HashDB) {
-		match require {
-			RequireCache::None => {},
-			RequireCache::Code => {
-				account.cache_code(db);
-			}
-			RequireCache::CodeSize => {
-				account.cache_code_size(db);
+	// load required account data from the databases.
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &StateDB, db: &HashDB) {
+		match (account.is_cached(), require) {
+			(true, _) | (false, RequireCache::None) => {}
+			(false, require) => {
+				// if there's already code in the global cache, always cache it
+				// locally.
+				let hash = account.code_hash();
+				match state_db.get_cached_code(&hash) {
+					Some(code) => account.cache_given_code(code),
+					None => match require {
+						RequireCache::None => {},
+						RequireCache::Code => {
+							if let Some(code) = account.cache_code(db) {
+								// propagate code loaded from the database to
+								// the global code cache.
+								state_db.cache_code(hash, code)
+							}
+						}
+						RequireCache::CodeSize => {
+							account.cache_code_size(db);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -620,7 +636,7 @@ impl State {
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, accountdb.as_hashdb());
+				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 				return f(Some(account));
 			}
 			return f(None);
@@ -629,7 +645,7 @@ impl State {
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, accountdb.as_hashdb());
+				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 			}
 			f(acc.map(|a| &*a))
 		});
@@ -647,7 +663,7 @@ impl State {
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-					Self::update_account_cache(require, account, accountdb.as_hashdb());
+					Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 				}
 				let r = f(maybe_acc.as_ref());
 				self.insert_cache(a, AccountEntry::new_clean(maybe_acc));
@@ -703,7 +719,7 @@ impl State {
 					if require_code {
 						let addr_hash = account.address_hash(a);
 						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
-						account.cache_code(accountdb.as_hashdb());
+						Self::update_account_cache(RequireCache::Code, account, &self.db, accountdb.as_hashdb());
 					}
 					account
 				},
