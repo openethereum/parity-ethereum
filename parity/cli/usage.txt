@@ -107,7 +107,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces, rpc.
+                           ethcore, ethcore_set, traces, rpc, personal_safe.
                            (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it
@@ -166,6 +166,11 @@ Sealing/Mining Options:
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
                            (default: {flag_tx_gas_limit:?})
+  --tx-time-limit MS       Maximal time for processing single transaction.
+                           If enabled senders/recipients/code of transactions
+                           offending the limit will be banned from being included
+                           in transaction queue for 180 seconds.
+                           (default: {flag_tx_time_limit:?})
   --relay-set SET          Set of transactions to relay. SET may be:
                            cheap - Relay any transaction in the queue (this
                            may include invalid transactions);
@@ -203,6 +208,13 @@ Sealing/Mining Options:
                            gas_price - Prioritize txs with high gas price;
                            gas_factor - Prioritize txs using gas price
                            and gas limit ratio (default: {flag_tx_queue_strategy}).
+  --tx-queue-ban-count C   Number of times maximal time for execution (--tx-time-limit)
+                           can be exceeded before banning sender/recipient/code.
+                           (default: {flag_tx_queue_ban_count})
+  --tx-queue-ban-time SEC  Banning time (in seconds) for offenders of specified
+                           execution time limit. Also number of offending actions
+                           have to reach the threshold within that time.
+                           (default: {flag_tx_queue_ban_time} seconds)
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -225,7 +237,7 @@ Footprint Options:
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
   --pruning-history NUM    Set a number of recent states to keep when pruning
-                           is active. [default: {flag_pruning_history}].
+                           is active. (default: {flag_pruning_history}).
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).

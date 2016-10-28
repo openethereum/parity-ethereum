@@ -50,12 +50,12 @@ fn prefix_subtrace_addresses(mut traces: Vec<FlatTrace>) -> Vec<FlatTrace> {
 	// [1, 0]
 	let mut current_subtrace_index = 0;
 	let mut first = true;
-	for trace in traces.iter_mut() {
+	for trace in &mut traces {
 		match (first, trace.trace_address.is_empty()) {
 			(true, _) => first = false,
 			(_, true) => current_subtrace_index += 1,
 			_ => {}
-		}			
+		}
 		trace.trace_address.push_front(current_subtrace_index);
 	}
 	traces
@@ -78,7 +78,7 @@ fn should_prefix_address_properly() {
 	let t = vec![vec![], vec![0], vec![0, 0], vec![0], vec![], vec![], vec![0], vec![]].into_iter().map(&f).collect();
 	let t = prefix_subtrace_addresses(t);
 	assert_eq!(t, vec![vec![0], vec![0, 0], vec![0, 0, 0], vec![0, 0], vec![1], vec![2], vec![2, 0], vec![3]].into_iter().map(&f).collect::<Vec<_>>());
-}  
+}
 
 impl Tracer for ExecutiveTracer {
 	fn prepare_trace_call(&self, params: &ActionParams) -> Option<Call> {

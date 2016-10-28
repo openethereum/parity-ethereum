@@ -33,6 +33,12 @@ pub enum Error {
 	BlockNotFound(H256),
 	/// Incomplete chain.
 	IncompleteChain,
+	/// Best block has wrong state root.
+	WrongStateRoot(H256, H256),
+	/// Wrong block hash.
+	WrongBlockHash(u64, H256, H256),
+	/// Too many blocks contained within the snapshot.
+	TooManyBlocks(u64, u64),
 	/// Old starting block in a pruned database.
 	OldBlockPrunedDB,
 	/// Missing code.
@@ -52,7 +58,11 @@ impl fmt::Display for Error {
 		match *self {
 			Error::InvalidStartingBlock(ref id) => write!(f, "Invalid starting block: {:?}", id),
 			Error::BlockNotFound(ref hash) => write!(f, "Block not found in chain: {}", hash),
-			Error::IncompleteChain => write!(f, "Cannot create snapshot due to incomplete chain."),
+			Error::IncompleteChain => write!(f, "Incomplete blockchain."),
+			Error::WrongStateRoot(ref expected, ref found) => write!(f, "Final block has wrong state root. Expected {:?}, got {:?}", expected, found),
+			Error::WrongBlockHash(ref num, ref expected, ref found) =>
+				write!(f, "Block {} had wrong hash. expected {:?}, got {:?}", num, expected, found),
+			Error::TooManyBlocks(ref expected, ref found) => write!(f, "Snapshot contained too many blocks. Expected {}, got {}", expected, found),
 			Error::OldBlockPrunedDB => write!(f, "Attempted to create a snapshot at an old block while using \
 				a pruned database. Please re-run with the --pruning archive flag."),
 			Error::MissingCode(ref missing) => write!(f, "Incomplete snapshot: {} contract codes not found.", missing.len()),

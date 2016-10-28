@@ -136,10 +136,15 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
@@ -171,10 +176,15 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
@@ -210,6 +220,10 @@ linux-armv6:
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabi-gcc
+    - export CXX=arm-linux-gnueabi-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
@@ -234,10 +248,15 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=aarch64-linux-gnu-gcc
+    - export CXX=aarch64-linux-gnu-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
@@ -274,6 +293,7 @@ darwin:
     - stable
   script:
     - cargo build --release --verbose
+    - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key 
     - aws configure set aws_secret_access_key $s3_secret
@@ -344,6 +364,28 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+test-darwin:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - osx
+  dependencies:
+    - darwin
+test-windows:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - rust-windows
+  dependencies:
+    - windows
 js-release:
   stage: build
   image: ethcore/javascript:latest

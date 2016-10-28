@@ -33,7 +33,8 @@ pub enum Api {
 	Web3,
 	Net,
 	Eth,
-	Personal,
+	PersonalSafe,
+	PersonalAccounts,
 	Signer,
 	Ethcore,
 	EthcoreSet,
@@ -51,7 +52,8 @@ impl FromStr for Api {
 			"web3" => Ok(Web3),
 			"net" => Ok(Net),
 			"eth" => Ok(Eth),
-			"personal" => Ok(Personal),
+			"personal" => Ok(PersonalAccounts),
+			"personal_safe" => Ok(PersonalSafe),
 			"signer" => Ok(Signer),
 			"ethcore" => Ok(Ethcore),
 			"ethcore_set" => Ok(EthcoreSet),
@@ -114,7 +116,8 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Net => ("net", "1.0"),
 			Api::Eth => ("eth", "1.0"),
-			Api::Personal => ("personal", "1.0"),
+			Api::PersonalSafe => ("personal_safe", "1.0"),
+			Api::PersonalAccounts => ("personal", "1.0"),
 			Api::Signer => ("signer", "1.0"),
 			Api::Ethcore => ("ethcore", "1.0"),
 			Api::EthcoreSet => ("ethcore_set", "1.0"),
@@ -131,11 +134,11 @@ impl ApiSet {
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
 					.into_iter().collect()
 			},
 			ApiSet::SafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
 		}
@@ -178,8 +181,11 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
 			},
-			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+			Api::PersonalAccounts => {
+				server.add_delegate(PersonalAccountsClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+			},
+			Api::PersonalSafe => {
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
@@ -224,7 +230,8 @@ mod test {
 		assert_eq!(Api::Web3, "web3".parse().unwrap());
 		assert_eq!(Api::Net, "net".parse().unwrap());
 		assert_eq!(Api::Eth, "eth".parse().unwrap());
-		assert_eq!(Api::Personal, "personal".parse().unwrap());
+		assert_eq!(Api::PersonalAccounts, "personal".parse().unwrap());
+		assert_eq!(Api::PersonalSafe, "personal_safe".parse().unwrap());
 		assert_eq!(Api::Signer, "signer".parse().unwrap());
 		assert_eq!(Api::Ethcore, "ethcore".parse().unwrap());
 		assert_eq!(Api::EthcoreSet, "ethcore_set".parse().unwrap());
@@ -245,14 +252,14 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
 			.into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_safe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 			.into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}

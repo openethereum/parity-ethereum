@@ -32,6 +32,13 @@ import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
 
+import styles from './application.css';
+import bgimage from '../../../../assets/images/dapps/gavcoin-bg.jpg';
+
+const bgstyle = {
+  backgroundImage: `url(${bgimage})`
+};
+
 const DIVISOR = 10 ** 6;
 
 export default class Application extends Component {
@@ -70,7 +77,7 @@ export default class Application extends Component {
     }
 
     return (
-      <div>
+      <div className={ styles.body } style={ bgstyle }>
         { this.renderModals() }
         <Status
           address={ address }
@@ -206,7 +213,7 @@ export default class Application extends Component {
           .all([
             registry.getAddress.call({}, [api.util.sha3('gavcoin'), 'A']),
             api.eth.accounts(),
-            null // api.personal.accountsInfo()
+            api.personal.accountsInfo()
           ]);
       })
       .then(([address, addresses, infos]) => {

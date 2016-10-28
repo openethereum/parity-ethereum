@@ -23,6 +23,7 @@ use super::helpers::*;
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
 	chunks: HashMap<H256, Bytes>,
+	canon_hashes: Mutex<HashMap<u64, H256>>,
 
 	restoration_manifest: Mutex<Option<ManifestData>>,
 	state_restoration_chunks: Mutex<HashMap<H256, Bytes>>,
@@ -34,6 +35,7 @@ impl TestSnapshotService {
 		TestSnapshotService {
 			manifest: None,
 			chunks: HashMap::new(),
+			canon_hashes: Mutex::new(HashMap::new()),
 			restoration_manifest: Mutex::new(None),
 			state_restoration_chunks: Mutex::new(HashMap::new()),
 			block_restoration_chunks: Mutex::new(HashMap::new()),
@@ -57,6 +59,7 @@ impl TestSnapshotService {
 		TestSnapshotService {
 			manifest: Some(manifest),
 			chunks: chunks,
+			canon_hashes: Mutex::new(HashMap::new()),
 			restoration_manifest: Mutex::new(None),
 			state_restoration_chunks: Mutex::new(HashMap::new()),
 			block_restoration_chunks: Mutex::new(HashMap::new()),
@@ -109,6 +112,10 @@ impl SnapshotService for TestSnapshotService {
 		if self.restoration_manifest.lock().as_ref().map_or(false, |m| m.block_hashes.iter().any(|h| h == &hash)) {
 			self.block_restoration_chunks.lock().insert(hash, chunk);
 		}
+	}
+
+	fn provide_canon_hashes(&self, hashes: &[(u64, H256)]) {
+		self.canon_hashes.lock().extend(hashes.iter().cloned());
 	}
 }
 

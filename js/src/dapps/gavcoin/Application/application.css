@@ -14,43 +14,8 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.balances {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 1em 0 0 0;
-  vertical-align: top;
-}
 
-.empty {
-  line-height: 24px;
-  margin: 0.75em 0.5em 0 0;
-  opacity: 0.25;
-}
-
-.balance {
-  background: rgba(255, 255, 255, 0.07);
-  border-radius: 16px;
-  margin: 0.75em 0.5em 0 0;
-  max-height: 24px;
-  max-width: 100%;
-  display: flex;
-  align-items: center;
-}
-
-.balance img {
-  height: 32px;
-  margin: -4px 1em 0 0;
-  width: 32px;
-}
-
-.balanceValue {
-  margin: 0 1em 0 0;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
-.balanceTag {
-  font-size: 0.85em;
-  padding-right: 0.75rem;
+.body {
+  background-size: cover;
+  background-repeat: no-repeat;
 }
