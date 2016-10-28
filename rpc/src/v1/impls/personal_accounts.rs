@@ -20,7 +20,7 @@ use util::{Address};
 use jsonrpc_core::*;
 use ethkey::{Brain, Generator};
 use v1::traits::PersonalAccounts;
-use v1::types::{H160 as RpcH160, TransactionRequest};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
 use v1::helpers::errors;
 use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::sign_and_dispatch;
@@ -88,6 +88,19 @@ impl<C: 'static, M: 'static> PersonalAccounts for PersonalAccountsClient<C, M> w
 			|(json, pass, )| {
 				let store = take_weak!(self.accounts);
 				match store.import_presale(json.as_bytes(), &pass).or_else(|_| store.import_wallet(json.as_bytes(), &pass)) {
+					Ok(address) => Ok(to_value(&RpcH160::from(address))),
+					Err(e) => Err(errors::account("Could not create account.", e)),
+				}
+			}
+		)
+	}
+
+	fn new_account_from_secret(&self, params: Params) -> Result<Value, Error> {
+		try!(self.active());
+		from_params::<(RpcH256, String, )>(params).and_then(
+			|(secret, pass, )| {
+				let store = take_weak!(self.accounts);
+				match store.insert_account(secret.into(), &pass) {
 					Ok(address) => Ok(to_value(&RpcH160::from(address))),
 					Err(e) => Err(errors::account("Could not create account.", e)),
 				}
