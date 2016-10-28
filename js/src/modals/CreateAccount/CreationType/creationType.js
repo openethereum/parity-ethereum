@@ -51,8 +51,8 @@ export default class CreationType extends Component {
             label='Import account from an Ethereum pre-sale wallet'
             value='fromPresale' />
           <RadioButton
-            label='Import private key directly'
-            value='fromPrivate' />
+            label='Import raw private key'
+            value='fromRaw' />
         </RadioButtonGroup>
       </div>
     );
