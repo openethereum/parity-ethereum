@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::stats::Histogram;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -200,9 +201,6 @@ pub trait BlockChainClient : Sync + Send {
 				let block = BlockView::new(&block_bytes);
 				let header = block.header_view();
 				if header.number() == 0 {
-					if corpus.is_empty() {
-						corpus.push(20_000_000_000u64.into());	// we have literally no information - it' as good a number as any.
-					}
 					break;
 				}
 				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
@@ -213,41 +211,19 @@ pub trait BlockChainClient : Sync + Send {
 		corpus
 	}
 
-	/// Calculate median gas price from recent blocks.
-	fn gas_price_median(&self, sample_size: usize) -> U256 {
+	/// Calculate median gas price from recent blocks if they have any transactions.
+	fn gas_price_median(&self, sample_size: usize) -> Option<U256> {
 		let corpus = self.gas_price_corpus(sample_size);
-		corpus.get(corpus.len()/2).expect("corpus returns at least one element; qed").clone()
+		corpus.get(corpus.len()/2).cloned()
 	}
 
-	/// Get the gas price distribution based on recent blocks.
-	fn gas_price_histogram(&self, sample_size: usize, bucket_number: usize) -> (Vec<U256>, Vec<u64>) {
+	/// Get the gas price distribution based on recent blocks if they have any transactions.
+	fn gas_price_histogram(&self, sample_size: usize, bucket_number: usize) -> Option<Histogram> {
 		let raw_corpus = self.gas_price_corpus(sample_size);
 		let raw_len = raw_corpus.len();
 		// Throw out outliers.
 		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
-		let corpus_end = corpus.last().expect("corpus returns at least one element; qed").clone();
-		// If there are extremely few transactions, go from zero.
-		let corpus_start = if raw_len > bucket_number {
-			corpus.first().expect("corpus returns at least one element; qed").clone()
-		} else {
-			0.into()	
-		};
-		let bucket_size = (corpus_end - corpus_start + 1.into()) / bucket_number.into();
-		let mut bucket_end = corpus_start + bucket_size;
-
-		let mut bucket_bounds = vec![corpus_start; bucket_number + 1];
-		let mut counts = vec![0; bucket_number];
-		let mut corpus_i = 0;
-		// Go through the corpus adding to buckets.
-		for bucket in 0..bucket_number {
-			while corpus[corpus_i] < bucket_end {
-				counts[bucket] += 1;
-				corpus_i += 1;
-			}
-			bucket_bounds[bucket + 1] = bucket_end;
-			bucket_end = bucket_end + bucket_size;
-		}
-		(bucket_bounds, counts)
+		Histogram::new(corpus, bucket_number)
 	}
 }
 
