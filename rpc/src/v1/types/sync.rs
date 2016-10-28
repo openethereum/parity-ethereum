@@ -32,10 +32,13 @@ pub struct SyncInfo {
 	pub highest_block: U256,
 	/// Warp sync snapshot chunks total.
 	#[serde(rename="warpChunksAmount")]
-	pub warp_chunks_amount: Option<u32>,
+	pub warp_chunks_amount: Option<U256>,
 	/// Warp sync snpashot chunks processed.
 	#[serde(rename="warpChunksProcessed")]
-	pub warp_chunks_processed: Option<u32>,
+	pub warp_chunks_processed: Option<U256>,
+	/// Describes the gap in the blockchain, if there is one: (first, last)
+	#[serde(rename="blockGap")]
+	pub block_gap: Option<(U256, U256)>,
 }
 
 /// Peers info
