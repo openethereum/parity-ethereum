@@ -123,7 +123,7 @@ export default class RawKey extends Component {
 
     if (!value || !value.trim().length) {
       error = ERRORS.noKey;
-    } else if (value.substr(0, 2) !== '0x' || value.length !== 64 || !api.util.isHex(value)) {
+    } else if (value.substr(0, 2) !== '0x' || value.length !== 66 /* 64 + 2 for ox */ || !api.util.isHex(value)) {
       error = ERRORS.invalidKey;
     }
 

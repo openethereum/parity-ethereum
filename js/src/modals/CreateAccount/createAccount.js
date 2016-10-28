@@ -229,6 +229,28 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
+    } else if (createType === 'fromRaw') {
+      return api.personal
+        .newAccountFromSecret(this.state.rawKey, this.state.password)
+        .then((address) => {
+          this.setState({ address });
+          return api.personal
+            .setAccountName(address, this.state.name)
+            .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+        })
+        .then(() => {
+          this.onNext();
+          this.props.onUpdate && this.props.onUpdate();
+        })
+        .catch((error) => {
+          console.error('onCreate', error);
+
+          this.setState({
+            canCreate: true
+          });
+
+          this.newError(error);
+        });
     } else if (createType === 'fromGeth') {
       return api.personal
         .importGethAccounts(this.state.gethAddresses)
