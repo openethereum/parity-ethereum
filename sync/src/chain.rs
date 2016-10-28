@@ -123,6 +123,7 @@ const MAX_NEW_BLOCK_AGE: BlockNumber = 20;
 const MAX_TRANSACTION_SIZE: usize = 300*1024;
 // Min number of blocks to be behind for a snapshot sync
 const SNAPSHOT_RESTORE_THRESHOLD: BlockNumber = 100000;
+const SNAPSHOT_MIN_PEERS: usize = 3;
 
 const STATUS_PACKET: u8 = 0x00;
 const NEW_BLOCK_HASHES_PACKET: u8 = 0x01;
@@ -147,6 +148,7 @@ const SNAPSHOT_DATA_PACKET: u8 = 0x14;
 
 pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x15;
 
+const WAIT_PEERS_TIMEOUT_SEC: u64 = 5;
 const STATUS_TIMEOUT_SEC: u64 = 5;
 const HEADERS_TIMEOUT_SEC: u64 = 15;
 const BODIES_TIMEOUT_SEC: u64 = 10;
@@ -158,7 +160,9 @@ const SNAPSHOT_DATA_TIMEOUT_SEC: u64 = 60;
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
 pub enum SyncState {
-	/// Waiting for pv64 peers to start snapshot syncing
+	/// Collecting enough peers to start syncing.
+	WaitingPeers,
+	/// Waiting for snapshot manifest download
 	SnapshotManifest,
 	/// Downloading snapshot data
 	SnapshotData,
@@ -325,13 +329,13 @@ pub struct ChainSync {
 	network_id: U256,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
-	/// Snapshot sync allowed.
-	snapshot_sync_enabled: bool,
 	/// Snapshot downloader.
 	snapshot: Snapshot,
 	/// Connected peers pending Status message.
 	/// Value is request timestamp.
 	handshaking_peers: HashMap<PeerId, u64>,
+	/// Sync start timestamp. Measured when first peer is connected
+	sync_start_time: Option<u64>,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -341,7 +345,7 @@ impl ChainSync {
 	pub fn new(config: SyncConfig, chain: &BlockChainClient) -> ChainSync {
 		let chain_info = chain.chain_info();
 		let mut sync = ChainSync {
-			state: SyncState::Idle,
+			state: if config.warp_sync { SyncState::WaitingPeers } else { SyncState::Idle },
 			starting_block: chain.chain_info().best_block_number,
 			highest_block: None,
 			peers: HashMap::new(),
@@ -352,8 +356,8 @@ impl ChainSync {
 			last_sent_block_number: 0,
 			network_id: config.network_id,
 			fork_block: config.fork_block,
-			snapshot_sync_enabled: config.warp_sync,
 			snapshot: Snapshot::new(),
+			sync_start_time: None,
 		};
 		sync.init_downloaders(chain);
 		sync
@@ -447,9 +451,56 @@ impl ChainSync {
 		self.active_peers.remove(&peer_id);
 	}
 
-	fn start_snapshot_sync(&mut self, io: &mut SyncIo, peer_id: PeerId) {
+	fn maybe_start_snapshot_sync(&mut self, io: &mut SyncIo) {
+		if self.state != SyncState::WaitingPeers {
+			return;
+		}
+		let best_block = io.chain().chain_info().best_block_number;
+
+		let (best_hash, max_peers, snapshot_peers) = {
+			//collect snapshot infos from peers
+			let snapshots = self.peers.iter()
+				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn| best_block < sn && (sn - best_block) > SNAPSHOT_RESTORE_THRESHOLD))
+				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
+
+			let mut snapshot_peers = HashMap::new();
+			let mut max_peers: usize = 0;
+			let mut best_hash = None;
+			for (p, hash) in snapshots {
+				let peers = snapshot_peers.entry(hash).or_insert_with(Vec::new);
+				peers.push(*p);
+				if peers.len() > max_peers {
+					max_peers = peers.len();
+					best_hash = Some(hash);
+				}
+			}
+			(best_hash, max_peers, snapshot_peers)
+		};
+
+		let timeout = self.sync_start_time.map_or(false, |t| ((time::precise_time_ns() - t) / 1_000_000_000) > WAIT_PEERS_TIMEOUT_SEC);
+
+		if let (Some(hash), Some(peers)) = (best_hash, best_hash.map_or(None, |h| snapshot_peers.get(&h))) {
+			if max_peers >= SNAPSHOT_MIN_PEERS {
+				trace!(target: "sync", "Starting confirmed snapshot sync {:?} with {:?}", hash, peers);
+				self.start_snapshot_sync(io, peers);
+			} else if timeout {
+				trace!(target: "sync", "Starting unconfirmed snapshot sync {:?} with {:?}", hash, peers);
+				self.start_snapshot_sync(io, peers);
+			}
+		} else if timeout {
+			trace!(target: "sync", "No snapshots found, starting full sync");
+			self.state = SyncState::Idle;
+			self.continue_sync(io);
+		}
+	}
+
+	fn start_snapshot_sync(&mut self, io: &mut SyncIo, peers: &[PeerId]) {
 		self.snapshot.clear();
-		self.request_snapshot_manifest(io, peer_id);
+		for p in peers {
+			if self.peers.get(p).map_or(false, |p| p.asking == PeerAsking::Nothing) {
+				self.request_snapshot_manifest(io, *p);
+			}
+		}
 		self.state = SyncState::SnapshotManifest;
 	}
 
@@ -502,7 +553,12 @@ impl ChainSync {
 			block_set: None,
 		};
 
-		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{})", peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis);
+		if self.sync_start_time.is_none() {
+			self.sync_start_time = Some(time::precise_time_ns());
+		}
+
+		trace!(target: "sync", "New peer {} (protocol: {}, network: {:?}, difficulty: {:?}, latest:{}, genesis:{}, snapshot:{:?})",
+			peer_id, peer.protocol_version, peer.network_id, peer.difficulty, peer.latest_hash, peer.genesis, peer.snapshot_number);
 		if io.is_expired() {
 			trace!(target: "sync", "Status packet from expired session {}:{}", peer_id, io.peer_info(peer_id));
 			return Ok(());
@@ -584,7 +640,7 @@ impl ChainSync {
 		}
 		let item_count = r.item_count();
 		trace!(target: "sync", "{} -> BlockHeaders ({} entries), state = {:?}, set = {:?}", peer_id, item_count, self.state, block_set);
-		if self.state == SyncState::Idle && self.old_blocks.is_none() {
+		if (self.state == SyncState::Idle || self.state == SyncState::WaitingPeers) && self.old_blocks.is_none() {
 			trace!(target: "sync", "Ignored unexpected block headers");
 			self.continue_sync(io);
 			return Ok(());
@@ -881,7 +937,7 @@ impl ChainSync {
 		}
 		self.clear_peer_download(peer_id);
 		if !self.reset_peer_asking(peer_id, PeerAsking::SnapshotManifest) || self.state != SyncState::SnapshotManifest {
-			trace!(target: "sync", "{}: Ignored unexpected manifest", peer_id);
+			trace!(target: "sync", "{}: Ignored unexpected/expired manifest", peer_id);
 			self.continue_sync(io);
 			return Ok(());
 		}
@@ -924,7 +980,7 @@ impl ChainSync {
 		match io.snapshot_service().status() {
 			RestorationStatus::Inactive | RestorationStatus::Failed => {
 				trace!(target: "sync", "{}: Snapshot restoration aborted", peer_id);
-				self.state = SyncState::Idle;
+				self.state = SyncState::WaitingPeers;
 				self.snapshot.clear();
 				self.continue_sync(io);
 				return Ok(());
@@ -989,7 +1045,7 @@ impl ChainSync {
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		if self.state != SyncState::Waiting && self.state != SyncState::SnapshotWaiting
+		if self.state != SyncState::Waiting && self.state != SyncState::SnapshotWaiting && self.state != SyncState::WaitingPeers
 			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync()) {
 			self.complete_sync(io);
 		}
@@ -1049,11 +1105,9 @@ impl ChainSync {
 		let higher_difficulty = peer_difficulty.map_or(true, |pd| pd > syncing_difficulty);
 		if force || self.state == SyncState::NewBlocks || higher_difficulty || self.old_blocks.is_some() {
 			match self.state {
-				SyncState::Idle if self.snapshot_sync_enabled
-					&& chain_info.best_block_number < peer_snapshot_number
-					&& (peer_snapshot_number - chain_info.best_block_number) > SNAPSHOT_RESTORE_THRESHOLD => {
-					trace!(target: "sync", "Starting snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
-					self.start_snapshot_sync(io, peer_id);
+				SyncState::WaitingPeers => {
+					trace!(target: "sync", "Checking snapshot sync: {} vs {}", peer_snapshot_number, chain_info.best_block_number);
+					self.maybe_start_snapshot_sync(io);
 				},
 				SyncState::Idle | SyncState::Blocks | SyncState::NewBlocks => {
 					if io.chain().queue_info().is_full() {
@@ -1847,6 +1901,7 @@ impl ChainSync {
 
 	/// Maintain other peers. Send out any new blocks and transactions
 	pub fn maintain_sync(&mut self, io: &mut SyncIo) {
+		self.maybe_start_snapshot_sync(io);
 		self.check_resume(io);
 	}
 
