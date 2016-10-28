@@ -63,6 +63,12 @@ pub enum TransactionError {
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
+	/// Transaction sender is banned.
+	SenderBanned,
+	/// Transaction receipient is banned.
+	RecipientBanned,
+	/// Contract creation code is banned.
+	CodeBanned,
 }
 
 impl fmt::Display for TransactionError {
@@ -81,6 +87,9 @@ impl fmt::Display for TransactionError {
 			GasLimitExceeded { limit, got } =>
 				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
 			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
+			SenderBanned => "Sender is temporarily banned.".into(),
+			RecipientBanned => "Recipient is temporarily banned.".into(),
+			CodeBanned => "Contract code is temporarily banned.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))
