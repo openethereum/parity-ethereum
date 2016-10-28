@@ -15,7 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Bar as BarChart, Line as LineChart, Bubble as BubbleChart } from 'react-chartjs-2';
+
+import {
+  Area, AreaChart,
+  Line,
+  LineChart,
+  Tooltip,
+  XAxis, YAxis,
+  ResponsiveContainer
+} from 'recharts';
+
 import Slider from 'material-ui/Slider';
 import BigNumber from 'bignumber.js';
 
@@ -24,84 +33,32 @@ import mainStyles from '../transfer.css';
 
 const styles = Object.assign({}, mainStyles, componentStyles);
 
-const BAR_CHART_OPTIONS = {
-  animation: false,
-  maintainAspectRatio: false,
-  legend: { display: false },
-  tooltips: { callbacks: { title: () => '' } },
-  scales: {
-    xAxes: [{
-      display: true,
-      gridLines: { display: false },
-      labels: { show: true },
-      barPercentage: 1.0,
-      categoryPercentage: 1.0
-    }],
-    yAxes: [{ display: false, type: 'linear' }]
+class CustomTooltip extends Component {
+  static propTypes = {
+    type: PropTypes.string,
+    payload: PropTypes.array,
+    label: PropTypes.number,
+    active: PropTypes.bool
   }
-};
 
-const LINE_CHART_OPTIONS = {
-  animation: false,
-  maintainAspectRatio: false,
-  legend: { display: false },
-  scales: {
-    xAxes: [{ display: true, ticks: { display: true } }],
-    yAxes: [{ display: false, type: 'linear' }]
+  render () {
+    const { active } = this.props;
+
+    if (!active) {
+      return null;
+    }
+
+    const { payload } = this.props;
+
+    const gasPrice = new BigNumber(payload[0].value || 0);
+
+    return (
+      <div>
+        <p className='label'>{ gasPrice.toFormat(0) }</p>
+      </div>
+    );
   }
-};
-
-const BAR_CHART_DATA = {
-  datasets: [{
-    label: 'Gas Price',
-    type: 'bar',
-    backgroundColor: 'rgba(255, 99, 132, 0.2)',
-    borderColor: 'rgba(255,99,132,1)',
-    borderWidth: 1
-  }]
-};
-
-const LINE_CHART_DATA = {
-  datasets: [{
-    label: 'Gas Price',
-    type: 'line',
-    cubicInterpolationMode: 'monotone',
-    lineTension: 0,
-    fill: false,
-    borderColor: '#EC932F',
-    backgroundColor: '#EC932F',
-    pointRadius: 0
-  }]
-};
-
-const BUBBLE_CHART_OPTIONS = {
-  animation: false,
-  maintainAspectRatio: false,
-  legend: { display: false },
-  scales: {
-    xAxes: [{ display: true, ticks: {
-      min: 0,
-      callback: () => '  '
-    } }],
-    yAxes: [{ display: false }]
-  }
-};
-
-const BUBBLE_CHART_DATA = {
-  datasets: [{
-    label: 'Gas Point',
-    backgroundColor: '#EC932F',
-    hoverBackgroundColor: '#EC932F',
-    data: [{
-      x: 0, y: 0, r: 0
-    }]
-  }]
-};
-
-const CHART_TICKS = {
-  min: 0,
-  beginAtZero: true
-};
+}
 
 export default class GasPriceSelector extends Component {
   static propTypes = {
@@ -117,13 +74,9 @@ export default class GasPriceSelector extends Component {
   state = {
     gasPrice: null,
     sliderValue: 0,
+    selectedIndex: 0,
 
-    lineChartData: null,
-    barChartData: null,
-    lineChartOptions: null,
-    barChartOptions: null,
-    bubbleChartData: null,
-    bubbleChartOptions: null
+    chartData: []
   }
 
   componentWillMount () {
@@ -174,46 +127,161 @@ export default class GasPriceSelector extends Component {
   }
 
   renderChart () {
-    const {
-      lineChartData, lineChartOptions,
-      barChartData, barChartOptions,
-      bubbleChartData, bubbleChartOptions
-    } = this.state;
+    const { chartData, selectedIndex, sliderValue } = this.state;
 
-    if (!lineChartData) {
+    if (chartData.length === 0) {
       return null;
     }
 
     const height = 350;
 
+    const axis = {
+      xDomain: [0, chartData.length],
+      yDomain: [0, this.props.gasPriceStatistics.slice(-1)[0].toNumber() * 1.1]
+    };
+
+    const N = chartData.length - 1;
+
+    const offsets = {
+      min: 100 * selectedIndex / N,
+      max: 100 * (selectedIndex + 1) / N
+    };
+
+    const colors = {
+      default: 'rgba(255, 99, 132, 0.2)',
+      selected: 'rgba(255, 99, 132, 0.5)',
+      hover: 'rgba(255, 99, 132, 0.35)',
+      grid: 'rgba(255, 99, 132, 0.5)',
+      line: 'rgb(255, 99, 132)',
+      intersection: '#fff'
+    };
+
+    const gradientValues = chartData.map((d, index) => ({
+      start: (100 * index / N) - 0.25,
+      end: (100 * index / N) + 0.25,
+      color: colors.grid
+    }));
+
+    gradientValues.push({
+      start: offsets.min,
+      end: offsets.max,
+      color: colors.selected
+    });
+
+    const gradients = gradientValues
+      .sort((a, b) => a.start - b.start)
+      .reduce((current, datum) => {
+        current.push({
+          value: datum.start,
+          color: colors.default
+        });
+
+        current.push({
+          value: datum.start,
+          color: datum.color
+        });
+
+        current.push({
+          value: datum.end,
+          color: datum.color
+        });
+
+        current.push({
+          value: datum.end,
+          color: colors.default
+        });
+
+        return current;
+      }, [])
+      .map((data, index) => (
+        <stop key={ index } offset={ `${data.value}%` } stopColor={ data.color } />
+      ));
+
     return (<div className={ styles.columns }>
       <div style={ { flex: 1, height } }>
         <div className={ styles.chart }>
-          <LineChart
-            responsive
+          <ResponsiveContainer
             height={ height }
-            data={ lineChartData }
-            options={ lineChartOptions }
-          />
+          >
+            <LineChart
+              data={ [
+                { value: sliderValue },
+                { value: sliderValue }
+              ] }
+              margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
+              layout='vertical'
+            >
+
+              <Line
+                dataKey='value'
+                stroke={ colors.intersection }
+                isAnimationActive={ false }
+                dot={ false }
+              />
+
+              <YAxis
+                hide
+                dataKey='value'
+                type='category'
+                domain={ axis.yDomain }
+              />
+              <XAxis
+                hide
+                type='number'
+                domain={ [0, N] }
+              />
+            </LineChart>
+          </ResponsiveContainer>
         </div>
+
         <div className={ styles.chart }>
-          <BubbleChart
-            ref='bubbleChart'
-            responsive
+          <ResponsiveContainer
             height={ height }
-            data={ bubbleChartData }
-            options={ bubbleChartOptions }
-          />
-        </div>
-        <div className={ styles.chart }>
-          <BarChart
-            ref='barChart'
-            responsive
-            height={ height }
-            data={ barChartData }
-            options={ barChartOptions }
-            onElementsClick={ this.onClickGasPrice }
-          />
+          >
+            <AreaChart
+              data={ chartData }
+              margin={ { top: 0, right: 0, left: 0, bottom: 0 } }
+            >
+              <defs>
+                <linearGradient
+                  id='selectedColor'
+                  x1='0' y1='0' x2='1' y2='0'
+                >
+                  { gradients }
+                </linearGradient>
+              </defs>
+
+              <Area
+                type='monotone'
+                dataKey='value'
+                stroke={ colors.line }
+                fillOpacity={ 1 }
+                fill='url(#selectedColor)'
+                onClick={ this.onClickGasPrice }
+              />
+
+              <Tooltip
+                wrapperStyle={ {
+                  backgroundColor: 'rgba(0, 0, 0, 0.75)',
+                  padding: '0 0.5em',
+                  fontSize: '0.9em'
+                } }
+                content={ <CustomTooltip /> }
+              />
+
+              <XAxis
+                hide
+                dataKey='value'
+                type='category'
+                domain={ axis.xDomain }
+              />
+              <YAxis
+                hide
+                type='number'
+                domain={ axis.yDomain }
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       </div>
     </div>);
@@ -221,86 +289,25 @@ export default class GasPriceSelector extends Component {
 
   computeChartsData () {
     const { gasPriceChartData } = this.state;
-    const [ avgData, data ] = gasPriceChartData;
+    const chartData = gasPriceChartData
+      .map(value => ({ value }));
 
-    const lineChartData = { ...LINE_CHART_DATA };
-    const lineChartOptions = { ...LINE_CHART_OPTIONS };
-    const barChartData = { ...BAR_CHART_DATA };
-    const barChartOptions = { ...BAR_CHART_OPTIONS };
-    const bubbleChartData = { ...BUBBLE_CHART_DATA };
-    const bubbleChartOptions = { ...BUBBLE_CHART_OPTIONS };
-
-    const ticks = {
-      ...CHART_TICKS,
-      max: data[data.length - 1] * 1.1
-    };
-
-    barChartOptions.tooltips.callbacks.label = (item, data) => {
-      const { index } = item;
-      const gasPriceA = this.props.gasPriceStatistics[index];
-      const gasPriceB = this.props.gasPriceStatistics[index + 1];
-      return `${gasPriceA.toFormat(0)} => ${gasPriceB.toFormat(0)}`;
-    };
-
-    barChartOptions.scales.yAxes[0].ticks = ticks;
-    lineChartOptions.scales.yAxes[0].ticks = ticks;
-
-    bubbleChartOptions.scales.yAxes[0].ticks = ticks;
-    bubbleChartOptions.scales.xAxes[0].ticks.max = avgData.length - 0.05;
-
-    lineChartData.labels = data.map((d, index) => ' ');
-    lineChartData.datasets[0].data = data;
-
-    barChartData.labels = avgData.map((d, index) => index + 1);
-    barChartData.datasets[0].data = avgData;
-    barChartData.datasets[0].backgroundColor = this.getBarChartBackgrounds();
-
-    this.setState({
-      lineChartData, barChartData, bubbleChartData,
-      lineChartOptions, barChartOptions, bubbleChartOptions
-    });
+    this.setState({ chartData });
   }
 
   computeCharts (props = this.props) {
     const { gasPriceStatistics } = props;
 
-    const data = gasPriceStatistics.map(stat => stat.toNumber());
-    const avgData = gasPriceStatistics
-      .slice(0, -1)
-      .map((a, index) => {
-        const b = gasPriceStatistics[index + 1];
-        return a.plus(b).dividedBy(2).toNumber();
-      });
+    const gasPriceChartData = gasPriceStatistics
+      .map(stat => stat.toNumber());
 
     this.setState(
-      { gasPriceChartData: [ avgData, data ] },
+      { gasPriceChartData },
       () => this.computeChartsData()
     );
   }
 
   updateSelectedBarChart (state = this.state) {
-    const barChartData = { ...state.barChartData };
-    barChartData.datasets[0].backgroundColor = this.getBarChartBackgrounds(state);
-
-    this.setState({ barChartData }, () => {
-      this.refs.barChart.chart_instance.update();
-    });
-  }
-
-  getBarChartBackgrounds (state = this.state) {
-    const { sliderValue, gasPriceChartData } = state;
-    const [ avgData ] = gasPriceChartData;
-
-    const index = Math.min(
-      avgData.length - 1,
-      Math.floor(sliderValue)
-    );
-
-    const backgrounds = avgData
-      .map((d, idx) => (idx === index) || (index === sliderValue && idx === index - 1) ? 0.4 : 0.2)
-      .map((a) => `rgba(255, 99, 132, ${a})`);
-
-    return backgrounds;
   }
 
   setGasPrice (props = this.props) {
@@ -364,37 +371,19 @@ export default class GasPriceSelector extends Component {
     const { gasPriceStatistics } = this.props;
 
     const sliderValue = Math.min(value, gasPriceStatistics.length - 1);
+    const selectedIndex = Math.min(Math.floor(sliderValue), gasPriceStatistics.length - 2);
 
-    this.setState(
-      { sliderValue, gasPrice },
-      () => this.updateGasPointChart(this.state, gasPrice)
-    );
+    this.setState({ sliderValue, gasPrice, selectedIndex });
   }
 
-  updateGasPointChart (state = this.state, gasPriceIn = this.state.gasPrice) {
-    const bubbleChartData = { ...BUBBLE_CHART_DATA };
-    const { sliderValue } = state;
+  onClickGasPrice = (event) => {
+    const { left, right } = event.target.getBoundingClientRect();
+    const { clientX } = event;
 
-    const gasPrice = gasPriceIn || this.props.gasPrice;
+    const ratio = (clientX - left) / (right - left);
+    const index = (this.props.gasPriceStatistics.length - 1) * ratio;
 
-    if (gasPrice) {
-      bubbleChartData.datasets[0].data[0] = {
-        x: sliderValue,
-        y: (new BigNumber(gasPrice)).toNumber(),
-        r: 5
-      };
-    }
-
-    this.setState({ bubbleChartData }, () => {
-      if (this.refs.bubbleChart) {
-        this.refs.bubbleChart.chart_instance.update();
-      }
-    });
-  }
-
-  onClickGasPrice = (items) => {
-    const index = items.shift()._index;
-    this.onEditGasPriceSlider(null, index + 0.5);
+    this.onEditGasPriceSlider(null, index);
   }
 
   onEditGasPriceSlider = (event, sliderValue) => {

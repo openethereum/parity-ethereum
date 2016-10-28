@@ -65,7 +65,7 @@ export default class Extras extends Component {
             className={ styles.row }
             style={ {
               flex: 35, paddingLeft: '1rem',
-              justifyContent: 'space-between',
+              justifyContent: 'space-around',
               paddingBottom: 12
             } }
           >
