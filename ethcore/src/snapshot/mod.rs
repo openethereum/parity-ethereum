@@ -543,17 +543,23 @@ pub struct BlockRebuilder {
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
+	best_hash: H256,
+	best_root: H256,
+	fed_blocks: u64,
 }
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, manifest: &ManifestData) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
-			best_number: best_number,
+			best_number: manifest.block_number,
+			best_hash: manifest.block_hash,
+			best_root: manifest.state_root,
+			fed_blocks: 0,
 		})
 	}
 
@@ -566,6 +572,7 @@ impl BlockRebuilder {
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
+		let num_blocks = (item_count - 3) as u64;
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
 
@@ -585,14 +592,24 @@ impl BlockRebuilder {
 
 			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
+			let is_best = cur_number == self.best_number;
 
-			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
+			if is_best {
+				if block.header.hash() != self.best_hash {
+					return Err(Error::WrongBestHash(self.best_hash, block.header.hash()).into())
+				}
+
+				if block.header.state_root() != &self.best_root {
+					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+				}
+			}
+
+			if is_best || self.rng.gen::<f32>() <= POW_VERIFY_RATE {
 				try!(engine.verify_block_seal(&block.header))
 			} else {
 				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
 			}
 
-			let is_best = cur_number == self.best_number;
 			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
@@ -610,11 +627,14 @@ impl BlockRebuilder {
 			cur_number += 1;
 		}
 
-		Ok(item_count as u64 - 3)
+		self.fed_blocks += num_blocks;
+		Ok(num_blocks)
 	}
 
-	/// Glue together any disconnected chunks. To be called at the end.
-	pub fn glue_chunks(self) {
+	/// Glue together any disconnected chunks and check that the chain is complete.
+	pub fn finalize(self) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+
 		for (first_num, first_hash) in self.disconnected {
 			let parent_num = first_num - 1;
 
@@ -623,8 +643,18 @@ impl BlockRebuilder {
 			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				self.chain.add_child(parent_hash, first_hash);
+				self.chain.add_child(&mut batch, parent_hash, first_hash);
 			}
 		}
+		self.db.write_buffered(batch);
+
+		let best_number = self.best_number;
+		for num in (0..self.fed_blocks).map(|x| best_number - x) {
+			if self.chain.block_hash(num).is_none() {
+				return Err(Error::IncompleteChain)
+			}
+		}
+
+		Ok(())
 	}
 }

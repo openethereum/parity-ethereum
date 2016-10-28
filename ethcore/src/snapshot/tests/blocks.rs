@@ -58,18 +58,20 @@ fn chunk_and_restore(amount: u64) {
 	// snapshot it.
 	let writer = Mutex::new(PackedWriter::new(&snapshot_path).unwrap());
 	let block_hashes = chunk_blocks(&bc, best_hash, &writer, &Progress::default()).unwrap();
-	writer.into_inner().finish(::snapshot::ManifestData {
+	let manifest = ::snapshot::ManifestData {
 		state_hashes: Vec::new(),
 		block_hashes: block_hashes,
-		state_root: Default::default(),
+		state_root: ::util::sha3::SHA3_NULL_RLP,
 		block_number: amount,
 		block_hash: best_hash,
-	}).unwrap();
+	};
+
+	writer.into_inner().finish(manifest.clone()).unwrap();
 
 	// restore it.
 	let new_db = Arc::new(Database::open(&db_cfg, new_path.as_str()).unwrap());
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db.clone());
-	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), amount).unwrap();
+	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), &manifest).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
 	for chunk_hash in &reader.manifest().block_hashes {
@@ -78,7 +80,7 @@ fn chunk_and_restore(amount: u64) {
 		rebuilder.feed(&chunk, &engine).unwrap();
 	}
 
-	rebuilder.glue_chunks();
+	rebuilder.finalize().unwrap();
 
 	// and test it.
 	let new_chain = BlockChain::new(Default::default(), &genesis, new_db);

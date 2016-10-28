@@ -99,7 +99,7 @@ impl Restoration {
 			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
-		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), manifest.block_number));
+		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), &manifest));
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
@@ -161,8 +161,8 @@ impl Restoration {
 		// check for missing code.
 		try!(self.state.check_missing());
 
-		// connect out-of-order chunks.
-		self.blocks.glue_chunks();
+		// connect out-of-order chunks and verify chain integrity.
+		try!(self.blocks.finalize());
 
 		if let Some(writer) = self.writer {
 			try!(writer.finish(self.manifest));
