@@ -2,7 +2,7 @@
 # Running Parity Full Test Sute
 
 FEATURES="json-tests"
-OPTIONS="-v --release"
+OPTIONS="--verbose --release"
 
 case $1 in
     --no-json)
