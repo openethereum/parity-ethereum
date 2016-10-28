@@ -110,6 +110,11 @@ export default class CreateAccount extends Component {
             <RecoveryPhrase
               onChange={ this.onChangeDetails } />
           );
+        } else if (createType === 'fromPrivate') {
+          return (
+            <PrivateKey
+              onChange={ this.onChangePrivate } />
+          );
         }
 
         return (
@@ -297,6 +302,9 @@ export default class CreateAccount extends Component {
       password,
       phrase
     });
+  }
+
+  onChangePrivate = (valid, privateKey) => {
   }
 
   onChangeGeth = (valid, gethAddresses) => {
