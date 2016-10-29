@@ -520,7 +520,7 @@ mod tests {
 	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
 	use error::ExecutionError;
-	use state::Substate;
+	use state::{Substate, CleanupMode};
 	use tests::helpers::*;
 	use trace::trace;
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};

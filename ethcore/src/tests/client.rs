@@ -16,6 +16,7 @@
 
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockID};
+use state::CleanupMode;
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
