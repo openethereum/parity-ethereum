@@ -118,34 +118,36 @@ export default class RawKey extends Component {
 
   onEditKey = (event) => {
     const { api } = this.context;
-    const value = event.target.value;
-    let error = null;
+    const rawKey = event.target.value;
+    let rawKeyError = null;
 
-    if (!value || !value.trim().length) {
-      error = ERRORS.noKey;
-    } else if (value.substr(0, 2) !== '0x' || value.length !== 66 /* 64 + 2 for ox */ || !api.util.isHex(value)) {
-      error = ERRORS.invalidKey;
+    console.log(rawKey.length, rawKey);
+
+    if (!rawKey || !rawKey.trim().length) {
+      rawKeyError = ERRORS.noKey;
+    } else if (rawKey.substr(0, 2) !== '0x' || rawKey.substr(2).length !== 64 || !api.util.isHex(rawKey)) {
+      rawKeyError = ERRORS.invalidKey;
     }
 
     this.setState({
-      rawKey: value,
-      rawKeyError: error,
-      isValidKey: !error
+      rawKey,
+      rawKeyError,
+      isValidKey: !rawKeyError
     }, this.updateParent);
   }
 
   onEditAccountName = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const accountName = event.target.value;
+    let accountNameError = null;
 
-    if (!value || value.trim().length < 2) {
-      error = ERRORS.noName;
+    if (!accountName || accountName.trim().length < 2) {
+      accountNameError = ERRORS.noName;
     }
 
     this.setState({
-      accountName: value,
-      accountNameError: error,
-      isValidName: !error
+      accountName,
+      accountNameError,
+      isValidName: !accountNameError
     }, this.updateParent);
   }
 
