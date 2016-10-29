@@ -354,10 +354,7 @@ impl State {
 
 	/// Determine whether an account exists and if not empty.
 	pub fn exists_and_not_null(&self, a: &Address) -> bool {
-		match self.db.check_account_bloom(a) {
-			false => false,
-			true => self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
-		}
+		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
 	/// Get the balance of account `a`.
@@ -414,7 +411,7 @@ impl State {
 		}
 
 		// check bloom before any requests to trie
-		if !self.db.check_account_bloom(address) { return H256::zero() }
+		if !self.db.check_non_null_bloom(address) { return H256::zero() }
 
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -537,7 +534,7 @@ impl State {
 					account.commit_code(account_db.as_hashdb_mut());
 				}
 				if !account.is_empty() {
-					db.note_account_bloom(address);
+					db.note_non_null_account(address);
 				}
 			}
 		}
@@ -678,7 +675,7 @@ impl State {
 			Some(r) => r,
 			None => {
 				// first check bloom if it is not in database for sure
-				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
+				if check_bloom && !self.db.check_non_null_bloom(a) { return f(None); }
 
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
@@ -712,7 +709,7 @@ impl State {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					let maybe_acc = if self.db.check_account_bloom(a) {
+					let maybe_acc = if self.db.check_non_null_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 						match db.get(a) {
 							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),

@@ -165,13 +165,13 @@ impl StateDB {
 		bloom
 	}
 
-	pub fn check_account_bloom(&self, address: &Address) -> bool {
+	pub fn check_non_null_bloom(&self, address: &Address) -> bool {
 		trace!(target: "account_bloom", "Check account bloom: {:?}", address);
 		let bloom = self.account_bloom.lock();
 		bloom.check(&*address.sha3())
 	}
 
-	pub fn note_account_bloom(&self, address: &Address) {
+	pub fn note_non_null_account(&self, address: &Address) {
 		trace!(target: "account_bloom", "Note account bloom: {:?}", address);
 		let mut bloom = self.account_bloom.lock();
 		bloom.set(&*address.sha3());
