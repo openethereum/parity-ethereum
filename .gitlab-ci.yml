@@ -390,7 +390,6 @@ js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
-    - jg-npmjs
     - master
   before_script:
     - ./js/scripts/install-deps.sh
