@@ -58,7 +58,7 @@ impl Default for SyncConfig {
 			network_id: U256::from(1),
 			subprotocol_name: *b"eth",
 			fork_block: None,
-			warp_sync: true,
+			warp_sync: false,
 		}
 	}
 }
