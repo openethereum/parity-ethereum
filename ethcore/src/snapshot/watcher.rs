@@ -16,6 +16,7 @@
 
 //! Watcher for snapshot-related chain events.
 
+use util::Mutex;
 use client::{BlockChainClient, Client, ChainNotify};
 use ids::BlockID;
 use service::ClientIoMessage;
@@ -55,7 +56,7 @@ trait Broadcast: Send + Sync {
 	fn take_at(&self, num: Option<u64>);
 }
 
-impl Broadcast for IoChannel<ClientIoMessage> {
+impl Broadcast for Mutex<IoChannel<ClientIoMessage>> {
 	fn take_at(&self, num: Option<u64>) {
 		let num = match num {
 			Some(n) => n,
@@ -64,7 +65,7 @@ impl Broadcast for IoChannel<ClientIoMessage> {
 
 		trace!(target: "snapshot_watcher", "broadcast: {}", num);
 
-		if let Err(e) = self.send(ClientIoMessage::TakeSnapshot(num)) {
+		if let Err(e) = self.lock().send(ClientIoMessage::TakeSnapshot(num)) {
 			warn!("Snapshot watcher disconnected from IoService: {}", e);
 		}
 	}
@@ -91,7 +92,7 @@ impl Watcher {
 				client: client,
 				sync_status: sync_status,
 			}),
-			broadcast: Box::new(channel),
+			broadcast: Box::new(Mutex::new(channel)),
 			period: period,
 			history: history,
 		}
