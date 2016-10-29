@@ -133,7 +133,7 @@ impl<'db> TrieDB<'db> {
 	}
 
 	/// Get the data of the root node.
-	fn root_data<'a, R: 'a + Recorder>(&self, r: &'a mut R) -> super::Result<DBValue> {
+	fn root_data<R: Recorder>(&self, r: &mut R) -> super::Result<DBValue> {
 		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 			.map(|node| { r.record(self.root, &*node, 0); node })
 	}
