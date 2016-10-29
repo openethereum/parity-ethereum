@@ -39,7 +39,7 @@ function createPackage (pkgName) {
       process.exit(1);
     }
 
-    fs.writeJson(destJson, pkg, (error) => {
+    fs.writeJson(destJson, pkg.json, (error) => {
       if (error) {
         console.error(`writeJson ${destJson}`, error);
         process.exit(2);
