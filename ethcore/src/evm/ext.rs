@@ -52,6 +52,9 @@ pub trait Ext {
 	/// Determine whether an account exists.
 	fn exists(&self, address: &Address) -> bool;
 
+	/// Determine whether an account exists and is not null (zero balance/nonce, no code).
+	fn exists_and_not_null(&self, address: &Address) -> bool;
+
 	/// Returns address balance.
 	fn balance(&self, address: &Address) -> U256;
 

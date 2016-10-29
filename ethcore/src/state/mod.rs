@@ -345,6 +345,14 @@ impl State {
 		self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
 	}
 
+	/// Determine whether an account exists and if not empty.
+	pub fn exists_and_not_null(&self, a: &Address) -> bool {
+		match self.db.check_account_bloom(a) {
+			false => false,
+			true => self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
+		}
+	}
+
 	/// Get the balance of account `a`.
 	pub fn balance(&self, a: &Address) -> U256 {
 		self.ensure_cached(a, RequireCache::None, true,
@@ -509,13 +517,15 @@ impl State {
 		// first, commit the sub trees.
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
 			if let Some(ref mut account) = a.account {
+				let addr_hash = account.address_hash(address);
+				{
+					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
+					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+					account.commit_code(account_db.as_hashdb_mut());
+				}
 				if !account.is_empty() {
 					db.note_account_bloom(address);
 				}
-				let addr_hash = account.address_hash(address);
-				let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-				account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
-				account.commit_code(account_db.as_hashdb_mut());
 			}
 		}
 
