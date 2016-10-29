@@ -349,10 +349,7 @@ impl State {
 
 	/// Determine whether an account exists and if not empty.
 	pub fn exists_and_not_null(&self, a: &Address) -> bool {
-		match self.db.check_account_bloom(a) {
-			false => false,
-			true => self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
-		}
+		self.ensure_cached(a, RequireCache::None, false, |a| a.map_or(false, |a| !a.is_null()))
 	}
 
 	/// Get the balance of account `a`.
@@ -406,8 +403,10 @@ impl State {
 				}
 			}
 		}
-		// account is not found in the global cache, get from the DB and insert into local
-		if !self.db.check_account_bloom(address) { return H256::zero() }
+
+		// check bloom before any requests to trie
+		if !self.db.check_non_null_bloom(address) { return H256::zero() }
+
 		let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
 			Ok(acc) => acc.map(Account::from_rlp),
@@ -523,7 +522,7 @@ impl State {
 					account.commit_code(&mut account_db);
 				}
 				if !account.is_empty() {
-					db.note_account_bloom(address);
+					db.note_non_null_account(address);
 				}
 			}
 		}
@@ -648,7 +647,9 @@ impl State {
 			Some(r) => r,
 			None => {
 				// first check bloom if it is not in database for sure
-				if check_bloom && !self.db.check_account_bloom(a) { return f(None); }
+				if check_bloom && !self.db.check_non_null_bloom(a) { return f(None); }
+
+				// not found in the global cache, get from the DB and insert into local
 				let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
 					Ok(acc) => acc.map(Account::from_rlp),
@@ -679,14 +680,13 @@ impl State {
 			match self.db.get_cached_account(a) {
 				Some(acc) => self.insert_cache(a, AccountEntry::new_clean_cached(acc)),
 				None => {
-					let maybe_acc = if self.db.check_account_bloom(a) {
+					let maybe_acc = if self.db.check_non_null_bloom(a) {
 						let db = self.trie_factory.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						let maybe_acc = match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(acc))),
+						match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
 							Ok(None) => AccountEntry::new_clean(None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
-						};
-						maybe_acc
+						}
 					}
 					else {
 						AccountEntry::new_clean(None)

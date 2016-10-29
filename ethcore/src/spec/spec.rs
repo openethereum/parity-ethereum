@@ -240,7 +240,7 @@ impl Spec {
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
-				db.note_account_bloom(address);
+				db.note_non_null_account(address);
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));
