@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import fs from 'fs-extra';
+const fs = require('fs-extra');
 
-import mainPackage from './package.json';
-import parityPackage from './parity.package.json';
+const mainPackage = require('./package.json');
+const parityPackage = require('./parity.package.json');
 
 const pkgs = {
   'parity.js': {
@@ -46,7 +46,7 @@ function createPackage (pkgName) {
       }
 
       pkg.files.forEach((file) => {
-        const srcFile = `.dist/${file}`;
+        const srcFile = `.dist/build/${file}`;
         const destFile = `${destDir}/${file}`;
 
         fs.copy(srcFile, destFile, (error) => {
