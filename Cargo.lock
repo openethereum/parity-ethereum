@@ -516,7 +516,7 @@ dependencies = [
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.2 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
+ "ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
 ]
 
 [[package]]
@@ -990,7 +990,7 @@ dependencies = [
 [[package]]
 name = "mio"
 version = "0.6.0-dev"
-source = "git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d#62ec763c9cc34d8a452ed0392c575c50ddd5fc8d"
+source = "git+https://github.com/ethcore/mio?branch=timer-fix#31eccc40ece3d47abaefaf23bb2114033175b972"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1213,7 +1213,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#b65eb2375043a03d425a559910c1a4e5ab71d7d6"
+source = "git+https://github.com/ethcore/js-precompiled.git#5c2278c4456a82229069f13b16ebf5bdb630e34c"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1884,13 +1884,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ws"
-version = "0.5.2"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#00bd2134b07b4bc8ea47b7f6c7afce16bbe34c8f"
+version = "0.5.3"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#0cd6c5e3e9d5e61a37d53eb8dcbad523dcc69314"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.0-dev (git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d)",
+ "mio 0.6.0-dev (git+https://github.com/ethcore/mio?branch=timer-fix)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)",
@@ -1996,7 +1996,7 @@ dependencies = [
 "checksum miniz-sys 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9d1f4d337a01c32e1f2122510fed46393d53ca35a7f429cb0450abaedfa3ed54"
 "checksum mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)" = "<none>"
 "checksum mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a637d1ca14eacae06296a008fa7ad955347e34efcb5891cfd8ba05491a37907e"
-"checksum mio 0.6.0-dev (git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d)" = "<none>"
+"checksum mio 0.6.0-dev (git+https://github.com/ethcore/mio?branch=timer-fix)" = "<none>"
 "checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
@@ -2099,7 +2099,7 @@ dependencies = [
 "checksum webpki 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "813503a5985585e0812d430cd1328ee322f47f66629c8ed4ecab939cf9e92f91"
 "checksum winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "4dfaaa8fbdaa618fa6914b59b2769d690dd7521920a18d84b42d254678dd5fd4"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
-"checksum ws 0.5.2 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
+"checksum ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "65e74b96bd3179209dc70a980da6df843dff09e46eee103a0376c0949257e3ef"
 "checksum xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "472a9d37c7c53ab2391161df5b89b1f3bf76dab6ab150d7941ecbdd832282082"
