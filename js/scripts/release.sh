@@ -67,7 +67,8 @@ git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 
 echo "*** Building packages for npmjs"
 cd js
-echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
+# echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
+echo "$NPM_TOKEN" >> ~/.npmrc
 npm run ci:build:npmjs
 
 for PACKAGE in "${PACKAGES[@]}"
