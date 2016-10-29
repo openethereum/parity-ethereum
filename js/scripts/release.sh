@@ -69,15 +69,12 @@ echo "*** Building packages for npmjs"
 cd js
 # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
 echo "$NPM_TOKEN" >> ~/.npmrc
-npm run ci:build:npmjs
+npm run ci:release:npm
 
-for PACKAGE in "${PACKAGES[@]}"
-do
-  echo "*** Publishing $PACKAGE to npmjs"
-  cd .npmjs/$PACKAGE
-  npm publish --access public
-  cd ../..
-done
+echo "*** Publishing $PACKAGE to npmjs"
+cd .npmjs
+npm publish --access public
+cd ..
 
 # back to root
 echo "*** Release completed"
