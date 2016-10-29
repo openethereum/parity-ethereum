@@ -28,12 +28,17 @@ pub struct Params {
 	/// Maximum size of extra data.
 	#[serde(rename="maximumExtraDataSize")]
 	pub maximum_extra_data_size: Uint,
-	/// Network id.
-	#[serde(rename="networkID")]
-	pub network_id: Uint,
 	/// Minimum gas limit.
 	#[serde(rename="minGasLimit")]
 	pub min_gas_limit: Uint,
+
+	/// Network id.
+	#[serde(rename="networkID")]
+	pub network_id: Uint,
+	/// Name of the main ("eth") subprotocol.
+	#[serde(rename="subprotocolName")]
+	pub subprotocol_name: Option<String>,
+
 	/// Option fork block number to check.
 	#[serde(rename="forkBlock")]
 	pub fork_block: Option<Uint>,
