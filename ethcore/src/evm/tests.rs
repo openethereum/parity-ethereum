@@ -92,6 +92,10 @@ impl Ext for FakeExt {
 		self.balances.contains_key(address)
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.balances.get(address).map_or(false, |b| !b.is_zero()) 
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		*self.balances.get(address).unwrap()
 	}

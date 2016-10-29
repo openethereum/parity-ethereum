@@ -16,6 +16,7 @@
 
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockID};
+use state::CleanupMode;
 use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
@@ -23,7 +24,6 @@ use common::*;
 use devtools::*;
 use miner::Miner;
 use spec::Spec;
-use state::CleanupMode;
 
 #[test]
 fn imports_from_empty() {
