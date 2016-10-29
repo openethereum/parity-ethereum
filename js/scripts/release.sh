@@ -75,7 +75,7 @@ for PACKAGE in "${PACKAGES[@]}"
 do
   echo "*** Publishing $PACKAGE to npmjs"
   cd .npmjs/$PACKAGE
-  npm publish
+  npm publish --access public
   cd ../..
 done
 
