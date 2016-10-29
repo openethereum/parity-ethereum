@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Ethcore Team <admin@ethcore.io>",
@@ -11,7 +11,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethcore/parity.js.git"
+    "url": "git+https://github.com/ethcore/parity.git"
   },
   "keywords": [
     "Ethereum",
