@@ -34,7 +34,7 @@ use io::*;
 use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
 use header::BlockNumber;
-use state::State;
+use state::{State, CleanupMode};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -714,7 +714,7 @@ impl BlockChainClient for Client {
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
 			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance), true);
+			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::ForceCreate);
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));

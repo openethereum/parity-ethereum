@@ -191,6 +191,13 @@ enum RequireCache {
 	Code,
 }
 
+#[derive(PartialEq)]
+pub enum CleanupMode<'a> {
+	ForceCreate,
+	NoEmpty,
+	KillEmpty(&'a mut HashSet<Address>),
+}
+
 const SEC_TRIE_DB_UNWRAP_STR: &'static str = "A state can only be created with valid root. Creating a SecTrieDB with a valid root will not fail. \
 			 Therefore creating a SecTrieDB with this state's root will not fail.";
 
@@ -429,27 +436,33 @@ impl State {
 	}
 
 	/// Add `incr` to the balance of account `a`.
-	pub fn add_balance(&mut self, a: &Address, incr: &U256, force_create: bool) {
+	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
-		if !incr.is_zero() || (force_create && !self.exists(a)) {
+		let is_value_transfer = !incr.is_zero();
+		if is_value_transfer || (cleanup_mode == CleanupMode::ForceCreate && !self.exists(a)) {
 			self.require(a, false).add_balance(incr);
+		} else {
+			match cleanup_mode {
+				CleanupMode::KillEmpty(set) => if !is_value_transfer && self.exists(a) && !self.exists_and_not_null(a) {
+					set.insert(a.clone());
+				},
+				_ => {}
+			}
 		}
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
-	pub fn sub_balance(&mut self, a: &Address, decr: &U256, force_create: bool) {
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
 		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
-		if !decr.is_zero() || (force_create && !self.exists(a)) {
+		if !decr.is_zero() || !self.exists(a) {
 			self.require(a, false).sub_balance(decr);
 		}
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
-	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, force_create: bool) {
-		if !by.is_zero() || force_create {
-			self.sub_balance(from, by, force_create);
-			self.add_balance(to, by, force_create);
-		}
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, cleanup_mode: CleanupMode) {
+		self.sub_balance(from, by);
+		self.add_balance(to, by, cleanup_mode);
 	}
 
 	/// Increment the nonce of account `a` by 1.
@@ -773,7 +786,7 @@ fn should_apply_create_transaction() {
 		data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
 	}.sign(&"".sha3());
 
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -834,7 +847,7 @@ fn should_trace_failed_create_transaction() {
 		data: FromHex::from_hex("5b600056").unwrap(),
 	}.sign(&"".sha3());
 
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -873,7 +886,7 @@ fn should_trace_call_transaction() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -916,7 +929,7 @@ fn should_trace_basic_call_transaction() {
 		data: vec![],
 	}.sign(&"".sha3());
 
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1170,7 +1183,7 @@ fn should_trace_failed_call_transaction() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1212,7 +1225,7 @@ fn should_trace_call_with_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 
@@ -1272,7 +1285,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1328,7 +1341,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1373,7 +1386,7 @@ fn should_trace_failed_subcall_transaction() {
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1431,7 +1444,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1507,7 +1520,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
 	state.init_code(&0xc.into(), FromHex::from_hex("6000").unwrap());
-	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()));
+	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 
@@ -1579,8 +1592,8 @@ fn should_trace_suicide() {
 	}.sign(&"".sha3());
 
 	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
-	state.add_balance(&0xa.into(), &50.into());
-	state.add_balance(t.sender().as_ref().unwrap(), &100.into());
+	state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);
+	state.add_balance(t.sender().as_ref().unwrap(), &100.into(), CleanupMode::NoEmpty);
 	let vm_factory = Default::default();
 	let result = state.apply(&info, &engine, &vm_factory, &t, true).unwrap();
 	let expected_trace = vec![FlatTrace {
@@ -1652,7 +1665,7 @@ fn get_from_database() {
 	let (root, db) = {
 		let mut state = get_temp_state_in(temp.as_path());
 		state.inc_nonce(&a);
-		state.add_balance(&a, &U256::from(69u64));
+		state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
 		state.commit().unwrap();
 		assert_eq!(state.balance(&a), U256::from(69u64));
 		state.drop()
@@ -1684,7 +1697,7 @@ fn empty_account_exists() {
 	let db = get_temp_state_db_in(path.as_path());
 	let (root, db) = {
 		let mut state = State::new(db, U256::from(0), Default::default());
-		state.add_balance(&a, &U256::zero()); // create an empty account
+		state.add_balance(&a, &U256::default(), CleanupMode::NoEmpty); // create an empty account
 		state.commit().unwrap();
 		state.drop()
 	};
@@ -1727,7 +1740,7 @@ fn alter_balance() {
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
 	let b = address_from_u64(1u64);
-	state.add_balance(&a, &U256::from(69u64));
+	state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(69u64));
@@ -1735,7 +1748,7 @@ fn alter_balance() {
 	assert_eq!(state.balance(&a), U256::from(27u64));
 	state.commit().unwrap();
 	assert_eq!(state.balance(&a), U256::from(27u64));
-	state.transfer_balance(&a, &b, &U256::from(18u64));
+	state.transfer_balance(&a, &b, &U256::from(18u64), CleanupMode::NoEmpty);
 	assert_eq!(state.balance(&a), U256::from(9u64));
 	assert_eq!(state.balance(&b), U256::from(18u64));
 	state.commit().unwrap();
@@ -1788,12 +1801,12 @@ fn snapshot_basic() {
 	let mut state = state_result.reference_mut();
 	let a = Address::zero();
 	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
+	state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.discard_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.snapshot();
-	state.add_balance(&a, &U256::from(1u64));
+	state.add_balance(&a, &U256::from(1u64), CleanupMode::NoEmpty);
 	assert_eq!(state.balance(&a), U256::from(70u64));
 	state.revert_to_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
@@ -1806,7 +1819,7 @@ fn snapshot_nested() {
 	let a = Address::zero();
 	state.snapshot();
 	state.snapshot();
-	state.add_balance(&a, &U256::from(69u64));
+	state.add_balance(&a, &U256::from(69u64), CleanupMode::NoEmpty);
 	assert_eq!(state.balance(&a), U256::from(69u64));
 	state.discard_snapshot();
 	assert_eq!(state.balance(&a), U256::from(69u64));
@@ -1829,7 +1842,7 @@ fn should_not_panic_on_state_diff_with_storage() {
 
 	let a: Address = 0xa.into();
 	state.init_code(&a, b"abcdefg".to_vec());
-	state.add_balance(&a, &256.into());
+	state.add_balance(&a, &256.into(), CleanupMode::NoEmpty);
 	state.set_storage(&a, 0xb.into(), 0xc.into());
 
 	let mut new_state = state.clone();

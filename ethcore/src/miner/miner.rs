@@ -21,7 +21,7 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
-use state::State;
+use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use executive::contract_address;
 use block::{ClosedBlock, IsBlock, Block};
@@ -544,7 +544,7 @@ impl MinerService for Miner {
 				let needed_balance = t.value + t.gas * t.gas_price;
 				if balance < needed_balance {
 					// give the sender a sufficient balance
-					state.add_balance(&sender, &(needed_balance - balance), true);
+					state.add_balance(&sender, &(needed_balance - balance), CleanupMode::ForceCreate);
 				}
 				let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 				let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, chain.vm_factory()).transact(t, options));
