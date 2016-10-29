@@ -27,7 +27,7 @@ const EMPTY_COLUMN = (
 
 export default class Event extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired
+    accountsInfo: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -77,8 +77,8 @@ export default class Event extends Component {
   }
 
   renderAddressName (address) {
-    const { accounts } = this.context;
-    const account = accounts.find((_account) => _account.address === address);
+    const { accountsInfo } = this.context;
+    const account = accountsInfo[address];
 
     if (account && account.name) {
       return (
