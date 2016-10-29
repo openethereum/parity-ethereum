@@ -156,11 +156,11 @@ fn restart() {
 #[test]
 fn status_empty() {
 	let net = TestNet::new(2);
-	assert_eq!(net.peer(0).sync.read().status().state, SyncState::WaitingPeers);
-	let mut config = SyncConfig::default();
-	config.warp_sync = false;
-	let net = TestNet::new_with_config(2, config);
 	assert_eq!(net.peer(0).sync.read().status().state, SyncState::Idle);
+	let mut config = SyncConfig::default();
+	config.warp_sync = true;
+	let net = TestNet::new_with_config(2, config);
+	assert_eq!(net.peer(0).sync.read().status().state, SyncState::WaitingPeers);
 }
 
 #[test]

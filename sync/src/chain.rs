@@ -361,7 +361,7 @@ impl ChainSync {
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 		};
-		sync.init_downloaders(chain);
+		sync.update_targets(chain);
 		sync
 	}
 
@@ -508,12 +508,12 @@ impl ChainSync {
 
 	/// Restart sync disregarding the block queue status. May end up re-downloading up to QUEUE_SIZE blocks
 	pub fn restart(&mut self, io: &mut SyncIo) {
-		self.init_downloaders(io.chain());
+		self.update_targets(io.chain());
 		self.reset_and_continue(io);
 	}
 
-	/// Restart sync after bad block has been detected. May end up re-downloading up to QUEUE_SIZE blocks
-	fn init_downloaders(&mut self, chain: &BlockChainClient) {
+	/// Update sync after the blockchain has been changed externally.
+	pub fn update_targets(&mut self, chain: &BlockChainClient) {
 		// Do not assume that the block queue/chain still has our last_imported_block
 		let chain = chain.chain_info();
 		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
@@ -1047,7 +1047,7 @@ impl ChainSync {
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		if (self.state == SyncState::Blocks || self.state == SyncState::NewBlocks)
+		if (self.state == SyncState::Blocks || self.state == SyncState::NewBlocks || self.state == SyncState::Idle)
 			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync()) {
 			self.complete_sync(io);
 		}

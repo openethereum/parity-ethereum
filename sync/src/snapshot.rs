@@ -195,7 +195,7 @@ mod test {
 		}
 
 		assert!(snapshot.is_complete());
-		assert_eq!(snapshot.done_chunks(), 20);
+		assert_eq!(snapshot.done_chunks(), 40);
 		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
 		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
 	}
