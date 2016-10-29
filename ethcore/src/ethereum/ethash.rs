@@ -59,8 +59,16 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
-	/// Bad gas transition block number.
+	/// Number of first block where EIP-150 rules begin.
 	pub eip150_transition: u64,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: u64,
+	/// Number of first block where EIP-160 rules begin.
+	pub eip160_transition: u64,
+	/// Number of first block where EIP-158.abc begin.
+	pub eip161abc_transition: u64,
+	/// Number of first block where EIP-158.d begins.
+	pub eip161d_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -81,6 +89,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(0x7fffffffffffffff, Into::into),
 		}
 	}
 }
@@ -132,7 +144,11 @@ impl Engine for Ethash {
 		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			Schedule::new_homestead_gas_fix()
+			Schedule::new_post_eip150(
+				env_info.number < self.ethash_params.eip160_transition,
+				env_info.number < self.ethash_params.eip161abc_transition,
+				env_info.number < self.ethash_params.eip161d_transition
+			)
 		}
 	}
 
@@ -277,6 +293,10 @@ impl Engine for Ethash {
 		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
+		// TODO gav
+/*		if header.number() < self.params.eip155_transition {
+			try!(t.check_wildcard_network_id());
+		}*/
 		Ok(())
 	}
 
