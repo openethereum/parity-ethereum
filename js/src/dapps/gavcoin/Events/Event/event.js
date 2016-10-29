@@ -18,7 +18,7 @@ import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import IdentityIcon from '../../IdentityIcon';
-import { formatCoins, formatEth } from '../../format';
+import { formatCoins, formatEth, formatHash } from '../../format';
 
 import styles from '../events.css';
 
@@ -105,7 +105,7 @@ export default class Event extends Component {
 
     return (
       <div className={ styles.address }>
-        { address }
+        { formatHash(address) }
       </div>
     );
   }
