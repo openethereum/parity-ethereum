@@ -17,10 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ContentSave from 'material-ui/svg-icons/content/save';
-// import ChipInput from 'material-ui-chip-input';
-import ChipInput from 'material-ui-chip-input/src/ChipInput';
 
-import { Button, Form, Input, Modal } from '../../ui';
+import { Button, Form, Input, InputChip, Modal } from '../../ui';
 import { validateName } from '../../util/validation';
 
 export default class EditMeta extends Component {
@@ -104,17 +102,13 @@ export default class EditMeta extends Component {
     const { tags } = meta || [];
 
     return (
-      <ChipInput
-        ref='tagsInput'
+      <InputChip
         value={ tags }
         onRequestAdd={ this.onAddTag }
         onRequestDelete={ this.onDeleteTag }
-        floatingLabelText='(optional) tags'
-        hintText='press <Enter> to add a tag'
-        onUpdateInput={ this.onTagsInputChange }
-        floatingLabelFixed
-        fullWidth
-      />
+        label='(optional) tags'
+        hint='press <Enter> to add a tag'
+        onChange={ this.onTagsInputChange } />
     );
   }
 
@@ -135,20 +129,11 @@ export default class EditMeta extends Component {
     this.onMetaChange('tags', newTags);
   }
 
-  onTagsInputChange = (value) => {
+  onTagsInputChange = (newTokens) => {
     const { meta } = this.state;
     const { tags = [] } = meta;
 
-    const tokens = value.split(/[\s,;]+/);
-
-    const newTokens = tokens
-      .slice(0, -1)
-      .filter(t => t.length > 0);
-
-    const inputValue = tokens.slice(-1)[0].trim();
-
     this.onMetaChange('tags', [].concat(tags, newTokens));
-    this.refs.tagsInput.setState({ inputValue });
   }
 
   onNameChange = (name) => {
