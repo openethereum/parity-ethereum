@@ -113,6 +113,10 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		self.state.exists(address)
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.state.exists_and_not_null(address)
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		self.state.balance(address)
 	}
