@@ -21,6 +21,7 @@ use builtin::Builtin;
 use env_info::EnvInfo;
 use error::{BlockError, Error};
 use header::Header;
+use state::CleanupMode;
 use spec::CommonParams;
 use transaction::SignedTransaction;
 use engines::Engine;
@@ -185,7 +186,7 @@ impl Engine for Ethash {
 				let mut state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
 					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, true);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, CleanupMode::NoEmpty);
 				}
 //			}
 		}
@@ -198,12 +199,12 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), true);
+		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), CleanupMode::NoEmpty);
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), true);
+			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), CleanupMode::NoEmpty);
 		}
 
 		// Commit state so that we can actually figure out the state root.
