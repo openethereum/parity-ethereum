@@ -83,8 +83,12 @@ module.exports = {
         loader: 'style!css'
       },
       {
-        test: /\.(png|jpg|)$/,
+        test: /\.(png|jpg)$/,
         loader: 'file-loader'
+      },
+      {
+        test: /\.ico$/,
+        loader: 'file-loader?name=[name].[ext]'
       },
       {
         test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,

@@ -57,6 +57,7 @@ pub struct NodeEntry {
 
 pub struct BucketEntry {
 	pub address: NodeEntry,
+	pub id_hash: H256,
 	pub timeout: Option<u64>,
 }
 
@@ -85,6 +86,7 @@ struct Datagramm {
 
 pub struct Discovery {
 	id: NodeId,
+	id_hash: H256,
 	secret: Secret,
 	public_endpoint: NodeEndpoint,
 	udp_socket: UdpSocket,
@@ -109,6 +111,7 @@ impl Discovery {
 		let socket = UdpSocket::bound(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
+			id_hash: key.public().sha3(),
 			secret: key.secret().clone(),
 			public_endpoint: public,
 			token: token,
@@ -150,8 +153,9 @@ impl Discovery {
 
 	fn update_node(&mut self, e: NodeEntry) {
 		trace!(target: "discovery", "Inserting {:?}", &e);
+		let id_hash = e.id.sha3();
 		let ping = {
-			let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, &e.id) as usize).unwrap();
+			let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id_hash, &id_hash) as usize).unwrap();
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
 				node.timeout = None;
@@ -159,7 +163,7 @@ impl Discovery {
 			} else { false };
 
 			if !updated {
-				bucket.nodes.push_front(BucketEntry { address: e, timeout: None });
+				bucket.nodes.push_front(BucketEntry { address: e, timeout: None, id_hash: id_hash, });
 			}
 
 			if bucket.nodes.len() > BUCKET_SIZE {
@@ -174,7 +178,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id, id) as usize).unwrap();
+		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id_hash, &id.sha3()) as usize).unwrap();
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -224,8 +228,8 @@ impl Discovery {
 		self.discovery_round += 1;
 	}
 
-	fn distance(a: &NodeId, b: &NodeId) -> u32 {
-		let d = a.sha3() ^ b.sha3();
+	fn distance(a: &H256, b: &H256) -> u32 {
+		let d = *a ^ *b;
 		let mut ret:u32 = 0;
 		for i in 0..32 {
 			let mut v: u8 = d[i];
@@ -279,11 +283,12 @@ impl Discovery {
 	fn nearest_node_entries(target: &NodeId, buckets: &[NodeBucket]) -> Vec<NodeEntry> {
 		let mut found: BTreeMap<u32, Vec<&NodeEntry>> = BTreeMap::new();
 		let mut count = 0;
+		let target_hash = target.sha3();
 
 		// Sort nodes by distance to target
 		for bucket in buckets {
 			for node in &bucket.nodes {
-				let distance = Discovery::distance(target, &node.address.id);
+				let distance = Discovery::distance(&target_hash, &node.id_hash);
 				found.entry(distance).or_insert_with(Vec::new).push(&node.address);
 				if count == BUCKET_SIZE {
 					// delete the most distant element
@@ -546,6 +551,7 @@ impl Discovery {
 mod tests {
 	use super::*;
 	use util::hash::*;
+	use util::sha3::*;
 	use std::net::*;
 	use node_table::*;
 	use std::str::FromStr;
@@ -626,7 +632,8 @@ mod tests {
 		for _ in 0..(16 + 10) {
 			buckets[0].nodes.push_back(BucketEntry {
 				address: NodeEntry { id: NodeId::new(), endpoint: ep.clone() },
-				timeout: None
+				timeout: None,
+				id_hash: NodeId::new().sha3(),
 			});
 		}
 		let nearest = Discovery::nearest_node_entries(&NodeId::new(), &buckets);
