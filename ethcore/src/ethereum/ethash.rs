@@ -174,7 +174,7 @@ impl Engine for Ethash {
 				let mut state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
 					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, true);
 				}
 //			}
 		}
@@ -187,12 +187,12 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), true);
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
+			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), true);
 		}
 		if let Err(e) = fields.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
