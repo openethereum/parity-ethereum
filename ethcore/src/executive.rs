@@ -164,7 +164,7 @@ impl<'a> Executive<'a> {
 
 		// NOTE: there can be no invalid transactions from this point.
 		self.state.inc_nonce(&sender);
-		self.state.sub_balance(&sender, &U256::from(gas_cost));
+		self.state.sub_balance(&sender, &U256::from(gas_cost), true);
 
 		let mut substate = Substate::new();
 
@@ -256,9 +256,11 @@ impl<'a> Executive<'a> {
 		// backup used in case of running out of gas
 		self.state.checkpoint();
 
+		let schedule = self.engine.schedule(self.info);
+
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.transfer_balance(&params.sender, &params.address, &val);
+			self.state.transfer_balance(&params.sender, &params.address, &val, !schedule.no_empty);
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
@@ -364,12 +366,14 @@ impl<'a> Executive<'a> {
 		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
+		let schedule = self.engine.schedule(self.info);
+		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address);
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.sub_balance(&params.sender, &val);
-			self.state.new_contract(&params.address, val + prev_bal);
+			self.state.sub_balance(&params.sender, &val, schedule.no_empty);
+			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
 		} else {
-			self.state.new_contract(&params.address, prev_bal);
+			self.state.new_contract(&params.address, prev_bal, nonce_offset);
 		}
 
 		let trace_info = tracer.prepare_trace_create(&params);
@@ -440,9 +444,9 @@ impl<'a> Executive<'a> {
 		};
 
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
-		self.state.add_balance(&sender, &refund_value);
+		self.state.add_balance(&sender, &refund_value, !schedule.no_empty);
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
-		self.state.add_balance(&self.info.author, &fees_value);
+		self.state.add_balance(&self.info.author, &fees_value, !schedule.no_empty);
 
 		// perform suicides
 		for address in &substate.suicides {

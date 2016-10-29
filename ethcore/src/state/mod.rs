@@ -329,8 +329,8 @@ impl State {
 
 	/// Create a new contract at address `contract`. If there is already an account at the address
 	/// it will have its code reset, ready for `init_code()`.
-	pub fn new_contract(&mut self, contract: &Address, balance: U256) {
-		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce))));
+	pub fn new_contract(&mut self, contract: &Address, balance: U256, nonce_offset: U256) {
+		self.insert_cache(contract, AccountEntry::new_dirty(Some(Account::new_contract(balance, self.account_start_nonce + nonce_offset))));
 	}
 
 	/// Remove an existing account.
@@ -433,25 +433,27 @@ impl State {
 	}
 
 	/// Add `incr` to the balance of account `a`.
-	pub fn add_balance(&mut self, a: &Address, incr: &U256) {
+	pub fn add_balance(&mut self, a: &Address, incr: &U256, force_create: bool) {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
-		if !incr.is_zero() || !self.exists(a) {
+		if !incr.is_zero() || (force_create && !self.exists(a)) {
 			self.require(a, false).add_balance(incr);
 		}
 	}
 
 	/// Subtract `decr` from the balance of account `a`.
-	pub fn sub_balance(&mut self, a: &Address, decr: &U256) {
+	pub fn sub_balance(&mut self, a: &Address, decr: &U256, force_create: bool) {
 		trace!(target: "state", "sub_balance({}, {}): {}", a, decr, self.balance(a));
-		if !decr.is_zero() || !self.exists(a) {
+		if !decr.is_zero() || (force_create && !self.exists(a)) {
 			self.require(a, false).sub_balance(decr);
 		}
 	}
 
 	/// Subtracts `by` from the balance of `from` and adds it to that of `to`.
-	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256) {
-		self.sub_balance(from, by);
-		self.add_balance(to, by);
+	pub fn transfer_balance(&mut self, from: &Address, to: &Address, by: &U256, force_create: bool) {
+		if !by.is_zero() || force_create {
+			self.sub_balance(from, by, force_create);
+			self.add_balance(to, by, force_create);
+		}
 	}
 
 	/// Increment the nonce of account `a` by 1.
