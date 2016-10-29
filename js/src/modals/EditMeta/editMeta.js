@@ -108,7 +108,7 @@ export default class EditMeta extends Component {
         onRequestDelete={ this.onDeleteTag }
         label='(optional) tags'
         hint='press <Enter> to add a tag'
-        onChange={ this.onTagsInputChange } />
+        onChange={ this.onTagsChange } />
     );
   }
 
@@ -129,7 +129,7 @@ export default class EditMeta extends Component {
     this.onMetaChange('tags', newTags);
   }
 
-  onTagsInputChange = (newTokens) => {
+  onTagsChange = (newTokens) => {
     const { meta } = this.state;
     const { tags = [] } = meta;
 
