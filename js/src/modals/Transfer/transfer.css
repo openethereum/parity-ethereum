@@ -42,9 +42,16 @@
   margin-right: 0.5em;
 }
 
+.tokenSelect {
+}
+
 .token {
   height: 32px;
-  margin-top: 14px;
+  padding: 4px 0;
+}
+
+.tokenSelect .token {
+  margin-top: 10px;
 }
 
 .token img {
