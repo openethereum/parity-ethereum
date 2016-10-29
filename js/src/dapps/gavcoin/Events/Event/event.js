@@ -69,7 +69,7 @@ export default class Event extends Component {
   renderTimestamp (block) {
     return (
       <td className={ styles.blocknumber }>
-        { !block ? 'Pending' : moment(block.timestamp).fromNow() }
+        { !block ? ' ' : moment(block.timestamp).fromNow() }
       </td>
     );
   }
