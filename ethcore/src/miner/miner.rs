@@ -562,13 +562,15 @@ impl Miner {
 			balance: chain.latest_balance(a),
 		};
 
+		let schedule = chain.latest_schedule();
+		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		transactions.into_iter()
 			.map(|tx| match origin {
 				TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-					transaction_queue.add(tx, &fetch_account, origin)
+					transaction_queue.add(tx, origin, &fetch_account, &gas_required)
 				},
 				TransactionOrigin::External => {
-					transaction_queue.add_with_banlist(tx, &fetch_account)
+					transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
 				}
 			})
 			.collect()

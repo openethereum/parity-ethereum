@@ -27,7 +27,7 @@ use views::{BlockView};
 use error::{ImportResult, CallError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, Schedule};
 use types::ids::*;
 use types::trace_filter::Filter as TraceFilter;
 use executive::Executed;
@@ -236,6 +236,9 @@ pub trait MiningBlockChainClient : BlockChainClient {
 
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
+
+	/// Returns latest schedule.
+	fn latest_schedule(&self) -> Schedule;
 }
 
 impl IpcConfig for BlockChainClient { }

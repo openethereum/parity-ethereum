@@ -16,7 +16,7 @@
 */
 .actions {
   text-align: center;
-  padding: 2em 2em 0 2em;
+  padding: 2em 0 0 0;
   width: 100%;
 }
 
@@ -25,20 +25,31 @@
 }
 
 .button button {
-  background-color: rgba(50, 100, 150, 1) !important;
+  background-color: #430 !important;
   height: 56px !important;
   padding: 0 10px !important;
 }
 
 .button button[disabled] {
-  background-color: rgba(50, 50, 50, 0.25) !important;
+  opacity: 0.25;
+}
+
+.dlgbtn {
+}
+
+.dlgbtn span {
+  color: #430 !important;
+}
+
+.dlgbtn[disabled] {
+  opacity: 0.25;
 }
 
 .dialog {
 }
 
 .dialog h3 {
-  color: rgba(50, 100, 150, 1) !important;
+  color: #430 !important;
   text-transform: uppercase;
 }
 

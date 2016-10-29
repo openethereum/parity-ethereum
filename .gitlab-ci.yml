@@ -364,6 +364,28 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
+test-darwin:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh --verbose
+  tags:
+    - osx
+  dependencies:
+    - darwin
+test-windows:
+  stage: test
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - set RUST_BACKTRACE=1
+    - PowerShell ./test.sh --verbose
+  tags:
+    - rust-windows
+  dependencies:
+    - windows
 js-release:
   stage: build
   image: ethcore/javascript:latest

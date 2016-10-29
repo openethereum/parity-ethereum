@@ -792,11 +792,10 @@ impl BlockChain {
 	/// the chain and the child's parent is this block.
 	///
 	/// Used in snapshots to glue the chunks together at the end.
-	pub fn add_child(&self, block_hash: H256, child_hash: H256) {
+	pub fn add_child(&self, batch: &mut DBTransaction, block_hash: H256, child_hash: H256) {
 		let mut parent_details = self.block_details(&block_hash)
 			.unwrap_or_else(|| panic!("Invalid block hash: {:?}", block_hash));
 
-		let mut batch = self.db.transaction();
 		parent_details.children.push(child_hash);
 
 		let mut update = HashMap::new();
@@ -807,8 +806,6 @@ impl BlockChain {
 		batch.extend_with_cache(db::COL_EXTRA, &mut *write_details, update, CacheUpdatePolicy::Overwrite);
 
 		self.cache_man.lock().note_used(CacheID::BlockDetails(block_hash));
-
-		self.db.write(batch).unwrap();
 	}
 
 	#[cfg_attr(feature="dev", allow(similar_names))]

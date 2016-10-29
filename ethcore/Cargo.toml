@@ -27,7 +27,6 @@ time = "0.1"
 rand = "0.3"
 byteorder = "0.5"
 transient-hashmap = "0.1"
-lru-cache = { git = "https://github.com/contain-rs/lru-cache" }
 evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.96", optional = true}
 ethash = { path = "../ethash" }
@@ -40,6 +39,7 @@ ethstore = { path = "../ethstore" }
 ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
+lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
 
 [dependencies.hyper]
