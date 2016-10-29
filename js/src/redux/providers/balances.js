@@ -79,7 +79,6 @@ export default class Balances {
     this._api.ethcore
       .registryAddress()
       .then((registryAddress) => {
-        registryAddress = '0x0';
         const registry = this._api.newContract(abis.registry, registryAddress);
 
         return registry.instance.getAddress.call({}, [this._api.util.sha3('tokenreg'), 'A']);
