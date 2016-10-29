@@ -221,6 +221,9 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			LimitReached => {
 				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
+			InsufficientGas { minimal, got } => {
+				format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
+			},
 			InsufficientGasPrice { minimal, got } => {
 				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
 			},

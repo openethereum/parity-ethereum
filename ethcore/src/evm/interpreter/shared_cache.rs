@@ -15,20 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use lru_cache::LruCache;
-use util::{H256, Mutex};
+use util::{H256, HeapSizeOf, Mutex};
 use util::sha3::*;
+use util::cache::MemoryLruCache;
 use bit_set::BitSet;
 use super::super::instructions;
 
-const INITIAL_CAPACITY: usize = 32;
 const DEFAULT_CACHE_SIZE: usize = 4 * 1024 * 1024;
+
+// stub for a HeapSizeOf implementation.
+struct Bits(Arc<BitSet>);
+
+impl HeapSizeOf for Bits {
+	fn heap_size_of_children(&self) -> usize {
+		// dealing in bits here
+		self.0.capacity() * 8
+	}
+}
 
 /// Global cache for EVM interpreter
 pub struct SharedCache {
-	jump_destinations: Mutex<LruCache<H256, Arc<BitSet>>>,
-	max_size: usize,
-	cur_size: Mutex<usize>,
+	jump_destinations: Mutex<MemoryLruCache<H256, Bits>>,
 }
 
 impl SharedCache {
@@ -36,9 +43,7 @@ impl SharedCache {
 	/// to cache.
 	pub fn new(max_size: usize) -> Self {
 		SharedCache {
-			jump_destinations: Mutex::new(LruCache::new(INITIAL_CAPACITY)),
-			max_size: max_size * 8, // dealing with bits here.
-			cur_size: Mutex::new(0),
+			jump_destinations: Mutex::new(MemoryLruCache::new(max_size)),
 		}
 	}
 
@@ -49,37 +54,11 @@ impl SharedCache {
 		}
 
 		if let Some(d) = self.jump_destinations.lock().get_mut(code_hash) {
-			return d.clone();
+			return d.0.clone();
 		}
 
 		let d = Self::find_jump_destinations(code);
-
-		{
-			let mut cur_size = self.cur_size.lock();
-			*cur_size += d.capacity();
-
-			let mut jump_dests = self.jump_destinations.lock();
-			let cap = jump_dests.capacity();
-
-			// grow the cache as necessary; it operates on amount of items
-			// but we're working based on memory usage.
-			if jump_dests.len() == cap && *cur_size < self.max_size {
-				jump_dests.set_capacity(cap * 2);
-			}
-
-			// account for any element displaced from the cache.
-			if let Some(lru) = jump_dests.insert(code_hash.clone(), d.clone()) {
-				*cur_size -= lru.capacity();
-			}
-
-			// remove elements until we are below the memory target.
-			while *cur_size > self.max_size {
-				match jump_dests.remove_lru() {
-					Some((_, v)) => *cur_size -= v.capacity(),
-					_ => break,
-				}
-			}
-		}
+		self.jump_destinations.lock().insert(code_hash.clone(), Bits(d.clone()));
 
 		d
 	}

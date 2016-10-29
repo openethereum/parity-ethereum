@@ -178,7 +178,7 @@ impl Account {
 			CodeState::Hash => {
 				let code_hash = try!(rlp.val_at(3));
 				if let Some(code) = code_map.get(&code_hash) {
-					acct_db.emplace(code_hash.clone(), DBValue::from_slice(&code));
+					acct_db.emplace(code_hash.clone(), DBValue::from_slice(code));
 				}
 
 				(code_hash, None)

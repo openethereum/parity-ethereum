@@ -69,14 +69,19 @@ impl EthashManager {
 				Some(ref e) if *e == epoch => lights.recent.clone(),
 				_ => match lights.prev_epoch.clone() {
 					Some(e) if e == epoch => {
-						// swap
-						let t = lights.prev_epoch;
-						lights.prev_epoch = lights.recent_epoch;
-						lights.recent_epoch = t;
-						let t = lights.prev.clone();
-						lights.prev = lights.recent.clone();
-						lights.recent = t;
-						lights.recent.clone()
+						// don't swap if recent is newer.
+						if lights.recent_epoch > lights.prev_epoch {
+							None
+						} else {
+							// swap
+							let t = lights.prev_epoch;
+							lights.prev_epoch = lights.recent_epoch;
+							lights.recent_epoch = t;
+							let t = lights.prev.clone();
+							lights.prev = lights.recent.clone();
+							lights.recent = t;
+							lights.recent.clone()
+						}
 					}
 					_ => None,
 				},

@@ -43,7 +43,7 @@ export default class ActionBuyIn extends Component {
     accountError: ERRORS.invalidAccount,
     amount: 0,
     amountError: ERRORS.invalidAmount,
-    maxPrice: api.util.fromWei(this.props.price.mul(1.2)).toString(),
+    maxPrice: api.util.fromWei(this.props.price.mul(1.2)).toFixed(0),
     maxPriceError: null,
     sending: false,
     complete: false
@@ -73,6 +73,7 @@ export default class ActionBuyIn extends Component {
     if (complete) {
       return (
         <FlatButton
+          className={ styles.dlgbtn }
           label='Done'
           primary
           onTouchTap={ this.props.onClose } />
@@ -84,10 +85,12 @@ export default class ActionBuyIn extends Component {
 
     return ([
       <FlatButton
+        className={ styles.dlgbtn }
         label='Cancel'
         primary
         onTouchTap={ this.props.onClose } />,
       <FlatButton
+        className={ styles.dlgbtn }
         label='Buy'
         primary
         disabled={ hasError || sending }

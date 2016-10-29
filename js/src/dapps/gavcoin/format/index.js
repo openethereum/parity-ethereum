@@ -50,3 +50,7 @@ export function formatCoins (amount, decimals = 6) {
 export function formatEth (eth, decimals = 3) {
   return api.util.fromWei(eth).toFormat(decimals);
 }
+
+export function formatHash (hash) {
+  return `${hash.substr(0, 10)}...${hash.substr(-8)}`;
+}
