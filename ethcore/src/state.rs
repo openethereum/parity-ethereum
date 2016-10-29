@@ -1682,16 +1682,19 @@ fn remove() {
 	let mut state_result = get_temp_state();
 	let mut state = state_result.reference_mut();
 	assert_eq!(state.exists(&a), false);
+	assert_eq!(state.exists_and_not_null(&a), false);
 	state.inc_nonce(&a);
 	assert_eq!(state.exists(&a), true);
+	assert_eq!(state.exists_and_not_null(&a), true);
 	assert_eq!(state.nonce(&a), U256::from(1u64));
 	state.kill_account(&a);
 	assert_eq!(state.exists(&a), false);
+	assert_eq!(state.exists_and_not_null(&a), false);
 	assert_eq!(state.nonce(&a), U256::from(0u64));
 }
 
 #[test]
-fn empty_account_exists() {
+fn empty_account_is_not_created() {
 	let a = Address::zero();
 	let path = RandomTempPath::new();
 	let db = get_temp_state_db_in(path.as_path());
@@ -1702,7 +1705,24 @@ fn empty_account_exists() {
 		state.drop()
 	};
 	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
+	assert!(!state.exists(&a));
+	assert!(!state.exists_and_not_null(&a));
+}
+
+#[test]
+fn empty_account_exists_when_creation_forced() {
+	let a = Address::zero();
+	let path = RandomTempPath::new();
+	let db = get_temp_state_db_in(path.as_path());
+	let (root, db) = {
+		let mut state = State::new(db, U256::from(0), Default::default());
+		state.add_balance(&a, &U256::default(), CleanupMode::ForceCreate); // create an empty account
+		state.commit().unwrap();
+		state.drop()
+	};
+	let state = State::from_existing(db, root, U256::from(0u8), Default::default()).unwrap();
 	assert!(state.exists(&a));
+	assert!(!state.exists_and_not_null(&a));
 }
 
 #[test]
