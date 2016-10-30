@@ -1173,7 +1173,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero(),
-		}.sign(keypair.secret())
+		}.sign(keypair.secret(), None)
 	}
 
 	#[test]

@@ -815,7 +815,7 @@ fn should_apply_create_transaction() {
 		action: Action::Create,
 		value: 100.into(),
 		data: FromHex::from_hex("601080600c6000396000f3006000355415600957005b60203560003555").unwrap(),
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -875,7 +875,7 @@ fn should_trace_failed_create_transaction() {
 		action: Action::Create,
 		value: 100.into(),
 		data: FromHex::from_hex("5b600056").unwrap(),
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -912,7 +912,7 @@ fn should_trace_call_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -955,7 +955,7 @@ fn should_trace_basic_call_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
 	let result = state.apply(&info, &engine, &t, true).unwrap();
@@ -997,7 +997,7 @@ fn should_trace_call_transaction_to_builtin() {
 		action: Action::Call(0x1.into()),
 		value: 0.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	let result = state.apply(&info, engine, &t, true).unwrap();
 
@@ -1039,7 +1039,7 @@ fn should_not_trace_subcall_transaction_to_builtin() {
 		action: Action::Call(0xa.into()),
 		value: 0.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060006001610be0f1").unwrap());
 	let result = state.apply(&info, engine, &t, true).unwrap();
@@ -1082,7 +1082,7 @@ fn should_not_trace_callcode() {
 		action: Action::Call(0xa.into()),
 		value: 0.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b611000f2").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1144,7 +1144,7 @@ fn should_not_trace_delegatecall() {
 		action: Action::Call(0xa.into()),
 		value: 0.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("6000600060006000600b618000f4").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1203,7 +1203,7 @@ fn should_trace_failed_call_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("5b600056").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1243,7 +1243,7 @@ fn should_trace_call_with_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("6000").unwrap());
@@ -1303,7 +1303,7 @@ fn should_trace_call_with_basic_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006045600b6000f1").unwrap());
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1358,7 +1358,7 @@ fn should_not_trace_call_with_invalid_basic_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("600060006000600060ff600b6000f1").unwrap());	// not enough funds.
 	state.add_balance(t.sender().as_ref().unwrap(), &(100.into()), CleanupMode::NoEmpty);
@@ -1401,7 +1401,7 @@ fn should_trace_failed_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],//600480600b6000396000f35b600056
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("5b600056").unwrap());
@@ -1457,7 +1457,7 @@ fn should_trace_call_with_subcall_with_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1").unwrap());
@@ -1532,7 +1532,7 @@ fn should_trace_failed_subcall_with_subcall_transaction() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],//600480600b6000396000f35b600056
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("60006000600060006000600b602b5a03f1").unwrap());
 	state.init_code(&0xb.into(), FromHex::from_hex("60006000600060006000600c602b5a03f1505b601256").unwrap());
@@ -1605,7 +1605,7 @@ fn should_trace_suicide() {
 		action: Action::Call(0xa.into()),
 		value: 100.into(),
 		data: vec![],
-	}.sign(&"".sha3());
+	}.sign(&"".sha3(), None);
 
 	state.init_code(&0xa.into(), FromHex::from_hex("73000000000000000000000000000000000000000bff").unwrap());
 	state.add_balance(&0xa.into(), &50.into(), CleanupMode::NoEmpty);

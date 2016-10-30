@@ -220,7 +220,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(keypair.secret());
+					let signed_tx = tx.sign(keypair.secret(), None);
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -286,7 +286,7 @@ impl TestBlockChainClient {
 			gas_price: U256::one(),
 			nonce: U256::zero()
 		};
-		let signed_tx = tx.sign(keypair.secret());
+		let signed_tx = tx.sign(keypair.secret(), None);
 		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
 		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");

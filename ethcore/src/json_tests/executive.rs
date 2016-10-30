@@ -92,6 +92,10 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		self.ext.exists(address)
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.ext.exists_and_not_null(address)
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		self.ext.balance(address)
 	}

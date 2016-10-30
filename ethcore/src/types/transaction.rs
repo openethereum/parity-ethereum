@@ -72,8 +72,8 @@ pub struct Transaction {
 
 impl Transaction {
 	/// Append object with a without signature into RLP stream
-	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream) {
-		s.begin_list(6);
+	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u8>) {
+		s.begin_list(if let None = network_id { 6 } else { 9 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -83,6 +83,11 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+		if let Some(n) = network_id {
+			s.append(&n);
+			s.append(&0u8);
+			s.append(&0u8);
+		}
 	}
 }
 
@@ -105,7 +110,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into())
+		}.sign(&t.secret.into(), None)
 	}
 }
 
@@ -135,26 +140,26 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self) -> H256 {
+	pub fn hash(&self, network_id: Option<u8>) -> H256 {
 		let mut stream = RlpStream::new();
-		self.rlp_append_unsigned_transaction(&mut stream);
+		self.rlp_append_unsigned_transaction(&mut stream, network_id);
 		stream.out().sha3()
 	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = ::ethkey::sign(secret, &self.hash())
+	pub fn sign(self, secret: &Secret, network_id: Option<u8>) -> SignedTransaction {
+		let sig = ::ethkey::sign(secret, &self.hash(network_id))
 			.expect("data is valid and context has signing capabilities; qed");
-		self.with_signature(sig)
+		self.with_signature(sig, network_id)
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: Signature) -> SignedTransaction {
+	pub fn with_signature(self, sig: Signature, network_id: Option<u8>) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
 			r: sig.r().into(),
 			s: sig.s().into(),
-			v: sig.v() + 27,
+			v: sig.v() + if let Some(n) = network_id { 1 + n * 2 } else { 27 },
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		}
@@ -198,13 +203,20 @@ impl Transaction {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 }
-
+/*
+enum NetworkRequirement {
+	Global,
+	Local(u8),
+	Either(u8),
+}
+*/
 /// Signed transaction information.
 #[derive(Debug, Clone, Eq, Binary)]
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
-	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
+	/// The V field of the signature; the LS bit described which half of the curve our point falls
+	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.  
 	v: u8,
 	/// The R field of the signature; helps describe the point on the curve.
 	r: U256,
@@ -295,12 +307,23 @@ impl SignedTransaction {
 		}
 	}
 
-	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
-	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
+	/// 0 if `v` is 27, 1 if 28 or 4 if invalid.
+	pub fn standard_v(&self) -> u8 { match self.v { 0 => 4, v => (v - 1) & 1, } }
+
+	/// 0 if `v` is 27, 1 if 28 or 4 if invalid.
+	pub fn standard_v_old(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
+
+	/// The network ID, or `None` if this is a global transaction. 
+	pub fn network_id(&self) -> Option<u8> {
+		match self.v {
+			0 | 27 | 28 => None,
+			v => Some((v - 1) / 2),
+		}
+	}
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature {
-		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v())
+		Signature::from_rsv(&self.r.into(), &self.s.into(), self.standard_v_old())
 	}
 
 	/// Checks whether the signature has a low 's' value.
@@ -327,7 +350,7 @@ impl SignedTransaction {
 
 	/// Returns the public key of the sender.
 	pub fn public_key(&self) -> Result<Public, Error> {
-		Ok(try!(recover(&self.signature(), &self.unsigned.hash())))
+		Ok(try!(recover(&self.signature(), &self.unsigned.hash(self.network_id()))))
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
@@ -394,7 +417,7 @@ fn signing() {
 		gas: U256::from(50_000),
 		value: U256::from(1),
 		data: b"Hello!".to_vec()
-	}.sign(&key.secret());
+	}.sign(&key.secret(), None);
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
 }
 
