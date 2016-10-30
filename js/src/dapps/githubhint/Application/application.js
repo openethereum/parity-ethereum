@@ -151,7 +151,7 @@ export default class Application extends Component {
     let urlError = null;
 
     if (url && url.length) {
-      var re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g;
+      const re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g; // eslint-disable-line
       urlError = re.test(url)
         ? null
         : 'not matching rexex';

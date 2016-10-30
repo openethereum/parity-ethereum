@@ -14,8 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// links to chain explorers
-export const BASE_LINK_ACCOUNT_MORDEN = 'https://testnet.etherscan.io/address/';
-export const BASE_LINK_ACCOUNT_HOMESTEAD = 'https://etherscan.io/address/';
-export const BASE_LINK_TX_MORDEN = 'https://testnet.etherscan.io/tx/';
-export const BASE_LINK_TX_HOMESTEAD = 'https://etherscan.io/tx/';
+export const txLink = (hash, isTestnet = false) => {
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/tx/${hash}`;
+};
+
+export const addressLink = (address, isTestnet = false) => {
+  return `https://${isTestnet ? 'testnet.' : ''}etherscan.io/address/${address}`;
+};

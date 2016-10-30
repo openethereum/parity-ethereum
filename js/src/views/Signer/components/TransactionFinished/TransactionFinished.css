@@ -29,7 +29,7 @@
 
 .statusContainer {
   width: 220px;
-  padding: 20px 40px 0 40px;
+  padding: 0 40px 0 40px;
   /*border-left: 1px solid #aaa;*/
   position: absolute;
   top: 0;
@@ -46,7 +46,8 @@
 }
 
 .isRejected {
-  opacity: 0.7;
+  opacity: 0.5;
+  padding-top: 2em;
 }
 
 .txHash {
