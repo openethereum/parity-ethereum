@@ -1,5 +1,6 @@
 #!/bin/bash
 
+mkdir -p $HOME/Library/LaunchAgents
 cat > $HOME/Library/LaunchAgents/io.parity.ethereum.plist <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -25,6 +26,9 @@ cat > $HOME/Library/LaunchAgents/io.parity.ethereum.plist <<EOF
 </dict>
 </plist>
 EOF
+mkdir -p $HOME/.parity
+
+chown $USER $HOME/.parity $HOME/Library/LaunchAgents $HOME/Library/LaunchAgents/io.parity.ethereum.plist
 
 su $USER -c "launchctl load $HOME/Library/LaunchAgents/io.parity.ethereum.plist"
 sleep 1
