@@ -22,9 +22,9 @@
 									<key>GID</key>
 									<integer>80</integer>
 									<key>PATH</key>
-									<string>/Users/gav/Core/parity/mac/Parity Ethereum.webloc</string>
+									<string>Parity Ethereum.webloc</string>
 									<key>PATH_TYPE</key>
-									<integer>0</integer>
+									<integer>3</integer>
 									<key>PERMISSIONS</key>
 									<integer>420</integer>
 									<key>TYPE</key>
@@ -195,24 +195,7 @@
 								</dict>
 								<dict>
 									<key>CHILDREN</key>
-									<array>
-										<dict>
-											<key>CHILDREN</key>
-											<array/>
-											<key>GID</key>
-											<integer>0</integer>
-											<key>PATH</key>
-											<string>/Users/gav/Core/parity/mac/io.parity.parity-ethereum.plist</string>
-											<key>PATH_TYPE</key>
-											<integer>0</integer>
-											<key>PERMISSIONS</key>
-											<integer>420</integer>
-											<key>TYPE</key>
-											<integer>3</integer>
-											<key>UID</key>
-											<integer>0</integer>
-										</dict>
-									</array>
+									<array/>
 									<key>GID</key>
 									<integer>0</integer>
 									<key>PATH</key>
@@ -448,9 +431,9 @@
 													<key>GID</key>
 													<integer>0</integer>
 													<key>PATH</key>
-													<string>/Users/gav/Core/parity/target/release/deps/ethstore</string>
+													<string>../target/release/deps/ethstore</string>
 													<key>PATH_TYPE</key>
-													<integer>0</integer>
+													<integer>3</integer>
 													<key>PERMISSIONS</key>
 													<integer>493</integer>
 													<key>TYPE</key>
@@ -481,9 +464,9 @@
 													<key>GID</key>
 													<integer>0</integer>
 													<key>PATH</key>
-													<string>/Users/gav/Core/parity/target/release/parity</string>
+													<string>../target/release/parity</string>
 													<key>PATH_TYPE</key>
-													<integer>0</integer>
+													<integer>3</integer>
 													<key>PERMISSIONS</key>
 													<integer>493</integer>
 													<key>TYPE</key>
@@ -549,11 +532,20 @@
 				</dict>
 				<key>PAYLOAD_TYPE</key>
 				<integer>0</integer>
+				<key>SPLIT_FORKS</key>
+				<true/>
 				<key>VERSION</key>
 				<integer>4</integer>
 			</dict>
 			<key>PACKAGE_SCRIPTS</key>
 			<dict>
+				<key>POSTINSTALL_PATH</key>
+				<dict>
+					<key>PATH</key>
+					<string>post-install.sh</string>
+					<key>PATH_TYPE</key>
+					<integer>3</integer>
+				</dict>
 				<key>RESOURCES</key>
 				<array/>
 			</dict>
