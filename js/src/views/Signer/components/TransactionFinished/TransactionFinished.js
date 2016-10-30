@@ -131,8 +131,9 @@ export default class TransactionFinished extends Component {
   }
 
   renderTxHash () {
-    const { txHash, chain } = this.props;
-    if (!txHash) {
+    const { txHash } = this.props;
+    const { chain } = this.state;
+    if (!txHash || !chain) {
       return;
     }
 

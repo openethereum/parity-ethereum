@@ -20,6 +20,7 @@ use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
 use std::mem;
 use std::default::Default;
 use mio::*;
+use mio::deprecated::{Handler, EventLoop};
 use mio::udp::*;
 use util::sha3::*;
 use time;
@@ -108,7 +109,7 @@ pub struct TableUpdates {
 
 impl Discovery {
 	pub fn new(key: &KeyPair, listen: SocketAddr, public: NodeEndpoint, token: StreamToken, allow_ips: AllowIP) -> Discovery {
-		let socket = UdpSocket::bound(&listen).expect("Error binding UDP socket");
+		let socket = UdpSocket::bind(&listen).expect("Error binding UDP socket");
 		Discovery {
 			id: key.public().clone(),
 			id_hash: key.public().sha3(),
@@ -532,15 +533,15 @@ impl Discovery {
 	}
 
 	pub fn register_socket<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
-		event_loop.register(&self.udp_socket, Token(self.token), EventSet::all(), PollOpt::edge()).expect("Error registering UDP socket");
+		event_loop.register(&self.udp_socket, Token(self.token), Ready::all(), PollOpt::edge()).expect("Error registering UDP socket");
 		Ok(())
 	}
 
 	pub fn update_registration<Host:Handler>(&self, event_loop: &mut EventLoop<Host>) -> Result<(), NetworkError> {
 		let registration = if !self.send_queue.is_empty() {
-			EventSet::readable() | EventSet::writable()
+			Ready::readable() | Ready::writable()
 		} else {
-			EventSet::readable()
+			Ready::readable()
 		};
 		event_loop.reregister(&self.udp_socket, Token(self.token), registration, PollOpt::edge()).expect("Error reregistering UDP socket");
 		Ok(())
