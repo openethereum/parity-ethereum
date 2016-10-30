@@ -16,18 +16,20 @@
 */
 .events {
   padding: 4em 2em;
+  text-align: center;
 }
 
 .list {
-  width: 100%;
+  margin: 0 auto;
   border: none;
   border-spacing: 0;
+  text-align: left;
 }
 
 .list td {
   vertical-align: top;
-  padding: 4px 0.5em;
-  max-height: 32px;
+  padding: 0.25em 1em;
+  max-height: 1.5em;
 }
 
 .event {
@@ -38,7 +40,6 @@
 .blocknumber,
 .ethvalue,
 .gavvalue {
-  font-family: 'Roboto Mono', monospace;
 }
 
 .blocknumber,
@@ -90,5 +91,5 @@
 }
 
 .newtranch {
-  background: rgba(50, 250, 50, 0.1);
+  background: rgba(255, 175, 0, 0.125); /*rgba(68, 51, 0, 0.15);*/
 }

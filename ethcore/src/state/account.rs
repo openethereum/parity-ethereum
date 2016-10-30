@@ -247,21 +247,32 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &HashDB) -> Option<Arc<Bytes>> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
-		self.is_cached() ||
+
+		if self.is_cached() { return Some(self.code_cache.clone()) }
+
 		match db.get(&self.code_hash) {
 			Some(x) => {
 				self.code_size = Some(x.len());
 				self.code_cache = Arc::new(x.to_vec());
-				true
+				Some(self.code_cache.clone())
 			},
 			_ => {
 				warn!("Failed reverse get of {}", self.code_hash);
-				false
+				None
 			},
 		}
+	}
+
+	/// Provide code to cache. For correctness, should be the correct code for the
+	/// account.
+	pub fn cache_given_code(&mut self, code: Arc<Bytes>) {
+		trace!("Account::cache_given_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
+
+		self.code_size = Some(code.len());
+		self.code_cache = code;
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
@@ -476,7 +487,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db.immutable()));
+		assert!(a.cache_code(&db.immutable()).is_some());
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));

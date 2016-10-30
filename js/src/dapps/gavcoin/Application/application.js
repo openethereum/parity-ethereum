@@ -32,6 +32,13 @@ import Events from '../Events';
 import Loading from '../Loading';
 import Status from '../Status';
 
+import styles from './application.css';
+import bgimage from '../../../../assets/images/dapps/gavcoin-bg.jpg';
+
+const bgstyle = {
+  backgroundImage: `url(${bgimage})`
+};
+
 const DIVISOR = 10 ** 6;
 
 export default class Application extends Component {
@@ -46,6 +53,7 @@ export default class Application extends Component {
     action: null,
     address: null,
     accounts: [],
+    accountsInfo: {},
     blockNumber: new BigNumber(-1),
     ethBalance: new BigNumber(0),
     gavBalance: new BigNumber(0),
@@ -61,7 +69,7 @@ export default class Application extends Component {
   }
 
   render () {
-    const { accounts, address, blockNumber, gavBalance, loading, price, remaining, totalSupply } = this.state;
+    const { accounts, accountsInfo, address, blockNumber, gavBalance, loading, price, remaining, totalSupply } = this.state;
 
     if (loading) {
       return (
@@ -70,7 +78,7 @@ export default class Application extends Component {
     }
 
     return (
-      <div>
+      <div className={ styles.body } style={ bgstyle }>
         { this.renderModals() }
         <Status
           address={ address }
@@ -86,7 +94,7 @@ export default class Application extends Component {
           gavBalance={ gavBalance }
           onAction={ this.onAction } />
         <Events
-          accounts={ accounts } />
+          accountsInfo={ accountsInfo } />
       </div>
     );
   }
@@ -206,11 +214,11 @@ export default class Application extends Component {
           .all([
             registry.getAddress.call({}, [api.util.sha3('gavcoin'), 'A']),
             api.eth.accounts(),
-            null // api.personal.accountsInfo()
+            api.personal.accountsInfo()
           ]);
       })
-      .then(([address, addresses, infos]) => {
-        infos = infos || {};
+      .then(([address, addresses, accountsInfo]) => {
+        accountsInfo = accountsInfo || {};
         console.log(`gavcoin was found at ${address}`);
 
         const contract = api.newContract(abis.gavcoin, address);
@@ -219,9 +227,10 @@ export default class Application extends Component {
           loading: false,
           address,
           contract,
+          accountsInfo,
           instance: contract.instance,
           accounts: addresses.map((address) => {
-            const info = infos[address] || {};
+            const info = accountsInfo[address] || {};
 
             return {
               address,

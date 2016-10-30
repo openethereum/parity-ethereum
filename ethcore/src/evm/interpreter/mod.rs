@@ -120,14 +120,14 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 			try!(self.verify_instruction(ext, instruction, info, &stack));
 
 			// Calculate gas cost
-			let (gas_cost, mem_gas, mem_size, provided) = try!(gasometer.get_gas_cost_mem(ext, instruction, info, &stack, self.mem.size()));
+			let requirements = try!(gasometer.requirements(ext, instruction, info, &stack, self.mem.size()));
 			// TODO: make compile-time removable if too much of a performance hit.
-			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &gas_cost.as_u256());
+			let trace_executed = ext.trace_prepare_execute(reader.position - 1, instruction, &requirements.gas_cost.as_u256());
 
-			try!(gasometer.verify_gas(&gas_cost));
-			self.mem.expand(mem_size);
-			gasometer.current_mem_gas = mem_gas;
-			gasometer.current_gas = gasometer.current_gas - gas_cost;
+			try!(gasometer.verify_gas(&requirements.gas_cost));
+			self.mem.expand(requirements.memory_required_size);
+			gasometer.current_mem_gas = requirements.memory_total_gas;
+			gasometer.current_gas = gasometer.current_gas - requirements.gas_cost;
 
 			evm_debug!({ informant.before_instruction(reader.position, instruction, info, &gasometer.current_gas, &stack) });
 
@@ -138,7 +138,7 @@ impl<Cost: CostType> evm::Evm for Interpreter<Cost> {
 
 			// Execute instruction
 			let result = try!(self.exec_instruction(
-				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack, provided
+				gasometer.current_gas, &params, ext, instruction, &mut reader, &mut stack, requirements.provide_gas
 			));
 
 			evm_debug!({ informant.after_instruction(instruction) });

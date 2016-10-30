@@ -39,6 +39,8 @@ import './environment';
 
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
+import '../assets/images/parity.ico';
+
 import styles from './reset.css';
 import './index.html';
 

@@ -26,6 +26,7 @@ use std::io::{Read, Write};
 use std::fs;
 use ethkey::{KeyPair, Secret, Random, Generator};
 use mio::*;
+use mio::deprecated::{EventLoop};
 use mio::tcp::*;
 use util::hash::*;
 use util::Hashable;
@@ -61,7 +62,7 @@ const SYS_TIMER: usize = LAST_SESSION + 1;
 
 // Timeouts
 const MAINTENANCE_TIMEOUT: u64 = 1000;
-const DISCOVERY_REFRESH_TIMEOUT: u64 = 7200;
+const DISCOVERY_REFRESH_TIMEOUT: u64 = 60_000;
 const DISCOVERY_ROUND_TIMEOUT: u64 = 300;
 const NODE_TABLE_TIMEOUT: u64 = 300_000;
 
@@ -744,8 +745,7 @@ impl Host {
 		trace!(target: "network", "Accepting incoming connection");
 		loop {
 			let socket = match self.tcp_listener.lock().accept() {
-				Ok(None) => break,
-				Ok(Some((sock, _addr))) => sock,
+				Ok((sock, _addr)) => sock,
 				Err(e) => {
 					warn!("Error accepting connection: {:?}", e);
 					break
@@ -1101,7 +1101,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				}
 			}
 			DISCOVERY => self.discovery.lock().as_ref().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
-			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error registering stream"),
+			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
 	}
@@ -1129,7 +1129,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 				}
 			}
 			DISCOVERY => self.discovery.lock().as_ref().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
-			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), EventSet::all(), PollOpt::edge()).expect("Error reregistering stream"),
+			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
 	}
