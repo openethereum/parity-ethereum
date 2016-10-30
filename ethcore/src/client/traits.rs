@@ -222,7 +222,7 @@ pub trait BlockChainClient : Sync + Send {
 	}
 
 	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u8> { None } 
+	fn signing_network_id(&self) -> Option<u8>;
 }
 
 /// Extended client interface used for mining
