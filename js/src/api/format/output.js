@@ -74,7 +74,7 @@ export function outHistogram (histogram) {
   if (histogram) {
     Object.keys(histogram).forEach((key) => {
       switch (key) {
-        case 'bucket_bounds':
+        case 'bucketBounds':
         case 'counts':
           histogram[key] = histogram[key].map(outNumber);
       }

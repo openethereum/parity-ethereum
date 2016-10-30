@@ -121,7 +121,7 @@ describe('api/format/output', () => {
   });
 
   describe('outHistogram', () => {
-    ['bucket_bounds', 'counts'].forEach((type) => {
+    ['bucketBounds', 'counts'].forEach((type) => {
       it(`formats ${type} as number arrays`, () => {
         expect(
           outHistogram({ [type]: [0x123, 0x456, 0x789] })

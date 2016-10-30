@@ -111,7 +111,7 @@ export default {
       type: Object,
       desc: 'Historic values',
       details: {
-        bucket_bounds: {
+        bucketBounds: {
           type: Array,
           desc: 'Array of U256 bound values'
         },
