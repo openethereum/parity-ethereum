@@ -29,7 +29,8 @@ class TxHash extends Component {
 
   static propTypes = {
     hash: PropTypes.string.isRequired,
-    isTest: PropTypes.bool
+    isTest: PropTypes.bool,
+    summary: PropTypes.bool
   }
 
   state = {
@@ -54,14 +55,21 @@ class TxHash extends Component {
   }
 
   render () {
-    const { hash, isTest } = this.props;
+    const { hash, isTest, summary } = this.props;
     const link = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${hash}`;
+    let header = null;
 
-    return (
-      <div className={ styles.details }>
+    if (!summary) {
+      header = (
         <div className={ styles.header }>
           The transaction has been posted to the network with a transaction hash of
         </div>
+      );
+    }
+
+    return (
+      <div className={ styles.details }>
+        { header }
         <div className={ styles.hash }>
           <a href={ link } target='_blank'>{ hash }</a>
         </div>
