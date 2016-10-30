@@ -108,8 +108,18 @@ export default {
     desc: 'Returns a snapshot of the historic gas prices',
     params: [],
     returns: {
-      type: Array,
-      desc: 'Historic values'
+      type: Object,
+      desc: 'Historic values',
+      details: {
+        bucket_bounds: {
+          type: Array,
+          desc: 'Array of U256 bound values'
+        },
+        count: {
+          type: Array,
+          desc: 'Array of U64 counts'
+        }
+      }
     }
   },
 

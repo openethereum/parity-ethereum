@@ -70,6 +70,20 @@ export function outDate (date) {
   return new Date(outNumber(date).toNumber() * 1000);
 }
 
+export function outHistogram (histogram) {
+  if (histogram) {
+    Object.keys(histogram).forEach((key) => {
+      switch (key) {
+        case 'bucket_bounds':
+        case 'counts':
+          histogram[key] = histogram[key].map(outNumber);
+      }
+    });
+  }
+
+  return histogram;
+}
+
 export function outLog (log) {
   Object.keys(log).forEach((key) => {
     switch (key) {
