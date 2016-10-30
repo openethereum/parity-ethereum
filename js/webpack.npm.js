@@ -28,9 +28,7 @@ module.exports = {
   output: {
     path: path.join(__dirname, '.npmjs'),
     filename: 'library.js',
-    library: 'parity',
-    libraryTarget: 'umd',
-    umdNamedDefine: true
+    libraryTarget: 'commonjs'
   },
   module: {
     loaders: [
