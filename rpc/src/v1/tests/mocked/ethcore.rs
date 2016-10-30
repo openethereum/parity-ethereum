@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use util::log::RotatingLogger;
-use util::{U256, Address};
+use util::{Address};
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
 use ethstore::ethkey::{Generator, Random};

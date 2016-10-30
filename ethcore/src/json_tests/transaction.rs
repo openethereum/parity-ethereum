@@ -35,17 +35,24 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
+		let allow_network_id_of_one = number.map_or(false, |n| n > 2600000); 
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
 			.as_val()
 			.map_err(From::from)
-			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call));
+			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_network_id_of_one));
 
 		fail_unless(test.transaction.is_none() == res.is_err());
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
 			fail_unless(t.sender().unwrap() == sender.into());
+			let is_acceptable_network_id = match t.network_id() {
+				None => true,
+				Some(1) if allow_network_id_of_one => true,
+				_ => false,
+			};
+			fail_unless(is_acceptable_network_id);
 			let data: Vec<u8> = tx.data.into();
 			fail_unless(t.data == data);
 			fail_unless(t.gas_price == tx.gas_price.into());
