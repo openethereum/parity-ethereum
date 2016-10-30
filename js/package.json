@@ -27,7 +27,7 @@
     "build:app": "webpack --progress",
     "build:lib": "webpack --config webpack.libraries --progress",
     "build:dll": "webpack --config webpack.vendor --progress",
-    "ci:build": "npm run ci:build:dll && npm run ci:build:app && npm run ci:build:lib && npm run ci:build:npm",
+    "ci:build": "npm run ci:build:dll && npm run ci:build:app && npm run ci:build:lib",
     "ci:build:app": "NODE_ENV=production webpack",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack.libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack.vendor",

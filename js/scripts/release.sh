@@ -69,7 +69,7 @@ echo "*** Building packages for npmjs"
 cd js
 # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
 echo "$NPM_TOKEN" >> ~/.npmrc
-npm run ci:release:npm
+npm run ci:build:npm
 
 echo "*** Publishing $PACKAGE to npmjs"
 cd .npmjs
