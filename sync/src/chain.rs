@@ -1349,7 +1349,7 @@ impl ChainSync {
 	/// Called when peer sends us new transactions
 	fn on_peer_transactions(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		// Accept transactions only when fully synced
-		if !io.is_chain_queue_empty() || self.state != SyncState::Idle || self.state != SyncState::NewBlocks {
+		if !io.is_chain_queue_empty() || (self.state != SyncState::Idle && self.state != SyncState::NewBlocks) {
 			trace!(target: "sync", "{} Ignoring transactions while syncing", peer_id);
 			return Ok(());
 		}
