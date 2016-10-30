@@ -122,7 +122,7 @@ export default class FirstRun extends Component {
             icon={ <ActionDoneAll /> }
             label='Close'
             onClick={ this.onClose } />
-      );
+        );
     }
   }
 

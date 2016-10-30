@@ -19,6 +19,7 @@ use ethcore::snapshot::{SnapshotService, ManifestData, RestorationStatus};
 use ethcore::header::BlockNumber;
 use ethcore::client::{EachBlockWith};
 use super::helpers::*;
+use SyncConfig;
 
 pub struct TestSnapshotService {
 	manifest: Option<ManifestData>,
@@ -122,11 +123,16 @@ impl SnapshotService for TestSnapshotService {
 #[test]
 fn snapshot_sync() {
 	::env_logger::init().ok();
-	let mut net = TestNet::new(2);
-	net.peer_mut(0).snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
-	net.peer_mut(0).chain.add_blocks(1, EachBlockWith::Nothing);
-	net.sync_steps(19); // status + manifest + chunks
-	assert_eq!(net.peer(1).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());
-	assert_eq!(net.peer(1).snapshot_service.block_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().block_hashes.len());
+	let mut config = SyncConfig::default();
+	config.warp_sync = true;
+	let mut net = TestNet::new_with_config(5, config);
+	let snapshot_service = Arc::new(TestSnapshotService::new_with_snapshot(16, H256::new(), 500000));
+	for i in 0..4 {
+		net.peer_mut(i).snapshot_service = snapshot_service.clone();
+		net.peer_mut(i).chain.add_blocks(1, EachBlockWith::Nothing);
+	}
+	net.sync_steps(50);
+	assert_eq!(net.peer(4).snapshot_service.state_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().state_hashes.len());
+	assert_eq!(net.peer(4).snapshot_service.block_restoration_chunks.lock().len(), net.peer(0).snapshot_service.manifest.as_ref().unwrap().block_hashes.len());
 }
 

@@ -7,7 +7,7 @@ version = "1.4.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 
 [dependencies]
-mio = { git = "https://github.com/ethcore/mio", branch = "v0.5.x" }
+mio = { git = "https://github.com/carllerche/mio" }
 crossbeam = "0.2"
 parking_lot = "0.3"
 log = "0.3"
