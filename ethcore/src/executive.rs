@@ -440,7 +440,8 @@ impl<'a> Executive<'a> {
 		};
 
 		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
-		self.state.add_balance(&sender, &refund_value, CleanupMode::ForceCreate);
+		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
+		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty);  
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
 		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule));
 

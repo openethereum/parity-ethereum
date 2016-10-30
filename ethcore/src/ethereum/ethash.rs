@@ -58,9 +58,9 @@ pub struct EthashParams {
 	pub eip155_transition: u64,
 	/// Number of first block where EIP-160 rules begin.
 	pub eip160_transition: u64,
-	/// Number of first block where EIP-158.abc begin.
+	/// Number of first block where EIP-161.abc begin.
 	pub eip161abc_transition: u64,
-	/// Number of first block where EIP-158.d begins.
+	/// Number of first block where EIP-161.d begins.
 	pub eip161d_transition: u64,
 }
 
@@ -137,9 +137,9 @@ impl Engine for Ethash {
 			Schedule::new_homestead()
 		} else {
 			Schedule::new_post_eip150(
-				env_info.number < self.ethash_params.eip160_transition,
-				env_info.number < self.ethash_params.eip161abc_transition,
-				env_info.number < self.ethash_params.eip161d_transition
+				env_info.number >= self.ethash_params.eip160_transition,
+				env_info.number >= self.ethash_params.eip161abc_transition,
+				env_info.number >= self.ethash_params.eip161d_transition
 			)
 		}
 	}

@@ -343,7 +343,7 @@ impl State {
 	/// Determine whether an account exists.
 	pub fn exists(&self, a: &Address) -> bool {
 		// Bloom filter does not contain empty accounts, so it is important here to
-		// check if account exists in the database directly before EIP-158 is in effect.
+		// check if account exists in the database directly before EIP-161 is in effect.
 		self.ensure_cached(a, RequireCache::None, false, |a| a.is_some())
 	}
 
