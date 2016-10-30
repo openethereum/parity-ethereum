@@ -14,6 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+macro_rules! println_stderr(
+    ($($arg:tt)*) => { {
+        let r = writeln!(&mut ::std::io::stderr(), $($arg)*);
+        r.expect("failed printing to stderr");
+    } }
+);
+
 macro_rules! otry {
 	($e: expr) => (
 		match $e {
@@ -39,7 +46,7 @@ macro_rules! usage {
 	) => {
 		use toml;
 		use std::{fs, io, process};
-		use std::io::Read;
+		use std::io::{Read, Write};
 		use util::version;
 		use docopt::{Docopt, Error as DocoptError};
 		use helpers::replace_home;
@@ -58,20 +65,20 @@ macro_rules! usage {
 				match self {
 					ArgsError::Docopt(e) => e.exit(),
 					ArgsError::Parsing(errors) => {
-						println!("There is an error in config file.");
+						println_stderr!("There is an error in config file.");
 						for e in &errors {
-							println!("{}", e);
+							println_stderr!("{}", e);
 						}
 						process::exit(2)
 					},
 					ArgsError::Decode(e) => {
-						println!("You might have supplied invalid parameters in config file.");
-						println!("{}", e);
+						println_stderr!("You might have supplied invalid parameters in config file.");
+						println_stderr!("{}", e);
 						process::exit(2)
 					},
 					ArgsError::Config(path, e) => {
-						println!("There was an error reading your config file at: {}", path);
-						println!("{}", e);
+						println_stderr!("There was an error reading your config file at: {}", path);
+						println_stderr!("{}", e);
 						process::exit(2)
 					}
 				}
@@ -136,7 +143,7 @@ macro_rules! usage {
 				let config = match (fs::File::open(&config_file), raw_args.flag_config.is_some()) {
 					// Load config file
 					(Ok(mut file), _) => {
-						println!("Loading config file from {}", &config_file);
+						println_stderr!("Loading config file from {}", &config_file);
 						let mut config = String::new();
 						try!(file.read_to_string(&mut config).map_err(|e| ArgsError::Config(config_file, e)));
 						try!(Self::parse_config(&config))
