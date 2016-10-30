@@ -65,7 +65,8 @@ mod service;
 mod worker;
 mod panics;
 
-use mio::{EventLoop, Token};
+use mio::{Token};
+use mio::deprecated::{EventLoop, NotifyError};
 use std::fmt;
 
 pub use worker::LOCAL_STACK_SIZE;
@@ -96,8 +97,8 @@ impl From<::std::io::Error> for IoError {
 	}
 }
 
-impl<Message> From<::mio::NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
-	fn from(_err: ::mio::NotifyError<service::IoMessage<Message>>) -> IoError {
+impl<Message> From<NotifyError<service::IoMessage<Message>>> for IoError where Message: Send + Clone {
+	fn from(_err: NotifyError<service::IoMessage<Message>>) -> IoError {
 		IoError::Mio(::std::io::Error::new(::std::io::ErrorKind::ConnectionAborted, "Network IO notification error"))
 	}
 }
