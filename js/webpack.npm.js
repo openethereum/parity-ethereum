@@ -59,6 +59,10 @@ module.exports = {
         },
         {
           from: '../LICENSE'
+        },
+        {
+          from: '../parity.md',
+          to: 'README.md'
         }
       ], { copyUnmodified: true })
     ];
