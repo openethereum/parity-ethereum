@@ -4,7 +4,7 @@ Parity.js is a thin, fast, Promise-based wrapper around the Ethereum APIs.
 
 ## installation
 
-Install the package with `npm install --save @parity/parity.js` from the [npm registry `@parity/parity.js`](https://www.npmjs.com/package/@parity/parity.js)
+Install the package with `npm install --save @parity/parity.js`
 
 ## usage
 
@@ -15,7 +15,7 @@ Install the package with `npm install --save @parity/parity.js` from the [npm re
 import { Api } from '@parity/parity.js';
 
 // do the setup
-const transport = new Api.Transport.Http('http://localhost:8545');  // or .Ws('ws://localhost:8546')
+const transport = new Api.Transport.Http('http://localhost:8545');
 const api = new Api(transport);
 ```
 
