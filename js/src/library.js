@@ -14,12 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
-import 'isomorphic-fetch';
-
-import es6Promise from 'es6-promise';
-es6Promise.polyfill();
-
 import Abi from './abi';
 import Api from './api';
 
