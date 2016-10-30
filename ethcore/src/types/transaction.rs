@@ -302,9 +302,6 @@ impl SignedTransaction {
 	/// 0 if `v` is 27, 1 if 28 or 4 if invalid.
 	pub fn standard_v(&self) -> u8 { match self.v { 0 => 4, v => (v - 1) & 1, } }
 
-	/// 0 if `v` is 27, 1 if 28 or 4 if invalid.
-	pub fn standard_v_old(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
-
 	/// The network ID, or `None` if this is a global transaction. 
 	pub fn network_id(&self) -> Option<u8> {
 		match self.v {
@@ -314,7 +311,7 @@ impl SignedTransaction {
 	}
 
 	/// Construct a signature object from the sig.
-	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v_old()) }
+	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
 
 	/// Checks whether the signature has a low 's' value.
 	pub fn check_low_s(&self) -> Result<(), Error> {
@@ -347,13 +344,18 @@ impl SignedTransaction {
 	// TODO: consider use in block validation.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<SignedTransaction, Error> {
-		if require_low && !ec::is_low_s(&self.s) {
+	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_network_id_of_one: bool) -> Result<SignedTransaction, Error> {
+		if require_low && !self.signature().is_low_s() {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
+		}
+		match self.network_id() {
+			None => {},
+			Some(1) if allow_network_id_of_one => {},
+			_ => return Err(TransactionError::InvalidNetworkId.into()),
 		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			Err(From::from(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
+			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {
 			Ok(self)
 		}
@@ -393,6 +395,7 @@ fn sender_test() {
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
 	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
+	assert_eq!(t.network_id(), None);
 }
 
 #[test]
@@ -407,6 +410,7 @@ fn signing() {
 		data: b"Hello!".to_vec()
 	}.sign(&key.secret(), None);
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
 }
 
 #[test]
@@ -420,7 +424,24 @@ fn fake_signing() {
 		data: b"Hello!".to_vec()
 	}.fake_sign(Address::from(0x69));
 	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
 
 	let t = t.clone();
 	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
+}
+
+#[test]
+fn should_recover_from_network_specific_signing() {
+	let key = ::util::crypto::KeyPair::create().unwrap();
+	let t = Transaction {
+		action: Action::Create,
+		nonce: U256::from(42),
+		gas_price: U256::from(3000),
+		gas: U256::from(50_000),
+		value: U256::from(1),
+		data: b"Hello!".to_vec()
+	}.sign(&key.secret(), Some(69));
+	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(t.network_id(), Some(69));
 }

@@ -18,11 +18,10 @@ use std::sync::Arc;
 use jsonrpc_core::IoHandler;
 use v1::{Net, NetClient};
 use v1::tests::helpers::{Config, TestSyncProvider};
-use util::numbers::*;
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: U256::from(3),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }
