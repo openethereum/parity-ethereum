@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { getAccountLink } from '../../util/account';
+import { addressLink } from '../../../../../3rdparty/etherscan/links';
 import styles from './AccountLink.css';
 
 export default class AccountLink extends Component {
@@ -57,7 +57,7 @@ export default class AccountLink extends Component {
   }
 
   updateLink (address, chain) {
-    const link = getAccountLink(address, chain);
+    const link = addressLink(address, chain === 'morden' || chain === 'testnet');
 
     this.setState({
       link
