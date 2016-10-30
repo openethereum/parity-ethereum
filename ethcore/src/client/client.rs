@@ -139,7 +139,7 @@ pub struct Client {
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
-	io_channel: IoChannel<ClientIoMessage>,
+	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
@@ -235,7 +235,7 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			miner: miner,
-			io_channel: message_channel,
+			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
@@ -1147,9 +1147,13 @@ impl BlockChainClient for Client {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
-				Ok(_) => { self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst); },
-				Err(e) => debug!("Ignoring {} transactions: error queueing: {}", len, e),
+			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions)) {
+				Ok(_) => {
+					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
+				}
+				Err(e) => {
+					debug!("Ignoring {} transactions: error queueing: {}", len, e);
+				}
 			}
 		}
 	}

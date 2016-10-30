@@ -53,6 +53,7 @@ export default class Application extends Component {
     action: null,
     address: null,
     accounts: [],
+    accountsInfo: {},
     blockNumber: new BigNumber(-1),
     ethBalance: new BigNumber(0),
     gavBalance: new BigNumber(0),
@@ -68,7 +69,7 @@ export default class Application extends Component {
   }
 
   render () {
-    const { accounts, address, blockNumber, gavBalance, loading, price, remaining, totalSupply } = this.state;
+    const { accounts, accountsInfo, address, blockNumber, gavBalance, loading, price, remaining, totalSupply } = this.state;
 
     if (loading) {
       return (
@@ -93,7 +94,7 @@ export default class Application extends Component {
           gavBalance={ gavBalance }
           onAction={ this.onAction } />
         <Events
-          accounts={ accounts } />
+          accountsInfo={ accountsInfo } />
       </div>
     );
   }
@@ -216,8 +217,8 @@ export default class Application extends Component {
             api.personal.accountsInfo()
           ]);
       })
-      .then(([address, addresses, infos]) => {
-        infos = infos || {};
+      .then(([address, addresses, accountsInfo]) => {
+        accountsInfo = accountsInfo || {};
         console.log(`gavcoin was found at ${address}`);
 
         const contract = api.newContract(abis.gavcoin, address);
@@ -226,9 +227,10 @@ export default class Application extends Component {
           loading: false,
           address,
           contract,
+          accountsInfo,
           instance: contract.instance,
           accounts: addresses.map((address) => {
-            const info = infos[address] || {};
+            const info = accountsInfo[address] || {};
 
             return {
               address,

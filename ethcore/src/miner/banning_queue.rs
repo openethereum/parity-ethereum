@@ -130,7 +130,7 @@ impl BanningTransactionQueue {
 				// Ban sender
 				let sender_banned = self.ban_sender(sender);
 				// Ban recipient and codehash
-				let is_banned = sender_banned || match transaction.action {
+				let recipient_or_code_banned = match transaction.action {
 					Action::Call(recipient) => {
 						self.ban_recipient(recipient)
 					},
@@ -138,7 +138,7 @@ impl BanningTransactionQueue {
 						self.ban_codehash(transaction.data.sha3())
 					},
 				};
-				is_banned
+				sender_banned || recipient_or_code_banned
 			},
 			None => false,
 		}

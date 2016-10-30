@@ -16,10 +16,13 @@
 
 import { account } from './account';
 import { stats } from './stats';
+import { txLink, addressLink } from './links';
 
 const etherscan = {
   account: account,
-  stats: stats
+  stats: stats,
+  txLink: txLink,
+  addressLink: addressLink
 };
 
 export default etherscan;

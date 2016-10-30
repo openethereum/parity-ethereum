@@ -213,7 +213,7 @@ pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
 	snapshot_root: PathBuf,
 	db_config: DatabaseConfig,
-	io_channel: Channel,
+	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
@@ -233,7 +233,7 @@ impl Service {
 			restoration: Mutex::new(None),
 			snapshot_root: params.snapshot_root,
 			db_config: params.db_config,
-			io_channel: params.channel,
+			io_channel: Mutex::new(params.channel),
 			pruning: params.pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
 			reader: RwLock::new(None),
@@ -567,7 +567,7 @@ impl SnapshotService for Service {
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {
-		if let Err(e) = self.io_channel.send(ClientIoMessage::BeginRestoration(manifest)) {
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::BeginRestoration(manifest)) {
 			trace!("Error sending snapshot service message: {:?}", e);
 		}
 	}
@@ -578,13 +578,13 @@ impl SnapshotService for Service {
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		if let Err(e) = self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk)) {
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedStateChunk(hash, chunk)) {
 			trace!("Error sending snapshot service message: {:?}", e);
 		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		if let Err(e) = self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
 			trace!("Error sending snapshot service message: {:?}", e);
 		}
 	}

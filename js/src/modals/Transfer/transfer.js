@@ -420,13 +420,15 @@ export default class Transfer extends Component {
 
   _sendToken () {
     const { account, balance } = this.props;
-    const { recipient, value, tag } = this.state;
+    const { gas, gasPrice, recipient, value, tag } = this.state;
     const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
         from: account.address,
-        to: token.address
+        to: token.address,
+        gas,
+        gasPrice
       }, [
         recipient,
         new BigNumber(value).mul(token.format).toFixed(0)
@@ -483,7 +485,7 @@ export default class Transfer extends Component {
         to: token.address
       }, [
         recipient,
-        new BigNumber(value || 0).mul(token.format).toString()
+        new BigNumber(value || 0).mul(token.format).toFixed(0)
       ]);
   }
 

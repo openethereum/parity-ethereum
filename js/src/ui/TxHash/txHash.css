@@ -23,6 +23,7 @@
 
 .hash {
   padding-top: 1em;
+  word-break: break-all;
 }
 
 .confirm {
@@ -31,11 +32,13 @@
 }
 
 .progressbar {
-  margin: 0.5em !important;
+  margin: 0.5em 0 !important;
   width: 30% !important;
+  min-width: 220px;
   display: inline-block !important;
   height: 0.75em !important;
 }
 
 .progressinfo {
+  text-align: center;
 }

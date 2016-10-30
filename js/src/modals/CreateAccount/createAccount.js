@@ -29,6 +29,7 @@ import CreationType from './CreationType';
 import NewAccount from './NewAccount';
 import NewGeth from './NewGeth';
 import NewImport from './NewImport';
+import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 
 const TITLES = {
@@ -58,6 +59,7 @@ export default class CreateAccount extends Component {
     passwordHint: null,
     password: null,
     phrase: null,
+    rawKey: null,
     json: null,
     canCreate: false,
     createType: null,
@@ -108,6 +110,11 @@ export default class CreateAccount extends Component {
         } else if (createType === 'fromPhrase') {
           return (
             <RecoveryPhrase
+              onChange={ this.onChangeDetails } />
+          );
+        } else if (createType === 'fromRaw') {
+          return (
+            <RawKey
               onChange={ this.onChangeDetails } />
           );
         }
@@ -222,6 +229,28 @@ export default class CreateAccount extends Component {
 
           this.newError(error);
         });
+    } else if (createType === 'fromRaw') {
+      return api.personal
+        .newAccountFromSecret(this.state.rawKey, this.state.password)
+        .then((address) => {
+          this.setState({ address });
+          return api.personal
+            .setAccountName(address, this.state.name)
+            .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+        })
+        .then(() => {
+          this.onNext();
+          this.props.onUpdate && this.props.onUpdate();
+        })
+        .catch((error) => {
+          console.error('onCreate', error);
+
+          this.setState({
+            canCreate: true
+          });
+
+          this.newError(error);
+        });
     } else if (createType === 'fromGeth') {
       return api.personal
         .importGethAccounts(this.state.gethAddresses)
@@ -288,27 +317,35 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (valid, { name, passwordHint, address, password, phrase }) => {
+  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey }) => {
     this.setState({
-      canCreate: valid,
+      canCreate,
       name,
       passwordHint,
       address,
       password,
-      phrase
+      phrase,
+      rawKey
     });
   }
 
-  onChangeGeth = (valid, gethAddresses) => {
+  onChangeRaw = (canCreate, rawKey) => {
     this.setState({
-      canCreate: valid,
+      canCreate,
+      rawKey
+    });
+  }
+
+  onChangeGeth = (canCreate, gethAddresses) => {
+    this.setState({
+      canCreate,
       gethAddresses
     });
   }
 
-  onChangeWallet = (valid, { name, passwordHint, password, json }) => {
+  onChangeWallet = (canCreate, { name, passwordHint, password, json }) => {
     this.setState({
-      canCreate: valid,
+      canCreate,
       name,
       passwordHint,
       password,
