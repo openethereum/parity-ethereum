@@ -278,7 +278,7 @@ impl HeapSizeOf for SignedTransaction {
 
 impl SignedTransaction {
 	/// Append object with a signature into RLP stream
-	pub fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
+	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
 		s.begin_list(9);
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
@@ -307,7 +307,7 @@ impl SignedTransaction {
 		}
 	}
 
-	/// 0 if `v` is 27, 1 if 28 or 4 if invalid.
+	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
 	pub fn standard_v(&self) -> u8 { match self.v { 0 => 4, v => (v - 1) & 1, } }
 
 	/// The network ID, or `None` if this is a global transaction. 
