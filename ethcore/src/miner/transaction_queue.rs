@@ -45,6 +45,9 @@
 //!		let st1 = t1.sign(&key.secret());
 //!		let st2 = t2.sign(&key.secret());
 //!		let default_nonce = |_a: &Address| AccountDetails {
+//!		let st1 = t1.sign(&key.secret(), None);
+//!		let st2 = t2.sign(&key.secret(), None);
+//!		let default_account_details = |_a: &Address| AccountDetails {
 //!			nonce: U256::from(10),
 //!			balance: U256::from(1_000_000),
 //!		};
@@ -1009,6 +1012,16 @@ mod test {
 		new_unsigned_tx_with_gas(default_nonce_val(), gas, gas_price).sign(keypair.secret())
 	}
 
+	fn new_tx(nonce: U256, gas_price: U256) -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		new_unsigned_tx(nonce, default_gas_val(), gas_price).sign(keypair.secret(), None)
+	}
+
+	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		new_unsigned_tx(default_nonce(), gas, gas_price).sign(keypair.secret(), None)
+	}
+
 	fn new_tx() -> SignedTransaction {
 		new_tx_with_gas(default_gas_val(), default_gas_price_val())
 	}
@@ -1029,7 +1042,7 @@ mod test {
 		let mut tx2 = new_unsigned_tx(nonce);
 		tx2.gas_price = 2.into();
 
-		(tx.sign(secret), tx2.sign(secret))
+		(tx1.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1044,8 +1057,7 @@ mod test {
 		tx.gas_price = tx.gas_price + gas_price;
 		let mut tx2 = new_unsigned_tx(nonce + 1.into());
 		tx2.gas_price = tx2.gas_price + gas_price;
-
-		(tx.sign(secret), tx2.sign(secret))
+		(tx1.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1618,9 +1630,9 @@ mod test {
 		let mut txq = TransactionQueue::default();
 		let kp = KeyPair::create().unwrap();
 		let secret = kp.secret();
-		let tx = new_unsigned_tx(U256::from(123)).sign(secret);
-		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret);
-		let tx2 = new_unsigned_tx(U256::from(125)).sign(secret);
+		let tx = new_unsigned_tx(U256::from(123)).sign(secret, None);
+		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret, None);
+		let tx2 = new_unsigned_tx(U256::from(125)).sign(secret, None);
 
 		txq.add(tx, &default_nonce, TransactionOrigin::External).unwrap();
 		assert_eq!(txq.status().pending, 1);
@@ -1876,11 +1888,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = KeyPair::create().unwrap();
-		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
+		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret(), None);
 		let tx2 = {
 			let mut tx2 = (*tx).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -1899,16 +1911,16 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = KeyPair::create().unwrap();
-		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
+		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret(), None);
 		let tx1 = {
 			let mut tx1 = (*tx0).clone();
 			tx1.nonce = U256::from(124);
-			tx1.sign(keypair.secret())
+			tx1.sign(keypair.secret(), None)
 		};
 		let tx2 = {
 			let mut tx2 = (*tx1).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -2061,7 +2073,7 @@ mod test {
 			let tx3 = new_unsigned_tx(nonce + 2.into());
 
 
-			(tx.sign(secret), tx2.sign(secret), tx2_2.sign(secret), tx3.sign(secret))
+			(tx.sign(secret, None), tx2.sign(secret, None), tx2_2.sign(secret, None), tx3.sign(secret, None))
 		};
 		let sender = tx1.sender().unwrap();
 		txq.add(tx1, &default_nonce, TransactionOrigin::Local).unwrap();

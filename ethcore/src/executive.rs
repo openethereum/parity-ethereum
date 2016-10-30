@@ -1037,7 +1037,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
@@ -1104,7 +1104,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::one()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1137,7 +1137,7 @@ mod tests {
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
@@ -1172,7 +1172,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();

@@ -1279,7 +1279,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3());
+		}.sign(&"".sha3(), None);
 
 
 		let b1a = canon_chain
@@ -1343,7 +1343,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3());
+		}.sign(&"".sha3(), None);
 
 		let t2 = Transaction {
 			nonce: 1.into(),
@@ -1352,7 +1352,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3());
+		}.sign(&"".sha3(), None);
 
 		let t3 = Transaction {
 			nonce: 2.into(),
@@ -1361,7 +1361,7 @@ mod tests {
 			action: Action::Create,
 			value: 100.into(),
 			data: "601080600c6000396000f3006000355415600957005b60203560003555".from_hex().unwrap(),
-		}.sign(&"".sha3());
+		}.sign(&"".sha3(), None);
 
 		let b1a = canon_chain
 			.with_transaction(t1.clone())

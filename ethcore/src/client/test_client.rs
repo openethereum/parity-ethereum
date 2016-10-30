@@ -202,7 +202,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(keypair.secret());
+					let signed_tx = tx.sign(keypair.secret(), None);
 					txs.append(&signed_tx);
 					txs.out()
 				},

@@ -1055,6 +1055,18 @@ mod tests {
 		)).ok().expect("Miner was just created.")
 	}
 
+	fn transaction() -> SignedTransaction {
+		let keypair = Random.generate().unwrap();
+		Transaction {
+			action: Action::Create,
+			value: U256::zero(),
+			data: "3331600055".from_hex().unwrap(),
+			gas: U256::from(100_000),
+			gas_price: U256::zero(),
+			nonce: U256::zero(),
+		}.sign(keypair.secret(), None)
+	}
+
 	#[test]
 	fn should_make_pending_block_when_importing_own_transaction() {
 		// given
