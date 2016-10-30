@@ -108,7 +108,7 @@ export default {
     desc: 'Returns a snapshot of the historic gas prices',
     params: [],
     returns: {
-      types: Array,
+      type: Array,
       desc: 'Historic values'
     }
   },
