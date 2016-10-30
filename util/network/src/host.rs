@@ -747,7 +747,7 @@ impl Host {
 			let socket = match self.tcp_listener.lock().accept() {
 				Ok((sock, _addr)) => sock,
 				Err(e) => {
-					warn!("Error accepting connection: {:?}", e);
+					debug!(target: "network", "Error accepting connection: {:?}", e);
 					break
 				},
 			};
@@ -801,29 +801,31 @@ impl Host {
 					},
 					Ok(SessionData::Ready) => {
 						self.num_sessions.fetch_add(1, AtomicOrdering::SeqCst);
-						if !s.info.originated {
-							let session_count = self.session_count();
-							let (max_peers, reserved_only) = {
-								let info = self.info.read();
-								let mut max_peers = info.config.max_peers;
-								for cap in s.info.capabilities.iter() {
-									if let Some(num) = info.config.reserved_protocols.get(&cap.protocol) {
-										max_peers += *num;
-										break;
-									}
-								}
-								(max_peers, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
-							};
-
-							if session_count >= max_peers as usize || reserved_only {
-								// only proceed if the connecting peer is reserved.
-								if !self.reserved_nodes.read().contains(s.id().unwrap()) {
-									s.disconnect(io, DisconnectReason::TooManyPeers);
-									return;
+						let session_count = self.session_count();
+						let (min_peers, max_peers, reserved_only) = {
+							let info = self.info.read();
+							let mut max_peers = info.config.max_peers;
+							for cap in s.info.capabilities.iter() {
+								if let Some(num) = info.config.reserved_protocols.get(&cap.protocol) {
+									max_peers += *num;
+									break;
 								}
 							}
+							(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
+						};
 
-							// Add it no node table
+						if reserved_only ||
+							(s.info.originated && session_count >= min_peers) ||
+							(!s.info.originated && session_count >= max_peers) {
+							// only proceed if the connecting peer is reserved.
+							if !self.reserved_nodes.read().contains(s.id().unwrap()) {
+								s.disconnect(io, DisconnectReason::TooManyPeers);
+								return;
+							}
+						}
+
+						// Add it to the node table
+						if !s.info.originated {
 							if let Ok(address) = s.remote_addr() {
 								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
 								self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
