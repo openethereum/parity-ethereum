@@ -21,52 +21,6 @@
 //! transaction's nonce and next nonce expected from this sender). If nonces are equal transaction's gas price is used
 //! for comparison (higher gas price = higher priority).
 //!
-//! # Usage Example
-//!
-//! ```rust
-//! extern crate ethcore_util as util;
-//! extern crate ethcore;
-//! extern crate rustc_serialize;
-//!
-//!	use util::crypto::KeyPair;
-//! use util::hash::Address;
-//! use util::numbers::{Uint, U256};
-//!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
-//!	use ethcore::transaction::*;
-//!	use rustc_serialize::hex::FromHex;
-//!
-//! fn main() {
-//!		let key = KeyPair::create().unwrap();
-//!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
-//!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
-//!
-//!		let st1 = t1.sign(&key.secret(), None);
-//!		let st2 = t2.sign(&key.secret(), None);
-//!		let default_nonce = U256::from(10);
-//!
-//!		let mut txq = TransactionQueue::default();
-//!		txq.add(st2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
-//!		txq.add(st1.clone(), &default_nonce, TransactionOrigin::External).unwrap();
-//!
-//!		// Check status
-//!		assert_eq!(txq.status().pending, 2);
-//!		// Check top transactions
-//!		let top = txq.top_transactions();
-//!		assert_eq!(top.len(), 2);
-//!		assert_eq!(top[0], st1);
-//!		assert_eq!(top[1], st2);
-//!
-//!		// And when transaction is removed (but nonce haven't changed)
-//!		// it will move subsequent transactions to future
-//!		txq.remove_invalid(&st1.hash(), &default_nonce);
-//!		assert_eq!(txq.status().pending, 0);
-//!		assert_eq!(txq.status().future, 1);
-//!		assert_eq!(txq.top_transactions().len(), 0);
-//!	}
-//! ```
-//!
 //!	# Maintaing valid state
 //!
 //!	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).

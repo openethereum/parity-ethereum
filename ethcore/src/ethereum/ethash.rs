@@ -144,6 +144,14 @@ impl Engine for Ethash {
 		}
 	}
 
+	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u8> {
+		if env_info.number >= self.ethash_params.eip155_transition && self.params().network_id < 127 {
+			Some(self.params().network_id as u8)
+		} else {
+			None
+		}
+	}
+
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, gas_ceil_target: U256) {
 		header.difficulty = self.calculate_difficuty(header, parent);
 		header.gas_limit = {
@@ -280,10 +288,13 @@ impl Engine for Ethash {
 		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
-		// TODO gav
-/*		if header.number() < self.params.eip155_transition {
-			try!(t.check_wildcard_network_id());
-		}*/
+
+		if let Some(n) = t.network_id() {
+			if header.number() < self.ethash_params.eip155_transition || n as usize != self.params().network_id {
+				return Err(TransactionError::InvalidNetworkId.into())
+			}
+		}
+
 		Ok(())
 	}
 

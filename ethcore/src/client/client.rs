@@ -259,6 +259,22 @@ impl Client {
 		}
 	}
 
+	/// The env info as of the best block.
+	fn latest_env_info(&self) -> EnvInfo {
+		let header_data = self.best_block_header();
+		let view = HeaderView::new(&header_data);
+
+		EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: self.build_last_hashes(view.hash()),
+			gas_used: U256::default(),
+			gas_limit: view.gas_limit(),
+		}
+	}
+
 	fn build_last_hashes(&self, parent_hash: H256) -> Arc<LastHashes> {
 		{
 			let hashes = self.last_hashes.read();
@@ -1050,6 +1066,10 @@ impl BlockChainClient for Client {
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions(self.chain.best_block_number())
+	}
+
+	fn signing_network_id(&self) -> Option<u8> {
+		self.engine.signing_network_id(&self.latest_env_info())
 	}
 }
 

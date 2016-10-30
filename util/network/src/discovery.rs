@@ -608,7 +608,6 @@ mod tests {
 	#[test]
 	fn find_nearest_saturated() {
 		use super::*;
-		use util::Hashable;
 		let mut buckets: Vec<_> = (0..256).map(|_| NodeBucket::new()).collect();
 		let ep = NodeEndpoint { address: SocketAddr::from_str("127.0.0.1:40447").unwrap(), udp_port: 40447 };
 		for _ in 0..(16 + 10) {

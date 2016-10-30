@@ -81,7 +81,7 @@ impl Configuration {
 		let http_conf = try!(self.http_config());
 		let ipc_conf = try!(self.ipc_config());
 		let net_conf = try!(self.net_config());
-		let network_id = try!(self.network_id());
+		let network_id = self.network_id();
 		let cache_config = self.cache_config();
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
@@ -465,12 +465,8 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	fn network_id(&self) -> Result<Option<U256>, String> {
-		let net_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref());
-		match net_id {
-			Some(id) => Ok(Some(try!(to_u256(id)))),
-			None => Ok(None),
-		}
+	fn network_id(&self) -> Option<usize> {
+		self.args.flag_network_id.or(self.args.flag_networkid)
 	}
 
 	fn rpc_apis(&self) -> String {
