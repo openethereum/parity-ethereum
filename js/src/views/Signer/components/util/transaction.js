@@ -18,7 +18,6 @@ import BigNumber from 'bignumber.js';
 
 const WEI_TO_ETH_MULTIPLIER = 0.000000000000000001;
 const WEI_TO_SZABU_MULTIPLIER = 0.000000000001;
-import { BASE_LINK_TX_MORDEN, BASE_LINK_TX_HOMESTEAD } from '../constants/constants';
 
 export const getShortData = _getShortData;
 // calculations
@@ -33,8 +32,6 @@ export const getTotalValueDisplay = _getTotalValueDisplay;
 export const getTotalValueDisplayWei = _getTotalValueDisplayWei;
 export const getEthmFromWeiDisplay = _getEthmFromWeiDisplay;
 export const getGasDisplay = _getGasDisplay;
-// links
-export const getTxLink = _getTxLink;
 
 function _getShortData (data) {
   if (data.length <= 3) {
@@ -109,11 +106,6 @@ function _getTotalValueDisplayWei (totalValue) {
 function _getEthmFromWeiDisplay (weiHexString) {
   const value = new BigNumber(weiHexString);
   return value.times(WEI_TO_ETH_MULTIPLIER).times(1e7).toFixed(5);
-}
-
-function _getTxLink (txHash, chain) {
-  const base = chain === 'morden' || chain === 'testnet' ? BASE_LINK_TX_MORDEN : BASE_LINK_TX_HOMESTEAD;
-  return base + txHash;
 }
 
 function _getGasDisplay (gas) {
