@@ -634,14 +634,14 @@ impl Host {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
-		let (min_peers, mut pin, max_handshakes, allow_ips) = {
+		let (min_peers, mut pin, max_handshakes, allow_ips, self_id) = {
 			let info = self.info.read();
 			if info.capabilities.is_empty() {
 				return;
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips)
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips, info.id().clone())
 		};
 
 		let session_count = self.session_count();
@@ -672,7 +672,7 @@ impl Host {
 
 		let max_handshakes_per_round = max_handshakes / 2;
 		let mut started: usize = 0;
-		for id in nodes.filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
+		for id in nodes.filter(|id| !self.have_session(id) && !self.connecting_to(id) && *id != self_id)
 			.take(min(max_handshakes_per_round, max_handshakes - handshake_count)) {
 			self.connect_peer(&id, io);
 			started += 1;
