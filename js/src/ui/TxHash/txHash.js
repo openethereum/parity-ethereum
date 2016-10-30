@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
+import { txLink } from '../../3rdparty/etherscan/links';
 
 import styles from './txHash.css';
 
@@ -55,7 +56,6 @@ class TxHash extends Component {
 
   render () {
     const { hash, isTest } = this.props;
-    const link = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${hash}`;
 
     return (
       <div className={ styles.details }>
@@ -63,7 +63,7 @@ class TxHash extends Component {
           The transaction has been posted to the network with a transaction hash of
         </div>
         <div className={ styles.hash }>
-          <a href={ link } target='_blank'>{ hash }</a>
+          <a href={ txLink(hash, isTest) } target='_blank'>{ hash }</a>
         </div>
         { this.renderConfirmations() }
       </div>
