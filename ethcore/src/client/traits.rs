@@ -215,6 +215,9 @@ pub trait BlockChainClient : Sync + Send {
 			Err(())
 		}
 	}
+
+	/// Get the preferred network ID to sign on
+	fn signing_network_id(&self) -> Option<u8> { None } 
 }
 
 /// Extended client interface used for mining
