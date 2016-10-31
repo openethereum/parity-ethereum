@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -187,6 +187,22 @@ describe('api/format/output', () => {
         gasUsed: new BigNumber('0x102'),
         transactionIndex: new BigNumber('0x103'),
         extraData: 'someExtraStuffInHere'
+      });
+    });
+  });
+
+  describe('outSyncing', () => {
+    ['currentBlock', 'highestBlock', 'startingBlock', 'warpChunksAmount', 'warpChunksProcessed'].forEach((input) => {
+      it(`formats ${input} numbers as a number`, () => {
+        expect(outSyncing({ [input]: '0x123' })).to.deep.equal({
+          [input]: new BigNumber('0x123')
+        });
+      });
+    });
+
+    it('formats blockGap properly', () => {
+      expect(outSyncing({ blockGap: [0x123, 0x456] })).to.deep.equal({
+        blockGap: [new BigNumber(0x123), new BigNumber(0x456)]
       });
     });
   });
