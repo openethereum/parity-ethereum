@@ -18,42 +18,52 @@ import React, { Component, PropTypes } from 'react';
 import { Chip } from 'material-ui';
 import ChipInput from 'material-ui-chip-input';
 import { blue300 } from 'material-ui/styles/colors';
+import { uniq } from 'lodash';
 
 import styles from './inputChip.css';
 
 export default class InputChip extends Component {
   static propTypes = {
+    tokens: PropTypes.array.isRequired,
     className: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
-    value: PropTypes.array.isRequired,
-    onRequestAdd: PropTypes.func,
-    onRequestDelete: PropTypes.func,
-    onChange: PropTypes.func
+    onTokensChange: PropTypes.func,
+    onInputChange: PropTypes.func,
+    onBlur: PropTypes.func,
+    clearOnBlur: PropTypes.bool
+  }
+
+  static defaultProps = {
+    clearOnBlur: false
   }
 
   render () {
-    const { className, hint, label, value, onRequestAdd, onRequestDelete } = this.props;
+    const { clearOnBlur, className, hint, label, tokens } = this.props;
     const classes = `${className}`;
 
     return (
       <ChipInput
         className={ classes }
         ref='chipInput'
-        value={ value }
-        clearOnBlur={ false }
-        chipRenderer={ this.chipRenderer }
+
+        value={ tokens }
+        clearOnBlur={ clearOnBlur }
         floatingLabelText={ label }
         hintText={ hint }
 
-        onRequestAdd={ onRequestAdd }
-        onRequestDelete={ onRequestDelete }
-        onUpdateInput={ this.onChange }
+        chipRenderer={ this.chipRenderer }
+
+        onBlur={ this.handleBlur }
+        onRequestAdd={ this.handleTokenAdd }
+        onRequestDelete={ this.handleTokenDelete }
+        onUpdateInput={ this.handleInputChange }
 
         floatingLabelFixed
         fullWidth
+
         hintStyle={ {
-          bottom: 17,
+          bottom: 16,
           left: 1,
           transition: 'none'
         } }
@@ -93,16 +103,62 @@ export default class InputChip extends Component {
     );
   }
 
-  onChange = (value) => {
-    const { onChange } = this.props;
-    const tokens = value.split(/[\s,;]+/);
-    const newTokens = tokens
-      .slice(0, -1)
-      .filter((t) => t.length);
+  handleBlur = () => {
+    const { onBlur } = this.props;
 
-    onChange(newTokens);
-
-    const inputValue = tokens.slice(-1)[0].trim();
-    this.refs.chipInput.setState({ inputValue });
+    if (typeof onBlur === 'function') {
+      onBlur();
+    }
   }
+
+  handleTokenAdd = (value) => {
+    const { tokens, onInputChange } = this.props;
+
+    const newTokens = uniq([].concat(tokens, value));
+
+    this.handleTokensChange(newTokens);
+
+    if (value === this.refs.chipInput.state.inputValue && typeof onInputChange === 'function') {
+      onInputChange('');
+    }
+  }
+
+  handleTokenDelete = (value) => {
+    const { tokens } = this.props;
+
+    const newTokens = uniq([]
+      .concat(tokens)
+      .filter(v => v !== value));
+
+    this.handleTokensChange(newTokens);
+    this.refs.chipInput.focus();
+  }
+
+  handleInputChange = (value) => {
+    const { onInputChange } = this.props;
+
+    const splitTokens = value.split(/[\s,;]/);
+
+    const inputValue = (splitTokens.length <= 1)
+      ? value
+      : splitTokens.slice(-1)[0].trim();
+
+    this.refs.chipInput.setState({ inputValue });
+
+    if (splitTokens.length > 1) {
+      const tokensToAdd = splitTokens.slice(0, -1);
+      tokensToAdd.forEach(token => this.handleTokenAdd(token));
+    }
+
+    if (typeof onInputChange === 'function') {
+      onInputChange(inputValue);
+    }
+  }
+
+  handleTokensChange = (tokens) => {
+    const { onTokensChange } = this.props;
+
+    onTokensChange(tokens.filter(token => token && token.length > 0));
+  }
+
 }

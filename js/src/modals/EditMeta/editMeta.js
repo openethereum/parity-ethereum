@@ -103,37 +103,17 @@ export default class EditMeta extends Component {
 
     return (
       <InputChip
-        value={ tags }
-        onRequestAdd={ this.onAddTag }
-        onRequestDelete={ this.onDeleteTag }
+        tokens={ tags }
+        onTokensChange={ this.onTagsChange }
         label='(optional) tags'
         hint='press <Enter> to add a tag'
-        onChange={ this.onTagsChange } />
+        clearOnBlur
+      />
     );
   }
 
-  onAddTag = (tag) => {
-    const { meta } = this.state;
-    const { tags } = meta || [];
-
-    this.onMetaChange('tags', [].concat(tags, tag));
-  }
-
-  onDeleteTag = (tag) => {
-    const { meta } = this.state;
-    const { tags } = meta || [];
-
-    const newTags = tags
-      .filter(t => t !== tag);
-
+  onTagsChange = (newTags) => {
     this.onMetaChange('tags', newTags);
-  }
-
-  onTagsChange = (newTokens) => {
-    const { meta } = this.state;
-    const { tags = [] } = meta;
-
-    this.onMetaChange('tags', [].concat(tags, newTokens));
   }
 
   onNameChange = (name) => {
