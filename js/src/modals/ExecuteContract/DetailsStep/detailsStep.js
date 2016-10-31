@@ -141,6 +141,25 @@ export default class DetailsStep extends Component {
           );
           break;
 
+        case 'bool':
+          const values = [false, true].forEach((bool) => {
+            const strval = `${bool}`;
+            return (
+              <MenuItem
+                key={ strval }
+                value={ strval }
+                label={ strval }>{ strval }</MenuItem>
+            );
+          });
+          inputbox = (
+            <Select
+              label={ label }
+              value={ `${values[index]}` }
+              error={ valuesError[index] }
+              onChange={ onChange }>{ values }</Select>
+          );
+          break;
+
         default:
           inputbox = (
             <Input
