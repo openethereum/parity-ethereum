@@ -75,11 +75,15 @@ impl BanningTransactionQueue {
 
 	/// Add to the queue taking bans into consideration.
 	/// May reject transaction because of the banlist.
-	pub fn add_with_banlist<F>(
+	pub fn add_with_banlist<F, G>(
 		&mut self,
 		transaction: SignedTransaction,
 		account_details: &F,
-	) -> Result<TransactionImportResult, Error> where F: Fn(&Address) -> AccountDetails {
+		gas_estimator: &G,
+	) -> Result<TransactionImportResult, Error> where
+		F: Fn(&Address) -> AccountDetails,
+		G: Fn(&SignedTransaction) -> U256,
+	{
 		if let Threshold::BanAfter(threshold) = self.ban_threshold {
 			// NOTE In all checks use direct query to avoid increasing ban timeout.
 
@@ -111,7 +115,7 @@ impl BanningTransactionQueue {
 				}
 			}
 		}
-		self.queue.add(transaction, account_details, TransactionOrigin::External)
+		self.queue.add(transaction, TransactionOrigin::External, account_details, gas_estimator)
 	}
 
 	/// Ban transaction with given hash.
@@ -126,7 +130,7 @@ impl BanningTransactionQueue {
 				// Ban sender
 				let sender_banned = self.ban_sender(sender);
 				// Ban recipient and codehash
-				let is_banned = sender_banned || match transaction.action {
+				let recipient_or_code_banned = match transaction.action {
 					Action::Call(recipient) => {
 						self.ban_recipient(recipient)
 					},
@@ -134,7 +138,7 @@ impl BanningTransactionQueue {
 						self.ban_codehash(transaction.data.sha3())
 					},
 				};
-				is_banned
+				sender_banned || recipient_or_code_banned
 			},
 			None => false,
 		}
@@ -228,6 +232,10 @@ mod tests {
 		}
 	}
 
+	fn gas_required(_tx: &SignedTransaction) -> U256 {
+		0.into()
+	}
+
 	fn transaction(action: Action) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
 		Transaction {
@@ -255,7 +263,7 @@ mod tests {
 		let mut txq = queue();
 
 		// when
-		txq.queue().add(tx, &default_account_details, TransactionOrigin::External).unwrap();
+		txq.queue().add(tx, TransactionOrigin::External, &default_account_details, &gas_required).unwrap();
 
 		// then
 		// should also deref to queue
@@ -271,12 +279,12 @@ mod tests {
 		let banlist1 = txq.ban_sender(tx.sender().unwrap());
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
-		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details).unwrap();
+		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_sender(tx.sender().unwrap());
-		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details);
+		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required);
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");
@@ -295,12 +303,12 @@ mod tests {
 		let banlist1 = txq.ban_recipient(recipient);
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
-		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details).unwrap();
+		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_recipient(recipient);
-		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details);
+		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required);
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");
@@ -317,12 +325,12 @@ mod tests {
 		let banlist1 = txq.ban_codehash(codehash);
 		assert!(!banlist1, "Threshold not reached yet.");
 		// Insert once
-		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details).unwrap();
+		let import1 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required).unwrap();
 		assert_eq!(import1, TransactionImportResult::Current);
 
 		// when
 		let banlist2 = txq.ban_codehash(codehash);
-		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details);
+		let import2 = txq.add_with_banlist(tx.clone(), &default_account_details, &gas_required);
 
 		// then
 		assert!(banlist2, "Threshold should be reached - banned.");

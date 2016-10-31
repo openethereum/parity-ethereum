@@ -109,7 +109,7 @@ pub struct VerificationQueue<K: Kind> {
 struct QueueSignal {
 	deleting: Arc<AtomicBool>,
 	signalled: AtomicBool,
-	message_channel: IoChannel<ClientIoMessage>,
+	message_channel: Mutex<IoChannel<ClientIoMessage>>,
 }
 
 impl QueueSignal {
@@ -121,7 +121,8 @@ impl QueueSignal {
 		}
 
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			if let Err(e) = self.message_channel.send_sync(ClientIoMessage::BlockVerified) {
+			let channel = self.message_channel.lock().clone();
+			if let Err(e) = channel.send_sync(ClientIoMessage::BlockVerified) {
 				debug!("Error sending BlockVerified message: {:?}", e);
 			}
 		}
@@ -135,7 +136,8 @@ impl QueueSignal {
 		}
 
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			if let Err(e) = self.message_channel.send(ClientIoMessage::BlockVerified) {
+			let channel = self.message_channel.lock().clone();
+			if let Err(e) = channel.send(ClientIoMessage::BlockVerified) {
 				debug!("Error sending BlockVerified message: {:?}", e);
 			}
 		}
@@ -178,7 +180,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let ready_signal = Arc::new(QueueSignal {
 			deleting: deleting.clone(),
 			signalled: AtomicBool::new(false),
-			message_channel: message_channel
+			message_channel: Mutex::new(message_channel),
 		});
 		let empty = Arc::new(SCondvar::new());
 		let panic_handler = PanicHandler::new_in_arc();

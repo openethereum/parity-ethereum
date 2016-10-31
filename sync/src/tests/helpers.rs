@@ -127,20 +127,24 @@ pub struct TestNet {
 
 impl TestNet {
 	pub fn new(n: usize) -> TestNet {
-		Self::new_with_fork(n, None)
+		Self::new_with_config(n, SyncConfig::default())
 	}
 
 	pub fn new_with_fork(n: usize, fork: Option<(BlockNumber, H256)>) -> TestNet {
+		let mut config = SyncConfig::default();
+		config.fork_block = fork;
+		Self::new_with_config(n, config)
+	}
+
+	pub fn new_with_config(n: usize, config: SyncConfig) -> TestNet {
 		let mut net = TestNet {
 			peers: Vec::new(),
 			started: false,
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
-			let mut config = SyncConfig::default();
-			config.fork_block = fork;
 			let ss = Arc::new(TestSnapshotService::new());
-			let sync = ChainSync::new(config, &chain);
+			let sync = ChainSync::new(config.clone(), &chain);
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -164,7 +168,7 @@ impl TestNet {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let mut p = self.peers.get_mut(peer).unwrap();
-					p.sync.write().restart(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(client as PeerId)));
+					p.sync.write().update_targets(&mut p.chain);
 					p.sync.write().on_peer_connected(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}

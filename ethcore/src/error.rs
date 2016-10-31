@@ -47,6 +47,13 @@ pub enum TransactionError {
 		/// Transaction gas price
 		got: U256,
 	},
+	/// Transaction's gas is below currently set minimal gas requirement.
+	InsufficientGas {
+		/// Minimal expected gas
+		minimal: U256,
+		/// Transaction gas
+		got: U256,
+	},
 	/// Sender doesn't have enough funds to pay for this transaction
 	InsufficientBalance {
 		/// Senders balance
@@ -81,6 +88,8 @@ impl fmt::Display for TransactionError {
 			LimitReached => "Transaction limit reached".into(),
 			InsufficientGasPrice { minimal, got } =>
 				format!("Insufficient gas price. Min={}, Given={}", minimal, got),
+			InsufficientGas { minimal, got } =>
+				format!("Insufficient gas. Min={}, Given={}", minimal, got),
 			InsufficientBalance { balance, cost } =>
 				format!("Insufficient balance for transaction. Balance={}, Cost={}",
 					balance, cost),

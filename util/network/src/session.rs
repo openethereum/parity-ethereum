@@ -19,6 +19,7 @@ use std::net::SocketAddr;
 use std::cmp::Ordering;
 use std::sync::*;
 use mio::*;
+use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use util::hash::*;
 use rlp::*;

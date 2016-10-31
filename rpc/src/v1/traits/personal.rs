@@ -52,6 +52,10 @@ pub trait PersonalAccounts: Sized + Send + Sync + 'static {
 	/// Second parameter is password for the wallet and the new account.
 	fn new_account_from_wallet(&self, params: Params) -> Result<Value, Error>;
 
+	/// Creates new account from the given raw secret.
+	/// Second parameter is password for the new account.
+	fn new_account_from_secret(&self, params: Params) -> Result<Value, Error>;
+
 	/// Unlocks specified account for use (can only be one unlocked account at one moment)
 	fn unlock_account(&self, _: Params) -> Result<Value, Error>;
 
@@ -84,6 +88,7 @@ pub trait PersonalAccounts: Sized + Send + Sync + 'static {
 		delegate.add_method("personal_newAccount", PersonalAccounts::new_account);
 		delegate.add_method("personal_newAccountFromPhrase", PersonalAccounts::new_account_from_phrase);
 		delegate.add_method("personal_newAccountFromWallet", PersonalAccounts::new_account_from_wallet);
+		delegate.add_method("personal_newAccountFromSecret", PersonalAccounts::new_account_from_secret);
 		delegate.add_method("personal_unlockAccount", PersonalAccounts::unlock_account);
 		delegate.add_method("personal_testPassword", PersonalAccounts::test_password);
 		delegate.add_method("personal_changePassword", PersonalAccounts::change_password);
