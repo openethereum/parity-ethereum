@@ -19,6 +19,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { validateAddress } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
@@ -173,6 +174,10 @@ export default class ExecuteContract extends Component {
     let valueError;
 
     switch (input.kind.type) {
+      case 'address':
+        value = _value;
+        valueError = validateAddress(_value).addressError;
+        break;
       default:
         value = _value;
         valueError = null;
