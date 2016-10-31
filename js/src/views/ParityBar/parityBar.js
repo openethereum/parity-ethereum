@@ -18,9 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Badge, Button, ContainerTitle, ParityBackground, SignerIcon } from '../../ui';
+import { Badge, Button, ContainerTitle, ParityBackground } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../../assets/images/ethcore-block.png';
@@ -84,7 +85,7 @@ class ParityBar extends Component {
             </Link>
             <Button
               className={ styles.button }
-              icon={ <SignerIcon className={ styles.signerIcon } /> }
+              icon={ <ActionFingerprint /> }
               label={ this.renderSignerLabel() }
               onClick={ this.toggleDisplay } />
           </div>

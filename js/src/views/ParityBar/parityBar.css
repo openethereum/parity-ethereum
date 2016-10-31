@@ -90,6 +90,10 @@
   overflow: visible !important;
 }
 
+.button svg {
+  fill: white !important;
+}
+
 .label {
   position: relative;
   display: inline-block;
