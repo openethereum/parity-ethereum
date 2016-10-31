@@ -65,7 +65,6 @@ class CustomCursor extends Component {
     }
 
     const count = counts[index].toNumber() + 1;
-
     const barHeight = (count / yDomain[1]) * (y + height);
 
     return (
