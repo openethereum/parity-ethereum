@@ -23,8 +23,6 @@ import CommunicationContacts from 'material-ui/svg-icons/communication/contacts'
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
 
-import styles from './views.css';
-
 const defaultViews = {
   accounts: {
     active: true,
