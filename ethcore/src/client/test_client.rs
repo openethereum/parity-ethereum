@@ -84,6 +84,10 @@ pub struct TestBlockChainClient {
 	pub vm_factory: EvmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
+	/// Ancient block info.
+	pub ancient_block: RwLock<Option<(H256, u64)>>,
+	/// First block info.
+	pub first_block: RwLock<Option<(H256, u64)>>,
 }
 
 #[derive(Clone)]
@@ -133,6 +137,8 @@ impl TestBlockChainClient {
 			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
+			ancient_block: RwLock::new(None),
+			first_block: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -594,10 +600,10 @@ impl BlockChainClient for TestBlockChainClient {
 			genesis_hash: self.genesis_hash.clone(),
 			best_block_hash: self.last_hash.read().clone(),
 			best_block_number: self.blocks.read().len() as BlockNumber - 1,
-			first_block_hash: None,
-			first_block_number: None,
-			ancient_block_hash: None,
-			ancient_block_number: None,
+			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
+			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
+			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
+			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
 		}
 	}
 
