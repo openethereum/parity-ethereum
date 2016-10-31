@@ -175,6 +175,7 @@ export default class ExecuteContract extends Component {
 
     switch (input.kind.type) {
       case 'address':
+        value = _value;
         valueError = validateAddress(_value).addressError;
         break;
       default:
