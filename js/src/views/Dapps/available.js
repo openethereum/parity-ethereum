@@ -14,9 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import { parityNode } from '../../environment';
 
-const builtinApps = [
+const apps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
     url: 'basiccoin',
@@ -73,7 +75,7 @@ const builtinApps = [
   }
 ];
 
-export default function () {
+export default function (api) {
   return fetch(`${parityNode}/api/apps`)
     .then((response) => {
       return response.ok
@@ -85,8 +87,19 @@ export default function () {
       return [];
     })
     .then((localApps) => {
-      return builtinApps
-        .concat(localApps.filter((app) => !['ui'].includes(app.id)))
-        .sort((a, b) => a.name.localeCompare(b.name));
+      return api.ethcore
+        .registryAddress()
+        .then((registryAddress) => {
+          if (new BigNumber(registryAddress).eq(0)) {
+            return [];
+          }
+
+          return apps;
+        })
+        .then((builtinApps) => {
+          return builtinApps
+            .concat(localApps.filter((app) => !['ui'].includes(app.id)))
+            .sort((a, b) => a.name.localeCompare(b.name));
+        });
     });
 }

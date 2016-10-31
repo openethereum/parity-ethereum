@@ -137,10 +137,15 @@ export default class ActionbarSearch extends Component {
 
   handleTokenAdd = (value) => {
     const { tokens } = this.props;
+    const { inputValue } = this.state;
 
     const newSearchTokens = uniq([].concat(tokens, value));
 
-    this.handleSearchChange(newSearchTokens);
+    this.setState({
+      inputValue: inputValue === value ? '' : inputValue
+    }, () => {
+      this.handleSearchChange(newSearchTokens);
+    });
   }
 
   handleTokenDelete = (value) => {

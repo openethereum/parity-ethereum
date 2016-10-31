@@ -29,12 +29,19 @@ import styles from './names.css';
 const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
 
 const renderNames = (names) => {
-  const out = [];
-  for (let name of names) {
-    out.push((<code>{ name }</code>), ', ');
-  }
-  out.pop();
-  return out;
+  const values = Object.values(names);
+
+  return values
+    .map((name, index) => (
+      <span key={ index }>
+        <code>{ name }</code>
+        {
+          index < values.length - 1
+          ? (<span>, </span>)
+          : null
+        }
+      </span>
+    ));
 };
 
 const renderQueue = (queue) => {
