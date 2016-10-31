@@ -76,6 +76,8 @@ pub enum Mode {
 	/// Goes offline after RLP is inactive for some (given) time and
 	/// stays inactive.
 	Dark(Duration),
+	/// Always off.
+	Off,
 }
 
 impl Default for Mode {

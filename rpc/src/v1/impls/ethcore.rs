@@ -30,6 +30,7 @@ use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockID;
+use ethcore::mode::Mode;
 
 use jsonrpc_core::Error;
 use v1::traits::Ethcore;
@@ -342,5 +343,14 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 			.unwrap_or_else(|| client.latest_nonce(&address))
 			.into()
 		)
+	}
+
+	fn mode(&self) -> Result<String, Error> {
+		Ok(match take_weak!(self.client).mode() {
+			Mode::Off => "off",
+			Mode::Dark(..) => "dark",
+			Mode::Passive(..) => "passive",
+			Mode::Active => "active",
+		}.into())
 	}
 }

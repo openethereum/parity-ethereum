@@ -156,6 +156,15 @@ export default {
     }
   },
 
+  mode: {
+    desc: 'Get the mode. Results one of: "active", "passive", "dark", "off".',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The mode'
+    }
+  },
+
   netChain: {
     desc: 'Returns the name of the connected chain.',
     params: [],
@@ -304,6 +313,20 @@ export default {
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
+    }
+  },
+
+  setMode: {
+    desc: 'Changes the mode',
+    params: [
+      {
+        type: String,
+        desc: 'The mode to set, one of "active", "passive", "dark", "off"'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
     }
   },
 

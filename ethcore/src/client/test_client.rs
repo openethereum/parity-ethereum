@@ -37,6 +37,7 @@ use error::{ImportResult};
 use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
+use types::mode::Mode;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -625,4 +626,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
+
+	fn mode(&self) -> Mode { Mode::Active }
+
+	fn set_mode(&self, _: Mode) { unimplemented!(); }
 }

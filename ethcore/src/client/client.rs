@@ -45,6 +45,7 @@ use block::*;
 use transaction::{LocalizedTransaction, SignedTransaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
+use types::mode::Mode as IpcMode;
 use log_entry::LocalizedLogEntry;
 use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
@@ -123,7 +124,7 @@ impl SleepState {
 /// Blockchain database client backed by a persistent database. Owns and manages a blockchain and a block queue.
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
-	mode: Mode,
+	mode: Mutex<Mode>,
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<Engine>,
@@ -221,7 +222,7 @@ impl Client {
 		let client = Client {
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
-			mode: config.mode.clone(),
+			mode: Mutex::new(config.mode.clone()),
 			chain: RwLock::new(chain),
 			tracedb: tracedb,
 			engine: engine,
@@ -614,7 +615,8 @@ impl Client {
 		self.block_queue.collect_garbage();
 		self.tracedb.read().collect_garbage();
 
-		match self.mode {
+		let mode = self.mode.lock().clone();
+		match mode {
 			Mode::Dark(timeout) => {
 				let mut ss = self.sleep_state.lock();
 				if let Some(t) = ss.last_activity {
@@ -838,9 +840,21 @@ impl BlockChainClient for Client {
 	}
 
 	fn keep_alive(&self) {
-		if self.mode != Mode::Active {
+		let mode = self.mode.lock().clone();
+		if mode != Mode::Active {
 			self.wake_up();
 			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
+		}
+	}
+
+	fn mode(&self) -> IpcMode { self.mode.lock().clone().into() }
+
+	fn set_mode(&self, mode: IpcMode) {
+		*self.mode.lock() = mode.clone().into();
+		match mode {
+			IpcMode::Active => self.wake_up(),
+			IpcMode::Off => self.sleep(),
+			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }
 		}
 	}
 
