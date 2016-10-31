@@ -36,7 +36,7 @@ enum Unlock {
 	/// Use with caution.
 	Perm,
 	/// Account unlocked with a timeout
-	Timed((Instant, u32)),
+	Timed(Instant),
 }
 
 /// Data associated with account.
@@ -308,8 +308,8 @@ impl AccountProvider {
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
-		if let Unlock::Timed((ref start, ref duration)) = data.unlock {
-			if start.elapsed() > Duration::from_millis(*duration as u64) {
+		if let Unlock::Timed(ref end) = data.unlock {
+			if Instant::now() > *end {
 				unlocked.remove(account).expect("data exists: so key must exist: qed");
 				return Err(Error::NotUnlocked);
 			}
@@ -329,7 +329,7 @@ impl AccountProvider {
 
 	/// Unlocks account temporarily with a timeout.
 	pub fn unlock_account_timed(&self, account: Address, password: String, duration_ms: u32) -> Result<(), Error> {
-		self.unlock_account(account, password, Unlock::Timed((Instant::now(), duration_ms)))
+		self.unlock_account(account, password, Unlock::Timed(Instant::now() + Duration::from_millis(duration_ms as u64)))
 	}
 
 	/// Checks if given account is unlocked
@@ -363,11 +363,11 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::{AccountProvider, AddressBook};
+	use super::{AccountProvider, AddressBook, Unlock};
 	use std::collections::HashMap;
+	use std::time::Instant;
 	use ethjson::misc::AccountMeta;
 	use ethstore::ethkey::{Generator, Random};
-	use std::time::Duration;
 	use devtools::RandomTempPath;
 
 	#[test]
@@ -411,10 +411,10 @@ mod tests {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
-		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 2000).is_err());
-		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 2000).is_ok());
+		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 60000).is_err());
+		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 60000).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		::std::thread::sleep(Duration::from_millis(2000));
+		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
 	}
 }

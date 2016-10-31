@@ -42,16 +42,14 @@ export default class Dapps extends Component {
   }
 
   componentDidMount () {
-    fetchAvailable()
-    .then((available) => {
+    const { api } = this.context;
+
+    fetchAvailable(api).then((available) => {
       this.setState({
         available,
         hidden: readHiddenApps()
       });
       this.loadImages();
-    })
-    .catch((err) => {
-      console.error('error fetching available apps', err);
     });
   }
 

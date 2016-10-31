@@ -38,6 +38,7 @@ use block_import_error::BlockImportError;
 use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
+use types::mode::Mode;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -225,6 +226,10 @@ pub trait BlockChainClient : Sync + Send {
 		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
 		Histogram::new(corpus, bucket_number)
 	}
+
+	fn mode(&self) -> Mode;
+
+	fn set_mode(&self, mode: Mode);
 }
 
 /// Extended client interface used for mining

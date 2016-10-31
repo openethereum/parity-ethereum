@@ -74,7 +74,7 @@ export default class DetailsStep extends Component {
       .filter((func) => !func.constant)
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((func) => {
-        const params = func.abi.inputs
+        const params = (func.abi.inputs || [])
           .map((input, index) => {
             return (
               <span key={ input.name }>
@@ -97,7 +97,7 @@ export default class DetailsStep extends Component {
           <MenuItem
             key={ func.signature }
             value={ func.signature }
-            label={ func.name }>
+            label={ func.name || '()' }>
             { name }
           </MenuItem>
         );
@@ -122,7 +122,7 @@ export default class DetailsStep extends Component {
       return null;
     }
 
-    return func.abi.inputs.map((input, index) => {
+    return (func.abi.inputs || []).map((input, index) => {
       const onChange = (event, value) => onValueChange(event, index, value);
       const onSubmit = (value) => onValueChange(null, index, value);
       const label = `${input.name}: ${input.type}`;
