@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -117,6 +117,18 @@ describe('api/format/output', () => {
   describe('outDate', () => {
     it('converts a second date in unix timestamp', () => {
       expect(outDate(0x57513668)).to.deep.equal(new Date('2016-06-03T07:48:56.000Z'));
+    });
+  });
+
+  describe('outHistogram', () => {
+    ['bucketBounds', 'counts'].forEach((type) => {
+      it(`formats ${type} as number arrays`, () => {
+        expect(
+          outHistogram({ [type]: [0x123, 0x456, 0x789] })
+        ).to.deep.equal({
+          [type]: [new BigNumber(0x123), new BigNumber(0x456), new BigNumber(0x789)]
+        });
+      });
     });
   });
 

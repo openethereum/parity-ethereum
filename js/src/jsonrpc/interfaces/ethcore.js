@@ -104,6 +104,25 @@ export default {
     }
   },
 
+  gasPriceHistogram: {
+    desc: 'Returns a snapshot of the historic gas prices',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Historic values',
+      details: {
+        bucketBounds: {
+          type: Array,
+          desc: 'Array of U256 bound values'
+        },
+        count: {
+          type: Array,
+          desc: 'Array of U64 counts'
+        }
+      }
+    }
+  },
+
   generateSecretPhrase: {
     desc: 'Creates a secret phrase that can be associated with an account',
     params: [],
