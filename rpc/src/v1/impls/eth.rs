@@ -275,9 +275,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let snapshot_status = take_weak!(self.snapshot).status();
 
 		let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
-			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } => {
-				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done))
-			}
+			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
+				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
 			_ => (false, None, None),
 		};
 
