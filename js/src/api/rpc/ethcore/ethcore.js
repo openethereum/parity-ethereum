@@ -85,6 +85,11 @@ export default class Ethcore {
       .then(outNumber);
   }
 
+  mode () {
+    return this._transport
+      .execute('ethcore_mode');
+  }
+
   netChain () {
     return this._transport
       .execute('ethcore_netChain');
@@ -153,6 +158,11 @@ export default class Ethcore {
   setMinGasPrice (quantity) {
     return this._transport
       .execute('ethcore_setMinGasPrice', inNumber16(quantity));
+  }
+
+  setMode (mode) {
+    return this._transport
+      .execute('ethcore_setMode', mode);
   }
 
   setTransactionsLimit (quantity) {
