@@ -117,6 +117,8 @@ export default class Queries extends Component {
       valueToDisplay = value.toFormat(0);
     } else if (api.util.isArray(value)) {
       valueToDisplay = api.util.bytesToHex(value);
+    } else if (typeof value === 'boolean') {
+      valueToDisplay = value ? 'true' : 'false';
     }
 
     return (
