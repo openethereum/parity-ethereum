@@ -158,7 +158,7 @@ pub trait MinerService : Send + Sync {
 	fn is_sealing(&self) -> bool;
 
 	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
+	fn sensible_gas_price(&self) -> U256;
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }

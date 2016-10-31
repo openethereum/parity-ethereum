@@ -104,21 +104,19 @@ export default class AddressSelect extends Component {
   renderSelectEntry = (entry) => {
     const item = (
       <div className={ styles.account }>
-        <div className={ styles.image }>
-          <IdentityIcon
-            inline center
-            address={ entry.address } />
-        </div>
-        <div className={ styles.details }>
-          <div className={ styles.name }>
-            <IdentityName address={ entry.address } />
-          </div>
-        </div>
+        <IdentityIcon
+          className={ styles.image }
+          inline center
+          address={ entry.address } />
+        <IdentityName
+          className={ styles.name }
+          address={ entry.address } />
       </div>
     );
 
     return (
       <MenuItem
+        className={ styles.menuItem }
         key={ entry.address }
         value={ entry.address }
         label={ item }>

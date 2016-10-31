@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use keccak::Keccak256;
-use super::{KeyPair, Error, Generator, Secret};
+use super::{KeyPair, Error, Generator};
 
 /// Simple brainwallet.
 pub struct Brain(String);
@@ -38,9 +38,9 @@ impl Generator for Brain {
 			match i > 16384 {
 				false => i += 1,
 				true => {
-					let result = KeyPair::from_secret(Secret::from(secret.clone()));
-					if result.is_ok() {
-						return result
+					let result = KeyPair::from_secret(secret.clone().into());
+					if result.as_ref().ok().map_or(false, |r| r.address()[0] == 0) {
+						return result;
 					}
 				},
 			}

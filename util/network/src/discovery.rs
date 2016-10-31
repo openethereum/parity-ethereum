@@ -130,7 +130,7 @@ impl Discovery {
 
 	/// Add a new node to discovery table. Pings the node.
 	pub fn add_node(&mut self, e: NodeEntry) {
-		if e.endpoint.is_allowed(self.allow_ips) {
+		if self.is_allowed(&e) {
 			let endpoint = e.endpoint.clone();
 			self.update_node(e);
 			self.ping(&endpoint);
@@ -146,7 +146,7 @@ impl Discovery {
 	/// Add a list of known nodes to the table.
 	pub fn init_node_list(&mut self, mut nodes: Vec<NodeEntry>) {
 		for n in nodes.drain(..) {
-			if n.endpoint.is_allowed(self.allow_ips) {
+			if self.is_allowed(&n) {
 				self.update_node(n);
 			}
 		}
@@ -399,6 +399,10 @@ impl Discovery {
 		Ok(())
 	}
 
+	fn is_allowed(&self, entry: &NodeEntry) -> bool {
+		entry.endpoint.is_allowed(self.allow_ips) && entry.id != self.id
+	}
+
 	fn on_ping(&mut self, rlp: &UntrustedRlp, node: &NodeId, from: &SocketAddr) -> Result<Option<TableUpdates>, NetworkError> {
 		trace!(target: "discovery", "Got Ping from {:?}", &from);
 		let source = try!(NodeEndpoint::from_rlp(&try!(rlp.at(1))));
@@ -409,7 +413,7 @@ impl Discovery {
 		let entry = NodeEntry { id: node.clone(), endpoint: source.clone() };
 		if !entry.endpoint.is_valid() {
 			debug!(target: "discovery", "Got bad address: {:?}", entry);
-		} else if !entry.endpoint.is_allowed(self.allow_ips) {
+		} else if !self.is_allowed(&entry) {
 			debug!(target: "discovery", "Address not allowed: {:?}", entry);
 		} else {
 			self.update_node(entry.clone());
@@ -484,15 +488,15 @@ impl Discovery {
 				debug!(target: "discovery", "Bad address: {:?}", endpoint);
 				continue;
 			}
-			if !endpoint.is_allowed(self.allow_ips) {
-				debug!(target: "discovery", "Address not allowed: {:?}", endpoint);
-				continue;
-			}
 			let node_id: NodeId = try!(r.val_at(3));
 			if node_id == self.id {
 				continue;
 			}
 			let entry = NodeEntry { id: node_id.clone(), endpoint: endpoint };
+			if !self.is_allowed(&entry) {
+				debug!(target: "discovery", "Address not allowed: {:?}", entry);
+				continue;
+			}
 			added.insert(node_id, entry.clone());
 			self.ping(&entry.endpoint);
 			self.update_node(entry);
