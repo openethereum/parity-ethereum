@@ -5,7 +5,7 @@ variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: ""
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
