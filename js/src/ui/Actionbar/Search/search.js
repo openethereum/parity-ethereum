@@ -81,10 +81,12 @@ export default class ActionbarSearch extends Component {
             hintText='Enter search input...'
             ref='searchInput'
             value={ tokens }
+
             onBlur={ this.handleSearchBlur }
             onRequestAdd={ this.handleTokenAdd }
             onRequestDelete={ this.handleTokenDelete }
             onUpdateInput={ this.handleInputChange }
+
             hintStyle={ {
               bottom: 16,
               left: 2,

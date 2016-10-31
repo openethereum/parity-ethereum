@@ -15,32 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.input {
-  div[type="button"] {
-    margin: 14px 0.5em 0 0 !important;
-    background: rgba(255, 255, 255, 0.1) !important;
-
-    span {
-      font-size: 0.75em !important;
-      line-height: 1em !important;
-      padding: 0.25em 0.5em !important;
-      background: transparent !important;
-    }
-
-    svg {
-      width: 1em !important;
-      height: 1em !important;
-      margin: 2px !important;
-    }
-  }
-
-  /* the only seeimngly robust way to get to it, no other attributes to match */
-  div[style*="256px"] {
-    margin-bottom: 14px !important;
-  }
-
-  /* hint text, same as above */
-  div[style*="bottom: 20px"] {
-    bottom: 12px !important;
+.chip {
+  & > svg {
+    width: 1.2rem !important;
+    height: 1.2rem !important;
+    margin: initial !important;
+    margin-right: 4px !important;
+    padding: 4px 0 !important;
   }
 }
