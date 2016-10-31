@@ -125,11 +125,11 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 
 	/// Writable IO handler. Called when the socket is ready to send.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone + Sync + 'static {
-		if self.send_queue.is_empty() {
-			return Ok(WriteStatus::Complete)
-		}
 		{
-			let buf = self.send_queue.front_mut().unwrap();
+			let buf = match self.send_queue.front_mut() {
+				Some(buf) => buf,
+				None => return Ok(WriteStatus::Complete),
+			};
 			let send_size = buf.get_ref().len();
 			let pos = buf.position() as usize;
 			if (pos as usize) >= send_size {
@@ -439,7 +439,7 @@ impl EncryptedConnection {
 		let mut prev = H128::new();
 		mac.clone().finalize(&mut prev);
 		let mut enc = H128::new();
-		mac_encoder.encrypt(&mut RefReadBuffer::new(&prev), &mut RefWriteBuffer::new(&mut enc), true).unwrap();
+		mac_encoder.encrypt(&mut RefReadBuffer::new(&prev), &mut RefWriteBuffer::new(&mut enc), true).expect("Error updating MAC");
 		mac_encoder.reset();
 
 		enc = enc ^ if seed.is_empty() { prev } else { H128::from_slice(seed) };
