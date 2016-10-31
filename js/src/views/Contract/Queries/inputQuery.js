@@ -79,7 +79,7 @@ export default class InputQuery extends Component {
         </CardText>
         <CardActions>
           <Button
-            label='Execute'
+            label='Query'
             disabled={ !isValid }
             onClick={ this.onClick } />
         </CardActions>
@@ -115,7 +115,7 @@ export default class InputQuery extends Component {
 
   renderInput (input) {
     const { name, type } = input;
-    const label = `${name}: ${type}`;
+    const label = `${name ? `${name}: ` : ''}${type}`;
 
     const onChange = (event) => {
       const value = event.target.value;
