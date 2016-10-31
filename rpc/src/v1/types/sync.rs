@@ -147,7 +147,7 @@ mod tests {
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
 	}
 
 	#[test]
@@ -165,6 +165,15 @@ mod tests {
 
 		let t = SyncStatus::Info(SyncInfo::default());
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+	}
+
+	#[test]
+	fn test_serialize_block_gap() {
+		let mut t = SyncInfo::default();
+		t.block_gap = Some((1.into(), 5.into()));
+
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":["0x1","0x5"]}"#)
 	}
 }
