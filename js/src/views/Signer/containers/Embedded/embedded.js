@@ -40,7 +40,7 @@ class Embedded extends Component {
 
   render () {
     return (
-      <Container>
+      <Container style={ { background: 'transparent' } }>
         <div className={ styles.signer }>
           { this.renderPendingRequests() }
         </div>
