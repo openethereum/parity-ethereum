@@ -354,6 +354,25 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+test-darwin:
+  stage: build
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - export RUST_BACKTRACE=1
+    - ./test.sh $CARGOFLAGS --no-release
+  tags:
+    - osx
+test-windows:
+  stage: build
+  before_script:
+    - git submodule update --init --recursive
+  script:
+    - set RUST_BACKTRACE=1
+    - set TARGETS="-p rlp	-p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity"
+    - cargo test --features json-tests %TARGETS% %CARGOFLAGS% --verbose --release
+  tags:
+    - rust-windows
 test-linux:
   stage: test
   before_script:
@@ -365,28 +384,6 @@ test-linux:
     - rust-test
   dependencies:
     - linux-stable
-test-darwin:
-  stage: test
-  before_script:
-    - git submodule update --init --recursive
-  script:
-    - export RUST_BACKTRACE=1
-    - ./test.sh $CARGOFLAGS --no-release
-  tags:
-    - osx
-  dependencies:
-    - darwin
-test-windows:
-  stage: test
-  before_script:
-    - git submodule update --init --recursive
-  script:
-    - set RUST_BACKTRACE=1
-    - PowerShell ./test.sh %CARGOFLAGS%
-  tags:
-    - rust-windows
-  dependencies:
-    - windows
 js-release:
   stage: build
   image: ethcore/javascript:latest
