@@ -370,7 +370,7 @@ version = "1.4.0"
 dependencies = [
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
+ "mio 0.6.0 (git+https://github.com/carllerche/mio)",
  "parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -451,6 +451,7 @@ name = "ethcore-network"
 version = "1.4.0"
 dependencies = [
  "ansi_term 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
  "ethcore-io 1.4.0",
  "ethcore-util 1.4.0",
@@ -459,7 +460,7 @@ dependencies = [
  "igd 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)",
+ "mio 0.6.0 (git+https://github.com/carllerche/mio)",
  "parking_lot 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.1.0",
@@ -516,7 +517,7 @@ dependencies = [
  "parity-ui 1.4.0",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "ws 0.5.2 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
+ "ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)",
 ]
 
 [[package]]
@@ -887,6 +888,11 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "lazycell"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "libc"
 version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -990,7 +996,7 @@ dependencies = [
 [[package]]
 name = "mio"
 version = "0.6.0-dev"
-source = "git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d#62ec763c9cc34d8a452ed0392c575c50ddd5fc8d"
+source = "git+https://github.com/ethcore/mio?branch=timer-fix#31eccc40ece3d47abaefaf23bb2114033175b972"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -999,6 +1005,22 @@ dependencies = [
  "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
  "nix 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)",
+ "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mio"
+version = "0.6.0"
+source = "git+https://github.com/carllerche/mio#9f17b70d6fecbf912168267ea74cf536f2cba705"
+dependencies = [
+ "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -1213,7 +1235,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#3f31aca3dd0b71871f6439407c3e258c3ed91abf"
+source = "git+https://github.com/ethcore/js-precompiled.git#a2aa6fdf86e6c0f90d0fec80dc9ae8ee02f008b0"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1594,6 +1616,11 @@ version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "slab"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "smallvec"
 version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1884,13 +1911,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "ws"
-version = "0.5.2"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#00bd2134b07b4bc8ea47b7f6c7afce16bbe34c8f"
+version = "0.5.3"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#0cd6c5e3e9d5e61a37d53eb8dcbad523dcc69314"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.0-dev (git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d)",
+ "mio 0.6.0-dev (git+https://github.com/ethcore/mio?branch=timer-fix)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha1 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)",
@@ -1984,6 +2011,7 @@ dependencies = [
 "checksum kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "7507624b29483431c0ba2d82aece8ca6cdba9382bff4ddd0f7490560c056098d"
 "checksum language-tags 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "a91d884b6667cd606bb5a69aa0c99ba811a115fc68915e7056ec08a46e93199a"
 "checksum lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "49247ec2a285bb3dcb23cbd9c35193c025e7251bfce77c1d5da97e6362dffe7f"
+"checksum lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ce12306c4739d86ee97c23139f3a34ddf0387bbf181bc7929d287025a8c3ef6b"
 "checksum libc 0.2.15 (registry+https://github.com/rust-lang/crates.io-index)" = "23e3757828fa702a20072c37ff47938e9dd331b92fac6e223d26d4b7a55f7ee2"
 "checksum linked-hash-map 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "bda158e0dabeb97ee8a401f4d17e479d6b891a14de0bba79d5cc2d4d325b5e48"
 "checksum linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6d262045c5b87c0861b3f004610afd0e2c851e2908d08b6c870cbb9d5f494ecd"
@@ -1996,7 +2024,8 @@ dependencies = [
 "checksum miniz-sys 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9d1f4d337a01c32e1f2122510fed46393d53ca35a7f429cb0450abaedfa3ed54"
 "checksum mio 0.5.1 (git+https://github.com/ethcore/mio?branch=v0.5.x)" = "<none>"
 "checksum mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a637d1ca14eacae06296a008fa7ad955347e34efcb5891cfd8ba05491a37907e"
-"checksum mio 0.6.0-dev (git+https://github.com/carllerche/mio?rev=62ec763c9cc34d8a452ed0392c575c50ddd5fc8d)" = "<none>"
+"checksum mio 0.6.0 (git+https://github.com/carllerche/mio)" = "<none>"
+"checksum mio 0.6.0-dev (git+https://github.com/ethcore/mio?branch=timer-fix)" = "<none>"
 "checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"
@@ -2062,6 +2091,7 @@ dependencies = [
 "checksum slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d807fd58c4181bbabed77cb3b891ba9748241a552bcc5be698faaebefc54f46e"
 "checksum slab 0.2.0 (git+https://github.com/carllerche/slab?rev=5476efcafb)" = "<none>"
 "checksum slab 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "6dbdd334bd28d328dad1c41b0ea662517883d8880d8533895ef96c8003dec9c4"
+"checksum slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "17b4fcaed89ab08ef143da37bc52adbcc04d4a69014f4c1208d6b51f0c47bc23"
 "checksum smallvec 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "fcc8d19212aacecf95e4a7a2179b26f7aeb9732a915cf01f05b0d3e044865410"
 "checksum solicit 0.4.4 (registry+https://github.com/rust-lang/crates.io-index)" = "172382bac9424588d7840732b250faeeef88942e37b6e35317dce98cafdd75b2"
 "checksum spmc 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "93bdab61c1a413e591c4d17388ffa859eaff2df27f1e13a5ec8b716700605adf"
@@ -2099,7 +2129,7 @@ dependencies = [
 "checksum webpki 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)" = "813503a5985585e0812d430cd1328ee322f47f66629c8ed4ecab939cf9e92f91"
 "checksum winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)" = "4dfaaa8fbdaa618fa6914b59b2769d690dd7521920a18d84b42d254678dd5fd4"
 "checksum winapi-build 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "2d315eee3b34aca4797b2da6b13ed88266e6d612562a0c46390af8299fc699bc"
-"checksum ws 0.5.2 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
+"checksum ws 0.5.3 (git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable)" = "<none>"
 "checksum ws2_32-sys 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d59cefebd0c892fa2dd6de581e937301d8552cb44489cdff035c6187cb63fa5e"
 "checksum xml-rs 0.3.4 (registry+https://github.com/rust-lang/crates.io-index)" = "65e74b96bd3179209dc70a980da6df843dff09e46eee103a0376c0949257e3ef"
 "checksum xmltree 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "472a9d37c7c53ab2391161df5b89b1f3bf76dab6ab150d7941ecbdd832282082"

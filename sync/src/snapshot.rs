@@ -113,7 +113,7 @@ impl Snapshot {
 	}
 
 	pub fn done_chunks(&self) -> usize {
-		self.total_chunks() - self.completed_chunks.len()
+		self.completed_chunks.len()
 	}
 
 	pub fn is_complete(&self) -> bool {
@@ -165,6 +165,7 @@ mod test {
 		let mut snapshot = Snapshot::new();
 		let (manifest, mhash, state_chunks, block_chunks) = test_manifest();
 		snapshot.reset_to(&manifest, &mhash);
+		assert_eq!(snapshot.done_chunks(), 0);
 		assert!(snapshot.validate_chunk(&H256::random().to_vec()).is_err());
 
 		let requested: Vec<H256> = (0..40).map(|_| snapshot.needed_chunk().unwrap()).collect();
@@ -194,6 +195,8 @@ mod test {
 		}
 
 		assert!(snapshot.is_complete());
+		assert_eq!(snapshot.done_chunks(), 40);
+		assert_eq!(snapshot.done_chunks(), snapshot.total_chunks());
 		assert_eq!(snapshot.snapshot_hash(), Some(manifest.into_rlp().sha3()));
 	}
 }

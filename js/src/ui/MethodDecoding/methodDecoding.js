@@ -139,7 +139,7 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.gasDetails }>
-        { historic ? 'Used' : 'Will use' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)</span> for a total transaction cost of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        { historic ? 'Provided' : 'Provides' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)</span> for a total transaction value of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
       </div>
     );
   }

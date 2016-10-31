@@ -1,9 +1,9 @@
 {
   "name": "parity.js",
-  "version": "0.0.1",
+  "version": "0.1.10",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
-  "author": "Ethcore Team <admin@ethcore.io>",
+  "author": "Parity Team <admin@parity.io>",
   "maintainers": [
     "Jaco Greeff"
   ],
@@ -11,7 +11,7 @@
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ethcore/parity.js.git"
+    "url": "git+https://github.com/ethcore/parity.git"
   },
   "keywords": [
     "Ethereum",
@@ -31,6 +31,7 @@
     "ci:build:app": "NODE_ENV=production webpack",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack.libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack.vendor",
+    "ci:build:npm": "NODE_ENV=production webpack --config webpack.npm",
     "start": "npm install && npm run build:dll && npm run start:app",
     "start:app": "webpack-dev-server -d --history-api-fallback --open --hot --inline --progress --colors --port 3000",
     "clean": "rm -rf ./build ./coverage",
@@ -62,7 +63,7 @@
     "chai": "^3.5.0",
     "chai-enzyme": "0.4.2",
     "cheerio": "0.20.0",
-    "copy-webpack-plugin": "^3.0.1",
+    "copy-webpack-plugin": "^4.0.0",
     "core-js": "^2.4.1",
     "coveralls": "^2.11.11",
     "css-loader": "^0.23.1",
@@ -76,6 +77,7 @@
     "eslint-plugin-standard": "^2.0.0",
     "extract-text-webpack-plugin": "^1.0.1",
     "file-loader": "^0.8.5",
+    "fs-extra": "^0.30.0",
     "happypack": "^2.2.1",
     "history": "^2.0.0",
     "html-loader": "^0.4.3",
@@ -122,6 +124,7 @@
     "material-ui": "^0.16.1",
     "material-ui-chip-input": "^0.8.0",
     "moment": "^2.14.1",
+    "qs": "^6.3.0",
     "react": "^15.2.1",
     "react-addons-css-transition-group": "^15.2.1",
     "react-dom": "^15.2.1",

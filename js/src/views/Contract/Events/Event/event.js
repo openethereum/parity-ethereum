@@ -22,6 +22,7 @@ import { bindActionCreators } from 'redux';
 
 import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
+import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
@@ -49,7 +50,7 @@ class Event extends Component {
     const block = blocks[event.blockNumber.toString()];
     const transaction = transactions[event.transactionHash] || {};
     const classes = `${styles.event} ${styles[event.state]}`;
-    const url = `https://${isTest ? 'testnet.' : ''}etherscan.io/tx/${event.transactionHash}`;
+    const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
     const values = Object.keys(event.params).map((name, index) => {
       const param = event.params[name];
