@@ -1003,7 +1003,7 @@ export default {
       details: {
         startingBlock: {
           type: Quantity,
-          desc: 'The block at which the import started (will only be reset, after the sync reached his head)'
+          desc: 'The block at which the import started (will only be reset, after the sync reached this head)'
         },
         currentBlock: {
           type: Quantity,
@@ -1012,6 +1012,18 @@ export default {
         highestBlock: {
           type: Quantity,
           desc: 'The estimated highest block'
+        },
+        blockGap: {
+          type: Array,
+          desc: 'Array of "first", "last", such that [first, last) are all missing from the chain'
+        },
+        warpChunksAmount: {
+          type: Quantity,
+          desc: 'Total amount of snapshot chunks'
+        },
+        warpChunksProcessed: {
+          type: Quantity,
+          desc: 'Total amount of snapshot chunks processed'
         }
       }
     }

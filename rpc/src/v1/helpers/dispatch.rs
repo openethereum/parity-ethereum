@@ -60,7 +60,7 @@ pub fn decrypt(accounts: &AccountProvider, address: Address, password: Option<St
 		.map(to_value)
 }
 
-pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<Value, Error>
+pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<RpcH256, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let network_id = client.signing_network_id();
@@ -73,7 +73,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", ::rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
-	dispatch_transaction(&*client, &*miner, signed_transaction).map(to_value)
+	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
 fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest) -> Transaction where C: MiningBlockChainClient, M: MinerService {

@@ -119,7 +119,7 @@ fn should_be_able_to_set_name() {
 	let address = accounts[0];
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
-	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
@@ -140,7 +140,7 @@ fn should_be_able_to_set_meta() {
 	let address = accounts[0];
 
 	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
-	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
