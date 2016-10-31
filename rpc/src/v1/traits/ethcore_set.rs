@@ -69,11 +69,19 @@ build_rpc_trait! {
 		fn accept_non_reserved_peers(&self) -> Result<bool, Error>;
 
 		/// Start the network.
+		/// 
+		/// Deprecated. Use `set_mode("active")` instead.
 		#[rpc(name = "ethcore_startNetwork")]
 		fn start_network(&self) -> Result<bool, Error>;
 
 		/// Stop the network.
+		///
+		/// Deprecated. Use `set_mode("off")` instead.
 		#[rpc(name = "ethcore_stopNetwork")]
 		fn stop_network(&self) -> Result<bool, Error>;
+
+		/// Set the mode. Argument must be one of: "active", "passive", "dark", "off".
+		#[rpc(name = "ethcore_setMode")]
+		fn set_mode(&self, String) -> Result<bool, Error>;
 	}
 }
