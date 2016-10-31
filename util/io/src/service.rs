@@ -399,8 +399,8 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 		let thread = thread::spawn(move || {
 			let p = panic.clone();
 			panic.catch_panic(move || {
-				IoManager::<Message>::start(p, &mut event_loop, h).unwrap();
-			}).unwrap()
+				IoManager::<Message>::start(p, &mut event_loop, h).expect("Error startting IO service");
+			}).expect("Error starting panic handler")
 		});
 		Ok(IoService {
 			panic_handler: panic_handler,
@@ -434,7 +434,9 @@ impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoService] Closing...");
 		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
-		self.thread.take().unwrap().join().ok();
+		if let Some(thread) = self.thread.take() {
+			thread.join().ok();
+		}
 		trace!(target: "shutdown", "[IoService] Closed.");
 	}
 }
