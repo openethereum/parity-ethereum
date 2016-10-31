@@ -17,6 +17,11 @@
 .events {
   padding: 4em 2em;
   text-align: center;
+  display: flex;
+}
+
+.container {
+  overflow: auto;
 }
 
 .list {
@@ -30,6 +35,7 @@
   vertical-align: top;
   padding: 0.25em 1em;
   max-height: 1.5em;
+  white-space: nowrap;
 }
 
 .event {

@@ -20,6 +20,7 @@
   padding: 4em 0 2em 0;
   display: flex;
   flex-wrap: wrap;
+  justify-content: space-around;
 }
 
 .title {
@@ -30,9 +31,8 @@
 }
 
 .item {
-  flex: 0 1 30%;
-  width: 30%;
-  margin: 0 1.5%;
+  flex: 1;
+  margin: 1.5rem 1rem;
   text-align: center;
 }
 
