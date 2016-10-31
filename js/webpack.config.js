@@ -87,7 +87,7 @@ module.exports = {
         loader: 'file-loader'
       },
       {
-        test: /\.ico$/,
+        test: /parity-logo-black-no-text\.png$/,
         loader: 'file-loader?name=[name].[ext]'
       },
       {
