@@ -35,14 +35,14 @@ export default class Extras extends Component {
     ]),
     gasPriceDefault: PropTypes.string,
     gasPriceError: PropTypes.string,
-    gasPriceStatistics: PropTypes.array,
+    gasPriceHistogram: PropTypes.object,
     total: PropTypes.string,
     totalError: PropTypes.string,
     onChange: PropTypes.func.isRequired
   }
 
   render () {
-    const { gas, gasPrice, gasError, gasEst, gasPriceDefault, gasPriceError, gasPriceStatistics, total, totalError } = this.props;
+    const { gas, gasPrice, gasError, gasEst, gasPriceDefault, gasPriceError, gasPriceHistogram, total, totalError } = this.props;
 
     const gasLabel = `gas amount (estimated: ${gasEst})`;
     const priceLabel = `gas price (current: ${gasPriceDefault})`;
@@ -55,7 +55,7 @@ export default class Extras extends Component {
         <div className={ styles.columns }>
           <div style={ { flex: 65 } }>
             <GasPriceSelector
-              gasPriceStatistics={ gasPriceStatistics }
+              gasPriceHistogram={ gasPriceHistogram }
               gasPrice={ gasPrice }
               onChange={ this.onEditGasPrice }
             />
@@ -98,7 +98,7 @@ export default class Extras extends Component {
 
         <div>
           <p>
-            You can choose the gas price based on the  the octile
+            You can choose the gas price based on the
             distribution of recent transactions' gas prices.
           </p>
           <p>
