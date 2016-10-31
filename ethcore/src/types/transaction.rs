@@ -203,13 +203,7 @@ impl Transaction {
 		Self::gas_required_for(match self.action{Action::Create=>true, Action::Call(_)=>false}, &self.data, schedule)
 	}
 }
-/*
-enum NetworkRequirement {
-	Global,
-	Local(u8),
-	Either(u8),
-}
-*/
+
 /// Signed transaction information.
 #[derive(Debug, Clone, Eq, Binary)]
 pub struct SignedTransaction {
