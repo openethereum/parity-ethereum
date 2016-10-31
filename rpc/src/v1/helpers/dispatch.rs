@@ -92,8 +92,5 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 }
 
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {
-	client
-		.gas_price_statistics(100, 8)
-		.map(|x| x[4])
-		.unwrap_or_else(|_| miner.sensible_gas_price())
+	client.gas_price_median(100).unwrap_or_else(|| miner.sensible_gas_price())
 }

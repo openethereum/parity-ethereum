@@ -32,6 +32,7 @@ mod codes {
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const NO_NEW_WORK: i64 = -32003;
+	pub const NOT_ENOUGH_DATA: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -148,6 +149,14 @@ pub fn no_author() -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::NO_AUTHOR),
 		message: "Author not configured. Run Parity with --author to configure.".into(),
+		data: None
+	}
+}
+
+pub fn not_enough_data() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NOT_ENOUGH_DATA),
+		message: "The node does not have enough data to compute the given statistic.".into(),
 		data: None
 	}
 }

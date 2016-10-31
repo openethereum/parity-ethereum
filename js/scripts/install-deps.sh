@@ -6,6 +6,8 @@ cd ..
 
 # install deps and store the exit code
 EXITCODE=0
+node --version
+npm --version
 npm install --progress=false || EXITCODE=1
 
 # back to root

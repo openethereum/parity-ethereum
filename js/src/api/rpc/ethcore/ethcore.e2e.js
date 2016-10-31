@@ -27,6 +27,16 @@ describe('ethapi.ethcore', () => {
     });
   });
 
+  describe('gasPriceHistogram', () => {
+    it('returns and translates the target', () => {
+      return ethapi.ethcore.gasPriceHistogram().then((result) => {
+        expect(Object.keys(result)).to.deep.equal(['bucketBounds', 'counts']);
+        expect(result.bucketBounds.length > 0).to.be.true;
+        expect(result.counts.length > 0).to.be.true;
+      });
+    });
+  });
+
   describe('netChain', () => {
     it('returns and the chain', () => {
       return ethapi.ethcore.netChain().then((value) => {
