@@ -15,16 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const initialState = {
-  hasAccount: false,
   pending: false,
   queue: []
 };
 
 export default (state = initialState, action) => {
-  if (action.type === 'accounts select') {
-    return { ...state, hasAccount: !!action.address };
-  }
-
   if (action.type === 'names reserve start') {
     return { ...state, pending: true };
   }

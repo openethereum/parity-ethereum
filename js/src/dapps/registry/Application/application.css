@@ -37,3 +37,15 @@
   font-size: 80%;
   background-color: #f0f0f0;
 }
+
+.actions {
+  margin: 1em;
+
+  * {
+    font-size: 1.3rem !important;
+  }
+
+  > * {
+    padding-bottom: 0 !important;
+  }
+}
