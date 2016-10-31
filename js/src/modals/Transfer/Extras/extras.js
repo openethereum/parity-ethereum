@@ -99,7 +99,7 @@ export default class Extras extends Component {
         <div>
           <p>
             You can choose the gas price based on the
-            distribution of recent transactions' gas prices.
+            distribution of recent <b>included</b> transactions' gas prices.
           </p>
           <p>
             The lower the gas price is, the cheaper the transaction will
