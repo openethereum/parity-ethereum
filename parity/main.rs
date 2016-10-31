@@ -207,10 +207,10 @@ fn main() {
 
 	match start() {
 		Ok(result) => {
-			println!("{}", result);
+			info!("{}", result);
 		},
 		Err(err) => {
-			println!("{}", err);
+			info!("{}", err);
 			process::exit(1);
 		}
 	}

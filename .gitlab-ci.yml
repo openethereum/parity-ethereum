@@ -6,6 +6,7 @@ variables:
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
+  CARGOFLAGS: ""
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -18,7 +19,7 @@ linux-stable:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -48,7 +49,7 @@ linux-stable-14.04:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -78,7 +79,7 @@ linux-beta:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -97,7 +98,7 @@ linux-nightly:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -118,7 +119,7 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -150,7 +151,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -190,7 +191,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -229,7 +230,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -262,7 +263,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release --verbose
+    - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
     - sh scripts/deb-build.sh arm64
@@ -292,7 +293,7 @@ darwin:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -318,7 +319,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release --verbose
+    - cargo build --release %CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -359,7 +360,7 @@ test-linux:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - rust-test
   dependencies:
@@ -370,7 +371,7 @@ test-darwin:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - osx
   dependencies:
@@ -381,7 +382,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - PowerShell ./test.sh --verbose
+    - PowerShell ./test.sh %CARGOFLAGS%
   tags:
     - rust-windows
   dependencies:
