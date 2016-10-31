@@ -14,10 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
 import IdentityIcon from '../../IdentityIcon';
-import { formatBlockNumber, formatCoins, formatEth } from '../../format';
+import { formatCoins, formatEth, formatHash } from '../../format';
 
 import styles from '../events.css';
 
@@ -27,7 +28,8 @@ const EMPTY_COLUMN = (
 
 export default class Event extends Component {
   static contextTypes = {
-    accounts: PropTypes.array.isRequired
+    accountsInfo: PropTypes.object.isRequired,
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -38,14 +40,23 @@ export default class Event extends Component {
     toAddress: PropTypes.string
   }
 
+  state = {
+    block: null
+  }
+
+  componentDidMount () {
+    this.loadBlock();
+  }
+
   render () {
     const { event, fromAddress, toAddress, price, value } = this.props;
-    const { blockNumber, state, type } = event;
+    const { block } = this.state;
+    const { state, type } = event;
     const cls = `${styles.event} ${styles[state]} ${styles[type.toLowerCase()]}`;
 
     return (
       <tr className={ cls }>
-        { this.renderBlockNumber(blockNumber) }
+        { this.renderTimestamp(block) }
         { this.renderType(type) }
         { this.renderValue(value) }
         { this.renderPrice(price) }
@@ -55,10 +66,10 @@ export default class Event extends Component {
     );
   }
 
-  renderBlockNumber (blockNumber) {
+  renderTimestamp (block) {
     return (
       <td className={ styles.blocknumber }>
-        { formatBlockNumber(blockNumber) }
+        { !block ? ' ' : moment(block.timestamp).fromNow() }
       </td>
     );
   }
@@ -77,8 +88,8 @@ export default class Event extends Component {
   }
 
   renderAddressName (address) {
-    const { accounts } = this.context;
-    const account = accounts.find((_account) => _account.address === address);
+    const { accountsInfo } = this.context;
+    const account = accountsInfo[address];
 
     if (account && account.name) {
       return (
@@ -90,7 +101,7 @@ export default class Event extends Component {
 
     return (
       <div className={ styles.address }>
-        { address }
+        { formatHash(address) }
       </div>
     );
   }
@@ -125,5 +136,20 @@ export default class Event extends Component {
         { type }
       </td>
     );
+  }
+
+  loadBlock () {
+    const { api } = this.context;
+    const { event } = this.props;
+
+    if (!event || !event.blockNumber || event.blockNumber.eq(0)) {
+      return;
+    }
+
+    api.eth
+      .getBlockByNumber(event.blockNumber)
+      .then((block) => {
+        this.setState({ block });
+      });
   }
 }

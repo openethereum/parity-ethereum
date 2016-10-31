@@ -13,7 +13,6 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
 import React, { Component, PropTypes } from 'react';
 
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
@@ -35,6 +34,7 @@ export default class Application extends Component {
     muiTheme: PropTypes.object.isRequired,
     api: PropTypes.object.isRequired
   };
+
   getChildContext () {
     return { muiTheme, api: window.parity.api };
   }

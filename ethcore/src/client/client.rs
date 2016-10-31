@@ -60,12 +60,13 @@ use receipt::LocalizedReceipt;
 use trace::{TraceDB, ImportRequest as TraceImportRequest, LocalizedTrace, Database as TraceDatabase};
 use trace;
 use trace::FlatTransactionTraces;
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
 use rlp::{View, UntrustedRlp};
 use state_db::StateDB;
+use rand::OsRng;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -138,12 +139,13 @@ pub struct Client {
 	miner: Arc<Miner>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
-	io_channel: IoChannel<ClientIoMessage>,
+	io_channel: Mutex<IoChannel<ClientIoMessage>>,
 	notify: RwLock<Vec<Weak<ChainNotify>>>,
 	queue_transactions: AtomicUsize,
 	last_hashes: RwLock<VecDeque<H256>>,
 	factories: Factories,
 	history: u64,
+	rng: Mutex<OsRng>,
 }
 
 impl Client {
@@ -233,12 +235,13 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			miner: miner,
-			io_channel: message_channel,
+			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
 			last_hashes: RwLock::new(VecDeque::new()),
 			factories: factories,
 			history: history,
+			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 		};
 		Ok(Arc::new(client))
 	}
@@ -314,7 +317,7 @@ impl Client {
 		if let Some(parent) = chain_has_parent {
 			// Enact Verified Block
 			let last_hashes = self.build_last_hashes(header.parent_hash().clone());
-			let db = self.state_db.lock().boxed_clone_canon(&header.parent_hash());
+			let db = self.state_db.lock().boxed_clone_canon(header.parent_hash());
 
 			let enact_result = enact_verified(block, engine, self.tracedb.read().tracing_enabled(), db, &parent, last_hashes, self.factories.clone());
 			let locked_block = try!(enact_result.map_err(|e| {
@@ -434,13 +437,25 @@ impl Client {
 	/// Import a block with transaction receipts.
 	/// The block is guaranteed to be the next best blocks in the first block sequence.
 	/// Does no sealing or transaction validation.
-	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> H256 {
+	fn import_old_block(&self, block_bytes: Bytes, receipts_bytes: Bytes) -> Result<H256, ::error::Error> {
 		let block = BlockView::new(&block_bytes);
-		let hash = block.header().hash();
+		let header = block.header();
+		let hash = header.hash();
 		let _import_lock = self.import_lock.lock();
 		{
 			let _timer = PerfTimer::new("import_old_block");
+			let mut rng = self.rng.lock();
 			let chain = self.chain.read();
+
+			// verify block.
+			try!(::snapshot::verify_old_block(
+				&mut *rng,
+				&header,
+				&*self.engine,
+				&*chain,
+				Some(&block_bytes),
+				false,
+			));
 
 			// Commit results
 			let receipts = ::rlp::decode(&receipts_bytes);
@@ -451,7 +466,7 @@ impl Client {
 			chain.commit();
 		}
 		self.db.read().flush().expect("DB flush failed.");
-		hash
+		Ok(hash)
 	}
 
 	fn commit_block<B>(&self, block: B, hash: &H256, block_data: &[u8]) -> ImportRoute where B: IsBlock + Drain {
@@ -1036,7 +1051,7 @@ impl BlockChainClient for Client {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
-		Ok(self.import_old_block(block_bytes, receipts_bytes))
+		self.import_old_block(block_bytes, receipts_bytes).map_err(Into::into)
 	}
 
 	fn queue_info(&self) -> BlockQueueInfo {
@@ -1124,7 +1139,7 @@ impl BlockChainClient for Client {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
-			match self.io_channel.send(ClientIoMessage::NewTransactions(transactions)) {
+			match self.io_channel.lock().send(ClientIoMessage::NewTransactions(transactions)) {
 				Ok(_) => {
 					self.queue_transactions.fetch_add(len, AtomicOrdering::SeqCst);
 				}
@@ -1141,6 +1156,23 @@ impl BlockChainClient for Client {
 }
 
 impl MiningBlockChainClient for Client {
+
+	fn latest_schedule(&self) -> Schedule {
+		let header_data = self.best_block_header();
+		let view = HeaderView::new(&header_data);
+
+		let env_info = EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: self.build_last_hashes(view.hash()),
+			gas_used: U256::default(),
+			gas_limit: view.gas_limit(),
+		};
+		self.engine.schedule(&env_info)
+	}
+
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();
@@ -1215,4 +1247,34 @@ impl MayPanic for Client {
 	fn on_panic<F>(&self, closure: F) where F: OnPanicListener {
 		self.panic_handler.on_panic(closure);
 	}
+}
+
+
+#[test]
+fn should_not_cache_details_before_commit() {
+	use tests::helpers::*;
+	use std::thread;
+	use std::time::Duration;
+	use std::sync::atomic::{AtomicBool, Ordering};
+
+	let client = generate_dummy_client(0);
+	let genesis = client.chain_info().best_block_hash;
+	let (new_hash, new_block) = get_good_dummy_block_hash();
+
+	let go = {
+		// Separate thread uncommited transaction
+		let go = Arc::new(AtomicBool::new(false));
+		let go_thread = go.clone();
+		let another_client = client.reference().clone();
+		thread::spawn(move || {
+			let mut batch = DBTransaction::new(&*another_client.chain.read().db().clone());
+			another_client.chain.read().insert_block(&mut batch, &new_block, Vec::new());
+			go_thread.store(true, Ordering::SeqCst);
+		});
+		go
+	};
+
+	while !go.load(Ordering::SeqCst) { thread::park_timeout(Duration::from_millis(5)); }
+
+	assert!(client.tree_route(&genesis, &new_hash).is_none());
 }

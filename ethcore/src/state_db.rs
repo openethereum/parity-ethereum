@@ -16,6 +16,7 @@
 
 use std::collections::{VecDeque, HashSet};
 use lru_cache::LruCache;
+use util::cache::MemoryLruCache;
 use util::journaldb::JournalDB;
 use util::hash::{H256};
 use util::hashdb::HashDB;
@@ -32,6 +33,9 @@ pub const DEFAULT_ACCOUNT_PRESET: usize = 1000000;
 pub const ACCOUNT_BLOOM_HASHCOUNT_KEY: &'static [u8] = b"account_hash_count";
 
 const STATE_CACHE_BLOCKS: usize = 12;
+
+// The percentage of supplied cache size to go to accounts.
+const ACCOUNT_CACHE_RATIO: usize = 90;
 
 /// Shared canonical state cache.
 struct AccountCache {
@@ -89,6 +93,8 @@ pub struct StateDB {
 	db: Box<JournalDB>,
 	/// Shared canonical state cache.
 	account_cache: Arc<Mutex<AccountCache>>,
+	/// DB Code cache. Maps code hashes to shared bytes.
+	code_cache: Arc<Mutex<MemoryLruCache<H256, Arc<Vec<u8>>>>>,
 	/// Local dirty cache.
 	local_cache: Vec<CacheQueueItem>,
 	/// Shared account bloom. Does not handle chain reorganizations.
@@ -111,7 +117,9 @@ impl StateDB {
 	// into the `AccountCache` structure as its own `LruCache<(Address, H256), H256>`.
 	pub fn new(db: Box<JournalDB>, cache_size: usize) -> StateDB {
 		let bloom = Self::load_bloom(db.backing());
-		let cache_items = cache_size / ::std::mem::size_of::<Option<Account>>();
+		let acc_cache_size = cache_size * ACCOUNT_CACHE_RATIO / 100;
+		let code_cache_size = cache_size - acc_cache_size;
+		let cache_items = acc_cache_size / ::std::mem::size_of::<Option<Account>>();
 
 		StateDB {
 			db: db,
@@ -119,6 +127,7 @@ impl StateDB {
 				accounts: LruCache::new(cache_items),
 				modifications: VecDeque::new(),
 			})),
+			code_cache: Arc::new(Mutex::new(MemoryLruCache::new(code_cache_size))),
 			local_cache: Vec::new(),
 			account_bloom: Arc::new(Mutex::new(bloom)),
 			cache_size: cache_size,
@@ -170,7 +179,7 @@ impl StateDB {
 
 	pub fn commit_bloom(batch: &mut DBTransaction, journal: BloomJournal) -> Result<(), UtilError> {
 		assert!(journal.hash_functions <= 255);
-		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &vec![journal.hash_functions as u8]);
+		batch.put(COL_ACCOUNT_BLOOM, ACCOUNT_BLOOM_HASHCOUNT_KEY, &[journal.hash_functions as u8]);
 		let mut key = [0u8; 8];
 		let mut val = [0u8; 8];
 
@@ -216,7 +225,7 @@ impl StateDB {
 		let mut clear = false;
 		for block in enacted.iter().filter(|h| self.commit_hash.as_ref().map_or(true, |p| *h != p)) {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Reverting enacted block {:?}", block);
 					m.is_canon = true;
 					for a in &m.accounts {
@@ -232,7 +241,7 @@ impl StateDB {
 
 		for block in retracted {
 			clear = clear || {
-				if let Some(ref mut m) = cache.modifications.iter_mut().find(|ref m| &m.hash == block) {
+				if let Some(ref mut m) = cache.modifications.iter_mut().find(|m| &m.hash == block) {
 					trace!("Retracting block {:?}", block);
 					m.is_canon = false;
 					for a in &m.accounts {
@@ -286,7 +295,7 @@ impl StateDB {
 				is_canon: is_best,
 				parent: parent.clone(),
 			};
-			let insert_at = cache.modifications.iter().enumerate().find(|&(_, ref m)| m.number < *number).map(|(i, _)| i);
+			let insert_at = cache.modifications.iter().enumerate().find(|&(_, m)| m.number < *number).map(|(i, _)| i);
 			trace!("inserting modifications at {:?}", insert_at);
 			if let Some(insert_at) = insert_at {
 				cache.modifications.insert(insert_at, block_changes);
@@ -311,6 +320,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
+			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
@@ -325,6 +335,7 @@ impl StateDB {
 		StateDB {
 			db: self.db.boxed_clone(),
 			account_cache: self.account_cache.clone(),
+			code_cache: self.code_cache.clone(),
 			local_cache: Vec::new(),
 			account_bloom: self.account_bloom.clone(),
 			cache_size: self.cache_size,
@@ -342,7 +353,11 @@ impl StateDB {
 	/// Heap size used.
 	pub fn mem_used(&self) -> usize {
 		// TODO: account for LRU-cache overhead; this is a close approximation.
-		self.db.mem_used() + self.account_cache.lock().accounts.len() * ::std::mem::size_of::<Option<Account>>()
+		self.db.mem_used() + {
+			let accounts = self.account_cache.lock().accounts.len();
+			let code_size = self.code_cache.lock().current_size();
+			code_size + accounts * ::std::mem::size_of::<Option<Account>>()
+		}
 	}
 
 	/// Returns underlying `JournalDB`.
@@ -362,6 +377,15 @@ impl StateDB {
 		})
 	}
 
+	/// Add a global code cache entry. This doesn't need to worry about canonicality because
+	/// it simply maps hashes to raw code and will always be correct in the absence of
+	/// hash collisions.
+	pub fn cache_code(&self, hash: H256, code: Arc<Vec<u8>>) {
+		let mut cache = self.code_cache.lock();
+
+		cache.insert(hash, code);
+	}
+
 	/// Get basic copy of the cached account. Does not include storage.
 	/// Returns 'None' if cache is disabled or if the account is not cached.
 	pub fn get_cached_account(&self, addr: &Address) -> Option<Option<Account>> {
@@ -369,7 +393,14 @@ impl StateDB {
 		if !Self::is_allowed(addr, &self.parent_hash, &cache.modifications) {
 			return None;
 		}
-		cache.accounts.get_mut(&addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+		cache.accounts.get_mut(addr).map(|a| a.as_ref().map(|a| a.clone_basic()))
+	}
+
+	/// Get cached code based on hash.
+	pub fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
+		let mut cache = self.code_cache.lock();
+
+		cache.get_mut(hash).map(|code| code.clone())
 	}
 
 	/// Get value from a cached account.
@@ -406,8 +437,7 @@ impl StateDB {
 		// We search for our parent in that list first and then for
 		// all its parent until we hit the canonical block,
 		// checking against all the intermediate modifications.
-		let mut iter = modifications.iter();
-		while let Some(ref m) = iter.next() {
+		for m in modifications {
 			if &m.hash == parent {
 				if m.is_canon {
 					return true;
@@ -420,7 +450,7 @@ impl StateDB {
 			}
 		}
 		trace!("Cache lookup skipped for {:?}: parent hash is unknown", addr);
-		return false;
+		false
 	}
 }
 

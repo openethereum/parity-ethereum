@@ -145,7 +145,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,traces,rpc",
+		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
 			or |c: &Config| otry!(c.rpc).apis.clone().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.clone().map(|vec| vec.join(",")),
@@ -155,7 +155,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc",
+		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -187,6 +187,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).work_queue_size.clone(),
 		flag_tx_gas_limit: Option<String> = None,
 			or |c: &Config| otry!(c.mining).tx_gas_limit.clone().map(Some),
+		flag_tx_time_limit: Option<u64> = None,
+			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
 		flag_usd_per_tx: String = "0",
@@ -205,8 +207,12 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_tx_queue_gas: String = "auto",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
-		flag_tx_queue_strategy: String = "gas_factor",
+		flag_tx_queue_strategy: String = "gas_price",
 			or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
+		flag_tx_queue_ban_count: u16 = 1u16,
+			or |c: &Config| otry!(c.mining).tx_queue_ban_count.clone(),
+		flag_tx_queue_ban_time: u16 = 180u16,
+			or |c: &Config| otry!(c.mining).tx_queue_ban_time.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
@@ -361,6 +367,7 @@ struct Mining {
 	reseal_min_period: Option<u64>,
 	work_queue_size: Option<usize>,
 	tx_gas_limit: Option<String>,
+	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
@@ -371,6 +378,8 @@ struct Mining {
 	tx_queue_size: Option<usize>,
 	tx_queue_gas: Option<String>,
 	tx_queue_strategy: Option<String>,
+	tx_queue_ban_count: Option<u16>,
+	tx_queue_ban_time: Option<u16>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 }
@@ -443,6 +452,20 @@ mod tests {
 
 		// then
 		assert_eq!(args.flag_chain, "xyz".to_owned());
+	}
+
+	#[test]
+	fn should_use_config_if_cli_is_missing() {
+		let mut config = Config::default();
+		let mut footprint = Footprint::default();
+		footprint.pruning_history = Some(128);
+		config.footprint = Some(footprint);
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_pruning_history, 128);
 	}
 
 	#[test]
@@ -520,13 +543,13 @@ mod tests {
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
 			flag_jsonrpc_cors: Some("null".into()),
-			flag_jsonrpc_apis: "web3,eth,net,ethcore,traces,rpc".into(),
+			flag_jsonrpc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
 			flag_jsonrpc_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
 
 			// DAPPS
 			flag_no_dapps: false,
@@ -544,6 +567,7 @@ mod tests {
 			flag_reseal_min_period: 4000u64,
 			flag_work_queue_size: 20usize,
 			flag_tx_gas_limit: Some("6283184".into()),
+			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
 			flag_usd_per_tx: "0".into(),
 			flag_usd_per_eth: "auto".into(),
@@ -554,6 +578,8 @@ mod tests {
 			flag_tx_queue_size: 1024usize,
 			flag_tx_queue_gas: "auto".into(),
 			flag_tx_queue_strategy: "gas_factor".into(),
+			flag_tx_queue_ban_count: 1u16,
+			flag_tx_queue_ban_time: 180u16,
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 
@@ -713,7 +739,10 @@ mod tests {
 				tx_queue_size: Some(1024),
 				tx_queue_gas: Some("auto".into()),
 				tx_queue_strategy: None,
+				tx_queue_ban_count: None,
+				tx_queue_ban_time: None,
 				tx_gas_limit: None,
+				tx_time_limit: None,
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,

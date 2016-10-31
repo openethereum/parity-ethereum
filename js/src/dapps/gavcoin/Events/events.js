@@ -27,7 +27,7 @@ import styles from './events.css';
 
 export default class Events extends Component {
   static childContextTypes = {
-    accounts: PropTypes.array
+    accountsInfo: PropTypes.object
   }
 
   static contextTypes = {
@@ -36,7 +36,7 @@ export default class Events extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.array
+    accountsInfo: PropTypes.object.isRequired
   }
 
   state = {
@@ -84,11 +84,9 @@ export default class Events extends Component {
   }
 
   getChildContext () {
-    const { accounts } = this.props;
+    const { accountsInfo } = this.props;
 
-    return {
-      accounts
-    };
+    return { accountsInfo };
   }
 
   setupFilters () {

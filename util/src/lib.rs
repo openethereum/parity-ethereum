@@ -105,6 +105,7 @@ extern crate ansi_term;
 extern crate tiny_keccak;
 extern crate rlp;
 extern crate regex;
+extern crate lru_cache;
 
 #[macro_use]
 extern crate heapsize;
@@ -143,6 +144,8 @@ pub mod semantic_version;
 pub mod log;
 pub mod path;
 pub mod snappy;
+pub mod stats;
+pub mod cache;
 mod timer;
 
 pub use common::*;

@@ -32,6 +32,7 @@ mod codes {
 	pub const NO_WORK: i64 = -32001;
 	pub const NO_AUTHOR: i64 = -32002;
 	pub const NO_NEW_WORK: i64 = -32003;
+	pub const NOT_ENOUGH_DATA: i64 = -32006;
 	pub const UNKNOWN_ERROR: i64 = -32009;
 	pub const TRANSACTION_ERROR: i64 = -32010;
 	pub const EXECUTION_ERROR: i64 = -32015;
@@ -152,6 +153,14 @@ pub fn no_author() -> Error {
 	}
 }
 
+pub fn not_enough_data() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NOT_ENOUGH_DATA),
+		message: "The node does not have enough data to compute the given statistic.".into(),
+		data: None
+	}
+}
+
 pub fn token(e: String) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNKNOWN_ERROR),
@@ -221,6 +230,9 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			LimitReached => {
 				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
 			},
+			InsufficientGas { minimal, got } => {
+				format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
+			},
 			InsufficientGasPrice { minimal, got } => {
 				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
 			},
@@ -231,6 +243,9 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 			},
 			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+			SenderBanned => "Sender is banned in local queue.".into(),
+			RecipientBanned => "Recipient is banned in local queue.".into(),
+			CodeBanned => "Code is banned in local queue.".into(),
 		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),

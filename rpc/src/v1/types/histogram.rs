@@ -12,14 +12,28 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-import { BASE_LINK_ACCOUNT_MORDEN, BASE_LINK_ACCOUNT_HOMESTEAD } from '../constants/constants';
+//! Gas prices histogram.
 
-export const getAccountLink = _getAccountLink;
+use v1::types::U256;
+use util::stats;
 
-function _getAccountLink (address, chain) {
-  const isTestNet = chain === 'morden' || chain === 'testnet';
-  const base = isTestNet ? BASE_LINK_ACCOUNT_MORDEN : BASE_LINK_ACCOUNT_HOMESTEAD;
-  return base + address;
+/// Values of RPC settings.
+#[derive(Serialize, Deserialize)]
+pub struct Histogram {
+	/// Gas prices for bucket edges.
+	#[serde(rename="bucketBounds")]
+	pub bucket_bounds: Vec<U256>,
+	/// Transacion counts for each bucket.
+	pub counts: Vec<u64>,
+}
+
+impl From<stats::Histogram> for Histogram {
+	fn from(h: stats::Histogram) -> Self {
+		Histogram {
+			bucket_bounds: h.bucket_bounds.into_iter().map(Into::into).collect(),
+			counts: h.counts
+		}
+	}
 }

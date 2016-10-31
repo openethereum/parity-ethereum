@@ -17,6 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import CircularProgress from 'material-ui/CircularProgress';
+
+import { TxHash } from '../../../../ui';
+
 import TransactionMainDetails from '../TransactionMainDetails';
 import TxHashLink from '../TxHashLink';
 import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
@@ -57,7 +60,7 @@ export default class TransactionFinished extends Component {
   };
 
   componentWillMount () {
-    const { gas, gasPrice, value } = this.props;
+    const { from, to, gas, gasPrice, value } = this.props;
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
     const totalValue = tUtil.getTotalValue(fee, value);
     this.setState({ totalValue });
@@ -70,9 +73,10 @@ export default class TransactionFinished extends Component {
         console.error('could not fetch chain', err);
       });
 
-    const { from, to } = this.props;
     this.fetchBalance(from, 'fromBalance');
-    if (to) this.fetchBalance(to, 'toBalance');
+    if (to) {
+      this.fetchBalance(to, 'toBalance');
+    }
   }
 
   render () {
@@ -109,19 +113,27 @@ export default class TransactionFinished extends Component {
   }
 
   renderStatus () {
-    const { status } = this.props;
-    const klass = status === 'confirmed' ? styles.isConfirmed : styles.isRejected;
+    const { status, txHash } = this.props;
+
+    if (status !== 'confirmed') {
+      return (
+        <div>
+          <span className={ styles.isRejected }>{ capitalize(status) }</span>
+        </div>
+      );
+    }
+
     return (
-      <div>
-        <span className={ klass }>{ capitalize(status) }</span>
-        { this.renderTxHash() }
-      </div>
+      <TxHash
+        summary
+        hash={ txHash } />
     );
   }
 
   renderTxHash () {
-    const { txHash, chain } = this.props;
-    if (!txHash) {
+    const { txHash } = this.props;
+    const { chain } = this.state;
+    if (!txHash || !chain) {
       return;
     }
 
