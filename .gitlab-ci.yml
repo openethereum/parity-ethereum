@@ -5,7 +5,7 @@ variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
-  RUSTFLAGS: ""
+  RUSTFLAGS: "-D warnings"
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -359,7 +359,7 @@ test-linux:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh --verbose --no-release
   tags:
     - rust-test
   dependencies:
@@ -370,7 +370,7 @@ test-darwin:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh --verbose --no-release
   tags:
     - osx
   dependencies:
