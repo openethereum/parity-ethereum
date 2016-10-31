@@ -14,30 +14,13 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.searchcontainer {
-  display: flex;
-  overflow: hidden;
-}
 
-.searchButton {
-  min-width: 50px !important;
-}
-
-.input {
-  width: 500px !important;
-}
-
-.inputContainer {
-  transition: width 450ms ease-in-out 0ms, height 0ms ease-in-out 0ms;
-  white-space: nowrap;
-  overflow: hidden;
-  width: 500px;
-  height: 100%;
-  position: relative;
-}
-
-.inputContainerShown {
-  transition: width 450ms ease-in-out 0ms, height 0ms ease-in-out 400ms;
-  width: 0;
-  height: 0;
+.chip {
+  & > svg {
+    width: 1.2rem !important;
+    height: 1.2rem !important;
+    margin: initial !important;
+    margin-right: 4px !important;
+    padding: 4px 0 !important;
+  }
 }

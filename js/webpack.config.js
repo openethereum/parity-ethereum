@@ -17,6 +17,7 @@
 const HappyPack = require('happypack');
 const path = require('path');
 const postcssImport = require('postcss-import');
+const postcssNested = require('postcss-nested');
 const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const webpack = require('webpack');
@@ -113,6 +114,7 @@ module.exports = {
     postcssImport({
       addDependencyTo: webpack
     }),
+    postcssNested({}),
     postcssVars({
       unknown: function (node, name, result) {
         node.warn(result, `Unknown variable ${name}`);
