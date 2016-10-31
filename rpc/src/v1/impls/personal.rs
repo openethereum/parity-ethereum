@@ -21,7 +21,6 @@ use jsonrpc_core::*;
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160};
 use v1::helpers::errors;
-use v1::helpers::params::expect_no_params;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 
@@ -49,22 +48,21 @@ impl<C> PersonalClient<C> where C: MiningBlockChainClient {
 
 impl<C: 'static> Personal for PersonalClient<C> where C: MiningBlockChainClient {
 
-	fn accounts(&self, params: Params) -> Result<Value, Error> {
+	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 
 		let store = take_weak!(self.accounts);
-		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
-		Ok(to_value(&accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>()))
+		let accounts = try!(store.accounts().map_err(|e| errors::account("Could not fetch accounts.", e)));
+		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
-	fn accounts_info(&self, params: Params) -> Result<Value, Error> {
+	fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 		let store = take_weak!(self.accounts);
 		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
 		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
-		Ok(Value::Object(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+
+		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
 			let m = map![
 				"name".to_owned() => to_value(&v.name),
 				"meta".to_owned() => to_value(&v.meta),
@@ -75,6 +73,6 @@ impl<C: 'static> Personal for PersonalClient<C> where C: MiningBlockChainClient 
 				}
 			];
 			(format!("0x{}", a.hex()), Value::Object(m))
-		}).collect::<BTreeMap<_, _>>()))
+		}).collect())
 	}
 }

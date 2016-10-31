@@ -19,7 +19,9 @@
 mod sync_provider;
 mod miner_service;
 mod fetch;
+mod snapshot_service;
 
 pub use self::sync_provider::{Config, TestSyncProvider};
 pub use self::miner_service::TestMinerService;
 pub use self::fetch::TestFetch;
+pub use self::snapshot_service::TestSnapshotService;

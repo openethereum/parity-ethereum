@@ -251,6 +251,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
 		}, cmd.signer_port)),
+		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),

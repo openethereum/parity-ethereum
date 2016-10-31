@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { outBlock, outAccountInfo, outAddress, outDate, outNumber, outPeers, outReceipt, outTransaction, outTrace } from './output';
+import { outBlock, outAccountInfo, outAddress, outDate, outHistogram, outNumber, outPeers, outReceipt, outSyncing, outTransaction, outTrace } from './output';
 import { isAddress, isBigNumber, isInstanceOf } from '../../../test/types';
 
 describe('api/format/output', () => {
@@ -120,6 +120,18 @@ describe('api/format/output', () => {
     });
   });
 
+  describe('outHistogram', () => {
+    ['bucketBounds', 'counts'].forEach((type) => {
+      it(`formats ${type} as number arrays`, () => {
+        expect(
+          outHistogram({ [type]: [0x123, 0x456, 0x789] })
+        ).to.deep.equal({
+          [type]: [new BigNumber(0x123), new BigNumber(0x456), new BigNumber(0x789)]
+        });
+      });
+    });
+  });
+
   describe('outNumber', () => {
     it('returns a BigNumber equalling the value', () => {
       const bn = outNumber('0x123456');
@@ -187,6 +199,22 @@ describe('api/format/output', () => {
         gasUsed: new BigNumber('0x102'),
         transactionIndex: new BigNumber('0x103'),
         extraData: 'someExtraStuffInHere'
+      });
+    });
+  });
+
+  describe('outSyncing', () => {
+    ['currentBlock', 'highestBlock', 'startingBlock', 'warpChunksAmount', 'warpChunksProcessed'].forEach((input) => {
+      it(`formats ${input} numbers as a number`, () => {
+        expect(outSyncing({ [input]: '0x123' })).to.deep.equal({
+          [input]: new BigNumber('0x123')
+        });
+      });
+    });
+
+    it('formats blockGap properly', () => {
+      expect(outSyncing({ blockGap: [0x123, 0x456] })).to.deep.equal({
+        blockGap: [new BigNumber(0x123), new BigNumber(0x456)]
       });
     });
   });

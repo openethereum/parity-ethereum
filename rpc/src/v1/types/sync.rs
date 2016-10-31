@@ -30,6 +30,15 @@ pub struct SyncInfo {
 	/// Highest block seen so far
 	#[serde(rename="highestBlock")]
 	pub highest_block: U256,
+	/// Warp sync snapshot chunks total.
+	#[serde(rename="warpChunksAmount")]
+	pub warp_chunks_amount: Option<U256>,
+	/// Warp sync snpashot chunks processed.
+	#[serde(rename="warpChunksProcessed")]
+	pub warp_chunks_processed: Option<U256>,
+	/// Describes the gap in the blockchain, if there is one: (first, last)
+	#[serde(rename="blockGap")]
+	pub block_gap: Option<(U256, U256)>,
 }
 
 /// Peers info
@@ -53,7 +62,7 @@ pub struct PeerInfo {
 	/// Node client ID
 	pub name: String,
 	/// Capabilities
-	pub caps: Vec<String>, 
+	pub caps: Vec<String>,
 	/// Network information
 	pub network: PeerNetworkInfo,
 	/// Protocols information
@@ -138,7 +147,7 @@ mod tests {
 	fn test_serialize_sync_info() {
 		let t = SyncInfo::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
 	}
 
 	#[test]
@@ -156,6 +165,15 @@ mod tests {
 
 		let t = SyncStatus::Info(SyncInfo::default());
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0"}"#);
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":null}"#);
+	}
+
+	#[test]
+	fn test_serialize_block_gap() {
+		let mut t = SyncInfo::default();
+		t.block_gap = Some((1.into(), 5.into()));
+
+		let serialized = serde_json::to_string(&t).unwrap();
+		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":["0x1","0x5"]}"#)
 	}
 }

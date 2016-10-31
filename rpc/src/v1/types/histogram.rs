@@ -12,25 +12,28 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+// along with Parity. If not, see <http://www.gnu.org/licenses/>.
 
-pub mod transaction;
-pub mod ids;
-pub mod receipt;
-pub mod tree_route;
-pub mod blockchain_info;
-pub mod log_entry;
-pub mod trace_types;
-pub mod executed;
-pub mod block_status;
-pub mod account_diff;
-pub mod state_diff;
-pub mod verification_queue_info;
-pub mod filter;
-pub mod trace_filter;
-pub mod call_analytics;
-pub mod transaction_import;
-pub mod block_import_error;
-pub mod restoration_status;
-pub mod snapshot_manifest;
-pub mod mode;
+//! Gas prices histogram.
+
+use v1::types::U256;
+use util::stats;
+
+/// Values of RPC settings.
+#[derive(Serialize, Deserialize)]
+pub struct Histogram {
+	/// Gas prices for bucket edges.
+	#[serde(rename="bucketBounds")]
+	pub bucket_bounds: Vec<U256>,
+	/// Transacion counts for each bucket.
+	pub counts: Vec<u64>,
+}
+
+impl From<stats::Histogram> for Histogram {
+	fn from(h: stats::Histogram) -> Self {
+		Histogram {
+			bucket_bounds: h.bucket_bounds.into_iter().map(Into::into).collect(),
+			counts: h.counts
+		}
+	}
+}
