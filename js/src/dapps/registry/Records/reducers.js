@@ -17,7 +17,7 @@ export default (state = initialState, action) => {
     };
   }
 
-  if (action.type === 'records update error' && action.type === 'records update success') {
+  if (action.type === 'records update error' || action.type === 'records update success') {
     return {
       ...state,
       pending: false,
