@@ -94,11 +94,35 @@ export default class Events extends Component {
   render () {
     const { subscriptions, pending, accounts, contacts } = this.props;
 
-    const events = this.props.events
+    const eventsObject = this.props.events
       .filter((e) => eventTypes[e.type])
-      .map((e) => eventTypes[e.type](e, accounts, contacts));
+      .reduce((eventsObject, event) => {
+        const txHash = event.transaction;
 
-    console.log(events);
+        if (
+          (eventsObject[txHash] && eventsObject[txHash].state === 'pending') ||
+          !eventsObject[txHash]
+        ) {
+          eventsObject[txHash] = event;
+        }
+
+        return eventsObject;
+      }, {});
+
+    const events = Object
+      .values(eventsObject)
+      .sort((evA, evB) => {
+        if (evA.state === 'pending') {
+          return -1;
+        }
+
+        if (evB.state === 'pending') {
+          return 1;
+        }
+
+        return evB.timestamp - evA.timestamp;
+      })
+      .map((e) => eventTypes[e.type](e, accounts, contacts));
 
     return (
       <Card className={ styles.events }>
