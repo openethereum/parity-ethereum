@@ -150,7 +150,7 @@ export default class ExecuteContract extends Component {
           return '0x';
 
         case 'bool':
-          return 'false';
+          return false;
 
         case 'bytes':
           return '0x';

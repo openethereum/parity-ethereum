@@ -124,6 +124,7 @@ export default class DetailsStep extends Component {
 
     return (func.abi.inputs || []).map((input, index) => {
       const onChange = (event, value) => onValueChange(event, index, value);
+      const onSelect = (event, _index, value) => onValueChange(event, index, value);
       const onSubmit = (value) => onValueChange(null, index, value);
       const label = `${input.name}: ${input.type}`;
       let inputbox;
@@ -142,21 +143,20 @@ export default class DetailsStep extends Component {
           break;
 
         case 'bool':
-          const values = [false, true].forEach((bool) => {
-            const strval = `${bool}`;
+          const boolitems = ['false', 'true'].map((bool) => {
             return (
               <MenuItem
-                key={ strval }
-                value={ strval }
-                label={ strval }>{ strval }</MenuItem>
+                key={ bool }
+                value={ bool }
+                label={ bool }>{ bool }</MenuItem>
             );
           });
           inputbox = (
             <Select
               label={ label }
-              value={ `${values[index]}` }
+              value={ values[index] ? 'true' : 'false' }
               error={ valuesError[index] }
-              onChange={ onChange }>{ values }</Select>
+              onChange={ onSelect }>{ boolitems }</Select>
           );
           break;
 
