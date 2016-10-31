@@ -1047,10 +1047,6 @@ impl ChainSync {
 
 	/// Resume downloading
 	fn continue_sync(&mut self, io: &mut SyncIo) {
-		if (self.state == SyncState::Blocks || self.state == SyncState::NewBlocks || self.state == SyncState::Idle)
-			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync()) {
-			self.complete_sync(io);
-		}
 		let mut peers: Vec<(PeerId, U256, u8)> = self.peers.iter().filter_map(|(k, p)|
 			if p.can_sync() { Some((*k, p.difficulty.unwrap_or_else(U256::zero), p.protocol_version)) } else { None }).collect();
 		thread_rng().shuffle(&mut peers); //TODO: sort by rating
@@ -1061,6 +1057,11 @@ impl ChainSync {
 			if self.active_peers.contains(&p) {
 				self.sync_peer(io, p, false);
 			}
+		}
+		if (self.state != SyncState::WaitingPeers && self.state != SyncState::SnapshotWaiting && self.state != SyncState::Waiting && self.state != SyncState::Idle)
+			&& !self.peers.values().any(|p| p.asking != PeerAsking::Nothing && p.block_set != Some(BlockSet::OldBlocks) && p.can_sync()) {
+
+			self.complete_sync(io);
 		}
 	}
 
