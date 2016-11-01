@@ -56,9 +56,7 @@ export default class AccountDetails extends Component {
       <Input
         disabled
         hint='the account recovery phrase'
-        label='account recovery phrase (take note)'
-        multiLine
-        rows={ 1 }
+        label='account recovery phrase (keep safe)'
         value={ phrase } />
     );
   }
