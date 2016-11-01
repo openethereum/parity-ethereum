@@ -150,6 +150,9 @@ export default class ExecuteContract extends Component {
         case 'address':
           return '0x';
 
+        case 'bool':
+          return false;
+
         case 'bytes':
           return '0x';
 
@@ -170,17 +173,16 @@ export default class ExecuteContract extends Component {
   onValueChange = (event, index, _value) => {
     const { func, values, valuesError } = this.state;
     const input = func.inputs.find((input, _index) => index === _index);
-    let value;
-    let valueError;
+    let value = _value;
+    let valueError = null;
 
     switch (input.kind.type) {
-      case 'address':
-        value = _value;
-        valueError = validateAddress(_value).addressError;
+      case 'bool':
+        value = _value === 'true';
         break;
-      default:
-        value = _value;
-        valueError = null;
+
+      case 'address':
+        valueError = validateAddress(_value).addressError;
         break;
     }
 
