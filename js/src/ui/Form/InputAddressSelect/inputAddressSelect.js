@@ -68,39 +68,47 @@ class InputAddressSelect extends Component {
 
   render () {
     const { label, hint, error } = this.props;
-    const { entries } = this.state;
+    const { entries, address } = this.state;
 
     const choices = entries.map((data) => ({
-      // text: this.renderAddress(data), value: data.address
-      text: data.name, value: data.address
+      value: this.renderAddress(data), text: data.name
     }));
 
     return (
-      <AutoComplete
-        floatingLabelText={ label }
-        hintText={ hint }
-        errorText={ error }
-        dataSource={ choices }
-        onNewRequest={ this.onNewRequest }
-        onUpdateInput={ this.onUpdateInput }
-        fullWidth={ true }
-      />
+      <div className={ styles.wrapper }>
+        <IdentityIcon
+          className={ styles.icon }
+          address={ address }
+          inline
+        />
+        <AutoComplete
+          floatingLabelText={ label }
+          hintText={ hint }
+          errorText={ error }
+          dataSource={ choices }
+          onNewRequest={ this.onNewRequest }
+          onUpdateInput={ this.onUpdateInput }
+          fullWidth={ true }
+        />
+      </div>
     );
   }
 
   renderAddress = (data) => {
-    const icon = ( <IdentityIcon address={ data.address } inline center /> );
+    const icon = ( <IdentityIcon address={ data.address } inline /> );
+    // TODO move those styles down there to a better place
     return (
       <MenuItem
         primaryText={ data.name }
         key={ data.address }
         leftIcon={ icon }
+        innerDivStyle={ { display: 'flex', paddingLeft: '1em', paddingRight: '1em', alignItems: 'center' } }
       />
     );
   }
 
   onNewRequest = (data) => {
-    this.props.onChange(null, data.value);
+    this.props.onChange(null, data.value.key);
   };
 
   onUpdateInput = (value) => {
