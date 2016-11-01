@@ -43,6 +43,11 @@ const COLORS = {
   intersection: '#fff'
 };
 
+const countModifier = (count) => {
+  const val = count.toNumber ? count.toNumber() : count;
+  return Math.log10(val + 1) + 0.1;
+};
+
 class CustomCursor extends Component {
   static propTypes = {
     x: PropTypes.number,
@@ -64,7 +69,7 @@ class CustomCursor extends Component {
       return null;
     }
 
-    const count = counts[index].toNumber() + 1;
+    const count = countModifier(counts[index]);
     const barHeight = (count / yDomain[1]) * (y + height);
 
     return (
@@ -307,9 +312,9 @@ export default class GasPriceSelector extends Component {
       return null;
     }
 
-    const height = 350;
+    const height = 300;
     const countIndex = Math.max(0, Math.min(selectedIndex, gasPriceHistogram.counts.length - 1));
-    const selectedCount = gasPriceHistogram.counts[countIndex];
+    const selectedCount = countModifier(gasPriceHistogram.counts[countIndex]);
 
     return (<div className={ styles.columns }>
       <div style={ { flex: 1, height } }>
@@ -323,10 +328,10 @@ export default class GasPriceSelector extends Component {
               <Scatter
                 data={ [
                   { x: sliderValue, y: 0 },
-                  { x: sliderValue, y: selectedCount.toNumber() + 1 },
+                  { x: sliderValue, y: selectedCount },
                   { x: sliderValue, y: chartData.yDomain[1] }
                 ] }
-                shape={ <CustomizedShape showValue={ selectedCount.toNumber() + 1 } /> }
+                shape={ <CustomizedShape showValue={ selectedCount } /> }
                 line
                 isAnimationActive={ false }
               />
@@ -424,13 +429,14 @@ export default class GasPriceSelector extends Component {
       .map((value, index) => ({ value, index }));
 
     const N = values.length - 1;
-    const maxGasCounts = gasPriceHistogram
-      .counts
-      .reduce((max, count) => count.greaterThan(max) ? count : max, 0)
-      .toNumber();
+    const maxGasCounts = countModifier(
+      gasPriceHistogram
+        .counts
+        .reduce((max, count) => count.greaterThan(max) ? count : max, 0)
+    );
 
     const xDomain = [0, N];
-    const yDomain = [0, (maxGasCounts + 1) * 1.2];
+    const yDomain = [0, maxGasCounts * 1.1];
 
     const chartData = {
       values, N,
@@ -447,7 +453,7 @@ export default class GasPriceSelector extends Component {
 
     const gasPriceChartData = gasPriceHistogram
       .counts
-      .map(count => count.toNumber() + 1);
+      .map(count => countModifier(count));
 
     this.setState(
       { gasPriceChartData },

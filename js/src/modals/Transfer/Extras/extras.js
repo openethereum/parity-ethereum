@@ -97,11 +97,9 @@ export default class Extras extends Component {
         </div>
 
         <div>
-          <p>
+          <p className={ styles.gasPriceDesc }>
             You can choose the gas price based on the
-            distribution of recent <b>included</b> transactions' gas prices.
-          </p>
-          <p>
+            distribution of recent included transactions' gas prices.
             The lower the gas price is, the cheaper the transaction will
             be. The higher the gas price is, the faster it should
             get mined by the network.

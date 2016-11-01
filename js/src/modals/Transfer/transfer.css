@@ -147,3 +147,7 @@
   position: absolute;
   width: 100%;
 }
+
+.gasPriceDesc {
+  font-size: 0.9em;
+}
