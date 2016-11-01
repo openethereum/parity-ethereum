@@ -108,10 +108,12 @@ export default class Queries extends Component {
   }
 
   renderValue (value) {
-    if (!value) return null;
+    if (typeof value === 'undefined') {
+      return null;
+    }
 
     const { api } = this.context;
-    let valueToDisplay = value.toString();
+    let valueToDisplay = null;
 
     if (api.util.isInstanceOf(value, BigNumber)) {
       valueToDisplay = value.toFormat(0);
@@ -119,6 +121,8 @@ export default class Queries extends Component {
       valueToDisplay = api.util.bytesToHex(value);
     } else if (typeof value === 'boolean') {
       valueToDisplay = value ? 'true' : 'false';
+    } else {
+      valueToDisplay = value.toString();
     }
 
     return (
