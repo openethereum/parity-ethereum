@@ -47,8 +47,8 @@ class Background extends Component {
     const { settings } = this.props;
 
     this.setState({
-      seeds: [settings.backgroundSeed]
-    }, () => this.addSeeds(19));
+      seeds: new Array(20).fill(null)
+    }, () => this.generateSeeds());
   }
 
   render () {
@@ -63,7 +63,7 @@ class Background extends Component {
               <Button
                 icon={ <NavigationRefresh /> }
                 label='generate more'
-                onClick={ this.generateMore } />
+                onClick={ this.generateSeeds } />
             </div>
           </div>
           <div className={ layout.details }>
@@ -104,17 +104,17 @@ class Background extends Component {
     };
   }
 
-  generateMore = () => {
-    this.addSeeds(20);
-  }
-
-  addSeeds (count) {
+  generateSeeds = () => {
     const { seeds } = this.state;
-    const newSeeds = [];
+    const current = this.props.settings.backgroundSeed;
 
-    for (let index = 0; index < count; index++) {
-      newSeeds.push(this.generateSeed());
-    }
+    const newSeeds = seeds.map((seed) => {
+      if (seed === current) {
+        return seed;
+      }
+
+      return this.generateSeed();
+    });
 
     this.setState({
       seeds: newSeeds
