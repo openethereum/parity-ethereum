@@ -31,16 +31,32 @@ export default class InputChip extends Component {
     onTokensChange: PropTypes.func,
     onInputChange: PropTypes.func,
     onBlur: PropTypes.func,
+    addOnBlur: PropTypes.bool,
     clearOnBlur: PropTypes.bool
   }
 
   static defaultProps = {
-    clearOnBlur: false
+    clearOnBlur: false,
+    addOnBlur: false
+  }
+
+  state = {
+    focused: false
   }
 
   render () {
     const { clearOnBlur, className, hint, label, tokens } = this.props;
+    const { focused } = this.state;
+
     const classes = `${className}`;
+
+    const textFieldStyle = {
+      height: 55
+    };
+
+    if (!focused) {
+      textFieldStyle.width = 0;
+    }
 
     return (
       <ChipInput
@@ -54,6 +70,7 @@ export default class InputChip extends Component {
 
         chipRenderer={ this.chipRenderer }
 
+        onFocus={ this.handleFocus }
         onBlur={ this.handleBlur }
         onRequestAdd={ this.handleTokenAdd }
         onRequestDelete={ this.handleTokenDelete }
@@ -63,16 +80,19 @@ export default class InputChip extends Component {
         fullWidth
 
         hintStyle={ {
-          bottom: 16,
-          left: 1,
+          bottom: 13,
+          left: 0,
           transition: 'none'
         } }
         inputStyle={ {
-          marginBottom: 18
+          marginBottom: 18,
+          width: 'initial'
         } }
-        textFieldStyle={ {
-          height: 42
-        } } />
+        textFieldStyle={ textFieldStyle }
+        underlineStyle={ {
+          borderWidth: 2
+        } }
+      />
     );
   }
 
@@ -84,7 +104,7 @@ export default class InputChip extends Component {
         key={ key }
         className={ styles.chip }
         style={ {
-          margin: '8px 8px 0 0',
+          margin: '15px 8px 0 0',
           float: 'left',
           pointerEvents: isDisabled ? 'none' : undefined,
           alignItems: 'center'
@@ -103,8 +123,19 @@ export default class InputChip extends Component {
     );
   }
 
+  handleFocus = () => {
+    this.setState({ focused: true });
+  }
+
   handleBlur = () => {
-    const { onBlur } = this.props;
+    const { onBlur, addOnBlur } = this.props;
+
+    this.setState({ focused: false });
+
+    if (addOnBlur) {
+      const { inputValue } = this.refs.chipInput.state;
+      this.handleTokenAdd(inputValue);
+    }
 
     if (typeof onBlur === 'function') {
       onBlur();
@@ -118,8 +149,11 @@ export default class InputChip extends Component {
 
     this.handleTokensChange(newTokens);
 
-    if (value === this.refs.chipInput.state.inputValue && typeof onInputChange === 'function') {
-      onInputChange('');
+    if (value === this.refs.chipInput.state.inputValue) {
+      if (typeof onInputChange === 'function') {
+        onInputChange('');
+      }
+      this.refs.chipInput.setState({ inputValue: '' });
     }
   }
 

@@ -107,7 +107,7 @@ export default class EditMeta extends Component {
         onTokensChange={ this.onTagsChange }
         label='(optional) tags'
         hint='press <Enter> to add a tag'
-        clearOnBlur
+        addOnBlur
       />
     );
   }
