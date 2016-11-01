@@ -17,19 +17,29 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { Toggle } from 'material-ui';
 
-import AddressSelect from '../AddressSelect';
-import InputAddress from '../InputAddress';
+import AutoComplete from 'material-ui/AutoComplete';
+import MenuItem from 'material-ui/MenuItem';
 
-import styles from './inputAddressSelect.css';
+import IdentityIcon from '../../IdentityIcon';
+
+import normalize from 'normalize-for-search';
+
+// import styles from './inputAddressSelect.css';
+
+const computeHaystack = (accounts, contacts) => {
+  const data = Object.assign({}, contacts, accounts);
+  return Object.values(data)
+  .map((value) => Object.assign(
+    Object.create(value),
+    { tokens: normalize(value.name).trim() }
+  ));
+};
 
 class InputAddressSelect extends Component {
   static propTypes = {
     accounts: PropTypes.object,
     contacts: PropTypes.object,
-    disabled: PropTypes.bool,
-    editing: PropTypes.bool,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -38,74 +48,70 @@ class InputAddressSelect extends Component {
     onChange: PropTypes.func
   };
 
+  static defaultProps = {
+    onChange: () => {}
+  };
+
   state = {
-    editing: this.props.editing || false,
+    haystack: [],
     entries: []
   }
 
-  render () {
-    const { editing } = this.state;
-
-    return (
-      <div className={ styles.inputselect }>
-        { editing ? this.renderInput() : this.renderSelect() }
-        <Toggle
-          className={ styles.toggle }
-          label='Edit'
-          labelPosition='right'
-          toggled={ editing }
-          onToggle={ this.onToggle } />
-      </div>
-    );
-  }
-
-  renderInput () {
-    const { disabled, error, hint, label, value, tokens } = this.props;
-
-    return (
-      <InputAddress
-        disabled={ disabled }
-        error={ error }
-        hint={ hint }
-        label={ label }
-        value={ value }
-        tokens={ tokens }
-        onChange={ this.onChangeInput } />
-    );
-  }
-
-  renderSelect () {
-    const { accounts, contacts, disabled, error, hint, label, value, tokens } = this.props;
-
-    return (
-      <AddressSelect
-        accounts={ accounts }
-        contacts={ contacts }
-        disabled={ disabled }
-        label={ label }
-        hint={ hint }
-        error={ error }
-        value={ value }
-        tokens={ tokens }
-        onChange={ this.onChangeSelect } />
-    );
-  }
-
-  onToggle = () => {
-    const { editing } = this.state;
+  componentWillReceiveProps (nextProps) {
+    const { accounts, contacts } = nextProps;
+    // TODO diff against last props
 
     this.setState({
-      editing: !editing
+      haystack: computeHaystack(accounts, contacts)
     });
   }
 
-  onChangeInput = (event, value) => {
-    this.props.onChange(event, value);
+  render () {
+    const { label, hint } = this.props;
+    const { entries } = this.state;
+
+    const choices = entries.map((data) => ({
+      // text: this.renderAddress(data), value: data.address
+      text: data.name, value: data.address
+    }));
+
+    return (
+      <AutoComplete
+        floatingLabelText={ label }
+        hintText={ hint }
+        dataSource={ choices }
+        onUpdateInput={ this.onUpdateInput }
+        fullWidth={ true }
+      />
+    );
   }
 
-  onChangeSelect = (event, value) => {
-    this.props.onChange(event, value);
+  renderAddress = (data) => {
+    const icon = ( <IdentityIcon address={ data.address } inline center /> );
+    return (
+      <MenuItem
+        primaryText={ data.name }
+        key={ data.address }
+        leftIcon={ icon }
+      />
+    );
   }
+
+  onUpdateInput = (value) => {
+    if (value.trim() === '') {
+      this.setState({ entries: [] });
+      return;
+    }
+
+    const { haystack } = this.state;
+    const needle = normalize(value).trim();
+
+    const entries = haystack.filter((data) => data.tokens.indexOf(needle) >= 0);
+
+    this.setState({
+      entries
+    });
+  };
 }
 
 function mapStateToProps (state) {

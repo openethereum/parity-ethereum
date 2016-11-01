@@ -127,6 +127,7 @@
     "material-ui": "^0.16.1",
     "material-ui-chip-input": "^0.8.0",
     "moment": "^2.14.1",
+    "normalize-for-search": "^2.0.1",
     "qs": "^6.3.0",
     "react": "^15.2.1",
     "react-addons-css-transition-group": "^15.2.1",
