@@ -23,6 +23,7 @@ import MenuItem from 'material-ui/MenuItem';
 import normalize from 'normalize-for-search';
 
 import IdentityIcon from '../../IdentityIcon';
+import util from '../../../api/util';
 
 import styles from './inputAddressSelect.css';
 
@@ -58,8 +59,12 @@ class InputAddressSelect extends Component {
     const { choices, address } = this.state;
 
     // don't show IdentityIcon if user searches by name
-    const addressToRender = (address.slice(0, 2) === '0x')
-      ? address : null;
+    const addressToRender = address.slice(0, 2) === '0x'
+      ? address : (
+        util.isAddressValid('0x' + address)
+          ? '0x' + address
+          : null
+      );
 
     return (
       <div className={ styles.wrapper }>
@@ -122,7 +127,11 @@ class InputAddressSelect extends Component {
     query = query.trim();
     this.setState({ address: query });
 
-    this.props.onChange(null, query);
+    if (query.slice(0, 2) !== '0x' && util.isAddressValid('0x' + query)) {
+      this.props.onChange(null, '0x' + query);
+    } else {
+      this.props.onChange(null, query);
+    }
   };
 }
 
