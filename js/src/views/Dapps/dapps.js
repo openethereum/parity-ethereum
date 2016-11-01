@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import Contracts from '../../contracts';
@@ -124,50 +123,46 @@ export default class Dapps extends Component {
           hidden: readHiddenApps()
         });
 
-        this.loadImages();
-        this.loadNetworkApps();
+        this.loadContent();
       });
   }
 
-  loadImages () {
+  loadContent () {
+    const { api } = this.context;
     const { available } = this.state;
     const { dappReg } = Contracts.get();
 
     return Promise
       .all(available.map((app) => dappReg.getImage(app.id)))
       .then((images) => {
-        this.setState({
-          available: images
-            .map(hashToImageUrl)
-            .map((image, i) => Object.assign({}, available[i], { image }))
-        });
+        const _available = images
+          .map(hashToImageUrl)
+          .map((image, index) => Object.assign({}, available[index], { image }));
+
+        this.setState({ available: _available });
+        const _networkApps = _available.filter((app) => app.network);
+
+        return Promise
+          .all(_networkApps.map((app) => dappReg.getContent(app.id)))
+          .then((content) => {
+            const networkApps = content.map((_contentHash, index) => {
+              const networkApp = _networkApps[index];
+              const contentHash = api.util.bytesToHex(_contentHash).substr(2);
+              const app = _available.find((_app) => _app.id === networkApp.id);
+
+              console.log(`found content for ${app.id} at ${contentHash}`);
+              return Object.assign({}, app, { contentHash });
+            });
+
+            this.setState({
+              available: _available.map((app) => {
+                return Object.assign({}, networkApps.find((napp) => app.id === napp.id) || app);
+              })
+            });
+          });
       })
       .catch((error) => {
         console.warn('loadImages', error);
-      });
-  }
-
-  loadNetworkApps () {
-    const { api } = this.context;
-    const { available } = this.state;
-    const { dappReg } = Contracts.get();
-    const networkApps = available.filter((app) => app.network);
-
-    return Promise
-      .all(networkApps.map((app) => dappReg.getContent(app.id)))
-      .then((content) => {
-        return Promise.all(
-          networkApps.map((app, index) => {
-            const contentHash = api.util.bytesToHex(content[index]);
-            console.log(`found content for ${app.id} at ${contentHash}`);
-
-            if (new BigNumber(contentHash).gt(0)) {
-              fetchManifest(app, contentHash).then((app) => console.log(app));
-            } else {
-              return null;
-            }
-          })
-        );
       });
   }
 

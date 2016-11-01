@@ -25,8 +25,7 @@ const builtinApps = [
     name: 'Token Deployment',
     description: 'Deploy new basic tokens that you are able to send around',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
+    version: '1.0.0'
   },
   {
     id: '0xd1adaede68d344519025e2ff574650cd99d3830fe6d274c7a7843cdc00e17938',
@@ -34,8 +33,7 @@ const builtinApps = [
     name: 'Registry',
     description: 'A global registry of addresses on the network',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
+    version: '1.0.0'
   },
   {
     id: '0x0a8048117e51e964628d0f2d26342b3cd915248b59bcce2721e1d05f5cfa2208',
@@ -43,8 +41,7 @@ const builtinApps = [
     name: 'Token Registry',
     description: 'A registry of transactable tokens on the network',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
+    version: '1.0.0'
   },
   {
     id: '0xf49089046f53f5d2e5f3513c1c32f5ff57d986e46309a42d2b249070e4e72c46',
@@ -52,8 +49,7 @@ const builtinApps = [
     name: 'Method Registry',
     description: 'A registry of method signatures for lookups on transactions',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
+    version: '1.0.0'
   },
   {
     id: '0x058740ee9a5a3fb9f1cfa10752baec87e09cc45cd7027fd54708271aca300c75',
@@ -61,8 +57,7 @@ const builtinApps = [
     name: 'GitHub Hint',
     description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
+    version: '1.0.0'
   }
 ];
 
@@ -83,6 +78,14 @@ const networkApps = [
 ];
 
 export function fetchAvailable (api) {
+  // TODO: Since we don't have an extensive GithubHint app, get the value somehow
+  // RESULT: 0x1ec41be9bdbfd6d9ffb82eff1d8e12dfa9e8def7778c7c98d1f20d7306daeeff
+  // api.ethcore
+  //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/703e0ff7a5654a72034d01b641b57e74d5c2e3ed')
+  //   .then((sha3) => {
+  //     console.log('archive', sha3);
+  //   });
+
   return fetch(`${parityNode}/api/apps`)
     .then((response) => {
       return response.ok
@@ -108,12 +111,18 @@ export function fetchAvailable (api) {
             return [];
           }
 
+          const _builtinApps = builtinApps
+            .map((app) => {
+              app.builtin = true;
+              return app;
+            });
+
           return networkApps
             .map((app) => {
               app.network = true;
               return app;
             })
-            .concat(builtinApps);
+            .concat(_builtinApps);
         })
         .then((registryApps) => {
           return registryApps
