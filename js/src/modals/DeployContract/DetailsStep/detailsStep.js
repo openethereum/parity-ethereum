@@ -184,12 +184,24 @@ export default class DetailsStep extends Component {
 
       inputs.forEach((input) => {
         switch (input.type) {
-          case 'string':
-            params.push('');
+          case 'address':
+            params.push('0x');
             break;
 
           case 'bool':
             params.push(false);
+            break;
+
+          case 'bytes':
+            params.push('0x');
+            break;
+
+          case 'uint':
+            params.push('0');
+            break;
+
+          case 'string':
+            params.push('');
             break;
 
           default:
