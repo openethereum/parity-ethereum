@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect } from '../../../ui';
+import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
 
 import styles from '../deployContract.css';
@@ -98,6 +99,7 @@ export default class DetailsStep extends Component {
 
     return inputs.map((input, index) => {
       const onChange = (event, value) => this.onParamChange(index, value);
+      const onChangeBool = (event, _index, value) => this.onParamChange(index, value === 'true');
       const onSubmit = (value) => this.onParamChange(index, value);
       const label = `${input.name}: ${input.type}`;
       let inputBox = null;
@@ -112,6 +114,24 @@ export default class DetailsStep extends Component {
               value={ params[index] }
               error={ paramsError[index] }
               onChange={ onChange } />
+          );
+          break;
+
+        case 'bool':
+          const boolitems = ['false', 'true'].map((bool) => {
+            return (
+              <MenuItem
+                key={ bool }
+                value={ bool }
+                label={ bool }>{ bool }</MenuItem>
+            );
+          });
+          inputBox = (
+            <Select
+              label={ label }
+              value={ params[index] ? 'true' : 'false' }
+              error={ paramsError[index] }
+              onChange={ onChangeBool }>{ boolitems }</Select>
           );
           break;
 
@@ -168,8 +188,12 @@ export default class DetailsStep extends Component {
             params.push('');
             break;
 
+          case 'bool':
+            params.push(false);
+            break;
+
           default:
-            params.push('0x');
+            params.push('0');
             break;
         }
       });
