@@ -54,6 +54,7 @@
   flex: 1;
   overflow: auto;
   display: flex;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .corner {
@@ -88,6 +89,10 @@
 
 .button {
   overflow: visible !important;
+}
+
+.button svg {
+  fill: white !important;
 }
 
 .label {
