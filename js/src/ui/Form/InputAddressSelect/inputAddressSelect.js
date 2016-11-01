@@ -23,18 +23,8 @@ import MenuItem from 'material-ui/MenuItem';
 import normalize from 'normalize-for-search';
 
 import IdentityIcon from '../../IdentityIcon';
-import { validateAddress } from '../../../util/validation';
 
 import styles from './inputAddressSelect.css';
-
-const computeHaystack = (accounts, contacts) => {
-  const data = Object.assign({}, contacts, accounts);
-  return Object.values(data)
-  .map((value) => Object.assign(
-    Object.create(value),
-    { tokens: normalize(value.name) }
-  ));
-};
 
 class InputAddressSelect extends Component {
   static propTypes = {
@@ -53,27 +43,19 @@ class InputAddressSelect extends Component {
   };
 
   state = {
-    haystack: [],
-    entries: [],
+    choices: [],
     address: ''
   }
 
   componentWillReceiveProps (nextProps) {
     const { accounts, contacts } = nextProps;
     // TODO diff against last props
-
-    this.setState({
-      haystack: computeHaystack(accounts, contacts)
-    });
+    this.setState({ choices: this.computeChoices(accounts, contacts) });
   }
 
   render () {
     const { label, hint, error } = this.props;
-    const { entries, address } = this.state;
-
-    const choices = entries.map((data) => ({
-      value: this.renderAddress(data), text: data.name
-    }));
+    const { choices, address } = this.state;
 
     return (
       <div className={ styles.wrapper }>
@@ -87,16 +69,17 @@ class InputAddressSelect extends Component {
           hintText={ hint }
           errorText={ error }
           dataSource={ choices }
+          filter={ this.filter }
           onNewRequest={ this.onNewRequest }
           onUpdateInput={ this.onUpdateInput }
-          fullWidth={ true }
+          fullWidth openOnFocus
         />
       </div>
     );
   }
 
-  renderAddress = (data) => {
-    const icon = ( <IdentityIcon address={ data.address } inline /> );
+  renderChoice = (data) => {
+    const icon = (<IdentityIcon address={ data.address } inline />);
     // TODO move those styles down there to a better place
     return (
       <MenuItem
@@ -108,33 +91,34 @@ class InputAddressSelect extends Component {
     );
   }
 
-  onNewRequest = (data) => {
-    this.setState({
-      address: data.value.key
-    });
-    this.props.onChange(null, data.value.key);
+  computeChoices = (accounts, contacts) => {
+    return Object.values(Object.assign({}, contacts, accounts))
+      .map((data) => ({
+        tokens: normalize(data.name),
+        value: this.renderChoice(data),
+        text: data.name, data
+      }));
   };
 
-  onUpdateInput = (value) => {
-    value = value.trim()
-    if (value === '') {
-      this.setState({ entries: [] });
-      return;
-    }
+  onNewRequest = (choice) => {
+    this.setState({ address: choice.data.address });
+    this.props.onChange(null, choice.data.address);
+  };
 
-    const needle = normalize(value);
-    const entries = this.state.haystack
-      .filter((data) => data.tokens.indexOf(needle) >= 0);
+  filter = (query, _, choice) => {
+    query = query.trim();
+    if (query === '') return false;
 
-    this.setState({
-      entries,
-      address: value
-    });
+    const needle = normalize(query);
+    return (choice.tokens.indexOf(needle) >= 0) ||
+      (choice.data.address.slice(0, query.length).toLowerCase() === query);
+  };
 
-    const isValid = !validateAddress(value).addressError;
-    if (isValid || entries.length === 0) {
-      this.props.onChange(null, value);
-    }
+  onUpdateInput = (query, choices) => {
+    query = query.trim();
+    this.setState({ address: query });
+
+    this.props.onChange(null, query);
   };
 }
 
