@@ -115,7 +115,7 @@ class Background extends Component {
     }
 
     this.setState({
-      seeds: seeds.concat(newSeeds)
+      seeds: newSeeds
     });
   }
 
