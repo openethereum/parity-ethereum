@@ -20,10 +20,10 @@ import { bindActionCreators } from 'redux';
 
 import AutoComplete from 'material-ui/AutoComplete';
 import MenuItem from 'material-ui/MenuItem';
+import normalize from 'normalize-for-search';
 
 import IdentityIcon from '../../IdentityIcon';
-
-import normalize from 'normalize-for-search';
+import { validateAddress } from '../../../util/validation';
 
 // import styles from './inputAddressSelect.css';
 
@@ -32,7 +32,7 @@ const computeHaystack = (accounts, contacts) => {
   return Object.values(data)
   .map((value) => Object.assign(
     Object.create(value),
-    { tokens: normalize(value.name).trim() }
+    { tokens: normalize(value.name) }
   ));
 };
 
@@ -67,7 +67,7 @@ class InputAddressSelect extends Component {
   }
 
   render () {
-    const { label, hint } = this.props;
+    const { label, hint, error } = this.props;
     const { entries } = this.state;
 
     const choices = entries.map((data) => ({
@@ -79,7 +79,9 @@ class InputAddressSelect extends Component {
       <AutoComplete
         floatingLabelText={ label }
         hintText={ hint }
+        errorText={ error }
         dataSource={ choices }
+        onNewRequest={ this.onNewRequest }
         onUpdateInput={ this.onUpdateInput }
         fullWidth={ true }
       />
@@ -97,20 +99,29 @@ class InputAddressSelect extends Component {
     );
   }
 
+  onNewRequest = (data) => {
+    this.props.onChange(null, data.value);
+  };
+
   onUpdateInput = (value) => {
-    if (value.trim() === '') {
+    value = value.trim()
+    if (value === '') {
       this.setState({ entries: [] });
       return;
     }
 
-    const { haystack } = this.state;
-    const needle = normalize(value).trim();
-
-    const entries = haystack.filter((data) => data.tokens.indexOf(needle) >= 0);
+    const needle = normalize(value);
+    const entries = this.state.haystack
+      .filter((data) => data.tokens.indexOf(needle) >= 0);
 
     this.setState({
       entries
     });
+
+    const isValid = !validateAddress(value).addressError;
+    if (isValid || entries.length === 0) {
+      this.props.onChange(null, value);
+    }
   };
 }
 
