@@ -59,15 +59,17 @@ class Background extends Component {
           <div className={ layout.overview }>
             <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
             <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
+            <div>
+              <Button
+                icon={ <NavigationRefresh /> }
+                label='generate more'
+                onClick={ this.generateMore } />
+            </div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.bgcontainer }>
               { this.renderBackgrounds() }
             </div>
-            <Button
-              icon={ <NavigationRefresh /> }
-              label='generate more'
-              onClick={ this.generateMore } />
           </div>
         </div>
       </Container>
