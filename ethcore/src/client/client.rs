@@ -768,7 +768,7 @@ impl BlockChainClient for Client {
 	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = try!(self.block_header(block).ok_or(CallError::StatePruned));
 		let view = HeaderView::new(&header);
-		let last_hashes = self.build_last_hashes(view.hash());
+		let last_hashes = self.build_last_hashes(view.parent_hash());
 		let env_info = EnvInfo {
 			number: view.number(),
 			author: view.author(),
