@@ -62,6 +62,7 @@ export default class Transfer extends Component {
     gasEst: '0',
     gasError: null,
     gasPrice: DEFAULT_GASPRICE,
+    gasPriceHistogram: {},
     gasPriceError: null,
     recipient: '',
     recipientError: ERRORS.requireRecipient,
@@ -89,7 +90,9 @@ export default class Transfer extends Component {
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
         waiting={ extras ? [2] : [1] }
-        visible>
+        visible
+        scroll
+      >
         { this.renderPage() }
       </Modal>
     );
@@ -169,6 +172,10 @@ export default class Transfer extends Component {
   }
 
   renderExtrasPage () {
+    if (!this.state.gasPriceHistogram) {
+      return null;
+    }
+
     return (
       <Extras
         isEth={ this.state.isEth }
@@ -180,6 +187,7 @@ export default class Transfer extends Component {
         gasPrice={ this.state.gasPrice }
         gasPriceDefault={ this.state.gasPriceDefault }
         gasPriceError={ this.state.gasPriceError }
+        gasPriceHistogram={ this.state.gasPriceHistogram }
         total={ this.state.total }
         totalError={ this.state.totalError }
         onChange={ this.onUpdateDetails } />
@@ -581,12 +589,16 @@ export default class Transfer extends Component {
   getDefaults = () => {
     const { api } = this.context;
 
-    api.eth
-      .gasPrice()
-      .then((gasPrice) => {
+    Promise
+      .all([
+        api.ethcore.gasPriceHistogram(),
+        api.eth.gasPrice()
+      ])
+      .then(([gasPriceHistogram, gasPrice]) => {
         this.setState({
           gasPrice: gasPrice.toString(),
-          gasPriceDefault: gasPrice.toFormat()
+          gasPriceDefault: gasPrice.toFormat(),
+          gasPriceHistogram
         }, this.recalculate);
       })
       .catch((error) => {
