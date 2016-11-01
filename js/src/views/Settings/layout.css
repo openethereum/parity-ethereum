@@ -46,7 +46,7 @@
 }
 
 .overview>div+div {
-  padding-top: 1.25em;
+  margin-top: 1.25em;
 }
 
 .details {
