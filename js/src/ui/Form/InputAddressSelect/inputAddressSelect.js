@@ -25,7 +25,7 @@ import normalize from 'normalize-for-search';
 import IdentityIcon from '../../IdentityIcon';
 import { validateAddress } from '../../../util/validation';
 
-// import styles from './inputAddressSelect.css';
+import styles from './inputAddressSelect.css';
 
 const computeHaystack = (accounts, contacts) => {
   const data = Object.assign({}, contacts, accounts);
@@ -54,7 +54,8 @@ class InputAddressSelect extends Component {
 
   state = {
     haystack: [],
-    entries: []
+    entries: [],
+    address: ''
   }
 
   componentWillReceiveProps (nextProps) {
@@ -108,6 +109,9 @@ class InputAddressSelect extends Component {
   }
 
   onNewRequest = (data) => {
+    this.setState({
+      address: data.value.key
+    });
     this.props.onChange(null, data.value.key);
   };
 
@@ -123,7 +127,8 @@ class InputAddressSelect extends Component {
       .filter((data) => data.tokens.indexOf(needle) >= 0);
 
     this.setState({
-      entries
+      entries,
+      address: value
     });
 
     const isValid = !validateAddress(value).addressError;

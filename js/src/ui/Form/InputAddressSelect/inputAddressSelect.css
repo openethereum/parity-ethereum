@@ -14,18 +14,12 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.inputselect {
-  position: relative;
+
+.wrapper {
+  display: flex;
+  align-items: flex-start;
 }
 
-.inputselect svg {
-  padding-right: 84px;
-}
-
-.toggle {
-  position: absolute !important;
-  top: 38px;
-  right: 0;
-  display: inline-block !important;
-  width: auto !important;
+.icon {
+  margin-top: 2em;
 }
