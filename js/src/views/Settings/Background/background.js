@@ -45,9 +45,11 @@ class Background extends Component {
 
   componentDidMount () {
     const { settings } = this.props;
+    const seeds = new Array(20).fill(null);
+    seeds[0] = settings.backgroundSeed;
 
     this.setState({
-      seeds: new Array(20).fill(null)
+      seeds
     }, () => this.generateSeeds());
   }
 
