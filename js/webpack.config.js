@@ -1,3 +1,4 @@
+
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -70,7 +71,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[name].[ext]'
+        loader: 'file?name=[path][name].[ext]!extract-loader!html-loader'
       },
 
       {
@@ -85,11 +86,7 @@ module.exports = {
       },
       {
         test: /\.(png|jpg)$/,
-        loader: 'file-loader'
-      },
-      {
-        test: /parity-logo-black-no-text\.png$/,
-        loader: 'file-loader?name=[name].[ext]'
+        loader: 'file-loader?name=[name].[hash].[ext]'
       },
       {
         test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
@@ -110,6 +107,12 @@ module.exports = {
     root: path.join(__dirname, 'node_modules'),
     fallback: path.join(__dirname, 'node_modules')
   },
+
+  htmlLoader: {
+    root: path.resolve(__dirname, 'assets/images'),
+    attrs: ['img:src', 'link:href']
+  },
+
   postcss: [
     postcssImport({
       addDependencyTo: webpack
