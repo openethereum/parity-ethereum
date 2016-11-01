@@ -128,7 +128,7 @@ struct TransitionHandler {
 #[derive(Clone)]
 struct BlockArrived;
 
-const ENGINE_TIMEOUT_TOKEN: TimerToken = 0;
+const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 impl IoHandler<BlockArrived> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<BlockArrived>) {
@@ -140,12 +140,11 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				debug!(target: "authorityround", "Timeout step: {}", engine.step.load(AtomicOrdering::Relaxed));
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 				if let Some(ref channel) = *engine.message_channel.try_lock().expect("Could not acquire message channel work.") {
 					match channel.send(ClientIoMessage::UpdateSealing) {
-						Ok(_) => trace!(target: "authorityround", "timeout: UpdateSealing message sent."),
-						Err(_) => trace!(target: "authorityround", "timeout: Could not send a sealing message."),
+						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
+						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
 					}
 				}
 				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_millis()).expect("Failed to restart consensus step timer.")
@@ -205,10 +204,10 @@ impl Engine for AuthorityRound {
 				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
-					trace!(target: "authorityround", "generate_seal: FAIL: accounts secret key unavailable");
+					trace!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
 				}
 			} else {
-				trace!(target: "authorityround", "generate_seal: FAIL: accounts not provided");
+				trace!(target: "poa", "generate_seal: FAIL: accounts not provided");
 			}
 		}
 		None
@@ -217,7 +216,7 @@ impl Engine for AuthorityRound {
 	/// Check the number of seal fields.
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		if header.seal().len() != self.seal_fields() {
-			trace!(target: "authorityround", "verify_block_basic: wrong number of seal fields");
+			trace!(target: "poa", "verify_block_basic: wrong number of seal fields");
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)))
@@ -227,7 +226,6 @@ impl Engine for AuthorityRound {
 	}
 
 	/// Check if the signature belongs to the correct proposer.
-	/// TODO: Keep track of BlockNumber to step relationship
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let step = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<usize>());
 		if step <= self.step() {
@@ -236,11 +234,11 @@ impl Engine for AuthorityRound {
 			if ok_sig {
 				Ok(())
 			} else {
-				trace!(target: "authorityround", "verify_block_unordered: invalid seal signature");
+				trace!(target: "poa", "verify_block_unordered: invalid seal signature");
 				try!(Err(BlockError::InvalidSeal))
 			}
 		} else {
-			trace!(target: "authorityround", "verify_block_unordered: block from the future");
+			trace!(target: "poa", "verify_block_unordered: block from the future");
 			try!(Err(BlockError::InvalidSeal))
 		}
 	}
@@ -249,6 +247,13 @@ impl Engine for AuthorityRound {
 		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+		}
+
+		// Check if parent is from a previous step.
+		let parent_step = try!(UntrustedRlp::new(&parent.seal()[0]).as_val::<usize>());
+		let step = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<usize>());
+		if step <= parent_step { 
+			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
 		// Check difficulty is correct given the two timestamps.
