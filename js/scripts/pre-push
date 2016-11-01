@@ -1,0 +1,14 @@
+#!/bin/bash
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# Check that the branch starts with `ui` or `js`
+# and that `npm` is installed
+if [[ "$branch" =~ ^(ui|js) ]] && npm --version 1>/dev/null 2>/dev/null;
+then
+	base_dir=$(git rev-parse --show-toplevel)
+	(cd $base_dir/js && npm run lint:cached)
+	exit $?
+fi
+
+exit 0
