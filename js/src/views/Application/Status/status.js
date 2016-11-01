@@ -26,15 +26,53 @@ class Status extends Component {
     clientVersion: PropTypes.string,
     netPeers: PropTypes.object,
     netChain: PropTypes.string,
+    syncing: PropTypes.oneOfType([
+      PropTypes.bool,
+      PropTypes.object
+    ]),
     isTest: PropTypes.bool
   }
 
   render () {
-    const { clientVersion, blockNumber, netChain, netPeers, isTest } = this.props;
+    const { clientVersion, blockNumber, netChain, netPeers, syncing, isTest } = this.props;
     const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
+    let blockStatus = null;
 
     if (!blockNumber) {
       return null;
+    }
+
+    if (syncing) {
+      if (!syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
+        blockStatus = (
+          <div className={ styles.syncing }>
+            { syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2) }% warp restore
+          </div>
+        );
+      } else {
+        let warpStatus = null;
+
+        if (syncing.blockGap) {
+          const [first, last] = syncing.blockGap;
+
+          warpStatus = (
+            <span>, { first.mul(100).div(last).toFormat(2) }% historic</span>
+          );
+        }
+
+        blockStatus = (
+          <div className={ styles.syncing }>
+            <span>{ syncing.currentBlock.toFormat() }/{ syncing.highestBlock.toFormat() } syncing</span>
+            { warpStatus }
+          </div>
+        );
+      }
+    } else {
+      blockStatus = (
+        <div className={ styles.block }>
+          { blockNumber.toFormat() } best block
+        </div>
+      );
     }
 
     return (
@@ -44,9 +82,7 @@ class Status extends Component {
         </div>
         <div className={ styles.netinfo }>
           <div>
-            <div className={ styles.block }>
-              { blockNumber.toFormat() } blocks
-            </div>
+            { blockStatus }
             <div className={ styles.peers }>
               { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
             </div>
@@ -61,13 +97,14 @@ class Status extends Component {
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
+  const { blockNumber, clientVersion, netPeers, netChain, syncing, isTest } = state.nodeStatus;
 
   return {
     blockNumber,
     clientVersion,
     netPeers,
     netChain,
+    syncing,
     isTest
   };
 }
