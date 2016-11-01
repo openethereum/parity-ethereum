@@ -188,6 +188,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		use std::thread;
+
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
@@ -199,9 +201,19 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			ClientIoMessage::TakeSnapshot(num) => {
-				if let Err(e) = self.snapshot.take_snapshot(&*self.client, num) {
-					warn!("Failed to take snapshot at block #{}: {}", num, e);
+				let client = self.client.clone();
+				let snapshot = self.snapshot.clone();
+
+				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
+					if let Err(e) = snapshot.take_snapshot(&*client, num) {
+						warn!("Failed to take snapshot at block #{}: {}", num, e);
+					}
+				});
+
+				if let Err(e) = res {
+					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
+
 			}
 			_ => {} // ignore other messages
 		}
