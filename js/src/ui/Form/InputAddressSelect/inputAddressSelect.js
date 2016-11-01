@@ -57,11 +57,15 @@ class InputAddressSelect extends Component {
     const { label, hint, error } = this.props;
     const { choices, address } = this.state;
 
+    // don't show IdentityIcon if user searches by name
+    const addressToRender = (address.slice(0, 2) === '0x')
+      ? address : null;
+
     return (
       <div className={ styles.wrapper }>
         <IdentityIcon
           className={ styles.icon }
-          address={ address }
+          address={ addressToRender }
           inline
         />
         <AutoComplete
