@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 
 import Contracts from '../../contracts';
@@ -22,7 +23,7 @@ import { Actionbar, Page } from '../../ui';
 import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
-import fetchAvailable from './available';
+import { fetchAvailable, fetchManifest } from './registry';
 import { readHiddenApps, writeHiddenApps } from './hidden';
 
 import AddDapps from './AddDapps';
@@ -42,15 +43,7 @@ export default class Dapps extends Component {
   }
 
   componentDidMount () {
-    const { api } = this.context;
-
-    fetchAvailable(api).then((available) => {
-      this.setState({
-        available,
-        hidden: readHiddenApps()
-      });
-      this.loadImages();
-    });
+    this.loadAvailableApps();
   }
 
   render () {
@@ -84,6 +77,10 @@ export default class Dapps extends Component {
   }
 
   renderApp = (app) => {
+    if (!app.name) {
+      return null;
+    }
+
     return (
       <div
         className={ styles.item }
@@ -91,24 +88,6 @@ export default class Dapps extends Component {
         <Summary app={ app } />
       </div>
     );
-  }
-
-  loadImages () {
-    const { available } = this.state;
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(available.map((app) => dappReg.getImage(app.id)))
-      .then((images) => {
-        this.setState({
-          available: images
-            .map(hashToImageUrl)
-            .map((image, i) => Object.assign({}, available[i], { image }))
-        });
-      })
-      .catch((error) => {
-        console.warn('loadImages', error);
-      });
   }
 
   onHideApp = (id) => {
@@ -134,4 +113,65 @@ export default class Dapps extends Component {
   closeModal = () => {
     this.setState({ modalOpen: false });
   };
+
+  loadAvailableApps () {
+    const { api } = this.context;
+
+    fetchAvailable(api)
+      .then((available) => {
+        this.setState({
+          available,
+          hidden: readHiddenApps()
+        });
+
+        this.loadImages();
+        this.loadNetworkApps();
+      });
+  }
+
+  loadImages () {
+    const { available } = this.state;
+    const { dappReg } = Contracts.get();
+
+    return Promise
+      .all(available.map((app) => dappReg.getImage(app.id)))
+      .then((images) => {
+        this.setState({
+          available: images
+            .map(hashToImageUrl)
+            .map((image, i) => Object.assign({}, available[i], { image }))
+        });
+      })
+      .catch((error) => {
+        console.warn('loadImages', error);
+      });
+  }
+
+  loadNetworkApps () {
+    const { api } = this.context;
+    const { available } = this.state;
+    const { dappReg } = Contracts.get();
+    const networkApps = available.filter((app) => app.network);
+
+    return Promise
+      .all(networkApps.map((app) => dappReg.getContent(app.id)))
+      .then((content) => {
+        return Promise.all(
+          networkApps.map((app, index) => {
+            const contentHash = api.util.bytesToHex(content[index]);
+            console.log(`found content for ${app.id} at ${contentHash}`);
+
+            if (new BigNumber(contentHash).gt(0)) {
+              fetchManifest(app, contentHash).then((app) => console.log(app));
+            } else {
+              return null;
+            }
+          })
+        );
+      });
+  }
+
+  loadNetworkApp (app, contentHash) {
+    return fetchManifest(app, contentHash);
+  }
 }

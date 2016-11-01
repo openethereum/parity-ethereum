@@ -18,21 +18,12 @@ import BigNumber from 'bignumber.js';
 
 import { parityNode } from '../../environment';
 
-const apps = [
+const builtinApps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
     url: 'basiccoin',
     name: 'Token Deployment',
     description: 'Deploy new basic tokens that you are able to send around',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    builtin: true
-  },
-  {
-    id: '0xd798a48831b4ccdbc71de206a1d6a4aa73546c7b6f59c22a47452af414dc64d6',
-    url: 'gavcoin',
-    name: 'GAVcoin',
-    description: 'Manage your GAVcoins, the hottest new property in crypto',
     author: 'Parity Team <admin@ethcore.io>',
     version: '1.0.0',
     builtin: true
@@ -75,7 +66,23 @@ const apps = [
   }
 ];
 
-export default function (api) {
+// TODO: This is just since we are moving gavcoin to its own repo, for a proper network solution
+// we need to pull the network apps from the dapp registry. (Builtins & local apps unaffected)
+// TODO: Manifest needs to be pulled from the content as well, however since the content may or may
+// not be available locally (and refreshes work for index, and will give a 503), we are putting it
+// in here. This part needs to be cleaned up.
+const networkApps = [
+  {
+    id: '0xd798a48831b4ccdbc71de206a1d6a4aa73546c7b6f59c22a47452af414dc64d6',
+    name: 'GAVcoin',
+    description: 'Manage your GAVcoins, the hottest new property in crypto',
+    author: 'Gavin Wood',
+    version: '1.0.0',
+    index: 'dist/index.html'
+  }
+];
+
+export function fetchAvailable (api) {
   return fetch(`${parityNode}/api/apps`)
     .then((response) => {
       return response.ok
@@ -83,10 +90,17 @@ export default function (api) {
         : [];
     })
     .catch((error) => {
-      console.warn('app list', error);
+      console.warn('fetchAvailable', error);
       return [];
     })
-    .then((localApps) => {
+    .then((_localApps) => {
+      const localApps = _localApps
+        .filter((app) => !['ui'].includes(app.id))
+        .map((app) => {
+          app.local = true;
+          return app;
+        });
+
       return api.ethcore
         .registryAddress()
         .then((registryAddress) => {
@@ -94,12 +108,39 @@ export default function (api) {
             return [];
           }
 
-          return apps;
+          return networkApps
+            .map((app) => {
+              app.network = true;
+              return app;
+            })
+            .concat(builtinApps);
         })
-        .then((builtinApps) => {
-          return builtinApps
-            .concat(localApps.filter((app) => !['ui'].includes(app.id)))
-            .sort((a, b) => a.name.localeCompare(b.name));
+        .then((registryApps) => {
+          return registryApps
+            .concat(localApps)
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
         });
+    })
+    .catch((error) => {
+      console.warn('fetchAvailable', error);
+    });
+}
+
+export function fetchManifest (app, contentHash) {
+  return fetch(`${parityNode}/${contentHash}/manifest.json`)
+    .then((response) => {
+      return response.ok
+        ? response.json()
+        : {};
+    })
+    .then((manifest) => {
+      Object.keys.forEach((key) => {
+        app[key] = manifest[key];
+      });
+
+      return app;
+    })
+    .catch((error) => {
+      console.warn('fetchManifest', error);
     });
 }
