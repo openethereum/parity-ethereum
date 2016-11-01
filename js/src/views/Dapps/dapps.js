@@ -22,7 +22,7 @@ import { Actionbar, Page } from '../../ui';
 import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
-import { fetchAvailable, fetchManifest } from './registry';
+import { fetchAvailable } from './registry';
 import { readHiddenApps, writeHiddenApps } from './hidden';
 
 import AddDapps from './AddDapps';
@@ -164,9 +164,5 @@ export default class Dapps extends Component {
       .catch((error) => {
         console.warn('loadImages', error);
       });
-  }
-
-  loadNetworkApp (app, contentHash) {
-    return fetchManifest(app, contentHash);
   }
 }

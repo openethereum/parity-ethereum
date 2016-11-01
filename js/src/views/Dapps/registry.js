@@ -72,8 +72,7 @@ const networkApps = [
     name: 'GAVcoin',
     description: 'Manage your GAVcoins, the hottest new property in crypto',
     author: 'Gavin Wood',
-    version: '1.0.0',
-    index: 'dist/index.html'
+    version: '1.0.0'
   }
 ];
 
