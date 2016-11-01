@@ -376,7 +376,7 @@ export default class GasPriceSelector extends Component {
                   fontSize: '0.9em'
                 } }
                 cursor={ this.renderCustomCursor() }
-                content={ <CustomTooltip gasPriceHistogram={ gasPriceHistogram }/> }
+                content={ <CustomTooltip gasPriceHistogram={ gasPriceHistogram } /> }
               />
 
               <XAxis
