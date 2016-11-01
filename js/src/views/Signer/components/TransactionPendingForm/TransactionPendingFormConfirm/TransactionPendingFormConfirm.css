@@ -21,6 +21,7 @@
 .confirmButton {
   display: block !important;
   margin-bottom: 10px;
+  white-space: nowrap;
 }
 
 .signerIcon {
