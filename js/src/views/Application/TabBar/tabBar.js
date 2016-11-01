@@ -23,7 +23,7 @@ import { Tabs, Tab } from 'material-ui/Tabs';
 import { Badge, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
-import imagesEthcoreBlock from '../../../../assets/images/ethcore-block.png';
+import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
 
 const TABMAP = {
   accounts: 'account',
@@ -64,7 +64,6 @@ class TabBar extends Component {
       <ToolbarGroup>
         <div className={ styles.logo }>
           <img src={ imagesEthcoreBlock } />
-          <div>Parity</div>
         </div>
       </ToolbarGroup>
     );

@@ -87,8 +87,13 @@
   margin-left: 1em;
 }
 
-.button {
+.button, .parityButton {
   overflow: visible !important;
+}
+
+.parityButton img {
+  width: auto !important;
+  height: 24px;
 }
 
 .button svg {
@@ -128,7 +133,7 @@
   color: white !important;
 }
 
-.header svg ,
+.header svg,
 .coner svg {
   fill: white !important;
 }
