@@ -20,7 +20,7 @@ import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
 const muiTheme = getMuiTheme(lightBaseTheme);
 
 import CircularProgress from 'material-ui/CircularProgress';
-import { Card, CardHeader, CardText } from 'material-ui/Card';
+import { Card, CardText } from 'material-ui/Card';
 import styles from './application.css';
 import Accounts from '../Accounts';
 import Events from '../Events';
