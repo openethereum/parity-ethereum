@@ -37,6 +37,7 @@
     "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
+    "lint:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "test": "mocha 'src/**/*.spec.js'",
     "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
     "test:e2e": "mocha 'src/**/*.e2e.js'"
