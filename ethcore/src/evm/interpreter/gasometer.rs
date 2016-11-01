@@ -130,8 +130,13 @@ impl<Gas: CostType> Gasometer<Gas> {
 			instructions::SUICIDE => {
 				let mut gas = Gas::from(schedule.suicide_gas);
 
+				let is_value_transfer = !ext.origin_balance().is_zero();
 				let address = u256_to_address(stack.peek(0));
-				if !ext.exists(&address) {
+				if (
+					!schedule.no_empty && !ext.exists(&address)
+				) || (
+					schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)
+				) {
 					gas = overflowing!(gas.overflow_add(schedule.suicide_to_new_account_cost.into()));
 				}
 

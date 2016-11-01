@@ -96,6 +96,10 @@ impl Ext for FakeExt {
 		self.balances.get(address).map_or(false, |b| !b.is_zero()) 
 	}
 
+	fn origin_balance(&self) -> U256 {
+		unimplemented!()
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		*self.balances.get(address).unwrap()
 	}

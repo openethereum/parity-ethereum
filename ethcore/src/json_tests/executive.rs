@@ -99,6 +99,10 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		self.ext.balance(address)
 	}
 
+	fn origin_balance(&self) -> U256 {
+		self.ext.origin_balance()
+	}
+
 	fn blockhash(&self, number: &U256) -> H256 {
 		self.ext.blockhash(number)
 	}
