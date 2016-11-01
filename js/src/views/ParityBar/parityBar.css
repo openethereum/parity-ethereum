@@ -54,6 +54,7 @@
   flex: 1;
   overflow: auto;
   display: flex;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .corner {
@@ -95,6 +96,10 @@
   height: 24px;
 }
 
+.button svg {
+  fill: white !important;
+}
+
 .label {
   position: relative;
   display: inline-block;
@@ -128,7 +133,7 @@
   color: white !important;
 }
 
-.header svg ,
+.header svg,
 .coner svg {
   fill: white !important;
 }

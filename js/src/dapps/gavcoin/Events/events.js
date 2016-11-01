@@ -52,11 +52,13 @@ export default class Events extends Component {
   render () {
     return (
       <div className={ styles.events }>
-        <table className={ styles.list }>
-          <tbody>
-            { this.renderEvents() }
-          </tbody>
-        </table>
+        <div className={ styles.container }>
+          <table className={ styles.list }>
+            <tbody>
+              { this.renderEvents() }
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
