@@ -17,20 +17,58 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { isEqual, uniq } from 'lodash';
+import Snackbar from 'material-ui/Snackbar';
+import { darkBlack } from 'material-ui/styles/colors';
 
 import styles from './status.css';
 
 class Status extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  }
+
   static propTypes = {
+    accounts: PropTypes.object,
     blockNumber: PropTypes.object,
     clientVersion: PropTypes.string,
     netPeers: PropTypes.object,
     netChain: PropTypes.string,
-    isTest: PropTypes.bool
+    isTest: PropTypes.bool,
+    newTransactions: PropTypes.array
+  }
+
+  state = {
+    newTransactions: [],
+    notifyNewTx: false,
+    newTxMessage: ''
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const nextTransactions = nextProps.newTransactions;
+    const currTransactions = this.props.newTransactions;
+
+    const nextTxHashes = nextTransactions.map(t => t.hash).sort();
+    const currTxHashes = currTransactions.map(t => t.hash).sort();
+
+    // If new transactions received, add them to the
+    // `newTransactions` array in the current state
+    if (!isEqual(nextTxHashes, currTxHashes)) {
+      const stateTransactions = this.state.newTransactions;
+      const stateTxHashes = stateTransactions.map(t => t.hash);
+
+      const hashes = uniq([].concat(nextTxHashes, stateTxHashes));
+      const transactions = []
+        .concat(stateTransactions, nextTransactions)
+        .filter(t => hashes.indexOf(t.hash) >= 0);
+
+      this.setNewTransactions(transactions);
+    }
   }
 
   render () {
     const { clientVersion, blockNumber, netChain, netPeers, isTest } = this.props;
+
     const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
 
     if (!blockNumber) {
@@ -39,6 +77,8 @@ class Status extends Component {
 
     return (
       <div className={ styles.status }>
+        { this.renderNewTransaction() }
+
         <div className={ styles.version }>
           { clientVersion }
         </div>
@@ -58,17 +98,107 @@ class Status extends Component {
       </div>
     );
   }
+
+  renderNewTransaction () {
+    const { newTransactions, notifyNewTx, newTxMessage } = this.state;
+
+    let onClose = () => {};
+    let onClick = () => {};
+
+    if (newTransactions.length > 0) {
+      const transaction = newTransactions[0];
+
+      onClose = (reason) => {
+        if (reason === 'clickaway') {
+          return;
+        }
+
+        const transactions = this.state
+          .newTransactions
+          .filter(t => t.hash !== transaction.hash);
+
+        this.setNewTransactions(transactions);
+      };
+
+      onClick = () => {
+        const { accounts } = this.props;
+        const { router } = this.context;
+
+        const transaction = newTransactions[0];
+        const account = accounts[transaction.to]
+          ? accounts[transaction.to]
+          : accounts[transaction.from];
+
+        if (!account) {
+          return;
+        }
+
+        const viewLink = `/account/${account.address}`;
+        router.push(viewLink);
+        onClose();
+      };
+    }
+
+    return (
+      <Snackbar
+        action='View'
+        open={ notifyNewTx }
+        message={ newTxMessage }
+        autoHideDuration={ 6000 }
+        onRequestClose={ onClose }
+        onActionTouchTap={ onClick }
+        bodyStyle={ {
+          backgroundColor: darkBlack
+        } }
+      />
+    );
+  }
+
+  setNewTransactions (newTransactions) {
+    if (newTransactions.length === 0) {
+      this.setState({
+        notifyNewTx: false,
+        newTransactions
+      });
+
+      return;
+    }
+
+    const { accounts } = this.props;
+
+    const transaction = newTransactions[0];
+    const account = accounts[transaction.to]
+      ? accounts[transaction.to]
+      : accounts[transaction.from];
+
+    const newTxMessage = account
+      ? (<span>
+        A new transaction to
+        <span className={ styles.accountName }> { account.name } </span>
+        has been received.
+      </span>)
+      : '';
+
+    this.setState({
+      notifyNewTx: !!newTxMessage,
+      newTxMessage,
+      newTransactions
+    });
+  }
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
+  const { blockNumber, clientVersion, netPeers, netChain, isTest, newTransactions } = state.nodeStatus;
+  const { accounts } = state.personal;
 
   return {
+    accounts,
     blockNumber,
     clientVersion,
     netPeers,
     netChain,
-    isTest
+    isTest,
+    newTransactions
   };
 }
 

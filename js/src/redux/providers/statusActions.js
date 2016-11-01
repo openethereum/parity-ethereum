@@ -47,3 +47,10 @@ export function clearStatusLogs () {
     type: 'clearStatusLogs'
   };
 }
+
+export function statusNewTransactions (transactions) {
+  return {
+    type: 'statusNewTransactions',
+    transactions
+  };
+}
