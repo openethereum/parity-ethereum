@@ -77,6 +77,8 @@ export default class ActionbarSearch extends Component {
             onBlur={ this.handleSearchBlur }
             onInputChange={ this.handleInputChange }
             onTokensChange={ this.handleTokensChange }
+
+            addOnBlur
           />
         </div>
 
