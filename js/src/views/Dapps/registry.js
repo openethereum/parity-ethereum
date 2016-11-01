@@ -78,9 +78,9 @@ const networkApps = [
 
 export function fetchAvailable (api) {
   // TODO: Since we don't have an extensive GithubHint app, get the value somehow
-  // RESULT: 0x1ec41be9bdbfd6d9ffb82eff1d8e12dfa9e8def7778c7c98d1f20d7306daeeff
+  // RESULT: 0x68412efe92136e933f66dbb38197780bce3f26e76a459102806c3b03de112a89
   // api.ethcore
-  //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/703e0ff7a5654a72034d01b641b57e74d5c2e3ed')
+  //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/7db50e4bb0bce17b91babc69abc7e12a87be1fff')
   //   .then((sha3) => {
   //     console.log('archive', sha3);
   //   });
