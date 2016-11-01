@@ -15,8 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .list {
-  display: flex;
-  flex-wrap: wrap;
+  column-count: 2;
+  column-gap: 0.25em;
 }
 
 .list+.list {
@@ -24,17 +24,7 @@
 }
 
 .item {
-  flex: 0 1 50%;
-  width: 50%;
-  position: relative;
-  box-sizing: border-box;
-  padding-bottom: 0.25em;
-}
-
-.item:nth-child(odd) {
-  padding-right: 0.125em;
-}
-
-.item:nth-child(even) {
-  padding-left: 0.125em;
+  display: inline-block;
+  margin: 0 0 0.25em;
+  width: 100%;
 }

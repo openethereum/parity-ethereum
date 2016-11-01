@@ -32,15 +32,17 @@ export default class Title extends Component {
   }
 
   render () {
-    const { className } = this.props;
+    const { className, title, byline } = this.props;
 
     return (
       <div className={ className }>
         <h3 className={ styles.title }>
-          { this.props.title }
+          { title }
         </h3>
         <div className={ styles.byline }>
-          <span title={ this.props.byline }>{ this.props.byline }</span>
+          <span title={ byline }>
+            { byline }
+          </span>
         </div>
       </div>
     );
