@@ -40,6 +40,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
+	Eip161,
 	TransitionTest,
 }
 
