@@ -17,7 +17,7 @@
 use std::sync::Arc;
 use std::str::FromStr;
 use jsonrpc_core::IoHandler;
-use v1::{EthcoreSet, EthcoreSetClient};
+use v1::{ParitySet, ParitySetClient};
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use v1::tests::helpers::TestMinerService;
@@ -38,19 +38,19 @@ fn network_service() -> Arc<TestManageNetwork> {
 	Arc::new(TestManageNetwork)
 }
 
-fn ethcore_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<TestManageNetwork>) -> EthcoreSetClient<TestBlockChainClient, TestMinerService> {
-	EthcoreSetClient::new(client, miner, &(net.clone() as Arc<ManageNetwork>))
+fn parity_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<TestManageNetwork>) -> ParitySetClient<TestBlockChainClient, TestMinerService> {
+	ParitySetClient::new(client, miner, &(net.clone() as Arc<ManageNetwork>))
 }
 
 #[test]
-fn rpc_ethcore_set_min_gas_price() {
+fn rpc_parity_set_min_gas_price() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore_set_client(&client, &miner, &network).to_delegate());
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setMinGasPrice", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
@@ -58,14 +58,14 @@ fn rpc_ethcore_set_min_gas_price() {
 }
 
 #[test]
-fn rpc_ethcore_set_gas_floor_target() {
+fn rpc_parity_set_gas_floor_target() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore_set_client(&client, &miner, &network).to_delegate());
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setGasFloorTarget", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
@@ -73,14 +73,14 @@ fn rpc_ethcore_set_gas_floor_target() {
 }
 
 #[test]
-fn rpc_ethcore_set_extra_data() {
+fn rpc_parity_set_extra_data() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore_set_client(&client, &miner, &network).to_delegate());
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setExtraData", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
@@ -88,14 +88,14 @@ fn rpc_ethcore_set_extra_data() {
 }
 
 #[test]
-fn rpc_ethcore_set_author() {
+fn rpc_parity_set_author() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore_set_client(&client, &miner, &network).to_delegate());
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setAuthor", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
@@ -103,14 +103,14 @@ fn rpc_ethcore_set_author() {
 }
 
 #[test]
-fn rpc_ethcore_set_transactions_limit() {
+fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();
 	let io = IoHandler::new();
-	io.add_delegate(ethcore_set_client(&client, &miner, &network).to_delegate());
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_setTransactionsLimit", "params":[10240240], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setTransactionsLimit", "params":[10240240], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore-specific rpc implementation.
+//! Parity-specific rpc implementation.
 use std::{fs, io};
 use std::sync::{mpsc, Arc, Weak};
 use std::str::FromStr;
@@ -33,14 +33,14 @@ use ethcore::ids::BlockID;
 use ethcore::mode::Mode;
 
 use jsonrpc_core::Error;
-use v1::traits::Ethcore;
+use v1::traits::Parity;
 use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::helpers::auto_args::Ready;
 
-/// Ethcore implementation.
-pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
+/// Parity implementation.
+pub struct ParityClient<C, M, S: ?Sized, F=FetchClient> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider,
@@ -57,11 +57,11 @@ pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	dapps_port: Option<u16>,
 }
 
-impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
+impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider, {
-	/// Creates new `EthcoreClient` with default `Fetch`.
+	/// Creates new `ParityClient` with default `Fetch`.
 	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
@@ -76,13 +76,13 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
 	}
 }
 
-impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
+impl<C, M, S: ?Sized, F> ParityClient<C, M, S, F> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider,
 	F: Fetch, {
 
-	/// Creates new `EthcoreClient` with customizable `Fetch`.
+	/// Creates new `ParityClient` with customizable `Fetch`.
 	pub fn with_fetch(
 		client: &Arc<C>,
 		miner: &Arc<M>,
@@ -93,7 +93,7 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 		signer: Option<Arc<SignerService>>,
 		dapps_port: Option<u16>,
 		) -> Self {
-		EthcoreClient {
+		ParityClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			sync: Arc::downgrade(sync),
@@ -113,7 +113,7 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 	}
 }
 
-impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
+impl<C, M, S: ?Sized, F> Parity for ParityClient<C, M, S, F> where
 	M: MinerService + 'static,
 	C: MiningBlockChainClient + 'static,
 	S: SyncProvider + 'static,

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Ethcore-specific rpc interface for operations altering the settings.
+//! Parity-specific rpc interface for operations altering the settings.
 
 use jsonrpc_core::Error;
 
@@ -22,66 +22,66 @@ use v1::helpers::auto_args::Wrap;
 use v1::types::{Bytes, H160, U256};
 
 build_rpc_trait! {
-	/// Ethcore-specific rpc interface for operations altering the settings.
-	pub trait EthcoreSet {
+	/// Parity-specific rpc interface for operations altering the settings.
+	pub trait ParitySet {
 		/// Sets new minimal gas price for mined blocks.
-		#[rpc(name = "ethcore_setMinGasPrice")]
+		#[rpc(name = "parity_setMinGasPrice")]
 		fn set_min_gas_price(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new gas floor target for mined blocks.
-		#[rpc(name = "ethcore_setGasFloorTarget")]
+		#[rpc(name = "parity_setGasFloorTarget")]
 		fn set_gas_floor_target(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new gas ceiling target for mined blocks.
-		#[rpc(name = "ethcore_setGasCeilTarget")]
+		#[rpc(name = "parity_setGasCeilTarget")]
 		fn set_gas_ceil_target(&self, U256) -> Result<bool, Error>;
 
 		/// Sets new extra data for mined blocks.
-		#[rpc(name = "ethcore_setExtraData")]
+		#[rpc(name = "parity_setExtraData")]
 		fn set_extra_data(&self, Bytes) -> Result<bool, Error>;
 
 		/// Sets new author for mined block.
-		#[rpc(name = "ethcore_setAuthor")]
+		#[rpc(name = "parity_setAuthor")]
 		fn set_author(&self, H160) -> Result<bool, Error>;
 
 		/// Sets the limits for transaction queue.
-		#[rpc(name = "ethcore_setTransactionsLimit")]
+		#[rpc(name = "parity_setTransactionsLimit")]
 		fn set_transactions_limit(&self, usize) -> Result<bool, Error>;
 
 		/// Sets the maximum amount of gas a single transaction may consume.
-		#[rpc(name = "ethcore_setMaxTransactionGas")]
+		#[rpc(name = "parity_setMaxTransactionGas")]
 		fn set_tx_gas_limit(&self, U256) -> Result<bool, Error>;
 
 		/// Add a reserved peer.
-		#[rpc(name = "ethcore_addReservedPeer")]
+		#[rpc(name = "parity_addReservedPeer")]
 		fn add_reserved_peer(&self, String) -> Result<bool, Error>;
 
 		/// Remove a reserved peer.
-		#[rpc(name = "ethcore_removeReservedPeer")]
+		#[rpc(name = "parity_removeReservedPeer")]
 		fn remove_reserved_peer(&self, String) -> Result<bool, Error>;
 
 		/// Drop all non-reserved peers.
-		#[rpc(name = "ethcore_dropNonReservedPeers")]
+		#[rpc(name = "parity_dropNonReservedPeers")]
 		fn drop_non_reserved_peers(&self) -> Result<bool, Error>;
 
 		/// Accept non-reserved peers (default behavior)
-		#[rpc(name = "ethcore_acceptNonReservedPeers")]
+		#[rpc(name = "parity_acceptNonReservedPeers")]
 		fn accept_non_reserved_peers(&self) -> Result<bool, Error>;
 
 		/// Start the network.
-		/// 
+		///
 		/// Deprecated. Use `set_mode("active")` instead.
-		#[rpc(name = "ethcore_startNetwork")]
+		#[rpc(name = "parity_startNetwork")]
 		fn start_network(&self) -> Result<bool, Error>;
 
 		/// Stop the network.
 		///
 		/// Deprecated. Use `set_mode("off")` instead.
-		#[rpc(name = "ethcore_stopNetwork")]
+		#[rpc(name = "parity_stopNetwork")]
 		fn stop_network(&self) -> Result<bool, Error>;
 
 		/// Set the mode. Argument must be one of: "active", "passive", "dark", "off".
-		#[rpc(name = "ethcore_setMode")]
+		#[rpc(name = "parity_setMode")]
 		fn set_mode(&self, String) -> Result<bool, Error>;
 	}
 }

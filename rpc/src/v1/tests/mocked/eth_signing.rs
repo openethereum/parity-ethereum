@@ -18,7 +18,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use jsonrpc_core::{IoHandler, to_value, Success};
 use v1::impls::EthSigningQueueClient;
-use v1::traits::{EthSigning, Ethcore};
+use v1::traits::{EthSigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
@@ -280,7 +280,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 
 	// First encrypt message
 	let request = format!("{}0x{:?}{}",
-		r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":[""#,
+		r#"{"jsonrpc": "2.0", "method": "parity_encryptMessage", "params":[""#,
 		public,
 		r#"", "0x01020304"], "id": 1}"#
 	);
@@ -288,7 +288,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 
 	// then call decrypt
 	let request = format!("{}{:?}{}{:?}{}",
-		r#"{"jsonrpc": "2.0", "method": "ethcore_decryptMessage", "params":["0x"#,
+		r#"{"jsonrpc": "2.0", "method": "parity_decryptMessage", "params":["0x"#,
 		address,
 		r#"","#,
 		encrypted.result,
@@ -311,7 +311,7 @@ fn should_add_decryption_to_the_queue() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "ethcore_decryptMessage",
+		"method": "parity_decryptMessage",
 		"params": ["0x"#.to_owned() + &format!("{:?}", acc.address()) + r#"",
 		"0x012345"],
 		"id": 1

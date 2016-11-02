@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Ethcore-specific rpc interface for operations altering the settings.
+/// Parity-specific rpc interface for operations altering the settings.
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
@@ -22,11 +22,11 @@ use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use v1::helpers::errors;
-use v1::traits::EthcoreSet;
+use v1::traits::ParitySet;
 use v1::types::{Bytes, H160, U256};
 
-/// Ethcore-specific rpc interface for operations altering the settings.
-pub struct EthcoreSetClient<C, M> where
+/// Parity-specific rpc interface for operations altering the settings.
+pub struct ParitySetClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService
 {
@@ -35,12 +35,12 @@ pub struct EthcoreSetClient<C, M> where
 	net: Weak<ManageNetwork>,
 }
 
-impl<C, M> EthcoreSetClient<C, M> where
+impl<C, M> ParitySetClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService {
-	/// Creates new `EthcoreSetClient`.
+	/// Creates new `ParitySetClient`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
-		EthcoreSetClient {
+		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			net: Arc::downgrade(net),
@@ -54,7 +54,7 @@ impl<C, M> EthcoreSetClient<C, M> where
 	}
 }
 
-impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
+impl<C, M> ParitySet for ParitySetClient<C, M> where
 	C: MiningBlockChainClient + 'static,
 	M: MinerService + 'static {
 

@@ -107,7 +107,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces, rpc, personal_safe.
+                           parity, parity_set, traces, rpc, personal_safe.
                            (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it

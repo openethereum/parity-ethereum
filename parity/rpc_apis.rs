@@ -37,8 +37,8 @@ pub enum Api {
 	PersonalSafe,
 	PersonalAccounts,
 	Signer,
-	Ethcore,
-	EthcoreSet,
+	Parity,
+	ParitySet,
 	Traces,
 	Rpc,
 }
@@ -56,8 +56,8 @@ impl FromStr for Api {
 			"personal" => Ok(PersonalAccounts),
 			"personal_safe" => Ok(PersonalSafe),
 			"signer" => Ok(Signer),
-			"ethcore" => Ok(Ethcore),
-			"ethcore_set" => Ok(EthcoreSet),
+			"parity" => Ok(Parity),
+			"parity_set" => Ok(ParitySet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
 			api => Err(format!("Unknown api: {}", api))
@@ -121,8 +121,8 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::PersonalSafe => ("personal_safe", "1.0"),
 			Api::PersonalAccounts => ("personal", "1.0"),
 			Api::Signer => ("signer", "1.0"),
-			Api::Ethcore => ("ethcore", "1.0"),
-			Api::EthcoreSet => ("ethcore_set", "1.0"),
+			Api::Parity => ("parity", "1.0"),
+			Api::ParitySet => ("parity_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
 		};
@@ -136,11 +136,11 @@ impl ApiSet {
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::PersonalSafe]
 					.into_iter().collect()
 			},
 			ApiSet::SafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Parity, Api::ParitySet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
 		}
@@ -193,12 +193,12 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
-			Api::Ethcore => {
+			Api::Parity => {
 				let signer = match deps.signer_service.is_enabled() {
 					true => Some(deps.signer_service.clone()),
 					false => None,
 				};
-				server.add_delegate(EthcoreClient::new(
+				server.add_delegate(ParityClient::new(
 					&deps.client,
 					&deps.miner,
 					&deps.sync,
@@ -209,8 +209,8 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					deps.dapps_port,
 				).to_delegate())
 			},
-			Api::EthcoreSet => {
-				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
+			Api::ParitySet => {
+				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
 			},
 			Api::Traces => {
 				server.add_delegate(TracesClient::new(&deps.client, &deps.miner).to_delegate())
@@ -236,8 +236,8 @@ mod test {
 		assert_eq!(Api::PersonalAccounts, "personal".parse().unwrap());
 		assert_eq!(Api::PersonalSafe, "personal_safe".parse().unwrap());
 		assert_eq!(Api::Signer, "signer".parse().unwrap());
-		assert_eq!(Api::Ethcore, "ethcore".parse().unwrap());
-		assert_eq!(Api::EthcoreSet, "ethcore_set".parse().unwrap());
+		assert_eq!(Api::Parity, "parity".parse().unwrap());
+		assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
 		assert!("rp".parse::<Api>().is_err());
@@ -255,14 +255,14 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::PersonalSafe]
 			.into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_safe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Parity, Api::ParitySet, Api::Traces, Api::Rpc]
 			.into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}

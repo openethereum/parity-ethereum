@@ -53,7 +53,7 @@ pub trait EthSigning: Sized + Send + Sync + 'static {
 		let mut delegate = IoDelegate::new(Arc::new(self));
 		delegate.add_async_method("eth_sign", EthSigning::sign);
 		delegate.add_async_method("eth_sendTransaction", EthSigning::send_transaction);
-		delegate.add_async_method("ethcore_decryptMessage", EthSigning::decrypt_message);
+		delegate.add_async_method("parity_decryptMessage", EthSigning::decrypt_message);
 
 		delegate.add_method("eth_postSign", EthSigning::post_sign);
 		delegate.add_method("eth_postTransaction", EthSigning::post_transaction);
