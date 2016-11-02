@@ -41,7 +41,7 @@ export default class Summary extends Component {
     let type = 'builtin';
     if (app.network) {
       type = 'network';
-    } else {
+    } else if (app.local) {
       type = 'local';
     }
 
