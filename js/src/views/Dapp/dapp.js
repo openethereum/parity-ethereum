@@ -27,7 +27,7 @@ export default class Dapp extends Component {
 
   render () {
     const { name, type } = this.props.params;
-    const src = type === 'global'
+    const src = (type === 'builtin')
       ? `${dapphost}/${name}.html`
       : `http://127.0.0.1:8080/${name}/`;
 
