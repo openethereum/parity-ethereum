@@ -68,6 +68,7 @@ export default class ActionbarSort extends Component {
         }
         { this.renderMenuItem('tags', 'Sort by tags') }
         { this.renderMenuItem('name', 'Sort by name') }
+        { this.renderMenuItem('eth', 'Sort by ETH') }
 
         { this.renderSortByMetas() }
       </IconMenu>
