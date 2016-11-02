@@ -38,7 +38,8 @@ export default class Application extends Component {
     contentHashOwner: null,
     registerBusy: false,
     registerError: null,
-    registerState: ''
+    registerState: '',
+    registerType: 'normal'
   }
 
   componentDidMount () {
@@ -65,7 +66,7 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner } = this.state;
+    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, registerType } = this.state;
 
     let hashClass = null;
     if (contentHashError) {
@@ -80,12 +81,15 @@ export default class Application extends Component {
           <div className={ styles.typeButtons }>
             <Button
               disabled={ registerBusy }
+              inverse={ registerType !== 'normal' }
               onClick={ this.onClickTypeNormal }>Normal URL</Button>
             <Button
               disabled={ registerBusy }
+              inverse={ registerType !== 'github' }
               onClick={ this.onClickTypeGithub }>GitHub URL</Button>
             <Button
               disabled={ registerBusy }
+              inverse={ registerType !== 'content' }
               onClick={ this.onClickTypeContent }>GitHub Content</Button>
           </div>
           <div className={ styles.box }>
@@ -158,12 +162,16 @@ export default class Application extends Component {
     );
   }
 
-  onClickContentHash = () => {
-    this.setState({ fileHash: false, commit: '' });
+  onClickTypeNormal = () => {
+    this.setState({ registerType: 'normal', commit: 0 });
   }
 
-  onClickFileHash = () => {
-    this.setState({ fileHash: true, commit: 0 });
+  onClickTypeGithub = () => {
+    this.setState({ registerType: 'github', commit: 0 });
+  }
+
+  onClickTypeContent = () => {
+    this.setState({ registerType: 'content', commit: '' });
   }
 
   onChangeUrl = (event) => {
@@ -183,11 +191,17 @@ export default class Application extends Component {
   }
 
   onClickRegister = () => {
-    const { url, urlError, contentHash, contentHashError, contentHashOwner, fromAddress, instance } = this.state;
+    const { contentHashError, contentHashOwner, fromAddress, url, urlError } = this.state;
 
     if ((!!contentHashError && contentHashOwner !== fromAddress) || !!urlError || url.length === 0) {
       return;
     }
+
+    this.registerUrl(url);
+  }
+
+  registerUrl (url) {
+    const { contentHash, fromAddress, instance } = this.state;
 
     this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
 
