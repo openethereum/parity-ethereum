@@ -76,7 +76,7 @@ class InputAddressSelect extends Component {
     const { choices, address } = this.state;
 
     // don't show IdentityIcon if user searches by name
-    const addressToRender = address.slice(0, 2) === '0x'
+    const addressToRender = util.isAddressValid(address)
       ? address : (
         util.isAddressValid('0x' + address)
           ? '0x' + address
