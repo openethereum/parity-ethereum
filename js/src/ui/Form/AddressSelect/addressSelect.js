@@ -92,7 +92,7 @@ export default class AddressSelect extends Component {
   renderIdentityIcon (inputValue) {
     const { error, value } = this.props;
 
-    if (error || !inputValue) {
+    if (error || !inputValue || value.length !== 42) {
       return null;
     }
 
@@ -177,19 +177,15 @@ export default class AddressSelect extends Component {
 
   onUpdateInput = (query, choices) => {
     const { api } = this.context;
-    const { onChange } = this.props;
 
     query = query.trim();
     let address = query;
 
+    // TODO: Convert to checksum address where valid, update display
     if (query.slice(0, 2) !== '0x' && api.util.isAddressValid(`0x${query}`)) {
-      address = api.util.toChecksumAddress(`0x${query}`);
-    } else if (api.util.isAddressValid(address)) {
-      address = api.util.toChecksumAddress(address);
+      address = `0x${query}`;
     }
 
-    console.log('onUpdateInput', address);
-
-    onChange(null, address);
+    this.props.onChange(null, address);
   };
 }
