@@ -73,6 +73,9 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
+    
+    /// Get the enode if available.
+    fn enode(&self) -> Option<String>;
 }
 
 /// Peer connection information
@@ -143,6 +146,10 @@ impl SyncProvider for EthSync {
 			self.handler.sync.write().peers(&sync_io)
 		}).unwrap_or(Vec::new())
 	}
+
+    fn enode(&self) -> Option<String> {
+        self.network.external_url()
+    }
 }
 
 struct SyncProtocolHandler {
