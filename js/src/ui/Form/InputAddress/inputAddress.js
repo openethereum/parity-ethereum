@@ -61,7 +61,7 @@ class InputAddress extends Component {
           value={ text && hasAccount ? account.name : value }
           onChange={ this.handleInputChange }
           onSubmit={ onSubmit }
-          copiable={ disabled ? value : false }
+          allowCopy={ disabled ? value : false }
           copyPosition='right'
         />
         { icon }

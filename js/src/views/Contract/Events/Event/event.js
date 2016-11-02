@@ -130,7 +130,7 @@ class Event extends Component {
         return (
           <Input
             readOnly
-            copiable
+            allowCopy
             className={ styles.input }
             value={ value }
             label={ name }

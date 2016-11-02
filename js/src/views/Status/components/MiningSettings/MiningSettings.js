@@ -45,7 +45,7 @@ export default class MiningSettings extends Component {
           hint='the mining author'
           value={ coinbase }
           onSubmit={ this.onAuthorChange }
-          copiable
+          allowCopy
           { ...this._test('author') } />
         <Input
           label='extradata'

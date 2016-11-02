@@ -52,7 +52,7 @@ export default class Summary extends Component {
         readOnly
         hideUnderline
         value={ address }
-        copiable={ address }
+        allowCopy={ address }
         copyPosition='left'
       />
     );

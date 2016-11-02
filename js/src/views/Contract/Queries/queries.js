@@ -129,7 +129,7 @@ export default class Queries extends Component {
         className={ styles.queryValue }
         value={ valueToDisplay }
         readOnly
-        copiable
+        allowCopy
       />
     );
   }

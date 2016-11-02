@@ -46,7 +46,7 @@ export default class Input extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     readOnly: PropTypes.bool,
-    copiable: PropTypes.oneOfType([
+    allowCopy: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.bool
     ]),
@@ -71,7 +71,7 @@ export default class Input extends Component {
   static defaultProps = {
     submitOnBlur: true,
     readOnly: false,
-    copiable: false,
+    allowCopy: false,
     copyPosition: 'left',
     hideUnderline: false
   }
@@ -98,7 +98,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, copiable, copyPosition, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, allowCopy, copyPosition, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -109,7 +109,7 @@ export default class Input extends Component {
       inputStyle.cursor = 'text';
     }
 
-    if (copiable && copyPosition === 'left') {
+    if (allowCopy && copyPosition === 'left') {
       inputStyle.paddingLeft = 24;
     }
 
@@ -154,10 +154,10 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { copiable, copyPosition, hideUnderline, label, hint } = this.props;
+    const { allowCopy, copyPosition, hideUnderline, label, hint } = this.props;
     const { copied, value } = this.state;
 
-    if (!copiable) {
+    if (!allowCopy) {
       return null;
     }
 
@@ -165,8 +165,8 @@ export default class Input extends Component {
       bottom: 13
     };
 
-    const text = typeof copiable === 'string'
-      ? copiable
+    const text = typeof allowCopy === 'string'
+      ? allowCopy
       : value;
 
     const tooltipPosition = copyPosition === 'left'

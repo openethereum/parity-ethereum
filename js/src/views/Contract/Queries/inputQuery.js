@@ -112,7 +112,7 @@ export default class InputQuery extends Component {
           <Input
             className={ styles.queryValue }
             readOnly
-            copiable
+            allowCopy
             value={ out.display }
           />
           <br />

@@ -26,7 +26,7 @@ export default class Title extends Component {
     ]),
     byline: PropTypes.oneOfType([
       PropTypes.string, PropTypes.node
-    ]),
+    ])
   }
 
   state = {
