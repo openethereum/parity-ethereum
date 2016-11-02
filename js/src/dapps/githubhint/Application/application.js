@@ -209,6 +209,8 @@ export default class Application extends Component {
     const commit = event.target.value;
     const commitError = null;
 
+    // TODO: field validation
+
     this.setState({ commit, commitError, contentHashError: 'hash lookup in progress' }, () => {
       const { repo } = this.state;
       this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
@@ -219,6 +221,7 @@ export default class Application extends Component {
     let repo = event.target.value;
     const repoError = null;
 
+    // TODO: field validation
     if (!repoError) {
       repo = repo.replace('https://github.com/', '');
     }
@@ -233,8 +236,8 @@ export default class Application extends Component {
     let url = event.target.value;
     const urlError = null;
 
+    // TODO: field validation
     if (!urlError) {
-      // 'https://github.com/owner/repo/filename'
       const parts = url.split('/');
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
