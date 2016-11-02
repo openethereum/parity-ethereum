@@ -41,7 +41,7 @@
     "test": "mocha 'src/**/*.spec.js'",
     "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
     "test:e2e": "mocha 'src/**/*.e2e.js'",
-    "postinstall": "cp scripts/pre-push ../.git/hooks/"
+    "prepush": "npm run lint:cached"
   },
   "devDependencies": {
     "babel-cli": "^6.10.1",
@@ -84,6 +84,7 @@
     "happypack": "^2.2.1",
     "history": "^2.0.0",
     "html-loader": "^0.4.4",
+    "husky": "^0.11.9",
     "ignore-styles": "2.0.0",
     "image-webpack-loader": "^1.8.0",
     "istanbul": "^1.0.0-alpha.2",
