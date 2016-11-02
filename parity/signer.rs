@@ -68,8 +68,13 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-pub fn new_token(path: String) -> Result<String, String> {
-	generate_new_token(path)
+#[derive(Debug, PartialEq)]
+pub struct SignerCommand {
+	pub path: String,
+}
+
+pub fn execute(cmd: SignerCommand) -> Result<String, String> {
+	generate_new_token(cmd.path)
 		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
 		.map_err(|err| format!("Error generating token: {:?}", err))
 }

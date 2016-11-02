@@ -120,6 +120,7 @@ use util::sha3::sha3;
 use cli::Args;
 use configuration::{Cmd, Configuration};
 use deprecated::find_deprecated;
+use ethcore_logger::setup_log;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -131,19 +132,42 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	}
 }
 
+const LOGGER_PROOF: &'static str = "Logger is initialized only once; qed";
+
 fn execute(command: Cmd) -> Result<String, String> {
 	match command {
 		Cmd::Run(run_cmd) => {
 			try!(run::execute(run_cmd));
 			Ok("".into())
 		},
-		Cmd::Version => Ok(Args::print_version()),
-		Cmd::Hash(maybe_file) => print_hash_of(maybe_file),
-		Cmd::Account(account_cmd) => account::execute(account_cmd),
-		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
-		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
-		Cmd::SignerToken(path) => signer::new_token(path),
-		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd),
+		Cmd::Version(log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			Ok(Args::print_version())
+		},
+		Cmd::Hash(maybe_file, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			print_hash_of(maybe_file)
+		},
+		Cmd::Account(account_cmd, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			account::execute(account_cmd)
+		},
+		Cmd::ImportPresaleWallet(presale_cmd, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			presale::execute(presale_cmd)
+		},
+		Cmd::Blockchain(blockchain_cmd, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			blockchain::execute(blockchain_cmd)
+		},
+		Cmd::SignerToken(signer_cmd, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			signer::execute(signer_cmd)
+		},
+		Cmd::Snapshot(snapshot_cmd, log) => {
+			setup_log(&log).expect(LOGGER_PROOF);
+			snapshot::execute(snapshot_cmd)
+		},
 	}
 }
 
@@ -198,7 +222,7 @@ fn sync_main() -> bool {
 fn main() {
 	// Always print backtrace on panic.
 	::std::env::set_var("RUST_BACKTRACE", "1");
-	
+
 	if sync_main() {
 		return;
 	}
