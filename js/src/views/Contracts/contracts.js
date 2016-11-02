@@ -42,7 +42,7 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    sortOrder: '',
+    sortOrder: 'timestamp',
     searchValues: [],
     searchTokens: []
   }
@@ -65,6 +65,7 @@ class Contracts extends Component {
             balances={ balances }
             empty={ !hasContracts }
             order={ sortOrder }
+            orderFallback='name'
             handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
@@ -80,6 +81,10 @@ class Contracts extends Component {
       <ActionbarSort
         key='sortAccounts'
         order={ this.state.sortOrder }
+        metas={ [
+          { key: 'timestamp', label: 'date' }
+        ] }
+        showDefault={ false }
         onChange={ onChange } />
     );
   }
