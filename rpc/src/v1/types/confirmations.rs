@@ -48,10 +48,11 @@ impl fmt::Display for ConfirmationRequest {
 impl fmt::Display for ConfirmationPayload {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
 		match *self {
-			ConfirmationPayload::Transaction(ref transaction)
+			ConfirmationPayload::SendTransaction(ref transaction)
 				=> write!(f, "{}", transaction),
-			ConfirmationPayload::Sign(_) => write!(f, "TODO: data"),
+			ConfirmationPayload::SignTransaction(_) => write!(f, "TODO: data"),
 			ConfirmationPayload::Decrypt(_) => write!(f, "TODO: decrypt"),
+			ConfirmationPayload::Signature(_) => write!(f, "TODO: signature"),
 		}
 	}
 }
