@@ -84,7 +84,7 @@ export default class AddressSelect extends Component {
           renderItem={ this.renderItem }
         />
 
-        { this.renderIdentityIcon(value || (allowInput ? this.props.value : value)) }
+        { this.renderIdentityIcon(allowInput ? (value || this.props.value) : value) }
       </div>
     );
   }
@@ -177,6 +177,11 @@ export default class AddressSelect extends Component {
 
   onUpdateInput = (query, choices) => {
     const { api } = this.context;
+    const { allowInput } = this.props;
+
+    if (!allowInput) {
+      return;
+    }
 
     query = query.trim();
     let address = query;
