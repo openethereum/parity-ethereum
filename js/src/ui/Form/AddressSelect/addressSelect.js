@@ -76,7 +76,7 @@ export default class AddressSelect extends Component {
           error={ error }
           onChange={ this.onChange }
           onBlur={ this.onBlur }
-          onUpdateInput={ this.onUpdateInput }
+          onUpdateInput={ allowInput && this.onUpdateInput }
           value={ value }
           filter={ this.handleFilter }
           entries={ entries }
@@ -177,11 +177,6 @@ export default class AddressSelect extends Component {
 
   onUpdateInput = (query, choices) => {
     const { api } = this.context;
-    const { allowInput } = this.props;
-
-    if (!allowInput) {
-      return;
-    }
 
     query = query.trim();
     let address = query;
