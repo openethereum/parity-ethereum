@@ -97,21 +97,21 @@ export default class Status extends Component {
       <div { ...this._test('settings') }>
         <ContainerTitle title='network settings' />
         <Input
-          disabled
+          readOnly
           label='chain'
           value={ nodeStatus.netChain }
           { ...this._test('chain') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
-              disabled
+              readOnly
               label='peers'
               value={ peers }
               { ...this._test('peers') } />
           </div>
           <div className={ styles.col6 }>
             <Input
-              disabled
+              readOnly
               label='network port'
               value={ nodeStatus.netPort.toString() }
               { ...this._test('network-port') } />
@@ -119,21 +119,21 @@ export default class Status extends Component {
         </div>
 
         <Input
-          disabled
+          readOnly
           label='rpc enabled'
           value={ rpcSettings.enabled ? 'yes' : 'no' }
           { ...this._test('rpc-enabled') } />
         <div className={ styles.row }>
           <div className={ styles.col6 }>
             <Input
-              disabled
+              readOnly
               label='rpc interface'
               value={ rpcSettings.interface }
               { ...this._test('rpc-interface') } />
           </div>
           <div className={ styles.col6 }>
             <Input
-              disabled
+              readOnly
               label='rpc port'
               value={ rpcSettings.port.toString() }
               { ...this._test('rpc-port') } />

@@ -16,11 +16,10 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import Chip from 'material-ui/Chip';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
-import { Container, ContainerTitle } from '../../../ui';
+import { Container, ContainerTitle, Input } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -126,9 +125,12 @@ export default class Queries extends Component {
     }
 
     return (
-      <Chip className={ styles.queryValue }>
-        { valueToDisplay }
-      </Chip>
+      <Input
+        className={ styles.queryValue }
+        value={ valueToDisplay }
+        readOnly
+        allowCopy
+      />
     );
   }
 

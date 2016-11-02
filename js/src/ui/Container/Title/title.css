@@ -15,7 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .byline {
-  color: #aaa;
   overflow: hidden;
   position: relative;
   line-height: 1.2em;
@@ -24,6 +23,12 @@
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+
+  color: #aaa;
+
+  * {
+    color: #aaa !important;
+  }
 }
 
 .title {

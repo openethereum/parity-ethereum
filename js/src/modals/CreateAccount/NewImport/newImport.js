@@ -72,7 +72,6 @@ export default class NewImport extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              className={ styles.password }
               label='password'
               hint='the password to unlock the wallet'
               type='password'
