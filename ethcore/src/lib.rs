@@ -155,8 +155,9 @@ mod blockchain;
 mod types;
 mod factory;
 
-#[cfg(test)]
-mod tests;
+//#[cfg(test)]
+#[allow(missing_docs)]
+pub mod tests;
 #[cfg(test)]
 #[cfg(feature="json-tests")]
 mod json_tests;

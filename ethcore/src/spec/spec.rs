@@ -18,7 +18,7 @@
 
 use util::*;
 use builtin::Builtin;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
 use pod_state::*;
 use account_db::*;
 use header::{BlockNumber, Header};
@@ -144,6 +144,7 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins),
 		}
 	}
 
@@ -279,6 +280,12 @@ impl Spec {
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
 	pub fn new_test_instant() -> Self {
 		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
+	}
+
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
+	/// Accounts with secrets "1".sha3() and "2".sha3() are the authorities.
+	pub fn new_test_round() -> Self {
+		Spec::load(include_bytes!("../../res/authority_round.json") as &[u8]).expect("authority_round.json is invalid")
 	}
 }
 

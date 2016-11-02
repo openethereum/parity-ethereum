@@ -181,13 +181,6 @@ impl Engine for BasicAuthority {
 	}
 }
 
-impl Header {
-	/// Get the none field of the header.
-	pub fn signature(&self) -> H520 {
-		::rlp::decode(&self.seal()[0])
-	}
-}
-
 #[cfg(test)]
 mod tests {
 	use util::*;
@@ -201,7 +194,7 @@ mod tests {
 
 	/// Create a new test chain spec with `BasicAuthority` consensus engine.
 	fn new_test_authority() -> Spec {
-		let bytes: &[u8] = include_bytes!("../../res/test_authority.json");
+		let bytes: &[u8] = include_bytes!("../../res/basic_authority.json");
 		Spec::load(bytes).expect("invalid chain spec")
 	}
 

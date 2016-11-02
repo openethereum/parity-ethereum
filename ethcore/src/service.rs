@@ -48,6 +48,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
+	/// Trigger sealing update (useful for internal sealing).
+	UpdateSealing,
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -110,6 +112,8 @@ impl ClientService {
 			snapshot: snapshot.clone(),
 		});
 		try!(io_service.register_handler(client_io));
+
+		spec.engine.register_message_channel(io_service.channel());
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -213,8 +217,11 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				if let Err(e) = res {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
-
-			}
+			},
+			ClientIoMessage::UpdateSealing => {
+				trace!(target: "authorityround", "message: UpdateSealing");
+				self.client.update_sealing()
+			},
 			_ => {} // ignore other messages
 		}
 	}

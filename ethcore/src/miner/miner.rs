@@ -267,6 +267,11 @@ impl Miner {
 		}
 	}
 
+	/// Creates new instance of miner with accounts and with given spec.
+	pub fn with_spec_and_accounts(spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, accounts)
+	}
+
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
 		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, None)
@@ -429,6 +434,7 @@ impl Miner {
 			let last_request = *self.sealing_block_last_request.lock();
 			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
+                && !self.seals_internally
 				&& best_block > last_request
 				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
@@ -475,6 +481,7 @@ impl Miner {
 		if !block.transactions().is_empty() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+					trace!(target: "miner", "import_block_internally: imported internally sealed block");
 					return true
 				}
 			}
@@ -773,7 +780,7 @@ impl MinerService for Miner {
 		chain: &MiningBlockChainClient,
 		transactions: Vec<SignedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
-
+		trace!(target: "external_tx", "Importing external transactions");
 		let results = {
 			let mut transaction_queue = self.transaction_queue.lock();
 			self.add_transactions_to_queue(
