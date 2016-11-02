@@ -22,7 +22,7 @@ use v1::traits::{EthSigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
-use v1::tests::mocked::ethcore;
+use v1::tests::mocked::parity;
 
 use util::{Address, FixedHash, Uint, U256, H256, H520};
 use ethcore::account_provider::AccountProvider;
@@ -272,8 +272,8 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
-	let ethcore = ethcore::Dependencies::new();
-	tester.io.add_delegate(ethcore.client(None).to_delegate());
+	let parity = parity::Dependencies::new();
+	tester.io.add_delegate(parity.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 

@@ -21,8 +21,8 @@ pub mod eth;
 pub mod eth_signing;
 pub mod net;
 pub mod personal;
-pub mod ethcore;
-pub mod ethcore_set;
+pub mod parity;
+pub mod parity_set;
 pub mod traces;
 pub mod rpc;
 
@@ -31,8 +31,8 @@ pub use self::eth::{Eth, EthFilter};
 pub use self::eth_signing::EthSigning;
 pub use self::net::Net;
 pub use self::personal::{Personal, PersonalAccounts, PersonalSigner};
-pub use self::ethcore::Parity;
-pub use self::ethcore_set::ParitySet;
+pub use self::parity::Parity;
+pub use self::parity_set::ParitySet;
 pub use self::traces::Traces;
 pub use self::rpc::Rpc;
 
