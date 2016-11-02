@@ -133,7 +133,7 @@ export default class Status extends Component {
           </div>
           <div className={ styles.col6 }>
             <Input
-              disabled
+              readOnly
               label='rpc port'
               value={ rpcSettings.port.toString() }
               { ...this._test('rpc-port') } />

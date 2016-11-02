@@ -54,7 +54,7 @@ export default class AccountDetails extends Component {
 
     return (
       <Input
-        disabled
+        readOnly
         hint='the account recovery phrase'
         label='account recovery phrase (keep safe)'
         value={ phrase } />

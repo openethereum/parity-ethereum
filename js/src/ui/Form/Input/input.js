@@ -20,7 +20,13 @@ import { TextField } from 'material-ui';
 
 // TODO: duplicated in Select
 const UNDERLINE_DISABLED = {
-  borderColor: 'rgba(255, 255, 255, 0.298039)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
+  borderBottom: 'dotted 2px',
+  borderColor: 'rgba(255, 255, 255, 0.125)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
+};
+
+const UNDERLINE_READONLY = {
+  ...UNDERLINE_DISABLED,
+  cursor: 'text'
 };
 
 const UNDERLINE_NORMAL = {
@@ -34,6 +40,7 @@ export default class Input extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
+    readOnly: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
@@ -48,10 +55,11 @@ export default class Input extends Component {
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ])
-  }
+  };
 
   static defaultProps = {
-    submitOnBlur: true
+    submitOnBlur: true,
+    readOnly: false
   }
 
   state = {
@@ -68,11 +76,15 @@ export default class Input extends Component {
     const { value } = this.state;
     const { children, className, disabled, error, label, hint, multiLine, rows, type } = this.props;
 
+    const readOnly = this.props.readOnly || disabled;
+
     return (
       <TextField
         autoComplete='off'
         className={ className }
-        disabled={ disabled }
+
+        readOnly={ readOnly }
+
         errorText={ error }
         floatingLabelFixed
         floatingLabelText={ label }
@@ -84,11 +96,14 @@ export default class Input extends Component {
         rows={ rows }
         type={ type || 'text' }
         underlineDisabledStyle={ UNDERLINE_DISABLED }
-        underlineStyle={ UNDERLINE_NORMAL }
+        underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
+        underlineFocusStyle={ readOnly ? { display: 'none' } : null }
         value={ value }
         onBlur={ this.onBlur }
         onChange={ this.onChange }
-        onKeyDown={ this.onKeyDown }>
+        onKeyDown={ this.onKeyDown }
+        inputStyle={ readOnly ? { cursor: 'text' } : null }
+      >
         { children }
       </TextField>
     );
