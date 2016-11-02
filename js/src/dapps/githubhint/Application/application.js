@@ -211,7 +211,7 @@ export default class Application extends Component {
         });
       })
       .then((txReceipt) => {
-        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', contentHash: '' });
+        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', contentHash: '', contentHashOwner: null, contentHashError: null });
       })
       .catch((error) => {
         console.error('onSend', error);
