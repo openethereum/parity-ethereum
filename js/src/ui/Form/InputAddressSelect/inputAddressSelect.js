@@ -17,13 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-
-import AutoComplete from 'material-ui/AutoComplete';
-import MenuItem from 'material-ui/MenuItem';
+import { AutoComplete, MenuItem } from 'material-ui';
 import normalize from 'normalize-for-search';
 
 import IdentityIcon from '../../IdentityIcon';
-import util from '../../../api/util';
 
 import styles from './inputAddressSelect.css';
 
@@ -33,16 +30,37 @@ const isNotDeleted = (choice) => choice.data && choice.data.meta && !choice.data
 
 const sortChoices = (a, b) => {
   // accounts first
-  if (isAccount(a) && !isAccount(b)) return -1;
-  if (!isAccount(a) && isAccount(b)) return 1;
+  if (isAccount(a) && !isAccount(b)) {
+    return -1;
+  } else if (!isAccount(a) && isAccount(b)) {
+    return 1;
+  }
+
   // alphabetically
-  if (a.tokens < b.tokens) return -1;
-  if (a.tokens > b.tokens) return 1;
+  if (a.tokens < b.tokens) {
+    return -1;
+  } else if (a.tokens > b.tokens) {
+    return 1;
+  }
+
   // fallback
   return 0;
 };
 
+const innerDivStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  paddingLeft: '1em',
+  paddingRight: '1em'
+};
+const floatingLabelStyle = { marginLeft: '-2.65em' };
+const errorStyle = { marginLeft: '-3.5em' };
+
 class InputAddressSelect extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
@@ -72,16 +90,16 @@ class InputAddressSelect extends Component {
   }
 
   render () {
+    const { api } = this.context;
     const { label, hint, error, maxSearchResults } = this.props;
     const { choices, address } = this.state;
 
-    // don't show IdentityIcon if user searches by name
-    const addressToRender = util.isAddressValid(address)
-      ? address : (
-        util.isAddressValid('0x' + address)
-          ? '0x' + address
-          : null
-      );
+    let addressToRender = address;
+    if (!api.util.isAddressValid(address)) {
+      addressToRender = api.util.isAddressValid(`0x${address}`)
+        ? `0x${address}`
+        : null;
+    }
 
     return (
       <div className={ styles.wrapper }>
@@ -100,36 +118,41 @@ class InputAddressSelect extends Component {
           onUpdateInput={ this.onUpdateInput }
           maxSearchResults={ maxSearchResults || 8 }
           fullWidth openOnFocus floatingLabelFixed
-          floatingLabelStyle={ { marginLeft: '-2.65em' } }
-          errorStyle={ { marginLeft: '-3.5em' } }
+          floatingLabelStyle={ floatingLabelStyle }
+          errorStyle={ errorStyle }
         />
       </div>
     );
   }
 
   renderChoice = (data) => {
-    const icon = (<IdentityIcon address={ data.address } inline />);
-    // TODO move those styles down there to a better place
+    const icon = (
+      <IdentityIcon
+        address={ data.address }
+        inline />
+    );
+
     return (
       <MenuItem
         primaryText={ data.name }
         key={ data.address }
         leftIcon={ icon }
-        innerDivStyle={ {
-          display: 'flex', alignItems: 'center',
-          paddingLeft: '1em', paddingRight: '1em'
-        } }
+        innerDivStyle={ innerDivStyle }
       />
     );
   }
 
   updateChoices = (nextProps) => {
     const { accounts, contacts } = nextProps || this.props;
-    this.setState({ choices: this.computeChoices(accounts, contacts) });
+
+    this.setState({
+      choices: this.computeChoices(accounts, contacts)
+    });
   }
 
   computeChoices = (accounts, contacts) => {
-    return Object.values(Object.assign({}, contacts, accounts))
+    return Object
+      .values(Object.assign({}, contacts, accounts))
       .map((data) => ({
         tokens: normalize(data.name),
         value: this.renderChoice(data),
@@ -148,16 +171,19 @@ class InputAddressSelect extends Component {
     query = query.trim();
 
     const needle = normalize(query);
-    return (choice.tokens.indexOf(needle) >= 0) ||
-      (choice.data.address.slice(0, query.length).toLowerCase() === query);
+    const { tokens, data } = choice;
+
+    return (tokens.indexOf(needle) >= 0) || (data.address.slice(0, query.length).toLowerCase() === query);
   };
 
   onUpdateInput = (query, choices) => {
+    const { api } = this.context;
+
     query = query.trim();
     this.setState({ address: query });
 
-    if (query.slice(0, 2) !== '0x' && util.isAddressValid('0x' + query)) {
-      this.props.onChange(null, '0x' + query);
+    if (query.slice(0, 2) !== '0x' && api.util.isAddressValid(`0x${query}`)) {
+      this.props.onChange(null, `0x${query}`);
     } else {
       this.props.onChange(null, query);
     }
