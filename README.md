@@ -1,9 +1,12 @@
 # [Parity](https://ethcore.io/parity.html)
 ### Fast, light, and robust Ethereum implementation
 
+[![Join the chat at https://gitter.im/ethcore/parity.js](https://badges.gitter.im/ethcore/parity.js.svg)](https://gitter.im/ethcore/parity.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
 
 [Internal Documentation][doc-url]
+
 
 Be sure to check out [our wiki][wiki-url] for more information.
 
@@ -18,7 +21,10 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [doc-url]: https://ethcore.github.io/parity/ethcore/index.html
 [wiki-url]: https://github.com/ethcore/parity/wiki
 
+**Requires Rust version 1.12.0 to build**
+
 ----
+
 
 ## About Parity
 
@@ -96,9 +102,9 @@ and Parity will begin syncing the Ethereum blockchain.
 ### Using systemd service file
 To start Parity as a regular user using systemd init:
 
-1. Copy ```parity/scripts/parity.service``` to your
-systemd user directory (usually ```~/.config/systemd/user```).
-2. To pass any argument to Parity, write a ```~/.parity/parity.conf``` file this way:
-```ARGS="ARG1 ARG2 ARG3"```.
+1. Copy `parity/scripts/parity.service` to your
+systemd user directory (usually `~/.config/systemd/user`).
+2. To pass any argument to Parity, write a `~/.parity/parity.conf` file this way:
+`ARGS="ARG1 ARG2 ARG3"`.
 
-	Example: ```ARGS="ui --geth --identity MyMachine"```.
+	Example: `ARGS="ui --geth --identity MyMachine"`.
