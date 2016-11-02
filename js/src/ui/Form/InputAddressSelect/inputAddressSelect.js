@@ -100,6 +100,8 @@ class InputAddressSelect extends Component {
           onUpdateInput={ this.onUpdateInput }
           maxSearchResults={ maxSearchResults || 8 }
           fullWidth openOnFocus floatingLabelFixed
+          floatingLabelStyle={ { marginLeft: '-2.65em' } }
+          errorStyle={ { marginLeft: '-3.5em' } }
         />
       </div>
     );
