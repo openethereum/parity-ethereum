@@ -103,8 +103,8 @@ impl AuthorityRound {
 		self.step.load(AtomicOrdering::SeqCst)
 	}
 
-	fn remaining_step_millis(&self) -> u64 {
-		unix_now().as_millis() % self.our_params.step_duration.as_millis()
+	fn remaining_step_duration(&self) -> Duration {
+		self.our_params.step_duration * (self.step() as u32 + 1) - unix_now()
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
@@ -133,7 +133,7 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 impl IoHandler<BlockArrived> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<BlockArrived>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_millis()).expect("Error registering engine timeout");
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis()).expect("Error registering engine timeout");
 		}
 	}
 
@@ -147,7 +147,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
 					}
 				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_millis()).expect("Failed to restart consensus step timer.")
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis()).expect("Failed to restart consensus step timer.")
 			}
 		}
 	}
