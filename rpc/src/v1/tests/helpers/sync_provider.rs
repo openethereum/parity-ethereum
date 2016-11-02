@@ -94,8 +94,8 @@ impl SyncProvider for TestSyncProvider {
 		]
 	}
 
-    fn enode(&self) -> Option<String> {
-        None
-    }
+	fn enode(&self) -> Option<String> {
+		None
+	}
 }
 

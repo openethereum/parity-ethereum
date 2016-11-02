@@ -134,8 +134,8 @@ build_rpc_trait! {
 		#[rpc(name = "ethcore_mode")]
 		fn mode(&self) -> Result<String, Error>;
 
-        /// Get the enode of this node.
-        #[rpc(name = "ethcore_enode")]
-        fn enode(&self) -> Result<String, Error>;
+		/// Get the enode of this node.
+		#[rpc(name = "ethcore_enode")]
+		fn enode(&self) -> Result<String, Error>;
 	}
 }

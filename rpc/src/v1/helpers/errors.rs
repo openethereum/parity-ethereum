@@ -41,7 +41,7 @@ mod codes {
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
 	pub const DAPPS_DISABLED: i64 = -32031;
-    pub const NETWORK_DISABLED: i64 = -32035;
+	pub const NETWORK_DISABLED: i64 = -32035;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
