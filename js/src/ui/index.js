@@ -20,6 +20,7 @@ import ActionbarSearch from './Actionbar/Search';
 import ActionbarSort from './Actionbar/Sort';
 import Badge from './Badge';
 import Balance from './Balance';
+import BlockStatus from './BlockStatus';
 import Button from './Button';
 import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
@@ -46,6 +47,7 @@ export {
   AddressSelect,
   Badge,
   Balance,
+  BlockStatus,
   Button,
   ConfirmDialog,
   Container,

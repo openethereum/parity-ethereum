@@ -37,7 +37,6 @@ module.exports = {
   entry: {
     // dapps
     'basiccoin': ['./dapps/basiccoin.js'],
-    'gavcoin': ['./dapps/gavcoin.js'],
     'githubhint': ['./dapps/githubhint.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
@@ -71,7 +70,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[path][name].[ext]!extract-loader!html-loader'
+        loader: 'file?name=[name].[ext]!extract-loader!html-loader'
       },
 
       {

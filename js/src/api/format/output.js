@@ -166,7 +166,7 @@ export function outSyncing (syncing) {
           break;
 
         case 'blockGap':
-          syncing[key] = syncing[key].map(outNumber);
+          syncing[key] = syncing[key] ? syncing[key].map(outNumber) : syncing[key];
           break;
       }
     });

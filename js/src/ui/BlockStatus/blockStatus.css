@@ -14,15 +14,9 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.addrtext {
-  position: relative;
+
+.blockNumber {
 }
 
-.input input {
-  padding-left: 48px !important;
-}
-
-.addricon {
-  position: absolute;
-  top: 37px;
+.syncStatus {
 }
