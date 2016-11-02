@@ -16,7 +16,10 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { TextField } from 'material-ui';
+import CopyToClipboard from 'react-copy-to-clipboard';
+import CopyIcon from 'material-ui/svg-icons/content/content-copy';
+import { TextField, IconButton } from 'material-ui';
+import { lightWhite, fullWhite } from 'material-ui/styles/colors';
 
 // TODO: duplicated in Select
 const UNDERLINE_DISABLED = {
@@ -41,6 +44,10 @@ export default class Input extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     readOnly: PropTypes.bool,
+    copiable: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.bool
+    ]),
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
@@ -59,11 +66,13 @@ export default class Input extends Component {
 
   static defaultProps = {
     submitOnBlur: true,
-    readOnly: false
+    readOnly: false,
+    copiable: false
   }
 
   state = {
-    value: this.props.value || ''
+    value: this.props.value || '',
+    copied: false
   }
 
   componentWillReceiveProps (newProps) {
@@ -105,8 +114,53 @@ export default class Input extends Component {
         inputStyle={ readOnly ? { cursor: 'text' } : null }
       >
         { children }
+        { this.renderCopyButton() }
       </TextField>
     );
+  }
+
+  renderCopyButton () {
+    const { copiable } = this.props;
+    const { copied, value } = this.state;
+
+    if (!copiable) {
+      return null;
+    }
+
+    const text = typeof copiable === 'string'
+      ? copiable
+      : value;
+
+    return (
+      <CopyToClipboard
+        onCopy={ this.handleCopy }
+        text={ text } >
+        <IconButton
+          tooltip='Copy to clipboard'
+          tooltipPosition='top-center'
+          style={ {
+            width: 32,
+            height: 16,
+            padding: 0
+          } }
+          iconStyle={ {
+            width: 16,
+            height: 16
+          } }>
+          <CopyIcon
+            color={ copied ? lightWhite : fullWhite }
+          />
+        </IconButton>
+      </CopyToClipboard>
+    );
+  }
+
+  handleCopy = () => {
+    this.setState({ copied: true }, () => {
+      window.setTimeout(() => {
+        this.setState({ copied: false });
+      }, 4000);
+    });
   }
 
   onChange = (event, value) => {
@@ -145,8 +199,6 @@ export default class Input extends Component {
   }
 
   setValue (value) {
-    this.setState({
-      value
-    });
+    this.setState({ value });
   }
 }
