@@ -75,22 +75,23 @@ export default class Application extends Component {
       hashClass = styles.hashOk;
     }
 
+    let placeholder = 'http://domain/filename';
+    if (registerType === 'github') {
+      placeholder = 'https://github.com/owner/repo/filename';
+    }
+
     return (
       <div className={ styles.container }>
         <div className={ styles.form }>
           <div className={ styles.typeButtons }>
             <Button
               disabled={ registerBusy }
-              inverse={ registerType !== 'normal' }
-              onClick={ this.onClickTypeNormal }>Normal URL</Button>
+              invert={ registerType !== 'normal' }
+              onClick={ this.onClickTypeNormal }>File Link</Button>
             <Button
               disabled={ registerBusy }
-              inverse={ registerType !== 'github' }
-              onClick={ this.onClickTypeGithub }>GitHub URL</Button>
-            <Button
-              disabled={ registerBusy }
-              inverse={ registerType !== 'content' }
-              onClick={ this.onClickTypeContent }>GitHub Content</Button>
+              invert={ registerType !== 'content' }
+              onClick={ this.onClickTypeContent }>Content Bundle</Button>
           </div>
           <div className={ styles.box }>
             <div className={ styles.description }>
@@ -99,7 +100,7 @@ export default class Application extends Component {
             <div className={ styles.capture }>
               <input
                 type='text'
-                placeholder='http://domain/filename'
+                placeholder={ placeholder }
                 disabled={ registerBusy }
                 value={ url }
                 className={ urlError ? styles.error : null }
@@ -163,11 +164,11 @@ export default class Application extends Component {
   }
 
   onClickTypeNormal = () => {
-    this.setState({ registerType: 'normal', commit: 0 });
-  }
+    const { url } = this.state;
 
-  onClickTypeGithub = () => {
-    this.setState({ registerType: 'github', commit: 0 });
+    this.setState({ registerType: 'normal', commit: 0 }, () => {
+      this.onChangeUrl({ target: { value: url } });
+    });
   }
 
   onClickTypeContent = () => {
@@ -175,18 +176,27 @@ export default class Application extends Component {
   }
 
   onChangeUrl = (event) => {
-    const url = event.target.value;
+    let url = event.target.value;
     let urlError = null;
 
     if (url && url.length) {
       const re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g; // eslint-disable-line
       urlError = re.test(url)
         ? null
-        : 'not matching rexex';
+        : 'not matching URL regex';
     }
 
-    this.setState({ url, urlError, contentHashError: 'hash lookup in progress' }, () => {
-      this.lookupHash();
+    if (!urlError) {
+      // 'https://github.com/owner/repo/filename'
+      const parts = url.split('/');
+
+      if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
+        url = `https://raw.githubusercontent.com/${parts.slice(3).join('/')}`.replace('/blob/', '/');
+      }
+    }
+
+    this.setState({ url, urlError, contentHashError: urlError || 'hash lookup in progress' }, () => {
+      !urlError && this.lookupHash(url);
     });
   }
 
@@ -263,8 +273,10 @@ export default class Application extends Component {
     this.setState({ fromAddress: addresses[index] });
   }
 
-  lookupHash () {
-    const { url, instance } = this.state;
+  lookupHash (url) {
+    const { instance } = this.state;
+
+    console.log(`lookupHash ${url}`);
 
     api.ethcore
       .hashContent(url)

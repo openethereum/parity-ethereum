@@ -124,3 +124,8 @@
 .hashOk {
   opacity: 0.5;
 }
+
+.typeButtons {
+  text-align: center;
+  padding: 0 0 1em 0;
+}
