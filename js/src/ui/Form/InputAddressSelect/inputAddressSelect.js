@@ -29,6 +29,8 @@ import styles from './inputAddressSelect.css';
 
 const isAccount = (choice) => choice.data && choice.data.uuid;
 
+const isNotDeleted = (choice) => choice.data && choice.data.meta && !choice.data.meta.deleted;
+
 const sortChoices = (a, b) => {
   // accounts first
   if (isAccount(a) && !isAccount(b)) return -1;
@@ -127,6 +129,7 @@ class InputAddressSelect extends Component {
         value: this.renderChoice(data),
         text: data.name, data
       }))
+      .filter(isNotDeleted)
       .sort(sortChoices);
   };
 
