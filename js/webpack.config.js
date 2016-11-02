@@ -71,7 +71,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[path][name].[ext]!extract-loader!html-loader'
+        loader: 'file?name=[name].[ext]!extract-loader!html-loader'
       },
 
       {
