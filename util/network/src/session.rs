@@ -388,8 +388,9 @@ impl Session {
 				Ok(SessionData::Continue)
 			},
 			PACKET_PONG => {
-				self.pong_time_ns = Some(time::precise_time_ns());
-				self.info.ping_ms = Some((self.pong_time_ns.unwrap() - self.ping_time_ns) / 1000_000);
+				let time = time::precise_time_ns();
+				self.pong_time_ns = Some(time);
+				self.info.ping_ms = Some((time - self.ping_time_ns) / 1000_000);
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;

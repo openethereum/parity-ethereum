@@ -11,7 +11,6 @@ export default class Records extends Component {
 
   static propTypes = {
     actions: PropTypes.object.isRequired,
-    hasAccount: PropTypes.bool.isRequired,
     pending: PropTypes.bool.isRequired,
     name: PropTypes.string.isRequired,
     type: PropTypes.string.isRequired,
@@ -21,7 +20,7 @@ export default class Records extends Component {
   state = { name: '', type: 'A', value: '' };
 
   render () {
-    const { hasAccount, pending } = this.props;
+    const { pending } = this.props;
     const name = this.state.name || this.props.name;
     const type = this.state.type || this.props.type;
     const value = this.state.value || this.props.value;
@@ -30,10 +29,10 @@ export default class Records extends Component {
       <Card className={ styles.records }>
         <CardHeader title={ 'Manage Entries of a Name' } />
         <CardText>
-          { !hasAccount
-            ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (<p className={ styles.noSpacing }>You can only modify entries of names that you previously registered.</p>)
-          }
+          <p className={ styles.noSpacing }>
+            You can only modify entries of names that you previously registered.
+          </p>
+
           <TextField
             className={ styles.spacing }
             hintText='name'
@@ -48,7 +47,7 @@ export default class Records extends Component {
             onChange={ this.onValueChange }
           />
           <RaisedButton
-            disabled={ !hasAccount || pending }
+            disabled={ pending }
             className={ styles.spacing }
             label='Save'
             primary

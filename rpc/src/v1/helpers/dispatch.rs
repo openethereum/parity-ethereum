@@ -60,7 +60,7 @@ pub fn decrypt(accounts: &AccountProvider, address: Address, password: Option<St
 		.map(to_value)
 }
 
-pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<Value, Error>
+pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<RpcH256, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let address = request.from;
@@ -72,7 +72,7 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", ::rlp::encode(&signed_transaction).to_vec().pretty());
-	dispatch_transaction(&*client, &*miner, signed_transaction).map(to_value)
+	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
 fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest) -> Transaction where C: MiningBlockChainClient, M: MinerService {
@@ -92,8 +92,5 @@ fn prepare_transaction<C, M>(client: &C, miner: &M, request: TransactionRequest)
 }
 
 pub fn default_gas_price<C, M>(client: &C, miner: &M) -> U256 where C: MiningBlockChainClient, M: MinerService {
-	client
-		.gas_price_statistics(100, 8)
-		.map(|x| x[4])
-		.unwrap_or_else(|_| miner.sensible_gas_price())
+	client.gas_price_median(100).unwrap_or_else(|| miner.sensible_gas_price())
 }

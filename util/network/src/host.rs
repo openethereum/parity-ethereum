@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::net::SocketAddr;
+use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -47,6 +47,8 @@ type Slab<T> = ::slab::Slab<T, usize>;
 
 const MAX_SESSIONS: usize = 1024 + MAX_HANDSHAKES;
 const MAX_HANDSHAKES: usize = 1024;
+
+const DEFAULT_PORT: u16 = 30303;
 
 // Tokens
 const TCP_ACCEPT: usize = SYS_TIMER + 1;
@@ -135,14 +137,14 @@ impl NetworkConfiguration {
 	/// Create new default configuration with sepcified listen port.
 	pub fn new_with_port(port: u16) -> NetworkConfiguration {
 		let mut config = NetworkConfiguration::new();
-		config.listen_address = Some(SocketAddr::from_str(&format!("0.0.0.0:{}", port)).unwrap());
+		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), port)));
 		config
 	}
 
 	/// Create new default configuration for localhost-only connection with random port (usefull for testing)
 	pub fn new_local() -> NetworkConfiguration {
 		let mut config = NetworkConfiguration::new();
-		config.listen_address = Some(SocketAddr::from_str("127.0.0.1:0").unwrap());
+		config.listen_address = Some(SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(127, 0, 0, 1), 0)));
 		config.nat_enabled = false;
 		config
 	}
@@ -259,7 +261,7 @@ impl<'s> NetworkContext<'s> {
 	/// Respond to a current network message. Panics if no there is no packet in the context. If the session is expired returns nothing.
 	pub fn respond(&self, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
 		assert!(self.session.is_some(), "Respond called without network context");
-		self.send(self.session_id.unwrap(), packet_id, data)
+		self.session_id.map_or_else(|| Err(NetworkError::Expired), |id| self.send(id, packet_id, data))
 	}
 
 	/// Get an IoChannel.
@@ -382,16 +384,16 @@ impl Host {
 		trace!(target: "host", "Creating new Host object");
 
 		let mut listen_address = match config.listen_address {
-			None => SocketAddr::from_str("0.0.0.0:30304").unwrap(),
+			None => SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), DEFAULT_PORT)),
 			Some(addr) => addr,
 		};
 
 		let keys = if let Some(ref secret) = config.use_secret {
-			KeyPair::from_secret(secret.clone()).unwrap()
+			try!(KeyPair::from_secret(secret.clone()))
 		} else {
 			config.config_path.clone().and_then(|ref p| load_key(Path::new(&p)))
 				.map_or_else(|| {
-				let key = Random.generate().unwrap();
+				let key = Random.generate().expect("Error generating random key pair");
 				if let Some(path) = config.config_path.clone() {
 					save_key(Path::new(&path), key.secret());
 				}
@@ -488,7 +490,7 @@ impl Host {
 					let mut s = e.lock();
 					{
 						let id = s.id();
-						if id.is_some() && reserved.contains(id.unwrap()) {
+						if id.map_or(false, |id| reserved.contains(id)) {
 							continue;
 						}
 					}
@@ -634,14 +636,14 @@ impl Host {
 	}
 
 	fn connect_peers(&self, io: &IoContext<NetworkIoMessage>) {
-		let (min_peers, mut pin, max_handshakes, allow_ips) = {
+		let (min_peers, mut pin, max_handshakes, allow_ips, self_id) = {
 			let info = self.info.read();
 			if info.capabilities.is_empty() {
 				return;
 			}
 			let config = &info.config;
 
-			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips)
+			(config.min_peers, config.non_reserved_mode == NonReservedPeerMode::Deny, config.max_handshakes as usize, config.allow_ips, info.id().clone())
 		};
 
 		let session_count = self.session_count();
@@ -672,7 +674,7 @@ impl Host {
 
 		let max_handshakes_per_round = max_handshakes / 2;
 		let mut started: usize = 0;
-		for id in nodes.filter(|ref id| !self.have_session(id) && !self.connecting_to(id))
+		for id in nodes.filter(|id| !self.have_session(id) && !self.connecting_to(id) && *id != self_id)
 			.take(min(max_handshakes_per_round, max_handshakes - handshake_count)) {
 			self.connect_peer(&id, io);
 			started += 1;
@@ -814,11 +816,12 @@ impl Host {
 							(info.config.min_peers as usize, max_peers as usize, info.config.non_reserved_mode == NonReservedPeerMode::Deny)
 						};
 
+						// Check for the session limit. session_counts accounts for the new session.
 						if reserved_only ||
-							(s.info.originated && session_count >= min_peers) ||
-							(!s.info.originated && session_count >= max_peers) {
+							(s.info.originated && session_count > min_peers) ||
+							(!s.info.originated && session_count > max_peers) {
 							// only proceed if the connecting peer is reserved.
-							if !self.reserved_nodes.read().contains(s.id().unwrap()) {
+							if !self.reserved_nodes.read().contains(s.id().expect("Ready session always has id")) {
 								s.disconnect(io, DisconnectReason::TooManyPeers);
 								return;
 							}
@@ -827,7 +830,7 @@ impl Host {
 						// Add it to the node table
 						if !s.info.originated {
 							if let Ok(address) = s.remote_addr() {
-								let entry = NodeEntry { id: s.id().unwrap().clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
+								let entry = NodeEntry { id: s.id().expect("Ready session always has id").clone(), endpoint: NodeEndpoint { address: address, udp_port: address.port() } };
 								self.nodes.write().add_node(Node::new(entry.id.clone(), entry.endpoint.clone()));
 								let mut discovery = self.discovery.lock();
 								if let Some(ref mut discovery) = *discovery {
@@ -861,15 +864,17 @@ impl Host {
 		}
 		let handlers = self.handlers.read();
 		for p in ready_data {
-			let h = handlers.get(&p).unwrap().clone();
 			self.stats.inc_sessions();
 			let reserved = self.reserved_nodes.read();
-			h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
+			if let Some(h) = handlers.get(&p).clone() {
+				h.connected(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token);
+			}
 		}
 		for (p, packet_id, data) in packet_data {
-			let h = handlers.get(&p).unwrap().clone();
 			let reserved = self.reserved_nodes.read();
-			h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token, packet_id, &data[1..]);
+			if let Some(h) = handlers.get(&p).clone() {
+				h.read(&NetworkContext::new(io, p, session.clone(), self.sessions.clone(), &reserved), &token, packet_id, &data[1..]);
+			}
 		}
 	}
 
@@ -909,9 +914,10 @@ impl Host {
 			}
 		}
 		for p in to_disconnect {
-			let h = self.handlers.read().get(&p).unwrap().clone();
 			let reserved = self.reserved_nodes.read();
-			h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
+			if let Some(h) = self.handlers.read().get(&p).clone() {
+				h.disconnected(&NetworkContext::new(io, p, expired_session.clone(), self.sessions.clone(), &reserved), &token);
+			}
 		}
 		if deregister {
 			io.deregister_stream(token).unwrap_or_else(|e| debug!("Error deregistering stream: {:?}", e));
@@ -975,7 +981,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_readable(stream, io),
 			DISCOVERY => {
-				let node_changes = { self.discovery.lock().as_mut().unwrap().readable(io) };
+				let node_changes = { self.discovery.lock().as_mut().map_or(None, |d| d.readable(io)) };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
@@ -992,7 +998,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 		match stream {
 			FIRST_SESSION ... LAST_SESSION => self.session_writable(stream, io),
 			DISCOVERY => {
-				self.discovery.lock().as_mut().unwrap().writable(io);
+				self.discovery.lock().as_mut().map(|d| d.writable(io));
 			}
 			_ => panic!("Received unknown writable token"),
 		}
@@ -1006,11 +1012,11 @@ impl IoHandler<NetworkIoMessage> for Host {
 			IDLE => self.maintain_network(io),
 			FIRST_SESSION ... LAST_SESSION => self.connection_timeout(token, io),
 			DISCOVERY_REFRESH => {
-				self.discovery.lock().as_mut().unwrap().refresh();
+				self.discovery.lock().as_mut().map(|d| d.refresh());
 				io.update_registration(DISCOVERY).unwrap_or_else(|e| debug!("Error updating discovery registration: {:?}", e));
 			},
 			DISCOVERY_ROUND => {
-				let node_changes = { self.discovery.lock().as_mut().unwrap().round() };
+				let node_changes = { self.discovery.lock().as_mut().map_or(None, |d| d.round()) };
 				if let Some(node_changes) = node_changes {
 					self.update_nodes(io, node_changes);
 				}
@@ -1102,7 +1108,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					session.lock().register_socket(reg, event_loop).expect("Error registering socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().unwrap().register_socket(event_loop).expect("Error registering discovery socket"),
+			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.register_socket(event_loop).ok()).expect("Error registering discovery socket"),
 			TCP_ACCEPT => event_loop.register(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error registering stream"),
 			_ => warn!("Unexpected stream registration")
 		}
@@ -1130,7 +1136,7 @@ impl IoHandler<NetworkIoMessage> for Host {
 					connection.lock().update_socket(reg, event_loop).expect("Error updating socket");
 				}
 			}
-			DISCOVERY => self.discovery.lock().as_ref().unwrap().update_registration(event_loop).expect("Error reregistering discovery socket"),
+			DISCOVERY => self.discovery.lock().as_ref().and_then(|d| d.update_registration(event_loop).ok()).expect("Error reregistering discovery socket"),
 			TCP_ACCEPT => event_loop.reregister(&*self.tcp_listener.lock(), Token(TCP_ACCEPT), Ready::all(), PollOpt::edge()).expect("Error reregistering stream"),
 			_ => warn!("Unexpected stream update")
 		}
@@ -1200,7 +1206,7 @@ fn key_save_load() {
 
 #[test]
 fn host_client_url() {
-	let mut config = NetworkConfiguration::new();
+	let mut config = NetworkConfiguration::new_local();
 	let key = "6f7b0d801bc7b5ce7bbd930b84fd0369b3eb25d09be58d64ba811091046f3aa2".into();
 	config.use_secret = Some(key);
 	let host: Host = Host::new(config, Arc::new(NetworkStats::new())).unwrap();

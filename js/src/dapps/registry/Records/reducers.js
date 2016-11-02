@@ -1,14 +1,9 @@
 const initialState = {
-  hasAccount: false,
   pending: false,
   name: '', type: '', value: ''
 };
 
 export default (state = initialState, action) => {
-  if (action.type === 'accounts select') {
-    return { ...state, hasAccount: !!action.address };
-  }
-
   if (action.type === 'records update start') {
     return {
       ...state,
@@ -17,7 +12,7 @@ export default (state = initialState, action) => {
     };
   }
 
-  if (action.type === 'records update error' && action.type === 'records update success') {
+  if (action.type === 'records update error' || action.type === 'records update success') {
     return {
       ...state,
       pending: false,

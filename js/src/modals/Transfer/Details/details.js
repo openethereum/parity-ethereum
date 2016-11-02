@@ -158,6 +158,7 @@ export default class Details extends Component {
 
     return (
       <Select
+        className={ styles.tokenSelect }
         label='type of token transfer'
         hint='type of token to transfer'
         value={ tag }

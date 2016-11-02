@@ -18,12 +18,13 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Badge, Button, ContainerTitle, ParityBackground, SignerIcon } from '../../ui';
+import { Badge, Button, ContainerTitle, ParityBackground } from '../../ui';
 import { Embedded as Signer } from '../Signer';
 
-import imagesEthcoreBlock from '../../../assets/images/ethcore-block.png';
+import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
@@ -78,13 +79,13 @@ class ParityBar extends Component {
           <div className={ styles.cornercolor }>
             <Link to='/apps'>
               <Button
-                className={ styles.button }
+                className={ styles.parityButton }
                 icon={ parityIcon }
                 label={ this.renderLabel('Parity') } />
             </Link>
             <Button
               className={ styles.button }
-              icon={ <SignerIcon className={ styles.signerIcon } /> }
+              icon={ <ActionFingerprint /> }
               label={ this.renderSignerLabel() }
               onClick={ this.toggleDisplay } />
           </div>

@@ -312,6 +312,8 @@ impl Database {
 		opts.set_target_file_size_multiplier(config.compaction.file_size_multiplier);
 
 		let mut cf_options = Vec::with_capacity(config.columns.unwrap_or(0) as usize);
+		let cfnames: Vec<_> = (0..config.columns.unwrap_or(0)).map(|c| format!("col{}", c)).collect();
+		let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 
 		for col in 0 .. config.columns.unwrap_or(0) {
 			let mut opts = Options::new();
@@ -342,8 +344,6 @@ impl Database {
 		let mut cfs: Vec<Column> = Vec::new();
 		let db = match config.columns {
 			Some(columns) => {
-				let cfnames: Vec<_> = (0..columns).map(|c| format!("col{}", c)).collect();
-				let cfnames: Vec<&str> = cfnames.iter().map(|n| n as &str).collect();
 				match DB::open_cf(&opts, path, &cfnames, &cf_options) {
 					Ok(db) => {
 						cfs = cfnames.iter().map(|n| db.cf_handle(n)
@@ -365,13 +365,18 @@ impl Database {
 			},
 			None => DB::open(&opts, path)
 		};
+
 		let db = match db {
 			Ok(db) => db,
 			Err(ref s) if s.starts_with("Corruption:") => {
 				info!("{}", s);
 				info!("Attempting DB repair for {}", path);
 				try!(DB::repair(&opts, path));
-				try!(DB::open(&opts, path))
+
+				match cfnames.is_empty() {
+					true => try!(DB::open(&opts, path)),
+					false => try!(DB::open_cf(&opts, path, &cfnames, &cf_options))
+				}
 			},
 			Err(s) => { return Err(s); }
 		};

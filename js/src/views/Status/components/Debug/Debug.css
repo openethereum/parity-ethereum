@@ -39,9 +39,26 @@
 .logs {
   margin: 0;
   max-width: 100%;
+}
+
+.log {
+  font-family: monospace;
   white-space: pre-line;
   word-wrap: break-word;
   color: #aaa;
+  margin: 0.5em 0;
+  display: flex;
+  align-items: center;
+}
+
+.logDate {
+  color: green;
+  font-size: 0.85em;
+  margin-right: 0.5em;
+}
+
+.logText {
+  flex: 1;
 }
 
 .stopped {

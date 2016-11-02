@@ -1,11 +1,11 @@
 stages:
   - build
-  - test
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
+  CARGOFLAGS: ""
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -18,7 +18,7 @@ linux-stable:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -48,7 +48,7 @@ linux-stable-14.04:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -78,7 +78,7 @@ linux-beta:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -97,7 +97,7 @@ linux-nightly:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -118,7 +118,7 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -150,7 +150,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -190,7 +190,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -229,7 +229,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -262,7 +262,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release --verbose
+    - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
     - sh scripts/deb-build.sh arm64
@@ -292,7 +292,7 @@ darwin:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -318,7 +318,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release --verbose
+    - cargo build --release %CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -353,39 +353,34 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+#test-darwin:
+#  stage: build
+#  before_script:
+#    - git submodule update --init --recursive
+#  script:
+#    - export RUST_BACKTRACE=1
+#    - ./test.sh $CARGOFLAGS --no-release
+#  tags:
+#    - osx
+#test-windows:
+#  stage: build
+#  before_script:
+#    - git submodule update --init --recursive
+#  script:
+#    - set RUST_BACKTRACE=1
+#    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+#  tags:
+#    - rust-windows
+#  allow_failure: true
 test-linux:
-  stage: test
+  stage: build
   before_script:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - rust-test
-  dependencies:
-    - linux-stable
-test-darwin:
-  stage: test
-  before_script:
-    - git submodule update --init --recursive
-  script:
-    - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
-  tags:
-    - osx
-  dependencies:
-    - darwin
-test-windows:
-  stage: test
-  before_script:
-    - git submodule update --init --recursive
-  script:
-    - set RUST_BACKTRACE=1
-    - PowerShell ./test.sh --verbose
-  tags:
-    - rust-windows
-  dependencies:
-    - windows
 js-release:
   stage: build
   image: ethcore/javascript:latest
@@ -399,7 +394,7 @@ js-release:
   tags:
     - javascript
 js-lint:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
@@ -408,7 +403,7 @@ js-lint:
   tags:
     - javascript-test
 js-test:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
@@ -417,7 +412,7 @@ js-test:
   tags:
     - javascript-test
 js-pack:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh

@@ -144,6 +144,7 @@ pub mod semantic_version;
 pub mod log;
 pub mod path;
 pub mod snappy;
+pub mod stats;
 pub mod cache;
 mod timer;
 

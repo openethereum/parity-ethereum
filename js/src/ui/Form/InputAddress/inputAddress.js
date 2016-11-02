@@ -20,6 +20,7 @@ import { bindActionCreators } from 'redux';
 
 import Input from '../Input';
 import IdentityIcon from '../../IdentityIcon';
+import util from '../../../api/util';
 
 import styles from './inputAddress.css';
 
@@ -38,43 +39,16 @@ class InputAddress extends Component {
     onSubmit: PropTypes.func
   };
 
-  state = {
-    isEmpty: false
-  }
-
-  componentWillMount () {
-    const { value, text, accountsInfo, tokens } = this.props;
-
-    const account = accountsInfo[value] || tokens[value];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
-    const inputValue = text && hasAccount ? account.name : value;
-    const isEmpty = (!inputValue || inputValue.length === 0);
-
-    this.setState({ isEmpty });
-  }
-
-  componentWillReceiveProps (newProps) {
-    const { value, text } = newProps;
-
-    if (value === this.props.value && text === this.props.text) {
-      return;
-    }
-
-    const inputValue = text || value;
-    const isEmpty = (!inputValue || inputValue.length === 0);
-
-    this.setState({ isEmpty });
-  }
-
   render () {
     const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
-    const { isEmpty } = this.state;
-
-    const classes = [ className ];
-    classes.push(isEmpty ? styles.inputEmpty : styles.input);
 
     const account = accountsInfo[value] || tokens[value];
     const hasAccount = account && (!account.meta || !account.meta.deleted);
+
+    const icon = this.renderIcon();
+
+    const classes = [ className ];
+    classes.push(!icon ? styles.inputEmpty : styles.input);
 
     return (
       <div className={ styles.container }>
@@ -87,7 +61,7 @@ class InputAddress extends Component {
           value={ text && hasAccount ? account.name : value }
           onChange={ this.handleInputChange }
           onSubmit={ onSubmit } />
-        { this.renderIcon() }
+        { icon }
       </div>
     );
   }
@@ -95,7 +69,7 @@ class InputAddress extends Component {
   renderIcon () {
     const { value } = this.props;
 
-    if (!value || !value.length) {
+    if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
@@ -112,6 +86,11 @@ class InputAddress extends Component {
     const isEmpty = (value.length === 0);
 
     this.setState({ isEmpty });
+
+    if (!/^0x/.test(value) && util.isAddressValid(`0x${value}`)) {
+      return this.props.onChange(event, `0x${value}`);
+    }
+
     this.props.onChange(event, value);
   }
 }

@@ -19,6 +19,7 @@ use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
+use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
 use v1::helpers::errors;
 use v1::traits::EthcoreSet;
@@ -145,6 +146,17 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 
 	fn stop_network(&self) -> Result<bool, Error> {
 		take_weak!(self.net).stop_network();
+		Ok(true)
+	}
+
+	fn set_mode(&self, mode: String) -> Result<bool, Error> {
+		take_weak!(self.client).set_mode(match mode.as_str() {
+			"off" => Mode::Off,
+			"dark" => Mode::Dark(300),
+			"passive" => Mode::Passive(300, 3600),
+			"active" => Mode::Active,
+			e => { return Err(errors::invalid_params("mode", e.to_owned())); },
+		});
 		Ok(true)
 	}
 }
