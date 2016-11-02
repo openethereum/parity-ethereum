@@ -46,10 +46,11 @@ struct RpcHandler {
 }
 
 impl RpcHandler {
-	fn new(out: Sender,
-		   auth_code: String,
-		   complete: Complete<Result<Rpc, RpcError>>)
-		   -> Self {
+	fn new(
+		out: Sender,
+		auth_code: String,
+		complete: Complete<Result<Rpc, RpcError>>
+	) -> Self {
 		RpcHandler {
 			out: Some(out),
 			auth_code: auth_code,
@@ -169,8 +170,9 @@ impl Rpc {
 		rpc
 	}
 	/// Non-blocking, returns a future
-	pub fn connect(url: &str, authpath: &PathBuf)
-			   -> BoxFuture<Result<Self, RpcError>, Canceled> {
+	pub fn connect(
+		url: &str, authpath: &PathBuf
+	) -> BoxFuture<Result<Self, RpcError>, Canceled> {
 		let (c, p) = oneshot::<Result<Self, RpcError>>();
 		match get_authcode(authpath) {
 			Err(e) => return done(Ok(Err(e))).boxed(),
@@ -203,8 +205,9 @@ impl Rpc {
 		}
 	}
 	/// Non-blocking, returns a future of the request response
-	pub fn request<T>(&mut self, method: &'static str, params: Vec<JsonValue>)
-			   -> BoxFuture<Result<T, RpcError>, Canceled>
+	pub fn request<T>(
+		&mut self, method: &'static str, params: Vec<JsonValue>
+	) -> BoxFuture<Result<T, RpcError>, Canceled>
 		where T: Deserialize + Send + Sized {
 
 		let (c, p) = oneshot::<Result<JsonValue, RpcError>>();
