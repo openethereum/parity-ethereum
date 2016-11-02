@@ -15,8 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .list {
-  column-count: 2;
-  column-gap: 0.25em;
+  display: flex;
+  flex-wrap: wrap;
 }
 
 .list+.list {
@@ -25,6 +25,6 @@
 
 .item {
   display: inline-block;
-  margin: 0 0 0.25em;
-  width: 100%;
+  margin: 0.25%;
+  flex: 0 1 49.5%;
 }
