@@ -77,6 +77,17 @@ export default class Application extends Component {
     return (
       <div className={ styles.container }>
         <div className={ styles.form }>
+          <div className={ styles.typeButtons }>
+            <Button
+              disabled={ registerBusy }
+              onClick={ this.onClickTypeNormal }>Normal URL</Button>
+            <Button
+              disabled={ registerBusy }
+              onClick={ this.onClickTypeGithub }>GitHub URL</Button>
+            <Button
+              disabled={ registerBusy }
+              onClick={ this.onClickTypeContent }>GitHub Content</Button>
+          </div>
           <div className={ styles.box }>
             <div className={ styles.description }>
               Provide a valid URL to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
