@@ -108,14 +108,19 @@
   background: #fcc;
 }
 
-.hashError {
+.hashError, .hashWarning, .hashOk {
   padding-top: 0.5em;
-  color: #f66;
   text-align: center;
 }
 
+.hashError {
+  color: #f66;
+}
+
+.hashWarning {
+  color: #f80;
+}
+
 .hashOk {
-  padding-top: 0.5em;
   opacity: 0.5;
-  text-align: center;
 }
