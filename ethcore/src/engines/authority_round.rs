@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A blockchain engine that supports a basic, non-BFT proof-of-authority.
+//! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
-use ethkey::verify_address;
-use rlp::{UntrustedRlp, View, encode, decode};
+use ethkey::{verify_address, Signature};
+use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -70,6 +70,17 @@ pub struct AuthorityRound {
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize
 }
+
+impl Header {
+    fn step(&self) -> Result<usize, ::rlp::DecoderError> {
+        UntrustedRlp::new(&self.seal()[0]).as_val()
+    }
+
+    fn signature(&self) -> Result<Signature, ::rlp::DecoderError> {
+        UntrustedRlp::new(&self.seal()[1]).as_val::<H520>().map(Into::into)
+    }
+}
+
 
 trait AsMillis {
 	fn as_millis(&self) -> u64;
@@ -202,12 +213,13 @@ impl Engine for AuthorityRound {
 			if let Some(ap) = accounts {
 				// Account should be permanently unlocked, otherwise sealing will fail.
 				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
+					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
-					trace!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
+					trace!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 				}
 			} else {
-				trace!(target: "poa", "generate_seal: FAIL: accounts not provided");
+				trace!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
 			}
 		}
 		None
@@ -227,10 +239,10 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let step = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<usize>());
-		if step <= self.step() {
-			let sig = try!(UntrustedRlp::new(&header.seal()[1]).as_val::<H520>());
-			let ok_sig = try!(verify_address(self.step_proposer(step), &sig.into(), &header.bare_hash()));
+        let header_step = try!(header.step());
+        // Give one step slack if step is lagging, double vote is still not possible.
+		if header_step <= self.step() + 1 {
+			let ok_sig = try!(verify_address(self.step_proposer(header_step), &try!(header.signature()), &header.bare_hash()));
 			if ok_sig {
 				Ok(())
 			} else {
@@ -250,9 +262,7 @@ impl Engine for AuthorityRound {
 		}
 
 		// Check if parent is from a previous step.
-		let parent_step = try!(UntrustedRlp::new(&parent.seal()[0]).as_val::<usize>());
-		let step = try!(UntrustedRlp::new(&header.seal()[0]).as_val::<usize>());
-		if step <= parent_step { 
+		if try!(header.step()) == try!(parent.step()) { 
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
@@ -281,13 +291,6 @@ impl Engine for AuthorityRound {
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
 		let mut guard = self.message_channel.try_lock().unwrap();
 		*guard = Some(message_channel);
-	}
-}
-
-impl Header {
-	/// Get the none field of the header.
-	pub fn signature(&self) -> H520 {
-		decode(&self.seal()[0])
 	}
 }
 
