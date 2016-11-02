@@ -119,16 +119,12 @@ impl Configuration {
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
-<<<<<<< HEAD
-		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(signer_conf)
-=======
 		} else if self.args.cmd_signer {
-			let mut authfile = PathBuf::from(signer_conf.signer_path);
+			let mut authfile = PathBuf::from(signer_conf.signer_path.clone());
 			authfile.push(AUTHCODE_FILENAME);
 
 			if self.args.cmd_new_token {
-				Cmd::SignerToken(dirs.signer)
+				Cmd::SignerToken(signer_conf)
 			} else if self.args.cmd_sign {
 				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
 					PathBuf::from(pwfile)
@@ -153,7 +149,6 @@ impl Configuration {
 			} else {
 				unreachable!();
 			}
->>>>>>> Add Ws Json rpc client and command line utils
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {

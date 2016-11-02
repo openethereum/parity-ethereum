@@ -18,8 +18,8 @@ use futures::Future;
 fn sign_interactive(
 	signer: &mut SignerRpc,
 	password: &str,
-	request: ConfirmationRequest)
-{
+	request: ConfirmationRequest
+) {
 	print!("\n{}\nSign this transaction? (y)es/(N)o/(r)eject: ", request);
 	let _ = stdout().flush();
 	match BufReader::new(stdin()).lines().next() {
@@ -43,7 +43,8 @@ fn sign_interactive(
 }
 
 fn sign_transactions(
-	signer: &mut SignerRpc, password: String
+	signer: &mut SignerRpc,
+	password: String
 ) -> Result<String, String> {
 	try!(signer.requests_to_confirm().map(|reqs| {
 		match reqs {
@@ -120,8 +121,7 @@ pub fn cmd_signer_list(
 	signerport: u16, authfile: PathBuf
 ) -> Result<String, String> {
 	let addr = &format!("ws://127.0.0.1:{}", signerport);
-	let mut signer = try!(SignerRpc::new(addr, &authfile));
-	signer.map_err(|err| {
+	let mut signer = try!(SignerRpc::new(addr, &authfile).map_err(|err| {
 		format!("{:?}", err)
 	}));
 	list_transactions(&mut signer)
@@ -154,7 +154,8 @@ pub fn cmd_signer_sign(
 						_ => return Err(format!("No password in file"))
 					}
 				},
-				Err(e) => return Err(format!("Could not open password file: {}", e))
+				Err(e) =>
+					return Err(format!("Could not open password file: {}", e))
 			}
 		}
 		None => {
@@ -165,7 +166,8 @@ pub fn cmd_signer_sign(
 		}
 	}
 
-	let mut signer = try!(SignerRpc::new(&format!("ws://127.0.0.1:{}", signerport), &authfile).map_err(|err| {
+	let addr = &format!("ws://127.0.0.1:{}", signerport);
+	let mut signer = try!(SignerRpc::new(addr, &authfile).map_err(|err| {
 		format!("{:?}", err)
 	}));
 

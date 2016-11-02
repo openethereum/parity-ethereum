@@ -13,15 +13,17 @@ use util::{Hashable, Mutex};
 use url::Url;
 use std::fs::File;
 
-use ws::{self,
-		 Request,
-		 Handler,
-		 Sender,
-		 Handshake,
-		 Error as WsError,
-		 ErrorKind as WsErrorKind,
-		 Message,
-		 Result as WsResult};
+use ws::{
+	self,
+	Request,
+	Handler,
+	Sender,
+	Handshake,
+	Error as WsError,
+	ErrorKind as WsErrorKind,
+	Message,
+	Result as WsResult
+};
 
 use serde::Deserialize;
 use serde_json::{self as json,
@@ -73,7 +75,8 @@ impl Handler for RpcHandler {
 				r.add_protocol(&proto);
 				Ok(r)
 			},
-			Err(e) => Err(WsError::new(WsErrorKind::Internal, format!("{}", e))),
+			Err(e) =>
+				Err(WsError::new(WsErrorKind::Internal, format!("{}", e))),
 		}
     }
     fn on_error(&mut self, err: WsError) {
@@ -93,7 +96,8 @@ impl Handler for RpcHandler {
 				Ok(())
 			},
 			_ => {
-				Err(WsError::new(WsErrorKind::Internal, format!("on_open called twice")))
+				let msg = format!("on_open called twice");
+				Err(WsError::new(WsErrorKind::Internal, msg))
 			}
 		}
 	}
@@ -102,7 +106,8 @@ impl Handler for RpcHandler {
 		let response_id;
 		let string = &msg.to_string();
 		match json::from_str::<SyncOutput>(&string) {
-			Ok(SyncOutput::Success(Success { result, id: Id::Num(id), .. })) => {
+			Ok(SyncOutput::Success(Success { result, id: Id::Num(id), .. })) =>
+			{
 				ret = Ok(result);
 				response_id = id as usize;
 			}
@@ -111,11 +116,20 @@ impl Handler for RpcHandler {
 				response_id = id as usize;
 			}
 			Err(e) => {
-				warn!(target: "rpc-client", "recieved invalid message: {}\n {:?}", string, e);
+				warn!(
+					target: "rpc-client",
+					"recieved invalid message: {}\n {:?}",
+					string,
+					e
+				);
 				return Ok(())
 			},
 			_ => {
-				warn!(target: "rpc-client", "recieved invalid message: {}", string);
+				warn!(
+					target: "rpc-client",
+					"recieved invalid message: {}",
+					string
+				);
 				return Ok(())
 			}
 		}
@@ -124,7 +138,11 @@ impl Handler for RpcHandler {
 			Some(c) => c.complete(ret.map_err(|err| {
 				RpcError::JsonRpc(err)
 			})),
-			None => warn!(target: "rpc-client", "warning: unexpected id: {}", response_id),
+			None => warn!(
+				target: "rpc-client",
+				"warning: unexpected id: {}",
+				response_id
+			),
 		}
 		Ok(())
     }
@@ -132,7 +150,9 @@ impl Handler for RpcHandler {
 
 /// Keeping track of issued requests to be matched up with responses
 #[derive(Clone)]
-struct Pending(Arc<Mutex<BTreeMap<usize, Complete<Result<JsonValue, RpcError>>>>>);
+struct Pending(
+	Arc<Mutex<BTreeMap<usize, Complete<Result<JsonValue, RpcError>>>>>
+);
 
 impl Pending {
 	fn new() -> Self {
@@ -141,7 +161,10 @@ impl Pending {
 	fn insert(&mut self, k: usize, v: Complete<Result<JsonValue, RpcError>>) {
 		self.0.lock().insert(k, v);
 	}
-	fn remove(&mut self, k: usize) -> Option<Complete<Result<JsonValue, RpcError>>> {
+	fn remove(
+		&mut self,
+		k: usize
+	) -> Option<Complete<Result<JsonValue, RpcError>>> {
 		self.0.lock().remove(&k)
 	}
 }
@@ -178,22 +201,24 @@ impl Rpc {
 			Err(e) => return done(Ok(Err(e))).boxed(),
 			Ok(code) => {
 				let url = String::from(url);
-				// The ws::connect takes a FnMut closure, which means c cannot be
-				// moved into it, since it's consumed on complete.
+				// The ws::connect takes a FnMut closure, which means c cannot
+				// be moved into it, since it's consumed on complete.
 				// Therefore we wrap it in an option and pick it out once.
 				let mut once = Some(c);
 				thread::spawn(move || {
 					let conn = ws::connect(url, |out| {
 						// this will panic if the closure is called twice,
 						// which it should never be.
-						let c = once.take().expect("connection closure called only once");
+						let c = once.take()
+							.expect("connection closure called only once");
 						RpcHandler::new(out, code.clone(), c)
 					});
 					match conn {
 						Err(err) => {
 							// since ws::connect is only called once, it cannot
 							// both fail and succeed.
-							let c = once.take().expect("connection closure called only once");
+							let c = once.take()
+								.expect("connection closure called only once");
 							c.complete(Err(RpcError::WsError(err)));
 						},
 						// c will complete on the `on_open` event in the Handler
@@ -222,7 +247,8 @@ impl Rpc {
 			id: Id::Num(id as u64),
 		};
 
-		let serialized = json::to_string(&request).expect("request is serializable");
+		let serialized = json::to_string(&request)
+			.expect("request is serializable");
 		let _ = self.out.send(serialized);
 
 		p.map(|result| {
