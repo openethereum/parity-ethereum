@@ -211,7 +211,7 @@ impl Client {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
+		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
 		let factories = Factories {
 			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),

@@ -22,7 +22,8 @@ Operating Options:
                            passive - Parity syncs initially, then sleeps and
                            wakes regularly to resync.
                            dark - Parity syncs only when an external interface
-                           is active. (default: {flag_mode}).
+                           is active.
+                           off - Parity never syncs at all (default: {flag_mode}).
   --mode-timeout SECS      Specify the number of seconds before inactivity
                            timeout occurs when mode is dark or passive
                            (default: {flag_mode_timeout}).

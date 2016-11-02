@@ -58,6 +58,7 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 		"active" => Ok(Mode::Active),
 		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
 		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
+		"off" => Ok(Mode::Off),
 		_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", s)),
 	}
 }
