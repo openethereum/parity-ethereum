@@ -32,6 +32,7 @@ export default class AddressSelect extends Component {
     disabled: PropTypes.bool,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     label: PropTypes.string,
     hint: PropTypes.string,
     error: PropTypes.string,
@@ -47,15 +48,15 @@ export default class AddressSelect extends Component {
   }
 
   componentWillMount () {
-    const { accounts, contacts, value } = this.props;
-    const entries = Object.assign({}, accounts || {}, contacts || {});
+    const { accounts, contacts, contracts, value } = this.props;
+    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
 
     this.setState({ entries, value });
   }
 
   componentWillReceiveProps (newProps) {
-    const { accounts, contacts } = newProps;
-    const entries = Object.assign({}, accounts || {}, contacts || {});
+    const { accounts, contacts, contracts } = newProps;
+    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
 
     this.setState({ entries });
   }
