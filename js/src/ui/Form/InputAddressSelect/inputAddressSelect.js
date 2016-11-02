@@ -48,10 +48,12 @@ class InputAddressSelect extends Component {
     address: ''
   }
 
+  componentWillMount () {
+    this.updateChoices();
+  }
+
   componentWillReceiveProps (nextProps) {
-    const { accounts, contacts } = nextProps;
-    // TODO diff against last props
-    this.setState({ choices: this.computeChoices(accounts, contacts) });
+    this.updateChoices(nextProps);
   }
 
   render () {
@@ -100,6 +102,11 @@ class InputAddressSelect extends Component {
     );
   }
 
+  updateChoices = (nextProps) => {
+    const { accounts, contacts } = nextProps || this.props;
+    this.setState({ choices: this.computeChoices(accounts, contacts) });
+  }
+
   computeChoices = (accounts, contacts) => {
     return Object.values(Object.assign({}, contacts, accounts))
       .map((data) => ({
@@ -116,7 +123,6 @@ class InputAddressSelect extends Component {
 
   filter = (query, _, choice) => {
     query = query.trim();
-    if (query === '') return false;
 
     const needle = normalize(query);
     return (choice.tokens.indexOf(needle) >= 0) ||
