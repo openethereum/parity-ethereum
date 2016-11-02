@@ -24,7 +24,7 @@
 }
 
 .item {
-  display: inline-block;
-  margin: 0.25%;
-  flex: 0 1 49.5%;
+  padding: 0.125em;
+  flex: 0 1 50%;
+  box-sizing: border-box;
 }
