@@ -92,7 +92,7 @@ class InputAddressSelect extends Component {
         />
         <AutoComplete
           floatingLabelText={ label }
-          hintText={ hint || 'search for an address' }
+          hintText={ hint || 'enter a name or an address' }
           errorText={ error }
           dataSource={ choices }
           filter={ this.filter }
