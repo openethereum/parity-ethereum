@@ -134,7 +134,6 @@ export default class Status extends Component {
           <div className={ styles.col6 }>
             <Input
               readOnly
-              copiable
               label='rpc port'
               value={ rpcSettings.port.toString() }
               { ...this._test('rpc-port') } />

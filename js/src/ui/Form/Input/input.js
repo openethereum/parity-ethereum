@@ -21,6 +21,8 @@ import CopyIcon from 'material-ui/svg-icons/content/content-copy';
 import { TextField, IconButton } from 'material-ui';
 import { lightWhite, fullWhite } from 'material-ui/styles/colors';
 
+import styles from './input.css';
+
 // TODO: duplicated in Select
 const UNDERLINE_DISABLED = {
   borderBottom: 'dotted 2px',
@@ -48,6 +50,7 @@ export default class Input extends Component {
       PropTypes.string,
       PropTypes.bool
     ]),
+    copyPosition: PropTypes.oneOf([ 'left', 'right' ]),
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
@@ -67,11 +70,13 @@ export default class Input extends Component {
   static defaultProps = {
     submitOnBlur: true,
     readOnly: false,
-    copiable: false
+    copiable: false,
+    copyPosition: 'left'
   }
 
   state = {
     value: this.props.value || '',
+    timeoutId: null,
     copied: false
   }
 
@@ -81,46 +86,66 @@ export default class Input extends Component {
     }
   }
 
+  componentWillUnmount () {
+    const { timeoutId } = this.state;
+
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  }
+
   render () {
     const { value } = this.state;
-    const { children, className, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, copiable, copyPosition, disabled, error, label, hint, multiLine, rows, type } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
+    const inputStyle = {};
+
+    if (readOnly) {
+      inputStyle.cursor = 'text';
+    }
+
+    if (copiable && copyPosition === 'left') {
+      inputStyle.paddingLeft = 24;
+    }
+
     return (
-      <TextField
-        autoComplete='off'
-        className={ className }
+      <div className={ styles.container }>
+        <TextField
+          autoComplete='off'
+          className={ className }
 
-        readOnly={ readOnly }
+          readOnly={ readOnly }
 
-        errorText={ error }
-        floatingLabelFixed
-        floatingLabelText={ label }
-        fullWidth
-        hintText={ hint }
-        multiLine={ multiLine }
-        name={ NAME_ID }
-        id={ NAME_ID }
-        rows={ rows }
-        type={ type || 'text' }
-        underlineDisabledStyle={ UNDERLINE_DISABLED }
-        underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
-        underlineFocusStyle={ readOnly ? { display: 'none' } : null }
-        value={ value }
-        onBlur={ this.onBlur }
-        onChange={ this.onChange }
-        onKeyDown={ this.onKeyDown }
-        inputStyle={ readOnly ? { cursor: 'text' } : null }
-      >
-        { children }
+          errorText={ error }
+          floatingLabelFixed
+          floatingLabelText={ label }
+          fullWidth
+          hintText={ hint }
+          multiLine={ multiLine }
+          name={ NAME_ID }
+          id={ NAME_ID }
+          rows={ rows }
+          type={ type || 'text' }
+          underlineDisabledStyle={ UNDERLINE_DISABLED }
+          underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
+          underlineFocusStyle={ readOnly ? { display: 'none' } : null }
+          value={ value }
+          onBlur={ this.onBlur }
+          onChange={ this.onChange }
+          onKeyDown={ this.onKeyDown }
+          inputStyle={ inputStyle }
+        >
+          { children }
+        </TextField>
         { this.renderCopyButton() }
-      </TextField>
+      </div>
     );
   }
 
   renderCopyButton () {
-    const { copiable } = this.props;
+    const { copiable, copyPosition } = this.props;
     const { copied, value } = this.state;
 
     if (!copiable) {
@@ -131,35 +156,55 @@ export default class Input extends Component {
       ? copiable
       : value;
 
+    const tooltipPosition = copyPosition === 'left'
+      ? 'bottom-right'
+      : 'top-left';
+
+    const scale = copied ? 'scale(1.15)' : 'scale(1)';
+    const classes = [ styles.copy, styles[copyPosition] ];
+
     return (
-      <CopyToClipboard
-        onCopy={ this.handleCopy }
-        text={ text } >
-        <IconButton
-          tooltip='Copy to clipboard'
-          tooltipPosition='top-center'
-          style={ {
-            width: 32,
-            height: 16,
-            padding: 0
-          } }
-          iconStyle={ {
-            width: 16,
-            height: 16
-          } }>
-          <CopyIcon
-            color={ copied ? lightWhite : fullWhite }
-          />
-        </IconButton>
-      </CopyToClipboard>
+      <div className={ classes.join(' ') }>
+        <CopyToClipboard
+          onCopy={ this.handleCopy }
+          text={ text } >
+          <IconButton
+            tooltip={ `${copied ? 'Copied' : 'Copy'} to clipboard` }
+            tooltipPosition={ tooltipPosition }
+            style={ {
+              width: 16,
+              height: 16,
+              padding: 0
+            } }
+            iconStyle={ {
+              width: 16,
+              height: 16,
+              transform: scale
+            } }
+            tooltipStyles={ {
+              top: 16
+            } }
+          >
+            <CopyIcon
+              color={ copied ? lightWhite : fullWhite }
+            />
+          </IconButton>
+        </CopyToClipboard>
+      </div>
     );
   }
 
   handleCopy = () => {
+    if (this.state.timeoutId) {
+      window.clearTimeout(this.state.timeoutId);
+    }
+
     this.setState({ copied: true }, () => {
-      window.setTimeout(() => {
+      const timeoutId = window.setTimeout(() => {
         this.setState({ copied: false });
-      }, 4000);
+      }, 500);
+
+      this.setState({ timeoutId });
     });
   }
 
