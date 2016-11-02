@@ -434,6 +434,7 @@ impl Miner {
 			let last_request = *self.sealing_block_last_request.lock();
 			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
+                && !self.seals_internally
 				&& best_block > last_request
 				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
