@@ -268,7 +268,8 @@ class MethodDecoding extends Component {
         default:
           return (
             <Input
-              disabled
+              readOnly
+              allowCopy
               key={ index }
               className={ styles.input }
               value={ this.renderValue(input.value) }

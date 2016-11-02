@@ -63,25 +63,25 @@
 }
 
 .methodResults > div {
-  margin: 0.5rem;
+  padding: 0.25rem 0.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
-  max-width: 100%;
+  flex: 1 1 50%;
+  box-sizing: border-box;
+
+  & > div {
+    width: 100%;
+  }
+}
+
+.queryValue {
+  width: 100%;
 }
 
 .queryValue, .queryValue * {
-  user-select: text !important;
-  max-width: 100%;
-  box-sizing: border-box;
   white-space: normal !important;
   overflow-wrap: break-word !important;
-}
-
-.queryValue:hover {
-  cursor: text !important;
-}
-
-.queryResultName {
-  margin-bottom: 0.25rem;
+  max-width: 100%;
+  box-sizing: border-box;
 }

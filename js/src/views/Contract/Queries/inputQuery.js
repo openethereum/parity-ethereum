@@ -16,7 +16,6 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import Chip from 'material-ui/Chip';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
@@ -104,13 +103,21 @@ export default class InputQuery extends Component {
         display: this.renderValue(results[index])
       }))
       .sort((outA, outB) => outA.display.length - outB.display.length)
-      .map((out, index) => (<div key={ index }>
-        <div className={ styles.queryResultName }>{ out.name }</div>
-        <Chip className={ styles.queryValue }>
-          { out.display }
-        </Chip>
-        <br />
-      </div>));
+      .map((out, index) => (
+        <div key={ index }>
+          <div className={ styles.queryResultName }>
+            { out.name }
+          </div>
+
+          <Input
+            className={ styles.queryValue }
+            readOnly
+            allowCopy
+            value={ out.display }
+          />
+          <br />
+        </div>
+      ));
   }
 
   renderInput (input) {
