@@ -72,7 +72,6 @@ export default class RecoveryPhrase extends Component {
         <div className={ styles.passwords }>
           <div className={ styles.password }>
             <Input
-              className={ styles.password }
               label='password'
               hint='a strong, unique password'
               type='password'
@@ -82,7 +81,6 @@ export default class RecoveryPhrase extends Component {
           </div>
           <div className={ styles.password }>
             <Input
-              className={ styles.password }
               label='password (repeat)'
               hint='verify your password'
               type='password'
