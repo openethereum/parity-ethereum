@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
@@ -47,6 +47,16 @@ export default class Summary extends Component {
     const { address } = account;
     const viewLink = `/${link || 'account'}/${address}`;
 
+    const addressComponent = (
+      <Input
+        readOnly
+        hideUnderline
+        value={ address }
+        copiable={ address }
+        copyPosition='left'
+      />
+    );
+
     return (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
@@ -54,7 +64,7 @@ export default class Summary extends Component {
           address={ address } />
         <ContainerTitle
           title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
-          byline={ address } />
+          byline={ addressComponent } />
         <Balance
           balance={ balance } />
         { children }

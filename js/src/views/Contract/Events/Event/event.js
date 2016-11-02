@@ -129,10 +129,12 @@ class Event extends Component {
 
         return (
           <Input
-            disabled
+            readOnly
+            copiable
             className={ styles.input }
             value={ value }
-            label={ name } />
+            label={ name }
+          />
         );
     }
   }

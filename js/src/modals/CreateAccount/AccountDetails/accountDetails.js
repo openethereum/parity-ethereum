@@ -31,7 +31,8 @@ export default class AccountDetails extends Component {
     return (
       <Form>
         <Input
-          disabled
+          readOnly
+          copiable
           hint='a descriptive name for the account'
           label='account name'
           value={ name } />
@@ -55,6 +56,7 @@ export default class AccountDetails extends Component {
     return (
       <Input
         readOnly
+        copiable
         hint='the account recovery phrase'
         label='account recovery phrase (keep safe)'
         value={ phrase } />

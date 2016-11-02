@@ -62,6 +62,7 @@ export default class Input extends Component {
     rows: PropTypes.number,
     type: PropTypes.string,
     submitOnBlur: PropTypes.bool,
+    hideUnderline: PropTypes.bool,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
     ])
@@ -71,7 +72,8 @@ export default class Input extends Component {
     submitOnBlur: true,
     readOnly: false,
     copiable: false,
-    copyPosition: 'left'
+    copyPosition: 'left',
+    hideUnderline: false
   }
 
   state = {
@@ -96,11 +98,12 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, copiable, copyPosition, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, copiable, copyPosition, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
-    const inputStyle = {};
+    const inputStyle = { overflow: 'hidden' };
+    const textFieldStyle = {};
 
     if (readOnly) {
       inputStyle.cursor = 'text';
@@ -110,11 +113,16 @@ export default class Input extends Component {
       inputStyle.paddingLeft = 24;
     }
 
+    if (hideUnderline && !hint) {
+      textFieldStyle.height = 'initial';
+    }
+
     return (
       <div className={ styles.container }>
         <TextField
           autoComplete='off'
           className={ className }
+          style={ textFieldStyle }
 
           readOnly={ readOnly }
 
@@ -131,6 +139,7 @@ export default class Input extends Component {
           underlineDisabledStyle={ UNDERLINE_DISABLED }
           underlineStyle={ readOnly ? UNDERLINE_READONLY : UNDERLINE_NORMAL }
           underlineFocusStyle={ readOnly ? { display: 'none' } : null }
+          underlineShow={ !hideUnderline }
           value={ value }
           onBlur={ this.onBlur }
           onChange={ this.onChange }
@@ -145,12 +154,16 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { copiable, copyPosition } = this.props;
+    const { copiable, copyPosition, hideUnderline, label, hint } = this.props;
     const { copied, value } = this.state;
 
     if (!copiable) {
       return null;
     }
+
+    const style = {
+      bottom: 13
+    };
 
     const text = typeof copiable === 'string'
       ? copiable
@@ -163,8 +176,16 @@ export default class Input extends Component {
     const scale = copied ? 'scale(1.15)' : 'scale(1)';
     const classes = [ styles.copy, styles[copyPosition] ];
 
+    if (hideUnderline && !label) {
+      style.bottom = 2;
+    } else if (label && !hint) {
+      style.bottom = 4;
+    } else if (label && hint) {
+      style.bottom = 10;
+    }
+
     return (
-      <div className={ classes.join(' ') }>
+      <div className={ classes.join(' ') } style={ style }>
         <CopyToClipboard
           onCopy={ this.handleCopy }
           text={ text } >

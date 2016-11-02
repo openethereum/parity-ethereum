@@ -21,7 +21,6 @@
 
 .copy {
   position: absolute;
-  bottom: 11px;
 
   svg {
     transition: all .5s ease-in-out;

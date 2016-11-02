@@ -82,9 +82,9 @@ class Background extends Component {
     const { settings } = this.props;
     const { seeds } = this.state;
 
-    return seeds.map((seed) => {
+    return seeds.map((seed, index) => {
       return (
-        <div className={ styles.bgflex } key={ seed }>
+        <div className={ styles.bgflex } key={ index }>
           <div className={ styles.bgseed }>
             <ParityBackground
               className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
