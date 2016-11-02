@@ -33,7 +33,8 @@ export default class AddressSelect extends Component {
     error: PropTypes.string,
     value: PropTypes.string,
     tokens: PropTypes.object,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    onUpdateInput: PropTypes.func
   }
 
   state = {
@@ -44,17 +45,19 @@ export default class AddressSelect extends Component {
   componentWillMount () {
     const { accounts, contacts, value } = this.props;
     const entries = Object.assign({}, accounts || {}, contacts || {});
+
     this.setState({ entries, value });
   }
 
   componentWillReceiveProps (newProps) {
     const { accounts, contacts } = newProps;
     const entries = Object.assign({}, accounts || {}, contacts || {});
+
     this.setState({ entries });
   }
 
   render () {
-    const { disabled, error, hint, label } = this.props;
+    const { disabled, error, hint, label, onUpdateInput } = this.props;
     const { entries } = this.state;
     const value = this.getSearchText();
 
@@ -67,6 +70,7 @@ export default class AddressSelect extends Component {
           hint={ hint ? `search for ${hint}` : 'search for an address' }
           error={ error }
           onChange={ this.onChange }
+          onUpdateInput={ onUpdateInput }
           value={ value }
           filter={ this.handleFilter }
           entries={ entries }

@@ -17,44 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { AutoComplete, MenuItem } from 'material-ui';
-import normalize from 'normalize-for-search';
 
-import IdentityIcon from '../../IdentityIcon';
-
-import styles from './inputAddressSelect.css';
-
-const isAccount = (choice) => choice.data && choice.data.uuid;
-
-const isNotDeleted = (choice) => choice.data && choice.data.meta && !choice.data.meta.deleted;
-
-const sortChoices = (a, b) => {
-  // accounts first
-  if (isAccount(a) && !isAccount(b)) {
-    return -1;
-  } else if (!isAccount(a) && isAccount(b)) {
-    return 1;
-  }
-
-  // alphabetically
-  if (a.tokens < b.tokens) {
-    return -1;
-  } else if (a.tokens > b.tokens) {
-    return 1;
-  }
-
-  // fallback
-  return 0;
-};
-
-const innerDivStyle = {
-  display: 'flex',
-  alignItems: 'center',
-  paddingLeft: '1em',
-  paddingRight: '1em'
-};
-const floatingLabelStyle = { marginLeft: '-2.65em' };
-const errorStyle = { marginLeft: '-3.5em' };
+import AddressSelect from '../addressSelect';
 
 class InputAddressSelect extends Component {
   static contextTypes = {
@@ -68,124 +32,49 @@ class InputAddressSelect extends Component {
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
-    maxSearchResults: PropTypes.number,
     onChange: PropTypes.func
   };
 
-  static defaultProps = {
-    onChange: () => {}
-  };
-
   state = {
-    choices: [],
     address: ''
   }
 
-  componentWillMount () {
-    this.updateChoices();
-  }
-
-  componentWillReceiveProps (nextProps) {
-    this.updateChoices(nextProps);
-  }
-
   render () {
-    const { api } = this.context;
-    const { label, hint, error, maxSearchResults } = this.props;
-    const { choices, address } = this.state;
-
-    let addressToRender = address;
-    if (!api.util.isAddressValid(address)) {
-      addressToRender = api.util.isAddressValid(`0x${address}`)
-        ? `0x${address}`
-        : null;
-    }
+    const { accounts, contacts, label, hint, error, value } = this.props;
 
     return (
-      <div className={ styles.wrapper }>
-        <IdentityIcon
-          className={ styles.icon }
-          address={ addressToRender }
-          inline
-        />
-        <AutoComplete
-          floatingLabelText={ label }
-          hintText={ hint || 'enter a name or an address' }
-          errorText={ error }
-          dataSource={ choices }
-          filter={ this.filter }
-          onNewRequest={ this.onNewRequest }
-          onUpdateInput={ this.onUpdateInput }
-          maxSearchResults={ maxSearchResults || 8 }
-          fullWidth openOnFocus floatingLabelFixed
-          floatingLabelStyle={ floatingLabelStyle }
-          errorStyle={ errorStyle }
-        />
-      </div>
+      <AddressSelect
+        accounts={ accounts }
+        contacts={ contacts }
+        error={ error }
+        label={ label }
+        hint={ hint }
+        value={ value }
+        onChange={ this.onChange }
+        onUpdateInput={ this.onUpdateInput } />
     );
   }
 
-  renderChoice = (data) => {
-    const icon = (
-      <IdentityIcon
-        address={ data.address }
-        inline />
-    );
+  onChange = (event, address) => {
+    const { onChange } = this.props;
 
-    return (
-      <MenuItem
-        primaryText={ data.name }
-        key={ data.address }
-        leftIcon={ icon }
-        innerDivStyle={ innerDivStyle }
-      />
-    );
-  }
-
-  updateChoices = (nextProps) => {
-    const { accounts, contacts } = nextProps || this.props;
-
-    this.setState({
-      choices: this.computeChoices(accounts, contacts)
-    });
-  }
-
-  computeChoices = (accounts, contacts) => {
-    return Object
-      .values(Object.assign({}, contacts, accounts))
-      .map((data) => ({
-        tokens: normalize(data.name),
-        value: this.renderChoice(data),
-        text: data.name, data
-      }))
-      .filter(isNotDeleted)
-      .sort(sortChoices);
-  };
-
-  onNewRequest = (choice) => {
-    this.setState({ address: choice.data.address });
-    this.props.onChange(null, choice.data.address);
-  };
-
-  filter = (query, _, choice) => {
-    query = query.trim();
-
-    const needle = normalize(query);
-    const { tokens, data } = choice;
-
-    return (tokens.indexOf(needle) >= 0) || (data.address.slice(0, query.length).toLowerCase() === query);
+    console.log('onChange', event, address);
+    onChange(null, address);
   };
 
   onUpdateInput = (query, choices) => {
     const { api } = this.context;
+    const { onChange } = this.props;
+
+    console.log('onUpdateInput', query);
 
     query = query.trim();
     this.setState({ address: query });
 
     if (query.slice(0, 2) !== '0x' && api.util.isAddressValid(`0x${query}`)) {
-      this.props.onChange(null, `0x${query}`);
+      onChange(null, `0x${query}`);
     } else {
-      this.props.onChange(null, query);
+      onChange(null, query);
     }
   };
 }
