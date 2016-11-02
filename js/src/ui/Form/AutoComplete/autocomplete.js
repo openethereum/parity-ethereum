@@ -109,11 +109,17 @@ export default class AutoComplete extends Component {
   }
 
   onBlur = () => {
-    window.setTimeout(() => {
-      const { entry } = this.state;
+    const { onUpdateInput } = this.props;
 
-      this.handleOnChange(entry);
-    }, 100);
+    // TODO: Handle blur gracefully where we use onUpdateInput (currently replaces input
+    // input where text is allowed with the last selected value from the dropdown)
+    if (!onUpdateInput) {
+      window.setTimeout(() => {
+        const { entry } = this.state;
+
+        this.handleOnChange(entry);
+      }, 100);
+    }
   }
 
   onFocus = () => {
@@ -132,5 +138,4 @@ export default class AutoComplete extends Component {
       this.props.onChange(value, empty);
     }
   }
-
 }

@@ -24,6 +24,10 @@ import IdentityName from '../../IdentityName';
 import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     disabled: PropTypes.bool,
     accounts: PropTypes.object,
@@ -34,7 +38,7 @@ export default class AddressSelect extends Component {
     value: PropTypes.string,
     tokens: PropTypes.object,
     onChange: PropTypes.func.isRequired,
-    onUpdateInput: PropTypes.func
+    allowInput: PropTypes.bool
   }
 
   state = {
@@ -57,20 +61,22 @@ export default class AddressSelect extends Component {
   }
 
   render () {
-    const { disabled, error, hint, label, onUpdateInput } = this.props;
+    const { allowInput, disabled, error, hint, label } = this.props;
     const { entries } = this.state;
     const value = this.getSearchText();
+    const hasValue = value.length || (allowInput ? this.props.value.length : false);
 
     return (
       <div className={ styles.container }>
         <AutoComplete
-          className={ (error || !value) ? '' : styles.paddedInput }
+          className={ (error || !hasValue) ? '' : styles.paddedInput }
           disabled={ disabled }
           label={ label }
           hint={ hint ? `search for ${hint}` : 'search for an address' }
           error={ error }
           onChange={ this.onChange }
-          onUpdateInput={ onUpdateInput }
+          onBlur={ this.onBlur }
+          onUpdateInput={ this.onUpdateInput }
           value={ value }
           filter={ this.handleFilter }
           entries={ entries }
@@ -78,7 +84,7 @@ export default class AddressSelect extends Component {
           renderItem={ this.renderItem }
         />
 
-        { this.renderIdentityIcon(value) }
+        { this.renderIdentityIcon(value || (allowInput ? this.props.value : value)) }
       </div>
     );
   }
@@ -131,16 +137,23 @@ export default class AddressSelect extends Component {
 
   getSearchText () {
     const entry = this.getEntry();
-    if (!entry) return '';
+
+    if (!entry) {
+      return '';
+    }
 
     return entry.name ? entry.name.toUpperCase() : '';
   }
 
   getEntry () {
     const { value } = this.props;
-    if (!value) return '';
+
+    if (!value) {
+      return '';
+    }
 
     const { entries } = this.state;
+
     return entries[value];
   }
 
@@ -148,15 +161,35 @@ export default class AddressSelect extends Component {
     const entry = this.state.entries[address];
     const lowCaseSearch = searchText.toLowerCase();
 
-    return [ entry.name, entry.address ]
+    return [entry.name, entry.address]
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
   }
 
   onChange = (entry, empty) => {
+    const { value, allowInput } = this.props;
+
     const address = entry && entry.address
       ? entry.address
-      : (empty ? '' : this.state.value);
+      : ((empty && !allowInput) ? '' : value);
 
     this.props.onChange(null, address);
   }
+
+  onUpdateInput = (query, choices) => {
+    const { api } = this.context;
+    const { onChange } = this.props;
+
+    query = query.trim();
+    let address = query;
+
+    if (query.slice(0, 2) !== '0x' && api.util.isAddressValid(`0x${query}`)) {
+      address = api.util.toChecksumAddress(`0x${query}`);
+    } else if (api.util.isAddressValid(address)) {
+      address = api.util.toChecksumAddress(address);
+    }
+
+    console.log('onUpdateInput', address);
+
+    onChange(null, address);
+  };
 }

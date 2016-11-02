@@ -18,13 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import AddressSelect from '../addressSelect';
+import AddressSelect from '../AddressSelect';
 
 class InputAddressSelect extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     contacts: PropTypes.object.isRequired,
@@ -35,48 +31,21 @@ class InputAddressSelect extends Component {
     onChange: PropTypes.func
   };
 
-  state = {
-    address: ''
-  }
-
   render () {
-    const { accounts, contacts, label, hint, error, value } = this.props;
+    const { accounts, contacts, label, hint, error, value, onChange } = this.props;
 
     return (
       <AddressSelect
+        allowInput
         accounts={ accounts }
         contacts={ contacts }
         error={ error }
         label={ label }
         hint={ hint }
         value={ value }
-        onChange={ this.onChange }
-        onUpdateInput={ this.onUpdateInput } />
+        onChange={ onChange } />
     );
   }
-
-  onChange = (event, address) => {
-    const { onChange } = this.props;
-
-    console.log('onChange', event, address);
-    onChange(null, address);
-  };
-
-  onUpdateInput = (query, choices) => {
-    const { api } = this.context;
-    const { onChange } = this.props;
-
-    console.log('onUpdateInput', query);
-
-    query = query.trim();
-    this.setState({ address: query });
-
-    if (query.slice(0, 2) !== '0x' && api.util.isAddressValid(`0x${query}`)) {
-      onChange(null, `0x${query}`);
-    } else {
-      onChange(null, query);
-    }
-  };
 }
 
 function mapStateToProps (state) {
