@@ -20,12 +20,13 @@ import ActionbarSearch from './Actionbar/Search';
 import ActionbarSort from './Actionbar/Sort';
 import Badge from './Badge';
 import Balance from './Balance';
+import BlockStatus from './BlockStatus';
 import Button from './Button';
 import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import Errors from './Errors';
-import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputInline, Select } from './Form';
+import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import MethodDecoding from './MethodDecoding';
@@ -46,6 +47,7 @@ export {
   AddressSelect,
   Badge,
   Balance,
+  BlockStatus,
   Button,
   ConfirmDialog,
   Container,
@@ -57,6 +59,7 @@ export {
   Input,
   InputAddress,
   InputAddressSelect,
+  InputChip,
   InputInline,
   Select,
   IdentityIcon,

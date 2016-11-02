@@ -19,6 +19,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { validateAddress } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
@@ -149,6 +150,9 @@ export default class ExecuteContract extends Component {
         case 'address':
           return '0x';
 
+        case 'bool':
+          return false;
+
         case 'bytes':
           return '0x';
 
@@ -169,13 +173,16 @@ export default class ExecuteContract extends Component {
   onValueChange = (event, index, _value) => {
     const { func, values, valuesError } = this.state;
     const input = func.inputs.find((input, _index) => index === _index);
-    let value;
-    let valueError;
+    let value = _value;
+    let valueError = null;
 
     switch (input.kind.type) {
-      default:
-        value = _value;
-        valueError = null;
+      case 'bool':
+        value = _value === 'true';
+        break;
+
+      case 'address':
+        valueError = validateAddress(_value).addressError;
         break;
     }
 

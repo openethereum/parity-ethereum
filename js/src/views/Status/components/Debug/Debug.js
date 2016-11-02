@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import AvPause from 'material-ui/svg-icons/av/pause';
 import AvPlay from 'material-ui/svg-icons/av/play-arrow';
 import AvReplay from 'material-ui/svg-icons/av/replay';
+import ReorderIcon from 'material-ui/svg-icons/action/reorder';
 
 import { Container, ContainerTitle } from '../../../../ui';
 
@@ -30,6 +31,10 @@ export default class Debug extends Component {
       toggleStatusLogs: PropTypes.func.isRequired
     }).isRequired,
     nodeStatus: PropTypes.object.isRequired
+  }
+
+  state = {
+    reversed: true
   }
 
   render () {
@@ -66,16 +71,43 @@ export default class Debug extends Component {
 
   renderLogs () {
     const { nodeStatus } = this.props;
+    const { reversed } = this.state;
     const { devLogs } = nodeStatus;
+
+    const dateRegex = /^(\d{4}.\d{2}.\d{2}.\d{2}.\d{2}.\d{2})(.*)$/i;
 
     if (!devLogs) {
       return null;
     }
 
+    const logs = reversed
+      ? [].concat(devLogs).reverse()
+      : [].concat(devLogs);
+
+    const text = logs
+      .map((log, index) => {
+        const logDate = dateRegex.exec(log);
+
+        if (!logDate) {
+          return (
+            <p key={ index } className={ styles.log }>
+              { log }
+            </p>
+          );
+        }
+
+        return (
+          <p key={ index } className={ styles.log }>
+            <span className={ styles.logDate }>{ logDate[1] }</span>
+            <span className={ styles.logText }>{ logDate[2] }</span>
+          </p>
+        );
+      });
+
     return (
-      <pre className={ styles.logs }>
-        { devLogs.reverse().join('\n') }
-      </pre>
+      <div className={ styles.logs }>
+        { text }
+      </div>
     );
   }
 
@@ -89,6 +121,7 @@ export default class Debug extends Component {
       <div className={ styles.actions }>
         <a onClick={ this.toggle }>{ toggleButton }</a>
         <a onClick={ this.clear }><AvReplay /></a>
+        <a onClick={ this.reverse } title='Reverse Order'><ReorderIcon /></a>
       </div>
     );
   }
@@ -104,5 +137,10 @@ export default class Debug extends Component {
     const { toggleStatusLogs } = this.props.actions;
 
     toggleStatusLogs(!devLogsEnabled);
+  }
+
+  reverse = () => {
+    const { reversed } = this.state;
+    this.setState({ reversed: !reversed });
   }
 }

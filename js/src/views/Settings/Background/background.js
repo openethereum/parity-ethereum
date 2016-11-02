@@ -45,10 +45,12 @@ class Background extends Component {
 
   componentDidMount () {
     const { settings } = this.props;
+    const seeds = new Array(20).fill(null);
+    seeds[0] = settings.backgroundSeed;
 
     this.setState({
-      seeds: [settings.backgroundSeed]
-    }, () => this.addSeeds(19));
+      seeds
+    }, () => this.generateSeeds());
   }
 
   render () {
@@ -59,15 +61,17 @@ class Background extends Component {
           <div className={ layout.overview }>
             <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
             <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
+            <div>
+              <Button
+                icon={ <NavigationRefresh /> }
+                label='generate more'
+                onClick={ this.generateSeeds } />
+            </div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.bgcontainer }>
               { this.renderBackgrounds() }
             </div>
-            <Button
-              icon={ <NavigationRefresh /> }
-              label='generate more'
-              onClick={ this.generateMore } />
           </div>
         </div>
       </Container>
@@ -78,9 +82,9 @@ class Background extends Component {
     const { settings } = this.props;
     const { seeds } = this.state;
 
-    return seeds.map((seed) => {
+    return seeds.map((seed, index) => {
       return (
-        <div className={ styles.bgflex } key={ seed }>
+        <div className={ styles.bgflex } key={ index }>
           <div className={ styles.bgseed }>
             <ParityBackground
               className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
@@ -102,20 +106,20 @@ class Background extends Component {
     };
   }
 
-  generateMore = () => {
-    this.addSeeds(20);
-  }
-
-  addSeeds (count) {
+  generateSeeds = () => {
     const { seeds } = this.state;
-    const newSeeds = [];
+    const current = this.props.settings.backgroundSeed;
 
-    for (let index = 0; index < count; index++) {
-      newSeeds.push(this.generateSeed());
-    }
+    const newSeeds = seeds.map((seed) => {
+      if (seed === current) {
+        return seed;
+      }
+
+      return this.generateSeed();
+    });
 
     this.setState({
-      seeds: seeds.concat(newSeeds)
+      seeds: newSeeds
     });
   }
 

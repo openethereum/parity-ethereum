@@ -280,7 +280,7 @@ impl NodeTable {
 			json.push_str("\"nodes\": [\n");
 			let node_ids = self.nodes(AllowIP::All);
 			for i in 0 .. node_ids.len() {
-				let node = self.nodes.get(&node_ids[i]).unwrap();
+				let node = self.nodes.get(&node_ids[i]).expect("self.nodes() only returns node IDs from self.nodes");
 				json.push_str(&format!("\t{{ \"url\": \"{}\", \"failures\": {} }}{}\n", node, node.failures, if i == node_ids.len() - 1 {""} else {","}))
 			}
 			json.push_str("]\n");

@@ -18,11 +18,13 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import { BlockStatus } from '../../../ui';
+
 import styles from './status.css';
 
 class Status extends Component {
   static propTypes = {
-    blockNumber: PropTypes.object,
+    blockNumber: PropTypes.object.isRequired,
     clientVersion: PropTypes.string,
     netPeers: PropTypes.object,
     netChain: PropTypes.string,
@@ -30,7 +32,7 @@ class Status extends Component {
   }
 
   render () {
-    const { clientVersion, blockNumber, netChain, netPeers, isTest } = this.props;
+    const { blockNumber, clientVersion, netChain, netPeers, isTest } = this.props;
     const netStyle = `${styles.network} ${styles[isTest ? 'networktest' : 'networklive']}`;
 
     if (!blockNumber) {
@@ -44,9 +46,7 @@ class Status extends Component {
         </div>
         <div className={ styles.netinfo }>
           <div>
-            <div className={ styles.block }>
-              { blockNumber.toFormat() } blocks
-            </div>
+            <BlockStatus />
             <div className={ styles.peers }>
               { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
             </div>

@@ -24,7 +24,9 @@ export default class Title extends Component {
     title: PropTypes.oneOfType([
       PropTypes.string, PropTypes.node
     ]),
-    byline: PropTypes.string
+    byline: PropTypes.oneOfType([
+      PropTypes.string, PropTypes.node
+    ])
   }
 
   state = {
@@ -32,15 +34,23 @@ export default class Title extends Component {
   }
 
   render () {
-    const { className } = this.props;
+    const { className, title, byline } = this.props;
+
+    const byLine = typeof byline === 'string'
+      ? (
+      <span title={ byline }>
+        { byline }
+      </span>
+      )
+      : byline;
 
     return (
       <div className={ className }>
         <h3 className={ styles.title }>
-          { this.props.title }
+          { title }
         </h3>
         <div className={ styles.byline }>
-          <span title={ this.props.byline }>{ this.props.byline }</span>
+          { byLine }
         </div>
       </div>
     );

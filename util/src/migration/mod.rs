@@ -251,6 +251,7 @@ impl Manager {
 		let mut cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(Error::Custom)));
 
 		for migration in migrations {
+			trace!(target: "migration", "starting migration to version {}", migration.version());
 			// Change number of columns in new db
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();

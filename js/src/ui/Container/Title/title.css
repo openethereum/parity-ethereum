@@ -15,10 +15,20 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .byline {
-  color: #aaa;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   overflow: hidden;
+  position: relative;
+  line-height: 1.2em;
+  max-height: 2.4em;
+
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+
+  color: #aaa;
+
+  * {
+    color: #aaa !important;
+  }
 }
 
 .title {

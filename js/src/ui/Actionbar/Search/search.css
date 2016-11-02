@@ -41,11 +41,3 @@
   width: 0;
   height: 0;
 }
-
-.chip > svg {
-  width: 1.2rem !important;
-  height: 1.2rem !important;
-  margin: initial !important;
-  margin-right: 4px !important;
-  padding: 4px 0 !important;
-}

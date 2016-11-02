@@ -156,7 +156,7 @@ impl Discovery {
 		trace!(target: "discovery", "Inserting {:?}", &e);
 		let id_hash = e.id.sha3();
 		let ping = {
-			let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id_hash, &id_hash) as usize).unwrap();
+			let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id_hash) as usize];
 			let updated = if let Some(node) = bucket.nodes.iter_mut().find(|n| n.address.id == e.id) {
 				node.address = e.clone();
 				node.timeout = None;
@@ -169,8 +169,9 @@ impl Discovery {
 
 			if bucket.nodes.len() > BUCKET_SIZE {
 				//ping least active node
-				bucket.nodes.back_mut().unwrap().timeout = Some(time::precise_time_ns());
-				Some(bucket.nodes.back().unwrap().address.endpoint.clone())
+				let mut last = bucket.nodes.back_mut().expect("Last item is always present when len() > 0");
+				last.timeout = Some(time::precise_time_ns());
+				Some(last.address.endpoint.clone())
 			} else { None }
 		};
 		if let Some(endpoint) = ping {
@@ -179,7 +180,7 @@ impl Discovery {
 	}
 
 	fn clear_ping(&mut self, id: &NodeId) {
-		let mut bucket = self.node_buckets.get_mut(Discovery::distance(&self.id_hash, &id.sha3()) as usize).unwrap();
+		let mut bucket = &mut self.node_buckets[Discovery::distance(&self.id_hash, &id.sha3()) as usize];
 		if let Some(node) = bucket.nodes.iter_mut().find(|n| &n.address.id == id) {
 			node.timeout = None;
 		}
@@ -294,7 +295,7 @@ impl Discovery {
 				if count == BUCKET_SIZE {
 					// delete the most distant element
 					let remove = {
-						let (key, last) = found.iter_mut().next_back().unwrap();
+						let (key, last) = found.iter_mut().next_back().expect("Last element is always Some when count > 0");
 						last.pop();
 						if last.is_empty() { Some(key.clone()) } else { None }
 					};
@@ -316,8 +317,7 @@ impl Discovery {
 	}
 
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) where Message: Send + Sync + Clone {
-		while !self.send_queue.is_empty() {
-			let data = self.send_queue.pop_front().unwrap();
+		while let Some(data) = self.send_queue.pop_front() {
 			match self.udp_socket.send_to(&data.payload, &data.address) {
 				Ok(Some(size)) if size == data.payload.len() => {
 				},

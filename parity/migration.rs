@@ -239,9 +239,11 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 	// Perform pre-consolidation migrations
 	if version < CONSOLIDATION_VERSION && exists(&legacy::blocks_database_path(path)) {
 		println!("Migrating database from version {} to {}", version, CONSOLIDATION_VERSION);
-		try!(migrate_database(version, legacy::blocks_database_path(path), try!(legacy::blocks_database_migrations(&compaction_profile))));
+
 		try!(migrate_database(version, legacy::extras_database_path(path), try!(legacy::extras_database_migrations(&compaction_profile))));
 		try!(migrate_database(version, legacy::state_database_path(path), try!(legacy::state_database_migrations(pruning, &compaction_profile))));
+		try!(migrate_database(version, legacy::blocks_database_path(path), try!(legacy::blocks_database_migrations(&compaction_profile))));
+
 		let db_path = consolidated_database_path(path);
 		// Remove the database dir (it shouldn't exist anyway, but it might when migration was interrupted)
 		let _ = fs::remove_dir_all(db_path.clone());
@@ -256,6 +258,9 @@ pub fn migrate(path: &Path, pruning: Algorithm, compaction_profile: CompactionPr
 		let _ = fs::remove_dir_all(legacy::trace_database_path(path));
 		println!("Migration finished");
 	}
+
+	// update version so we can apply post-consolidation migrations.
+	let version = ::std::cmp::max(CONSOLIDATION_VERSION, version);
 
 	// Further migrations
 	if version >= CONSOLIDATION_VERSION && version < CURRENT_VERSION && exists(&consolidated_database_path(path)) {

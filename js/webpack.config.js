@@ -1,3 +1,4 @@
+
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -17,6 +18,7 @@
 const HappyPack = require('happypack');
 const path = require('path');
 const postcssImport = require('postcss-import');
+const postcssNested = require('postcss-nested');
 const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const webpack = require('webpack');
@@ -35,7 +37,6 @@ module.exports = {
   entry: {
     // dapps
     'basiccoin': ['./dapps/basiccoin.js'],
-    'gavcoin': ['./dapps/gavcoin.js'],
     'githubhint': ['./dapps/githubhint.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
@@ -69,7 +70,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[name].[ext]'
+        loader: 'file?name=[name].[ext]!extract-loader!html-loader'
       },
 
       {
@@ -84,11 +85,7 @@ module.exports = {
       },
       {
         test: /\.(png|jpg)$/,
-        loader: 'file-loader'
-      },
-      {
-        test: /\.ico$/,
-        loader: 'file-loader?name=[name].[ext]'
+        loader: 'file-loader?name=[name].[hash].[ext]'
       },
       {
         test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
@@ -109,10 +106,17 @@ module.exports = {
     root: path.join(__dirname, 'node_modules'),
     fallback: path.join(__dirname, 'node_modules')
   },
+
+  htmlLoader: {
+    root: path.resolve(__dirname, 'assets/images'),
+    attrs: ['img:src', 'link:href']
+  },
+
   postcss: [
     postcssImport({
       addDependencyTo: webpack
     }),
+    postcssNested({}),
     postcssVars({
       unknown: function (node, name, result) {
         node.warn(result, `Unknown variable ${name}`);

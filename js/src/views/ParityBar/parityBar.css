@@ -54,6 +54,7 @@
   flex: 1;
   overflow: auto;
   display: flex;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .corner {
@@ -86,8 +87,17 @@
   margin-left: 1em;
 }
 
-.button {
+.button, .parityButton {
   overflow: visible !important;
+}
+
+.parityButton img {
+  width: auto !important;
+  height: 24px;
+}
+
+.button svg {
+  fill: white !important;
 }
 
 .label {
@@ -123,7 +133,7 @@
   color: white !important;
 }
 
-.header svg ,
+.header svg,
 .coner svg {
   fill: white !important;
 }
