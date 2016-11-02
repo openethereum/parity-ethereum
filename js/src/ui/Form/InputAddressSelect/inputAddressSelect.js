@@ -44,13 +44,13 @@ const sortChoices = (a, b) => {
 
 class InputAddressSelect extends Component {
   static propTypes = {
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
+    accounts: PropTypes.object.isRequired,
+    contacts: PropTypes.object.isRequired,
     error: PropTypes.string,
     label: PropTypes.string,
     hint: PropTypes.string,
     value: PropTypes.string,
-    tokens: PropTypes.object,
+    maxSearchResults: PropTypes.number,
     onChange: PropTypes.func
   };
 
@@ -72,7 +72,7 @@ class InputAddressSelect extends Component {
   }
 
   render () {
-    const { label, hint, error } = this.props;
+    const { label, hint, error, maxSearchResults } = this.props;
     const { choices, address } = this.state;
 
     // don't show IdentityIcon if user searches by name
@@ -92,13 +92,14 @@ class InputAddressSelect extends Component {
         />
         <AutoComplete
           floatingLabelText={ label }
-          hintText={ hint }
+          hintText={ hint || 'search for an address' }
           errorText={ error }
           dataSource={ choices }
           filter={ this.filter }
           onNewRequest={ this.onNewRequest }
           onUpdateInput={ this.onUpdateInput }
-          fullWidth openOnFocus
+          maxSearchResults={ maxSearchResults || 8 }
+          fullWidth openOnFocus floatingLabelFixed
         />
       </div>
     );
@@ -112,7 +113,10 @@ class InputAddressSelect extends Component {
         primaryText={ data.name }
         key={ data.address }
         leftIcon={ icon }
-        innerDivStyle={ { display: 'flex', paddingLeft: '1em', paddingRight: '1em', alignItems: 'center' } }
+        innerDivStyle={ {
+          display: 'flex', alignItems: 'center',
+          paddingLeft: '1em', paddingRight: '1em'
+        } }
       />
     );
   }
