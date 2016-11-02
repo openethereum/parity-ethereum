@@ -27,6 +27,19 @@ import util from '../../../api/util';
 
 import styles from './inputAddressSelect.css';
 
+const isAccount = (choice) => choice.data && choice.data.uuid;
+
+const sortChoices = (a, b) => {
+  // accounts first
+  if (isAccount(a) && !isAccount(b)) return -1;
+  if (!isAccount(a) && isAccount(b)) return 1;
+  // alphabetically
+  if (a.tokens < b.tokens) return -1;
+  if (a.tokens > b.tokens) return 1;
+  // fallback
+  return 0;
+};
+
 class InputAddressSelect extends Component {
   static propTypes = {
     accounts: PropTypes.object,
@@ -113,7 +126,8 @@ class InputAddressSelect extends Component {
         tokens: normalize(data.name),
         value: this.renderChoice(data),
         text: data.name, data
-      }));
+      }))
+      .sort(sortChoices);
   };
 
   onNewRequest = (choice) => {
