@@ -36,7 +36,7 @@ use regex::Regex;
 use util::RotatingLogger;
 use util::log::Colour;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
 	pub mode: Option<String>,
 	pub color: bool,
