@@ -146,7 +146,7 @@ fn execute(command: Execute) -> Result<String, String> {
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
 		Cmd::SignerToken(signer_cmd) => signer::execute(signer_cmd),
-		Cmd::Snapshot(snapshot_cmd) =>	snapshot::execute(snapshot_cmd),
+		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd),
 	}
 }
 

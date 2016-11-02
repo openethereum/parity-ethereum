@@ -101,7 +101,6 @@ impl Configuration {
 		let signer_conf = self.signer_config();
 		let format = try!(self.format());
 
-		// NOTE Each command should initialize logger!
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer && self.args.cmd_new_token {
