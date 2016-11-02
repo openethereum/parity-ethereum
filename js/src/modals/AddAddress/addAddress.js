@@ -136,6 +136,7 @@ export default class AddAddress extends Component {
       api.personal.setAccountName(address, name),
       api.personal.setAccountMeta(address, {
         description,
+        timestamp: Date.now(),
         deleted: false
       })
     ]).catch((error) => {
