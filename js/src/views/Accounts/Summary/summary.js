@@ -53,7 +53,6 @@ export default class Summary extends Component {
         hideUnderline
         value={ address }
         allowCopy={ address }
-        copyPosition='left'
       />
     );
 

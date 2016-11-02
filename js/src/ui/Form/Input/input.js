@@ -50,7 +50,7 @@ export default class Input extends Component {
       PropTypes.string,
       PropTypes.bool
     ]),
-    copyPosition: PropTypes.oneOf([ 'left', 'right' ]),
+    floatCopy: PropTypes.bool,
     error: PropTypes.string,
     hint: PropTypes.string,
     label: PropTypes.string,
@@ -72,8 +72,8 @@ export default class Input extends Component {
     submitOnBlur: true,
     readOnly: false,
     allowCopy: false,
-    copyPosition: 'left',
-    hideUnderline: false
+    hideUnderline: false,
+    floatCopy: false
   }
 
   state = {
@@ -98,7 +98,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, allowCopy, copyPosition, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -109,16 +109,13 @@ export default class Input extends Component {
       inputStyle.cursor = 'text';
     }
 
-    if (allowCopy && copyPosition === 'left') {
-      inputStyle.paddingLeft = 24;
-    }
-
     if (hideUnderline && !hint) {
       textFieldStyle.height = 'initial';
     }
 
     return (
       <div className={ styles.container }>
+        { this.renderCopyButton() }
         <TextField
           autoComplete='off'
           className={ className }
@@ -148,13 +145,12 @@ export default class Input extends Component {
         >
           { children }
         </TextField>
-        { this.renderCopyButton() }
       </div>
     );
   }
 
   renderCopyButton () {
-    const { allowCopy, copyPosition, hideUnderline, label, hint } = this.props;
+    const { allowCopy, hideUnderline, label, hint, floatCopy } = this.props;
     const { copied, value } = this.state;
 
     if (!allowCopy) {
@@ -162,36 +158,38 @@ export default class Input extends Component {
     }
 
     const style = {
-      bottom: 13
+      marginBottom: 13
     };
 
     const text = typeof allowCopy === 'string'
       ? allowCopy
       : value;
 
-    const tooltipPosition = copyPosition === 'left'
-      ? 'bottom-right'
-      : 'top-left';
-
     const scale = copied ? 'scale(1.15)' : 'scale(1)';
-    const classes = [ styles.copy, styles[copyPosition] ];
 
     if (hideUnderline && !label) {
-      style.bottom = 2;
+      style.marginBottom = 2;
     } else if (label && !hint) {
-      style.bottom = 4;
+      style.marginBottom = 4;
     } else if (label && hint) {
-      style.bottom = 10;
+      style.marginBottom = 10;
+    }
+
+    if (floatCopy) {
+      style.position = 'absolute';
+      style.left = -24;
+      style.bottom = style.marginBottom;
+      style.marginBottom = 0;
     }
 
     return (
-      <div className={ classes.join(' ') } style={ style }>
+      <div className={ styles.copy } style={ style }>
         <CopyToClipboard
           onCopy={ this.handleCopy }
           text={ text } >
           <IconButton
             tooltip={ `${copied ? 'Copied' : 'Copy'} to clipboard` }
-            tooltipPosition={ tooltipPosition }
+            tooltipPosition='bottom-right'
             style={ {
               width: 16,
               height: 16,

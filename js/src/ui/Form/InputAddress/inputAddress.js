@@ -62,7 +62,6 @@ class InputAddress extends Component {
           onChange={ this.handleInputChange }
           onSubmit={ onSubmit }
           allowCopy={ disabled ? value : false }
-          copyPosition='right'
         />
         { icon }
       </div>

@@ -16,21 +16,16 @@
 */
 
 .container {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
   position: relative;
 }
 
 .copy {
-  position: absolute;
+  margin-right: 0.5em;
 
   svg {
     transition: all .5s ease-in-out;
-  }
-
-  &.right {
-    right: 0;
-  }
-
-  &.left {
-    left: 0;
   }
 }
