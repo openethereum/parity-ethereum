@@ -250,6 +250,8 @@ export default class Application extends Component {
   onClickRegister = () => {
     const { commit, commitError, contentHashError, contentHashOwner, fromAddress, url, urlError, registerType, repo, repoError } = this.state;
 
+    // TODO: No errors are currently set, validation to be expanded and added for each
+    // field (query is fast to pick up the issues, so not burning atm)
     if ((contentHashError && contentHashOwner !== fromAddress) || repoError || urlError || commitError) {
       return;
     }
@@ -355,6 +357,10 @@ export default class Application extends Component {
 
   lookupHash (url) {
     const { instance } = this.state;
+
+    if (!url || !url.length) {
+      return;
+    }
 
     console.log(`lookupHash ${url}`);
 
