@@ -34,9 +34,6 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	};
 
 	for (name, test) in tests.into_iter() {
-/*		if name != "ZeroValue_SUICIDE" {
-			continue;
-		}*/
 		let mut fail = false;
 		{
 			let mut fail_unless = |cond: bool| if !cond && !fail {
