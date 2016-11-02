@@ -131,7 +131,9 @@ export default class DetailsStep extends Component {
               label={ label }
               value={ params[index] ? 'true' : 'false' }
               error={ paramsError[index] }
-              onChange={ onChangeBool }>{ boolitems }</Select>
+              onChange={ onChangeBool }>
+              { boolitems }
+            </Select>
           );
           break;
 
