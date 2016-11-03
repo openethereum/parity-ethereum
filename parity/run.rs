@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
+use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_rpc::{NetworkSettings, is_major_importing};
@@ -94,6 +95,15 @@ pub struct RunCmd {
 }
 
 pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+	if cmd.ui && cmd.dapps_conf.enabled {
+		// Check if Parity is already running
+		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
+		if !TcpListener::bind(&addr as &str).is_ok() {
+			url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+			return Ok(());
+		}
+	}
+
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
