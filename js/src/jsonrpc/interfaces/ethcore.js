@@ -85,6 +85,15 @@ export default {
     }
   },
 
+  enode: {
+    desc: 'Returns the node enode URI',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'Enode URI'
+    }
+  },
+
   extraData: {
     desc: 'Returns currently set extra data',
     params: [],
