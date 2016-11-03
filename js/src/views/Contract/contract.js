@@ -116,6 +116,7 @@ class Contract extends Component {
             contract={ contract }
             values={ queryValues } />
           <Events
+            isTest={ isTest }
             events={ allEvents } />
         </Page>
       </div>

@@ -151,7 +151,6 @@ impl<R: URLHint> ContentFetcher<R> {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								dapp.url(),
 								control,
-								path.using_dapps_domains,
 								DappInstaller {
 									id: content_id.clone(),
 									dapps_path: self.dapps_path.clone(),
@@ -167,7 +166,6 @@ impl<R: URLHint> ContentFetcher<R> {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								content.url,
 								control,
-								path.using_dapps_domains,
 								ContentInstaller {
 									id: content_id.clone(),
 									mime: content.mime,

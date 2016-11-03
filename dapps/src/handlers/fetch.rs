@@ -22,14 +22,14 @@ use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
 use util::Mutex;
+use url::Url;
 use fetch::{Client, Fetch, FetchResult};
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
-use handlers::{ContentHandler, Redirection};
-use apps::redirection_address;
+use handlers::{ContentHandler, Redirection, extract_url};
 use page::LocalPageEndpoint;
 
 const FETCH_TIMEOUT: u64 = 30;
@@ -136,8 +136,8 @@ pub struct ContentFetcherHandler<H: ContentValidator> {
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client>,
-	using_dapps_domains: bool,
 	installer: H,
+	request_url: Option<Url>,
 	embeddable_at: Option<u16>,
 }
 
@@ -156,7 +156,6 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 	pub fn new(
 		url: String,
 		control: Control,
-		using_dapps_domains: bool,
 		handler: H,
 		embeddable_at: Option<u16>,
 	) -> (Self, Arc<FetchControl>) {
@@ -168,8 +167,8 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			control: Some(control),
 			client: Some(client),
 			status: FetchState::NotStarted(url),
-			using_dapps_domains: using_dapps_domains,
 			installer: handler,
+			request_url: None,
 			embeddable_at: embeddable_at,
 		};
 
@@ -193,6 +192,7 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
+		self.request_url = extract_url(&request);
 		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
@@ -267,8 +267,10 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 								))
 							},
 							Ok((id, result)) => {
-								let address = redirection_address(self.using_dapps_domains, &id);
-								FetchState::Done(id, result, Redirection::new(&address))
+								let url: String = self.request_url.take()
+									.map(|url| url.raw.into_string())
+									.expect("Request URL always read in on_request; qed");
+								FetchState::Done(id, result, Redirection::new(&url))
 							},
 						};
 						// Remove temporary zip file

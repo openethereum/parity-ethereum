@@ -43,7 +43,7 @@ fn accounts_provider() -> Arc<AccountProvider> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: U256::from(3),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }
@@ -737,8 +737,8 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -754,8 +754,8 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -819,8 +819,8 @@ fn rpc_eth_send_raw_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let rlp = ::rlp::encode(&t).to_vec().to_hex();
 

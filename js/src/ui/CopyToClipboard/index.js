@@ -14,15 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-mod test_common;
-
-mod transaction;
-mod executive;
-mod state;
-mod chain;
-mod homestead_state;
-mod homestead_chain;
-mod eip150_state;
-mod eip161_state;
-mod trie;
+export default from './CopyToClipboard';
