@@ -20,7 +20,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
+import { fetchBlock } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 import { txLink } from '../../../../3rdparty/etherscan/links';
 
@@ -34,10 +34,12 @@ class Event extends Component {
   static propTypes = {
     event: PropTypes.object.isRequired,
     blocks: PropTypes.object,
-    transactions: PropTypes.object,
     isTest: PropTypes.bool,
-    fetchBlock: PropTypes.func.isRequired,
-    fetchTransaction: PropTypes.func.isRequired
+    fetchBlock: PropTypes.func.isRequired
+  }
+
+  state = {
+    transaction: {}
   }
 
   componentDidMount () {
@@ -45,10 +47,10 @@ class Event extends Component {
   }
 
   render () {
-    const { event, blocks, transactions, isTest } = this.props;
+    const { event, blocks, isTest } = this.props;
+    const { transaction } = this.state;
 
     const block = blocks[event.blockNumber.toString()];
-    const transaction = transactions[event.transactionHash] || {};
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
@@ -156,27 +158,39 @@ class Event extends Component {
   }
 
   retrieveTransaction () {
-    const { event, fetchBlock, fetchTransaction } = this.props;
+    const { event, fetchBlock } = this.props;
 
     fetchBlock(event.blockNumber);
-    fetchTransaction(event.transactionHash);
+    this.fetchTransaction(event.transactionHash);
+  }
+
+  fetchTransaction (txHash) {
+    const { api } = this.context;
+
+    api.eth
+      .getTransactionByHash(txHash)
+      .then((transaction) => {
+        this.setState({ transaction });
+      })
+      .catch((error) => {
+        console.warn('fetchTransaction', error);
+      });
   }
 }
 
 function mapStateToProps (state) {
   const { isTest } = state.nodeStatus;
-  const { blocks, transactions } = state.blockchain;
+  const { blocks } = state.blockchain;
 
   return {
     isTest,
-    blocks,
-    transactions
+    blocks
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    fetchBlock, fetchTransaction
+    fetchBlock
   }, dispatch);
 }
 
