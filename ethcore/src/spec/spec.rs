@@ -38,7 +38,7 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Main subprotocol name.
 	pub subprotocol_name: String,
 	/// Minimum gas limit.
@@ -160,7 +160,7 @@ impl Spec {
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.params.network_id }
+	pub fn network_id(&self) -> usize { self.params.network_id }
 
 	/// Get the configured Network ID.
 	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
@@ -250,7 +250,7 @@ impl Spec {
 			}
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
-				db.note_account_bloom(address);
+				db.note_non_null_account(address);
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));

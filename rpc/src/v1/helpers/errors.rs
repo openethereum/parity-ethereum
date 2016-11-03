@@ -255,6 +255,7 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			SenderBanned => "Sender is banned in local queue.".into(),
 			RecipientBanned => "Recipient is banned in local queue.".into(),
 			CodeBanned => "Code is banned in local queue.".into(),
+			e => format!("{}", e).into(),
 		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
