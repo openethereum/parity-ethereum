@@ -46,11 +46,8 @@ export default class Transaction extends Component {
   }
 
   render () {
-    const { block, transaction } = this.state;
-
-    if (!transaction) {
-      return null;
-    }
+    const { block } = this.state;
+    const { transaction } = this.props;
 
     return (
       <tr>
@@ -72,6 +69,10 @@ export default class Transaction extends Component {
     const { address } = this.props;
     const { transaction } = this.state;
 
+    if (!transaction) {
+      return null;
+    }
+
     return (
       <MethodDecoding
         historic
@@ -82,7 +83,7 @@ export default class Transaction extends Component {
 
   renderTransaction () {
     const { isTest } = this.props;
-    const { transaction } = this.state;
+    const { transaction } = this.props;
 
     return (
       <td className={ styles.transaction }>
@@ -131,6 +132,10 @@ export default class Transaction extends Component {
   renderEtherValue () {
     const { api } = this.context;
     const { transaction } = this.state;
+
+    if (!transaction) {
+      return null;
+    }
 
     const value = api.util.fromWei(transaction.value);
 
