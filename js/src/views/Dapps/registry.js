@@ -16,8 +16,6 @@
 
 import BigNumber from 'bignumber.js';
 
-import { parityNode } from '../../environment';
-
 const builtinApps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
@@ -85,7 +83,7 @@ export function fetchAvailable (api) {
   //     console.log('archive', sha3);
   //   });
 
-  return fetch(`${parityNode}/api/apps`)
+  return fetch(`http://127.0.0.1:${api.dappsPort}/api/apps`)
     .then((response) => {
       return response.ok
         ? response.json()
@@ -134,8 +132,8 @@ export function fetchAvailable (api) {
     });
 }
 
-export function fetchManifest (app, contentHash) {
-  return fetch(`${parityNode}/${contentHash}/manifest.json`)
+export function fetchManifest (api, app, contentHash) {
+  return fetch(`http://127.0.0.1:${api.dappsPort}/${contentHash}/manifest.json`)
     .then((response) => {
       return response.ok
         ? response.json()
