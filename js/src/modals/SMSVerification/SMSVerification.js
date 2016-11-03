@@ -33,7 +33,6 @@ export default class SMSVerification extends Component {
   }
 
   static propTypes = {
-    isTest: PropTypes.bool,
     account: PropTypes.string,
     onClose: PropTypes.func.isRequired
   }
@@ -54,36 +53,82 @@ export default class SMSVerification extends Component {
   }
 
   render () {
+    const { step } = this.state;
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
         title='verify your account via SMS'
-        waiting={ [4] }
         visible scroll
+        current={ step }
+        steps={ ['first step', 'second step'] }
       >
-        <span>foo</span>
+        { this.renderStep() }
       </Modal>
     );
   }
 
   renderDialogActions () {
     const { onClose, account } = this.props;
+    const { step } = this.state;
+
+    const cancel = (
+      <Button
+        key='cancel' label='Cancel'
+        icon={ <ContentClear /> }
+        onClick={ onClose }
+      />
+    );
+
+    if (step === 1) {
+      return (
+        <div>
+          { cancel }
+          <Button
+            key='done' label='Done'
+            icon={ <ActionDoneAll /> }
+            onClick={ onClose }
+          />
+        </div>
+      );
+    }
 
     return (
       <div>
+        { cancel }
         <Button
-          key='cancel'
-          label='Cancel'
-          icon={ <ContentClear /> }
-          onClick={ onClose }
-        />
-        <Button
-          key='close'
-          label='Done'
-          icon={ <ActionDoneAll /> }
-          onClick={ onClose }
+          key='next' label='Next'
+          icon={ <IdentityIcon address={ account } button /> }
+          onClick={ this.next }
         />
       </div>
+    );
+  }
+
+  renderStep () {
+    const { step } = this.state;
+    if (step === 1) {
+      return this.renderSecondStep();
+    } else {
+      return this.renderFirstStep();
+    }
+  }
+
+  next = () => {
+    this.setState({
+      step: this.state.step + 1
+    });
+  }
+
+  renderFirstStep () {
+    return (
+      <span>first step</span>
+    );
+  }
+
+  renderSecondStep () {
+    return (
+      <span>second step</span>
     );
   }
 }

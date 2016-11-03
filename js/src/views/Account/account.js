@@ -166,7 +166,10 @@ class Account extends Component {
 
     // TODO: pass props
     return (
-      <SMSVerification onClose={ this.onVerificationClose } />
+      <SMSVerification
+        account={ address }
+        onClose={ this.onVerificationClose }
+      />
     );
   }
 
