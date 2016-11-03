@@ -22,7 +22,7 @@ use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::NetworkSettings;
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, U256};
+use util::{Colour, version};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::service::ClientService;
@@ -60,7 +60,7 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<U256>,
+	pub network_id: Option<usize>,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,

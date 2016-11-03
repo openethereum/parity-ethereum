@@ -202,7 +202,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(keypair.secret());
+					let signed_tx = tx.sign(keypair.secret(), None);
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -569,4 +569,6 @@ impl BlockChainClient for TestBlockChainClient {
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
+
+	fn signing_network_id(&self) -> Option<u8> { None }
 }

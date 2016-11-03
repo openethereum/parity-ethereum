@@ -33,6 +33,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
+	Eip161,
 	TransitionTest,
 }
 
@@ -181,7 +182,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret()), None).unwrap();
+			}.sign(kp.secret(), None), None).unwrap();
 			n += 1;
 		}
 

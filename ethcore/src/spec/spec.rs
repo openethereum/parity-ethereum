@@ -37,7 +37,9 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: U256,
+	pub network_id: usize,
+	/// Main subprotocol name.
+	pub subprotocol_name: String,
 	/// Minimum gas limit.
 	pub min_gas_limit: U256,
 	/// Fork block to check.
@@ -50,6 +52,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			account_start_nonce: p.account_start_nonce.into(),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
+			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 		}
@@ -155,7 +158,7 @@ impl Spec {
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.params.network_id }
+	pub fn network_id(&self) -> usize { self.params.network_id }
 
 	/// Get the configured network fork block.
 	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
@@ -240,7 +243,7 @@ impl Spec {
 				}
 			}
 			for (address, account) in self.genesis_state.get().iter() {
-				db.note_account_bloom(address);
+				db.note_non_null_account(address);
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));

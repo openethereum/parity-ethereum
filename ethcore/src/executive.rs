@@ -16,7 +16,7 @@
 
 //! Transaction Execution environment.
 use common::*;
-use state::*;
+use state::{State, CleanupMode};
 use engines::Engine;
 use types::executed::CallType;
 use evm::{self, Ext, Factory, Finalize};
@@ -252,9 +252,11 @@ impl<'a> Executive<'a> {
 		// backup used in case of running out of gas
 		self.state.snapshot();
 
+		let schedule = self.engine.schedule(self.info);
+
 		// at first, transfer value to destination
 		if let ActionValue::Transfer(val) = params.value {
-			self.state.transfer_balance(&params.sender, &params.address, &val);
+			self.state.transfer_balance(&params.sender, &params.address, &val, substate.to_cleanup_mode(&schedule));
 		}
 		trace!("Executive::call(params={:?}) self.env_info={:?}", params, self.info);
 
@@ -360,12 +362,14 @@ impl<'a> Executive<'a> {
 		let mut unconfirmed_substate = Substate::new();
 
 		// create contract and transfer value to it if necessary
+		let schedule = self.engine.schedule(self.info);
+		let nonce_offset = if schedule.no_empty {1} else {0}.into();
 		let prev_bal = self.state.balance(&params.address);
 		if let ActionValue::Transfer(val) = params.value {
 			self.state.sub_balance(&params.sender, &val);
-			self.state.new_contract(&params.address, val + prev_bal);
+			self.state.new_contract(&params.address, val + prev_bal, nonce_offset);
 		} else {
-			self.state.new_contract(&params.address, prev_bal);
+			self.state.new_contract(&params.address, prev_bal, nonce_offset);
 		}
 
 		let trace_info = tracer.prepare_trace_create(&params);
@@ -401,7 +405,7 @@ impl<'a> Executive<'a> {
 	fn finalize(
 		&mut self,
 		t: &SignedTransaction,
-		substate: Substate,
+		mut substate: Substate,
 		result: evm::Result<U256>,
 		output: Bytes,
 		trace: Vec<FlatTrace>,
@@ -427,14 +431,30 @@ impl<'a> Executive<'a> {
 		trace!("exec::finalize: t.gas={}, sstore_refunds={}, suicide_refunds={}, refunds_bound={}, gas_left_prerefund={}, refunded={}, gas_left={}, gas_used={}, refund_value={}, fees_value={}\n",
 			t.gas, sstore_refunds, suicide_refunds, refunds_bound, gas_left_prerefund, refunded, gas_left, gas_used, refund_value, fees_value);
 
-		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, t.sender().unwrap());
-		self.state.add_balance(&t.sender().unwrap(), &refund_value);
+		let sender = match t.sender() {
+			Ok(sender) => sender,
+			Err(e) => {
+				debug!(target: "executive", "attempted to finalize transaction without sender: {}", e);
+				return Err(ExecutionError::Internal);
+			}
+		};
+
+		trace!("exec::finalize: Refunding refund_value={}, sender={}\n", refund_value, sender);
+		// Below: NoEmpty is safe since the sender must already be non-null to have sent this transaction
+		self.state.add_balance(&sender, &refund_value, CleanupMode::NoEmpty);  
 		trace!("exec::finalize: Compensating author: fees_value={}, author={}\n", fees_value, &self.info.author);
-		self.state.add_balance(&self.info.author, &fees_value);
+		self.state.add_balance(&self.info.author, &fees_value, substate.to_cleanup_mode(&schedule));
 
 		// perform suicides
 		for address in &substate.suicides {
 			self.state.kill_account(address);
+		}
+
+		// perform garbage-collection
+		for address in &substate.garbage {
+			if self.state.exists(address) && !self.state.exists_and_not_null(address) {
+				self.state.kill_account(address);
+			}
 		}
 
 		match result {
@@ -499,6 +519,7 @@ mod tests {
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use types::executed::CallType;
+	use state::{CleanupMode};
 
 	#[test]
 	fn test_contract_address() {
@@ -520,7 +541,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(0x7));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(0x100u64));
+		state.add_balance(&sender, &U256::from(0x100u64), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -579,7 +600,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100));
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -635,7 +656,7 @@ mod tests {
 		params.call_type = CallType::Call;
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100));
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
@@ -744,7 +765,7 @@ mod tests {
 		params.value = ActionValue::Transfer(100.into());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100));
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(5);
 		let mut substate = Substate::new();
@@ -832,7 +853,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100));
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();
@@ -884,7 +905,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from(100));
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100));
+		state.add_balance(&sender, &U256::from(100), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(1024);
 		let mut substate = Substate::new();
@@ -944,7 +965,7 @@ mod tests {
 		let mut state = state_result.reference_mut();
 		state.init_code(&address_a, code_a.clone());
 		state.init_code(&address_b, code_b.clone());
-		state.add_balance(&sender, &U256::from(100_000));
+		state.add_balance(&sender, &U256::from(100_000), CleanupMode::NoEmpty);
 
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
@@ -1017,13 +1038,13 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 		let contract = contract_address(&sender, &U256::zero());
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(18));
+		state.add_balance(&sender, &U256::from(18), CleanupMode::NoEmpty);
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1084,12 +1105,12 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::zero(),
 			nonce: U256::one()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(17));
+		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty);
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1117,12 +1138,12 @@ mod tests {
 			gas: U256::from(80_001),
 			gas_price: U256::zero(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(17));
+		state.add_balance(&sender, &U256::from(17), CleanupMode::NoEmpty);
 		let mut info = EnvInfo::default();
 		info.gas_used = U256::from(20_000);
 		info.gas_limit = U256::from(100_000);
@@ -1152,12 +1173,12 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::one(),
 			nonce: U256::zero()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 		let sender = t.sender().unwrap();
 
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from(100_017));
+		state.add_balance(&sender, &U256::from(100_017), CleanupMode::NoEmpty);
 		let mut info = EnvInfo::default();
 		info.gas_limit = U256::from(100_000);
 		let engine = TestEngine::new(0);
@@ -1192,7 +1213,7 @@ mod tests {
 		params.value = ActionValue::Transfer(U256::from_str("0de0b6b3a7640000").unwrap());
 		let mut state_result = get_temp_state();
 		let mut state = state_result.reference_mut();
-		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap());
+		state.add_balance(&sender, &U256::from_str("152d02c7e14af6800000").unwrap(), CleanupMode::NoEmpty);
 		let info = EnvInfo::default();
 		let engine = TestEngine::new(0);
 		let mut substate = Substate::new();

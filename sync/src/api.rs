@@ -18,7 +18,7 @@ use std::sync::Arc;
 use std::collections::HashMap;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError};
-use util::{U256, H256, Secret, Populatable, Bytes};
+use util::{H256, Secret, Populatable, Bytes};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::header::BlockNumber;
@@ -40,7 +40,9 @@ pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
-	pub network_id: U256,
+	pub network_id: usize,
+	/// Main "eth" subprotocol name.
+	pub subprotocol_name: [u8; 3],
 	/// Fork block to check
 	pub fork_block: Option<(BlockNumber, H256)>,
 }
@@ -49,7 +51,8 @@ impl Default for SyncConfig {
 	fn default() -> SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
-			network_id: U256::from(1),
+			network_id: 1,
+			subprotocol_name: *b"eth",
 			fork_block: None,
 		}
 	}
@@ -90,8 +93,6 @@ impl EthSync {
 	}
 }
 
-#[derive(Ipc)]
-#[ipc(client_ident="SyncClient")]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
@@ -185,8 +186,6 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[derive(Ipc)]
-#[ipc(client_ident="NetworkManagerClient")]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);

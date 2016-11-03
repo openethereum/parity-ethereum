@@ -130,7 +130,11 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"eip150Transition": "0x259518"
+				"eip150Transition": "0x259518",
+				"eip155Transition": 2642462,
+				"eip160Transition": 2642462,
+				"eip161abcTransition": 2642462,
+				"eip161dTransition": 2642462
 			}
 		}
 	},

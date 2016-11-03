@@ -163,7 +163,7 @@ pub struct SyncStatus {
 	/// Syncing protocol version. That's the maximum protocol version we connect to.
 	pub protocol_version: u8,
 	/// The underlying p2p network version.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// `BlockChain` height for the moment the sync started.
 	pub start_block_number: BlockNumber,
 	/// Last fully downloaded and imported block number (if any).
@@ -226,7 +226,7 @@ struct PeerInfo {
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
-	network_id: U256,
+	network_id: usize,
 	/// Peer best block hash
 	latest_hash: H256,
 	/// Peer total difficulty if known
@@ -285,7 +285,7 @@ pub struct ChainSync {
 	/// Block parents imported this round (hash, parent)
 	round_parents: VecDeque<(H256, H256)>,
 	/// Network ID
-	network_id: U256,
+	network_id: usize,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
 }
@@ -1737,7 +1737,7 @@ mod tests {
 			PeerInfo {
 				protocol_version: 0,
 				genesis: H256::zero(),
-				network_id: U256::zero(),
+				network_id: 0,
 				latest_hash: peer_latest_hash,
 				difficulty: None,
 				asking: PeerAsking::Nothing,

@@ -16,7 +16,6 @@
 
 use std::sync::Arc;
 use util::log::RotatingLogger;
-use util::U256;
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
 
@@ -36,7 +35,7 @@ fn client_service() -> Arc<TestBlockChainClient> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: U256::from(3),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }

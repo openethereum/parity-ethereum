@@ -20,7 +20,7 @@ use util::numbers::*;
 use std::ops::Deref;
 use util::rlp::*;
 use util::sha3::*;
-use util::{UtilError, CryptoError, Bytes, Signature, Secret, ec};
+use util::{UtilError, CryptoError, Bytes, Signature, Secret, Public, ec};
 use std::cell::*;
 use error::*;
 use evm::Schedule;
@@ -75,8 +75,8 @@ pub struct Transaction {
 
 impl Transaction {
 	/// Append object with a without signature into RLP stream
-	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream) {
-		s.begin_list(6);
+	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u8>) {
+		s.begin_list(if let None = network_id { 6 } else { 9 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -86,6 +86,11 @@ impl Transaction {
 		};
 		s.append(&self.value);
 		s.append(&self.data);
+		if let Some(n) = network_id {
+			s.append(&n);
+			s.append(&0u8);
+			s.append(&0u8);
+		}
 	}
 }
 
@@ -102,7 +107,7 @@ impl From<ethjson::state::Transaction> for SignedTransaction {
 			},
 			value: t.value.into(),
 			data: t.data.into(),
-		}.sign(&t.secret.into())
+		}.sign(&t.secret.into(), None)
 	}
 }
 
@@ -132,26 +137,27 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self) -> H256 {
+	pub fn hash(&self, network_id: Option<u8>) -> H256 {
 		let mut stream = RlpStream::new();
-		self.rlp_append_unsigned_transaction(&mut stream);
+		self.rlp_append_unsigned_transaction(&mut stream, network_id);
 		stream.out().sha3()
 	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(self, secret: &Secret) -> SignedTransaction {
-		let sig = ec::sign(secret, &self.hash()).unwrap();
-		self.with_signature(sig)
+	pub fn sign(self, secret: &Secret, network_id: Option<u8>) -> SignedTransaction {
+		let sig = ec::sign(secret, &self.hash(network_id))
+			.expect("data is valid and context has signing capabilities; qed");
+		self.with_signature(sig, network_id)
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: H520) -> SignedTransaction {
+	pub fn with_signature(self, sig: Signature, network_id: Option<u8>) -> SignedTransaction {
 		let (r, s, v) = sig.to_rsv();
 		SignedTransaction {
 			unsigned: self,
 			r: r,
 			s: s,
-			v: v + 27,
+			v: v + if let Some(n) = network_id { 1 + n * 2 } else { 27 },
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		}
@@ -201,7 +207,8 @@ impl Transaction {
 pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
-	/// The V field of the signature, either 27 or 28; helps describe the point on the curve.
+	/// The V field of the signature; the LS bit described which half of the curve our point falls
+	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.  
 	v: u8,
 	/// The R field of the signature; helps describe the point on the curve.
 	r: U256,
@@ -257,7 +264,7 @@ impl Encodable for SignedTransaction {
 
 impl SignedTransaction {
 	/// Append object with a signature into RLP stream
-	pub fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
+	fn rlp_append_sealed_transaction(&self, s: &mut RlpStream) {
 		s.begin_list(9);
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
@@ -286,8 +293,16 @@ impl SignedTransaction {
 		}
 	}
 
-	/// 0 is `v` is 27, 1 if 28, and 4 otherwise.
-	pub fn standard_v(&self) -> u8 { match self.v { 27 => 0, 28 => 1, _ => 4 } }
+	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
+	pub fn standard_v(&self) -> u8 { match self.v { 0 => 4, v => (v - 1) & 1, } }
+
+	/// The network ID, or `None` if this is a global transaction. 
+	pub fn network_id(&self) -> Option<u8> {
+		match self.v {
+			0 | 27 | 28 => None,
+			v => Some((v - 1) / 2),
+		}
+	}
 
 	/// Construct a signature object from the sig.
 	pub fn signature(&self) -> Signature { Signature::from_rsv(&From::from(&self.r), &From::from(&self.s), self.standard_v()) }
@@ -303,28 +318,38 @@ impl SignedTransaction {
 
 	/// Returns transaction sender.
 	pub fn sender(&self) -> Result<Address, Error> {
-		let sender = self.sender.get();
-		match sender {
-			Some(s) => Ok(s),
-			None => {
-				let s = Address::from(try!(ec::recover(&self.signature(), &self.unsigned.hash())).sha3());
-				self.sender.set(Some(s));
-				Ok(s)
-			}
-		}
+ 		let sender = self.sender.get();
+ 		match sender {
+ 			Some(s) => Ok(s),
+ 			None => {
+ 				let s = Address::from(try!(self.public_key()).sha3());
+ 				self.sender.set(Some(s));
+ 				Ok(s)
+ 			}
+ 		}
+	}
+
+	/// Returns the public key of the sender.
+	pub fn public_key(&self) -> Result<Public, Error> {
+		Ok(try!(ec::recover(&self.signature(), &self.unsigned.hash(self.network_id()))))
 	}
 
 	/// Do basic validation, checking for valid signature and minimum gas,
 	// TODO: consider use in block validation.
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
-	pub fn validate(self, schedule: &Schedule, require_low: bool) -> Result<SignedTransaction, Error> {
+	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_network_id_of_one: bool) -> Result<SignedTransaction, Error> {
 		if require_low && !ec::is_low_s(&self.s) {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
 		}
+		match self.network_id() {
+			None => {},
+			Some(1) if allow_network_id_of_one => {},
+			_ => return Err(TransactionError::InvalidNetworkId.into()),
+		}
 		try!(self.sender());
 		if self.gas < U256::from(self.gas_required(&schedule)) {
-			Err(From::from(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas})))
+			Err(TransactionError::InvalidGasLimit(::util::OutOfBounds{min: Some(U256::from(self.gas_required(&schedule))), max: None, found: self.gas}).into())
 		} else {
 			Ok(self)
 		}
@@ -364,6 +389,7 @@ fn sender_test() {
 	} else { panic!(); }
 	assert_eq!(t.value, U256::from(0x0au64));
 	assert_eq!(t.sender().unwrap(), address_from_hex("0f65fe9276bc9a24ae7083ae28e2660ef72df99e"));
+	assert_eq!(t.network_id(), None);
 }
 
 #[test]
@@ -376,8 +402,9 @@ fn signing() {
 		gas: U256::from(50_000),
 		value: U256::from(1),
 		data: b"Hello!".to_vec()
-	}.sign(&key.secret());
+	}.sign(&key.secret(), None);
 	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
 }
 
 #[test]
@@ -391,7 +418,45 @@ fn fake_signing() {
 		data: b"Hello!".to_vec()
 	}.fake_sign(Address::from(0x69));
 	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
 
 	let t = t.clone();
 	assert_eq!(Address::from(0x69), t.sender().unwrap());
+	assert_eq!(t.network_id(), None);
+}
+
+#[test]
+fn should_recover_from_network_specific_signing() {
+	let key = ::util::crypto::KeyPair::create().unwrap();
+	let t = Transaction {
+		action: Action::Create,
+		nonce: U256::from(42),
+		gas_price: U256::from(3000),
+		gas: U256::from(50_000),
+		value: U256::from(1),
+		data: b"Hello!".to_vec()
+	}.sign(&key.secret(), Some(69));
+	assert_eq!(Address::from(key.public().sha3()), t.sender().unwrap());
+	assert_eq!(t.network_id(), Some(69));
+}
+
+#[test]
+fn should_agree_with_vitalik() {
+	use rustc_serialize::hex::FromHex;
+
+	let test_vector = |tx_data: &str, address: &'static str| {
+		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
+		assert_eq!(signed.sender().unwrap(), address.into()); 
+	};
+
+	test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xda39a520355857fdb37ecb527fe814230fa9962c");
+	test_vector("f864018504a817c80182a410943535353535353535353535353535353535353535018025a0c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc8a0c89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6", "0xd240215f30eafee2aaa5184d8f051ebb41c90b19");
+	test_vector("f864028504a817c80282f618943535353535353535353535353535353535353535088025a0ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a8a0ad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5", "0x2f2822c55d894df1ba32961c43325dcb3d614ee8");
+	test_vector("f865038504a817c803830148209435353535353535353535353535353535353535351b8025a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4e0a02a80e1ef1d7842f27f2e6be0972bb708b9a135c38860dbe73c27c3486c34f4de", "0xc21df0434ceab6e18a1300d18206e54e807b4456");
+	test_vector("f865048504a817c80483019a28943535353535353535353535353535353535353535408025a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c063a013600b294191fc92924bb3ce4b969c1e7e2bab8f4c93c3fc6d0a51733df3c060", "0xf975cee81edae2ab5883f4e2fb2a7f2fd56f4131");
+	test_vector("f865058504a817c8058301ec309435353535353535353535353535353535353535357d8025a0ceebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1a0ceebf77a833b30520287ddd9478ff51abbdffa30aa90a8d655dba0e8a79ce0c1", "0xd477474c9f48dcbfde5d97f30646242ab7a17e06");
+	test_vector("f866068504a817c80683023e3894353535353535353535353535353535353535353581d88025a0e455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2da0e455bf8ea6e7463a1046a0b52804526e119b4bf5136279614e0b1e8e296a4e2d", "0xb49948deb719ca21e38d29e3360f534b39db0e76");
+	test_vector("f867078504a817c807830290409435353535353535353535353535353535353535358201578025a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021a052f1a9b320cab38e5da8a8f97989383aab0a49165fc91c737310e4f7e9821021", "0xbddfc81a8ce87b2360837049a6eda68ab2f58999");
+	test_vector("f867088504a817c8088302e2489435353535353535353535353535353535353535358202008025a0e4b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c11a0e4b1702d9298fee62dfeccc57d322a463ad55ca201256d01f62b45b2e1c21c10", "0x8f2edcf67f329a146dd4cb1e6b3a072daff85b38");
+	test_vector("f867098504a817c809830334509435353535353535353535353535353535353535358202d98025a0d2f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afba0d2f8f61201b2b11a78d6e866abc9c3db2ae8631fa656bfe5cb53668255367afb", "0x4ec38d4782fd4a6ff85c1cde77ccf1ae3c54472c");	
 }

@@ -34,7 +34,7 @@ use io::*;
 use views::{BlockView, HeaderView, BodyView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult};
 use header::BlockNumber;
-use state::State;
+use state::{State, CleanupMode};
 use spec::Spec;
 use basic_types::Seal;
 use engines::Engine;
@@ -256,6 +256,22 @@ impl Client {
 		self.block_queue.flush();
 		while !self.block_queue.queue_info().is_empty() {
 			self.import_verified_blocks();
+		}
+	}
+
+	/// The env info as of the best block.
+	fn latest_env_info(&self) -> EnvInfo {
+		let header_data = self.best_block_header();
+		let view = HeaderView::new(&header_data);
+
+		EnvInfo {
+			number: view.number(),
+			author: view.author(),
+			timestamp: view.timestamp(),
+			difficulty: view.difficulty(),
+			last_hashes: self.build_last_hashes(view.hash()),
+			gas_used: U256::default(),
+			gas_limit: view.gas_limit(),
 		}
 	}
 
@@ -714,7 +730,7 @@ impl BlockChainClient for Client {
 		let needed_balance = t.value + t.gas * t.gas_price;
 		if balance < needed_balance {
 			// give the sender a sufficient balance
-			state.add_balance(&sender, &(needed_balance - balance));
+			state.add_balance(&sender, &(needed_balance - balance), CleanupMode::NoEmpty);
 		}
 		let options = TransactOptions { tracing: analytics.transaction_tracing, vm_tracing: analytics.vm_tracing, check_nonce: false };
 		let mut ret = try!(Executive::new(&mut state, &env_info, &*self.engine, &self.vm_factory).transact(t, options));
@@ -1050,6 +1066,10 @@ impl BlockChainClient for Client {
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions(self.chain.best_block_number())
+	}
+
+	fn signing_network_id(&self) -> Option<u8> {
+		self.engine.signing_network_id(&self.latest_env_info())
 	}
 }
 

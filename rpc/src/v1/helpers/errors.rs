@@ -170,6 +170,7 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
 			},
 			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+			e => format!("{}", e).into(),
 		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),

@@ -91,7 +91,7 @@ mod api {
 	include!(concat!(env!("OUT_DIR"), "/api.rs"));
 }
 
-pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
+pub use api::{EthSync, SyncProvider, ManageNetwork, SyncConfig,
 	ServiceConfiguration, NetworkConfiguration};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};

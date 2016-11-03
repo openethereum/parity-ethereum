@@ -10,7 +10,11 @@
 				"blockReward": "0x4563918244F40000",
 				"registrar": "0x8e4e9b13d4b45cb0befc93c3061b1408f67316b2",
 				"homesteadTransition": "0x789b0",
-				"eip150Transition": "0x1b34d8"
+				"eip150Transition": "0x1b34d8",
+				"eip155Transition": "0x7fffffffffffffff",
+				"eip160Transition": "0x7fffffffffffffff",
+				"eip161abcTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
 			}
 		}
 	},

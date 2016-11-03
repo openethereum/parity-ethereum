@@ -21,55 +21,6 @@
 //! transaction's nonce and next nonce expected from this sender). If nonces are equal transaction's gas price is used
 //! for comparison (higher gas price = higher priority).
 //!
-//! # Usage Example
-//!
-//! ```rust
-//! extern crate ethcore_util as util;
-//! extern crate ethcore;
-//! extern crate rustc_serialize;
-//!
-//!	use util::crypto::KeyPair;
-//! use util::hash::Address;
-//! use util::numbers::{Uint, U256};
-//!	use ethcore::miner::{TransactionQueue, AccountDetails, TransactionOrigin};
-//!	use ethcore::transaction::*;
-//!	use rustc_serialize::hex::FromHex;
-//!
-//! fn main() {
-//!		let key = KeyPair::create().unwrap();
-//!		let t1 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(10) };
-//!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
-//!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
-//!
-//!		let st1 = t1.sign(&key.secret());
-//!		let st2 = t2.sign(&key.secret());
-//!		let default_nonce = |_a: &Address| AccountDetails {
-//!			nonce: U256::from(10),
-//!			balance: U256::from(1_000_000),
-//!		};
-//!
-//!		let mut txq = TransactionQueue::default();
-//!		txq.add(st2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
-//!		txq.add(st1.clone(), &default_nonce, TransactionOrigin::External).unwrap();
-//!
-//!		// Check status
-//!		assert_eq!(txq.status().pending, 2);
-//!		// Check top transactions
-//!		let top = txq.top_transactions();
-//!		assert_eq!(top.len(), 2);
-//!		assert_eq!(top[0], st1);
-//!		assert_eq!(top[1], st2);
-//!
-//!		// And when transaction is removed (but nonce haven't changed)
-//!		// it will move subsequent transactions to future
-//!		txq.remove_invalid(&st1.hash(), &default_nonce);
-//!		assert_eq!(txq.status().pending, 0);
-//!		assert_eq!(txq.status().future, 1);
-//!		assert_eq!(txq.top_transactions().len(), 0);
-//!	}
-//! ```
-//!
 //!	# Maintaing valid state
 //!
 //!	1. Whenever transaction is imported to queue (to queue) all other transactions from this sender are revalidated in current. It means that they are moved to future and back again (height recalculation & gap filling).
@@ -1006,7 +957,7 @@ mod test {
 
 	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = KeyPair::create().unwrap();
-		new_unsigned_tx_with_gas(default_nonce_val(), gas, gas_price).sign(keypair.secret())
+		new_unsigned_tx_with_gas(default_nonce_val(), gas, gas_price).sign(keypair.secret(), None)
 	}
 
 	fn new_tx() -> SignedTransaction {
@@ -1029,7 +980,7 @@ mod test {
 		let mut tx2 = new_unsigned_tx(nonce);
 		tx2.gas_price = 2.into();
 
-		(tx.sign(secret), tx2.sign(secret))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1044,8 +995,7 @@ mod test {
 		tx.gas_price = tx.gas_price + gas_price;
 		let mut tx2 = new_unsigned_tx(nonce + 1.into());
 		tx2.gas_price = tx2.gas_price + gas_price;
-
-		(tx.sign(secret), tx2.sign(secret))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1056,7 +1006,7 @@ mod test {
 		let mut tx2 = new_unsigned_tx(nonce + second_nonce);
 		tx2.gas_price = tx2.gas_price + gas_price;
 
-		(tx.sign(secret), tx2.sign(secret))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	#[test]
@@ -1618,9 +1568,9 @@ mod test {
 		let mut txq = TransactionQueue::default();
 		let kp = KeyPair::create().unwrap();
 		let secret = kp.secret();
-		let tx = new_unsigned_tx(U256::from(123)).sign(secret);
-		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret);
-		let tx2 = new_unsigned_tx(U256::from(125)).sign(secret);
+		let tx = new_unsigned_tx(U256::from(123)).sign(secret, None);
+		let tx1 = new_unsigned_tx(U256::from(124)).sign(secret, None);
+		let tx2 = new_unsigned_tx(U256::from(125)).sign(secret, None);
 
 		txq.add(tx, &default_nonce, TransactionOrigin::External).unwrap();
 		assert_eq!(txq.status().pending, 1);
@@ -1876,11 +1826,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = KeyPair::create().unwrap();
-		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
+		let tx = new_unsigned_tx(U256::from(123)).sign(keypair.secret(), None);
 		let tx2 = {
 			let mut tx2 = (*tx).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -1899,16 +1849,16 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = KeyPair::create().unwrap();
-		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret());
+		let tx0 = new_unsigned_tx(U256::from(123)).sign(keypair.secret(), None);
 		let tx1 = {
 			let mut tx1 = (*tx0).clone();
 			tx1.nonce = U256::from(124);
-			tx1.sign(keypair.secret())
+			tx1.sign(keypair.secret(), None)
 		};
 		let tx2 = {
 			let mut tx2 = (*tx1).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -2061,7 +2011,7 @@ mod test {
 			let tx3 = new_unsigned_tx(nonce + 2.into());
 
 
-			(tx.sign(secret), tx2.sign(secret), tx2_2.sign(secret), tx3.sign(secret))
+			(tx.sign(secret, None), tx2.sign(secret, None), tx2_2.sign(secret, None), tx3.sign(secret, None))
 		};
 		let sender = tx1.sender().unwrap();
 		txq.add(tx1, &default_nonce, TransactionOrigin::Local).unwrap();

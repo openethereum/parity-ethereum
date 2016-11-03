@@ -17,6 +17,7 @@
 use ethash::{quick_get_difficulty, EthashManager, H256 as EH256};
 use common::*;
 use block::*;
+use state::CleanupMode;
 use spec::CommonParams;
 use engines::Engine;
 use evm::Schedule;
@@ -51,8 +52,16 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
-	/// Bad gas transition block number.
+	/// Number of first block where EIP-150 rules begin.
 	pub eip150_transition: u64,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: u64,
+	/// Number of first block where EIP-160 rules begin.
+	pub eip160_transition: u64,
+	/// Number of first block where EIP-161.abc begin.
+	pub eip161abc_transition: u64,
+	/// Number of first block where EIP-161.d begins.
+	pub eip161d_transition: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -72,6 +81,10 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
 			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(0x7fffffffffffffff, Into::into),
 		}
 	}
 }
@@ -123,7 +136,19 @@ impl Engine for Ethash {
 		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
 		} else {
-			Schedule::new_homestead_gas_fix()
+			Schedule::new_post_eip150(
+				env_info.number >= self.ethash_params.eip160_transition,
+				env_info.number >= self.ethash_params.eip161abc_transition,
+				env_info.number >= self.ethash_params.eip161d_transition
+			)
+		}
+	}
+
+	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u8> {
+		if env_info.number >= self.ethash_params.eip155_transition && self.params().network_id < 127 {
+			Some(self.params().network_id as u8)
+		} else {
+			None
 		}
 	}
 
@@ -158,7 +183,7 @@ impl Engine for Ethash {
 				let mut state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
 					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, CleanupMode::NoEmpty);
 				}
 //			}
 		}
@@ -171,12 +196,12 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+		fields.state.add_balance(&fields.header.author, &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), CleanupMode::NoEmpty);
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
+			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), CleanupMode::NoEmpty);
 		}
 		if let Err(e) = fields.state.commit() {
 			warn!("Encountered error on state commit: {}", e);
@@ -263,6 +288,13 @@ impl Engine for Ethash {
 		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
+
+		if let Some(n) = t.network_id() {
+			if header.number() < self.ethash_params.eip155_transition || n as usize != self.params().network_id {
+				return Err(TransactionError::InvalidNetworkId.into())
+			}
+		}
+
 		Ok(())
 	}
 
