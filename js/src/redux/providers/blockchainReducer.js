@@ -21,7 +21,17 @@ const initialState = {
   transactions: {},
   bytecodes: {},
   methods: {},
-  accounts: {}
+  accounts: {},
+  contracts: {}
+};
+
+const initialContractState = {
+  blockSubscriptionId: -1,
+  subscriptionId: -1,
+  events: {
+    mined: [],
+    pending: []
+  }
 };
 
 export default handleActions({
@@ -35,11 +45,42 @@ export default handleActions({
     return Object.assign({}, state, { blocks });
   },
 
+  setBlocksPending (state, action) {
+    const { blockNumbers, pending } = action;
+    const blocks = Object.assign({}, state.blocks);
+
+    blockNumbers.forEach(blockNumber => {
+      const key = blockNumber.toString();
+      const block = blocks[key];
+      blocks[key] = {
+        ...block,
+        pending
+      };
+    });
+
+    return Object.assign({}, state, { blocks });
+  },
+
   setTransaction (state, action) {
     const { txHash, info } = action;
 
     const transactions = Object.assign({}, state.transactions, {
       [txHash]: info
+    });
+
+    return Object.assign({}, state, { transactions });
+  },
+
+  setTransactionsPending (state, action) {
+    const { txHashes, pending } = action;
+    const transactions = Object.assign({}, state.transactions);
+
+    txHashes.forEach(hash => {
+      const transaction = transactions[hash];
+      transactions[hash] = {
+        ...transaction,
+        pending
+      };
     });
 
     return Object.assign({}, state, { transactions });
@@ -80,6 +121,76 @@ export default handleActions({
     };
 
     return Object.assign({}, state, { accounts: newAccounts });
+  },
+
+  setContract (state, action) {
+    const { address, info } = action;
+    const { contracts } = state;
+
+    const contract = contracts[address];
+
+    const newContracts = {
+      ...contracts,
+      [address]: {
+        ...initialContractState,
+        ...contract,
+        ...info
+      }
+    };
+
+    return Object.assign({}, state, { contracts: newContracts });
+  },
+
+  updateContractEvents (state, action) {
+    const { address, events } = action;
+    const { contracts } = state;
+
+    const contract = contracts[address];
+    const prevEvents = contract.events;
+
+    const prevPendingEvents = prevEvents.pending
+      .filter((pending) => {
+        return !events
+          .find((event) => {
+            const isMined = (event.state === 'mined') && (event.transactionHash === pending.transactionHash);
+            const isPending = (event.state === 'pending') && (event.key === pending.key);
+
+            return isMined || isPending;
+          });
+      });
+
+    const prevMinedEvents = prevEvents.mined
+      .filter((mined) => {
+        const txHash = mined.transactionHash;
+        return !events.find((event) => event.transactionHash === txHash);
+      });
+
+    const minedEvents = events
+      .filter((event) => event.state === 'mined')
+      .concat(prevMinedEvents)
+      .sort(sortEvents);
+
+    const pendingEvents = events
+      .filter((event) => event.state === 'pending')
+      .concat(prevPendingEvents)
+      .sort(sortEvents);
+
+    const newContracts = {
+      ...contracts,
+      [address]: {
+        ...contract,
+        events: {
+          pending: pendingEvents,
+          mined: minedEvents
+        }
+      }
+    };
+
+    return Object.assign({}, state, { contracts: newContracts });
   }
 
 }, initialState);
+
+function sortEvents (a, b) {
+  return b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
+}

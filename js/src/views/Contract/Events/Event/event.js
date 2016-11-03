@@ -17,38 +17,27 @@
 import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
-class Event extends Component {
+export default class Event extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     event: PropTypes.object.isRequired,
-    blocks: PropTypes.object,
-    transactions: PropTypes.object,
-    isTest: PropTypes.bool,
-    fetchBlock: PropTypes.func.isRequired,
-    fetchTransaction: PropTypes.func.isRequired
-  }
-
-  componentDidMount () {
-    this.retrieveTransaction();
+    block: PropTypes.object,
+    transaction: PropTypes.object,
+    isTest: PropTypes.bool
   }
 
   render () {
-    const { event, blocks, transactions, isTest } = this.props;
+    const { event, block, transaction, isTest } = this.props;
 
-    const block = blocks[event.blockNumber.toString()];
-    const transaction = transactions[event.transactionHash] || {};
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
@@ -98,7 +87,12 @@ class Event extends Component {
     return (
       <span className={ styles.eventAddress }>
         <IdentityIcon center inline address={ address } className={ styles.eventIdentityicon } />
-        { withName ? <IdentityName address={ address } /> : address }
+
+        {
+          withName
+          ? <IdentityName address={ address } />
+          : address
+        }
       </span>
     );
   }
@@ -155,32 +149,4 @@ class Event extends Component {
     return new BigNumber(number).toFormat();
   }
 
-  retrieveTransaction () {
-    const { event, fetchBlock, fetchTransaction } = this.props;
-
-    fetchBlock(event.blockNumber);
-    fetchTransaction(event.transactionHash);
-  }
 }
-
-function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
-  const { blocks, transactions } = state.blockchain;
-
-  return {
-    isTest,
-    blocks,
-    transactions
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBlock, fetchTransaction
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Event);

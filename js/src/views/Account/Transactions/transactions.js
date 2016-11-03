@@ -83,9 +83,17 @@ class Transactions extends Component {
   }
 
   renderTransactions () {
-    const { accountInfo } = this.props;
+    const { accountInfo, transactionsInfo } = this.props;
 
-    if (!accountInfo || accountInfo.loading) {
+    const pendingTransactions = accountInfo &&
+      accountInfo.transactions &&
+      accountInfo.transactions.filter(tx => {
+        return transactionsInfo[tx.hash] && transactionsInfo[tx.hash].pending;
+      });
+
+    const isLoading = !accountInfo || accountInfo.loading || pendingTransactions.length;
+
+    if (isLoading) {
       return (
         <LinearProgress mode='indeterminate' />
       );
@@ -132,6 +140,10 @@ class Transactions extends Component {
     const { transactions } = accountInfo;
 
     return (transactions || [])
+      .filter(transaction => {
+        const { hash } = transaction;
+        return transactionsInfo[hash] && transactionsInfo[hash].valid;
+      })
       .sort((tA, tB) => {
         return tB.blockNumber.comparedTo(tA.blockNumber);
       })

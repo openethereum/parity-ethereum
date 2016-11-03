@@ -26,12 +26,12 @@ import styles from './queries.css';
 export default class Queries extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
     contract: PropTypes.object,
     values: PropTypes.object
-  }
+  };
 
   render () {
     const { contract } = this.props;
@@ -99,14 +99,20 @@ export default class Queries extends Component {
           <CardText
             className={ styles.methodContent }
           >
-            { this.renderValue(values[fn.name]) }
+            { this.renderValue(values, fn.name) }
           </CardText>
         </Card>
       </div>
     );
   }
 
-  renderValue (value) {
+  renderValue (values, key) {
+    if (!values) {
+      return null;
+    }
+
+    const value = values[key];
+
     if (typeof value === 'undefined') {
       return null;
     }

@@ -15,35 +15,101 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import LinearProgress from 'material-ui/LinearProgress';
 
 import { Container, ContainerTitle } from '../../../ui';
 
 import Event from './Event';
 import styles from '../contract.css';
 
-export default class Events extends Component {
+class Events extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
 
   static propTypes = {
-    events: PropTypes.array
+    events: PropTypes.array,
+    blocks: PropTypes.object,
+    transactions: PropTypes.object,
+    isTest: PropTypes.bool
   }
 
   render () {
-    const { events } = this.props;
+    const { events, blocks, transactions, isTest } = this.props;
 
-    if (!events || !events.length) {
-      return null;
+    if (!events || !events.length || this.eventsLoading()) {
+      return (
+        <Container className={ styles.eventsContainer }>
+          <ContainerTitle title='events' />
+          <LinearProgress mode='indeterminate' />
+        </Container>
+      );
     }
 
     return (
-      <Container>
+      <Container className={ styles.eventsContainer }>
         <ContainerTitle title='events' />
         <table className={ styles.events }>
-          <tbody>{ events.map((event) => <Event event={ event } key={ event.key } />) }</tbody>
+          <tbody>
+          {
+            events.map((event) => {
+              const block = blocks[event.blockNumber.toString()];
+              const transaction = transactions[event.transactionHash] || {};
+
+              return (
+                <Event
+                  event={ event }
+                  key={ event.key }
+                  block={ block }
+                  transaction={ transaction }
+                  isTest={ isTest }
+                />
+              );
+            })
+          }
+          </tbody>
         </table>
       </Container>
     );
   }
+
+  eventsLoading () {
+    const { events, blocks, transactions } = this.props;
+
+    const blockNumbers = events.map(e => e.blockNumber.toString());
+    const txHashes = events.map(e => e.transactionHash);
+
+    const pendingBlocks = blockNumbers
+      .map(k => blocks[k])
+      .filter(b => (b && b.pending) || !b);
+
+    const pendingTransactions = txHashes
+      .map(k => transactions[k])
+      .filter(t => (t && t.pending) || !t);
+
+    return pendingBlocks.length + pendingTransactions.length > 0;
+  }
 }
+
+function mapStateToProps (state) {
+  const { isTest } = state.nodeStatus;
+  const { blocks, transactions } = state.blockchain;
+
+  return {
+    isTest,
+    blocks,
+    transactions
+  };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Events);
+

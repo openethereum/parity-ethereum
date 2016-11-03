@@ -101,13 +101,14 @@ export default class Manager {
   }
 
   _sendData (subscriptionId, error, data) {
-    const { callback } = this.subscriptions[subscriptionId];
+    const { callback, name, id } = this.subscriptions[subscriptionId];
 
     try {
       callback(error, data);
     } catch (error) {
-      console.error(`Unable to update callback for subscriptionId ${subscriptionId}`, error);
+      console.error(`Unable to update callback for ${name} (#${id})`, error);
       this.unsubscribe(subscriptionId);
+      throw error;
     }
   }
 
