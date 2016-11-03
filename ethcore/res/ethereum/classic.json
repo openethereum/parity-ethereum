@@ -11,7 +11,9 @@
 				"blockReward": "0x4563918244F40000",
 				"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
 				"homesteadTransition": "0x118c30",
-				"eip150Transition": "0x2625a0"
+				"eip150Transition": "0x2625a0",
+				"bombPauseTransition": "0x2dc6c0",
+				"bombContinueTransition": "0x4c4b40"
 			}
 		}
 	},

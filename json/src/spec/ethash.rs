@@ -70,6 +70,13 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="eip150Transition")]
 	pub eip150_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="bombPauseTransition")]
+	pub bomb_pause_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="bombContinueTransition")]
+	pub bomb_continue_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
