@@ -518,6 +518,7 @@ mod tests {
 	use trace::{FlatTrace, Tracer, NoopTracer, ExecutiveTracer};
 	use trace::{VMTrace, VMOperation, VMExecutedOperation, MemoryDiff, StorageDiff, VMTracer, NoopVMTracer, ExecutiveVMTracer};
 	use types::executed::CallType;
+	use state::{CleanupMode};
 
 	#[test]
 	fn test_contract_address() {

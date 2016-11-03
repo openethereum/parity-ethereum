@@ -23,6 +23,7 @@ use common::*;
 use devtools::*;
 use miner::Miner;
 use spec::Spec;
+use state::CleanupMode;
 
 #[test]
 fn imports_from_empty() {
