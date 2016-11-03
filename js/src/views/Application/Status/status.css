@@ -28,9 +28,13 @@
 }
 
 .enode {
-  width: 45em;
   word-wrap: break-word;
-  margin: 0.5em 0 0.25em;
+  margin: 0.5em 0 0.25em 0;
+}
+
+.enode > * {
+  display: inline-block;
+  margin-left: .5em;
 }
 
 .block {
