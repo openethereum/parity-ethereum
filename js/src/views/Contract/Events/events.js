@@ -38,11 +38,20 @@ export default class Events extends Component {
       return null;
     }
 
+    const list = events.map((event) => {
+      return (
+        <Event
+          key={ event.key }
+          event={ event }
+          isTest={ isTest } />
+      );
+    });
+
     return (
       <Container>
         <ContainerTitle title='events' />
         <table className={ styles.events }>
-          <tbody>{ events.map((event) => <Event event={ event } key={ event.key } isTest={ isTest } />) }</tbody>
+          <tbody>{ list }</tbody>
         </table>
       </Container>
     );

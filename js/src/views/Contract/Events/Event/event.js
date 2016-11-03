@@ -30,8 +30,7 @@ export default class Event extends Component {
 
   static propTypes = {
     event: PropTypes.object.isRequired,
-    isTest: PropTypes.bool,
-    fetchBlock: PropTypes.func.isRequired
+    isTest: PropTypes.bool
   }
 
   state = {
