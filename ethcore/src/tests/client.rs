@@ -217,7 +217,7 @@ fn can_generate_gas_price_histogram() {
 	let client = client_result.reference();
 
 	let hist = client.gas_price_histogram(20, 5).unwrap();
-	let correct_hist = Histogram { bucket_bounds: vec_into![643,2293,3943,5593,7243,8893], counts: vec![4,2,4,6,3] };
+	let correct_hist = Histogram { bucket_bounds: vec_into![643, 2294, 3945, 5596, 7247, 8898], counts: vec![4,2,4,6,4] };
 	assert_eq!(hist, correct_hist);
 }
 
