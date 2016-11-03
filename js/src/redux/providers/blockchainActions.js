@@ -14,7 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { uniq } from 'lodash';
+
 import Contracts from '../../contracts';
+import etherscan from '../../3rdparty/etherscan';
 
 export function setBlock (blockNumber, block) {
   return {
@@ -41,6 +44,49 @@ export function setMethod (signature, method) {
   return {
     type: 'setMethod',
     signature, method
+  };
+}
+
+export function setAccount (address, info) {
+  return {
+    type: 'setAccount',
+    address, info
+  };
+}
+
+export function fetchAccountTransactions (address) {
+  return (dispatch, getState) => {
+    dispatch(setAccount(address, { loading: true, error: null }));
+
+    const state = getState();
+
+    const { api } = state;
+    const { traceMode, isTest } = state.nodeStatus;
+
+    const transactionsPromise = false
+      ? fetchTraceTransactions(api, address)
+      : fetchEtherscanTransactions(isTest, address);
+
+    transactionsPromise
+      .then((transactions) => {
+        dispatch(setAccount(address, {
+          loading: false,
+          transactions
+        }));
+
+        const blockNumbers = uniq(transactions.map(tx => tx.blockNumber));
+        const txHashes = uniq(transactions.map(tx => tx.hash));
+
+        blockNumbers.forEach(blockNumber => dispatch(fetchBlock(blockNumber)));
+        txHashes.forEach(hash => dispatch(fetchTransaction(hash)));
+      })
+      .catch((e) => {
+        console.error('::fetchAccountTransactions', address, e);
+        dispatch(setAccount(address, {
+          loading: false,
+          error: e
+        }));
+      });
   };
 }
 
@@ -125,4 +171,33 @@ export function fetchMethod (signature) {
         console.error('blockchain::fetchMethod', e);
       });
   };
+}
+
+export function fetchEtherscanTransactions (isTest, address) {
+  return etherscan.account
+    .transactions(address, 0, isTest);
+}
+
+export function fetchTraceTransactions (api, address) {
+  return Promise
+    .all([
+      api.trace.filter({
+        fromBlock: 0,
+        fromAddress: address
+      }),
+      api.trace.filter({
+        fromBlock: 0,
+        toAddress: address
+      })
+    ])
+    .then(([fromTransactions, toTransactions]) => {
+      const transactions = [].concat(fromTransactions, toTransactions);
+
+      return transactions.map(transaction => ({
+        from: transaction.action.from,
+        to: transaction.action.to,
+        blockNumber: transaction.blockNumber,
+        hash: transaction.transactionHash
+      }));
+    });
 }

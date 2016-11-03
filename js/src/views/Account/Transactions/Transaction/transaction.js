@@ -17,17 +17,13 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-
-import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
 import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
 
-class Transaction extends Component {
+export default class Transaction extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -37,22 +33,8 @@ class Transaction extends Component {
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
 
-    fetchBlock: PropTypes.func.isRequired,
-    fetchTransaction: PropTypes.func.isRequired,
-
     block: PropTypes.object,
     transactionInfo: PropTypes.object
-  }
-
-  state = {
-    isContract: false,
-    isReceived: false
-  }
-
-  componentDidMount () {
-    const { address, transaction } = this.props;
-
-    this.lookup(address, transaction);
   }
 
   render () {
@@ -176,35 +158,4 @@ class Transaction extends Component {
 
     return moment(block.timestamp).fromNow();
   }
-
-  lookup (address, transaction) {
-    const { transactionInfo } = this.props;
-
-    if (transactionInfo) {
-      return;
-    }
-
-    this.setState({ isReceived: address === transaction.to });
-
-    const { fetchBlock, fetchTransaction } = this.props;
-    const { blockNumber, hash } = transaction;
-
-    fetchBlock(blockNumber);
-    fetchTransaction(hash);
-  }
 }
-
-function mapStateToProps () {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBlock, fetchTransaction
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Transaction);

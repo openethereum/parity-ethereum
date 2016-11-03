@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import etherscan from '../../../3rdparty/etherscan';
+import { fetchAccountTransactions } from '../../../redux/providers/blockchainActions';
 import { Container, ContainerTitle } from '../../../ui';
 
 import Transaction from './Transaction';
@@ -33,6 +33,9 @@ class Transactions extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
+    fetchAccountTransactions: PropTypes.func.isRequired,
+
+    accountInfo: PropTypes.object,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
@@ -49,7 +52,7 @@ class Transactions extends Component {
     callInfo: {}
   }
 
-  componentDidMount () {
+  componentWillMount () {
     if (this.props.traceMode !== undefined) {
       this.getTransactions(this.props);
     }
@@ -80,13 +83,17 @@ class Transactions extends Component {
   }
 
   renderTransactions () {
-    const { loading, transactions } = this.state;
+    const { accountInfo } = this.props;
 
-    if (loading) {
+    if (!accountInfo || accountInfo.loading) {
       return (
         <LinearProgress mode='indeterminate' />
       );
-    } else if (!transactions.length) {
+    }
+
+    const { transactions } = accountInfo;
+
+    if (!transactions.length) {
       return (
         <div className={ styles.infonone }>
           No transactions were found for this account
@@ -121,8 +128,8 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest, blocks, transactionsInfo } = this.props;
-    const { transactions } = this.state;
+    const { address, accounts, contacts, contracts, tokens, isTest, blocks, accountInfo, transactionsInfo } = this.props;
+    const { transactions } = accountInfo;
 
     return (transactions || [])
       .sort((tA, tB) => {
@@ -146,72 +153,26 @@ class Transactions extends Component {
             contacts={ contacts }
             contracts={ contracts }
             tokens={ tokens }
-            isTest={ isTest } />
+            isTest={ isTest }
+          />
         );
       });
   }
 
-  getTransactions = (props) => {
-    const { isTest, address, traceMode } = props;
-
-    return this
-      .fetchTransactions(isTest, address, traceMode)
-      .then(transactions => {
-        this.setState({
-          transactions,
-          loading: false
-        });
-      });
-  }
-
-  fetchTransactions = (isTest, address, traceMode) => {
-    if (traceMode) {
-      return this.fetchTraceTransactions(address);
-    }
-
-    return this.fetchEtherscanTransactions(isTest, address);
-  }
-
-  fetchEtherscanTransactions = (isTest, address) => {
-    return etherscan.account
-      .transactions(address, 0, isTest)
-      .catch((error) => {
-        console.error('getTransactions', error);
-      });
-  }
-
-  fetchTraceTransactions = (address) => {
-    return Promise
-      .all([
-        this.context.api.trace
-          .filter({
-            fromBlock: 0,
-            fromAddress: address
-          }),
-        this.context.api.trace
-          .filter({
-            fromBlock: 0,
-            toAddress: address
-          })
-      ])
-      .then(([fromTransactions, toTransactions]) => {
-        const transactions = [].concat(fromTransactions, toTransactions);
-
-        return transactions.map(transaction => ({
-          from: transaction.action.from,
-          to: transaction.action.to,
-          blockNumber: transaction.blockNumber,
-          hash: transaction.transactionHash
-        }));
-      });
+  getTransactions (props = this.props) {
+    const { address, fetchAccountTransactions } = props;
+    fetchAccountTransactions(address);
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps (state, props) {
   const { isTest, traceMode } = state.nodeStatus;
   const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
   const { blocks, transactions } = state.blockchain;
+
+  const { address } = props;
+  const accountInfo = state.blockchain.accounts[address];
 
   return {
     isTest,
@@ -221,12 +182,15 @@ function mapStateToProps (state) {
     contracts,
     tokens,
     blocks,
+    accountInfo,
     transactionsInfo: transactions
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    fetchAccountTransactions
+  }, dispatch);
 }
 
 export default connect(

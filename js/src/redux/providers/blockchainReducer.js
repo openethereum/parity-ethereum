@@ -20,7 +20,8 @@ const initialState = {
   blocks: {},
   transactions: {},
   bytecodes: {},
-  methods: {}
+  methods: {},
+  accounts: {}
 };
 
 export default handleActions({
@@ -62,5 +63,23 @@ export default handleActions({
     });
 
     return Object.assign({}, state, { methods });
+  },
+
+  setAccount (state, action) {
+    const { address, info } = action;
+    const { accounts } = state;
+
+    const account = accounts[address];
+
+    const newAccounts = {
+      ...accounts,
+      [address]: {
+        ...account,
+        ...info
+      }
+    };
+
+    return Object.assign({}, state, { accounts: newAccounts });
   }
+
 }, initialState);
