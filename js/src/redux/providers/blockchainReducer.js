@@ -30,8 +30,10 @@ const initialContractState = {
   subscriptionId: -1,
   events: {
     mined: [],
-    pending: []
-  }
+    pending: [],
+    loading: true
+  },
+  queries: {}
 };
 
 export default handleActions({
@@ -181,7 +183,8 @@ export default handleActions({
         ...contract,
         events: {
           pending: pendingEvents,
-          mined: minedEvents
+          mined: minedEvents,
+          loading: false
         }
       }
     };

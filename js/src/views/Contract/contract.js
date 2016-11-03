@@ -49,17 +49,10 @@ class Contract extends Component {
   }
 
   state = {
-    contract: null,
     fromAddress: '',
     showDeleteDialog: false,
     showEditDialog: false,
-    showExecuteDialog: false,
-    subscriptionId: -1,
-    blockSubscriptionId: -1,
-    allEvents: [],
-    minedEvents: [],
-    pendingEvents: [],
-    queryValues: {}
+    showExecuteDialog: false
   }
 
   attachContract (props = this.props) {
@@ -109,8 +102,7 @@ class Contract extends Component {
       return null;
     }
 
-    const { queries, events } = contract;
-    const allEvents = [].concat(events.mined, events.pending);
+    const { queries } = contract;
 
     return (
       <div className={ styles.contract }>
@@ -128,8 +120,7 @@ class Contract extends Component {
             contract={ contract.instance }
             values={ queries } />
 
-          <Events
-            events={ allEvents } />
+          <Events address={ params.address } />
         </Page>
       </div>
     );

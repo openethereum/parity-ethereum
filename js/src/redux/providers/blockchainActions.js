@@ -129,16 +129,19 @@ export function attachContract (address) {
 
     const instance = api.newContract(contract.meta.abi, address);
 
-    dispatch(subscribeToContractEvents(address, instance));
-    dispatch(subscribeToContractQueries(address, instance));
-
     dispatch(setContract(address, { ...contract, instance }));
   };
 }
 
-export function subscribeToContractEvents (address, instance) {
+export function subscribeToContractEvents (address) {
   return (dispatch, getState) => {
-    const { api } = getState();
+    const { api, blockchain } = getState();
+
+    if (blockchain.contracts[address] && blockchain.contracts[address].subscriptionId > -1) {
+      return null;
+    }
+
+    const { instance } = blockchain.contracts[address];
 
     instance
       .subscribe(
@@ -163,13 +166,22 @@ export function subscribeToContractEvents (address, instance) {
       )
       .then((subscriptionId) => {
         dispatch(setContract(address, { subscriptionId }));
+      })
+      .catch((e) => {
+        throw e;
       });
   };
 }
 
-export function subscribeToContractQueries (address, instance) {
+export function subscribeToContractQueries (address) {
   return (dispatch, getState) => {
-    const { api } = getState();
+    const { api, blockchain } = getState();
+
+    if (blockchain.contracts[address] && blockchain.contracts[address].blockSubscriptionId > -1) {
+      return null;
+    }
+
+    const { instance } = blockchain.contracts[address];
 
     const queries = instance.functions
       .filter((fn) => fn.constant)

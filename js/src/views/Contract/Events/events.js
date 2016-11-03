@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import LinearProgress from 'material-ui/LinearProgress';
 
+import { subscribeToContractEvents } from '../../../redux/providers/blockchainActions';
 import { Container, ContainerTitle } from '../../../ui';
 
 import Event from './Event';
@@ -30,20 +31,46 @@ class Events extends Component {
   }
 
   static propTypes = {
-    events: PropTypes.array,
+    subscribeToContractEvents: PropTypes.func.isRequired,
+    address: PropTypes.string,
+    contract: PropTypes.object,
     blocks: PropTypes.object,
     transactions: PropTypes.object,
     isTest: PropTypes.bool
   }
 
-  render () {
-    const { events, blocks, transactions, isTest } = this.props;
+  componentDidMount () {
+    const { address, subscribeToContractEvents } = this.props;
+    subscribeToContractEvents(address);
+  }
 
-    if (!events || !events.length || this.eventsLoading()) {
+  render () {
+    const { contract, blocks, transactions, isTest } = this.props;
+
+    if (!contract) {
+      return null;
+    }
+
+    const { events } = contract;
+
+    if (!events || this.eventsLoading()) {
       return (
         <Container className={ styles.eventsContainer }>
           <ContainerTitle title='events' />
           <LinearProgress mode='indeterminate' />
+        </Container>
+      );
+    }
+
+    const allEvents = [].concat(events.pending, events.mined);
+
+    if (allEvents.length === 0) {
+      return (
+        <Container className={ styles.eventsContainer }>
+          <ContainerTitle title='events' />
+          <p>
+            There are no events associated with this account
+          </p>
         </Container>
       );
     }
@@ -54,7 +81,7 @@ class Events extends Component {
         <table className={ styles.events }>
           <tbody>
           {
-            events.map((event) => {
+            allEvents.map((event) => {
               const block = blocks[event.blockNumber.toString()];
               const transaction = transactions[event.transactionHash] || {};
 
@@ -76,10 +103,17 @@ class Events extends Component {
   }
 
   eventsLoading () {
-    const { events, blocks, transactions } = this.props;
+    const { contract, blocks, transactions } = this.props;
+    const { events } = contract;
 
-    const blockNumbers = events.map(e => e.blockNumber.toString());
-    const txHashes = events.map(e => e.transactionHash);
+    if (events.loading) {
+      return true;
+    }
+
+    const allEvents = [].concat(events.pending, events.mined);
+
+    const blockNumbers = allEvents.map(e => e.blockNumber.toString());
+    const txHashes = allEvents.map(e => e.transactionHash);
 
     const pendingBlocks = blockNumbers
       .map(k => blocks[k])
@@ -93,19 +127,26 @@ class Events extends Component {
   }
 }
 
-function mapStateToProps (state) {
+function mapStateToProps (state, ownProps) {
   const { isTest } = state.nodeStatus;
-  const { blocks, transactions } = state.blockchain;
+  const { blocks, transactions, contracts } = state.blockchain;
+
+  const contract = contracts[ownProps.address];
 
   return {
     isTest,
     blocks,
-    transactions
+    transactions,
+    contract
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    subscribeToContractEvents
+    // dispatch(subscribeToContractEvents(address, instance));
+    // dispatch(subscribeToContractQueries(address, instance));
+  }, dispatch);
 }
 
 export default connect(

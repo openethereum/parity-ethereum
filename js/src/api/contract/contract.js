@@ -270,7 +270,6 @@ export default class Contract {
               callback,
               filterId
             };
-
             return subscriptionId;
           });
       });
@@ -289,7 +288,7 @@ export default class Contract {
 
   _sendSubscriptionChanges = () => {
     const subscriptions = Object.values(this._subscriptions);
-    const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
+    const timeout = () => setTimeout(() => this._sendSubscriptionChanges(), 1000);
 
     Promise
       .all(
