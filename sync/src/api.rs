@@ -90,7 +90,7 @@ impl EthSync {
 	}
 }
 
-#[derive(Ipc)]
+#[ipc]
 #[ipc(client_ident="SyncClient")]
 impl SyncProvider for EthSync {
 	/// Get sync status
@@ -185,7 +185,6 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[derive(Ipc)]
 #[ipc(client_ident="NetworkManagerClient")]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {

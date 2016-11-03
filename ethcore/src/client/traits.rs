@@ -43,7 +43,6 @@ use ipc::{IpcConfig, BinaryConvertError};
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
 pub trait BlockChainClient : Sync + Send {
@@ -217,7 +216,7 @@ pub trait BlockChainClient : Sync + Send {
 	}
 
 	/// Get the preferred network ID to sign on
-	fn signing_network_id(&self) -> Option<u8> { None } 
+	fn signing_network_id(&self) -> Option<u8> { None }
 }
 
 /// Extended client interface used for mining

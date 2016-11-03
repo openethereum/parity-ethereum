@@ -16,4 +16,6 @@
 
 pub mod helpers;
 mod client;
+
+#[cfg(feature="ipc")]
 mod rpc;

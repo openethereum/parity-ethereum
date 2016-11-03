@@ -20,7 +20,7 @@ use std::collections::VecDeque;
 use std::mem;
 
 /// Represents what has to be handled by actor listening to chain events
-#[derive(Ipc)]
+#[ipc]
 pub trait ChainNotify : Send + Sync {
 	/// fires when chain has new blocks
 	fn new_blocks(&self,

@@ -34,7 +34,7 @@ pub struct HypervisorService {
 	check_list: RwLock<HashMap<IpcModuleId, bool>>,
 }
 
-#[derive(Ipc)]
+#[ipc]
 impl HypervisorService {
 	fn module_ready(&self, module_id: u64) -> bool {
 		let mut check_list = self.check_list.write().unwrap();
