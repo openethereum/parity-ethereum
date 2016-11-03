@@ -47,9 +47,13 @@ export default class Summary extends Component {
     }
 
     const url = `/app/${type}/${app.url || app.contentHash || app.id}`;
-    const image = app.image || app.iconUrl
-      ? <img src={ app.image || `http://127.0.0.1:${dappsPort}/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      : <div className={ styles.image }>&nbsp;</div>;
+    let image = <div className={ styles.image }>&nbsp;</div>;
+
+    if (app.image) {
+      image = <img src={ `http://127.0.0.1:${dappsPort}/${app.image}` } className={ styles.image } />;
+    } else if (app.iconUrl) {
+      image = <img src={ `http://127.0.0.1:${dappsPort}/${app.id}/${app.iconUrl}` } className={ styles.image } />;
+    }
 
     return (
       <Container className={ styles.container }>
