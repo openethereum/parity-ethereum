@@ -24,6 +24,7 @@ mod web3;
 mod personal;
 mod personal_signer;
 mod parity;
+mod parity_accounts;
 mod parity_set;
 mod rpc;
 mod manage_network;

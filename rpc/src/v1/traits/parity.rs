@@ -17,7 +17,7 @@
 //! Parity-specific rpc interface.
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
+use v1::helpers::auto_args::Wrap;
 use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings, Histogram};
 
 build_rpc_trait! {
@@ -114,10 +114,6 @@ build_rpc_trait! {
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
 
-		/// Hash a file content under given URL.
-		#[rpc(async, name = "parity_hashContent")]
-		fn hash_content(&self, Ready<H256>, String);
-
 		/// Returns current Trusted Signer port or an error if signer is disabled.
 		#[rpc(name = "parity_signerPort")]
 		fn signer_port(&self) -> Result<u16, Error>;
@@ -135,7 +131,7 @@ build_rpc_trait! {
 		fn mode(&self) -> Result<String, Error>;
 
 		/// Get the enode of this node.
-		#[rpc(name = "ethcore_enode")]
+		#[rpc(name = "parity_enode")]
 		fn enode(&self) -> Result<String, Error>;
 	}
 }

@@ -17,6 +17,7 @@
 use std::sync::Arc;
 use util::log::RotatingLogger;
 use util::{U256, Address};
+
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
 use ethstore::ethkey::{Generator, Random};
@@ -24,11 +25,11 @@ use ethstore::ethkey::{Generator, Random};
 use jsonrpc_core::IoHandler;
 use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestFetch};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use super::manage_network::TestManageNetwork;
 
 
-pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestFetch>;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider>;
 
 pub struct Dependencies {
 	pub miner: Arc<TestMinerService>,
@@ -64,7 +65,7 @@ impl Dependencies {
 	}
 
 	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
-		ParityClient::with_fetch(
+		ParityClient::new(
 			&self.client,
 			&self.miner,
 			&self.sync,
@@ -250,17 +251,6 @@ fn rpc_parity_unsigned_transactions_count_when_signer_disabled() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_parity_hash_content() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

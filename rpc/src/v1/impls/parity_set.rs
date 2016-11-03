@@ -15,35 +15,56 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Parity-specific rpc interface for operations altering the settings.
-use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
+use std::{fs, io};
+use std::sync::{Arc, Weak, mpsc};
+
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::mode::Mode;
 use ethsync::ManageNetwork;
+use fetch::{Client as FetchClient, Fetch};
+use util::{Mutex, sha3};
+
+use jsonrpc_core::Error;
+use v1::helpers::auto_args::Ready;
 use v1::helpers::errors;
 use v1::traits::ParitySet;
-use v1::types::{Bytes, H160, U256};
+use v1::types::{Bytes, H160, H256, U256};
 
 /// Parity-specific rpc interface for operations altering the settings.
-pub struct ParitySetClient<C, M> where
+pub struct ParitySetClient<C, M, F=FetchClient> where
 	C: MiningBlockChainClient,
-	M: MinerService
+	M: MinerService,
+	F: Fetch,
 {
 	client: Weak<C>,
 	miner: Weak<M>,
 	net: Weak<ManageNetwork>,
+	fetch: Mutex<F>,
 }
 
-impl<C, M> ParitySetClient<C, M> where
+impl<C, M> ParitySetClient<C, M, FetchClient> where
 	C: MiningBlockChainClient,
-	M: MinerService {
-	/// Creates new `ParitySetClient`.
+	M: MinerService
+{
+	/// Creates new `ParitySetClient` with default `FetchClient`.
 	pub fn new(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
+		Self::with_fetch(client, miner, net)
+	}
+}
+
+impl<C, M, F> ParitySetClient<C, M, F> where
+	C: MiningBlockChainClient,
+	M: MinerService,
+	F: Fetch,
+{
+	/// Creates new `ParitySetClient` with default `FetchClient`.
+	pub fn with_fetch(client: &Arc<C>, miner: &Arc<M>, net: &Arc<ManageNetwork>) -> Self {
 		ParitySetClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
 			net: Arc::downgrade(net),
+			fetch: Mutex::new(F::default()),
 		}
 	}
 
@@ -54,9 +75,11 @@ impl<C, M> ParitySetClient<C, M> where
 	}
 }
 
-impl<C, M> ParitySet for ParitySetClient<C, M> where
+impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 	C: MiningBlockChainClient + 'static,
-	M: MinerService + 'static {
+	M: MinerService + 'static,
+	F: Fetch + 'static,
+{
 
 	fn set_min_gas_price(&self, gas_price: U256) -> Result<bool, Error> {
 		try!(self.active());
@@ -159,4 +182,43 @@ impl<C, M> ParitySet for ParitySetClient<C, M> where
 		});
 		Ok(true)
 	}
+
+	fn hash_content(&self, ready: Ready<H256>, url: String) {
+		let res = self.active();
+
+		let hash_content = |result| {
+			let path = try!(result);
+			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
+			// Try to hash
+			let result = sha3(&mut file);
+			// Remove file (always)
+			try!(fs::remove_file(&path));
+			// Return the result
+			Ok(try!(result))
+		};
+
+		match res {
+			Err(e) => ready.ready(Err(e)),
+			Ok(()) => {
+				let (tx, rx) = mpsc::channel();
+				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
+					let result = hash_content(result)
+							.map_err(errors::from_fetch_error)
+							.map(Into::into);
+
+					// Receive ready and invoke with result.
+					let ready: Ready<H256> = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
+					ready.ready(result);
+				}));
+
+				// Either invoke ready right away or transfer it to the closure.
+				if let Err(e) = res {
+					ready.ready(Err(errors::from_fetch_error(e)));
+				} else {
+					tx.send(ready).expect("Rx end is sent to on_done closure.");
+				}
+			}
+		}
+	}
+
 }

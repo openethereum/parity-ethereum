@@ -31,15 +31,25 @@ pub use ethcore_rpc::SignerService;
 
 #[derive(Debug, PartialEq, Clone, Eq, Hash)]
 pub enum Api {
+	/// Web3 (Safe)
 	Web3,
+	/// Net (Safe)
 	Net,
+	/// Eth (Safe)
 	Eth,
-	PersonalSafe,
-	PersonalAccounts,
+	/// Personal (Semi-safe: Passwords, Side Effects (new account))
+	Personal,
+	/// Signer - Confirm transactions in Signer (Semi-unsafe: Passwords, List of transactions)
 	Signer,
+	/// Parity - Custom extensions (Safe)
 	Parity,
+	/// Parity Accounts extensions (Semi-unsafe: Passwords, Side Effects (new account))
+	ParityAccounts,
+	/// Parity - Set methods (UNSAFE: Side Effects affecting node operation)
 	ParitySet,
+	/// Traces (Safe)
 	Traces,
+	/// Rpc (Safe)
 	Rpc,
 }
 
@@ -53,10 +63,10 @@ impl FromStr for Api {
 			"web3" => Ok(Web3),
 			"net" => Ok(Net),
 			"eth" => Ok(Eth),
-			"personal" => Ok(PersonalAccounts),
-			"personal_safe" => Ok(PersonalSafe),
+			"personal" => Ok(Personal),
 			"signer" => Ok(Signer),
 			"parity" => Ok(Parity),
+			"parity_accounts" => Ok(ParityAccounts),
 			"parity_set" => Ok(ParitySet),
 			"traces" => Ok(Traces),
 			"rpc" => Ok(Rpc),
@@ -68,6 +78,7 @@ impl FromStr for Api {
 #[derive(Debug)]
 pub enum ApiSet {
 	SafeContext,
+	IpcContext,
 	UnsafeContext,
 	List(HashSet<Api>),
 }
@@ -118,10 +129,10 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Net => ("net", "1.0"),
 			Api::Eth => ("eth", "1.0"),
-			Api::PersonalSafe => ("personal_safe", "1.0"),
-			Api::PersonalAccounts => ("personal", "1.0"),
+			Api::Personal => ("personal", "1.0"),
 			Api::Signer => ("signer", "1.0"),
 			Api::Parity => ("parity", "1.0"),
+			Api::ParityAccounts => ("parity_accounts", "1.0"),
 			Api::ParitySet => ("parity_set", "1.0"),
 			Api::Traces => ("traces", "1.0"),
 			Api::Rpc => ("rpc", "1.0"),
@@ -133,15 +144,22 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 
 impl ApiSet {
 	pub fn list_apis(&self) -> HashSet<Api> {
+		let mut safe_list = vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc]
+			.into_iter().collect();
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
-			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::PersonalSafe]
-					.into_iter().collect()
+			ApiSet::UnsafeContext => safe_list,
+			ApiSet::IpcContext => {
+				safe_list.insert(Api::Personal);
+				safe_list.insert(Api::ParityAccounts);
+				safe_list
 			},
 			ApiSet::SafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Parity, Api::ParitySet, Api::Traces, Api::Rpc]
-					.into_iter().collect()
+				safe_list.insert(Api::Personal);
+				safe_list.insert(Api::ParityAccounts);
+				safe_list.insert(Api::ParitySet);
+				safe_list.insert(Api::Signer);
+				safe_list
 			},
 		}
 	}
@@ -184,11 +202,8 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
 			},
-			Api::PersonalAccounts => {
-				server.add_delegate(PersonalAccountsClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
-			},
-			Api::PersonalSafe => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client).to_delegate());
+			Api::Personal => {
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
 			},
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
@@ -208,6 +223,9 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					signer,
 					deps.dapps_port,
 				).to_delegate())
+			},
+			Api::ParityAccounts => {
+				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::ParitySet => {
 				server.add_delegate(ParitySetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
@@ -233,10 +251,10 @@ mod test {
 		assert_eq!(Api::Web3, "web3".parse().unwrap());
 		assert_eq!(Api::Net, "net".parse().unwrap());
 		assert_eq!(Api::Eth, "eth".parse().unwrap());
-		assert_eq!(Api::PersonalAccounts, "personal".parse().unwrap());
-		assert_eq!(Api::PersonalSafe, "personal_safe".parse().unwrap());
+		assert_eq!(Api::Personal, "personal".parse().unwrap());
 		assert_eq!(Api::Signer, "signer".parse().unwrap());
 		assert_eq!(Api::Parity, "parity".parse().unwrap());
+		assert_eq!(Api::ParityAccounts, "parity_accounts".parse().unwrap());
 		assert_eq!(Api::ParitySet, "parity_set".parse().unwrap());
 		assert_eq!(Api::Traces, "traces".parse().unwrap());
 		assert_eq!(Api::Rpc, "rpc".parse().unwrap());
@@ -255,15 +273,34 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc, Api::PersonalSafe]
-			.into_iter().collect();
+		let expected = vec![
+			// make sure this list contains only SAFE methods
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc
+		].into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
+	fn test_api_set_ipc_context() {
+		let expected = vec![
+			// safe
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			// semi-safe
+			Api::Personal, Api::ParityAccounts
+		].into_iter().collect();
+		assert_eq!(ApiSet::IpcContext.list_apis(), expected);
+	}
+
+	#[test]
 	fn test_api_set_safe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Parity, Api::ParitySet, Api::Traces, Api::Rpc]
-			.into_iter().collect();
+		let expected = vec![
+			// safe
+			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
+			// semi-safe
+			Api::Personal, Api::ParityAccounts,
+			// Unsafe
+			Api::ParitySet, Api::Signer,
+		].into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}
 }

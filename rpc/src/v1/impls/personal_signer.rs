@@ -14,14 +14,14 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! Transactions Confirmations (personal) rpc implementation
+//! Transactions Confirmations rpc implementation
 
 use std::sync::{Arc, Weak};
 use jsonrpc_core::*;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
-use v1::traits::PersonalSigner;
+use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
@@ -58,7 +58,7 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 	}
 }
 
-impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
 	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
 		try!(self.active());

@@ -18,8 +18,8 @@
 
 use jsonrpc_core::Error;
 
-use v1::helpers::auto_args::Wrap;
-use v1::types::{Bytes, H160, U256};
+use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
+use v1::types::{Bytes, H160, H256, U256};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface for operations altering the settings.
@@ -83,5 +83,9 @@ build_rpc_trait! {
 		/// Set the mode. Argument must be one of: "active", "passive", "dark", "off".
 		#[rpc(name = "parity_setMode")]
 		fn set_mode(&self, String) -> Result<bool, Error>;
+
+		/// Hash a file content under given URL.
+		#[rpc(async, name = "parity_hashContent")]
+		fn hash_content(&self, Ready<H256>, String);
 	}
 }

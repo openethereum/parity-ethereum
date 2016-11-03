@@ -16,15 +16,17 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
-use v1::{ParitySet, ParitySetClient};
+use rustc_serialize::hex::FromHex;
+use util::{U256, Address};
+
 use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
-use v1::tests::helpers::TestMinerService;
-use util::{U256, Address};
-use rustc_serialize::hex::FromHex;
-use super::manage_network::TestManageNetwork;
 use ethsync::ManageNetwork;
+
+use jsonrpc_core::IoHandler;
+use v1::{ParitySet, ParitySetClient};
+use v1::tests::helpers::{TestMinerService, TestFetch};
+use super::manage_network::TestManageNetwork;
 
 fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
@@ -38,8 +40,10 @@ fn network_service() -> Arc<TestManageNetwork> {
 	Arc::new(TestManageNetwork)
 }
 
-fn parity_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<TestManageNetwork>) -> ParitySetClient<TestBlockChainClient, TestMinerService> {
-	ParitySetClient::new(client, miner, &(net.clone() as Arc<ManageNetwork>))
+pub type TestParitySetClient = ParitySetClient<TestBlockChainClient, TestMinerService, TestFetch>;
+
+fn parity_set_client(client: &Arc<TestBlockChainClient>, miner: &Arc<TestMinerService>, net: &Arc<TestManageNetwork>) -> TestParitySetClient {
+	ParitySetClient::with_fetch(client, miner, &(net.clone() as Arc<ManageNetwork>))
 }
 
 #[test]
@@ -116,3 +120,18 @@ fn rpc_parity_set_transactions_limit() {
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 	assert_eq!(miner.transactions_limit(), 10_240_240);
 }
+
+#[test]
+fn rpc_parity_set_hash_content() {
+	let miner = miner_service();
+	let client = client_service();
+	let network = network_service();
+	let io = IoHandler::new();
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+

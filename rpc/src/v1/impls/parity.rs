@@ -15,15 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity-specific rpc implementation.
-use std::{fs, io};
-use std::sync::{mpsc, Arc, Weak};
+use std::sync::{Arc, Weak};
 use std::str::FromStr;
 
-use util::{RotatingLogger, Address, Mutex, sha3};
+use util::{RotatingLogger, Address};
 use util::misc::version_data;
 
 use crypto::ecies;
-use fetch::{Client as FetchClient, Fetch};
 use ethkey::{Brain, Generator};
 use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
@@ -37,15 +35,13 @@ use v1::traits::Parity;
 use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
-use v1::helpers::auto_args::Ready;
 
 /// Parity implementation.
-pub struct ParityClient<C, M, S: ?Sized, F=FetchClient> where
+pub struct ParityClient<C, M, S: ?Sized> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 	S: SyncProvider,
-	F: Fetch {
-
+{
 	client: Weak<C>,
 	miner: Weak<M>,
 	sync: Weak<S>,
@@ -53,15 +49,15 @@ pub struct ParityClient<C, M, S: ?Sized, F=FetchClient> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	fetch: Mutex<F>,
 	dapps_port: Option<u16>,
 }
 
 impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 	C: MiningBlockChainClient,
 	M: MinerService,
-	S: SyncProvider, {
-	/// Creates new `ParityClient` with default `Fetch`.
+	S: SyncProvider,
+{
+	/// Creates new `ParityClient`.
 	pub fn new(
 		client: &Arc<C>,
 		miner: &Arc<M>,
@@ -72,27 +68,6 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 		signer: Option<Arc<SignerService>>,
 		dapps_port: Option<u16>,
 	) -> Self {
-		Self::with_fetch(client, miner, sync, net, logger, settings, signer, dapps_port)
-	}
-}
-
-impl<C, M, S: ?Sized, F> ParityClient<C, M, S, F> where
-	C: MiningBlockChainClient,
-	M: MinerService,
-	S: SyncProvider,
-	F: Fetch, {
-
-	/// Creates new `ParityClient` with customizable `Fetch`.
-	pub fn with_fetch(
-		client: &Arc<C>,
-		miner: &Arc<M>,
-		sync: &Arc<S>,
-		net: &Arc<ManageNetwork>,
-		logger: Arc<RotatingLogger>,
-		settings: Arc<NetworkSettings>,
-		signer: Option<Arc<SignerService>>,
-		dapps_port: Option<u16>,
-		) -> Self {
 		ParityClient {
 			client: Arc::downgrade(client),
 			miner: Arc::downgrade(miner),
@@ -101,7 +76,6 @@ impl<C, M, S: ?Sized, F> ParityClient<C, M, S, F> where
 			logger: logger,
 			settings: settings,
 			signer: signer,
-			fetch: Mutex::new(F::default()),
 			dapps_port: dapps_port,
 		}
 	}
@@ -113,11 +87,10 @@ impl<C, M, S: ?Sized, F> ParityClient<C, M, S, F> where
 	}
 }
 
-impl<C, M, S: ?Sized, F> Parity for ParityClient<C, M, S, F> where
+impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 	M: MinerService + 'static,
 	C: MiningBlockChainClient + 'static,
-	S: SyncProvider + 'static,
-	F: Fetch + 'static {
+	S: SyncProvider + 'static {
 
 	fn transactions_limit(&self) -> Result<usize, Error> {
 		try!(self.active());
@@ -276,44 +249,6 @@ impl<C, M, S: ?Sized, F> Parity for ParityClient<C, M, S, F> where
 		try!(self.active());
 
 		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
-	}
-
-	fn hash_content(&self, ready: Ready<H256>, url: String) {
-		let res = self.active();
-
-		let hash_content = |result| {
-			let path = try!(result);
-			let mut file = io::BufReader::new(try!(fs::File::open(&path)));
-			// Try to hash
-			let result = sha3(&mut file);
-			// Remove file (always)
-			try!(fs::remove_file(&path));
-			// Return the result
-			Ok(try!(result))
-		};
-
-		match res {
-			Err(e) => ready.ready(Err(e)),
-			Ok(()) => {
-				let (tx, rx) = mpsc::channel();
-				let res = self.fetch.lock().request_async(&url, Default::default(), Box::new(move |result| {
-					let result = hash_content(result)
-							.map_err(errors::from_fetch_error)
-							.map(Into::into);
-
-					// Receive ready and invoke with result.
-					let ready: Ready<H256> = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
-					ready.ready(result);
-				}));
-
-				// Either invoke ready right away or transfer it to the closure.
-				if let Err(e) = res {
-					ready.ready(Err(errors::from_fetch_error(e)));
-				} else {
-					tx.send(ready).expect("Rx end is sent to on_done closure.");
-				}
-			}
-		}
 	}
 
 	fn signer_port(&self) -> Result<u16, Error> {

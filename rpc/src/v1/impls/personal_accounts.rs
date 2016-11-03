@@ -16,33 +16,30 @@
 
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
+use std::collections::BTreeMap;
 use util::{Address};
-use jsonrpc_core::*;
+
 use ethkey::{Brain, Generator};
-use v1::traits::PersonalAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
-use v1::helpers::errors;
-use v1::helpers::dispatch::sign_and_dispatch;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
-use ethcore::miner::MinerService;
+
+use jsonrpc_core::{Value, Error, to_value};
+use v1::traits::ParityAccounts;
+use v1::types::{H160 as RpcH160, H256 as RpcH256};
+use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalAccountsClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+pub struct ParityAccountsClient<C> where C: MiningBlockChainClient {
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
-	miner: Weak<M>,
-	allow_perm_unlock: bool,
 }
 
-impl<C, M> PersonalAccountsClient<C, M> where C: MiningBlockChainClient, M: MinerService {
+impl<C> ParityAccountsClient<C> where C: MiningBlockChainClient {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
-		PersonalAccountsClient {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>) -> Self {
+		ParityAccountsClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
-			miner: Arc::downgrade(miner),
-			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
 
@@ -53,15 +50,25 @@ impl<C, M> PersonalAccountsClient<C, M> where C: MiningBlockChainClient, M: Mine
 	}
 }
 
-impl<C: 'static, M: 'static> PersonalAccounts for PersonalAccountsClient<C, M> where C: MiningBlockChainClient, M: MinerService {
-
-	fn new_account(&self, pass: String) -> Result<RpcH160, Error> {
+impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlockChainClient {
+	fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
+		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		store.new_account(&pass)
-			.map(Into::into)
-			.map_err(|e| errors::account("Could not create account.", e))
+		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+			let m = map![
+				"name".to_owned() => to_value(&v.name),
+				"meta".to_owned() => to_value(&v.meta),
+				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
+					to_value(uuid)
+				} else {
+					Value::Null
+				}
+			];
+			(format!("0x{}", a.hex()), Value::Object(m))
+		}).collect())
 	}
 
 	fn new_account_from_phrase(&self, phrase: String, pass: String) -> Result<RpcH160, Error> {
@@ -92,24 +99,6 @@ impl<C: 'static, M: 'static> PersonalAccounts for PersonalAccountsClient<C, M> w
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<u64>) -> Result<bool, Error> {
-		try!(self.active());
-		let account: Address = account.into();
-		let store = take_weak!(self.accounts);
-
-		let r = match (self.allow_perm_unlock, duration) {
-			(false, _) => store.unlock_account_temporarily(account, account_pass),
-			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
-			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d as u32 * 1000),
-			(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
-		};
-		match r {
-			Ok(_) => Ok(true),
-			// TODO [ToDr] Proper error here?
-			Err(_) => Ok(false),
-		}
-	}
-
 	fn test_password(&self, account: RpcH160, password: String) -> Result<bool, Error> {
 		try!(self.active());
 		let account: Address = account.into();
@@ -126,18 +115,6 @@ impl<C: 'static, M: 'static> PersonalAccounts for PersonalAccountsClient<C, M> w
 			.change_password(&account, password, new_password)
 			.map(|_| true)
 			.map_err(|e| errors::account("Could not fetch account info.", e))
-	}
-
-	fn sign_and_send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
-		try!(self.active());
-
-		sign_and_dispatch(
-			&*take_weak!(self.client),
-			&*take_weak!(self.miner),
-			&*take_weak!(self.accounts),
-			request.into(),
-			Some(password)
-		)
 	}
 
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {
