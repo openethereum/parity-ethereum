@@ -20,8 +20,9 @@ import { bindActionCreators } from 'redux';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
+import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, Shapeshift, Transfer, PasswordManager } from '../../modals';
+import { EditMeta, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
@@ -45,6 +46,7 @@ class Account extends Component {
   state = {
     showEditDialog: false,
     showFundDialog: false,
+    showVerificationDialog: false,
     showTransferDialog: false,
     showPasswordDialog: false
   }
@@ -64,6 +66,7 @@ class Account extends Component {
       <div className={ styles.account }>
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
+        { this.renderVerificationDialog() }
         { this.renderTransferDialog() }
         { this.renderPasswordDialog() }
         { this.renderActionbar() }
@@ -99,6 +102,11 @@ class Account extends Component {
         icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
         label='shapeshift'
         onClick={ this.onShapeshiftAccountClick } />,
+      <Button
+        key='sms-verification'
+        icon={ <VerifyIcon /> }
+        label='Verify via SMS'
+        onClick={ this.openVerification } />,
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
@@ -146,6 +154,19 @@ class Account extends Component {
       <Shapeshift
         address={ address }
         onClose={ this.onShapeshiftAccountClose } />
+    );
+  }
+
+  renderVerificationDialog () {
+    if (!this.state.showVerificationDialog) {
+      return null;
+    }
+
+    const { address } = this.props.params;
+
+    // TODO: pass props
+    return (
+      <SMSVerification onClose={ this.onVerificationClose } />
     );
   }
 
@@ -203,6 +224,14 @@ class Account extends Component {
 
   onShapeshiftAccountClose = () => {
     this.onShapeshiftAccountClick();
+  }
+
+  openVerification = () => {
+    this.setState({ showVerificationDialog: true });
+  }
+
+  onVerificationClose = () => {
+    this.setState({ showVerificationDialog: false });
   }
 
   onTransferClick = () => {
