@@ -153,37 +153,19 @@ export default class Event extends Component {
   }
 
   retrieveTransaction () {
+    const { api } = this.context;
     const { event } = this.props;
 
-    this.fetchBlock(event.blockNumber);
-    this.fetchTransaction(event.transactionHash);
-  }
-
-  // TODO: Moved to shared, non-Redux
-  fetchBlock (blockNumber) {
-    const { api } = this.context;
-
-    api.eth
-      .getBlockByNumber(blockNumber)
-      .then((block) => {
-        this.setState({ block });
+    Promise
+      .all([
+        api.eth.getBlockByNumber(event.blockNumber),
+        api.eth.getTransactionByHash(event.transactionHash)
+      ])
+      .then(([block, transaction]) => {
+        this.setState({ block, transaction });
       })
       .catch((error) => {
-        console.warn('fetchBlock', error);
-      });
-  }
-
-  // TODO: Moved to shared, non-Redux
-  fetchTransaction (txHash) {
-    const { api } = this.context;
-
-    api.eth
-      .getTransactionByHash(txHash)
-      .then((transaction) => {
-        this.setState({ transaction });
-      })
-      .catch((error) => {
-        console.warn('fetchTransaction', error);
+        console.warn('retrieveTransaction', error);
       });
   }
 }

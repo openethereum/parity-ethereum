@@ -166,42 +166,21 @@ export default class Transaction extends Component {
   }
 
   lookup () {
+    const { api } = this.context;
     const { transaction, address } = this.props;
 
     this.setState({ isReceived: address === transaction.to });
 
-    this.fetchBlock(transaction.blockNumber);
-    this.fetchTransaction(transaction.hash);
-  }
-
-  // TODO: The next 2 methods duplicated in contract (need the fix fast, hence TODO)
-  // TODO: Moved to shared, non-Redux
-  fetchBlock (blockNumber) {
-    const { api } = this.context;
-
-    console.log(blockNumber.toString());
-
-    api.eth
-      .getBlockByNumber(blockNumber)
-      .then((block) => {
-        this.setState({ block });
+    Promise
+      .all([
+        api.eth.getBlockByNumber(transaction.blockNumber),
+        api.eth.getTransactionByHash(transaction.hash)
+      ])
+      .then(([block, transaction]) => {
+        this.setState({ block, transaction });
       })
       .catch((error) => {
-        console.warn('fetchBlock', error);
-      });
-  }
-
-  // TODO: Moved to shared, non-Redux
-  fetchTransaction (txHash) {
-    const { api } = this.context;
-
-    api.eth
-      .getTransactionByHash(txHash)
-      .then((transaction) => {
-        this.setState({ transaction });
-      })
-      .catch((error) => {
-        console.warn('fetchTransaction', error);
+        console.warn('lookup', error);
       });
   }
 }

@@ -57,9 +57,7 @@ class MethodDecoding extends Component {
   }
 
   componentWillMount () {
-    const { transaction } = this.props;
-
-    this.lookup(transaction);
+    this.lookup();
   }
 
   render () {
@@ -266,7 +264,9 @@ class MethodDecoding extends Component {
     );
   }
 
-  lookup (transaction) {
+  lookup () {
+    const { transaction } = this.props;
+
     if (!transaction) {
       return;
     }
@@ -292,30 +292,12 @@ class MethodDecoding extends Component {
       return;
     }
 
-    this.fetchBytecode(contractAddress);
-    this.fetchMethod(signature);
-  }
-
-  fetchBytecode (address) {
-    const { api } = this.context;
-
-    api.eth
-      .getCode(address)
-      .then((bytecode) => {
-        this.setState({ bytecode, isContract: bytecode && bytecode !== '0x' });
-      })
-      .catch((error) => {
-        console.warn('fetchBytecode', error);
-      });
-  }
-
-  fetchMethod (signature) {
-    const { api } = this.context;
-
-    Contracts
-      .get()
-      .signatureReg.lookup(signature)
-      .then((method) => {
+    Promise
+      .all([
+        api.eth.getCode(contractAddress),
+        Contracts.get().signatureReg.lookup(signature)
+      ])
+      .then(([bytecode, method]) => {
         let methodInputs = null;
         let methodName = null;
 
@@ -333,10 +315,16 @@ class MethodDecoding extends Component {
             });
         }
 
-        this.setState({ method, methodName, methodInputs });
+        this.setState({
+          method,
+          methodName,
+          methodInputs,
+          bytecode,
+          isContract: bytecode && bytecode !== '0x'
+        });
       })
       .catch((error) => {
-        console.warn('fetchMethod', error);
+        console.warn('lookup', error);
       });
   }
 }
