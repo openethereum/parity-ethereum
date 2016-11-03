@@ -48,7 +48,7 @@ pub fn new_homestead_test() -> Spec { Spec::load(include_bytes!("../../res/ether
 pub fn new_eip150_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/eip150_test.json")) }
 
 /// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
-pub fn new_eip161_test() -> Spec { load(include_bytes!("../../res/ethereum/eip161_test.json")) }
+pub fn new_eip161_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/eip161_test.json")) }
 
 /// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
 pub fn new_transition_test() -> Spec { Spec::load(include_bytes!("../../res/ethereum/transition_test.json")) }
