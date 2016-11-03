@@ -74,6 +74,12 @@ const networkApps = [
   }
 ];
 
+function getHost (api) {
+  return process.env.NODE_ENV === 'production'
+    ? `http://127.0.0.1:${api.dappsPort}`
+    : '';
+}
+
 export function fetchAvailable (api) {
   // TODO: Since we don't have an extensive GithubHint app, get the value somehow
   // RESULT: 0x22cd66e1b05882c0fa17a16d252d3b3ee2238ccbac8153f69a35c83f02ca76ee
@@ -82,8 +88,7 @@ export function fetchAvailable (api) {
   //   .then((sha3) => {
   //     console.log('archive', sha3);
   //   });
-
-  return fetch(`http://127.0.0.1:${api.dappsPort}/api/apps`)
+  return fetch(`${getHost(api)}/api/apps`)
     .then((response) => {
       return response.ok
         ? response.json()
@@ -133,7 +138,7 @@ export function fetchAvailable (api) {
 }
 
 export function fetchManifest (api, app, contentHash) {
-  return fetch(`http://127.0.0.1:${api.dappsPort}/${contentHash}/manifest.json`)
+  return fetch(`${getHost(api)}/${contentHash}/manifest.json`)
     .then((response) => {
       return response.ok
         ? response.json()
