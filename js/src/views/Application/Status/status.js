@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { BlockStatus } from '../../../ui';
+import CopyToClipboard from '../../../ui/CopyToClipboard';
 
 import styles from './status.css';
 
@@ -74,7 +75,8 @@ class Status extends Component {
 
     return (
       <div className={ styles.enode }>
-        { abbreviated }
+        <CopyToClipboard data={ enode } />
+        <div>{ abbreviated }</div>
       </div>
     );
   }
