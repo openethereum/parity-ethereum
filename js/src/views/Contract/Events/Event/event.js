@@ -17,23 +17,19 @@
 import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-import { fetchBlock } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
-class Event extends Component {
+export default class Event extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     event: PropTypes.object.isRequired,
-    blocks: PropTypes.object,
     isTest: PropTypes.bool,
     fetchBlock: PropTypes.func.isRequired
   }
@@ -47,10 +43,9 @@ class Event extends Component {
   }
 
   render () {
-    const { event, blocks, isTest } = this.props;
-    const { transaction } = this.state;
+    const { event, isTest } = this.props;
+    const { block, transaction } = this.state;
 
-    const block = blocks[event.blockNumber.toString()];
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
@@ -158,12 +153,27 @@ class Event extends Component {
   }
 
   retrieveTransaction () {
-    const { event, fetchBlock } = this.props;
+    const { event } = this.props;
 
-    fetchBlock(event.blockNumber);
+    this.fetchBlock(event.blockNumber);
     this.fetchTransaction(event.transactionHash);
   }
 
+  // TODO: Moved to shared, non-Redux
+  fetchBlock (blockNumber) {
+    const { api } = this.context;
+
+    api.eth
+      .getBlockByNumber(blockNumber)
+      .then((block) => {
+        this.setState({ block });
+      })
+      .catch((error) => {
+        console.warn('fetchBlock', error);
+      });
+  }
+
+  // TODO: Moved to shared, non-Redux
   fetchTransaction (txHash) {
     const { api } = this.context;
 
@@ -177,24 +187,3 @@ class Event extends Component {
       });
   }
 }
-
-function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
-  const { blocks } = state.blockchain;
-
-  return {
-    isTest,
-    blocks
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBlock
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Event);

@@ -27,11 +27,12 @@ export default class Events extends Component {
   }
 
   static propTypes = {
-    events: PropTypes.array
+    events: PropTypes.array,
+    isTest: PropTypes.bool.isRequired
   }
 
   render () {
-    const { events } = this.props;
+    const { events, isTest } = this.props;
 
     if (!events || !events.length) {
       return null;
@@ -41,7 +42,7 @@ export default class Events extends Component {
       <Container>
         <ContainerTitle title='events' />
         <table className={ styles.events }>
-          <tbody>{ events.map((event) => <Event event={ event } key={ event.key } />) }</tbody>
+          <tbody>{ events.map((event) => <Event event={ event } key={ event.key } isTest={ isTest } />) }</tbody>
         </table>
       </Container>
     );
