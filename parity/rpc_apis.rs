@@ -165,6 +165,18 @@ impl ApiSet {
 	}
 }
 
+macro_rules! add_signing_methods {
+	($namespace:ident, $server:expr, $deps:expr) => {
+		let server = &$server;
+		let deps = &$deps;
+		if deps.signer_service.is_enabled() {
+			server.add_delegate($namespace::to_delegate(SigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store)))
+		} else {
+			server.add_delegate($namespace::to_delegate(SigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner)))
+		}
+	}
+}
+
 pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet) -> T {
 	use ethcore_rpc::v1::*;
 
@@ -196,11 +208,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
 				server.add_delegate(filter_client.to_delegate());
 
-				if deps.signer_service.is_enabled() {
-					server.add_delegate(EthSigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
-				} else {
-					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
-				}
+				add_signing_methods!(EthSigning, server, deps);
 			},
 			Api::Personal => {
 				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
@@ -222,7 +230,9 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					deps.settings.clone(),
 					signer,
 					deps.dapps_port,
-				).to_delegate())
+				).to_delegate());
+
+				add_signing_methods!(EthSigning, server, deps);
 			},
 			Api::ParityAccounts => {
 				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());

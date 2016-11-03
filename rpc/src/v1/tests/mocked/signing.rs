@@ -17,8 +17,8 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use jsonrpc_core::{IoHandler, to_value, Success};
-use v1::impls::EthSigningQueueClient;
-use v1::traits::{EthSigning, Parity};
+use v1::impls::SigningQueueClient;
+use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
@@ -31,7 +31,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethstore::ethkey::{Generator, Random};
 use serde_json;
 
-struct EthSigningTester {
+struct SigningTester {
 	pub signer: Arc<SignerService>,
 	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
@@ -39,16 +39,19 @@ struct EthSigningTester {
 	pub io: IoHandler,
 }
 
-impl Default for EthSigningTester {
+impl Default for SigningTester {
 	fn default() -> Self {
 		let signer = Arc::new(SignerService::new_test(None));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&signer, &client, &miner, &accounts).to_delegate());
+		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
+		io.add_delegate(EthSigning::to_delegate(rpc));
+		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
+		io.add_delegate(ParitySigning::to_delegate(rpc));
 
-		EthSigningTester {
+		SigningTester {
 			signer: signer,
 			client: client,
 			miner: miner,
@@ -58,8 +61,8 @@ impl Default for EthSigningTester {
 	}
 }
 
-fn eth_signing() -> EthSigningTester {
-	EthSigningTester::default()
+fn eth_signing() -> SigningTester {
+	SigningTester::default()
 }
 
 #[test]
