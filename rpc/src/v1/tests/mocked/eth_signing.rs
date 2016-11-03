@@ -101,7 +101,7 @@ fn should_post_sign_to_queue() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -122,7 +122,7 @@ fn should_check_status_of_request() {
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -134,7 +134,7 @@ fn should_check_status_of_request() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_checkRequest",
+		"method": "parity_checkRequest",
 		"params": ["0x1"],
 		"id": 1
 	}"#;
@@ -151,7 +151,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -164,7 +164,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_checkRequest",
+		"method": "parity_checkRequest",
 		"params": ["0x1"],
 		"id": 1
 	}"#;
