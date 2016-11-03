@@ -71,12 +71,13 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 	}
 
-	fn still_syncing() -> Box<Handler> {
+	fn still_syncing(port: Option<u16>) -> Box<Handler> {
 		Box::new(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
-			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
+			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
+			port,
 		))
 	}
 
@@ -143,7 +144,7 @@ impl<R: URLHint> ContentFetcher<R> {
 					match content {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
-							(None, Self::still_syncing())
+							(None, Self::still_syncing(self.embeddable_at))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
@@ -155,7 +156,8 @@ impl<R: URLHint> ContentFetcher<R> {
 									dapps_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
 									embeddable_at: self.embeddable_at,
-								}
+								},
+								self.embeddable_at,
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
@@ -170,13 +172,14 @@ impl<R: URLHint> ContentFetcher<R> {
 									mime: content.mime,
 									content_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
-								}
+								},
+								self.embeddable_at,
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
 						},
 						None if self.sync.is_major_importing() => {
-							(None, Self::still_syncing())
+							(None, Self::still_syncing(self.embeddable_at))
 						},
 						None => {
 							// This may happen when sync status changes in between
@@ -185,7 +188,8 @@ impl<R: URLHint> ContentFetcher<R> {
 								StatusCode::NotFound,
 								"Resource Not Found",
 								"Requested resource was not found.",
-								None
+								None,
+								self.embeddable_at,
 							)) as Box<Handler>)
 						},
 					}
