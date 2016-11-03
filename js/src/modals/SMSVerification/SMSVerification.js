@@ -24,7 +24,7 @@ import { validateAddress, validateUint } from '../../util/validation';
 import ABI from '../../contracts/abi/sms-verification.json';
 const contract = '0x7B3F58965439b22ef1dA4BB78f16191d11ab80B0';
 
-// import DetailsStep from './DetailsStep';
+import SendRequest from './SendRequest';
 
 export default class SMSVerification extends Component {
   static contextTypes = {
@@ -40,6 +40,7 @@ export default class SMSVerification extends Component {
   state = {
     contract: null,
     step: 0,
+    stepIsValid: false,
     number: null,
     numberError: null
   }
@@ -70,7 +71,7 @@ export default class SMSVerification extends Component {
 
   renderDialogActions () {
     const { onClose, account } = this.props;
-    const { step } = this.state;
+    const { step, stepIsValid } = this.state;
 
     const cancel = (
       <Button
@@ -98,6 +99,7 @@ export default class SMSVerification extends Component {
         { cancel }
         <Button
           key='next' label='Next'
+          disabled={ !stepIsValid }
           icon={ <IdentityIcon address={ account } button /> }
           onClick={ this.next }
         />
@@ -114,15 +116,24 @@ export default class SMSVerification extends Component {
     }
   }
 
+  onDataIsValid = () => {
+    this.setState({ stepIsValid: true });
+  }
+
+  onDataIsInvalid = () => {
+    this.setState({ stepIsValid: false });
+  }
+
   next = () => {
-    this.setState({
-      step: this.state.step + 1
-    });
+    this.setState({ step: this.state.step + 1 });
   }
 
   renderFirstStep () {
     return (
-      <span>first step</span>
+      <SendRequest
+        onDataIsValid={ this.onDataIsValid }
+        onDataIsInvalid={ this.onDataIsInvalid }
+      />
     );
   }
 
