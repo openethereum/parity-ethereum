@@ -30,7 +30,6 @@ pub struct Histogram {
 impl Histogram {
 	/// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
 	pub fn new(corpus: &[U256], bucket_number: usize) -> Option<Histogram> {
-		// Needs at least two extreme values.
 		if corpus.len() < 1 { return None; }
 		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
 		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
