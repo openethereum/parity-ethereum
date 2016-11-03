@@ -21,7 +21,6 @@ use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
-use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
 use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
@@ -71,7 +70,6 @@ pub enum BlockchainCmd {
 #[derive(Debug, PartialEq)]
 pub struct ImportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,
@@ -85,12 +83,12 @@ pub struct ImportBlockchain {
 	pub fat_db: Switch,
 	pub vm_type: VMType,
 	pub check_seal: bool,
+	pub with_color: bool,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ExportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,
@@ -119,9 +117,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());
@@ -196,7 +191,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, None, cmd.logger_config.color);
+	let informant = Informant::new(client.clone(), None, None, None, cmd.with_color);
 
 	try!(service.register_io_handler(Arc::new(ImportIoHandler {
 		info: Arc::new(informant),
@@ -268,9 +263,6 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
-
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
 
 	// create dirs used by parity
 	try!(cmd.dirs.create_dirs());

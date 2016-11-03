@@ -133,5 +133,9 @@ build_rpc_trait! {
 		/// Get the mode. Results one of: "active", "passive", "dark", "off".
 		#[rpc(name = "parity_mode")]
 		fn mode(&self) -> Result<String, Error>;
+
+		/// Get the enode of this node.
+		#[rpc(name = "ethcore_enode")]
+		fn enode(&self) -> Result<String, Error>;
 	}
 }

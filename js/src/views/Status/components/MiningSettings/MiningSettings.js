@@ -45,26 +45,41 @@ export default class MiningSettings extends Component {
           hint='the mining author'
           value={ coinbase }
           onSubmit={ this.onAuthorChange }
-          { ...this._test('author') } />
+          allowCopy
+          floatCopy
+          { ...this._test('author') }
+        />
+
         <Input
           label='extradata'
           hint='extra data for mined blocks'
           value={ decodeExtraData(extraData) }
           onSubmit={ this.onExtraDataChange }
           defaultValue={ decodeExtraData(defaultExtraData) }
-          { ...this._test('extra-data') } />
+          allowCopy
+          floatCopy
+          { ...this._test('extra-data') }
+        />
+
         <Input
           label='minimal gas price'
           hint='the minimum gas price for mining'
           value={ toNiceNumber(minGasPrice) }
           onSubmit={ this.onMinGasPriceChange }
-          { ...this._test('min-gas-price') } />
+          allowCopy={ minGasPrice.toString() }
+          floatCopy
+          { ...this._test('min-gas-price') }
+        />
+
         <Input
           label='gas floor target'
           hint='the gas floor target for mining'
           value={ toNiceNumber(gasFloorTarget) }
           onSubmit={ this.onGasFloorTargetChange }
-          { ...this._test('gas-floor-target') } />
+          allowCopy={ gasFloorTarget.toString() }
+          floatCopy
+          { ...this._test('gas-floor-target') }
+        />
       </div>
     );
   }

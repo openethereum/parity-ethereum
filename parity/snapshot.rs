@@ -20,7 +20,6 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ethcore_logger::{setup_log, Config as LogConfig};
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
@@ -55,7 +54,6 @@ pub struct SnapshotCommand {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
-	pub logger_config: LogConfig,
 	pub mode: Mode,
 	pub tracing: Switch,
 	pub fat_db: Switch,
@@ -140,9 +138,6 @@ impl SnapshotCommand {
 
 		// load user defaults
 		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
-
-		// Setup logging
-		let _logger = setup_log(&self.logger_config);
 
 		fdlimit::raise_fd_limit();
 

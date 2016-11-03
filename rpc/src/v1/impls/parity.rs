@@ -353,4 +353,8 @@ impl<C, M, S: ?Sized, F> Parity for ParityClient<C, M, S, F> where
 			Mode::Active => "active",
 		}.into())
 	}
+
+	fn enode(&self) -> Result<String, Error> {
+		take_weak!(self.sync).enode().ok_or_else(errors::network_disabled)
+	}
 }

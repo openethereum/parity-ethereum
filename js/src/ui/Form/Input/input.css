@@ -14,56 +14,18 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.spaced {
-  line-height: 1.618em;
-}
 
-.password {
-  flex: 0 1 50%;
-  width: 50%;
-  box-sizing: border-box;
-
-  &:nth-child(odd) {
-    padding-right: 0.25rem;
-  }
-
-  &:nth-child(even) {
-    padding-left: 0.25rem;
-  }
-}
-
-.passwords {
+.container {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  align-items: flex-end;
+  position: relative;
 }
 
-.identities, .selector {
-  display: flex;
-}
-
-.selector {
-  margin-top: 1.5em;
-}
-
-.identities .identity, .selector .button {
-  flex: 0 1 18%;
-  width: 18% !important;
-  text-align: center;
-  cursor: pointer;
-}
-
-.refresh {
-  flex: 0 1 10%;
-  width: 10% !important;
-}
-
-.upload {
-  text-align: right;
-  float: right;
-  margin-left: -100%;
-  margin-top: 28px;
-}
-
-.upload>div {
+.copy {
   margin-right: 0.5em;
+
+  svg {
+    transition: all .5s ease-in-out;
+  }
 }

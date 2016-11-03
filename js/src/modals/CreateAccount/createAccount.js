@@ -214,7 +214,10 @@ export default class CreateAccount extends Component {
           this.setState({ address });
           return api.personal
             .setAccountName(address, this.state.name)
-            .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+            .then(() => api.personal.setAccountMeta(address, {
+              timestamp: Date.now(),
+              passwordHint: this.state.passwordHint
+            }));
         })
         .then(() => {
           this.onNext();
@@ -236,7 +239,10 @@ export default class CreateAccount extends Component {
           this.setState({ address });
           return api.personal
             .setAccountName(address, this.state.name)
-            .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+            .then(() => api.personal.setAccountMeta(address, {
+              timestamp: Date.now(),
+              passwordHint: this.state.passwordHint
+            }));
         })
         .then(() => {
           this.onNext();
@@ -285,7 +291,10 @@ export default class CreateAccount extends Component {
 
         return api.personal
           .setAccountName(address, this.state.name)
-          .then(() => api.personal.setAccountMeta(address, { passwordHint: this.state.passwordHint }));
+          .then(() => api.personal.setAccountMeta(address, {
+            timestamp: Date.now(),
+            passwordHint: this.state.passwordHint
+          }));
       })
       .then(() => {
         this.onNext();
