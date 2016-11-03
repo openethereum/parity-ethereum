@@ -32,6 +32,7 @@ export default class Summary extends Component {
   }
 
   render () {
+    const { dappsPort } = this.context.api;
     const { app } = this.props;
 
     if (!app) {
@@ -47,7 +48,7 @@ export default class Summary extends Component {
 
     const url = `/app/${type}/${app.url || app.contentHash || app.id}`;
     const image = app.image || app.iconUrl
-      ? <img src={ app.image || `http://127.0.0.1:8080/${app.id}/${app.iconUrl}` } className={ styles.image } />
+      ? <img src={ app.image || `http://127.0.0.1:${dappsPort}/${app.id}/${app.iconUrl}` } className={ styles.image } />
       : <div className={ styles.image }>&nbsp;</div>;
 
     return (
