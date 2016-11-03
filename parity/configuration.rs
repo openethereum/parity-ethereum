@@ -776,7 +776,7 @@ mod tests {
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
 			check_seal: true,
-			with_color: true,
+			with_color: !cfg!(windows),
 		})));
 	}
 
