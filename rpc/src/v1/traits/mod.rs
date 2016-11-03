@@ -20,11 +20,11 @@ pub mod web3;
 pub mod eth;
 pub mod eth_signing;
 pub mod net;
-pub mod personal;
 pub mod parity;
 pub mod parity_accounts;
 pub mod parity_set;
-pub mod parity_signer;
+pub mod personal;
+pub mod signer;
 pub mod traces;
 pub mod rpc;
 
@@ -36,7 +36,7 @@ pub use self::parity::Parity;
 pub use self::parity_accounts::ParityAccounts;
 pub use self::parity_set::ParitySet;
 pub use self::personal::Personal;
-pub use self::parity_signer::Signer;
+pub use self::signer::Signer;
 pub use self::traces::Traces;
 pub use self::rpc::Rpc;
 

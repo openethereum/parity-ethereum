@@ -22,7 +22,7 @@ mod eth_signing;
 mod net;
 mod web3;
 mod personal;
-mod personal_signer;
+mod signer;
 mod parity;
 mod parity_accounts;
 mod parity_set;
