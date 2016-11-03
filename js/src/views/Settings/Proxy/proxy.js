@@ -27,8 +27,8 @@ export default class Proxy extends Component {
   }
 
   render () {
-    const { dappsPort } = this.context.api;
-    const proxyurl = `http://127.0.0.1:${dappsPort}/proxy/proxy.pac`;
+    const { dappsUrl } = this.context.api;
+    const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
 
     return (
       <Container>

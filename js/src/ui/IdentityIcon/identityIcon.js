@@ -61,7 +61,7 @@ class IdentityIcon extends Component {
     const { button, inline, tiny } = this.props;
 
     if (images[_address]) {
-      this.setState({ iconsrc: `http://127.0.0.1:${api.dappsPort}${images[_address]}` });
+      this.setState({ iconsrc: `${api.dappsUrl}${images[_address]}` });
       return;
     }
 

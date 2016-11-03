@@ -76,7 +76,7 @@ const networkApps = [
 
 function getHost (api) {
   return process.env.NODE_ENV === 'production'
-    ? `http://127.0.0.1:${api.dappsPort}`
+    ? api.dappsUrl
     : '';
 }
 

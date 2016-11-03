@@ -115,6 +115,10 @@ export default class SecureApi extends Api {
     return this._dappsPort;
   }
 
+  get dappsUrl () {
+    return `http://127.0.0.1:${this._dappsPort}`;
+  }
+
   get signerPort () {
     return this._signerPort;
   }

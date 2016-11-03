@@ -127,7 +127,7 @@ export default class Details extends Component {
         if (!imagesrc) {
           imagesrc =
             images[token.address]
-              ? `http://127.0.0.1:${api.dappsPort}${images[token.address]}`
+              ? `${api.dappsUrl}${images[token.address]}`
               : imageUnknown;
         }
         let value = 0;

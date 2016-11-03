@@ -29,12 +29,12 @@ export default class Dapp extends Component {
 
   render () {
     const { name, type } = this.props.params;
-    const { dappsPort } = this.context.api;
+    const { dappsUrl } = this.context.api;
 
-    let src = `http://127.0.0.1:${dappsPort}/${name}/`;
+    let src = `${dappsUrl}/${name}/`;
     if (type === 'builtin') {
       const dapphost = process.env.NODE_ENV === 'production'
-        ? `http://127.0.0.1:${dappsPort}/ui`
+        ? `${dappsUrl}/ui`
         : '';
       src = `${dapphost}/${name}.html`;
     }
