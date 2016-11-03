@@ -383,6 +383,8 @@ js-release:
   image: ethcore/javascript:latest
   only:
     - master
+    - beta
+    - stable
   before_script:
     - ./js/scripts/install-deps.sh
   script:

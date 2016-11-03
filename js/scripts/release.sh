@@ -65,16 +65,18 @@ git add Cargo.lock js/package.json
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 
-echo "*** Building packages for npmjs"
-cd js
-# echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
-echo "$NPM_TOKEN" >> ~/.npmrc
-npm run ci:build:npm
+if [ "$BRANCH" == "master" ]; then
+  echo "*** Building packages for npmjs"
+  cd js
+  # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
+  echo "$NPM_TOKEN" >> ~/.npmrc
+  npm run ci:build:npm
 
-echo "*** Publishing $PACKAGE to npmjs"
-cd .npmjs
-npm publish --access public
-cd ..
+  echo "*** Publishing $PACKAGE to npmjs"
+  cd .npmjs
+  npm publish --access public
+  cd ..
+fi
 
 # back to root
 echo "*** Release completed"
