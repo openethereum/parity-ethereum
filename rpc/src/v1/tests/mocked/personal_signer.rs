@@ -186,13 +186,8 @@ fn should_confirm_transaction_and_dispatch() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "test".into()).unwrap();
-<<<<<<< HEAD
-	let signature = tester.accounts.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
-=======
-	let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
+	let signature = tester.accounts.sign(address, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
->>>>>>> 8d8599c... Fix all tests finally.
 
 	assert_eq!(tester.queue.requests().len(), 1);
 

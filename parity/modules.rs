@@ -25,10 +25,6 @@ use self::ipc_deps::*;
 use ethcore_logger::Config as LogConfig;
 
 pub mod service_urls {
-	pub const CLIENT: &'static str = "ipc:///tmp/parity-chain.ipc";
-	pub const SYNC: &'static str = "ipc:///tmp/parity-sync.ipc";
-	pub const SYNC_NOTIFY: &'static str = "ipc:///tmp/parity-sync-notify.ipc";
-	pub const NETWORK_MANAGER: &'static str = "ipc:///tmp/parity-manage-net.ipc";
 }
 
 #[cfg(not(feature="ipc"))]

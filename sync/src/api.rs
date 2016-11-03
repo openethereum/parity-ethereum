@@ -90,8 +90,6 @@ impl EthSync {
 	}
 }
 
-#[ipc]
-#[ipc(client_ident="SyncClient")]
 impl SyncProvider for EthSync {
 	/// Get sync status
 	fn status(&self) -> SyncStatus {
@@ -185,7 +183,6 @@ pub trait ManageNetwork : Send + Sync {
 }
 
 
-#[ipc(client_ident="NetworkManagerClient")]
 impl ManageNetwork for EthSync {
 	fn accept_unreserved_peers(&self) {
 		self.network.set_non_reserved_mode(NonReservedPeerMode::Accept);

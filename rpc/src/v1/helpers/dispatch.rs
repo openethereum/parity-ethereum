@@ -71,7 +71,7 @@ pub fn unlock_sign_and_dispatch<C, M>(client: &C, miner: &M, request: Transactio
 		t.with_signature(signature, network_id)
 	};
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", ::rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
+	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", encode(&signed_transaction).to_vec().pretty(), network_id);
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 
@@ -80,9 +80,9 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, request: TransactionReques
 
 	let signed_transaction = {
 		let t = prepare_transaction(client, miner, request);
-		let hash = t.hash();
+		let hash = t.hash(None);
 		let signature = try!(account_provider.sign(address, hash).map_err(errors::from_signing_error));
-		t.with_signature(signature)
+		t.with_signature(signature, None)
 	};
 
 	trace!(target: "miner", "send_transaction: dispatching tx: {}", encode(&signed_transaction).to_vec().pretty());
