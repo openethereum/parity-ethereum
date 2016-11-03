@@ -216,6 +216,7 @@ export default class DeployContract extends Component {
           api.personal.setAccountMeta(address, {
             abi: abiParsed,
             contract: true,
+            timestamp: Date.now(),
             deleted: false,
             description
           })

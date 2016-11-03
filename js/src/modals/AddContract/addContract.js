@@ -145,6 +145,7 @@ export default class AddContract extends Component {
       api.personal.setAccountMeta(address, {
         contract: true,
         deleted: false,
+        timestamp: Date.now(),
         abi: abiParsed,
         description
       })

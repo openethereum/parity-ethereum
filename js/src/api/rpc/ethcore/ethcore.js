@@ -58,6 +58,11 @@ export default class Ethcore {
       .execute('ethcore_dropNonReservedPeers');
   }
 
+  enode () {
+    return this._transport
+      .execute('ethcore_enode');
+  }
+
   extraData () {
     return this._transport
       .execute('ethcore_extraData');

@@ -21,6 +21,7 @@ import { PopoverAnimationVertical } from 'material-ui/Popover';
 export default class AutoComplete extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
+    onUpdateInput: PropTypes.func,
     disabled: PropTypes.bool,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -43,7 +44,7 @@ export default class AutoComplete extends Component {
   }
 
   render () {
-    const { disabled, error, hint, label, value, className, filter } = this.props;
+    const { disabled, error, hint, label, value, className, filter, onUpdateInput } = this.props;
     const { open } = this.state;
 
     return (
@@ -54,11 +55,11 @@ export default class AutoComplete extends Component {
         hintText={ hint }
         errorText={ error }
         onNewRequest={ this.onChange }
+        onUpdateInput={ onUpdateInput }
         searchText={ value }
         onFocus={ this.onFocus }
         onBlur={ this.onBlur }
         animation={ PopoverAnimationVertical }
-
         filter={ filter }
         popoverProps={ { open } }
         openOnFocus
@@ -108,11 +109,17 @@ export default class AutoComplete extends Component {
   }
 
   onBlur = () => {
-    window.setTimeout(() => {
-      const { entry } = this.state;
+    const { onUpdateInput } = this.props;
 
-      this.handleOnChange(entry);
-    }, 100);
+    // TODO: Handle blur gracefully where we use onUpdateInput (currently replaces input
+    // input where text is allowed with the last selected value from the dropdown)
+    if (!onUpdateInput) {
+      window.setTimeout(() => {
+        const { entry } = this.state;
+
+        this.handleOnChange(entry);
+      }, 100);
+    }
   }
 
   onFocus = () => {
@@ -131,5 +138,4 @@ export default class AutoComplete extends Component {
       this.props.onChange(value, empty);
     }
   }
-
 }

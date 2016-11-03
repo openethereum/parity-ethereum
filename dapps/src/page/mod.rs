@@ -21,4 +21,5 @@ mod handler;
 
 pub use self::local::LocalPageEndpoint;
 pub use self::builtin::PageEndpoint;
+pub use self::handler::PageCache;
 

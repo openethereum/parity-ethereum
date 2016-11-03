@@ -26,6 +26,7 @@ class Status extends Component {
   static propTypes = {
     blockNumber: PropTypes.object.isRequired,
     clientVersion: PropTypes.string,
+    enode: PropTypes.string,
     netPeers: PropTypes.object,
     netChain: PropTypes.string,
     isTest: PropTypes.bool
@@ -44,6 +45,7 @@ class Status extends Component {
         <div className={ styles.version }>
           { clientVersion }
         </div>
+        { this.renderEnode() }
         <div className={ styles.netinfo }>
           <div>
             <BlockStatus />
@@ -58,14 +60,29 @@ class Status extends Component {
       </div>
     );
   }
+
+  renderEnode () {
+    const { enode } = this.props;
+
+    if (!enode) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.enode }>
+        { enode }
+      </div>
+    );
+  }
 }
 
 function mapStateToProps (state) {
-  const { blockNumber, clientVersion, netPeers, netChain, isTest } = state.nodeStatus;
+  const { blockNumber, clientVersion, enode, netPeers, netChain, isTest } = state.nodeStatus;
 
   return {
     blockNumber,
     clientVersion,
+    enode,
     netPeers,
     netChain,
     isTest

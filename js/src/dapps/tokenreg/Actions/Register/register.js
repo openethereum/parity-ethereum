@@ -80,7 +80,9 @@ export default class RegisterAction extends Component {
         modal={ sending || complete }
         className={ styles.dialog }
         onRequestClose={ this.onClose }
-        actions={ this.renderActions() } >
+        actions={ this.renderActions() }
+        autoScrollBodyContent
+      >
         { this.renderContent() }
       </Dialog>
     );

@@ -24,6 +24,7 @@ ethabi = "0.2.2"
 linked-hash-map = "0.3"
 parity-dapps-glue = "1.4"
 mime = "0.2"
+time = "0.1.35"
 serde_macros = { version = "0.8", optional = true }
 zip = { version = "0.1", default-features = false }
 ethcore-devtools = { path = "../devtools" }

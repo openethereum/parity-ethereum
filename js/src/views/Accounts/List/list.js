@@ -29,6 +29,7 @@ export default class List extends Component {
     search: PropTypes.array,
     empty: PropTypes.bool,
     order: PropTypes.string,
+    orderFallback: PropTypes.string,
     handleAddSearchToken: PropTypes.func
   };
 
@@ -79,9 +80,9 @@ export default class List extends Component {
   }
 
   sortAddresses (addresses) {
-    const { order } = this.props;
+    const { order, orderFallback } = this.props;
 
-    if (!order || ['tags', 'name'].indexOf(order) === -1) {
+    if (!order) {
       return addresses;
     }
 
@@ -91,24 +92,75 @@ export default class List extends Component {
       const accountA = accounts[addressA];
       const accountB = accounts[addressB];
 
-      if (order === 'name') {
-        return accountA.name.localeCompare(accountB.name);
+      const sort = this.compareAccounts(accountA, accountB, order);
+
+      if (sort === 0 && orderFallback) {
+        return this.compareAccounts(accountA, accountB, orderFallback);
       }
 
-      if (order === 'tags') {
-        const tagsA = [].concat(accountA.meta.tags)
-          .filter(t => t)
-          .sort();
-        const tagsB = [].concat(accountB.meta.tags)
-          .filter(t => t)
-          .sort();
-
-        if (tagsA.length === 0) return 1;
-        if (tagsB.length === 0) return -1;
-
-        return tagsA.join('').localeCompare(tagsB.join(''));
-      }
+      return sort;
     });
+  }
+
+  compareAccounts (accountA, accountB, key) {
+    if (key === 'name') {
+      return accountA.name.localeCompare(accountB.name);
+    }
+
+    if (key === 'eth') {
+      const { balances } = this.props;
+
+      const balanceA = balances[accountA.address];
+      const balanceB = balances[accountB.address];
+
+      if (!balanceA && !balanceB) return 0;
+      if (balanceA && !balanceB) return -1;
+      if (!balanceA && balanceB) return 1;
+
+      const ethA = balanceA.tokens
+        .find(token => token.token.tag.toLowerCase() === 'eth')
+        .value;
+      const ethB = balanceB.tokens
+        .find(token => token.token.tag.toLowerCase() === 'eth')
+        .value;
+
+      return -1 * ethA.comparedTo(ethB);
+    }
+
+    if (key === 'tags') {
+      const tagsA = [].concat(accountA.meta.tags)
+        .filter(t => t)
+        .sort()
+        .join('');
+
+      const tagsB = [].concat(accountB.meta.tags)
+        .filter(t => t)
+        .sort()
+        .join('');
+
+      if (!tagsA && !tagsB) return 0;
+      if (tagsA && !tagsB) return -1;
+      if (!tagsA && tagsB) return 1;
+
+      return tagsA.localeCompare(tagsB);
+    }
+
+    const metaA = accountA.meta[key];
+    const metaB = accountB.meta[key];
+
+    if (!metaA && !metaB) {
+      return 0;
+    }
+
+    if ((metaA && !metaB) || (metaA < metaB)) {
+      return -1;
+    }
+
+    if ((!metaA && metaB) || (metaA > metaB)) {
+      return 1;
+    }
+
+    return 0;
   }
 
   getFilteredAddresses () {

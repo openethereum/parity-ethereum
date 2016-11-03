@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
+use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, U256};
+use util::{Colour, version, U256, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
+use ethcore_logger::{Config as LogConfig};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
@@ -93,12 +94,18 @@ pub struct RunCmd {
 	pub check_seal: bool,
 }
 
-pub fn execute(cmd: RunCmd) -> Result<(), String> {
+pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+	if cmd.ui && cmd.dapps_conf.enabled {
+		// Check if Parity is already running
+		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
+		if !TcpListener::bind(&addr as &str).is_ok() {
+			url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+			return Ok(());
+		}
+	}
+
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
-
-	// set up logger
-	let logger = try!(setup_log(&cmd.logger_config));
 
 	// increase max number of open files
 	raise_fd_limit();

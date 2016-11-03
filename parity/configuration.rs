@@ -35,7 +35,7 @@ use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
-use signer::Configuration as SignerConfiguration;
+use signer::{Configuration as SignerConfiguration, SignerCommand};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
@@ -49,9 +49,14 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(String),
+	SignerToken(SignerCommand),
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
+}
+
+pub struct Execute {
+	pub logger: LogConfig,
+	pub cmd: Cmd,
 }
 
 #[derive(Debug, PartialEq)]
@@ -70,7 +75,7 @@ impl Configuration {
 		Ok(config)
 	}
 
-	pub fn into_command(self) -> Result<Cmd, String> {
+	pub fn into_command(self) -> Result<Execute, String> {
 		let dirs = self.directories();
 		let pruning = try!(self.args.flag_pruning.parse());
 		let pruning_history = self.args.flag_pruning_history;
@@ -99,7 +104,9 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(dirs.signer)
+			Cmd::SignerToken(SignerCommand {
+				path: dirs.signer
+			})
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {
@@ -141,7 +148,6 @@ impl Configuration {
 		} else if self.args.cmd_import {
 			let import_cmd = ImportBlockchain {
 				spec: spec,
-				logger_config: logger_config,
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
@@ -155,12 +161,12 @@ impl Configuration {
 				fat_db: fat_db,
 				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
+				with_color: logger_config.color,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
 			let export_cmd = ExportBlockchain {
 				spec: spec,
-				logger_config: logger_config,
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
@@ -184,7 +190,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -202,7 +207,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				logger_config: logger_config,
 				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
@@ -227,7 +231,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				daemon: daemon,
-				logger_config: logger_config,
+				logger_config: logger_config.clone(),
 				miner_options: miner_options,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
@@ -258,7 +262,10 @@ impl Configuration {
 			Cmd::Run(run_cmd)
 		};
 
-		Ok(cmd)
+		Ok(Execute {
+			logger: logger_config,
+			cmd: cmd,
+		})
 	}
 
 	fn enable_network(&self, mode: &Mode) -> bool {
@@ -684,7 +691,7 @@ mod tests {
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
-	use signer::Configuration as SignerConfiguration;
+	use signer::{Configuration as SignerConfiguration, SignerCommand};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
@@ -705,14 +712,14 @@ mod tests {
 	fn test_command_version() {
 		let args = vec!["parity", "--version"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Version);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Version);
 	}
 
 	#[test]
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
 			password_file: None,
@@ -723,16 +730,16 @@ mod tests {
 	fn test_command_account_list() {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(
-			AccountCmd::List(replace_home("$HOME/.parity/keys")))
-		);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
+			AccountCmd::List(replace_home("$HOME/.parity/keys")),
+		));
 	}
 
 	#[test]
 	fn test_command_account_import() {
 		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
 			to: replace_home("$HOME/.parity/keys"),
 		})));
@@ -742,7 +749,7 @@ mod tests {
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
@@ -754,9 +761,8 @@ mod tests {
 	fn test_command_blockchain_import() {
 		let args = vec!["parity", "import", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -770,6 +776,7 @@ mod tests {
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
 			check_seal: true,
+			with_color: !cfg!(windows),
 		})));
 	}
 
@@ -777,9 +784,8 @@ mod tests {
 	fn test_command_blockchain_export() {
 		let args = vec!["parity", "export", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -801,9 +807,8 @@ mod tests {
 	fn test_command_blockchain_export_with_custom_format() {
 		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -826,14 +831,16 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = replace_home("$HOME/.parity/signer");
-		assert_eq!(conf.into_command().unwrap(), Cmd::SignerToken(expected));
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerCommand {
+			path: expected,
+		}));
 	}
 
 	#[test]
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Run(RunCmd {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
