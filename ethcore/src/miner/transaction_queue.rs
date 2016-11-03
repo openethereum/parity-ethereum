@@ -42,15 +42,9 @@
 //!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
 //!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
 //!
-//!		let st1 = t1.sign(&key.secret());
-//!		let st2 = t2.sign(&key.secret());
-//!		let default_nonce = |_a: &Address| AccountDetails {
 //!		let st1 = t1.sign(&key.secret(), None);
 //!		let st2 = t2.sign(&key.secret(), None);
-//!		let default_account_details = |_a: &Address| AccountDetails {
-//!			nonce: U256::from(10),
-//!			balance: U256::from(1_000_000),
-//!		};
+//!		let default_nonce = U256::from(10);
 //!
 //!		let mut txq = TransactionQueue::default();
 //!		txq.add(st2.clone(), &default_nonce, TransactionOrigin::External).unwrap();
@@ -1009,17 +1003,7 @@ mod test {
 
 	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = KeyPair::create().unwrap();
-		new_unsigned_tx_with_gas(default_nonce_val(), gas, gas_price).sign(keypair.secret())
-	}
-
-	fn new_tx(nonce: U256, gas_price: U256) -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
-		new_unsigned_tx(nonce, default_gas_val(), gas_price).sign(keypair.secret(), None)
-	}
-
-	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
-		let keypair = Random.generate().unwrap();
-		new_unsigned_tx(default_nonce(), gas, gas_price).sign(keypair.secret(), None)
+		new_unsigned_tx_with_gas(default_nonce_val(), gas, gas_price).sign(keypair.secret(), None)
 	}
 
 	fn new_tx() -> SignedTransaction {
@@ -1042,7 +1026,7 @@ mod test {
 		let mut tx2 = new_unsigned_tx(nonce);
 		tx2.gas_price = 2.into();
 
-		(tx1.sign(secret, None), tx2.sign(secret, None))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs(second_nonce: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1057,7 +1041,7 @@ mod test {
 		tx.gas_price = tx.gas_price + gas_price;
 		let mut tx2 = new_unsigned_tx(nonce + 1.into());
 		tx2.gas_price = tx2.gas_price + gas_price;
-		(tx1.sign(secret, None), tx2.sign(secret, None))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_txs_with_gas_price_diff(second_nonce: U256, gas_price: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1068,7 +1052,7 @@ mod test {
 		let mut tx2 = new_unsigned_tx(nonce + second_nonce);
 		tx2.gas_price = tx2.gas_price + gas_price;
 
-		(tx.sign(secret), tx2.sign(secret))
+		(tx.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	#[test]
