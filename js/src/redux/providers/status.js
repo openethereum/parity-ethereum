@@ -87,7 +87,8 @@ export default class Status {
       setTimeout(this._pollStatus, timeout);
     };
 
-    if (isConnected !== this._store.getState().nodeStatus.isConnected) {
+    const wasConnected = this._store.getState().nodeStatus.isConnected;
+    if (isConnected !== wasConnected) {
       this._fetchEnode();
     }
 

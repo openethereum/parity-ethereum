@@ -68,9 +68,13 @@ class Status extends Component {
       return null;
     }
 
+    const [protocol, rest] = enode.split('://');
+    const [id, host] = rest.split('@');
+    const abbreviated = `${protocol}://${id.slice(0, 3)}…${id.slice(-3)}@${host}`;
+
     return (
       <div className={ styles.enode }>
-        { enode }
+        { abbreviated }
       </div>
     );
   }
