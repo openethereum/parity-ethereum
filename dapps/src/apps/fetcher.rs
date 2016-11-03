@@ -32,14 +32,15 @@ use random_filename;
 use SyncStatus;
 use util::{Mutex, H256};
 use util::sha3::sha3;
-use page::LocalPageEndpoint;
+use page::{LocalPageEndpoint, PageCache};
 use handlers::{ContentHandler, ContentFetcherHandler, ContentValidator};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::cache::{ContentCache, ContentStatus};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 use apps::urlhint::{URLHintContract, URLHint, URLHintResult};
 
-const MAX_CACHED_DAPPS: usize = 10;
+/// Limit of cached dapps/content
+const MAX_CACHED_DAPPS: usize = 20;
 
 pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	dapps_path: PathBuf,
@@ -259,6 +260,17 @@ impl ContentValidator for ContentInstaller {
 		// Create dir
 		try!(fs::create_dir_all(&self.content_path));
 
+		// Validate hash
+		let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
+		let hash = try!(sha3(&mut file_reader));
+		let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
+		if id != hash {
+			return Err(ValidationError::HashMismatch {
+				expected: id,
+				got: hash,
+			});
+		}
+
 		// And prepare path for a file
 		let filename = path.file_name().expect("We always fetch a file.");
 		let mut content_path = self.content_path.clone();
@@ -270,7 +282,7 @@ impl ContentValidator for ContentInstaller {
 
 		try!(fs::copy(&path, &content_path));
 
-		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone())))
+		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled)))
 	}
 
 	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
@@ -376,7 +388,7 @@ impl ContentValidator for DappInstaller {
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
 		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into(), self.embeddable_at);
+		let app = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_at);
 
 		// Return modified app manifest
 		Ok((manifest.id.clone(), app))
@@ -416,7 +428,7 @@ mod tests {
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
-		}, None);
+		}, Default::default(), None);
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));
