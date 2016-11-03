@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::Write;
+use time::{self, Duration};
+
 use hyper::header;
 use hyper::server;
 use hyper::uri::RequestUri;
@@ -59,13 +61,26 @@ pub enum ServedFile<T: Dapp> {
 
 impl<T: Dapp> ServedFile<T> {
 	pub fn new(embeddable_at: Option<u16>) -> Self {
-		ServedFile::Error(ContentHandler::error_embeddable(
+		ServedFile::Error(ContentHandler::error(
 			StatusCode::NotFound,
 			"404 Not Found",
 			"Requested dapp resource was not found.",
 			None,
 			embeddable_at,
 		))
+	}
+}
+
+/// Defines what cache headers should be appended to returned resources.
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub enum PageCache {
+	Enabled,
+	Disabled,
+}
+
+impl Default for PageCache {
+	fn default() -> Self {
+		PageCache::Disabled
 	}
 }
 
@@ -83,6 +98,8 @@ pub struct PageHandler<T: Dapp> {
 	pub path: EndpointPath,
 	/// Flag indicating if the file can be safely embeded (put in iframe).
 	pub safe_to_embed_at_port: Option<u16>,
+	/// Cache settings for this page.
+	pub cache: PageCache,
 }
 
 impl<T: Dapp> PageHandler<T> {
@@ -129,9 +146,19 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 			ServedFile::File(ref f) => {
 				res.set_status(StatusCode::Ok);
 
+				if let PageCache::Enabled = self.cache {
+					let mut headers = res.headers_mut();
+					let validity = Duration::days(365);
+					headers.set(header::CacheControl(vec![
+						header::CacheDirective::Public,
+						header::CacheDirective::MaxAge(validity.num_seconds() as u32),
+					]));
+					headers.set(header::Expires(header::HttpDate(time::now() + validity)));
+				}
+
 				match f.content_type().parse() {
 					Ok(mime) => res.headers_mut().set(header::ContentType(mime)),
-					Err(()) => debug!(target: "page_handler", "invalid MIME type: {}", f.content_type()),
+					Err(()) => debug!(target: "dapps", "invalid MIME type: {}", f.content_type()),
 				}
 
 				// Security headers:
@@ -218,6 +245,7 @@ fn should_extract_path_with_appid() {
 			using_dapps_domains: true,
 		},
 		file: ServedFile::new(None),
+		cache: Default::default(),
 		safe_to_embed_at_port: None,
 	};
 

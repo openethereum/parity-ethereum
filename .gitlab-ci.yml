@@ -136,7 +136,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -176,7 +175,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -248,7 +246,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -287,7 +284,6 @@ linux-aarch64:
 darwin:
   stage: build
   only:
-    - master
     - beta
     - tags
     - stable
@@ -308,7 +304,6 @@ darwin:
 windows:
   stage: build
   only:
-    - master
     - beta
     - tags
     - stable
@@ -395,30 +390,14 @@ js-release:
     - ./js/scripts/release.sh
   tags:
     - javascript
-js-lint:
+js-tests:
   stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
   script:
     - ./js/scripts/lint.sh
-  tags:
-    - javascript-test
-js-test:
-  stage: build
-  image: ethcore/javascript:latest
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
     - ./js/scripts/test.sh
-  tags:
-    - javascript-test
-js-pack:
-  stage: build
-  image: ethcore/javascript:latest
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
     - ./js/scripts/build.sh
   tags:
     - javascript-test

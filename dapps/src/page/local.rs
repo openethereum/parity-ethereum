@@ -18,7 +18,7 @@ use mime_guess;
 use std::io::{Seek, Read, SeekFrom};
 use std::fs;
 use std::path::{Path, PathBuf};
-use page::handler;
+use page::handler::{self, PageCache};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 
 #[derive(Debug, Clone)]
@@ -26,24 +26,27 @@ pub struct LocalPageEndpoint {
 	path: PathBuf,
 	mime: Option<String>,
 	info: Option<EndpointInfo>,
+	cache: PageCache,
 	embeddable_at: Option<u16>,
 }
 
 impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo, embeddable_at: Option<u16>) -> Self {
+	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_at: Option<u16>) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: None,
 			info: Some(info),
+			cache: cache,
 			embeddable_at: embeddable_at,
 		}
 	}
 
-	pub fn single_file(path: PathBuf, mime: String) -> Self {
+	pub fn single_file(path: PathBuf, mime: String, cache: PageCache) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: Some(mime),
 			info: None,
+			cache: cache,
 			embeddable_at: None,
 		}
 	}
@@ -66,6 +69,7 @@ impl Endpoint for LocalPageEndpoint {
 				path: path,
 				file: handler::ServedFile::new(None),
 				safe_to_embed_at_port: self.embeddable_at,
+				cache: self.cache,
 			})
 		} else {
 			Box::new(handler::PageHandler {
@@ -74,6 +78,7 @@ impl Endpoint for LocalPageEndpoint {
 				path: path,
 				file: handler::ServedFile::new(None),
 				safe_to_embed_at_port: self.embeddable_at,
+				cache: self.cache,
 			})
 		}
 	}
