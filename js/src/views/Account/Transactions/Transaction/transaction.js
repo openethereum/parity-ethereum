@@ -17,46 +17,40 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
-
-import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
 import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
 
-class Transaction extends Component {
+export default class Transaction extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
-    transaction: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
-
-    fetchBlock: PropTypes.func.isRequired,
-    fetchTransaction: PropTypes.func.isRequired,
-
-    block: PropTypes.object,
-    transactionInfo: PropTypes.object
+    transaction: PropTypes.object.isRequired
   }
 
   state = {
     isContract: false,
-    isReceived: false
+    isReceived: false,
+    transaction: null,
+    block: null
   }
 
   componentDidMount () {
-    const { address, transaction } = this.props;
-
-    this.lookup(address, transaction);
+    this.lookup();
   }
 
   render () {
-    const { block, transaction } = this.props;
+    const { block, transaction } = this.state;
+
+    if (!transaction) {
+      return null;
+    }
 
     return (
       <tr>
@@ -75,22 +69,20 @@ class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address, transactionInfo } = this.props;
-
-    if (!transactionInfo) {
-      return null;
-    }
+    const { address } = this.props;
+    const { transaction } = this.state;
 
     return (
       <MethodDecoding
         historic
         address={ address }
-        transaction={ transactionInfo } />
+        transaction={ transaction } />
     );
   }
 
   renderTransaction () {
-    const { transaction, isTest } = this.props;
+    const { isTest } = this.props;
+    const { transaction } = this.state;
 
     return (
       <td className={ styles.transaction }>
@@ -138,13 +130,9 @@ class Transaction extends Component {
 
   renderEtherValue () {
     const { api } = this.context;
-    const { transactionInfo } = this.props;
+    const { transaction } = this.state;
 
-    if (!transactionInfo) {
-      return null;
-    }
-
-    const value = api.util.fromWei(transactionInfo.value);
+    const value = api.util.fromWei(transaction.value);
 
     if (value.eq(0)) {
       return <div className={ styles.value }>{ ' ' }</div>;
@@ -177,34 +165,43 @@ class Transaction extends Component {
     return moment(block.timestamp).fromNow();
   }
 
-  lookup (address, transaction) {
-    const { transactionInfo } = this.props;
-
-    if (transactionInfo) {
-      return;
-    }
+  lookup () {
+    const { transaction, address } = this.props;
 
     this.setState({ isReceived: address === transaction.to });
 
-    const { fetchBlock, fetchTransaction } = this.props;
-    const { blockNumber, hash } = transaction;
+    this.fetchBlock(transaction.blockNumber);
+    this.fetchTransaction(transaction.hash);
+  }
 
-    fetchBlock(blockNumber);
-    fetchTransaction(hash);
+  // TODO: The next 2 methods duplicated in contract (need the fix fast, hence TODO)
+  // TODO: Moved to shared, non-Redux
+  fetchBlock (blockNumber) {
+    const { api } = this.context;
+
+    console.log(blockNumber.toString());
+
+    api.eth
+      .getBlockByNumber(blockNumber)
+      .then((block) => {
+        this.setState({ block });
+      })
+      .catch((error) => {
+        console.warn('fetchBlock', error);
+      });
+  }
+
+  // TODO: Moved to shared, non-Redux
+  fetchTransaction (txHash) {
+    const { api } = this.context;
+
+    api.eth
+      .getTransactionByHash(txHash)
+      .then((transaction) => {
+        this.setState({ transaction });
+      })
+      .catch((error) => {
+        console.warn('fetchTransaction', error);
+      });
   }
 }
-
-function mapStateToProps () {
-  return {};
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBlock, fetchTransaction
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Transaction);
