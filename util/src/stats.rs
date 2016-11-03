@@ -30,7 +30,7 @@ pub struct Histogram {
 impl Histogram {
 	/// Histogram if a sorted corpus is at least fills the buckets.
 	pub fn new(corpus: &[U256], bucket_number: usize) -> Option<Histogram> {
-		if corpus.len() < bucket_number { return None; }
+		if corpus.len() <= bucket_number { return None; }
 		let corpus_end = corpus.last().expect("there are at least bucket_number elements; qed").clone();
 		// If there are extremely few transactions, go from zero.
 		let corpus_start = corpus.first().expect("there are at least bucket_number elements; qed").clone();
@@ -66,5 +66,10 @@ mod tests {
 		assert_eq!(Histogram { bucket_bounds: correct_bounds, counts: vec![4,2,4,6,3] }, hist);
 
 		assert!(Histogram::new(&vec_into![1, 2], 5).is_none());
+	}
+
+	#[test]
+	fn should_not_panic_when_asking_for_bucket_too_big() {
+		assert!(Histogram::new(&vec_into![1, 2], 2).is_none());
 	}
 }
