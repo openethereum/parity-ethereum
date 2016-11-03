@@ -138,6 +138,7 @@ pub struct ContentFetcherHandler<H: ContentValidator> {
 	client: Option<Client>,
 	using_dapps_domains: bool,
 	installer: H,
+	embeddable_at: Option<u16>,
 }
 
 impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
@@ -156,7 +157,9 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 		url: String,
 		control: Control,
 		using_dapps_domains: bool,
-		handler: H) -> (Self, Arc<FetchControl>) {
+		handler: H,
+		embeddable_at: Option<u16>,
+	) -> (Self, Arc<FetchControl>) {
 
 		let fetch_control = Arc::new(FetchControl::default());
 		let client = Client::default();
@@ -167,6 +170,7 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			status: FetchState::NotStarted(url),
 			using_dapps_domains: using_dapps_domains,
 			installer: handler,
+			embeddable_at: embeddable_at,
 		};
 
 		(handler, fetch_control)
@@ -204,6 +208,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							"Unable To Start Dapp Download",
 							"Could not initialize download of the dapp. It might be a problem with the remote server.",
 							Some(&format!("{}", e)),
+							self.embeddable_at,
 						)),
 					}
 				},
@@ -213,6 +218,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 					"Method Not Allowed",
 					"Only <code>GET</code> requests are allowed.",
 					None,
+					self.embeddable_at,
 				)),
 			})
 		} else { None };
@@ -234,7 +240,8 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 					StatusCode::GatewayTimeout,
 					"Download Timeout",
 					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
-					None
+					None,
+					self.embeddable_at,
 				);
 				Self::close_client(&mut self.client);
 				(Some(FetchState::Error(timeout)), Next::write())
@@ -255,7 +262,8 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 									StatusCode::BadGateway,
 									"Invalid Dapp",
 									"Downloaded bundle does not contain a valid content.",
-									Some(&format!("{:?}", e))
+									Some(&format!("{:?}", e)),
+									self.embeddable_at,
 								))
 							},
 							Ok((id, result)) => {
@@ -274,6 +282,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							"Download Error",
 							"There was an error when fetching the content.",
 							Some(&format!("{:?}", e)),
+							self.embeddable_at,
 						);
 						(Some(FetchState::Error(error)), Next::write())
 					},

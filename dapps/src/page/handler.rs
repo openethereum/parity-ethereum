@@ -59,7 +59,7 @@ pub enum ServedFile<T: Dapp> {
 
 impl<T: Dapp> ServedFile<T> {
 	pub fn new(embeddable_at: Option<u16>) -> Self {
-		ServedFile::Error(ContentHandler::error_embeddable(
+		ServedFile::Error(ContentHandler::error(
 			StatusCode::NotFound,
 			"404 Not Found",
 			"Requested dapp resource was not found.",
