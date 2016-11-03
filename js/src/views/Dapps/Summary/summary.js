@@ -50,7 +50,7 @@ export default class Summary extends Component {
     let image = <div className={ styles.image }>&nbsp;</div>;
 
     if (app.image) {
-      image = <img src={ `http://127.0.0.1:${dappsPort}/${app.image}` } className={ styles.image } />;
+      image = <img src={ `http://127.0.0.1:${dappsPort}${app.image}` } className={ styles.image } />;
     } else if (app.iconUrl) {
       image = <img src={ `http://127.0.0.1:${dappsPort}/${app.id}/${app.iconUrl}` } className={ styles.image } />;
     }
