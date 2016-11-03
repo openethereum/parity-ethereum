@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { IconButton } from 'material-ui';
 import Clipboard from 'react-copy-to-clipboard';
 import CopyIcon from 'material-ui/svg-icons/content/content-copy';
+import Theme from '../Theme';
+const { textColor, disabledTextColor } = Theme.flatButton;
 
 export default class CopyToClipboard extends Component {
   static propTypes = {
@@ -37,29 +39,35 @@ export default class CopyToClipboard extends Component {
   };
 
   state = {
-    disabled: false
+    copied: false
   };
 
   render () {
-    const { data, label } = this.props;
+    const { data, label, size } = this.props;
+    const { copied } = this.state;
 
     return (
       <Clipboard onCopy={ this.onCopy } text={ data }>
         <IconButton
-          tooltip={ label }
+          tooltip={ copied ? 'done!' : label }
+          disableTouchRipple
+          tooltipPosition={ 'top-right' }
+          tooltipStyles={ { marginTop: `-${size / 4}px` } }
+          style={ { width: size, height: size, padding: '0' } }
+          iconStyle={ { width: size, height: size } }
         >
-          <CopyIcon />
+          <CopyIcon color={ copied ? disabledTextColor : textColor } />
         </IconButton>
       </Clipboard>
     );
   }
 
-  onCopy () {
+  onCopy = () => {
     const { cooldown, onCopy } = this.props;
 
-    this.setState({ disabled: true });
+    this.setState({ copied: true });
     setTimeout(() => {
-      this.setState({ disabled: false });
+      this.setState({ copied: false });
     }, cooldown);
 
     onCopy();
