@@ -156,9 +156,9 @@ class Transactions extends Component {
   }
 
   fetchTransactions = (isTest, address, traceMode) => {
-    if (traceMode) {
-      return this.fetchTraceTransactions(address);
-    }
+    // if (traceMode) {
+    //   return this.fetchTraceTransactions(address);
+    // }
 
     return this.fetchEtherscanTransactions(isTest, address);
   }
