@@ -339,7 +339,7 @@ impl SignedTransaction {
 	#[cfg(test)]
 	#[cfg(feature = "json-tests")]
 	pub fn validate(self, schedule: &Schedule, require_low: bool, allow_network_id_of_one: bool) -> Result<SignedTransaction, Error> {
-		if require_low && !self.signature().is_low_s() {
+		if require_low && !ec::is_low_s(&self.s) {
 			return Err(Error::Util(UtilError::Crypto(CryptoError::InvalidSignature)));
 		}
 		match self.network_id() {
@@ -443,7 +443,6 @@ fn should_recover_from_network_specific_signing() {
 #[test]
 fn should_agree_with_vitalik() {
 	use rustc_serialize::hex::FromHex;
-	use std::str::FromStr;
 
 	let test_vector = |tx_data: &str, address: &'static str| {
 		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());

@@ -1,11 +1,11 @@
 #!/bin/sh
 # Running Parity Full Test Sute
 
-FEATURES="json-tests ipc"
+FEATURES="json-tests"
 
 case $1 in
     --no-json)
-    FEATURES="ipc"
+    FEATURES=""
     shift # past argument=value
     ;;
     *)
