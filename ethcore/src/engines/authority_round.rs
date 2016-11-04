@@ -177,7 +177,7 @@ impl Engine for AuthorityRound {
 	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_homestead()
+		Schedule::new_post_eip150(true, true, true)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
