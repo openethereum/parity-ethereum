@@ -371,6 +371,10 @@ windows:
 #  allow_failure: true
 test-linux:
   stage: build
+  image: ethcore/rust-test:latest
+  except:
+    - jg*
+    - ng*
   before_script:
     - git submodule update --init --recursive
   script:
