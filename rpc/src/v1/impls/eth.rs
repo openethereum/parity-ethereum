@@ -603,7 +603,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let raw_transaction = raw.to_vec();
 		match UntrustedRlp::new(&raw_transaction).as_val() {
 			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
-			Err(_) => Ok(RpcH256::from(H256::from(0))),
+			Err(e) => Err(errors::from_rlp_error(e)),
 		}
 	}
 
