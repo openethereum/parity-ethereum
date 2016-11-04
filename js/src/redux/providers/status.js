@@ -41,7 +41,7 @@ export default class Status {
     this._api
       .ethcore.enode()
       .then((enode) => {
-        if (this._store.state.nodeStatus.enode !== enode) {
+        if (this._store.getState().nodeStatus.enode !== enode) {
           this._store.dispatch(statusCollection({ enode }));
         }
       })
@@ -60,9 +60,6 @@ export default class Status {
         }
 
         this._store.dispatch(statusBlockNumber(blockNumber));
-      })
-      .then((subscriptionId) => {
-        console.log('status._subscribeBlockNumber', 'subscriptionId', subscriptionId);
       });
   }
 
@@ -99,8 +96,12 @@ export default class Status {
     };
 
     const wasConnected = this._store.getState().nodeStatus.isConnected;
-    if (isConnected !== wasConnected) {
+    if (isConnected && !wasConnected) {
       this._fetchEnode();
+      this._pollTraceMode()
+        .then((traceMode) => {
+          this._store.dispatch(statusCollection({ traceMode }));
+        });
     }
 
     const apiStatus = {
@@ -134,10 +135,9 @@ export default class Status {
         this._api.ethcore.netPort(),
         this._api.ethcore.nodeName(),
         this._api.ethcore.rpcSettings(),
-        this._api.eth.syncing(),
-        this._pollTraceMode()
+        this._api.eth.syncing()
       ])
-      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
+      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
         const status = {
@@ -154,8 +154,7 @@ export default class Status {
           nodeName,
           rpcSettings,
           syncing,
-          isTest,
-          traceMode
+          isTest
         };
 
         if (!isEqual(status, this._status)) {

@@ -72,7 +72,7 @@ export default class Summary extends Component {
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
 
-        <IdentityIcon address={ address } />
+        <IdentityIcon address={ address } memorize />
 
         <ContainerTitle
           title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }

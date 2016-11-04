@@ -42,6 +42,80 @@ const NAME_ID = ' ';
 
 export default class Input extends Component {
   static propTypes = {
+    readOnly: PropTypes.bool
+  };
+
+  static defaultProps = {
+    readOnly: false
+  };
+
+  render () {
+    if (this.props.readOnly) {
+      return (
+        <ReadOnlyInput
+          { ...this.props }
+        />
+      );
+    }
+
+    return (
+      <FullInput
+        { ...this.props }
+      />
+    );
+  }
+}
+
+class ReadOnlyInput extends Component {
+  static propTypes = {
+    children: PropTypes.node,
+    className: PropTypes.string,
+    allowCopy: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.bool
+    ]),
+    floatCopy: PropTypes.bool,
+    label: PropTypes.string,
+    hideUnderline: PropTypes.bool,
+    value: PropTypes.oneOfType([
+      PropTypes.number, PropTypes.string
+    ])
+  };
+
+  shouldComponentUpdate (nextProps) {
+    return nextProps.value !== this.props.value;
+  }
+
+  render () {
+    const { value, label, hideUnderline, children, className } = this.props;
+
+    return (
+      <div className={ styles.container }>
+        <TextField
+          autoComplete='off'
+          className={ className }
+
+          readOnly
+          floatingLabelFixed
+          fullWidth
+
+          floatingLabelText={ label }
+          id={ NAME_ID }
+          underlineDisabledStyle={ UNDERLINE_DISABLED }
+          underlineStyle={ UNDERLINE_READONLY }
+          underlineFocusStyle={ { display: 'none' } }
+          underlineShow={ !hideUnderline }
+          value={ value }
+        >
+          { children }
+        </TextField>
+      </div>
+    );
+  }
+}
+
+class FullInput extends Component {
+  static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
@@ -80,14 +154,6 @@ export default class Input extends Component {
     value: this.props.value || '',
     timeoutId: null,
     copied: false
-  }
-
-  shouldComponentUpdate (nextProps) {
-    if (nextProps.disabled || nextProps.readOnly) {
-      return nextProps.value !== this.props.value;
-    }
-
-    return true;
   }
 
   componentWillReceiveProps (newProps) {

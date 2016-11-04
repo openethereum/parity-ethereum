@@ -19,14 +19,18 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContractIcon from 'material-ui/svg-icons/action/code';
 
+import { memorizeIcon } from '../../redux/providers/imagesActions';
+
 import styles from './identityIcon.css';
 
 class IdentityIcon extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
+    memorizeIcon: PropTypes.func.isRequired,
+
     address: PropTypes.string,
     button: PropTypes.bool,
     className: PropTypes.string,
@@ -34,41 +38,68 @@ class IdentityIcon extends Component {
     padded: PropTypes.bool,
     inline: PropTypes.bool,
     tiny: PropTypes.bool,
-    images: PropTypes.object.isRequired
+    image: PropTypes.string,
+    icon: PropTypes.object,
+    memorize: PropTypes.bool
+  };
+
+  static defaultProps = {
+    memorize: false
+  };
+
+  state = {
+    iconsrc: ''
   }
 
   shouldComponentUpdate (newProps, newState) {
-    const sameAddress = newProps.address === this.props.address;
-    const sameImages = Object.keys(newProps.images).length === Object.keys(this.props.images).length;
-
-    return !(sameAddress && sameImages);
+    return newProps.address !== this.props.address;
   }
 
-  getIconSrc (_address, images) {
-    const { api } = this.context;
+  componentWillMount () {
+    const scale = this.getScale();
+    const iconsrc = this.getIconSrc(scale);
+
+    this.setState({ iconsrc });
+  }
+
+  getScale () {
     const { button, inline, tiny } = this.props;
-    const iconsrc = images[_address];
 
-    if (iconsrc) {
-      return iconsrc;
+    if (tiny) return 2;
+    if (button) return 3;
+    if (inline) return 4;
+
+    return 7;
+  }
+
+  getIconSrc (scale) {
+    const { api } = this.context;
+    const { address, image, icon, memorize } = this.props;
+
+    if (!address) {
+      return;
     }
 
-    let scale = 7;
-    if (tiny) {
-      scale = 2;
-    } else if (button) {
-      scale = 3;
-    } else if (inline) {
-      scale = 4;
+    if (image) {
+      return image;
     }
 
-    return api.util.createIdentityImg(_address, scale);
+    if (icon && icon[scale]) {
+      return icon[scale];
+    }
+
+    const iconsrc = api.util.createIdentityImg(address, scale);
+
+    if (memorize && iconsrc) {
+      this.props.memorizeIcon(address, scale, iconsrc);
+    }
+
+    return iconsrc;
   }
 
   render () {
-    const { address, button, className, center, images, inline, padded, tiny } = this.props;
-
-    const iconsrc = this.getIconSrc(address, images);
+    const { button, className, center, inline, padded, tiny } = this.props;
+    const { iconsrc } = this.state;
 
     const classes = [
       styles.icon,
@@ -89,7 +120,7 @@ class IdentityIcon extends Component {
       size = '32px';
     }
 
-    if (!address) {
+    if (!iconsrc) {
       return (
         <ContractIcon
           className={ classes }
@@ -107,14 +138,24 @@ class IdentityIcon extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { images } = state;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps;
 
-  return { images };
+  return (state) => {
+    const { images } = state;
+    const { icons } = images;
+
+    const image = images[address];
+    const icon = icons[address] || {};
+
+    return { image, icon };
+  };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    memorizeIcon
+  }, dispatch);
 }
 
 export default connect(

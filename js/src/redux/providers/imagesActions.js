@@ -21,3 +21,10 @@ export function setAddressImage (address, hashArray) {
     hashArray
   };
 }
+
+export function memorizeIcon (address, scale, iconsrc) {
+  return {
+    type: 'memorizeIcon',
+    address, scale, iconsrc
+  };
+}

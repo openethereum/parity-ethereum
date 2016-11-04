@@ -22,7 +22,8 @@ import { parityNode } from '../../environment';
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 const initialState = {
-  images: {}
+  images: {},
+  icons: {}
 };
 
 export function hashToImageUrl (hashArray) {
@@ -37,6 +38,23 @@ export default handleActions({
 
     return Object.assign({}, state, {
       [address]: hashToImageUrl(hashArray)
+    });
+  },
+
+  memorizeIcon (state, action) {
+    const { address, scale, iconsrc } = action;
+
+    const icons = { ...state.icons };
+    const addressIcons = icons[address] || {};
+
+    return Object.assign({}, state, {
+      icons: {
+        ...icons,
+        [address]: {
+          ...addressIcons,
+          [scale]: iconsrc
+        }
+      }
     });
   }
 }, initialState);
