@@ -141,6 +141,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 					difficulty: view.difficulty().into(),
 					total_difficulty: total_difficulty.into(),
 					seal_fields: view.seal().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
+					extra_info: client.engine().extra_info(&block_view.header()),
 					uncles: block_view.uncle_hashes().into_iter().map(Into::into).collect(),
 					transactions: match include_txs {
 						true => BlockTransactions::Full(block_view.localized_transactions().into_iter().map(Into::into).collect()),
@@ -191,6 +192,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 			receipts_root: uncle.receipts_root().clone().into(),
 			extra_data: uncle.extra_data().clone().into(),
 			seal_fields: uncle.seal().clone().into_iter().map(|f| rlp::decode(&f)).map(Bytes::new).collect(),
+			extra_info: client.engine().extra_info(&uncle),
 			uncles: vec![],
 			transactions: BlockTransactions::Hashes(vec![]),
 		};

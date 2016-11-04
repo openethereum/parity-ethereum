@@ -1195,6 +1195,10 @@ impl MiningBlockChainClient for Client {
 		self.engine.schedule(&self.latest_env_info())
 	}
 
+	fn engine(&self) -> &Engine {
+		&*self.engine
+	}
+
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.engine;
 		let chain = self.chain.read();

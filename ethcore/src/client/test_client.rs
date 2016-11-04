@@ -42,6 +42,7 @@ use types::mode::Mode;
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
 use executive::Executed;
+use engines::Engine;
 use error::CallError;
 use trace::LocalizedTrace;
 use state_db::StateDB;
@@ -315,6 +316,10 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
 		Schedule::new_post_eip150(true, true, true)
+	}
+
+	fn engine(&self) -> &Engine {
+		&*self.spec.engine
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {

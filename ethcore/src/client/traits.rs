@@ -29,13 +29,14 @@ use error::{ImportResult, CallError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::{Factory as EvmFactory, Schedule};
-use types::ids::*;
-use types::trace_filter::Filter as TraceFilter;
 use executive::Executed;
 use env_info::LastHashes;
-use types::call_analytics::CallAnalytics;
+use engines::Engine;
 use block_import_error::BlockImportError;
 use ipc::IpcConfig;
+use types::ids::*;
+use types::trace_filter::Filter as TraceFilter;
+use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
@@ -254,6 +255,9 @@ pub trait MiningBlockChainClient : BlockChainClient {
 
 	/// Returns latest schedule.
 	fn latest_schedule(&self) -> Schedule;
+
+	/// Returns client engine.
+	fn engine(&self) -> &Engine;
 }
 
 impl IpcConfig for BlockChainClient { }
