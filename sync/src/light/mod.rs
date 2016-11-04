@@ -147,22 +147,22 @@ impl Chain {
 		// TODO [rob] use optional keys too.
 		let mut stream = RlpStream::new_list(6);
 		stream
-			.new_list(2)
+			.begin_list(2)
 				.append("protocolVersion")
 				.append(&PROTOCOL_VERSION)
-			.new_list(2)
+			.begin_list(2)
 				.append("networkId")
 				.append(&(self.mainnet as u8))
-			.new_list(2)
+			.begin_list(2)
 				.append("headTd")
 				.append(&chain_info.total_difficulty)
-			.new_list(2)
+			.begin_list(2)
 				.append("headHash")
 				.append(&chain_info.best_block_hash)
-			.new_list(2)
+			.begin_list(2)
 				.append("headNum")
 				.append(&chain_info.best_block_number)
-			.new_list(2)
+			.begin_list(2)
 				.append("genesisHash")
 				.append(&self.genesis_hash);
 
