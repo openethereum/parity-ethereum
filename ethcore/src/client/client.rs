@@ -863,8 +863,11 @@ impl BlockChainClient for Client {
 	}
 
 	fn keep_alive(&self) {
-		let mode = self.mode.lock().clone();
-		if mode != Mode::Active {
+		let should_wake = match &*self.mode.lock() {
+			&Mode::Dark(..) | &Mode::Passive(..) => true,
+			_ => false,
+		};
+		if should_wake {
 			self.wake_up();
 			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
 		}
