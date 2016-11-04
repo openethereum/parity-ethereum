@@ -69,16 +69,16 @@ impl Client {
 	pub fn queue_info(&self) -> QueueInfo {
 		self.header_queue.queue_info()
 	}
-
-	/// Get the chain info.
-	pub fn chain_info(&self) -> BlockChainInfo {
-		unimplemented!()
-	}
 }
 
 // dummy implementation -- may draw from canonical cache further on.
 impl Provider for Client {
-	fn block_headers(&self, block: H256, skip: usize, max: usize, reverse: bool) -> Vec<Bytes> {
+	/// Get the chain info.
+	fn chain_info(&self) -> BlockChainInfo {
+		unimplemented!()
+	}
+
+	fn block_headers(&self, block: (u64, H256), skip: usize, max: usize, reverse: bool) -> Vec<Bytes> {
 		Vec::new()
 	}
 

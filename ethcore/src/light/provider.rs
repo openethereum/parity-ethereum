@@ -20,6 +20,7 @@
 pub use proof_request::{CHTProofRequest, ProofRequest};
 
 use transaction::SignedTransaction;
+use blockchain_info::BlockChainInfo;
 
 use util::Bytes;
 use util::hash::H256;
@@ -30,13 +31,16 @@ use util::hash::H256;
 /// Requests which can't be fulfilled should return an empty RLP list.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
-pub trait Provider {
+pub trait Provider: Sync {
+	/// Provide current blockchain info.
+	fn chain_info(&self) -> BlockChainInfo;
+
 	/// Provide a list of headers starting at the requested block,
 	/// possibly in reverse and skipping `skip` at a time.
 	///
 	/// The returned vector may have any length in the range [0, `max`], but the
 	/// results within must adhere to the `skip` and `reverse` parameters.
-	fn block_headers(&self, block: H256, skip: usize, max: usize, reverse: bool) -> Vec<Bytes>;
+	fn block_headers(&self, block: (u64, H256), skip: usize, max: usize, reverse: bool) -> Vec<Bytes>;
 
 	/// Provide as many as possible of the requested blocks (minus the headers) encoded
 	/// in RLP format.

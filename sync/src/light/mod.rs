@@ -91,6 +91,22 @@ mod packet {
 	pub const TRANSACTION_PROOFS: u8 = 0x13;
 }
 
+// helper macro for disconnecting peer on error while returning
+// the value if ok.
+// requires that error types are debug.
+macro_rules! try_dc {
+	($io: expr, $peer: expr, $e: expr) => {
+		match $e {
+			Ok(x) => x,
+			Err(e) => {
+				debug!(target: "les", "disconnecting peer {} due to error {:?}", $peer, e);
+				$io.disconnect_peer($peer);
+				return;
+			}
+		}
+	}
+}
+
 struct Requested {
 	timestamp: usize,
 	req: Request,
@@ -102,9 +118,14 @@ struct Peer {
 	current_asking: HashSet<usize>, // pending request ids.
 }
 
-/// This handles synchronization of the header chain for a light client.
-pub struct Chain {
-	client: Client,
+/// This is an implementation of the light ethereum network protocol, abstracted
+/// over a `Provider` of data and a p2p network.
+///
+/// This is simply designed for request-response purposes. Higher level uses
+/// of the protocol, such as synchronization, will function as wrappers around
+/// this system.
+pub struct LightProtocol {
+	provider: Box<Provider>,
 	genesis_hash: H256,
 	mainnet: bool,
 	peers: RwLock<HashMap<PeerId, Peer>>,
@@ -112,7 +133,7 @@ pub struct Chain {
 	req_id: AtomicUsize,
 }
 
-impl Chain {
+impl LightProtocol {
 	// make a request to a given peer.
 	fn request_from(&self, peer: &PeerId, req: Request) {
 		unimplemented!()
@@ -189,6 +210,14 @@ impl Chain {
 	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		const MAX_HEADERS: usize = 512;
 
+		let req_id: u64 = try_dc!(io, peer, data.val_at(0));
+		let block = try_dc!(io, peer, data.at(1).and_then(|block_list| {
+			(try!(block_list.val_at(0)), try!(block_list.val_at(1))
+		}));
+		let max = ::std::cmp::min(MAX_HEADERS, try_dc!(io, peer, data.val_at(2)));
+		let reverse = try_dc!(io, peer, data.val_at(3));
+
+		let headers = self.provider.block_headers()
 		unimplemented!()
 	}
 
@@ -199,6 +228,8 @@ impl Chain {
 
 	// Handle a request for block bodies.
 	fn get_block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+		const MAX_BODIES: usize = 512;
+
 		unimplemented!()
 	}
 
@@ -278,7 +309,7 @@ impl Chain {
 	}
 }
 
-impl NetworkProtocolHandler for Chain {
+impl NetworkProtocolHandler for LightProtocol {
 	fn initialize(&self, io: &NetworkContext) {
 		io.register_timer(TIMEOUT, TIMEOUT_INTERVAL_MS).expect("Error registering sync timer.");
 	}
