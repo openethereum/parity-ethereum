@@ -87,7 +87,7 @@ impl Visitor for UserDefaultsVisitor {
 
 		let mode: Value = map.remove("mode".into()).unwrap_or_else(|| Value::String("active".to_owned()));
 		let mode = match try!(mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))) {
-			"off" => Mode::Off,
+			"offline" => Mode::Off,
 			"dark" => {
 				let timeout = try!(map.remove("mode.timeout".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
 				Mode::Dark(Duration::from_secs(timeout))
