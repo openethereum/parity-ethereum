@@ -26,7 +26,7 @@ cat > $HOME/Library/LaunchAgents/io.parity.ethereum.plist <<EOF
 EOF
 
 mkdir -p $HOME/.parity/906a34e69aec8c0d
-echo -n '{"fat_db":false,"mode":"passive","pruning":"archive","tracing":false}' > $HOME/.parity/906a34e69aec8c0d/user_defaults
+echo -n '{"fat_db":false,"mode":"passive","pruning":"fast","tracing":false}' > $HOME/.parity/906a34e69aec8c0d/user_defaults
 
 chown -R $USER $HOME/.parity $HOME/Library/LaunchAgents $HOME/Library/LaunchAgents/io.parity.ethereum.plist
 
