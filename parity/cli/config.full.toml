@@ -1,5 +1,5 @@
 [parity]
-mode = "active"
+mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
 chain = "homestead"
