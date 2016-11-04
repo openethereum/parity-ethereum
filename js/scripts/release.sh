@@ -57,7 +57,6 @@ if [ "$BRANCH" == "master" ]; then
   npm version patch
 
   echo "*** Building packages for npmjs"
-  cd js
   # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
   echo "$NPM_TOKEN" >> ~/.npmrc
   npm run ci:build:npm
@@ -65,7 +64,7 @@ if [ "$BRANCH" == "master" ]; then
   echo "*** Publishing $PACKAGE to npmjs"
   cd .npmjs
   npm publish --access public
-  cd ..
+  cd ../..
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
