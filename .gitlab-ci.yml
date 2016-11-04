@@ -1,8 +1,7 @@
 stages:
   - build
-  - js-test
-  - js-build
   - test
+  - js-build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -391,7 +390,7 @@ test-rust-stable:
     - rust
     - rust-stable
 js-tests:
-  stage: js-test
+  stage: test
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -403,6 +402,11 @@ js-tests:
     - javascript-test
 js-release:
   stage: js-build
+  only:
+    - master
+    - beta
+    - stable
+    - tags
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
