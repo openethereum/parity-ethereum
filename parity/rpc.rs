@@ -63,7 +63,7 @@ impl Default for IpcConfiguration {
 		IpcConfiguration {
 			enabled: true,
 			socket_addr: parity_ipc_path("$HOME/.parity/jsonrpc.ipc"),
-			apis: ApiSet::UnsafeContext,
+			apis: ApiSet::IpcContext,
 		}
 	}
 }

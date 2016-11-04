@@ -25,7 +25,7 @@ port = 30303
 min_peers = 25
 max_peers = 50
 nat = "any"
-id = "0x1"
+id = 1
 bootnodes = []
 discovery = true
 warp = true
@@ -47,7 +47,7 @@ hosts = ["none"]
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal", "personal_safe"]
 
 [dapps]
 disable = false

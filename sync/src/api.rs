@@ -42,7 +42,7 @@ pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
 	/// Fork block to check
@@ -55,7 +55,7 @@ impl Default for SyncConfig {
 	fn default() -> SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
-			network_id: U256::from(1),
+			network_id: 1,
 			subprotocol_name: *b"eth",
 			fork_block: None,
 			warp_sync: false,

@@ -29,6 +29,7 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
 		ChainEra::Homestead => ethereum::new_homestead_test().engine,
 		ChainEra::Eip150 => ethereum::new_eip150_test().engine,
+		ChainEra::Eip161 => ethereum::new_eip161_test().engine,
 		ChainEra::TransitionTest => ethereum::new_transition_test().engine,
 	};
 

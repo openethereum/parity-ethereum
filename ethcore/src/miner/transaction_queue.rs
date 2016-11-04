@@ -42,8 +42,8 @@
 //!		let t2 = Transaction { action: Action::Create, value: U256::from(100), data: "3331600055".from_hex().unwrap(),
 //!			gas: U256::from(100_000), gas_price: U256::one(), nonce: U256::from(11) };
 //!
-//!		let st1 = t1.sign(&key.secret());
-//!		let st2 = t2.sign(&key.secret());
+//!		let st1 = t1.sign(&key.secret(), None);
+//!		let st2 = t2.sign(&key.secret(), None);
 //!		let default_account_details = |_a: &Address| AccountDetails {
 //!			nonce: U256::from(10),
 //!			balance: U256::from(1_000_000),
@@ -1104,12 +1104,12 @@ mod test {
 
 	fn new_tx(nonce: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
-		new_unsigned_tx(nonce, default_gas_val(), gas_price).sign(keypair.secret())
+		new_unsigned_tx(nonce, default_gas_val(), gas_price).sign(keypair.secret(), None)
 	}
 
 	fn new_tx_with_gas(gas: U256, gas_price: U256) -> SignedTransaction {
 		let keypair = Random.generate().unwrap();
-		new_unsigned_tx(default_nonce(), gas, gas_price).sign(keypair.secret())
+		new_unsigned_tx(default_nonce(), gas, gas_price).sign(keypair.secret(), None)
 	}
 
 	fn new_tx_default() -> SignedTransaction {
@@ -1133,7 +1133,7 @@ mod test {
 
 		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
-		(tx1.sign(secret), tx2.sign(secret))
+		(tx1.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	/// Returns two consecutive transactions, both with increased gas price
@@ -1144,7 +1144,7 @@ mod test {
 
 		let keypair = Random.generate().unwrap();
 		let secret = &keypair.secret();
-		(tx1.sign(secret), tx2.sign(secret))
+		(tx1.sign(secret, None), tx2.sign(secret, None))
 	}
 
 	fn new_tx_pair_default(nonce_increment: U256, gas_price_increment: U256) -> (SignedTransaction, SignedTransaction) {
@@ -1798,9 +1798,9 @@ mod test {
 		let mut txq = TransactionQueue::default();
 		let kp = Random.generate().unwrap();
 		let secret = kp.secret();
-		let tx = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(secret);
-		let tx1 = new_unsigned_tx(124.into(), default_gas_val(), 1.into()).sign(secret);
-		let tx2 = new_unsigned_tx(125.into(), default_gas_val(), 1.into()).sign(secret);
+		let tx = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(secret, None);
+		let tx1 = new_unsigned_tx(124.into(), default_gas_val(), 1.into()).sign(secret, None);
+		let tx2 = new_unsigned_tx(125.into(), default_gas_val(), 1.into()).sign(secret, None);
 
 		txq.add(tx, TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
 		assert_eq!(txq.status().pending, 1);
@@ -2038,11 +2038,11 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = Random.generate().unwrap();
-		let tx = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(keypair.secret());
+		let tx = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(keypair.secret(), None);
 		let tx2 = {
 			let mut tx2 = (*tx).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -2061,16 +2061,16 @@ mod test {
 		// given
 		let mut txq = TransactionQueue::default();
 		let keypair = Random.generate().unwrap();
-		let tx0 = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(keypair.secret());
+		let tx0 = new_unsigned_tx(123.into(), default_gas_val(), 1.into()).sign(keypair.secret(), None);
 		let tx1 = {
 			let mut tx1 = (*tx0).clone();
 			tx1.nonce = U256::from(124);
-			tx1.sign(keypair.secret())
+			tx1.sign(keypair.secret(), None)
 		};
 		let tx2 = {
 			let mut tx2 = (*tx1).clone();
 			tx2.gas_price = U256::from(200);
-			tx2.sign(keypair.secret())
+			tx2.sign(keypair.secret(), None)
 		};
 
 		// when
@@ -2223,7 +2223,7 @@ mod test {
 			let tx3 = new_unsigned_tx(nonce + 2.into(), gas, 1.into());
 
 
-			(tx.sign(secret), tx2.sign(secret), tx2_2.sign(secret), tx3.sign(secret))
+			(tx.sign(secret, None), tx2.sign(secret, None), tx2_2.sign(secret, None), tx3.sign(secret, None))
 		};
 		let sender = tx1.sender().unwrap();
 		txq.add(tx1, TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();

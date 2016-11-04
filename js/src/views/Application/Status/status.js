@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { BlockStatus } from '../../../ui';
+import CopyToClipboard from '../../../ui/CopyToClipboard';
 
 import styles from './status.css';
 
@@ -47,14 +48,12 @@ class Status extends Component {
         </div>
         { this.renderEnode() }
         <div className={ styles.netinfo }>
-          <div>
-            <BlockStatus />
-            <div className={ styles.peers }>
-              { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
-            </div>
-          </div>
+          <BlockStatus />
           <div className={ netStyle }>
             { isTest ? 'test' : netChain }
+          </div>
+          <div className={ styles.peers }>
+            { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
       </div>
@@ -68,9 +67,14 @@ class Status extends Component {
       return null;
     }
 
+    const [protocol, rest] = enode.split('://');
+    const [id, host] = rest.split('@');
+    const abbreviated = `${protocol}://${id.slice(0, 3)}…${id.slice(-3)}@${host}`;
+
     return (
       <div className={ styles.enode }>
-        { enode }
+        <CopyToClipboard data={ enode } />
+        <div>{ abbreviated }</div>
       </div>
     );
   }

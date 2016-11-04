@@ -215,7 +215,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Calculate median gas price from recent blocks if they have any transactions.
 	fn gas_price_median(&self, sample_size: usize) -> Option<U256> {
 		let corpus = self.gas_price_corpus(sample_size);
-		corpus.get(corpus.len()/2).cloned()
+		corpus.get(corpus.len() / 2).cloned()
 	}
 
 	/// Get the gas price distribution based on recent blocks if they have any transactions.
@@ -223,12 +223,17 @@ pub trait BlockChainClient : Sync + Send {
 		let raw_corpus = self.gas_price_corpus(sample_size);
 		let raw_len = raw_corpus.len();
 		// Throw out outliers.
-		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
+		let (corpus, _) = raw_corpus.split_at(raw_len - raw_len / 40);
 		Histogram::new(corpus, bucket_number)
 	}
 
+	/// Get the preferred network ID to sign on
+	fn signing_network_id(&self) -> Option<u8>;
+
+	/// Get the mode.
 	fn mode(&self) -> Mode;
 
+	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
 }
 

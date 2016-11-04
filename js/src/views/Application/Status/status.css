@@ -15,12 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .status {
-  padding: 1.5em;
-  text-align: right;
-  color: #ddd;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  padding: 0.5em;
+  font-size: x-small;
+  color: #ccc;
+  background-color: rgba(0, 0, 0, 0.2)
 }
 
 .title {
@@ -28,9 +26,14 @@
 }
 
 .enode {
-  width: 45em;
   word-wrap: break-word;
-  margin: 0.5em 0 0.25em;
+  float: right;
+}
+
+.enode > * {
+  display: inline-block;
+  margin: 0.25em 0.5em;
+  vertical-align: top;
 }
 
 .block {
@@ -39,9 +42,7 @@
 .netinfo {
   display: flex;
   align-items: center;
-  flex-direction: row;
-  justify-content: flex-end;
-  margin-top: 0.25em;
+  color: #ddd;  
 }
 
 .netinfo > * {
@@ -69,6 +70,8 @@
 }
 
 .version {
+  padding: 0.25em 0.5em;
+  float: left;
 }
 
 .syncing {

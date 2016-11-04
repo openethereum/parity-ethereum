@@ -300,11 +300,17 @@ impl Account {
 	pub fn storage_is_clean(&self) -> bool { self.storage_changes.is_empty() }
 
 	/// Check if account has zero nonce, balance, no code and no storage.
+	///
+	/// NOTE: Will panic if `!self.storage_is_clean()`
 	pub fn is_empty(&self) -> bool {
-		self.storage_changes.is_empty() &&
+		assert!(self.storage_is_clean(), "Account::is_empty() may only legally be called when storage is clean.");
+		self.is_null() && self.storage_root == SHA3_NULL_RLP
+	}
+
+	/// Check if account has zero nonce, balance, no code.
+	pub fn is_null(&self) -> bool {
 		self.balance.is_zero() &&
 		self.nonce.is_zero() &&
-		self.storage_root == SHA3_NULL_RLP &&
 		self.code_hash == SHA3_EMPTY
 	}
 
