@@ -1,5 +1,7 @@
 stages:
   - build
+  - test
+  - js-build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -7,13 +9,12 @@ variables:
   RUSTFLAGS: ""
   CARGOFLAGS: ""
 cache:
-  key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
-    - master
     - beta
     - tags
     - stable
@@ -43,7 +44,6 @@ linux-stable-14.04:
   stage: build
   image: ethcore/rust-14.04:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -73,7 +73,6 @@ linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
-    - master
     - beta
     - tags
     - stable
@@ -92,7 +91,6 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
-    - master
     - beta
     - tags
     - stable
@@ -111,7 +109,6 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
-    - master
     - beta
     - tags
     - stable
@@ -350,49 +347,51 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
-#test-darwin:
-#  stage: build
-#  before_script:
-#    - git submodule update --init --recursive
-#  script:
-#    - export RUST_BACKTRACE=1
-#    - ./test.sh $CARGOFLAGS --no-release
-#  tags:
-#    - osx
-#test-windows:
-#  stage: build
-#  before_script:
-#    - git submodule update --init --recursive
-#  script:
-#    - set RUST_BACKTRACE=1
-#    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
-#  tags:
-#    - rust-windows
-#  allow_failure: true
-test-linux:
-  stage: build
+test-darwin:
+  stage: test
+  only:
+    - beta
+    - tags
+    - stable
   before_script:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
     - ./test.sh $CARGOFLAGS --no-release
   tags:
-    - rust-test
-js-release:
-  stage: build
-  image: ethcore/javascript:latest
+    - osx
+test-windows:
+  stage: test
   only:
-    - master
+    - beta
+    - tags
+    - stable
   before_script:
-    - ./js/scripts/install-deps.sh
+    - git submodule update --init --recursive
   script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - set RUST_BACKTRACE=1
+    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
   tags:
-    - javascript
+    - rust-windows
+  allow_failure: true
+test-rust-stable:
+  stage: test
+  image: ethcore/rust:stable
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-stable
 js-tests:
-  stage: build
-  image: ethcore/javascript:latest
+  stage: test
+  image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
   script:
@@ -401,3 +400,18 @@ js-tests:
     - ./js/scripts/build.sh
   tags:
     - javascript-test
+js-release:
+  stage: js-build
+  only:
+    - master
+    - beta
+    - stable
+    - tags
+  image: ethcore/rust:stable
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
