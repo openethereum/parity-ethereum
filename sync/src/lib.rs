@@ -51,7 +51,6 @@ mod blocks;
 mod block_sync;
 mod sync_io;
 mod snapshot;
-mod light;
 
 #[cfg(test)]
 mod tests;

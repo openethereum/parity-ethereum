@@ -17,13 +17,12 @@
 //! A provider for the LES protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
-pub use proof_request::{CHTProofRequest, ProofRequest};
-
-use transaction::SignedTransaction;
-use blockchain_info::BlockChainInfo;
-
+use ethcore::transaction::SignedTransaction;
+use ethcore::blockchain_info::BlockChainInfo;
 use util::Bytes;
 use util::hash::H256;
+
+use request;
 
 /// Defines the operations that a provider for `LES` must fulfill.
 ///
@@ -31,7 +30,7 @@ use util::hash::H256;
 /// Requests which can't be fulfilled should return an empty RLP list.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
-pub trait Provider: Sync {
+pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
 	fn chain_info(&self) -> BlockChainInfo;
 
@@ -40,27 +39,30 @@ pub trait Provider: Sync {
 	///
 	/// The returned vector may have any length in the range [0, `max`], but the
 	/// results within must adhere to the `skip` and `reverse` parameters.
-	fn block_headers(&self, block: (u64, H256), skip: usize, max: usize, reverse: bool) -> Vec<Bytes>;
+	fn block_headers(&self, req: request::Headers) -> Vec<Bytes>;
 
 	/// Provide as many as possible of the requested blocks (minus the headers) encoded
 	/// in RLP format.
-	fn block_bodies(&self, blocks: Vec<H256>) -> Vec<Bytes>;
+	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes>;
 
 	/// Provide the receipts as many as possible of the requested blocks.
 	/// Returns a vector of RLP-encoded lists of receipts.
-	fn receipts(&self, blocks: Vec<H256>) -> Vec<Bytes>;
+	fn receipts(&self, req: request::Receipts) -> Vec<Bytes>;
 
 	/// Provide a set of merkle proofs, as requested. Each request is a
 	/// block hash and request parameters.
 	///
 	/// Returns a vector to RLP-encoded lists satisfying the requests.
-	fn proofs(&self, requests: Vec<(H256, ProofRequest)>) -> Vec<Bytes>;
+	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes>;
 
 	/// Provide contract code for the specified (block_hash, account_hash) pairs.
-	fn code(&self, accounts: Vec<(H256, H256)>) -> Vec<Bytes>;
+	fn code(&self, req: request::ContractCodes) -> Vec<Bytes>;
 
 	/// Provide header proofs from the Canonical Hash Tries.
-	fn header_proofs(&self, requests: Vec<CHTProofRequest>) -> Vec<Bytes>;
+	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
+
+	/// Provide block deltas.
+	fn block_deltas(&self, req: request::BlockDeltas) -> Vec<Bytes>;
 
 	/// Provide pending transactions.
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;

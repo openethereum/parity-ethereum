@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// LES request types.
+//! LES request types.
+
+// TODO: make IPC compatible.
 
 use ethcore::transaction::Transaction;
 use util::{Address, H256};

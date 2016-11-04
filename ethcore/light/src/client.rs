@@ -19,21 +19,22 @@
 
 use std::sync::Arc;
 
-use engines::Engine;
-use ids::BlockID;
-use miner::TransactionQueue;
-use service::ClientIoMessage;
-use block_import_error::BlockImportError;
-use block_status::BlockStatus;
-use verification::queue::{Config as QueueConfig, HeaderQueue, QueueInfo, Status};
-use transaction::SignedTransaction;
-use types::blockchain_info::BlockChainInfo;
-
-use super::provider::{CHTProofRequest, Provider, ProofRequest};
+use ethcore::engines::Engine;
+use ethcore::ids::BlockID;
+use ethcore::miner::TransactionQueue;
+use ethcore::service::ClientIoMessage;
+use ethcore::block_import_error::BlockImportError;
+use ethcore::block_status::BlockStatus;
+use ethcore::verification::queue::{Config as QueueConfig, HeaderQueue, QueueInfo, Status};
+use ethcore::transaction::SignedTransaction;
+use ethcore::blockchain_info::BlockChainInfo;
 
 use io::IoChannel;
 use util::hash::H256;
 use util::{Bytes, Mutex};
+
+use provider::Provider;
+use request;
 
 /// Light client implementation.
 pub struct Client {
@@ -78,27 +79,31 @@ impl Provider for Client {
 		unimplemented!()
 	}
 
-	fn block_headers(&self, block: (u64, H256), skip: usize, max: usize, reverse: bool) -> Vec<Bytes> {
+	fn block_headers(&self, _req: request::Headers) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn block_bodies(&self, blocks: Vec<H256>) -> Vec<Bytes> {
+	fn block_bodies(&self, _req: request::Bodies) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn receipts(&self, blocks: Vec<H256>) -> Vec<Bytes> {
+	fn receipts(&self, _req: request::Receipts) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn proofs(&self, requests: Vec<(H256, ProofRequest)>) -> Vec<Bytes> {
+	fn proofs(&self, _req: request::StateProofs) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn code(&self, accounts: Vec<(H256, H256)>) -> Vec<Bytes> {
+	fn code(&self, _req: request::ContractCodes) -> Vec<Bytes> {
 		Vec::new()
 	}
 
-	fn header_proofs(&self, requests: Vec<CHTProofRequest>) -> Vec<Bytes> {
+	fn header_proofs(&self, _req: request::HeaderProofs) -> Vec<Bytes> {
+		Vec::new()
+	}
+
+	fn block_deltas(&self, _req: request::BlockDeltas) -> Vec<Bytes> {
 		Vec::new()
 	}
 

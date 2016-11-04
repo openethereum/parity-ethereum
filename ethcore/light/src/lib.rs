@@ -28,9 +28,16 @@
 //! It starts by performing a header-only sync, verifying every header in
 //! the chain.
 
-mod client;
-mod provider;
-mod sync;
+pub mod client;
+pub mod net;
+pub mod provider;
+pub mod request;
 
-pub use self::client::Client;
-pub use self::provider::{CHTProofRequest, ProofRequest, Provider};
+extern crate ethcore_util as util;
+extern crate ethcore_network as network;
+extern crate ethcore_io as io;
+extern crate ethcore;
+extern crate rlp;
+
+#[macro_use]
+extern crate log;

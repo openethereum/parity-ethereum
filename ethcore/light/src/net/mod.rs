@@ -19,19 +19,17 @@
 //! This uses a "Provider" to answer requests and syncs to a `Client`.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
-use ethcore::light::{Client, Provider};
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, NetworkError, PeerId};
 use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use parking_lot::{Mutex, RwLock};
+use util::{Mutex, RwLock};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use self::request::Request;
-
-mod request;
+use provider::Provider;
+use request::Request;
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
@@ -163,7 +161,7 @@ impl LightProtocol {
 	}
 
 	fn send_status(&self, peer: PeerId, io: &NetworkContext) -> Result<(), NetworkError> {
-		let chain_info = self.client.chain_info();
+		let chain_info = self.provider.chain_info();
 
 		// TODO [rob] use optional keys too.
 		let mut stream = RlpStream::new_list(6);
@@ -210,14 +208,13 @@ impl LightProtocol {
 	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		const MAX_HEADERS: usize = 512;
 
-		let req_id: u64 = try_dc!(io, peer, data.val_at(0));
-		let block = try_dc!(io, peer, data.at(1).and_then(|block_list| {
-			(try!(block_list.val_at(0)), try!(block_list.val_at(1))
+		let req_id: u64 = try_dc!(io, *peer, data.val_at(0));
+		let block: (u64, H256) = try_dc!(io, *peer, data.at(1).and_then(|block_list| {
+			Ok((try!(block_list.val_at(0)), try!(block_list.val_at(1))))
 		}));
-		let max = ::std::cmp::min(MAX_HEADERS, try_dc!(io, peer, data.val_at(2)));
-		let reverse = try_dc!(io, peer, data.val_at(3));
+		let max = ::std::cmp::min(MAX_HEADERS, try_dc!(io, *peer, data.val_at(2)));
+		let reverse: bool = try_dc!(io, *peer, data.val_at(3));
 
-		let headers = self.provider.block_headers()
 		unimplemented!()
 	}
 
