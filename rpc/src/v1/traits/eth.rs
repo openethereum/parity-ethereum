@@ -17,7 +17,7 @@
 //! Eth rpc interface.
 use jsonrpc_core::*;
 
-use v1::types::{Block, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
+use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
 
@@ -68,11 +68,11 @@ build_rpc_trait! {
 
 		/// Returns block with given hash.
 		#[rpc(name = "eth_getBlockByHash")]
-		fn block_by_hash(&self, H256, bool) -> Result<Option<Block>, Error>;
+		fn block_by_hash(&self, H256, bool) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns block with given number.
 		#[rpc(name = "eth_getBlockByNumber")]
-		fn block_by_number(&self, BlockNumber, bool) -> Result<Option<Block>, Error>;
+		fn block_by_number(&self, BlockNumber, bool) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns the number of transactions sent from given address at given time (block number).
 		#[rpc(name = "eth_getTransactionCount")]
@@ -128,11 +128,11 @@ build_rpc_trait! {
 
 		/// Returns an uncles at given block and index.
 		#[rpc(name = "eth_getUncleByBlockHashAndIndex")]
-		fn uncle_by_block_hash_and_index(&self, H256, Index) -> Result<Option<Block>, Error>;
+		fn uncle_by_block_hash_and_index(&self, H256, Index) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns an uncles at given block and index.
 		#[rpc(name = "eth_getUncleByBlockNumberAndIndex")]
-		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<Block>, Error>;
+		fn uncle_by_block_number_and_index(&self, BlockNumber, Index) -> Result<Option<RichBlock>, Error>;
 
 		/// Returns available compilers.
 		#[rpc(name = "eth_getCompilers")]
