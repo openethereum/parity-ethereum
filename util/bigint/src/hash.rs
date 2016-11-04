@@ -386,6 +386,12 @@ macro_rules! impl_hash {
 				}
 			}
 		}
+
+		impl<'a> From<&'a [u8]> for $from {
+			fn from(s: &'a [u8]) -> $from {
+				$from::from_slice(s)
+			}
+		}
 	}
 }
 

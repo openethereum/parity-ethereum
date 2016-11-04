@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
-import { Button, Input } from '../../../ui';
+import { Button, Input, InputAddressSelect } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -124,8 +124,8 @@ export default class InputQuery extends Component {
     const { name, type } = input;
     const label = `${name ? `${name}: ` : ''}${type}`;
 
-    const onChange = (event) => {
-      const value = event.target.value;
+    const onChange = (event, input) => {
+      const value = event && event.target.value || input;
       const { values } = this.state;
 
       this.setState({
@@ -135,6 +135,19 @@ export default class InputQuery extends Component {
         }
       });
     };
+
+    if (type === 'address') {
+      return (
+        <div key={ name }>
+          <InputAddressSelect
+            hint={ type }
+            label={ label }
+            required
+            onChange={ onChange }
+          />
+        </div>
+      );
+    }
 
     return (
       <div key={ name }>

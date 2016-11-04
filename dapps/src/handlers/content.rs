@@ -48,11 +48,7 @@ impl ContentHandler {
 		Self::new_embeddable(code, content, mime!(Text/Html), embeddable_at)
 	}
 
-	pub fn error(code: StatusCode, title: &str, message: &str, details: Option<&str>) -> Self {
-		Self::error_embeddable(code, title, message, details, None)
-	}
-
-	pub fn error_embeddable(code: StatusCode, title: &str, message: &str, details: Option<&str>, embeddable_at: Option<u16>) -> Self {
+	pub fn error(code: StatusCode, title: &str, message: &str, details: Option<&str>, embeddable_at: Option<u16>) -> Self {
 		Self::html(code, format!(
 			include_str!("../error_tpl.html"),
 			title=title,

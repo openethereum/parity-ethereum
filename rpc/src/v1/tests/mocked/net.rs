@@ -21,7 +21,7 @@ use v1::tests::helpers::{Config, TestSyncProvider};
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: 3.into(),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve_with_registrar, serve_with_registrar_and_sync, request, assert_security_headers};
+use tests::helpers::{serve_with_registrar, serve_with_registrar_and_sync, request, assert_security_headers_for_embed};
 
 #[test]
 fn should_resolve_dapp() {
@@ -34,7 +34,7 @@ fn should_resolve_dapp() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
 	assert_eq!(registrar.calls.lock().len(), 2);
-	assert_security_headers(&response.headers);
+	assert_security_headers_for_embed(&response.headers);
 }
 
 #[test]
@@ -63,5 +63,5 @@ fn should_return_503_when_syncing_but_should_make_the_calls() {
 	// then
 	assert_eq!(response.status, "HTTP/1.1 503 Service Unavailable".to_owned());
 	assert_eq!(registrar.calls.lock().len(), 4);
-	assert_security_headers(&response.headers);
+	assert_security_headers_for_embed(&response.headers);
 }

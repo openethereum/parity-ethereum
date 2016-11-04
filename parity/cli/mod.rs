@@ -46,7 +46,7 @@ usage! {
 		flag_testnet: bool,
 		flag_import_geth_keys: bool,
 		flag_datadir: Option<String>,
-		flag_networkid: Option<String>,
+		flag_networkid: Option<usize>,
 		flag_peers: Option<u16>,
 		flag_nodekey: Option<String>,
 		flag_nodiscover: bool,
@@ -122,7 +122,7 @@ usage! {
 			or |c: &Config| otry!(c.network).nat.clone(),
 		flag_allow_ips: String = "all",
 			or |c: &Config| otry!(c.network).allow_ips.clone(),
-		flag_network_id: Option<String> = None,
+		flag_network_id: Option<usize> = None,
 			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
 			or |c: &Config| otry!(c.network).bootnodes.clone().map(|vec| Some(vec.join(","))),
@@ -155,7 +155,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
+		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal,personal_safe",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -323,7 +323,7 @@ struct Network {
 	max_pending_peers: Option<u16>,
 	nat: Option<String>,
 	allow_ips: Option<String>,
-	id: Option<String>,
+	id: Option<usize>,
 	bootnodes: Option<Vec<String>>,
 	discovery: Option<bool>,
 	node_key: Option<String>,
@@ -530,7 +530,7 @@ mod tests {
 			flag_snapshot_peers: 0u16,
 			flag_allow_ips: "all".into(),
 			flag_nat: "any".into(),
-			flag_network_id: Some("0x1".into()),
+			flag_network_id: Some(1),
 			flag_bootnodes: Some("".into()),
 			flag_no_discovery: false,
 			flag_node_key: None,
@@ -549,7 +549,7 @@ mod tests {
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
+			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal,personal_safe".into(),
 
 			// DAPPS
 			flag_no_dapps: false,

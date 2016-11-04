@@ -50,31 +50,31 @@ setup_git_user
 git remote set-url origin $GIT_PARITY
 git reset --hard origin/$BRANCH 2>$GITLOG
 
-echo "*** Bumping package.json patch version"
-cd js
-npm --no-git-tag-version version
-npm version patch
-cd ..
+if [ "$BRANCH" == "master" ]; then
+  cd js
+  echo "*** Bumping package.json patch version"
+  npm --no-git-tag-version version
+  npm version patch
+
+  echo "*** Building packages for npmjs"
+  # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
+  echo "$NPM_TOKEN" >> ~/.npmrc
+  npm run ci:build:npm
+
+  echo "*** Publishing $PACKAGE to npmjs"
+  cd .npmjs
+  npm publish --access public
+  cd ../..
+fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"
-git add Cargo.lock js/package.json
+git add .
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
-
-echo "*** Building packages for npmjs"
-cd js
-# echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
-echo "$NPM_TOKEN" >> ~/.npmrc
-npm run ci:build:npm
-
-echo "*** Publishing $PACKAGE to npmjs"
-cd .npmjs
-npm publish --access public
-cd ..
 
 # back to root
 echo "*** Release completed"
