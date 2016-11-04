@@ -47,7 +47,7 @@ hosts = ["none"]
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
+apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal", "personal_safe"]
 
 [dapps]
 disable = false
