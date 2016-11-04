@@ -85,6 +85,13 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="eip161dTransition")]
 	pub eip161d_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="bombPauseTransition")]
+	pub bomb_pause_transition: Option<Uint>,
+	/// See main EthashParams docs.
+	#[serde(rename="bombContinueTransition")]
+	pub bomb_continue_transition: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
