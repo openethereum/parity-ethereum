@@ -324,6 +324,19 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	});
 	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
+	let on_mode_change = move |mode: &Mode| {
+		user_defaults.mode = mode.clone();
+		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
+	};
+
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(on_mode_change);
+
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
@@ -349,11 +362,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
-
-	// save user defaults
-	user_defaults.pruning = algorithm;
-	user_defaults.tracing = tracing;
-	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

@@ -147,6 +147,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
+	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
 }
 
 impl Client {
@@ -243,6 +244,7 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
+			on_mode_change: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -258,6 +260,11 @@ impl Client {
 				f(&*n);
 			}
 		}
+	}
+
+	/// Register an action to be done if a mode change happens. 
+	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
+		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -866,7 +873,14 @@ impl BlockChainClient for Client {
 	fn mode(&self) -> IpcMode { self.mode.lock().clone().into() }
 
 	fn set_mode(&self, mode: IpcMode) {
-		*self.mode.lock() = mode.clone().into();
+		{
+			let mut mode = self.mode.lock();
+			*mode = mode.clone().into();
+			match *self.on_mode_change.lock() {
+				Some(ref mut f) => f(&*mode),
+				_ => {} 
+			}
+		}
 		match mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),

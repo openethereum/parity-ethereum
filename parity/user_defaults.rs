@@ -133,7 +133,7 @@ impl UserDefaults {
 		}
 	}
 
-	pub fn save<P>(self, path: P) -> Result<(), String> where P: AsRef<Path> {
+	pub fn save<P>(&self, path: P) -> Result<(), String> where P: AsRef<Path> {
 		let mut file: File = try!(File::create(path).map_err(|_| "Cannot create user defaults file".to_owned()));
 		file.write_all(to_string(&self).unwrap().as_bytes()).map_err(|_| "Failed to save user defaults".to_owned())
 	}
