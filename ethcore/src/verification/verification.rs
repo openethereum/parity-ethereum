@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Block and transaction verification functions
-///
-/// Block verification is done in 3 steps
-/// 1. Quick verification upon adding to the block queue
-/// 2. Signatures verification done in the queue.
-/// 3. Final verification against the blockchain done before enactment.
+//! Block and transaction verification functions
+//!
+//! Block verification is done in 3 steps
+//! 1. Quick verification upon adding to the block queue
+//! 2. Signatures verification done in the queue.
+//! 3. Final verification against the blockchain done before enactment.
 
 use util::*;
 use engines::Engine;

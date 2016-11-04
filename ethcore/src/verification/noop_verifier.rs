@@ -14,12 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! No-op verifier.
+
 use blockchain::BlockProvider;
 use engines::Engine;
 use error::Error;
 use header::Header;
 use super::Verifier;
 
+/// A no-op verifier -- this will verify everything it's given immediately.
 #[allow(dead_code)]
 pub struct NoopVerifier;
 
