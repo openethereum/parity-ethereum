@@ -456,7 +456,6 @@ fn should_recover_from_network_specific_signing() {
 #[test]
 fn should_agree_with_vitalik() {
 	use rustc_serialize::hex::FromHex;
-	use std::str::FromStr;
 
 	let test_vector = |tx_data: &str, address: &'static str| {
 		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
