@@ -44,12 +44,6 @@ class Transactions extends Component {
     traceMode: PropTypes.bool
   }
 
-  state = {
-    transactions: [],
-    loading: true,
-    callInfo: {}
-  }
-
   componentWillMount () {
     if (this.props.traceMode !== undefined) {
       this.getTransactions(this.props);
@@ -81,15 +75,9 @@ class Transactions extends Component {
   }
 
   renderTransactions () {
-    const { accountInfo, transactionsInfo } = this.props;
+    const { accountInfo } = this.props;
 
-    const pendingTransactions = accountInfo &&
-      accountInfo.transactions &&
-      accountInfo.transactions.filter(tx => {
-        return transactionsInfo[tx.hash] && transactionsInfo[tx.hash].pending;
-      });
-
-    const isLoading = !accountInfo || accountInfo.loading || pendingTransactions.length;
+    const isLoading = !accountInfo || accountInfo.loading;
 
     if (isLoading) {
       return (
@@ -134,14 +122,10 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest, blocks, accountInfo, transactionsInfo } = this.props;
+    const { address, accounts, contacts, contracts, tokens, isTest, accountInfo } = this.props;
     const { transactions } = accountInfo;
 
     return (transactions || [])
-      .filter(transaction => {
-        const { hash } = transaction;
-        return transactionsInfo[hash] && transactionsInfo[hash].valid;
-      })
       .sort((tA, tB) => {
         return tB.blockNumber.comparedTo(tA.blockNumber);
       })
@@ -168,25 +152,25 @@ class Transactions extends Component {
   }
 }
 
-function mapStateToProps (state, props) {
-  const { isTest, traceMode } = state.nodeStatus;
-  const { accounts, contacts, contracts } = state.personal;
-  const { tokens } = state.balances;
-  const { blocks, transactions } = state.blockchain;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps;
 
-  const { address } = props;
-  const accountInfo = state.blockchain.accounts[address];
+  return (state) => {
+    const { isTest, traceMode } = state.nodeStatus;
+    const { accounts, contacts, contracts } = state.personal;
+    const { tokens } = state.balances;
 
-  return {
-    isTest,
-    traceMode,
-    accounts,
-    contacts,
-    contracts,
-    tokens,
-    blocks,
-    accountInfo,
-    transactionsInfo: transactions
+    const accountInfo = state.blockchain.accounts[address];
+
+    return {
+      isTest,
+      traceMode,
+      accounts,
+      contacts,
+      contracts,
+      tokens,
+      accountInfo
+    };
   };
 }
 

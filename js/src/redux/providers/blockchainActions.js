@@ -358,11 +358,11 @@ function getFetchTransaction (dispatch, getState, txHashes) {
       }));
     })
     .catch(e => {
-      console.error('blockchain::fetchTransaction', e);
-
       txsToFetch.forEach((txHash) => {
         dispatch(setTransaction(txHash, { pending: false, valid: false }));
       });
+
+      throw e;
     });
 }
 

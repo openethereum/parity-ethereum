@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import moment from 'moment';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
@@ -23,7 +24,7 @@ import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
 
-export default class Transaction extends Component {
+class Transaction extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -32,13 +33,25 @@ export default class Transaction extends Component {
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
 
+    loading: PropTypes.bool,
     block: PropTypes.object,
-    transactionInfo: PropTypes.object
+    transaction: PropTypes.object
+  }
+
+  shouldComponentUpdate (nextProps) {
+    if (this.props.loading && nextProps.loading) {
+      return false;
+    }
+
+    return true;
   }
 
   render () {
-    const { block } = this.state;
-    const { transaction } = this.props;
+    if (this.props.loading) {
+      return null;
+    }
+
+    const { block, transaction } = this.props;
 
     return (
       <tr>
@@ -57,8 +70,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address } = this.props;
-    const { transaction } = this.state;
+    const { address, transaction } = this.props;
 
     if (!transaction) {
       return null;
@@ -122,7 +134,7 @@ export default class Transaction extends Component {
 
   renderEtherValue () {
     const { api } = this.context;
-    const { transaction } = this.state;
+    const { transaction } = this.props;
 
     if (!transaction) {
       return null;
@@ -162,3 +174,27 @@ export default class Transaction extends Component {
   }
 
 }
+
+function mapStateToProps (_, initProps) {
+  const { transaction } = initProps;
+
+  const { hash } = transaction;
+  const blockNumber = transaction.blockNumber.toString();
+
+  return (state) => {
+    const { blocks, transactions } = state.blockchain;
+
+    const block = blocks[blockNumber];
+    const transaction = transactions[hash];
+
+    const loading = !block || !transaction || block.pending || transaction.pending;
+
+    return {
+      block,
+      transaction,
+      loading
+    };
+  };
+}
+
+export default connect(mapStateToProps)(Transaction);
