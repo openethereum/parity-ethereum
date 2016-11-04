@@ -382,20 +382,16 @@ test-rust-stable:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh; else ./test.sh $CARGOFLAGS --no-release; fi
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
   tags:
     - rust
     - rust-stable
 js-tests:
-  stage: test
-  only:
-    - jg*
-    - ng*
-    - ui*
+  stage: js-test
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -406,12 +402,8 @@ js-tests:
   tags:
     - javascript-test
 js-release:
-  stage: build
+  stage: js-build
   image: ethcore/rust:stable
-  only:
-    - jg*
-    - ng*
-    - ui*
   before_script:
     - ./js/scripts/install-deps.sh
   script:
