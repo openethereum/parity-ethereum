@@ -65,7 +65,7 @@ use evm::{Factory as EvmFactory, Schedule};
 use miner::{Miner, MinerService};
 use snapshot::{self, io as snapshot_io};
 use factory::Factories;
-use rlp::{View, UntrustedRlp};
+use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
 
@@ -1186,6 +1186,18 @@ impl BlockChainClient for Client {
 
 	fn signing_network_id(&self) -> Option<u8> {
 		self.engine.signing_network_id(&self.latest_env_info())
+	}
+
+	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>> {
+		self.block_header(id)
+			.map(|block| decode(&block))
+			.map(|header| self.engine.extra_info(&header))
+	}
+
+	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>> {
+		self.uncle(id)
+			.map(|block| BlockView::new(&block).header())
+			.map(|header| self.engine.extra_info(&header))
 	}
 }
 
