@@ -404,7 +404,7 @@ js-release:
     - rust-stable
 js-tests:
   stage: test
-    only:
+  only:
     - jg*
     - ng*
     - ui*
