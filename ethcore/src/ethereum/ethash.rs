@@ -133,8 +133,8 @@ impl Engine for Ethash {
 	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, header: &Header) -> HashMap<String, String> {
-		hash_map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
+	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
