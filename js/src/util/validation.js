@@ -35,7 +35,8 @@ export function validateAbi (abi, api) {
   let abiParsed = null;
 
   try {
-    abiParsed = JSON.parse(abi);
+    // when pasted from solc, ABI has extra \"name\" instead of "name"
+    abiParsed = JSON.parse(abi.replace('\\"', '"'));
 
     if (!api.util.isArray(abiParsed) || !abiParsed.length) {
       abiError = ERRORS.inavlidAbi;
