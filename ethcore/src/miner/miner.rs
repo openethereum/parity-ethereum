@@ -212,7 +212,8 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
-	seals_internally: bool,
+	/// Does the node perform internal (without work) sealing.
+	pub seals_internally: bool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,

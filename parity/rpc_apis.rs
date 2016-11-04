@@ -190,7 +190,8 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				}
 			},
 			Api::PersonalAccounts => {
-				server.add_delegate(PersonalAccountsClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+				let enable_permanent_unlock = deps.geth_compatibility || deps.miner.seals_internally;
+				server.add_delegate(PersonalAccountsClient::new(&deps.secret_store, &deps.client, &deps.miner, enable_permanent_unlock).to_delegate());
 			},
 			Api::PersonalSafe => {
 				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client).to_delegate());
