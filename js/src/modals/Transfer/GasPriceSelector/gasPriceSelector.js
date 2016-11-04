@@ -539,7 +539,7 @@ export default class GasPriceSelector extends Component {
     const gasPriceBIdx = gasPriceAIdx + 1;
 
     if (gasPriceBIdx === N + 1) {
-      const gasPrice = gasPrices[gasPriceAIdx];
+      const gasPrice = gasPrices[gasPriceAIdx].round();
       this.props.onChange(event, gasPrice);
       return;
     }
@@ -548,7 +548,9 @@ export default class GasPriceSelector extends Component {
     const gasPriceB = gasPrices[gasPriceBIdx];
 
     const mult = Math.round((sliderValue % 1) * 100) / 100;
-    const gasPrice = gasPriceA.plus(gasPriceB.minus(gasPriceA).times(mult));
+    const gasPrice = gasPriceA
+      .plus(gasPriceB.minus(gasPriceA).times(mult))
+      .round();
 
     this.setSliderValue(sliderValue, gasPrice);
     this.props.onChange(event, gasPrice);
