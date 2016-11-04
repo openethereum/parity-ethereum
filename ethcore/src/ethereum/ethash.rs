@@ -695,7 +695,7 @@ mod tests {
 		let spec = new_homestead_test();
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
-			.. get_default_ethash_params()
+			..get_default_ethash_params()
 		};
 		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
 
@@ -729,7 +729,7 @@ mod tests {
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
 			ecip1010_continue_transition: 5000000,
-			.. get_default_ethash_params()
+			..get_default_ethash_params()
 		};
 		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
 
