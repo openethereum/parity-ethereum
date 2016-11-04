@@ -59,6 +59,8 @@ const store = initStore(api);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 
+window.secureApi = api;
+
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
