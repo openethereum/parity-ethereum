@@ -29,7 +29,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
-use request::Request;
+use request::{self, Request};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
@@ -206,16 +206,28 @@ impl LightProtocol {
 
 	// Handle a request for block headers.
 	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		const MAX_HEADERS: usize = 512;
+		const MAX_HEADERS: u64 = 512;
 
 		let req_id: u64 = try_dc!(io, *peer, data.val_at(0));
-		let block: (u64, H256) = try_dc!(io, *peer, data.at(1).and_then(|block_list| {
-			Ok((try!(block_list.val_at(0)), try!(block_list.val_at(1))))
-		}));
-		let max = ::std::cmp::min(MAX_HEADERS, try_dc!(io, *peer, data.val_at(2)));
-		let reverse: bool = try_dc!(io, *peer, data.val_at(3));
+		let req = request::Headers {
+			block: try_dc!(io, *peer, data.at(1).and_then(|block_list| {
+				Ok((try!(block_list.val_at(0)), try!(block_list.val_at(1))))
+			})),
+			max: ::std::cmp::min(MAX_HEADERS, try_dc!(io, *peer, data.val_at(2))),
+			skip: try_dc!(io, *peer, data.val_at(3)),
+			reverse: try_dc!(io, *peer, data.val_at(4)),
+		};
 
-		unimplemented!()
+		let res = self.provider.block_headers(req);
+
+		let mut res_stream = RlpStream::new_list(2 + res.len());
+		res_stream.append(&req_id);
+		res_stream.append(&0u64); // TODO: Buffer Flow.
+		for raw_header in res {
+			res_stream.append_raw(&raw_header, 1);
+		}
+
+		try_dc!(io, *peer, io.respond(packet::BLOCK_HEADERS, res_stream.out()))
 	}
 
 	// Receive a response for block headers.

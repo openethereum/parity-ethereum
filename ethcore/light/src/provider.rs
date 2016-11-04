@@ -20,7 +20,6 @@
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 use util::Bytes;
-use util::hash::H256;
 
 use request;
 
