@@ -373,7 +373,7 @@ test-windows:
   tags:
     - rust-windows
   allow_failure: true
-test-linux:
+test-rust-stable:
   stage: test
   image: ethcore/rust:stable
   before_script:
@@ -386,7 +386,38 @@ test-linux:
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
   tags:
-    - rust-test
+    - rust
+    - rust-stable
+ test-rust-beta:
+  stage: test
+  image: ethcore/rust:beta
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-beta
+test-rust-nightly:
+  stage: test
+  image: ethcore/rust:nightly
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-nigthly
 js-release:
   stage: build
   image: ethcore/rust:stable
@@ -416,5 +447,6 @@ js-tests:
     - ./js/scripts/test.sh
     - ./js/scripts/build.sh
   tags:
-    - rust-test
+    - rust
+    - rust-stable
 
