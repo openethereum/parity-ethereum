@@ -24,7 +24,7 @@ use hashdb::*;
 /// Type of operation for the backing database - either a new node or a node deletion.
 #[derive(Debug)]
 enum Operation {
-	New(H256, Bytes),
+	New(H256, DBValue),
 	Delete(H256),
 }
 
@@ -52,16 +52,16 @@ impl Journal {
 
 	/// Given the RLP that encodes a node, append a reference to that node `out` and leave `journal`
 	/// such that the reference is valid, once applied.
-	pub fn new_node(&mut self, rlp: Bytes, out: &mut RlpStream) {
+	pub fn new_node(&mut self, rlp: DBValue, out: &mut RlpStream) {
 		if rlp.len() >= 32 {
 			let rlp_sha3 = rlp.sha3();
 
-			trace!("new_node: reference node {:?} => {:?}", rlp_sha3, rlp.pretty());
+			trace!("new_node: reference node {:?} => {:?}", rlp_sha3, &*rlp);
 			out.append(&rlp_sha3);
 			self.0.push(Operation::New(rlp_sha3, rlp));
 		}
 		else {
-			trace!("new_node: inline node {:?}", rlp.pretty());
+			trace!("new_node: inline node {:?}", &*rlp);
 			out.append_raw(&rlp, 1);
 		}
 	}
@@ -84,7 +84,7 @@ impl Journal {
 	pub fn apply(self, db: &mut HashDB) -> Score {
 		trace!("applying {:?} changes", self.0.len());
 		let mut ret = Score{inserts: 0, removes: 0};
-		for d in self.0.into_iter() {
+		for d in self.0 {
 			match d {
 				Operation::Delete(h) => {
 					trace!("TrieDBMut::apply --- {:?}", &h);

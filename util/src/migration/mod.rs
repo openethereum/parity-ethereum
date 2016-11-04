@@ -231,7 +231,7 @@ impl Manager {
 		trace!(target: "migration", "Total migrations to execute for version {}: {}", version, migrations.len());
 		if migrations.is_empty() { return Err(Error::MigrationImpossible) };
 
-		let columns = migrations.iter().nth(0).and_then(|m| m.pre_columns());
+		let columns = migrations.get(0).and_then(|m| m.pre_columns());
 
 		trace!(target: "migration", "Expecting database to contain {:?} columns", columns);
 		let mut db_config = DatabaseConfig {
@@ -251,6 +251,7 @@ impl Manager {
 		let mut cur_db = Arc::new(try!(Database::open(&db_config, old_path_str).map_err(Error::Custom)));
 
 		for migration in migrations {
+			trace!(target: "migration", "starting migration to version {}", migration.version());
 			// Change number of columns in new db
 			let current_columns = db_config.columns;
 			db_config.columns = migration.columns();

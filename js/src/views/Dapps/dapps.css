@@ -17,6 +17,7 @@
 .list {
   display: flex;
   flex-wrap: wrap;
+  margin: -0.125em;
 }
 
 .list+.list {
@@ -24,17 +25,7 @@
 }
 
 .item {
+  padding: 0.125em;
   flex: 0 1 50%;
-  width: 50%;
-  position: relative;
   box-sizing: border-box;
-  padding-bottom: 0.25em;
-}
-
-.item:nth-child(odd) {
-  padding-right: 0.125em;
-}
-
-.item:nth-child(even) {
-  padding-left: 0.125em;
 }

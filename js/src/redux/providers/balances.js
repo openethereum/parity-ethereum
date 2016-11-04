@@ -32,6 +32,7 @@ export default class Balances {
     this._api = api;
     this._store = store;
     this._accountsInfo = null;
+    this._tokens = [];
   }
 
   start () {
@@ -50,7 +51,10 @@ export default class Balances {
         this._retrieveBalances();
       })
       .then((subscriptionId) => {
-        console.log('balances._subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+        console.log('_subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+      })
+      .catch((error) => {
+        console.warn('_subscribeAccountsInfo', error);
       });
   }
 
@@ -64,7 +68,10 @@ export default class Balances {
         this._retrieveTokens();
       })
       .then((subscriptionId) => {
-        console.log('balances._subscribeBlockNumber', 'subscriptionId', subscriptionId);
+        console.log('_subscribeBlockNumber', 'subscriptionId', subscriptionId);
+      })
+      .catch((error) => {
+        console.warn('_subscribeBlockNumber', error);
       });
   }
 
@@ -130,12 +137,13 @@ export default class Balances {
         this._retrieveBalances();
       })
       .catch((error) => {
-        console.error('balances._retrieveTokens', error);
+        console.warn('_retrieveTokens', error);
+        this._retrieveBalances();
       });
   }
 
   _retrieveBalances () {
-    if (!this._accountsInfo || !this._tokens) {
+    if (!this._accountsInfo) {
       return;
     }
 
@@ -186,7 +194,7 @@ export default class Balances {
         this._store.dispatch(getBalances(this._balances));
       })
       .catch((error) => {
-        console.error('balances._retrieveBalances', error);
+        console.warn('_retrieveBalances', error);
       });
   }
 }

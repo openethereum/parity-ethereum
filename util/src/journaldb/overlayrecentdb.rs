@@ -67,7 +67,7 @@ pub struct OverlayRecentDB {
 #[derive(PartialEq)]
 struct JournalOverlay {
 	backing_overlay: MemoryDB, // Nodes added in the history period
-	pending_overlay: H256FastMap<Bytes>, // Nodes being transfered from backing_overlay to backing db
+	pending_overlay: H256FastMap<DBValue>, // Nodes being transfered from backing_overlay to backing db
 	journal: HashMap<u64, Vec<JournalEntry>>,
 	latest_era: Option<u64>,
 	earliest_era: Option<u64>,
@@ -130,7 +130,7 @@ impl OverlayRecentDB {
 		journal_overlay.latest_era == reconstructed.latest_era
 	}
 
-	fn payload(&self, key: &H256) -> Option<Bytes> {
+	fn payload(&self, key: &H256) -> Option<DBValue> {
 		self.backing.get(self.column, key).expect("Low-level database error. Some issue with your hard disk?")
 	}
 
@@ -160,8 +160,8 @@ impl OverlayRecentDB {
 					let mut inserted_keys = Vec::new();
 					for r in insertions.iter() {
 						let k: H256 = r.val_at(0);
-						let v: Bytes = r.val_at(1);
-						overlay.emplace(to_short_key(&k), v);
+						let v = r.at(1).data();
+						overlay.emplace(to_short_key(&k), DBValue::from_slice(v));
 						inserted_keys.push(k);
 						count += 1;
 					}
@@ -229,7 +229,7 @@ impl JournalDB for OverlayRecentDB {
 		let journal_overlay = self.journal_overlay.read();
 		let key = to_short_key(key);
 		journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
-		.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
+		.or_else(|| journal_overlay.pending_overlay.get(&key).map(|d| d.clone().to_vec()))
 		.or_else(|| self.backing.get_by_prefix(self.column, &key[0..DB_PREFIX_LEN]).map(|b| b.to_vec()))
 	}
 
@@ -255,7 +255,7 @@ impl JournalDB for OverlayRecentDB {
 		for (k, v) in insertions {
 			r.begin_list(2);
 			r.append(&k);
-			r.append(&v);
+			r.append(&&*v);
 			journal_overlay.backing_overlay.emplace(to_short_key(&k), v);
 		}
 		r.append(&removed_keys);
@@ -284,7 +284,7 @@ impl JournalDB for OverlayRecentDB {
 		let mut ops = 0;
 		// apply old commits' details
 		if let Some(ref mut records) = journal_overlay.journal.get_mut(&end_era) {
-			let mut canon_insertions: Vec<(H256, Bytes)> = Vec::new();
+			let mut canon_insertions: Vec<(H256, DBValue)> = Vec::new();
 			let mut canon_deletions: Vec<H256> = Vec::new();
 			let mut overlay_deletions: Vec<H256> = Vec::new();
 			let mut index = 0usize;
@@ -301,7 +301,7 @@ impl JournalDB for OverlayRecentDB {
 						for h in &journal.insertions {
 							if let Some((d, rc)) = journal_overlay.backing_overlay.raw(&to_short_key(h)) {
 								if rc > 0 {
-									canon_insertions.push((h.clone(), d.to_owned())); //TODO: optimize this to avoid data copy
+									canon_insertions.push((h.clone(), d)); //TODO: optimize this to avoid data copy
 								}
 							}
 						}
@@ -379,39 +379,25 @@ impl HashDB for OverlayRecentDB {
 			ret.insert(h, 1);
 		}
 
-		for (key, refs) in self.transaction_overlay.keys().into_iter() {
+		for (key, refs) in self.transaction_overlay.keys() {
 			let refs = *ret.get(&key).unwrap_or(&0) + refs;
 			ret.insert(key, refs);
 		}
 		ret
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		let k = self.transaction_overlay.raw(key);
-		match k {
-			Some((d, rc)) if rc > 0 => Some(d),
-			_ => {
-				let v = {
-					let journal_overlay = self.journal_overlay.read();
-					let key = to_short_key(key);
-					journal_overlay.backing_overlay.get(&key).map(|v| v.to_vec())
-						.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
-				};
-				match v {
-					Some(x) => {
-						Some(self.transaction_overlay.denote(key, x).0)
-					}
-					_ => {
-						if let Some(x) = self.payload(key) {
-							Some(self.transaction_overlay.denote(key, x).0)
-						}
-						else {
-							None
-						}
-					}
-				}
-			}
+		if let Some((d, rc)) = k {
+			if rc > 0 { return Some(d) }
 		}
+		let v = {
+			let journal_overlay = self.journal_overlay.read();
+			let key = to_short_key(key);
+			journal_overlay.backing_overlay.get(&key)
+				.or_else(|| journal_overlay.pending_overlay.get(&key).cloned())
+		};
+		v.or_else(|| self.payload(key))
 	}
 
 	fn contains(&self, key: &H256) -> bool {
@@ -421,7 +407,7 @@ impl HashDB for OverlayRecentDB {
 	fn insert(&mut self, value: &[u8]) -> H256 {
 		self.transaction_overlay.insert(value)
 	}
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		self.transaction_overlay.emplace(key, value);
 	}
 	fn remove(&mut self, key: &H256) {
@@ -692,7 +678,7 @@ mod tests {
 			let mut jdb = new_db(&dir);
 			// history is 1
 			let foo = jdb.insert(b"foo");
-			jdb.emplace(bar.clone(), b"bar".to_vec());
+			jdb.emplace(bar.clone(), DBValue::from_slice(b"bar"));
 			jdb.commit_batch(0, &b"0".sha3(), None).unwrap();
 			assert!(jdb.can_reconstruct_refs());
 			foo
@@ -965,7 +951,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

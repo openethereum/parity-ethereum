@@ -19,6 +19,7 @@ import FormWrap from './FormWrap';
 import Input from './Input';
 import InputAddress from './InputAddress';
 import InputAddressSelect from './InputAddressSelect';
+import InputChip from './InputChip';
 import InputInline from './InputInline';
 import Select from './Select';
 
@@ -29,6 +30,7 @@ export {
   Input,
   InputAddress,
   InputAddressSelect,
+  InputChip,
   InputInline,
   Select
 };

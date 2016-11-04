@@ -53,7 +53,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 500;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -251,6 +251,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
 		}, cmd.signer_port)),
+		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),

@@ -34,9 +34,10 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
-use evm::{Factory as EvmFactory, VMType};
+use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
+use types::mode::Mode;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -83,6 +84,10 @@ pub struct TestBlockChainClient {
 	pub vm_factory: EvmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
+	/// Ancient block info.
+	pub ancient_block: RwLock<Option<(H256, u64)>>,
+	/// First block info.
+	pub first_block: RwLock<Option<(H256, u64)>>,
 }
 
 #[derive(Clone)]
@@ -132,12 +137,14 @@ impl TestBlockChainClient {
 			spec: spec,
 			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
+			ancient_block: RwLock::new(None),
+			first_block: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
 		client
 	}
-	
+
 	/// Set the transaction receipt result
 	pub fn set_transaction_receipt(&self, id: TransactionID, receipt: LocalizedReceipt) {
 		self.receipts.write().insert(id, receipt);
@@ -306,6 +313,10 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
+	fn latest_schedule(&self) -> Schedule {
+		Schedule::new_homestead_gas_fix()
+	}
+
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
@@ -589,10 +600,10 @@ impl BlockChainClient for TestBlockChainClient {
 			genesis_hash: self.genesis_hash.clone(),
 			best_block_hash: self.last_hash.read().clone(),
 			best_block_number: self.blocks.read().len() as BlockNumber - 1,
-			first_block_hash: None,
-			first_block_number: None,
-			ancient_block_hash: None,
-			ancient_block_number: None,
+			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
+			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
+			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
+			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
 		}
 	}
 
@@ -621,4 +632,8 @@ impl BlockChainClient for TestBlockChainClient {
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
+
+	fn mode(&self) -> Mode { Mode::Active }
+
+	fn set_mode(&self, _: Mode) { unimplemented!(); }
 }

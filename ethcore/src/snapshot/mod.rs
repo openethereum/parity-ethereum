@@ -26,11 +26,11 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use header::Header;
 use ids::BlockID;
 use views::BlockView;
 
-use util::{Bytes, Hashable, HashDB, snappy, U256, Uint};
-use util::memorydb::MemoryDB;
+use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
 use util::Mutex;
 use util::hash::{FixedHash, H256};
 use util::journaldb::{self, Algorithm, JournalDB};
@@ -47,7 +47,7 @@ use self::io::SnapshotWriter;
 use super::state_db::StateDB;
 use super::state::Account as StateAccount;
 
-use crossbeam::{scope, ScopedJoinHandle};
+use crossbeam::scope;
 use rand::{Rng, OsRng};
 
 pub use self::error::Error;
@@ -203,7 +203,7 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large.
 
-			if new_loaded_size > PREFERRED_CHUNK_SIZE && self.rlps.len() > 0 {
+			if new_loaded_size > PREFERRED_CHUNK_SIZE && !self.rlps.is_empty() {
 				try!(self.write_chunk(last));
 				loaded_size = pair.len();
 			} else {
@@ -369,7 +369,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 	// account_key here is the address' hash.
 	for item in try!(account_trie.iter()) {
 		let (account_key, account_data) = try!(item);
-		let account = Account::from_thin_rlp(account_data);
+		let account = Account::from_thin_rlp(&*account_data);
 		let account_key_hash = H256::from_slice(&account_key);
 
 		let account_db = AccountDB::from_hash(db, account_key_hash);
@@ -421,43 +421,19 @@ impl StateRebuilder {
 		// new code contained within this chunk.
 		let mut chunk_code = HashMap::new();
 
-		// build account tries in parallel.
-		// Todo [rob] keep a thread pool around so we don't do this per-chunk.
-		try!(scope(|scope| {
-			let mut handles = Vec::new();
-			for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-				let code_map = &self.code_map;
-				let handle: ScopedJoinHandle<Result<_, ::error::Error>> = scope.spawn(move || {
-					let mut db = MemoryDB::new();
-					let status = try!(rebuild_accounts(&mut db, account_chunk, out_pairs_chunk, code_map));
-
-					trace!(target: "snapshot", "thread rebuilt {} account tries", account_chunk.len());
-					Ok((db, status))
-				});
-
-				handles.push(handle);
+		for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
+			let code_map = &self.code_map;
+			let status = try!(rebuild_accounts(self.db.as_hashdb_mut(), account_chunk, out_pairs_chunk, code_map));
+			chunk_code.extend(status.new_code);
+			for (addr_hash, code_hash) in status.missing_code {
+				self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
 			}
-
-			// consolidate all edits into the main overlay.
-			for handle in handles {
-				let (thread_db, status): (MemoryDB, _) = try!(handle.join());
-				self.db.consolidate(thread_db);
-
-				chunk_code.extend(status.new_code);
-
-				for (addr_hash, code_hash) in status.missing_code {
-					self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
-				}
-			}
-
-			Ok::<_, ::error::Error>(())
-		}));
-
+		}
 		// patch up all missing code. must be done after collecting all new missing code entries.
 		for (code_hash, code) in chunk_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
-				db.emplace(code_hash, code.clone());
+				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
 			self.code_map.insert(code_hash, code);
@@ -553,6 +529,20 @@ fn rebuild_accounts(
 /// Proportion of blocks which we will verify `PoW` for.
 const POW_VERIFY_RATE: f32 = 0.02;
 
+/// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
+/// the fullest verification possible. If not, it will take a random sample to determine whether it will
+/// do heavy or light verification.
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
+	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
+		match chain.block_header(header.parent_hash()) {
+			Some(parent) => engine.verify_block_family(&header, &parent, body),
+			None => engine.verify_block_seal(&header),
+		}
+	} else {
+		engine.verify_block_basic(&header, body)
+	}
+}
+
 /// Rebuilds the blockchain from chunks.
 ///
 /// Does basic verification for all blocks, but `PoW` verification for some.
@@ -568,17 +558,23 @@ pub struct BlockRebuilder {
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
+	best_hash: H256,
+	best_root: H256,
+	fed_blocks: u64,
 }
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, manifest: &ManifestData) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
-			best_number: best_number,
+			best_number: manifest.block_number,
+			best_hash: manifest.block_hash,
+			best_root: manifest.state_root,
+			fed_blocks: 0,
 		})
 	}
 
@@ -591,8 +587,13 @@ impl BlockRebuilder {
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
+		let num_blocks = (item_count - 3) as u64;
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
+
+		if self.fed_blocks + num_blocks > SNAPSHOT_BLOCKS {
+			return Err(Error::TooManyBlocks(SNAPSHOT_BLOCKS, self.fed_blocks).into())
+		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
@@ -610,14 +611,27 @@ impl BlockRebuilder {
 
 			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
+			let is_best = cur_number == self.best_number;
 
-			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-				try!(engine.verify_block_seal(&block.header))
-			} else {
-				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+			if is_best {
+				if block.header.hash() != self.best_hash {
+					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
+				}
+
+				if block.header.state_root() != &self.best_root {
+					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+				}
 			}
 
-			let is_best = cur_number == self.best_number;
+			try!(verify_old_block(
+				&mut self.rng,
+				&block.header,
+				engine,
+				&self.chain,
+				Some(&block_bytes),
+				is_best
+			));
+
 			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
@@ -635,11 +649,15 @@ impl BlockRebuilder {
 			cur_number += 1;
 		}
 
-		Ok(item_count as u64 - 3)
+		self.fed_blocks += num_blocks;
+
+		Ok(num_blocks)
 	}
 
-	/// Glue together any disconnected chunks. To be called at the end.
-	pub fn glue_chunks(self) {
+	/// Glue together any disconnected chunks and check that the chain is complete.
+	pub fn finalize(self, canonical: HashMap<u64, H256>) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+
 		for (first_num, first_hash) in self.disconnected {
 			let parent_num = first_num - 1;
 
@@ -648,8 +666,23 @@ impl BlockRebuilder {
 			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				self.chain.add_child(parent_hash, first_hash);
+				self.chain.add_child(&mut batch, parent_hash, first_hash);
 			}
 		}
+		self.db.write_buffered(batch);
+
+		let best_number = self.best_number;
+		for num in (0..self.fed_blocks).map(|x| best_number - x) {
+
+			let hash = try!(self.chain.block_hash(num).ok_or(Error::IncompleteChain));
+
+			if let Some(canon_hash) = canonical.get(&num).cloned() {
+				if canon_hash != hash {
+					return Err(Error::WrongBlockHash(num, canon_hash, hash));
+				}
+			}
+		}
+
+		Ok(())
 	}
 }

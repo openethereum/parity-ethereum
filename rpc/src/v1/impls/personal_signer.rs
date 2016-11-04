@@ -24,7 +24,6 @@ use ethcore::miner::MinerService;
 use v1::traits::PersonalSigner;
 use v1::types::{TransactionModification, ConfirmationRequest, U256};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::params::expect_no_params;
 use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
 
 /// Transactions confirmation (personal) rpc implementation.
@@ -61,67 +60,64 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 
 impl<C: 'static, M: 'static> PersonalSigner for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 
-	fn requests_to_confirm(&self, params: Params) -> Result<Value, Error> {
+	fn requests_to_confirm(&self) -> Result<Vec<ConfirmationRequest>, Error> {
 		try!(self.active());
-		try!(expect_no_params(params));
 		let signer = take_weak!(self.signer);
-		Ok(to_value(&signer.requests().into_iter().map(From::from).collect::<Vec<ConfirmationRequest>>()))
+
+		Ok(signer.requests()
+		   .into_iter()
+		   .map(Into::into)
+		   .collect()
+		)
 	}
 
-	fn confirm_request(&self, params: Params) -> Result<Value, Error> {
+	// TODO [ToDr] TransactionModification is redundant for some calls
+	// might be better to replace it in future
+	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<Value, Error> {
 		try!(self.active());
-		// TODO [ToDr] TransactionModification is redundant for some calls
-		// might be better to replace it in future
-		from_params::<(U256, TransactionModification, String)>(params).and_then(
-			|(id, modification, pass)| {
-				let id = id.into();
-				let accounts = take_weak!(self.accounts);
-				let signer = take_weak!(self.signer);
-				let client = take_weak!(self.client);
-				let miner = take_weak!(self.miner);
 
-				signer.peek(&id).map(|confirmation| {
-					let result = match confirmation.payload {
-						ConfirmationPayload::Transaction(mut request) => {
-							// apply modification
-							if let Some(gas_price) = modification.gas_price {
-								request.gas_price = gas_price.into();
-							}
-							sign_and_dispatch(&*client, &*miner, &*accounts, request.into(), Some(pass))
-						},
-						ConfirmationPayload::Sign(address, hash) => {
-							sign(&*accounts, address, Some(pass), hash)
-						},
-						ConfirmationPayload::Decrypt(address, msg) => {
-							decrypt(&*accounts, address, Some(pass), msg)
-						},
-					};
-					if let Ok(ref response) = result {
-						signer.request_confirmed(id, Ok(response.clone()));
+		let id = id.into();
+		let accounts = take_weak!(self.accounts);
+		let signer = take_weak!(self.signer);
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+
+		signer.peek(&id).map(|confirmation| {
+			let result = match confirmation.payload {
+				ConfirmationPayload::Transaction(mut request) => {
+					// apply modification
+					if let Some(gas_price) = modification.gas_price {
+						request.gas_price = gas_price.into();
 					}
-					result
-				}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+					sign_and_dispatch(&*client, &*miner, &*accounts, request.into(), Some(pass)).map(to_value)
+				},
+				ConfirmationPayload::Sign(address, hash) => {
+					sign(&*accounts, address, Some(pass), hash)
+				},
+				ConfirmationPayload::Decrypt(address, msg) => {
+					decrypt(&*accounts, address, Some(pass), msg)
+				},
+			};
+			if let Ok(ref response) = result {
+				signer.request_confirmed(id, Ok(response.clone()));
 			}
-		)
+			result
+		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
 	}
 
-	fn reject_request(&self, params: Params) -> Result<Value, Error> {
+	fn reject_request(&self, id: U256) -> Result<bool, Error> {
 		try!(self.active());
-		from_params::<(U256, )>(params).and_then(
-			|(id, )| {
-				let signer = take_weak!(self.signer);
-				let res = signer.request_rejected(id.into());
-				Ok(to_value(&res.is_some()))
-			}
-		)
-	}
-
-	fn generate_token(&self, params: Params) -> Result<Value, Error> {
-		try!(self.active());
-		try!(expect_no_params(params));
 		let signer = take_weak!(self.signer);
+
+		let res = signer.request_rejected(id.into());
+		Ok(res.is_some())
+	}
+
+	fn generate_token(&self) -> Result<String, Error> {
+		try!(self.active());
+		let signer = take_weak!(self.signer);
+
 		signer.generate_token()
-			.map(|token| to_value(&token))
 			.map_err(|e| errors::token(e))
 	}
 }

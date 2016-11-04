@@ -44,11 +44,12 @@
 mod miner;
 mod external;
 mod transaction_queue;
+mod banning_queue;
 mod work_notify;
 mod price_info;
 
 pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
 
@@ -157,7 +158,7 @@ pub trait MinerService : Send + Sync {
 	fn is_sealing(&self) -> bool;
 
 	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
+	fn sensible_gas_price(&self) -> U256;
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }

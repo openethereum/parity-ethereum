@@ -1,11 +1,18 @@
 #!/bin/bash
 set -e
 
+# variables
+UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
+PACKAGES=( "parity.js" )
+BRANCH=$CI_BUILD_REF_NAME
+GIT_JS_PRECOMPILED="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git"
+GIT_PARITY="https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git"
+
 # setup the git user defaults for the current repo
 function setup_git_user {
   git config push.default simple
   git config merge.ours.driver true
-  git config user.email "jaco+gitlab@ethcore.io"
+  git config user.email "$GITHUB_EMAIL"
   git config user.name "GitLab Build Bot"
 }
 
@@ -15,38 +22,63 @@ GITLOG=./.git/gitcommand.log
 pushd $BASEDIR
 cd ../.dist
 
-# variables
-UTCDATE=`date -u "+%Y%m%d-%H%M%S"`
-
-# init git
+# add local files and send it up
+echo "*** Setting up GitHub config for js-precompiled"
 rm -rf ./.git
 git init
-
-# add local files and send it up
 setup_git_user
-git remote add origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/js-precompiled.git
+
+echo "*** Checking out $BRANCH branch"
+git remote add origin $GIT_JS_PRECOMPILED
 git fetch origin 2>$GITLOG
-git checkout -b $CI_BUILD_REF_NAME
+git checkout -b $BRANCH
+
+echo "*** Committing compiled files for $UTCDATE"
 git add .
-git commit -m "$UTCDATE [compiled]"
-git merge origin/$CI_BUILD_REF_NAME -X ours --commit -m "$UTCDATE [release]"
-git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
+git commit -m "$UTCDATE"
+
+echo "*** Merging remote"
+git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [release]"
+git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
+PRECOMPILED_HASH=`git rev-parse HEAD`
+
+# move to root
+cd ../..
+
+echo "*** Setting up GitHub config for parity"
+setup_git_user
+git remote set-url origin $GIT_PARITY
+git reset --hard origin/$BRANCH 2>$GITLOG
+
+echo "*** Bumping package.json patch version"
+cd js
+npm --no-git-tag-version version
+npm version patch
+cd ..
+
+echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
+cargo update -p parity-ui-precompiled
+# --precise "$PRECOMPILED_HASH"
+
+echo "*** Committing updated files"
+git add Cargo.lock js/package.json
+git commit -m "[ci skip] js-precompiled $UTCDATE"
+git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
+
+echo "*** Building packages for npmjs"
+cd js
+# echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
+echo "$NPM_TOKEN" >> ~/.npmrc
+npm run ci:build:npm
+
+echo "*** Publishing $PACKAGE to npmjs"
+cd .npmjs
+npm publish --access public
+cd ..
 
 # back to root
+echo "*** Release completed"
 popd
-
-# inti git with right origin
-setup_git_user
-git remote set-url origin https://${GITHUB_JS_PRECOMPILED}:@github.com/ethcore/parity.git
-
-# at this point we have a detached head on GitLab, reset
-git reset --hard origin/$CI_BUILD_REF_NAME 2>$GITLOG
-
-# bump js-precompiled, add, commit & push
-cargo update -p parity-ui-precompiled
-git add . || true
-git commit -m "[ci skip] js-precompiled $UTCDATE"
-git push origin HEAD:refs/heads/$CI_BUILD_REF_NAME 2>$GITLOG
 
 # exit with exit code
 exit 0

@@ -172,7 +172,7 @@ impl Account {
 			using it will not fail.");
 
 		let item: U256 = match db.get(key){
-			Ok(x) => x.map_or_else(U256::zero, decode),
+			Ok(x) => x.map_or_else(U256::zero, |v| decode(&*v)),
 			Err(e) => panic!("Encountered potential DB corruption: {}", e),
 		};
 		let value: H256 = item.into();
@@ -247,21 +247,32 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &HashDB) -> Option<Arc<Bytes>> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
-		self.is_cached() ||
+
+		if self.is_cached() { return Some(self.code_cache.clone()) }
+
 		match db.get(&self.code_hash) {
 			Some(x) => {
-				self.code_cache = Arc::new(x.to_vec());
 				self.code_size = Some(x.len());
-				true
+				self.code_cache = Arc::new(x.to_vec());
+				Some(self.code_cache.clone())
 			},
 			_ => {
 				warn!("Failed reverse get of {}", self.code_hash);
-				false
+				None
 			},
 		}
+	}
+
+	/// Provide code to cache. For correctness, should be the correct code for the
+	/// account.
+	pub fn cache_given_code(&mut self, code: Arc<Bytes>) {
+		trace!("Account::cache_given_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
+
+		self.code_size = Some(code.len());
+		self.code_cache = code;
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
@@ -351,7 +362,7 @@ impl Account {
 				self.code_filth = Filth::Clean;
 			},
 			(true, false) => {
-				db.emplace(self.code_hash.clone(), (*self.code_cache).clone());
+				db.emplace(self.code_hash.clone(), DBValue::from_slice(&*self.code_cache));
 				self.code_size = Some(self.code_cache.len());
 				self.code_filth = Filth::Clean;
 			},
@@ -413,7 +424,7 @@ impl Account {
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
 		let mut cache = self.storage_cache.borrow_mut();
-		for (k, v) in other.storage_cache.into_inner().into_iter() {
+		for (k, v) in other.storage_cache.into_inner() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
 		self.storage_changes = other.storage_changes;
@@ -476,7 +487,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db.immutable()));
+		assert!(a.cache_code(&db.immutable()).is_some());
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));

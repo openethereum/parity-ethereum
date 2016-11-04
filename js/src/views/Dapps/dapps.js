@@ -22,7 +22,7 @@ import { Actionbar, Page } from '../../ui';
 import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
-import fetchAvailable from './available';
+import { fetchAvailable } from './registry';
 import { readHiddenApps, writeHiddenApps } from './hidden';
 
 import AddDapps from './AddDapps';
@@ -42,17 +42,7 @@ export default class Dapps extends Component {
   }
 
   componentDidMount () {
-    fetchAvailable()
-    .then((available) => {
-      this.setState({
-        available,
-        hidden: readHiddenApps()
-      });
-      this.loadImages();
-    })
-    .catch((err) => {
-      console.error('error fetching available apps', err);
-    });
+    this.loadAvailableApps();
   }
 
   render () {
@@ -86,6 +76,10 @@ export default class Dapps extends Component {
   }
 
   renderApp = (app) => {
+    if (!app.name) {
+      return null;
+    }
+
     return (
       <div
         className={ styles.item }
@@ -93,24 +87,6 @@ export default class Dapps extends Component {
         <Summary app={ app } />
       </div>
     );
-  }
-
-  loadImages () {
-    const { available } = this.state;
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(available.map((app) => dappReg.getImage(app.id)))
-      .then((images) => {
-        this.setState({
-          available: images
-            .map(hashToImageUrl)
-            .map((image, i) => Object.assign({}, available[i], { image }))
-        });
-      })
-      .catch((error) => {
-        console.warn('loadImages', error);
-      });
   }
 
   onHideApp = (id) => {
@@ -136,4 +112,57 @@ export default class Dapps extends Component {
   closeModal = () => {
     this.setState({ modalOpen: false });
   };
+
+  loadAvailableApps () {
+    const { api } = this.context;
+
+    fetchAvailable(api)
+      .then((available) => {
+        this.setState({
+          available,
+          hidden: readHiddenApps()
+        });
+
+        this.loadContent();
+      });
+  }
+
+  loadContent () {
+    const { api } = this.context;
+    const { available } = this.state;
+    const { dappReg } = Contracts.get();
+
+    return Promise
+      .all(available.map((app) => dappReg.getImage(app.id)))
+      .then((images) => {
+        const _available = images
+          .map(hashToImageUrl)
+          .map((image, index) => Object.assign({}, available[index], { image }));
+
+        this.setState({ available: _available });
+        const _networkApps = _available.filter((app) => app.network);
+
+        return Promise
+          .all(_networkApps.map((app) => dappReg.getContent(app.id)))
+          .then((content) => {
+            const networkApps = content.map((_contentHash, index) => {
+              const networkApp = _networkApps[index];
+              const contentHash = api.util.bytesToHex(_contentHash).substr(2);
+              const app = _available.find((_app) => _app.id === networkApp.id);
+
+              console.log(`found content for ${app.id} at ${contentHash}`);
+              return Object.assign({}, app, { contentHash });
+            });
+
+            this.setState({
+              available: _available.map((app) => {
+                return Object.assign({}, networkApps.find((napp) => app.id === napp.id) || app);
+              })
+            });
+          });
+      })
+      .catch((error) => {
+        console.warn('loadImages', error);
+      });
+  }
 }

@@ -36,12 +36,14 @@ use std::env;
 /// the removals actually take effect.
 ///
 /// journal format:
+/// ```
 /// [era, 0] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, 1] => [ id, [insert_0, ...], [remove_0, ...] ]
 /// [era, n] => [ ... ]
+/// ```
 ///
 /// when we make a new commit, we journal the inserts and removes.
-/// for each end_era that we journaled that we are no passing by,
+/// for each `end_era` that we journaled that we are no passing by,
 /// we remove all of its removes assuming it is canonical and all
 /// of its inserts otherwise.
 // TODO: store last_era, reclaim_period.
@@ -83,10 +85,10 @@ impl RefCountedDB {
 
 impl HashDB for RefCountedDB {
 	fn keys(&self) -> HashMap<H256, i32> { self.forward.keys() }
-	fn get(&self, key: &H256) -> Option<&[u8]> { self.forward.get(key) }
+	fn get(&self, key: &H256) -> Option<DBValue> { self.forward.get(key) }
 	fn contains(&self, key: &H256) -> bool { self.forward.contains(key) }
 	fn insert(&mut self, value: &[u8]) -> H256 { let r = self.forward.insert(value); self.inserts.push(r.clone()); r }
-	fn emplace(&mut self, key: H256, value: Bytes) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
+	fn emplace(&mut self, key: H256, value: DBValue) { self.inserts.push(key.clone()); self.forward.emplace(key, value); }
 	fn remove(&mut self, key: &H256) { self.removes.push(key.clone()); }
 }
 
@@ -326,7 +328,7 @@ mod tests {
 		let key = jdb.insert(b"dog");
 		jdb.inject_batch().unwrap();
 
-		assert_eq!(jdb.get(&key).unwrap(), b"dog");
+		assert_eq!(jdb.get(&key).unwrap(), DBValue::from_slice(b"dog"));
 		jdb.remove(&key);
 		jdb.inject_batch().unwrap();
 

@@ -24,9 +24,10 @@ import { Button, Modal } from '../../ui';
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
 import Completed from './Completed';
+import TnC from './TnC';
 import Welcome from './Welcome';
 
-const STAGE_NAMES = ['welcome', 'new account', 'recovery', 'completed'];
+const STAGE_NAMES = ['welcome', 'terms', 'new account', 'recovery', 'completed'];
 
 export default class FirstRun extends Component {
   static contextTypes = {
@@ -45,7 +46,8 @@ export default class FirstRun extends Component {
     address: '',
     password: '',
     phrase: '',
-    canCreate: false
+    canCreate: false,
+    hasAcceptedTnc: false
   }
 
   render () {
@@ -68,7 +70,7 @@ export default class FirstRun extends Component {
   }
 
   renderStage () {
-    const { address, name, phrase, stage } = this.state;
+    const { address, name, phrase, stage, hasAcceptedTnc } = this.state;
 
     switch (stage) {
       case 0:
@@ -77,17 +79,23 @@ export default class FirstRun extends Component {
         );
       case 1:
         return (
+          <TnC
+            hasAccepted={ hasAcceptedTnc }
+            onAccept={ this.onAcceptTnC } />
+        );
+      case 2:
+        return (
           <NewAccount
             onChange={ this.onChangeDetails } />
         );
-      case 2:
+      case 3:
         return (
           <AccountDetails
             address={ address }
             name={ name }
             phrase={ phrase } />
         );
-      case 3:
+      case 4:
         return (
           <Completed />
         );
@@ -95,11 +103,11 @@ export default class FirstRun extends Component {
   }
 
   renderDialogActions () {
-    const { canCreate, stage } = this.state;
+    const { canCreate, stage, hasAcceptedTnc } = this.state;
 
     switch (stage) {
       case 0:
-      case 2:
+      case 3:
         return (
           <Button
             icon={ <NavigationArrowForward /> }
@@ -110,19 +118,28 @@ export default class FirstRun extends Component {
       case 1:
         return (
           <Button
+            disabled={ !hasAcceptedTnc }
+            icon={ <NavigationArrowForward /> }
+            label='Next'
+            onClick={ this.onNext } />
+        );
+
+      case 2:
+        return (
+          <Button
             icon={ <ActionDone /> }
             label='Create'
             disabled={ !canCreate }
             onClick={ this.onCreate } />
         );
 
-      case 3:
+      case 4:
         return (
           <Button
             icon={ <ActionDoneAll /> }
             label='Close'
             onClick={ this.onClose } />
-      );
+        );
     }
   }
 
@@ -139,6 +156,12 @@ export default class FirstRun extends Component {
 
     this.setState({
       stage: stage + 1
+    });
+  }
+
+  onAcceptTnC = () => {
+    this.setState({
+      hasAcceptedTnc: !this.state.hasAcceptedTnc
     });
   }
 

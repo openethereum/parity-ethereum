@@ -17,7 +17,7 @@
 .container {
   flex: 1;
   padding: 0em;
-  background: rgba(0, 0, 0, 0.8) !important;
+  background: rgba(0, 0, 0, 0.8);
 }
 
 .compact,

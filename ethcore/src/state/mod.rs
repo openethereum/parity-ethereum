@@ -127,11 +127,10 @@ impl AccountEntry {
 	fn overwrite_with(&mut self, other: AccountEntry) {
 		self.state = other.state;
 		match other.account {
-			Some(acc) => match self.account {
-				Some(ref mut ours) => {
+			Some(acc) => {
+				if let Some(ref mut ours) = self.account {
 					ours.overwrite_with(acc);
-				},
-				None => {},
+				}
 			},
 			None => self.account = None,
 		}
@@ -281,13 +280,10 @@ impl State {
 						}
 					},
 					None => {
-						match self.cache.get_mut().entry(k) {
-							Entry::Occupied(e) => {
-								if e.get().is_dirty() {
-									e.remove();
-								}
-							},
-							_ => {}
+						if let Entry::Occupied(e) = self.cache.get_mut().entry(k) {
+							if e.get().is_dirty() {
+								e.remove();
+							}
 						}
 					}
 				}
@@ -408,7 +404,7 @@ impl State {
 		// account is not found in the global cache, get from the DB and insert into local
 		let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 		let maybe_acc = match db.get(address) {
-			Ok(acc) => acc.map(Account::from_rlp),
+			Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 			Err(e) => panic!("Potential DB corruption encountered: {}", e),
 		};
 		let r = maybe_acc.as_ref().map_or(H256::new(), |a| {
@@ -501,6 +497,7 @@ impl State {
 	/// Commit accounts to SecTrieDBMut. This is similar to cpp-ethereum's dev::eth::commit.
 	/// `accounts` is mutable because we may need to commit the code or storage and record that.
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
+	#[cfg_attr(feature="dev", allow(needless_borrow))]
 	fn commit_into(
 		factories: &Factories,
 		db: &mut StateDB,
@@ -509,17 +506,14 @@ impl State {
 	) -> Result<(), Error> {
 		// first, commit the sub trees.
 		for (address, ref mut a) in accounts.iter_mut().filter(|&(_, ref a)| a.is_dirty()) {
-			match a.account {
-				Some(ref mut account) => {
-					if !account.is_empty() {
-						db.note_account_bloom(&address);
-					}
-					let addr_hash = account.address_hash(address);
-					let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
-					account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
-					account.commit_code(account_db.as_hashdb_mut());
+			if let Some(ref mut account) = a.account {
+				if !account.is_empty() {
+					db.note_account_bloom(address);
 				}
-				_ => {}
+				let addr_hash = account.address_hash(address);
+				let mut account_db = factories.accountdb.create(db.as_hashdb_mut(), addr_hash);
+				account.commit_storage(&factories.trie, account_db.as_hashdb_mut());
+				account.commit_code(account_db.as_hashdb_mut());
 			}
 		}
 
@@ -586,7 +580,7 @@ impl State {
 
 	fn query_pod(&mut self, query: &PodState) {
 		for (address, pod_account) in query.get().into_iter()
-			.filter(|&(ref a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
+			.filter(|&(a, _)| self.ensure_cached(a, RequireCache::Code, true, |a| a.is_some()))
 		{
 			// needs to be split into two parts for the refcell code here
 			// to work.
@@ -605,14 +599,30 @@ impl State {
 		pod_state::diff_pod(&state_pre.to_pod(), &pod_state_post)
 	}
 
-	fn update_account_cache(require: RequireCache, account: &mut Account, db: &HashDB) {
-		match require {
-			RequireCache::None => {},
-			RequireCache::Code => {
-				account.cache_code(db);
-			}
-			RequireCache::CodeSize => {
-				account.cache_code_size(db);
+	// load required account data from the databases.
+	fn update_account_cache(require: RequireCache, account: &mut Account, state_db: &StateDB, db: &HashDB) {
+		match (account.is_cached(), require) {
+			(true, _) | (false, RequireCache::None) => {}
+			(false, require) => {
+				// if there's already code in the global cache, always cache it
+				// locally.
+				let hash = account.code_hash();
+				match state_db.get_cached_code(&hash) {
+					Some(code) => account.cache_given_code(code),
+					None => match require {
+						RequireCache::None => {},
+						RequireCache::Code => {
+							if let Some(code) = account.cache_code(db) {
+								// propagate code loaded from the database to
+								// the global code cache.
+								state_db.cache_code(hash, code)
+							}
+						}
+						RequireCache::CodeSize => {
+							account.cache_code_size(db);
+						}
+					}
+				}
 			}
 		}
 	}
@@ -626,7 +636,7 @@ impl State {
 		if let Some(ref mut maybe_acc) = self.cache.borrow_mut().get_mut(a) {
 			if let Some(ref mut account) = maybe_acc.account {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, accountdb.as_hashdb());
+				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 				return f(Some(account));
 			}
 			return f(None);
@@ -635,7 +645,7 @@ impl State {
 		let result = self.db.get_cached(a, |mut acc| {
 			if let Some(ref mut account) = acc {
 				let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-				Self::update_account_cache(require, account, accountdb.as_hashdb());
+				Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 			}
 			f(acc.map(|a| &*a))
 		});
@@ -648,12 +658,12 @@ impl State {
 				// not found in the global cache, get from the DB and insert into local
 				let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
 				let mut maybe_acc = match db.get(a) {
-					Ok(acc) => acc.map(Account::from_rlp),
+					Ok(acc) => acc.map(|v| Account::from_rlp(&v)),
 					Err(e) => panic!("Potential DB corruption encountered: {}", e),
 				};
 				if let Some(ref mut account) = maybe_acc.as_mut() {
 					let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), account.address_hash(a));
-					Self::update_account_cache(require, account, accountdb.as_hashdb());
+					Self::update_account_cache(require, account, &self.db, accountdb.as_hashdb());
 				}
 				let r = f(maybe_acc.as_ref());
 				self.insert_cache(a, AccountEntry::new_clean(maybe_acc));
@@ -679,14 +689,12 @@ impl State {
 				None => {
 					let maybe_acc = if self.db.check_account_bloom(a) {
 						let db = self.factories.trie.readonly(self.db.as_hashdb(), &self.root).expect(SEC_TRIE_DB_UNWRAP_STR);
-						let maybe_acc = match db.get(a) {
-							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(acc))),
+						match db.get(a) {
+							Ok(Some(acc)) => AccountEntry::new_clean(Some(Account::from_rlp(&acc))),
 							Ok(None) => AccountEntry::new_clean(None),
 							Err(e) => panic!("Potential DB corruption encountered: {}", e),
-						};
-						maybe_acc
-					}
-					else {
+						}
+					} else {
 						AccountEntry::new_clean(None)
 					};
 					self.insert_cache(a, maybe_acc);
@@ -711,7 +719,7 @@ impl State {
 					if require_code {
 						let addr_hash = account.address_hash(a);
 						let accountdb = self.factories.accountdb.readonly(self.db.as_hashdb(), addr_hash);
-						account.cache_code(accountdb.as_hashdb());
+						Self::update_account_cache(RequireCache::Code, account, &self.db, accountdb.as_hashdb());
 					}
 					account
 				},

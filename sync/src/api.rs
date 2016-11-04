@@ -34,7 +34,7 @@ use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
 
-pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"bam";
+pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -58,7 +58,7 @@ impl Default for SyncConfig {
 			network_id: U256::from(1),
 			subprotocol_name: *b"eth",
 			fork_block: None,
-			warp_sync: true,
+			warp_sync: false,
 		}
 	}
 }

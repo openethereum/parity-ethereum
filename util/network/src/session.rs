@@ -19,6 +19,7 @@ use std::net::SocketAddr;
 use std::cmp::Ordering;
 use std::sync::*;
 use mio::*;
+use mio::deprecated::{Handler, EventLoop};
 use mio::tcp::*;
 use util::hash::*;
 use rlp::*;
@@ -387,15 +388,16 @@ impl Session {
 				Ok(SessionData::Continue)
 			},
 			PACKET_PONG => {
-				self.pong_time_ns = Some(time::precise_time_ns());
-				self.info.ping_ms = Some((self.pong_time_ns.unwrap() - self.ping_time_ns) / 1000_000);
+				let time = time::precise_time_ns();
+				self.pong_time_ns = Some(time);
+				self.info.ping_ms = Some((time - self.ping_time_ns) / 1000_000);
 				Ok(SessionData::Continue)
 			},
 			PACKET_GET_PEERS => Ok(SessionData::None), //TODO;
 			PACKET_PEERS => Ok(SessionData::None),
 			PACKET_USER ... PACKET_LAST => {
 				let mut i = 0usize;
-				while packet_id > self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
+				while packet_id >= self.info.capabilities[i].id_offset + self.info.capabilities[i].packet_count {
 					i += 1;
 					if i == self.info.capabilities.len() {
 						debug!(target: "network", "Unknown packet: {:?}", packet_id);
@@ -406,6 +408,7 @@ impl Session {
 				// map to protocol
 				let protocol = self.info.capabilities[i].protocol;
 				let pid = packet_id - self.info.capabilities[i].id_offset;
+				trace!(target: "network", "Packet {} mapped to {:?}:{}, i={}, capabilities={:?}", packet_id, protocol, pid, i, self.info.capabilities);
 				Ok(SessionData::Packet { data: packet.data, protocol: protocol, packet_id: pid } )
 			},
 			_ => {

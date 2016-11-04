@@ -16,12 +16,13 @@
 
 import React, { Component } from 'react';
 
-import imagesEthcore from '../../../../assets/images/ethcore-logo-white-square.png';
+import imagesEthcore from '../../../../assets/images/parity-logo-white.svg';
 
 const LOGO_STYLE = {
   float: 'right',
   width: '25%',
-  height: 'auto'
+  height: 'auto',
+  margin: '0 1.5em'
 };
 
 export default class FirstRun extends Component {

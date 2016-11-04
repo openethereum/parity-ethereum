@@ -16,6 +16,7 @@
 
 use std::collections::BTreeMap;
 use util::{U256, Address, H256, H2048, Bytes, Itertools};
+use util::stats::Histogram;
 use blockchain::TreeRoute;
 use verification::queue::QueueInfo as BlockQueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -27,7 +28,7 @@ use views::{BlockView};
 use error::{ImportResult, CallError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
-use evm::Factory as EvmFactory;
+use evm::{Factory as EvmFactory, Schedule};
 use types::ids::*;
 use types::trace_filter::Filter as TraceFilter;
 use executive::Executed;
@@ -37,6 +38,7 @@ use block_import_error::BlockImportError;
 use ipc::IpcConfig;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
+use types::mode::Mode;
 
 #[ipc(client_ident="RemoteClient")]
 /// Blockchain database client. Owns and manages a blockchain and a block queue.
@@ -190,8 +192,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 
-	/// Get the gas price distribution.
-	fn gas_price_statistics(&self, sample_size: usize, distribution_size: usize) -> Result<Vec<U256>, ()> {
+	/// Sorted list of transaction gas prices from at least last sample_size blocks.
+	fn gas_price_corpus(&self, sample_size: usize) -> Vec<U256> {
 		let mut h = self.chain_info().best_block_hash;
 		let mut corpus = Vec::new();
 		while corpus.is_empty() {
@@ -200,26 +202,34 @@ pub trait BlockChainClient : Sync + Send {
 				let block = BlockView::new(&block_bytes);
 				let header = block.header_view();
 				if header.number() == 0 {
-					if corpus.is_empty() {
-						corpus.push(20_000_000_000u64.into());	// we have literally no information - it' as good a number as any.
-					}
-					break;
+					return corpus;
 				}
 				block.transaction_views().iter().foreach(|t| corpus.push(t.gas_price()));
 				h = header.parent_hash().clone();
 			}
 		}
 		corpus.sort();
-		let n = corpus.len();
-		if n > 0 {
-			Ok((0..(distribution_size + 1))
-				.map(|i| corpus[i * (n - 1) / distribution_size])
-				.collect::<Vec<_>>()
-			)
-		} else {
-			Err(())
-		}
+		corpus
 	}
+
+	/// Calculate median gas price from recent blocks if they have any transactions.
+	fn gas_price_median(&self, sample_size: usize) -> Option<U256> {
+		let corpus = self.gas_price_corpus(sample_size);
+		corpus.get(corpus.len()/2).cloned()
+	}
+
+	/// Get the gas price distribution based on recent blocks if they have any transactions.
+	fn gas_price_histogram(&self, sample_size: usize, bucket_number: usize) -> Option<Histogram> {
+		let raw_corpus = self.gas_price_corpus(sample_size);
+		let raw_len = raw_corpus.len();
+		// Throw out outliers.
+		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
+		Histogram::new(corpus, bucket_number)
+	}
+
+	fn mode(&self) -> Mode;
+
+	fn set_mode(&self, mode: Mode);
 }
 
 /// Extended client interface used for mining
@@ -236,6 +246,9 @@ pub trait MiningBlockChainClient : BlockChainClient {
 
 	/// Import sealed block. Skips all verifications.
 	fn import_sealed_block(&self, block: SealedBlock) -> ImportResult;
+
+	/// Returns latest schedule.
+	fn latest_schedule(&self) -> Schedule;
 }
 
 impl IpcConfig for BlockChainClient { }

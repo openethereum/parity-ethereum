@@ -15,14 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Chip } from 'material-ui';
-import { blue300 } from 'material-ui/styles/colors';
-// import ChipInput from 'material-ui-chip-input';
-import ChipInput from 'material-ui-chip-input/src/ChipInput';
 import ActionSearch from 'material-ui/svg-icons/action/search';
-import { uniq } from 'lodash';
 
-import { Button } from '../../';
+import { Button, InputChip } from '../../';
 
 import styles from './search.css';
 
@@ -74,28 +69,16 @@ export default class ActionbarSearch extends Component {
         className={ styles.searchcontainer }
         key='searchAccount'>
         <div className={ inputContainerClasses.join(' ') }>
-          <ChipInput
-            clearOnBlur={ false }
+          <InputChip
             className={ styles.input }
-            chipRenderer={ this.chipRenderer }
-            hintText='Enter search input...'
-            ref='searchInput'
-            value={ tokens }
+            hint='Enter search input...'
+            tokens={ tokens }
+
             onBlur={ this.handleSearchBlur }
-            onRequestAdd={ this.handleTokenAdd }
-            onRequestDelete={ this.handleTokenDelete }
-            onUpdateInput={ this.handleInputChange }
-            hintStyle={ {
-              bottom: 16,
-              left: 2,
-              transition: 'none'
-            } }
-            inputStyle={ {
-              marginBottom: 18
-            } }
-            textFieldStyle={ {
-              height: 42
-            } }
+            onInputChange={ this.handleInputChange }
+            onTokensChange={ this.handleTokensChange }
+
+            addOnBlur
           />
         </div>
 
@@ -108,67 +91,13 @@ export default class ActionbarSearch extends Component {
     );
   }
 
-  chipRenderer = (state, key) => {
-    const { value, isFocused, isDisabled, handleClick, handleRequestDelete } = state;
-
-    return (
-      <Chip
-        key={ key }
-        className={ styles.chip }
-        style={ {
-          margin: '8px 8px 0 0',
-          float: 'left',
-          pointerEvents: isDisabled ? 'none' : undefined,
-          alignItems: 'center'
-        } }
-        labelStyle={ {
-          paddingRight: 6,
-          fontSize: '0.9rem',
-          lineHeight: 'initial'
-        } }
-        backgroundColor={ isFocused ? blue300 : 'rgba(0, 0, 0, 0.73)' }
-        onTouchTap={ handleClick }
-        onRequestDelete={ handleRequestDelete }
-      >
-        { value }
-      </Chip>
-    );
+  handleTokensChange = (tokens) => {
+    this.handleSearchChange(tokens);
   }
 
-  handleTokenAdd = (value) => {
-    const { tokens } = this.props;
-
-    const newSearchTokens = uniq([].concat(tokens, value));
-
-    this.handleSearchChange(newSearchTokens);
-  }
-
-  handleTokenDelete = (value) => {
-    const { tokens } = this.props;
-
-    const newSearchTokens = []
-      .concat(tokens)
-      .filter(v => v !== value);
-
-    this.handleSearchChange(newSearchTokens);
-    this.refs.searchInput.focus();
-  }
-
-  handleInputChange = (value) => {
-    const splitTokens = value.split(/[\s,;]/);
-
-    const inputValue = (splitTokens.length <= 1)
-      ? value
-      : splitTokens.slice(-1)[0].trim();
-
-    this.refs.searchInput.setState({ inputValue });
+  handleInputChange = (inputValue) => {
     this.setState({ inputValue }, () => {
-      if (splitTokens.length > 1) {
-        const tokensToAdd = splitTokens.slice(0, -1);
-        tokensToAdd.forEach(token => this.handleTokenAdd(token));
-      } else {
-        this.handleSearchChange();
-      }
+      this.handleSearchChange();
     });
   }
 
@@ -177,12 +106,10 @@ export default class ActionbarSearch extends Component {
     const { inputValue } = this.state;
 
     const newSearchTokens = []
-      .concat(searchTokens || tokens)
-      .filter(v => v.length > 0);
+      .concat(searchTokens || tokens);
 
     const newSearchValues = []
-      .concat(searchTokens || tokens, inputValue)
-      .filter(v => v.length > 0);
+      .concat(searchTokens || tokens, inputValue);
 
     onChange(newSearchTokens, newSearchValues);
   }
@@ -209,18 +136,14 @@ export default class ActionbarSearch extends Component {
   }
 
   handleOpenSearch = (showSearch, force) => {
-    if (this.state.stateChanging && !force) return false;
+    if (this.state.stateChanging && !force) {
+      return false;
+    }
 
     this.setState({
       showSearch: showSearch,
       stateChanging: true
     });
-
-    if (showSearch) {
-      this.refs.searchInput.focus();
-    } else {
-      this.refs.searchInput.getInputNode().blur();
-    }
 
     const timeoutId = window.setTimeout(() => {
       this.setState({ stateChanging: false });

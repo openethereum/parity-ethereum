@@ -29,11 +29,13 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export default class Application extends Component {
   state = {
+    fromAddress: null,
     loading: true,
     url: '',
     urlError: null,
     contentHash: '',
     contentHashError: null,
+    contentHashOwner: null,
     registerBusy: false,
     registerError: null,
     registerState: ''
@@ -63,7 +65,14 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { registerBusy, url, urlError, contentHash, contentHashError } = this.state;
+    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner } = this.state;
+
+    let hashClass = null;
+    if (contentHashError) {
+      hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
+    } else {
+      hashClass = styles.hashOk;
+    }
 
     return (
       <div className={ styles.container }>
@@ -81,7 +90,7 @@ export default class Application extends Component {
                 className={ urlError ? styles.error : null }
                 onChange={ this.onChangeUrl } />
             </div>
-            <div className={ contentHashError ? styles.hashError : styles.hashOk }>
+            <div className={ hashClass }>
               { contentHashError || contentHash }
             </div>
             { registerBusy ? this.renderProgress() : this.renderButtons() }
@@ -92,7 +101,7 @@ export default class Application extends Component {
   }
 
   renderButtons () {
-    const { accounts, fromAddress, url, urlError, contentHashError } = this.state;
+    const { accounts, fromAddress, url, urlError, contentHashError, contentHashOwner } = this.state;
     const account = accounts[fromAddress];
 
     return (
@@ -105,7 +114,7 @@ export default class Application extends Component {
         </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ !!contentHashError || !!urlError || url.length === 0 }>register url</Button>
+          disabled={ (!!contentHashError && contentHashOwner !== fromAddress) || !!urlError || url.length === 0 }>register url</Button>
       </div>
     );
   }
@@ -151,7 +160,7 @@ export default class Application extends Component {
     let urlError = null;
 
     if (url && url.length) {
-      var re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g;
+      const re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g; // eslint-disable-line
       urlError = re.test(url)
         ? null
         : 'not matching rexex';
@@ -163,9 +172,9 @@ export default class Application extends Component {
   }
 
   onClickRegister = () => {
-    const { url, urlError, contentHash, contentHashError, fromAddress, instance } = this.state;
+    const { url, urlError, contentHash, contentHashError, contentHashOwner, fromAddress, instance } = this.state;
 
-    if (!!contentHashError || !!urlError || url.length === 0) {
+    if ((!!contentHashError && contentHashOwner !== fromAddress) || !!urlError || url.length === 0) {
       return;
     }
 
@@ -243,13 +252,17 @@ export default class Application extends Component {
 
         instance.entries
           .call({}, [contentHash])
-          .then(([accountSlashRepo, commit, owner]) => {
-            console.log('lookupHash', accountSlashRepo, api.util.bytesToHex(commit), owner);
+          .then(([accountSlashRepo, commit, contentHashOwner]) => {
+            console.log('lookupHash', accountSlashRepo, api.util.bytesToHex(commit), contentHashOwner);
 
-            if (owner !== ZERO_ADDRESS) {
-              this.setState({ contentHashError: contentHash, contentHash: null });
+            if (contentHashOwner !== ZERO_ADDRESS) {
+              this.setState({
+                contentHashError: contentHash,
+                contentHashOwner,
+                contentHash
+              });
             } else {
-              this.setState({ contentHashError: null, contentHash });
+              this.setState({ contentHashError: null, contentHashOwner, contentHash });
             }
           });
       })

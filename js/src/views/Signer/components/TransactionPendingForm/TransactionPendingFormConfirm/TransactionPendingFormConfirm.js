@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
 
-import { Form, Input, SignerIcon } from '../../../../../ui';
+import { Form, Input, IdentityIcon } from '../../../../../ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 
@@ -72,7 +72,7 @@ class TransactionPendingFormConfirm extends Component {
               fullWidth
               primary
               disabled={ isSending }
-              icon={ <SignerIcon className={ styles.signerIcon } /> }
+              icon={ <IdentityIcon address={ address } button className={ styles.signerIcon } /> }
               label={ isSending ? 'Confirming...' : 'Confirm Transaction' }
             />
           </div>

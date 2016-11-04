@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { stringify } from 'qs';
+
 const options = {
   method: 'GET',
   headers: {
@@ -23,19 +25,14 @@ const options = {
 
 export function call (module, action, _params, test) {
   const host = test ? 'testnet.etherscan.io' : 'api.etherscan.io';
-  let params = '';
 
-  if (_params) {
-    Object.keys(_params).map((param) => {
-      const value = _params[param];
+  const query = stringify(Object.assign({
+    module, action
+  }, _params || {}));
 
-      params = `${params}&${param}=${value}`;
-    });
-  }
-
-  return fetch(`http://${host}/api?module=${module}&action=${action}${params}`, options)
+  return fetch(`https://${host}/api?${query}`, options)
     .then((response) => {
-      if (response.status !== 200) {
+      if (!response.ok) {
         throw { code: response.status, message: response.statusText }; // eslint-disable-line
       }
 

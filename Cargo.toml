@@ -46,7 +46,7 @@ ethcore-logger = { path = "logger" }
 rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -73,6 +73,7 @@ ipc = ["ethcore/ipc", "ethsync/ipc"]
 jit = ["ethcore/jit"]
 dev = ["clippy", "ethcore/dev", "ethcore-util/dev", "ethsync/dev", "ethcore-rpc/dev", "ethcore-dapps/dev", "ethcore-signer/dev"]
 json-tests = ["ethcore/json-tests"]
+test-heavy = ["ethcore/test-heavy"]
 stratum = ["ipc"]
 ethkey-cli = ["ethcore/ethkey-cli"]
 ethstore-cli = ["ethcore/ethstore-cli"]

@@ -15,26 +15,24 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .account {
-  max-height: 36px;
   padding: 4px 0 0 0;
-  line-height: 32px;
-  margin-top: 11px;
 }
 
-.details {
+.name {
+  height: 32px;
+  line-height: 32px;
   display: inline-block;
   vertical-align: top;
+  text-transform: uppercase;
+  padding: 0 0 0 1em;
 }
 
 .image {
   display: inline-block;
-  max-height: 32px;
-}
-
-.name {
-  line-height: 32px;
-  vertical-align: top;
-  text-transform: uppercase;
+  height: 32px;
+  width: 32px;
+  margin: 0;
+  z-index: 10;
 }
 
 .icon {
@@ -49,4 +47,9 @@
 
 .container {
   position: relative;
+}
+
+.menuItem {
+  min-height: 0 !important;
+  line-height: inherit !important;
 }

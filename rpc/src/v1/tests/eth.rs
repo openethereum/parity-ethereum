@@ -24,7 +24,7 @@ use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
 use ethcore::ethereum;
-use ethcore::miner::{MinerOptions, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
+use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
 use util::Hashable;
@@ -37,7 +37,7 @@ use v1::impls::{EthClient, EthSigningUnsafeClient};
 use v1::types::U256 as NU256;
 use v1::traits::eth::Eth;
 use v1::traits::eth_signing::EthSigning;
-use v1::tests::helpers::{TestSyncProvider, Config};
+use v1::tests::helpers::{TestSnapshotService, TestSyncProvider, Config};
 
 fn account_provider() -> Arc<AccountProvider> {
 	Arc::new(AccountProvider::transient_provider())
@@ -61,6 +61,7 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 			tx_gas_limit: !U256::zero(),
 			tx_queue_strategy: PrioritizationStrategy::GasPriceOnly,
 			tx_queue_gas_limit: GasLimit::None,
+			tx_queue_banning: Banning::Disabled,
 			pending_set: PendingSet::SealingOrElseQueue,
 			reseal_min_period: Duration::from_secs(0),
 			work_queue_size: 50,
@@ -70,6 +71,10 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 		&spec,
 		Some(accounts),
 	)
+}
+
+fn snapshot_service() -> Arc<TestSnapshotService> {
+	Arc::new(TestSnapshotService::new())
 }
 
 fn make_spec(chain: &BlockChain) -> Spec {
@@ -85,6 +90,7 @@ fn make_spec(chain: &BlockChain) -> Spec {
 struct EthTester {
 	client: Arc<Client>,
 	_miner: Arc<MinerService>,
+	_snapshot: Arc<TestSnapshotService>,
 	accounts: Arc<AccountProvider>,
 	handler: IoHandler,
 }
@@ -111,6 +117,7 @@ impl EthTester {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
 		let miner_service = miner_service(&spec, account_provider.clone());
+		let snapshot_service = snapshot_service();
 
 		let db_config = ::util::kvdb::DatabaseConfig::with_columns(::ethcore::db::NUM_COLUMNS);
 		let client = Client::new(
@@ -126,6 +133,7 @@ impl EthTester {
 
 		let eth_client = EthClient::new(
 			&client,
+			&snapshot_service,
 			&sync_provider,
 			&account_provider,
 			&miner_service,
@@ -144,6 +152,7 @@ impl EthTester {
 
 		EthTester {
 			_miner: miner_service,
+			_snapshot: snapshot_service,
 			client: client,
 			accounts: account_provider,
 			handler: handler,

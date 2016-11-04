@@ -30,12 +30,13 @@
 
 .netinfo {
   display: flex;
+  align-items: center;
   flex-direction: row;
   justify-content: flex-end;
   margin-top: 0.25em;
 }
 
-.netinfo>div {
+.netinfo > * {
   display: inline-block;
   margin-left: 1em;
 }
@@ -44,10 +45,8 @@
   padding: 0.25em 0.5em;
   display: inline-block;
   border-radius: 4px;
+  line-height: 1.2;
   text-transform: uppercase;
-  height: 1.25em;
-  margin-top: 0.25em;
-  box-sizing: content-box;
 }
 
 .networklive {
@@ -62,4 +61,7 @@
 }
 
 .version {
+}
+
+.syncing {
 }

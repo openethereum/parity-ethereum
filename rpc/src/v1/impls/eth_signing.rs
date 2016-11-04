@@ -122,7 +122,7 @@ impl<C, M> EthSigningQueueClient<C, M> where C: MiningBlockChainClient, M: Miner
 			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
 			self.add_to_queue(
 				request.from,
-				|accounts| sign_and_dispatch(&*client, &*miner, accounts, request.clone(), None),
+				|accounts| sign_and_dispatch(&*client, &*miner, accounts, request.clone(), None).map(to_value),
 				|| {
 					let request = fill_optional_fields(request.clone(), &*client, &*miner);
 					ConfirmationPayload::Transaction(request)
@@ -251,7 +251,7 @@ impl<C, M> EthSigning for EthSigningUnsafeClient<C, M> where
 		ready.ready(self.active()
 			.and_then(|_| from_params::<(TransactionRequest, )>(params))
 			.and_then(|(request, )| {
-				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None)
+				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None).map(to_value)
 			}))
 	}
 

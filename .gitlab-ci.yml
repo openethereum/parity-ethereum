@@ -1,11 +1,11 @@
 stages:
   - build
-  - test
 variables:
   GIT_DEPTH: "3"
-  SIMPLECOV: "true" 
+  SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
-  RUSTFLAGS: "-D warnings"
+  RUSTFLAGS: ""
+  CARGOFLAGS: ""
 cache:
   key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
   untracked: true
@@ -18,7 +18,7 @@ linux-stable:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -26,7 +26,7 @@ linux-stable:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
     - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -48,7 +48,7 @@ linux-stable-14.04:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
     - sh scripts/deb-build.sh amd64
@@ -56,7 +56,7 @@ linux-stable-14.04:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
     - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
@@ -78,7 +78,7 @@ linux-beta:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -97,7 +97,7 @@ linux-nightly:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -118,10 +118,10 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
@@ -136,16 +136,21 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -153,7 +158,7 @@ linux-armv7:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
     - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -171,16 +176,21 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabihf-gcc
+    - export CXX=arm-linux-gnueabihf-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
     - sh scripts/deb-build.sh armhf
@@ -188,7 +198,7 @@ linux-arm:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
     - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -210,15 +220,19 @@ linux-armv6:
     - tags
     - stable
   script:
+    - export CC=arm-linux-gnueabi-gcc
+    - export CXX=arm-linux-gnueabi-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release --verbose
+    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5 
-    - aws configure set aws_access_key_id $s3_key 
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
@@ -234,16 +248,21 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
+    - master
     - beta
     - tags
     - stable
   script:
+    - export CC=aarch64-linux-gnu-gcc
+    - export CXX=aarch64-linux-gnu-g++
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
     - rm -rf .cargo
     - mkdir -p .cargo
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release --verbose
+    - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
     - sh scripts/deb-build.sh arm64
@@ -251,7 +270,7 @@ linux-aarch64:
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
     - md5sum "parity_"$VER"_arm64.deb" >> "parity_"$VER"_arm64.deb.md5"
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -273,9 +292,10 @@ darwin:
     - tags
     - stable
   script:
-    - cargo build --release --verbose
+    - cargo build --release $CARGOFLAGS
+    - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
-    - aws configure set aws_access_key_id $s3_key 
+    - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
@@ -296,9 +316,9 @@ windows:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
-    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off -D warnings
+    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release --verbose
+    - cargo build --release %CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -333,25 +353,39 @@ windows:
     - target/release/parity.pdb
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
+#test-darwin:
+#  stage: build
+#  before_script:
+#    - git submodule update --init --recursive
+#  script:
+#    - export RUST_BACKTRACE=1
+#    - ./test.sh $CARGOFLAGS --no-release
+#  tags:
+#    - osx
+#test-windows:
+#  stage: build
+#  before_script:
+#    - git submodule update --init --recursive
+#  script:
+#    - set RUST_BACKTRACE=1
+#    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+#  tags:
+#    - rust-windows
+#  allow_failure: true
 test-linux:
-  stage: test
+  stage: build
   before_script:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - ./test.sh --verbose
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - rust-test
-  dependencies:
-    - linux-stable
 js-release:
   stage: build
   image: ethcore/javascript:latest
   only:
     - master
-    - beta
-    - tags
-    - stable
   before_script:
     - ./js/scripts/install-deps.sh
   script:
@@ -360,7 +394,7 @@ js-release:
   tags:
     - javascript
 js-lint:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
@@ -369,7 +403,7 @@ js-lint:
   tags:
     - javascript-test
 js-test:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh
@@ -378,7 +412,7 @@ js-test:
   tags:
     - javascript-test
 js-pack:
-  stage: test
+  stage: build
   image: ethcore/javascript:latest
   before_script:
     - ./js/scripts/install-deps.sh

@@ -104,6 +104,25 @@ export default {
     }
   },
 
+  gasPriceHistogram: {
+    desc: 'Returns a snapshot of the historic gas prices',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Historic values',
+      details: {
+        bucketBounds: {
+          type: Array,
+          desc: 'Array of U256 bound values'
+        },
+        count: {
+          type: Array,
+          desc: 'Array of U64 counts'
+        }
+      }
+    }
+  },
+
   generateSecretPhrase: {
     desc: 'Creates a secret phrase that can be associated with an account',
     params: [],
@@ -134,6 +153,15 @@ export default {
       type: Quantity,
       desc: 'Minimal Gas Price',
       format: 'outputBigNumberFormatter'
+    }
+  },
+
+  mode: {
+    desc: 'Get the mode. Results one of: "active", "passive", "dark", "off".',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The mode'
     }
   },
 
@@ -285,6 +313,20 @@ export default {
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
+    }
+  },
+
+  setMode: {
+    desc: 'Changes the mode',
+    params: [
+      {
+        type: String,
+        desc: 'The mode to set, one of "active", "passive", "dark", "off"'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'True if the call succeeded'
     }
   },
 

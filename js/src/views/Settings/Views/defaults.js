@@ -16,15 +16,12 @@
 
 import React from 'react';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
+import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
 import ActionSettings from 'material-ui/svg-icons/action/settings';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
-
-import { SignerIcon } from '../../../ui';
-
-import styles from './views.css';
 
 const defaultViews = {
   accounts: {
@@ -76,7 +73,7 @@ const defaultViews = {
   signer: {
     active: true,
     fixed: true,
-    icon: <SignerIcon className={ styles.signerIcon } />,
+    icon: <ActionFingerprint />,
     label: 'Signer',
     route: '/signer',
     value: 'signer',

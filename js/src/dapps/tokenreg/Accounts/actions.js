@@ -38,7 +38,7 @@ export const loadAccounts = () => (dispatch) => {
   Promise
     .all([
       api.eth.accounts(),
-      null // api.personal.accountsInfo()
+      api.personal.accountsInfo()
     ])
     .then(([ accounts, accountsInfo ]) => {
       accountsInfo = accountsInfo || {};

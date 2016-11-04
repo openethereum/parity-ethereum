@@ -38,9 +38,16 @@ export default class Summary extends Component {
       return null;
     }
 
-    const url = `/app/${app.builtin ? 'global' : 'local'}/${app.url || app.id}`;
-    const image = app.image
-      ? <img src={ app.image } className={ styles.image } />
+    let type = 'builtin';
+    if (app.network) {
+      type = 'network';
+    } else if (app.local) {
+      type = 'local';
+    }
+
+    const url = `/app/${type}/${app.url || app.contentHash || app.id}`;
+    const image = app.image || app.iconUrl
+      ? <img src={ app.image || `http://127.0.0.1:8080/${app.id}/${app.iconUrl}` } className={ styles.image } />
       : <div className={ styles.image }>&nbsp;</div>;
 
     return (
