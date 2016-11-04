@@ -31,3 +31,8 @@
 .funcparams {
   padding-left: 3em;
 }
+
+.inline {
+  display: inline-block;
+  vertical-align: middle;
+}
