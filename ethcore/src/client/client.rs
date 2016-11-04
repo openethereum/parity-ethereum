@@ -1024,7 +1024,9 @@ impl BlockChainClient for Client {
 							transaction_hash: transaction_hash.clone(),
 							transaction_index: transaction_index,
 							log_index: i
-						}).collect()
+						}).collect(),
+						log_bloom: receipt.log_bloom,
+						state_root: receipt.state_root,
 					})
 				},
 				_ => None
