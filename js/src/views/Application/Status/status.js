@@ -48,14 +48,12 @@ class Status extends Component {
         </div>
         { this.renderEnode() }
         <div className={ styles.netinfo }>
-          <div>
-            <BlockStatus />
-            <div className={ styles.peers }>
-              { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
-            </div>
-          </div>
+          <BlockStatus />
           <div className={ netStyle }>
             { isTest ? 'test' : netChain }
+          </div>
+          <div className={ styles.peers }>
+            { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
       </div>

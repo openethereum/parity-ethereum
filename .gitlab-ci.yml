@@ -1,6 +1,7 @@
 stages:
-  - build
   - test
+  - js-build
+  - build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -8,12 +9,13 @@ variables:
   RUSTFLAGS: ""
   CARGOFLAGS: ""
 cache:
-  key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -43,6 +45,7 @@ linux-stable-14.04:
   stage: build
   image: ethcore/rust-14.04:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -72,6 +75,7 @@ linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -90,6 +94,7 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -108,6 +113,7 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -132,6 +138,7 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -171,6 +178,7 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -210,6 +218,7 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -242,6 +251,7 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -280,6 +290,7 @@ linux-aarch64:
 darwin:
   stage: build
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -300,6 +311,7 @@ darwin:
 windows:
   stage: build
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -347,7 +359,7 @@ windows:
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-darwin:
-  stage: build
+  stage: test
   only:
     - beta
     - tags
@@ -360,7 +372,7 @@ test-darwin:
   tags:
     - osx
 test-windows:
-  stage: build
+  stage: test
   only:
     - beta
     - tags
@@ -380,65 +392,16 @@ test-rust-stable:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-stable
- test-rust-beta:
-  stage: test
-  image: ethcore/rust:beta
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
-  script:
-    - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-beta
-test-rust-nightly:
-  stage: test
-  image: ethcore/rust:nightly
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
-  script:
-    - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-nigthly
-js-release:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - jg*
-    - ng*
-    - ui*
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
   tags:
     - rust
     - rust-stable
 js-tests:
   stage: test
-  only:
-    - jg*
-    - ng*
-    - ui*
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -447,6 +410,19 @@ js-tests:
     - ./js/scripts/test.sh
     - ./js/scripts/build.sh
   tags:
-    - rust
-    - rust-stable
-
+    - javascript-test
+js-release:
+  stage: js-build
+  only:
+    - master
+    - beta
+    - stable
+    - tags
+  image: ethcore/rust:stable
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
