@@ -3,7 +3,7 @@
 
 [![Join the chat at https://gitter.im/ethcore/parity.js](https://badges.gitter.im/ethcore/parity.js.svg)](https://gitter.im/ethcore/parity.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-[![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
+[![Build Status][travis-image]][travis-url] [![build status](https://gitlab.ethcore.io/Mirrors/ethcore-parity/badges/master/build.svg)](https://gitlab.ethcore.io/Mirrors/ethcore-parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
 
 [Internal Documentation][doc-url]
 
@@ -56,7 +56,14 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
+	
+	Parity also requires `gcc`, `g++` and `make` packages to be installed.
+- OSX:
+	```bash
+	$ curl https://sh.rustup.rs -sSf | sh
+	```
 
+	`clang` and `make` are required. These come with Xcode command line tools or can be installed with homebrew.
 - Windows
 
     Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from
