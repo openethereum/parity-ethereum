@@ -24,7 +24,7 @@ import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
-class Event extends Component {
+export default class Event extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }

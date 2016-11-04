@@ -22,7 +22,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
-import { validateAddress } from '../../util/validation';
+import { validateAddress, validateUint } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
@@ -44,6 +44,7 @@ class ExecuteContract extends Component {
   state = {
     amount: '0',
     amountError: null,
+    fromAddressError: null,
     func: null,
     funcError: null,
     values: [],
@@ -80,7 +81,8 @@ class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { sending, step } = this.state;
+    const { sending, step, fromAddressError, valuesError } = this.state;
+    const hasError = fromAddressError || valuesError.find((error) => error);
     const cancelBtn = (
       <Button
         key='cancel'
@@ -95,7 +97,7 @@ class ExecuteContract extends Component {
         <Button
           key='postTransaction'
           label='post transaction'
-          disabled={ sending }
+          disabled={ sending || hasError }
           icon={ <IdentityIcon address={ fromAddress } button /> }
           onClick={ this.postTransaction } />
       ];
@@ -180,12 +182,16 @@ class ExecuteContract extends Component {
     let valueError = null;
 
     switch (input.kind.type) {
+      case 'address':
+        valueError = validateAddress(_value).addressError;
+        break;
+
       case 'bool':
         value = _value === 'true';
         break;
 
-      case 'address':
-        valueError = validateAddress(_value).addressError;
+      case 'uint':
+        valueError = validateUint(_value).valueError;
         break;
     }
 
@@ -193,8 +199,8 @@ class ExecuteContract extends Component {
     valuesError[index] = valueError;
 
     this.setState({
-      values,
-      valuesError
+      values: [].concat(values),
+      valuesError: [].concat(valuesError)
     });
   }
 

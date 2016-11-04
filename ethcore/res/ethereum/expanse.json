@@ -15,7 +15,11 @@
 				"difficultyHardforkTransition": "0x59d9",
 				"difficultyHardforkBoundDivisor": "0x0200",
 				"bombDefuseTransition": "0x30d40",
-				"eip150Transition": "0x7fffffffffffffff"				
+				"eip150Transition": "0x7fffffffffffffff",
+				"eip155Transition": "0x7fffffffffffffff",
+				"eip160Transition": "0x7fffffffffffffff",
+				"eip161abcTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
 			}
 		}
 	},

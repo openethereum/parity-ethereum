@@ -29,7 +29,6 @@ export default class Transaction extends Component {
   }
 
   static propTypes = {
-    transaction: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
 
@@ -38,7 +37,8 @@ export default class Transaction extends Component {
   }
 
   render () {
-    const { block, transaction } = this.props;
+    const { block } = this.state;
+    const { transaction } = this.props;
 
     return (
       <tr>
@@ -57,9 +57,10 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address, transactionInfo } = this.props;
+    const { address } = this.props;
+    const { transaction } = this.state;
 
-    if (!transactionInfo) {
+    if (!transaction) {
       return null;
     }
 
@@ -67,12 +68,13 @@ export default class Transaction extends Component {
       <MethodDecoding
         historic
         address={ address }
-        transaction={ transactionInfo } />
+        transaction={ transaction } />
     );
   }
 
   renderTransaction () {
-    const { transaction, isTest } = this.props;
+    const { isTest } = this.props;
+    const { transaction } = this.props;
 
     return (
       <td className={ styles.transaction }>
@@ -120,13 +122,13 @@ export default class Transaction extends Component {
 
   renderEtherValue () {
     const { api } = this.context;
-    const { transactionInfo } = this.props;
+    const { transaction } = this.state;
 
-    if (!transactionInfo) {
+    if (!transaction) {
       return null;
     }
 
-    const value = api.util.fromWei(transactionInfo.value);
+    const value = api.util.fromWei(transaction.value);
 
     if (value.eq(0)) {
       return <div className={ styles.value }>{ ' ' }</div>;
@@ -158,4 +160,5 @@ export default class Transaction extends Component {
 
     return moment(block.timestamp).fromNow();
   }
+
 }

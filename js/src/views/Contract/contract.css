@@ -43,6 +43,7 @@
 
 .txhash {
   text-overflow: ellipsis;
+  width: 20%;
 }
 
 .key {
@@ -86,6 +87,7 @@
 .eventAddress {
   display: inline-block;
   position: relative;
+  white-space: nowrap;
 }
 
 .eventIdentityicon {

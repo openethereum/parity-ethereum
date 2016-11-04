@@ -41,9 +41,7 @@ class Transactions extends Component {
     contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool,
-    traceMode: PropTypes.bool,
-    blocks: PropTypes.object,
-    transactionsInfo: PropTypes.object
+    traceMode: PropTypes.bool
   }
 
   state = {
@@ -149,16 +147,9 @@ class Transactions extends Component {
       })
       .slice(0, 25)
       .map((transaction, index) => {
-        const { blockNumber, hash } = transaction;
-
-        const block = blocks[blockNumber.toString()];
-        const transactionInfo = transactionsInfo[hash];
-
         return (
           <Transaction
             key={ index }
-            block={ block }
-            transactionInfo={ transactionInfo }
             transaction={ transaction }
             address={ address }
             accounts={ accounts }

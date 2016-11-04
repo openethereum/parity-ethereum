@@ -77,14 +77,14 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value } = this.props;
+    const { value, disabled } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
     return (
-      <div className={ styles.icon }>
+      <div className={ disabled ? styles.iconDisabled : styles.icon }>
         <IdentityIcon
           inline center
           address={ value } />

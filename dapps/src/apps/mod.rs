@@ -33,14 +33,6 @@ pub const RPC_PATH : &'static str =  "rpc";
 pub const API_PATH : &'static str =  "api";
 pub const UTILS_PATH : &'static str =  "parity-utils";
 
-pub fn redirection_address(using_dapps_domains: bool, app_id: &str) -> String {
-	if using_dapps_domains {
-		format!("http://{}{}/", app_id, DAPPS_DOMAIN)
-	} else {
-		format!("/{}/", app_id)
-	}
-}
-
 pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }

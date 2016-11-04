@@ -44,6 +44,7 @@
 #![cfg_attr(feature="nightly", plugin(clippy))]
 
 extern crate hyper;
+extern crate time;
 extern crate url as url_lib;
 extern crate unicase;
 extern crate serde;

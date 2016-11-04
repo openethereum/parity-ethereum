@@ -69,6 +69,7 @@ impl FromStr for Api {
 pub enum ApiSet {
 	SafeContext,
 	UnsafeContext,
+	IpcContext,
 	List(HashSet<Api>),
 }
 
@@ -137,6 +138,10 @@ impl ApiSet {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
 				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
+					.into_iter().collect()
+			},
+			ApiSet::IpcContext => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalAccounts, Api::PersonalSafe]
 					.into_iter().collect()
 			},
 			ApiSet::SafeContext => {

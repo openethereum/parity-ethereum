@@ -73,6 +73,15 @@ class Events extends Component {
       );
     }
 
+    const list = events.map((event) => {
+      return (
+        <Event
+          key={ event.key }
+          event={ event }
+          isTest={ isTest } />
+      );
+    });
+
     return (
       <Container className={ styles.eventsContainer }>
         <ContainerTitle title='events' />

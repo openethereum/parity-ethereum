@@ -246,8 +246,8 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts.sign(acc, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts.sign(acc, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	// when
 	let request = r#"{
