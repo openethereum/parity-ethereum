@@ -36,12 +36,21 @@ class Events extends Component {
     contract: PropTypes.object,
     blocks: PropTypes.object,
     transactions: PropTypes.object,
-    isTest: PropTypes.bool
+    isTest: PropTypes.bool,
+    loading: PropTypes.bool
   }
 
   componentDidMount () {
     const { address, subscribeToContractEvents } = this.props;
     subscribeToContractEvents(address);
+  }
+
+  shouldComponentUpdate (nextProps) {
+    if (nextProps.loading && this.props.loading) {
+      return false;
+    }
+
+    return !nextProps.loading && this.props.loading;
   }
 
   render () {
@@ -127,25 +136,29 @@ class Events extends Component {
   }
 }
 
-function mapStateToProps (state, ownProps) {
-  const { isTest } = state.nodeStatus;
-  const { blocks, transactions, contracts } = state.blockchain;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps;
 
-  const contract = contracts[ownProps.address];
+  return (state) => {
+    const { isTest } = state.nodeStatus;
+    const { blocks, transactions, contracts } = state.blockchain;
 
-  return {
-    isTest,
-    blocks,
-    transactions,
-    contract
+    const contract = contracts[address];
+    const loading = contract.eventsLoading;
+
+    return {
+      isTest,
+      blocks,
+      transactions,
+      contract,
+      loading
+    };
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     subscribeToContractEvents
-    // dispatch(subscribeToContractEvents(address, instance));
-    // dispatch(subscribeToContractQueries(address, instance));
   }, dispatch);
 }
 

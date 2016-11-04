@@ -116,7 +116,12 @@ export function attachContract (address) {
   return (dispatch, getState) => {
     const state = getState();
 
-    const { api } = state;
+    const { api, blockchain } = state;
+
+    if (blockchain.contracts[address]) {
+      return;
+    }
+
     const { contracts } = state.personal;
 
     const contract = contracts[address];
@@ -128,7 +133,6 @@ export function attachContract (address) {
     }
 
     const instance = api.newContract(contract.meta.abi, address);
-
     dispatch(setContract(address, { ...contract, instance }));
   };
 }
@@ -142,6 +146,7 @@ export function subscribeToContractEvents (address) {
     }
 
     const { instance } = blockchain.contracts[address];
+    dispatch(setContract(address, { eventsLoading: true }));
 
     instance
       .subscribe(
@@ -160,8 +165,14 @@ export function subscribeToContractEvents (address) {
           const blockNumbers = events.map(e => e.blockNumber);
           const txHashes = events.map(e => e.transactionHash);
 
-          dispatch(fetchBlocks(blockNumbers));
-          dispatch(fetchTransactions(txHashes));
+          const blocksP = getFetchBlocks(dispatch, getState, blockNumbers);
+          const txsP = getFetchTransaction(dispatch, getState, txHashes);
+
+          Promise
+            .all([ blocksP, txsP ])
+            .then(() => {
+              dispatch(setContract(address, { eventsLoading: false }));
+            });
         }
       )
       .then((subscriptionId) => {
@@ -224,19 +235,26 @@ export function detachContract (address) {
     }
 
     const { subscriptionId, blockSubscriptionId } = contract;
+    const promises = [];
 
     if (subscriptionId > -1) {
-      contract.instance.unsubscribe(subscriptionId);
+      promises.push(contract.instance.unsubscribe(subscriptionId));
     }
 
     if (blockSubscriptionId > -1) {
-      api.unsubscribe(blockSubscriptionId);
+      promises.push(api.unsubscribe(blockSubscriptionId));
     }
 
-    dispatch(setContract(address, {
-      subscriptionId: -1,
-      blockSubscriptionId: -1
-    }));
+    Promise.all(promises).then(() => {
+      dispatch(clearContract(address));
+    });
+  };
+}
+
+export function clearContract (address) {
+  return {
+    type: 'clearContract',
+    address
   };
 }
 
@@ -249,43 +267,50 @@ export function updateContractEvents (address, events) {
 
 export function fetchBlocks (blockNumbers) {
   return (dispatch, getState) => {
-    const state = getState();
-    const { blocks } = state.blockchain;
-
-    const blocksToFetch = uniqWith(
-        blockNumbers,
-        (a, b) => a.equals(b)
-      )
-      .filter(blockNumber => {
-        const key = blockNumber.toString();
-
-        // If nothing in state
-        if (!blocks[key]) return true;
-
-        // If not pending or invalid
-        return !blocks[key].pending && !blocks[key].valid;
-      });
-
-    console.log('FETCH BLOCKS', blocksToFetch.length);
-
-    dispatch(setBlocksPending(blocksToFetch, true));
-
-    blocksToFetch.forEach(blockNumber => {
-      state.api.eth
-        .getBlockByNumber(blockNumber)
-        .then(block => {
-          dispatch(setBlock(blockNumber, {
-            ...block,
-            pending: false,
-            valid: true
-          }));
-        })
-        .catch(e => {
-          console.error('blockchain::fetchBlock', e);
-          dispatch(setBlock(blockNumber, { pending: false, valid: false }));
-        });
-    });
+    getFetchBlocks(dispatch, getState, blockNumbers);
   };
+}
+
+function getFetchBlocks (dispatch, getState, blockNumbers) {
+  const state = getState();
+  const { blocks } = state.blockchain;
+
+  const blocksToFetch = uniqWith(
+    blockNumbers,
+    (a, b) => a.equals(b)
+  )
+  .filter(blockNumber => {
+    const key = blockNumber.toString();
+
+    // If nothing in state
+    if (!blocks[key]) return true;
+
+    // If not pending or invalid
+    return !blocks[key].pending && !blocks[key].valid;
+  });
+
+  dispatch(setBlocksPending(blocksToFetch, true));
+
+  return Promise
+    .all(blocksToFetch.map(n => state.api.eth.getBlockByNumber(n)))
+    .then(blocks => {
+      blocksToFetch.forEach((blockNumber, index) => {
+        const block = blocks[index];
+
+        dispatch(setBlock(blockNumber, {
+          ...block,
+          pending: false,
+          valid: true
+        }));
+      });
+    })
+    .catch(e => {
+      console.error('blockchain::fetchBlocks', e);
+
+      blocksToFetch.forEach((blockNumber) => {
+        dispatch(setBlock(blockNumber, { pending: false, valid: false }));
+      });
+    });
 }
 
 export function fetchBlock (blockNumber) {
@@ -296,38 +321,45 @@ export function fetchBlock (blockNumber) {
 
 export function fetchTransactions (txHashes) {
   return (dispatch, getState) => {
-    const state = getState();
-    const { transactions } = state.blockchain;
-
-    const txsToFetch = uniq(txHashes)
-      .filter(hash => {
-        // If nothing in state
-        if (!transactions[hash]) return true;
-
-        // If not pending or invalid
-        return !transactions[hash].pending && !transactions[hash].valid;
-      });
-
-    console.log('FETCH TXS', txsToFetch.length);
-
-    dispatch(setTransactionsPending(txsToFetch, true));
-
-    txsToFetch.forEach(txHash => {
-      state.api.eth
-        .getTransactionByHash(txHash)
-        .then(info => {
-          dispatch(setTransaction(txHash, {
-            ...info,
-            pending: false,
-            valid: true
-          }));
-        })
-        .catch(e => {
-          console.error('blockchain::fetchTransaction', e);
-          dispatch(setTransaction(txHash, { pending: false, valid: false }));
-        });
-    });
+    getFetchTransaction(dispatch, getState, txHashes);
   };
+}
+
+function getFetchTransaction (dispatch, getState, txHashes) {
+  const state = getState();
+  const { transactions } = state.blockchain;
+
+  const txsToFetch = uniq(txHashes)
+    .filter(hash => {
+      // If nothing in state
+      if (!transactions[hash]) return true;
+
+      // If not pending or invalid
+      return !transactions[hash].pending && !transactions[hash].valid;
+    });
+
+  dispatch(setTransactionsPending(txsToFetch, true));
+
+  return Promise
+    .all(txsToFetch.map(h => state.api.eth.getTransactionByHash(h)))
+    .then((transactions) => {
+      txsToFetch.forEach((txHash, index) => {
+        const info = transactions[index];
+
+        dispatch(setTransaction(txHash, {
+          ...info,
+          pending: false,
+          valid: true
+        }));
+      });
+    })
+    .catch(e => {
+      console.error('blockchain::fetchTransaction', e);
+
+      txsToFetch.forEach((txHash) => {
+        dispatch(setTransaction(txHash, { pending: false, valid: false }));
+      });
+    });
 }
 
 export function fetchTransaction (txHash) {

@@ -35,21 +35,27 @@ export default class Event extends Component {
     isTest: PropTypes.bool
   }
 
+  shouldComponentUpdate (nextProps) {
+    return nextProps.event.transactionHash !== this.props.event.transactionHash;
+  }
+
   render () {
     const { event, block, transaction, isTest } = this.props;
 
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
-    const values = Object.keys(event.params).map((name, index) => {
-      const param = event.params[name];
+    const values = Object
+      .keys(event.params)
+      .map((name, index) => {
+        const param = event.params[name];
 
-      return (
-        <div className={ styles.eventValue } key={ `${event.key}_val_${index}` }>
-          { this.renderParam(name, param) }
-        </div>
-      );
-    });
+        return (
+          <div className={ styles.eventValue } key={ `${event.key}_val_${index}` }>
+            { this.renderParam(name, param) }
+          </div>
+        );
+      });
 
     return (
       <tr className={ classes }>
@@ -108,7 +114,8 @@ export default class Event extends Component {
             text
             className={ styles.input }
             value={ param.value }
-            label={ name } />
+            label={ name }
+          />
         );
 
       default:

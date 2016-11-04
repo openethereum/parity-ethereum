@@ -20,6 +20,8 @@ import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
+const subscriptionIds = [];
+
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
@@ -265,24 +267,26 @@ export default class Contract {
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
+
             this._subscriptions[subscriptionId] = {
               options,
               callback,
               filterId
             };
+
             return subscriptionId;
           });
       });
   }
 
   unsubscribe (subscriptionId) {
+    const subscription = this._subscriptions[subscriptionId];
+    delete this._subscriptions[subscriptionId];
+
     return this._api.eth
-      .uninstallFilter(this._subscriptions[subscriptionId].filterId)
-      .then(() => {
-        delete this._subscriptions[subscriptionId];
-      })
+      .uninstallFilter(subscription.filterId)
       .catch((error) => {
-        console.error('unsubscribe', error);
+        console.error('contract::unsubscribe', subscription.address, error);
       });
   }
 

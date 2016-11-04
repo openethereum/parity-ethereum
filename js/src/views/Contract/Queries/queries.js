@@ -17,30 +17,46 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import LinearProgress from 'material-ui/LinearProgress';
 
 import InputQuery from './inputQuery';
+import { subscribeToContractQueries } from '../../../redux/providers/blockchainActions';
 import { Container, ContainerTitle, Input } from '../../../ui';
 
 import styles from './queries.css';
 
-export default class Queries extends Component {
+class Queries extends Component {
   static contextTypes = {
     api: PropTypes.object
   };
 
   static propTypes = {
-    contract: PropTypes.object,
-    values: PropTypes.object
+    subscribeToContractQueries: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
+    contract: PropTypes.object
   };
+
+  componentDidMount () {
+    const { address, subscribeToContractQueries } = this.props;
+    subscribeToContractQueries(address);
+  }
 
   render () {
     const { contract } = this.props;
 
-    if (!contract) {
-      return null;
+    if (!contract || !contract.instance || !contract.queries) {
+      return (
+        <Container>
+          <ContainerTitle title='queries' />
+          <LinearProgress mode='indeterminate' />
+        </Container>
+      );
     }
 
-    const queries = contract.functions
+    const queries = contract.instance
+      .functions
       .filter((fn) => fn.constant)
       .sort(this._sortEntries);
 
@@ -80,14 +96,15 @@ export default class Queries extends Component {
           inputs={ abi.inputs }
           outputs={ abi.outputs }
           name={ name }
-          contract={ contract }
+          contract={ contract.instance }
         />
       </div>
     );
   }
 
   renderQuery (fn) {
-    const { values } = this.props;
+    const { contract } = this.props;
+    const { queries } = contract;
 
     return (
       <div className={ styles.container } key={ fn.signature }>
@@ -99,19 +116,19 @@ export default class Queries extends Component {
           <CardText
             className={ styles.methodContent }
           >
-            { this.renderValue(values, fn.name) }
+            { this.renderValue(queries, fn.name) }
           </CardText>
         </Card>
       </div>
     );
   }
 
-  renderValue (values, key) {
-    if (!values) {
+  renderValue (queries, key) {
+    if (!queries) {
       return null;
     }
 
-    const value = values[key];
+    const value = queries[key];
 
     if (typeof value === 'undefined') {
       return null;
@@ -144,3 +161,22 @@ export default class Queries extends Component {
     return a.name.localeCompare(b.name);
   }
 }
+
+function mapStateToProps (state, ownProps) {
+  const { contracts } = state.blockchain;
+  const contract = contracts[ownProps.address];
+
+  return { contract };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    subscribeToContractQueries
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Queries);
+

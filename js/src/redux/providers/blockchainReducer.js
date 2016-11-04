@@ -26,6 +26,7 @@ const initialState = {
 };
 
 const initialContractState = {
+  instance: null,
   blockSubscriptionId: -1,
   subscriptionId: -1,
   events: {
@@ -188,6 +189,19 @@ export default handleActions({
         }
       }
     };
+
+    return Object.assign({}, state, { contracts: newContracts });
+  },
+
+  clearContract (state, action) {
+    const { address } = action;
+    const { contracts } = state;
+
+    const newContracts = {
+      ...contracts
+    };
+
+    delete newContracts[address];
 
     return Object.assign({}, state, { contracts: newContracts });
   }

@@ -13,6 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import Perf from 'react-addons-perf';
+window.Perf = Perf;
 
 import 'babel-polyfill';
 import 'whatwg-fetch';

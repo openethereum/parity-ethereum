@@ -96,13 +96,12 @@ class Contract extends Component {
 
   render () {
     const { balances, contract, params, isTest } = this.props;
-    const balance = balances[params.address];
+    const { address } = params;
+    const balance = balances[address];
 
     if (!contract) {
       return null;
     }
-
-    const { queries } = contract;
 
     return (
       <div className={ styles.contract }>
@@ -116,11 +115,8 @@ class Contract extends Component {
             account={ contract }
             balance={ balance } />
 
-          <Queries
-            contract={ contract.instance }
-            values={ queries } />
-
-          <Events address={ params.address } />
+          <Queries address={ address } />
+          <Events address={ address } />
         </Page>
       </div>
     );
@@ -243,23 +239,25 @@ class Contract extends Component {
 
 }
 
-function mapStateToProps (state, props) {
-  const { accounts } = state.personal;
-  const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
-  const { contracts } = state.blockchain;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps.params;
 
-  const { params } = props;
-  const contract = contracts[params.address];
+  return (state) => {
+    const { accounts } = state.personal;
+    const { balances } = state.balances;
+    const { isTest } = state.nodeStatus;
+    const { contracts } = state.blockchain;
 
-  const ready = Object.keys(state.personal.contracts).length > 0;
+    const contract = contracts[address];
+    const ready = Object.keys(state.personal.contracts).length > 0;
 
-  return {
-    ready,
-    isTest,
-    accounts,
-    contract,
-    balances
+    return {
+      ready,
+      isTest,
+      accounts,
+      contract,
+      balances
+    };
   };
 }
 
