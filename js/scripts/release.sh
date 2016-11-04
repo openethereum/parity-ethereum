@@ -57,7 +57,6 @@ if [ "$BRANCH" == "master" ]; then
   npm version patch
 
   echo "*** Building packages for npmjs"
-  cd js
   # echo -e "$NPM_USERNAME\n$NPM_PASSWORD\n$NPM_EMAIL" | npm login
   echo "$NPM_TOKEN" >> ~/.npmrc
   npm run ci:build:npm
