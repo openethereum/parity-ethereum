@@ -18,8 +18,8 @@ test-linux:
     - git submodule update --init --recursive
   script:
     - export RUST_BACKTRACE=1
-    - RS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.rs | wc -l)
-    - JS_FILES_MODIFIED=$(git diff master | grep ^diff | grep -v a/js/ | wc -l)
+    - export RS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.rs | wc -l)
+    - export JS_FILES_MODIFIED=$(git diff master | grep ^diff | grep -v a/js/ | wc -l)
     -  if [ -z $RS_FILES_MODIFIED ]; then ./test.sh $CARGOFLAGS --no-release; else ./js/scripts/install-deps.sh&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh&./js/scripts/release.sh; fi
   tags:
     - rust-test
