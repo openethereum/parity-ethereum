@@ -154,7 +154,7 @@ export default class DeployContract extends Component {
         return (
           <CompletedStep>
             <div>Your contract has been deployed at</div>
-            <div className={ styles.inline }>
+            <div>
               <CopyToClipboard data={ address } label='copy address to clipboard' />
               <IdentityIcon address={ address } inline center className={ styles.identityicon } />
               <div className={ styles.address }>{ address }</div>
