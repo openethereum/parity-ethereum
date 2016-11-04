@@ -32,3 +32,9 @@ export function closeTooltips () {
     type: 'closeTooltips'
   };
 }
+
+export function loadTooltips () {
+  return {
+    type: 'loadTooltips'
+  };
+}

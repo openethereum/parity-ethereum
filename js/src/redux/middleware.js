@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 import thunk from 'redux-thunk';
-// import createLogger from 'redux-logger';
+import createLogger from 'redux-logger';
 
 import ErrorsMiddleware from '../ui/Errors/middleware';
 import SettingsMiddleware from '../views/Settings/middleware';
@@ -27,7 +27,7 @@ export default function (api) {
   const signer = new SignerMiddleware(api);
   const settings = new SettingsMiddleware();
   const status = statusMiddleware();
-  // const logger = createLogger();
+  const logger = createLogger();
 
   const middleware = [
     settings.toMiddleware(),
@@ -35,5 +35,5 @@ export default function (api) {
     errors.toMiddleware()
   ];
 
-  return middleware.concat(status, thunk/*, logger*/);
+  return middleware.concat(status, thunk, logger);
 }

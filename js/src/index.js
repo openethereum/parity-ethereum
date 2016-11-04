@@ -36,6 +36,7 @@ import { ContextProvider, muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsProxy, SettingsViews, Signer, Status } from './views';
 
 import { setApi } from './redux/providers/apiActions';
+import { loadTooltips } from './ui/Tooltips/actions';
 
 import './environment';
 
@@ -60,6 +61,7 @@ ContractInstances.create(api);
 const store = initStore(api);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
+store.dispatch(loadTooltips());
 
 const routerHistory = useRouterHistory(createHashHistory)({});
 

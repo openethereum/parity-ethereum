@@ -104,6 +104,15 @@ export default handleActions({
     return Object.assign({}, state, { transactions: newTransactions });
   },
 
+  clearTransactions (state, action) {
+    const { txHashes } = action;
+
+    const newTransactions = Object.assign({}, state.transactions);
+    txHashes.forEach((hash) => delete newTransactions[hash]);
+
+    return Object.assign({}, state, { transactions: newTransactions });
+  },
+
   setTransactionsPending (state, action) {
     const { txHashes, pending } = action;
     const transactions = Object.assign({}, state.transactions);

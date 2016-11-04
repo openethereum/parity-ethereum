@@ -52,7 +52,7 @@ export default class Signer {
         const requests = pending || [];
 
         if (requests.length > 0) {
-          this._store.dispatch(signerRequestsToConfirm());
+          this._store.dispatch(signerRequestsToConfirm(requests));
         }
       })
       .then((subscriptionId) => {

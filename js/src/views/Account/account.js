@@ -34,8 +34,8 @@ import styles from './account.css';
 class Account extends Component {
   static propTypes = {
     params: PropTypes.object,
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
+    account: PropTypes.object,
+    balance: PropTypes.object,
     images: PropTypes.object.isRequired,
     isTest: PropTypes.bool
   }
@@ -50,11 +50,8 @@ class Account extends Component {
   }
 
   render () {
-    const { accounts, balances, isTest } = this.props;
+    const { account, balance, isTest } = this.props;
     const { address } = this.props.params;
-
-    const account = (accounts || {})[address];
-    const balance = (balances || {})[address];
 
     if (!account) {
       return null;
@@ -72,8 +69,8 @@ class Account extends Component {
             isTest={ isTest }
             account={ account }
             balance={ balance } />
+
           <Transactions
-            accounts={ accounts }
             address={ address } />
         </Page>
       </div>
@@ -81,9 +78,7 @@ class Account extends Component {
   }
 
   renderActionbar () {
-    const { address } = this.props.params;
-    const { balances } = this.props;
-    const balance = balances[address];
+    const { balance } = this.props;
 
     const showTransferButton = !!(balance && balance.tokens);
 
@@ -156,16 +151,12 @@ class Account extends Component {
       return null;
     }
 
-    const { address } = this.props.params;
-    const { accounts, balances, images } = this.props;
-    const account = accounts[address];
-    const balance = balances[address];
+    const { account, balance, images } = this.props;
 
     return (
       <Transfer
         account={ account }
         balance={ balance }
-        balances={ balances }
         images={ images }
         onClose={ this.onTransferClose } />
     );
@@ -178,9 +169,7 @@ class Account extends Component {
       return null;
     }
 
-    const { address } = this.props.params;
-    const { accounts } = this.props;
-    const account = accounts[address];
+    const { account } = this.props;
 
     return (
       <PasswordManager
@@ -226,17 +215,25 @@ class Account extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { accounts } = state.personal;
-  const { balances } = state.balances;
-  const { images } = state;
-  const { isTest } = state.nodeStatus;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps.params;
 
-  return {
-    isTest,
-    accounts,
-    balances,
-    images
+  return (state) => {
+    const { accounts } = state.personal;
+    const { balances } = state.balances;
+
+    const { images } = state;
+    const { isTest } = state.nodeStatus;
+
+    const balance = balances[address];
+    const account = accounts[address];
+
+    return {
+      isTest,
+      account,
+      balance,
+      images
+    };
   };
 }
 

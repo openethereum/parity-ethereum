@@ -54,6 +54,13 @@ export function setTransactions (transactions, extra) {
   };
 }
 
+export function clearTransactions (txHashes) {
+  return {
+    type: 'clearTransactions',
+    txHashes
+  };
+}
+
 export function setTransactionsPending (txHashes, pending) {
   return {
     type: 'setTransactionsPending',

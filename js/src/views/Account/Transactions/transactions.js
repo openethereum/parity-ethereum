@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import LinearProgress from 'material-ui/LinearProgress';
 
-import { fetchAccountTransactions } from '../../../redux/providers/blockchainActions';
+import { fetchAccountTransactions, clearTransactions } from '../../../redux/providers/blockchainActions';
 import { Container, ContainerTitle } from '../../../ui';
 
 import Transaction from './Transaction';
@@ -34,17 +34,23 @@ class Transactions extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     fetchAccountTransactions: PropTypes.func.isRequired,
+    clearTransactions: PropTypes.func.isRequired,
 
-    accountInfo: PropTypes.object,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    contracts: PropTypes.object,
-    tokens: PropTypes.object,
     isTest: PropTypes.bool,
-    traceMode: PropTypes.bool
+    traceMode: PropTypes.bool,
+    loading: PropTypes.bool,
+    transactions: PropTypes.array
   }
 
-  componentWillMount () {
+  shouldComponentUpdate (nextProps, nextState) {
+    if (nextProps.loading && this.props.loading) {
+      return false;
+    }
+
+    return true;
+  }
+
+  componentDidMount () {
     if (this.props.traceMode !== undefined) {
       this.getTransactions(this.props);
     }
@@ -65,6 +71,11 @@ class Transactions extends Component {
     }
   }
 
+  componentWillUnmount () {
+    const txHashes = this.props.transactions.map((t) => t.hash);
+    this.props.clearTransactions(txHashes);
+  }
+
   render () {
     return (
       <Container>
@@ -75,17 +86,15 @@ class Transactions extends Component {
   }
 
   renderTransactions () {
-    const { accountInfo } = this.props;
+    const { loading } = this.props;
 
-    const isLoading = !accountInfo || accountInfo.loading;
-
-    if (isLoading) {
+    if (loading) {
       return (
         <LinearProgress mode='indeterminate' />
       );
     }
 
-    const { transactions } = accountInfo;
+    const { transactions } = this.props;
 
     if (!transactions.length) {
       return (
@@ -122,10 +131,9 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest, accountInfo } = this.props;
-    const { transactions } = accountInfo;
+    const { address, isTest, transactions } = this.props;
 
-    return (transactions || [])
+    return transactions
       .sort((tA, tB) => {
         return tB.blockNumber.comparedTo(tA.blockNumber);
       })
@@ -136,10 +144,6 @@ class Transactions extends Component {
             key={ index }
             transaction={ transaction }
             address={ address }
-            accounts={ accounts }
-            contacts={ contacts }
-            contracts={ contracts }
-            tokens={ tokens }
             isTest={ isTest }
           />
         );
@@ -157,26 +161,23 @@ function mapStateToProps (_, initProps) {
 
   return (state) => {
     const { isTest, traceMode } = state.nodeStatus;
-    const { accounts, contacts, contracts } = state.personal;
-    const { tokens } = state.balances;
 
-    const accountInfo = state.blockchain.accounts[address];
+    const account = state.blockchain.accounts[address];
+    const { transactions = [], loading = true } = account || {};
 
     return {
       isTest,
       traceMode,
-      accounts,
-      contacts,
-      contracts,
-      tokens,
-      accountInfo
+      transactions,
+      loading
     };
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    fetchAccountTransactions
+    fetchAccountTransactions,
+    clearTransactions
   }, dispatch);
 }
 

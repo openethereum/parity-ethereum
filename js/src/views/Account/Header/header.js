@@ -50,7 +50,7 @@ export default class Header extends Component {
   }
 
   render () {
-    const { account, balance } = this.props;
+    const { account } = this.props;
     const { addressCopied } = this.state;
     const { address, meta, uuid } = account;
 
@@ -119,12 +119,22 @@ export default class Header extends Component {
             <Tags tags={ meta.tags } />
           </div>
           <div className={ styles.balances }>
-            <Balance
-              account={ account }
-              balance={ balance } />
+            { this.renderBalance() }
           </div>
         </Container>
       </div>
+    );
+  }
+
+  renderBalance () {
+    const { balance } = this.props;
+
+    if (!balance) {
+      return null;
+    }
+
+    return (
+      <Balance balances={ balance.tokens } />
     );
   }
 

@@ -25,7 +25,7 @@ function closeTooltips (state, action) {
   currentId = -1;
 
   return Object.assign({}, state, {
-    currentId
+    currentId, hide: true
   });
 }
 
@@ -52,6 +52,11 @@ function nextTooltip (state, action) {
   });
 }
 
+function loadTooltips (state) {
+  const hideTips = window.localStorage.getItem(LS_KEY);
+  return hideTips ? { ...state, hide: true } : state;
+}
+
 export default function tooltipReducer (state = {}, action) {
   switch (action.type) {
     case 'newTooltip':
@@ -62,6 +67,9 @@ export default function tooltipReducer (state = {}, action) {
 
     case 'closeTooltips':
       return closeTooltips(state, action);
+
+    case 'loadTooltips':
+      return loadTooltips(state);
 
     default:
       return state;

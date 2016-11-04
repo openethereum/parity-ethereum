@@ -34,7 +34,7 @@ class Transaction extends Component {
     isTest: PropTypes.bool.isRequired,
 
     loading: PropTypes.bool,
-    block: PropTypes.object,
+    timestamp: PropTypes.object,
     transaction: PropTypes.object
   }
 
@@ -51,12 +51,12 @@ class Transaction extends Component {
       return null;
     }
 
-    const { block, transaction } = this.props;
+    const { timestamp, transaction } = this.props;
 
     return (
       <tr>
         <td className={ styles.timestamp }>
-          <div>{ this.formatBlockTimestamp(block) }</div>
+          <div>{ this.formatBlockTimestamp(timestamp) }</div>
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         { this.renderAddress(transaction.from) }
@@ -165,12 +165,12 @@ class Transaction extends Component {
     return new BigNumber(number).toFormat();
   }
 
-  formatBlockTimestamp (block) {
-    if (!block) {
+  formatBlockTimestamp (timestamp) {
+    if (!timestamp) {
       return null;
     }
 
-    return moment(block.timestamp).fromNow();
+    return moment(timestamp).fromNow();
   }
 
 }
@@ -187,10 +187,11 @@ function mapStateToProps (_, initProps) {
     const block = blocks[blockNumber];
     const transaction = transactions[hash];
 
+    const { timestamp } = block || {};
     const loading = !block || !transaction || block.pending || transaction.pending;
 
     return {
-      block,
+      timestamp,
       transaction,
       loading
     };
