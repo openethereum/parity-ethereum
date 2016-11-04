@@ -611,7 +611,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let raw_transaction = raw.to_vec();
 		match UntrustedRlp::new(&raw_transaction).as_val() {
 			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
-			Err(_) => Ok(RpcH256::from(H256::from(0))),
+			Err(e) => Err(errors::from_rlp_error(e)),
 		}
 	}
 
@@ -621,15 +621,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let request = CallRequest::into(request);
 		let signed = try!(self.sign_call(request));
 
-		let r = match num.0 {
+		let result = match num.0 {
 			BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-		match r {
-			Ok(b) => Ok(Bytes(b.output)),
-			Err(e) => Err(errors::from_call_error(e)),
-		}
+
+		result
+			.map(|b| b.output.into())
+			.map_err(errors::from_call_error)
 	}
 
 	fn estimate_gas(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<RpcU256, Error> {
@@ -637,12 +637,14 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let request = CallRequest::into(request);
 		let signed = try!(self.sign_call(request));
-		let r = match num.0 {
+		let result = match num.0 {
 			BlockNumber::Pending => take_weak!(self.miner).call(&*take_weak!(self.client), &signed, Default::default()),
 			num => take_weak!(self.client).call(&signed, num.into(), Default::default()),
 		};
 
-		Ok(RpcU256::from(r.map(|res| res.gas_used + res.refunded).unwrap_or(From::from(0))))
+		result
+			.map(|res| (res.gas_used + res.refunded).into())
+			.map_err(errors::from_call_error)
 	}
 
 	fn compile_lll(&self, _: String) -> Result<Bytes, Error> {
