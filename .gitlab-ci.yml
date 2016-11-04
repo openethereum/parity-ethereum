@@ -218,9 +218,9 @@ linux-armv6:
   image: ethcore/rust-armv6:latest
   only:
     - $NIGHTLY
-    - beta
-    - tags
-    - stable
+#    - beta
+#    - tags
+#    - stable
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
