@@ -1,5 +1,7 @@
 stages:
   - build
+  - js-test
+  - js-build
   - test
 variables:
   GIT_DEPTH: "3"
@@ -8,7 +10,7 @@ variables:
   RUSTFLAGS: ""
   CARGOFLAGS: ""
 cache:
-  key: "$CI_BUILD_NAME/$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
@@ -347,7 +349,7 @@ windows:
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-darwin:
-  stage: build
+  stage: test
   only:
     - beta
     - tags
@@ -360,7 +362,7 @@ test-darwin:
   tags:
     - osx
 test-windows:
-  stage: build
+  stage: test
   only:
     - beta
     - tags
@@ -384,52 +386,7 @@ test-rust-stable:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-stable
- test-rust-beta:
-  stage: test
-  image: ethcore/rust:beta
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
-  script:
-    - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-beta
-test-rust-nightly:
-  stage: test
-  image: ethcore/rust:nightly
-  before_script:
-    - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/install-deps.sh; fi
-  script:
-    - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh&&./js/scripts/release.sh; else ./test.sh $CARGOFLAGS --no-release; fi
-  tags:
-    - rust
-    - rust-nigthly
-js-release:
-  stage: build
-  image: ethcore/rust:stable
-  only:
-    - jg*
-    - ng*
-    - ui*
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - if [ -z $JS_FILES_MODIFIED ]; then ./js/scripts/lint.sh&&./js/scripts/test.sh&&./js/scripts/build.sh; else ./test.sh $CARGOFLAGS --no-release; fi
   tags:
     - rust
     - rust-stable
@@ -447,6 +404,18 @@ js-tests:
     - ./js/scripts/test.sh
     - ./js/scripts/build.sh
   tags:
-    - rust
-    - rust-stable
-
+    - javascript-test
+js-release:
+  stage: build
+  image: ethcore/rust:stable
+  only:
+    - jg*
+    - ng*
+    - ui*
+  before_script:
+    - ./js/scripts/install-deps.sh
+  script:
+    - ./js/scripts/build.sh
+    - ./js/scripts/release.sh
+  tags:
+    - javascript
