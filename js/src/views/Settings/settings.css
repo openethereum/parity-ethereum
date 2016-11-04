@@ -65,4 +65,9 @@
 .imageIcon {
   height: 20px;
   margin: 2px 0.5em 2px 0 !important;
+  opacity: 0.5;
+}
+
+.tabactive .imageIcon {
+  opacity: 1;
 }
