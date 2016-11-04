@@ -873,18 +873,27 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn mode(&self) -> IpcMode { self.mode.lock().clone().into() }
+	fn mode(&self) -> IpcMode {
+		let r = self.mode.lock().clone().into();
+		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
+		r
+	}
 
-	fn set_mode(&self, mode: IpcMode) {
+	fn set_mode(&self, new_mode: IpcMode) {
+		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
 		{
 			let mut mode = self.mode.lock();
-			*mode = mode.clone().into();
+			*mode = new_mode.clone().into();
+			trace!(target: "mode", "Mode now {:?}", &*mode);
 			match *self.on_mode_change.lock() {
-				Some(ref mut f) => f(&*mode),
+				Some(ref mut f) => {
+					trace!(target: "mode", "Making callback...");
+					f(&*mode)
+				},
 				_ => {} 
 			}
 		}
-		match mode {
+		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }

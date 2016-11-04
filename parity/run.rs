@@ -166,6 +166,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 			false => "".to_owned(),
 		}
 	);
+	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
