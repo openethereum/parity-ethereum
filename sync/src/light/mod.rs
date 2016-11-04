@@ -148,22 +148,22 @@ impl Chain {
 		let mut stream = RlpStream::new_list(6);
 		stream
 			.begin_list(2)
-				.append("protocolVersion")
+				.append(&"protocolVersion")
 				.append(&PROTOCOL_VERSION)
 			.begin_list(2)
-				.append("networkId")
+				.append(&"networkId")
 				.append(&(self.mainnet as u8))
 			.begin_list(2)
-				.append("headTd")
+				.append(&"headTd")
 				.append(&chain_info.total_difficulty)
 			.begin_list(2)
-				.append("headHash")
+				.append(&"headHash")
 				.append(&chain_info.best_block_hash)
 			.begin_list(2)
-				.append("headNum")
+				.append(&"headNum")
 				.append(&chain_info.best_block_number)
 			.begin_list(2)
-				.append("genesisHash")
+				.append(&"genesisHash")
 				.append(&self.genesis_hash);
 
 		io.send(peer, packet::STATUS, stream.out())
@@ -315,6 +315,11 @@ impl NetworkProtocolHandler for Chain {
 
 			packet::GET_TRANSACTION_PROOFS => self.get_transaction_proofs(peer, io, rlp),
 			packet::TRANSACTION_PROOFS => self.transaction_proofs(peer, io, rlp),
+
+			other => {
+				debug!(target: "les", "Disconnecting peer {} on unexpected packet {}", peer, other);
+				io.disconnect_peer(*peer);
+			}
 		}
 	}
 
@@ -330,7 +335,6 @@ impl NetworkProtocolHandler for Chain {
 		match timer {
 			TIMEOUT => {
 				// broadcast transactions to peers.
-				// update buffer flow.
 			}
 			_ => warn!(target: "les", "received timeout on unknown token {}", timer),
 		}
