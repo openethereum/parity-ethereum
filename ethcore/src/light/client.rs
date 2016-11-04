@@ -27,18 +27,19 @@ use block_import_error::BlockImportError;
 use block_status::BlockStatus;
 use verification::queue::{Config as QueueConfig, HeaderQueue, QueueInfo, Status};
 use transaction::SignedTransaction;
+use types::blockchain_info::BlockChainInfo;
 
 use super::provider::{CHTProofRequest, Provider, ProofRequest};
 
 use io::IoChannel;
 use util::hash::H256;
-use util::Bytes;
+use util::{Bytes, Mutex};
 
 /// Light client implementation.
 pub struct Client {
 	engine: Arc<Engine>,
 	header_queue: HeaderQueue,
-	message_channel: IoChannel<ClientIoMessage>,
+	message_channel: Mutex<IoChannel<ClientIoMessage>>,
 }
 
 impl Client {
@@ -70,11 +71,12 @@ impl Client {
 	}
 
 	/// Get the chain info.
-	pub fn chain_info(&self) -> ChainInfo {
-
+	pub fn chain_info(&self) -> BlockChainInfo {
+		unimplemented!()
 	}
 }
 
+// dummy implementation -- may draw from canonical cache further on.
 impl Provider for Client {
 	fn block_headers(&self, block: H256, skip: usize, max: usize, reverse: bool) -> Vec<Bytes> {
 		Vec::new()

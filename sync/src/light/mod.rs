@@ -29,6 +29,10 @@ use parking_lot::{Mutex, RwLock};
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
+use self::request::Request;
+
+mod request;
+
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
 
@@ -87,11 +91,9 @@ mod packet {
 	pub const TRANSACTION_PROOFS: u8 = 0x13;
 }
 
-struct Request;
-
 struct Requested {
 	timestamp: usize,
-	total: Request,
+	req: Request,
 }
 
 // data about each peer.
@@ -172,7 +174,7 @@ impl Chain {
 		unimplemented!()
 	}
 
-	fn status(&self, peer: &PeerId, io: &NetworkContext) {
+	fn status(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		unimplemented!()
 	}
 
@@ -202,6 +204,16 @@ impl Chain {
 
 	// Receive a response for block bodies.
 	fn block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+		unimplemented!()
+	}
+
+	// Handle a request for receipts.
+	fn get_receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+		unimplemented!()
+	}
+
+	// Receive a response for receipts.
+	fn receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		unimplemented!()
 	}
 
@@ -284,7 +296,7 @@ impl NetworkProtocolHandler for Chain {
 			packet::BLOCK_BODIES => self.block_bodies(peer, io, rlp),
 
 			packet::GET_RECEIPTS => self.get_receipts(peer, io, rlp),
-			packet::RECEIPTS => self.receipt(peer, io, rlp),
+			packet::RECEIPTS => self.receipts(peer, io, rlp),
 
 			packet::GET_PROOFS => self.get_proofs(peer, io, rlp),
 			packet::PROOFS => self.proofs(peer, io, rlp),
@@ -311,7 +323,7 @@ impl NetworkProtocolHandler for Chain {
 	}
 
 	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.on_disconnect(peer, io);
+		self.on_disconnect(*peer, io);
 	}
 
 	fn timeout(&self, io: &NetworkContext, timer: TimerToken) {

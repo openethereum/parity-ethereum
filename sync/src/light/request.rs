@@ -14,125 +14,152 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! LES request types.
+/// LES request types.
 
-use util::bigint::prelude::*;
-use rlp::*;
+use ethcore::transaction::Transaction;
+use util::{Address, H256};
 
-/// An LES request. This defines its data format, and the format of its response type.
-pub trait Request: Sized {
-	/// The response type of this request.
-	type Response: Response;
-
-	/// The error type when decoding a response.
-	type Error;
-
-	/// Whether this request is empty.
-	fn is_empty(&self) -> bool;
-
-	/// The remainder of this request unfulfilled by the response. Required to return
-	/// an equivalent request when provided with an empty response.
-	fn remainder(&self, res: &Self::Response) -> Self;
-
-	/// Attempt to parse raw data into a response object
-	/// or an error. Behavior undefined if the raw data didn't originate from
-	/// this request.
-	fn parse_response(&self, raw: &[u8]) -> Result<Self::Response, Self::Error>;
+/// A request for block headers.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Headers {
+	/// Block information for the request being made.
+	pub block: (u64, H256),
+	/// The maximum amount of headers which can be returned.
+	pub max: u64,
+	/// The amount of headers to skip between each response entry.
+	pub skip: u64,
+	/// Whether the headers should proceed in falling number from the initial block.
+	pub reverse: bool,
 }
 
-/// Request responses. These must have a combination operation used to fill the gaps
-/// in one response with data from another.
-pub trait Response: Sized {
-	/// Combine the two responses into one. This can only be relied on to behave correctly
-	/// if `other` is a response to a sub-request of the request this response was
-	/// produced from.
-	fn combine(&mut self, other: Self);
+/// A request for specific block bodies.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Bodies {
+	/// Hashes which bodies are being requested for.
+	pub block_hashes: Vec<H256>
 }
 
-/// A request for block bodies.
-pub struct BlockBodies {
-	hashes: Vec<H256>,
+/// A request for transaction receipts.
+///
+/// This request is answered with a list of transaction receipts for each block
+/// requested.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Receipts {
+	/// Block hashes to return receipts for.
+	pub block_hashes: Vec<H256>,
 }
 
-/// A response for block bodies.
-pub struct BlockBodiesResponse {
-	bodies: Vec<(H256, Vec<u8>)>,
+/// A request for state proofs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateProofs {
+	/// Block hash to query state from.
+	pub block: H256,
+	/// Key of the state trie -- corresponds to account hash.
+	pub key1: H256,
+	/// Key in that account's storage trie; if empty, then the account RLP should be
+	/// returned.
+	pub key2: Option<H256>,
+	/// if greater than zero, trie nodes beyond this level may be omitted.
+	pub from_level: u32, // could even safely be u8; trie w/ 32-byte key can be at most 64-levels deep.
 }
 
-impl Request for BlockBodies {
-	type Response = BlockBodiesResponse;
-	type Error = ::rlp::DecoderError;
-
-	fn is_empty(&self) -> bool { self.hashes.is_empty() }
-
-	fn remainder(&self, res: &Self::Response) -> Self {
-		let mut remaining = Vec::new();
-
-		let bodies = res.bodies.iter().map(|&(_, ref b) b).chain(::std::iter::repeat(&Vec::new()));
-		for (hash, body) in self.hashes.iter().zip(bodies) {
-			if body.is_empty() {
-				remaining.push(hash);
-			}
-		}
-
-		BlockBodies {
-			hashes: remaining,
-		}
-	}
-
-	fn parse_response(&self, raw: &[u8]) -> Result<Self::Response, Self::Error> {
-		use ethcore::transaction::SignedTransaction;
-		use ethcore::header::Header;
-
-		let rlp = UntrustedRlp::new(raw);
-
-		let mut bodies = Vec::with_capacity(self.hashes.len());
-
-		let items = rlp.iter();
-		for hash in self.hashes.iter().cloned() {
-			let res_bytes = match items.next() {
-				Some(rlp) => {
-					// perform basic block verification.
-					// TODO: custom error type?
-					try!(rlp.val_at::<Vec<SignedTransaction>>(0)
-						.and_then(|_| rlp.val_at::<Vec<Header>>(1)));
-
-					try!(rlp.data()).to_owned()
-				}
-				None => Vec::new(),
-			};
-
-			bodies.push((hash, res_bytes));
-		}
-
-		Ok(BlockBodiesResponse {
-			bodies: bodies,
-		})
-	}
+/// A request for contract code.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContractCodes {
+	/// Block hash and account key (== sha3(address)) pairs to fetch code for.
+	pub code_requests: Vec<(H256, H256)>,
 }
 
-impl Response for BlockBodiesResponse {
-	fn identity() -> Self {
-		BlockBodiesResponse {
-			bodies: Vec::new(),
-		}
-	}
+/// A request for header proofs from the Canonical Hash Trie.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeaderProofs {
+	/// Number of the CHT.
+	pub cht_number: u64,
+	/// Block number requested.
+	pub block_number: u64,
+	/// If greater than zero, trie nodes beyond this level may be omitted.
+	pub from_level: u32,
+}
 
-	fn combine(&mut self, other: Self) {
-		let other_iter = other.bodies.into_iter();
+/// A request for block deltas -- merkle proofs of all changed trie nodes and code.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BlockDeltas {
+	/// Block hashes deltas are being requested for.
+	pub block_hashes: Vec<H256>,
+}
 
-		'a:
-		for &mut (ref my_hash, ref mut my_body) in self.bodies.iter_mut() {
-			loop {
-				match other_iter.next() {
-					Some((hash, body)) if hash == my_hash && !body.is_empty() => {
-						*my_body = body.to_owned();
-						break
-					}
-					Some(_) => continue,
-					None => break 'a,
-				}
-			}
+/// A request for a single transaction merkle proof.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransactionProof {
+	/// The block hash to use the initial state from.
+	pub block_hash: H256,
+	/// The address to treat as the sender of the transaction.
+	pub sender: Address,
+	/// The raw transaction request itself.
+	pub transaction: Transaction,
+}
+
+/// A request for transaction merkle proofs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TransactionProofs {
+	/// Transaction proof requests.
+	pub tx_reqs: Vec<TransactionProof>,
+}
+
+/// Kinds of requests.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+	/// Requesting headers.
+	Headers,
+	/// Requesting block bodies.
+	Bodies,
+	/// Requesting transaction receipts.
+	Receipts,
+	/// Requesting proofs of state trie nodes.
+	StateProofs,
+	/// Requesting contract code by hash.
+	Codes,
+	/// Requesting header proofs (from the CHT).
+	HeaderProofs,
+	/// Requesting block deltas.
+	Deltas,
+	/// Requesting merkle proofs for transactions.
+	TransactionProofs,
+}
+
+/// Encompasses all possible types of requests in a single structure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Request {
+	/// Requesting headers.
+	Headers(Headers),
+	/// Requesting block bodies.
+	Bodies(Bodies),
+	/// Requesting transaction receipts.
+	Receipts(Receipts),
+	/// Requesting state proofs.
+	StateProofs(StateProofs),
+	/// Requesting contract codes.
+	Codes(ContractCodes),
+	/// Requesting header proofs.
+	HeaderProofs(HeaderProofs),
+	/// Requesting block deltas.
+	Deltas(BlockDeltas),
+	/// Requesting transaction proofs.
+	TransactionProofs(TransactionProofs),
+}
+
+impl Request {
+	/// Get the kind of request this is.
+	pub fn kind(&self) -> Kind {
+		match *self {
+			Request::Headers(_) => Kind::Headers,
+			Request::Bodies(_) => Kind::Bodies,
+			Request::Receipts(_) => Kind::Receipts,
+			Request::StateProofs(_) => Kind::StateProofs,
+			Request::Codes(_) => Kind::Codes,
+			Request::HeaderProofs(_) => Kind::HeaderProofs,
+			Request::Deltas(_) => Kind::Deltas,
+			Request::TransactionProofs(_) => Kind::TransactionProofs,
 		}
 	}
 }
