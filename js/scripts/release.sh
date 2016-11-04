@@ -64,7 +64,7 @@ if [ "$BRANCH" == "master" ]; then
   echo "*** Publishing $PACKAGE to npmjs"
   cd .npmjs
   npm publish --access public
-  cd ..
+  cd ../..
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
