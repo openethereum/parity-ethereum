@@ -14,22 +14,31 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import settingsReducer from './reducers';
-import { toggleView, updateBackground } from './actions';
-import SettingsBackground from './Background';
-import SettingsParity from './Parity';
-import SettingsProxy from './Proxy';
-import SettingsViews, { defaultViews } from './Views';
+import React, { Component } from 'react';
 
-export default from './settings';
+import { Container, ContainerTitle } from '../../../ui';
 
-export {
-  SettingsBackground,
-  SettingsParity,
-  SettingsProxy,
-  SettingsViews,
-  defaultViews,
-  settingsReducer,
-  toggleView,
-  updateBackground
-};
+import layout from '../layout.css';
+
+export default class Parity extends Component {
+  static propTypes = {
+  }
+
+  state = {
+  }
+
+  render () {
+    return (
+      <Container>
+        <ContainerTitle title='Parity' />
+        <div className={ layout.layout }>
+          <div className={ layout.overview }>
+            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memororable addresses.</div>
+          </div>
+          <div className={ layout.details }>
+          </div>
+        </div>
+      </Container>
+    );
+  }
+}
