@@ -302,7 +302,7 @@ impl SignedTransaction {
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 { match self.v { v if v > 36 => (v - 37) % 2, _ => 4 } }
+	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => (v - 37) % 2, _ => 4 } }
 
 	/// The network ID, or `None` if this is a global transaction. 
 	pub fn network_id(&self) -> Option<u8> {
