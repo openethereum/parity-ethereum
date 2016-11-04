@@ -147,7 +147,7 @@ export function attachContract (address) {
     }
 
     const instance = api.newContract(contract.meta.abi, address);
-    dispatch(setContract(address, { ...contract, instance }));
+    dispatch(setContract(address, { ...contract, instance, eventsLoading: true }));
   };
 }
 
@@ -160,7 +160,6 @@ export function subscribeToContractEvents (address) {
     }
 
     const { instance } = blockchain.contracts[address];
-    dispatch(setContract(address, { eventsLoading: true }));
 
     instance
       .subscribe(
@@ -303,6 +302,10 @@ function getFetchBlocks (dispatch, getState, blockNumbers) {
     return !blocks[key].pending && !blocks[key].valid;
   });
 
+  if (blocksToFetch.length === 0) {
+    return;
+  }
+
   dispatch(setBlocksPending(blocksToFetch, true));
 
   return Promise
@@ -346,6 +349,10 @@ function getFetchTransaction (dispatch, getState, txHashes) {
       // If not pending or invalid
       return !transactions[hash].pending && !transactions[hash].valid;
     });
+
+  if (txsToFetch.length === 0) {
+    return;
+  }
 
   dispatch(setTransactionsPending(txsToFetch, true));
 

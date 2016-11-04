@@ -141,6 +141,7 @@
     "recharts": "^0.15.2",
     "redux": "^3.5.2",
     "redux-actions": "^0.10.1",
+    "redux-logger": "^2.7.4",
     "redux-thunk": "^2.1.0",
     "rlp": "^2.0.0",
     "store": "^1.3.20",

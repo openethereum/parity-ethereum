@@ -49,7 +49,11 @@ export default class Signer {
           return;
         }
 
-        this._store.dispatch(signerRequestsToConfirm(pending || []));
+        const requests = pending || [];
+
+        if (requests.length > 0) {
+          this._store.dispatch(signerRequestsToConfirm());
+        }
       })
       .then((subscriptionId) => {
         console.log('signer._subscribeRequestsToConfirm', 'subscriptionId', subscriptionId);

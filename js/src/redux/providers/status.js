@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import { isEqual } from 'lodash';
 
 import { parityNode } from '../../environment';
 
@@ -22,6 +23,10 @@ export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
+
+    this.__pingable = false;
+    this._apiStatus = {};
+    this._status = {};
   }
 
   start () {
@@ -36,7 +41,9 @@ export default class Status {
     this._api
       .ethcore.enode()
       .then((enode) => {
-        this._store.dispatch(statusCollection({ enode }));
+        if (this._store.state.nodeStatus.enode !== enode) {
+          this._store.dispatch(statusCollection({ enode }));
+        }
       })
       .catch(() => {
         window.setTimeout(() => {
@@ -61,7 +68,11 @@ export default class Status {
 
   _pollPing = () => {
     const dispatch = (status, timeout = 500) => {
-      this._store.dispatch(statusCollection({ isPingable: status }));
+      if (status !== this._pingable) {
+        this._pingable = status;
+        this._store.dispatch(statusCollection({ isPingable: status }));
+      }
+
       setTimeout(this._pollPing, timeout);
     };
 
@@ -92,7 +103,17 @@ export default class Status {
       this._fetchEnode();
     }
 
-    this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
+    const apiStatus = {
+      isConnected,
+      isConnecting,
+      needsToken,
+      secureToken
+    };
+
+    if (!isEqual(apiStatus, this._apiStatus)) {
+      this._store.dispatch(statusCollection(apiStatus));
+      this._apiStatus = apiStatus;
+    }
 
     if (!isConnected) {
       nextTimeout(250);
@@ -119,7 +140,7 @@ export default class Status {
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        this._store.dispatch(statusCollection({
+        const status = {
           clientVersion,
           coinbase,
           defaultExtraData,
@@ -135,7 +156,13 @@ export default class Status {
           syncing,
           isTest,
           traceMode
-        }));
+        };
+
+        if (!isEqual(status, this._status)) {
+          this._store.dispatch(statusCollection(status));
+          this._status = status;
+        }
+
         nextTimeout();
       })
       .catch((error) => {
