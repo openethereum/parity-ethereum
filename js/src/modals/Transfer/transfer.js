@@ -410,6 +410,7 @@ export default class Transfer extends Component {
     const { api } = this.context;
     const { account } = this.props;
     const { data, gas, gasPrice, recipient, value } = this.state;
+
     const options = {
       from: account.address,
       to: recipient,

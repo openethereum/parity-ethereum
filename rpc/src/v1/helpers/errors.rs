@@ -21,6 +21,7 @@ macro_rules! rpc_unimplemented {
 }
 
 use std::fmt;
+use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
@@ -268,6 +269,14 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			message: "Unknown error when sending transaction.".into(),
 			data: Some(Value::String(format!("{:?}", error))),
 		}
+	}
+}
+
+pub fn from_rlp_error(error: DecoderError) -> Error {
+	Error {
+		code: ErrorCode::InvalidParams,
+		message: "Invalid RLP.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
 
