@@ -806,6 +806,23 @@ fn rpc_eth_send_transaction_error() {
 }
 
 #[test]
+fn rpc_eth_send_raw_transaction_error() {
+	let tester = EthTester::default();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendRawTransaction",
+		"params": [
+			"0x0123"
+		],
+		"id": 1
+	}"#;
+	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpIncorrectListLen"},"id":1}"#.into();
+
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
+}
+
+#[test]
 fn rpc_eth_send_raw_transaction() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("abcd").unwrap();
