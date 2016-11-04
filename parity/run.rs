@@ -140,7 +140,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
 	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
 
-
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
