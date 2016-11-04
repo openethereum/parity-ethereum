@@ -9,7 +9,7 @@
 !define COMPANYNAME "Ethcore"
 !define DESCRIPTION "Fast, light, robust Ethereum implementation"
 !define VERSIONMAJOR 1
-!define VERSIONMINOR 4
+!define VERSIONMINOR 5
 !define VERSIONBUILD 0
 !define ARGS "--warp --mode=passive"
 
