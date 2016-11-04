@@ -74,7 +74,7 @@ usage! {
 	}
 	{
 		// -- Operating Options
-		flag_mode: String = "auto", or |c: &Config| otry!(c.parity).mode.clone(),
+		flag_mode: String = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
@@ -498,7 +498,7 @@ mod tests {
 			arg_path: vec![],
 
 			// -- Operating Options
-			flag_mode: "auto".into(),
+			flag_mode: "last".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
 			flag_chain: "xyz".into(),
