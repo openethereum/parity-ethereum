@@ -18,18 +18,26 @@ import React, { Component, PropTypes } from 'react';
 
 import styles from './dapp.css';
 
-const dapphost = process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:8080/ui' : '';
-
 export default class Dapp extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     params: PropTypes.object
   };
 
   render () {
     const { name, type } = this.props.params;
-    const src = (type === 'builtin')
-      ? `${dapphost}/${name}.html`
-      : `http://127.0.0.1:8080/${name}/`;
+    const { dappsUrl } = this.context.api;
+
+    let src = `${dappsUrl}/${name}/`;
+    if (type === 'builtin') {
+      const dapphost = process.env.NODE_ENV === 'production'
+        ? `${dappsUrl}/ui`
+        : '';
+      src = `${dapphost}/${name}.html`;
+    }
 
     return (
       <iframe
