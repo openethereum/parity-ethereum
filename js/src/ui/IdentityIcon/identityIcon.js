@@ -37,33 +37,20 @@ class IdentityIcon extends Component {
     images: PropTypes.object.isRequired
   }
 
-  state = {
-    iconsrc: ''
-  }
-
-  componentDidMount () {
-    this.updateIcon(this.props.address, this.props.images);
-  }
-
-  componentWillReceiveProps (newProps) {
+  shouldComponentUpdate (newProps, newState) {
     const sameAddress = newProps.address === this.props.address;
     const sameImages = Object.keys(newProps.images).length === Object.keys(this.props.images).length;
 
-    if (sameAddress && sameImages) {
-      return;
-    }
-
-    this.updateIcon(newProps.address, newProps.images);
+    return !(sameAddress && sameImages);
   }
 
-  updateIcon (_address, images) {
+  getIconSrc (_address, images) {
     const { api } = this.context;
     const { button, inline, tiny } = this.props;
     const iconsrc = images[_address];
 
     if (iconsrc) {
-      this.setState({ iconsrc });
-      return;
+      return iconsrc;
     }
 
     let scale = 7;
@@ -75,14 +62,14 @@ class IdentityIcon extends Component {
       scale = 4;
     }
 
-    this.setState({
-      iconsrc: api.util.createIdentityImg(_address, scale)
-    });
+    return api.util.createIdentityImg(_address, scale);
   }
 
   render () {
-    const { address, button, className, center, inline, padded, tiny } = this.props;
-    const { iconsrc } = this.state;
+    const { address, button, className, center, images, inline, padded, tiny } = this.props;
+
+    const iconsrc = this.getIconSrc(address, images);
+
     const classes = [
       styles.icon,
       tiny ? styles.tiny : '',

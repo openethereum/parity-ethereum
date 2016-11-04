@@ -33,10 +33,7 @@ class Events extends Component {
   static propTypes = {
     subscribeToContractEvents: PropTypes.func.isRequired,
     address: PropTypes.string,
-    contract: PropTypes.object,
-    blocks: PropTypes.object,
-    transactions: PropTypes.object,
-    isTest: PropTypes.bool,
+    events: PropTypes.array,
     loading: PropTypes.bool
   }
 
@@ -50,19 +47,13 @@ class Events extends Component {
       return false;
     }
 
-    return !nextProps.loading && this.props.loading;
+    return true;
   }
 
   render () {
-    const { contract, blocks, transactions, isTest } = this.props;
+    const { events, loading } = this.props;
 
-    if (!contract) {
-      return null;
-    }
-
-    const { events } = contract;
-
-    if (!events || this.eventsLoading()) {
+    if (!events || loading) {
       return (
         <Container className={ styles.eventsContainer }>
           <ContainerTitle title='events' />
@@ -71,9 +62,7 @@ class Events extends Component {
       );
     }
 
-    const allEvents = [].concat(events.pending, events.mined);
-
-    if (allEvents.length === 0) {
+    if (events.length === 0) {
       return (
         <Container className={ styles.eventsContainer }>
           <ContainerTitle title='events' />
@@ -90,17 +79,11 @@ class Events extends Component {
         <table className={ styles.events }>
           <tbody>
           {
-            allEvents.map((event) => {
-              const block = blocks[event.blockNumber.toString()];
-              const transaction = transactions[event.transactionHash] || {};
-
+            events.map((event) => {
               return (
                 <Event
                   event={ event }
                   key={ event.key }
-                  block={ block }
-                  transaction={ transaction }
-                  isTest={ isTest }
                 />
               );
             })
@@ -111,46 +94,24 @@ class Events extends Component {
     );
   }
 
-  eventsLoading () {
-    const { contract, blocks, transactions } = this.props;
-    const { events } = contract;
-
-    if (events.loading) {
-      return true;
-    }
-
-    const allEvents = [].concat(events.pending, events.mined);
-
-    const blockNumbers = allEvents.map(e => e.blockNumber.toString());
-    const txHashes = allEvents.map(e => e.transactionHash);
-
-    const pendingBlocks = blockNumbers
-      .map(k => blocks[k])
-      .filter(b => (b && b.pending) || !b);
-
-    const pendingTransactions = txHashes
-      .map(k => transactions[k])
-      .filter(t => (t && t.pending) || !t);
-
-    return pendingBlocks.length + pendingTransactions.length > 0;
-  }
 }
 
 function mapStateToProps (_, initProps) {
   const { address } = initProps;
 
   return (state) => {
-    const { isTest } = state.nodeStatus;
-    const { blocks, transactions, contracts } = state.blockchain;
+    const { contracts } = state.blockchain;
 
     const contract = contracts[address];
+
     const loading = contract.eventsLoading;
+    const events = [].concat(
+      contract.events.mined,
+      contract.events.pending
+    );
 
     return {
-      isTest,
-      blocks,
-      transactions,
-      contract,
+      events,
       loading
     };
   };

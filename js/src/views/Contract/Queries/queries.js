@@ -27,6 +27,74 @@ import { Container, ContainerTitle, Input } from '../../../ui';
 
 import styles from './queries.css';
 
+class Query extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  };
+
+  static propTypes = {
+    fn: PropTypes.object.isRequired,
+    value: PropTypes.any
+  };
+
+  shouldComponentUpdate (nextProps) {
+    const newFn = nextProps.fn.signature !== this.props.fn.signature;
+    const newValue = nextProps.value !== this.props.value;
+
+    return newFn || newValue;
+  }
+
+  render () {
+    const { fn } = this.props;
+
+    return (
+      <div className={ styles.container } key={ fn.signature }>
+        <Card className={ styles.method }>
+          <CardTitle
+            className={ styles.methodTitle }
+            title={ fn.name }
+          />
+          <CardText
+            className={ styles.methodContent }
+          >
+            { this.renderValue() }
+          </CardText>
+        </Card>
+      </div>
+    );
+  }
+
+  renderValue () {
+    const { value } = this.props;
+
+    if (!value) {
+      return null;
+    }
+
+    const { api } = this.context;
+    let valueToDisplay = null;
+
+    if (api.util.isInstanceOf(value, BigNumber)) {
+      valueToDisplay = value.toFormat(0);
+    } else if (api.util.isArray(value)) {
+      valueToDisplay = api.util.bytesToHex(value);
+    } else if (typeof value === 'boolean') {
+      valueToDisplay = value ? 'true' : 'false';
+    } else {
+      valueToDisplay = value.toString();
+    }
+
+    return (
+      <Input
+        className={ styles.queryValue }
+        value={ valueToDisplay }
+        readOnly
+        allowCopy
+      />
+    );
+  }
+}
+
 class Queries extends Component {
   static contextTypes = {
     api: PropTypes.object
@@ -55,6 +123,8 @@ class Queries extends Component {
       );
     }
 
+    const values = contract.queries;
+
     const queries = contract.instance
       .functions
       .filter((fn) => fn.constant)
@@ -63,7 +133,7 @@ class Queries extends Component {
     const noInputQueries = queries
       .slice()
       .filter((fn) => fn.inputs.length === 0)
-      .map((fn) => this.renderQuery(fn));
+      .map((fn) => this.renderQuery(values[fn.name], fn));
 
     const withInputQueries = queries
       .slice()
@@ -102,57 +172,12 @@ class Queries extends Component {
     );
   }
 
-  renderQuery (fn) {
-    const { contract } = this.props;
-    const { queries } = contract;
-
+  renderQuery (value, fn) {
     return (
-      <div className={ styles.container } key={ fn.signature }>
-        <Card className={ styles.method }>
-          <CardTitle
-            className={ styles.methodTitle }
-            title={ fn.name }
-          />
-          <CardText
-            className={ styles.methodContent }
-          >
-            { this.renderValue(queries, fn.name) }
-          </CardText>
-        </Card>
-      </div>
-    );
-  }
-
-  renderValue (queries, key) {
-    if (!queries) {
-      return null;
-    }
-
-    const value = queries[key];
-
-    if (typeof value === 'undefined') {
-      return null;
-    }
-
-    const { api } = this.context;
-    let valueToDisplay = null;
-
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      valueToDisplay = value.toFormat(0);
-    } else if (api.util.isArray(value)) {
-      valueToDisplay = api.util.bytesToHex(value);
-    } else if (typeof value === 'boolean') {
-      valueToDisplay = value ? 'true' : 'false';
-    } else {
-      valueToDisplay = value.toString();
-    }
-
-    return (
-      <Input
-        className={ styles.queryValue }
-        value={ valueToDisplay }
-        readOnly
-        allowCopy
+      <Query
+        key={ fn.signature }
+        value={ value }
+        fn={ fn }
       />
     );
   }

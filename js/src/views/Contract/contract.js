@@ -40,8 +40,8 @@ class Contract extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
+    baseAccount: PropTypes.string,
+    balance: PropTypes.object,
     contract: PropTypes.object,
     ready: PropTypes.bool,
     isTest: PropTypes.bool,
@@ -74,7 +74,7 @@ class Contract extends Component {
   }
 
   componentWillReceiveProps (newProps) {
-    const { accounts, params } = newProps;
+    const { baseAccount, params } = newProps;
 
     if (!this.props.ready && newProps.ready) {
       this.attachContract();
@@ -85,7 +85,7 @@ class Contract extends Component {
       this.attachContract(newProps);
     }
 
-    if (Object.keys(accounts).length !== Object.keys(this.props.accounts).length) {
+    if (baseAccount !== this.props.baseAccount) {
       this.setBaseAccount(newProps);
     }
   }
@@ -95,9 +95,8 @@ class Contract extends Component {
   }
 
   render () {
-    const { balances, contract, params, isTest } = this.props;
+    const { balance, contract, params, isTest } = this.props;
     const { address } = params;
-    const balance = balances[address];
 
     if (!contract) {
       return null;
@@ -181,7 +180,7 @@ class Contract extends Component {
 
   renderExecuteDialog () {
     const { fromAddress, showExecuteDialog } = this.state;
-    const { accounts, contract } = this.props;
+    const { contract } = this.props;
 
     if (!showExecuteDialog) {
       return null;
@@ -189,11 +188,11 @@ class Contract extends Component {
 
     return (
       <ExecuteContract
-        accounts={ accounts }
         contract={ contract.instance }
         fromAddress={ fromAddress }
         onClose={ this.closeExecuteDialog }
-        onFromAddressChange={ this.onFromAddressChange } />
+        onFromAddressChange={ this.onFromAddressChange }
+      />
     );
   }
 
@@ -226,11 +225,9 @@ class Contract extends Component {
       return;
     }
 
-    const { accounts } = props;
+    const { baseAccount } = props;
 
-    this.setState({
-      fromAddress: Object.keys(accounts)[0]
-    });
+    this.setState({ fromAddress: baseAccount });
   }
 
   onFromAddressChange = (event, fromAddress) => {
@@ -249,14 +246,16 @@ function mapStateToProps (_, initProps) {
     const { contracts } = state.blockchain;
 
     const contract = contracts[address];
+    const balance = balances[address];
     const ready = Object.keys(state.personal.contracts).length > 0;
+    const baseAccount = Object.keys(accounts)[0];
 
     return {
       ready,
       isTest,
-      accounts,
+      baseAccount,
       contract,
-      balances
+      balance
     };
   };
 }

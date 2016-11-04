@@ -26,6 +26,13 @@ export function setBlock (blockNumber, block) {
   };
 }
 
+export function setBlocks (blocks, extra) {
+  return {
+    type: 'setBlocks',
+    blocks, extra
+  };
+}
+
 export function setBlocksPending (blockNumbers, pending) {
   return {
     type: 'setBlocksPending',
@@ -37,6 +44,13 @@ export function setTransaction (txHash, info) {
   return {
     type: 'setTransaction',
     txHash, info
+  };
+}
+
+export function setTransactions (transactions, extra) {
+  return {
+    type: 'setTransactions',
+    transactions, extra
   };
 }
 
@@ -294,15 +308,10 @@ function getFetchBlocks (dispatch, getState, blockNumbers) {
   return Promise
     .all(blocksToFetch.map(n => state.api.eth.getBlockByNumber(n)))
     .then(blocks => {
-      blocksToFetch.forEach((blockNumber, index) => {
-        const block = blocks[index];
-
-        dispatch(setBlock(blockNumber, {
-          ...block,
-          pending: false,
-          valid: true
-        }));
-      });
+      dispatch(setBlocks(blocks, {
+        pending: false,
+        valid: true
+      }));
     })
     .catch(e => {
       console.error('blockchain::fetchBlocks', e);
@@ -343,15 +352,10 @@ function getFetchTransaction (dispatch, getState, txHashes) {
   return Promise
     .all(txsToFetch.map(h => state.api.eth.getTransactionByHash(h)))
     .then((transactions) => {
-      txsToFetch.forEach((txHash, index) => {
-        const info = transactions[index];
-
-        dispatch(setTransaction(txHash, {
-          ...info,
-          pending: false,
-          valid: true
-        }));
-      });
+      dispatch(setTransactions(transactions, {
+        pending: false,
+        valid: true
+      }));
     })
     .catch(e => {
       console.error('blockchain::fetchTransaction', e);

@@ -48,6 +48,21 @@ export default handleActions({
     return Object.assign({}, state, { blocks });
   },
 
+  setBlocks (state, action) {
+    const { blocks, extra } = action;
+
+    const newBlocks = Object.assign({}, state.blocks);
+
+    blocks.forEach(block => {
+      newBlocks[block.number.toString()] = {
+        ...block,
+        ...extra
+      };
+    });
+
+    return Object.assign({}, state, { blocks: newBlocks });
+  },
+
   setBlocksPending (state, action) {
     const { blockNumbers, pending } = action;
     const blocks = Object.assign({}, state.blocks);
@@ -72,6 +87,21 @@ export default handleActions({
     });
 
     return Object.assign({}, state, { transactions });
+  },
+
+  setTransactions (state, action) {
+    const { transactions, extra } = action;
+
+    const newTransactions = Object.assign({}, state.transactions);
+
+    transactions.forEach(transaction => {
+      newTransactions[transaction.hash] = {
+        ...transaction,
+        ...extra
+      };
+    });
+
+    return Object.assign({}, state, { transactions: newTransactions });
   },
 
   setTransactionsPending (state, action) {

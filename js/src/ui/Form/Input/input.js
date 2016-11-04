@@ -82,6 +82,14 @@ export default class Input extends Component {
     copied: false
   }
 
+  shouldComponentUpdate (nextProps) {
+    if (nextProps.disabled || nextProps.readOnly) {
+      return nextProps.value !== this.props.value;
+    }
+
+    return true;
+  }
+
   componentWillReceiveProps (newProps) {
     if (newProps.value !== this.props.value) {
       this.setValue(newProps.value);

@@ -15,6 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { isEqual } from 'lodash';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
@@ -23,7 +26,7 @@ import { validateAddress } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
-export default class ExecuteContract extends Component {
+class ExecuteContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
@@ -226,3 +229,27 @@ export default class ExecuteContract extends Component {
       });
   }
 }
+
+function mapStateToProps (initState, initProps) {
+  let initAccounts = initState.personal.accounts;
+  let initAccountsKeys = Object.keys(initAccounts).sort();
+  let currentProps = { accounts: initAccounts };
+
+  return (state) => {
+    const { accounts } = state.personal;
+    const accountsKeys = Object.keys(accounts).sort();
+
+    if (!isEqual(accountsKeys, initAccountsKeys)) {
+      initAccounts = Object.assign({}, accounts);
+      initAccountsKeys = accountsKeys;
+
+      currentProps.accounts = initAccounts;
+    }
+
+    return currentProps;
+  };
+}
+
+export default connect(
+  mapStateToProps
+)(ExecuteContract);

@@ -20,8 +20,6 @@ import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
-const subscriptionIds = [];
-
 export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
