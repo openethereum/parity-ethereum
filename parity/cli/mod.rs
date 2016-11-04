@@ -155,7 +155,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
+		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal,personal_safe",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -549,7 +549,7 @@ mod tests {
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
+			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal,personal_safe".into(),
 
 			// DAPPS
 			flag_no_dapps: false,

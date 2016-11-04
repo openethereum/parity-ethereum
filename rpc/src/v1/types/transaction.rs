@@ -54,10 +54,17 @@ pub struct Transaction {
 	/// Public key of the signer.
 	#[serde(rename="publicKey")]
 	pub public_key: Option<H512>,
+	/// The V field of the signature.
+	pub v: u8,
+	/// The R field of the signature.
+	pub r: H256,
+	/// The S field of the signature.
+	pub s: H256,
 }
 
 impl From<LocalizedTransaction> for Transaction {
 	fn from(t: LocalizedTransaction) -> Transaction {
+		let signature = t.signature();
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -79,12 +86,16 @@ impl From<LocalizedTransaction> for Transaction {
 			},
 			raw: ::rlp::encode(&t.signed).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
+			v: signature.v(),
+			r: signature.r().into(),
+			s: signature.s().into(),
 		}
 	}
 }
 
 impl From<SignedTransaction> for Transaction {
 	fn from(t: SignedTransaction) -> Transaction {
+		let signature = t.signature();
 		Transaction {
 			hash: t.hash().into(),
 			nonce: t.nonce.into(),
@@ -106,6 +117,9 @@ impl From<SignedTransaction> for Transaction {
 			},
 			raw: ::rlp::encode(&t).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
+			v: signature.v(),
+			r: signature.r().into(),
+			s: signature.s().into(),
 		}
 	}
 }
@@ -119,7 +133,7 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"v":0,"r":"0x0000000000000000000000000000000000000000000000000000000000000000","s":"0x0000000000000000000000000000000000000000000000000000000000000000"}"#);
 	}
 }
 

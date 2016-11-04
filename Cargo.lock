@@ -312,7 +312,7 @@ dependencies = [
 
 [[package]]
 name = "ethcore-bigint"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -549,7 +549,7 @@ dependencies = [
  "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
- "ethcore-bigint 0.1.1",
+ "ethcore-bigint 0.1.2",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.4.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -580,7 +580,7 @@ name = "ethcrypto"
 version = "0.1.0"
 dependencies = [
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
- "ethcore-bigint 0.1.1",
+ "ethcore-bigint 0.1.2",
  "ethkey 0.2.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.0.5 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -603,7 +603,7 @@ version = "0.2.0"
 dependencies = [
  "docopt 0.6.80 (registry+https://github.com/rust-lang/crates.io-index)",
  "eth-secp256k1 0.5.4 (git+https://github.com/ethcore/rust-secp256k1)",
- "ethcore-bigint 0.1.1",
+ "ethcore-bigint 0.1.2",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1249,7 +1249,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#e2183e2af80bbe5a488523b4af1968b50ccf014f"
+source = "git+https://github.com/ethcore/js-precompiled.git#cb99e22b536486190f3e19b2760e1142096b5fd7"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1463,7 +1463,7 @@ name = "rlp"
 version = "0.1.0"
 dependencies = [
  "elastic-array 0.6.0 (git+https://github.com/ethcore/elastic-array)",
- "ethcore-bigint 0.1.1",
+ "ethcore-bigint 0.1.2",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
