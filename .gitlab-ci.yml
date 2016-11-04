@@ -1,8 +1,7 @@
 stages:
-  - build
-  - js-test
-  - js-build
   - test
+  - js-build
+  - build
 variables:
   GIT_DEPTH: "3"
   SIMPLECOV: "true"
@@ -16,6 +15,7 @@ linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -45,6 +45,7 @@ linux-stable-14.04:
   stage: build
   image: ethcore/rust-14.04:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -74,6 +75,7 @@ linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -92,6 +94,7 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -110,6 +113,7 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -134,6 +138,7 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -173,6 +178,7 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -212,6 +218,7 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -244,6 +251,7 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -282,6 +290,7 @@ linux-aarch64:
 darwin:
   stage: build
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -302,6 +311,7 @@ darwin:
 windows:
   stage: build
   only:
+    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -391,7 +401,7 @@ test-rust-stable:
     - rust
     - rust-stable
 js-tests:
-  stage: js-test
+  stage: test
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -403,6 +413,11 @@ js-tests:
     - javascript-test
 js-release:
   stage: js-build
+  only:
+    - master
+    - beta
+    - stable
+    - tags
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
