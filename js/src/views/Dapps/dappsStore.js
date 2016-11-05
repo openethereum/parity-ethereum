@@ -81,6 +81,7 @@ const networkApps = [
 export default class DappsStore {
   @observable apps = [];
   @observable hidden = [];
+  @observable modalOpen = false;
 
   constructor (api) {
     this._api = api;
@@ -91,6 +92,14 @@ export default class DappsStore {
 
   @computed get visible () {
     return this.apps.filter((app) => !this.hidden.includes(app.id));
+  }
+
+  openModal () {
+    this.modalOpen = true;
+  }
+
+  closeModal () {
+    this.modalOpen = false;
   }
 
   hideApp (id) {

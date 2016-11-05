@@ -36,20 +36,10 @@ export default class Dapps extends Component {
 
   store = new DappsStore(this.context.api);
 
-  state = {
-    modalOpen: false
-  }
-
   render () {
-    const { modalOpen } = this.state;
-
     return (
       <div>
-        <AddDapps
-          open={ modalOpen }
-          store={ this.store }
-          onClose={ this.closeModal }
-        />
+        <AddDapps store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title='Decentralized Applications'
@@ -81,10 +71,6 @@ export default class Dapps extends Component {
   }
 
   openModal = () => {
-    this.setState({ modalOpen: true });
-  };
-
-  closeModal = () => {
-    this.setState({ modalOpen: false });
+    this.store.openModal();
   };
 }

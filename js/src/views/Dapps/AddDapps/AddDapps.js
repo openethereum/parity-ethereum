@@ -27,22 +27,24 @@ import styles from './AddDapps.css';
 @observer
 export default class AddDapps extends Component {
   static propTypes = {
-    open: PropTypes.bool.isRequired,
-    onClose: PropTypes.func.isRequired,
     store: PropTypes.object.isRequired
   };
 
   render () {
-    const { onClose, open, store } = this.props;
+    const { store } = this.props;
+
+    if (!store.modalOpen) {
+      return null;
+    }
 
     return (
       <Modal
         compact
         title='visible applications'
         actions={ [
-          <Button label={ 'Done' } key='done' onClick={ onClose } icon={ <DoneIcon /> } />
+          <Button label={ 'Done' } key='done' onClick={ this.onClose } icon={ <DoneIcon /> } />
         ] }
-        visible={ open }
+        visible
         scroll>
         <List>
           { store.apps.map(this.renderApp) }
@@ -74,5 +76,11 @@ export default class AddDapps extends Component {
         primaryText={ app.name }
         secondaryText={ description } />
     );
+  }
+
+  onClose = () => {
+    const { store } = this.props;
+
+    store.closeModal();
   }
 }
