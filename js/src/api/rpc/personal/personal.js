@@ -14,40 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inHex, inNumber10, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress } from '../../format/output';
+import { inAddress, inNumber10, inOptions } from '../../format/input';
+import { outAddress } from '../../format/output';
 
 export default class Personal {
   constructor (transport) {
     this._transport = transport;
   }
 
-  accountsInfo () {
-    return this._transport
-      .execute('personal_accountsInfo')
-      .then(outAccountInfo);
-  }
-
-  changePassword (account, password, newPassword) {
-    return this._transport
-      .execute('personal_changePassword', inAddress(account), password, newPassword);
-  }
-
   listAccounts () {
     return this._transport
       .execute('personal_listAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
-  }
-
-  listGethAccounts () {
-    return this._transport
-      .execute('personal_listGethAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
-  }
-
-  importGethAccounts (accounts) {
-    return this._transport
-      .execute('personal_importGethAccounts', (accounts || []).map(inAddress))
       .then((accounts) => (accounts || []).map(outAddress));
   }
 
@@ -57,42 +34,9 @@ export default class Personal {
       .then(outAddress);
   }
 
-  newAccountFromPhrase (phrase, password) {
-    return this._transport
-      .execute('personal_newAccountFromPhrase', phrase, password)
-      .then(outAddress);
-  }
-
-  newAccountFromSecret (secret, password) {
-    return this._transport
-      .execute('personal_newAccountFromSecret', inHex(secret), password)
-      .then(outAddress);
-  }
-
-  newAccountFromWallet (json, password) {
-    return this._transport
-      .execute('personal_newAccountFromWallet', json, password)
-      .then(outAddress);
-  }
-
-  setAccountName (address, name) {
-    return this._transport
-      .execute('personal_setAccountName', inAddress(address), name);
-  }
-
-  setAccountMeta (address, meta) {
-    return this._transport
-      .execute('personal_setAccountMeta', inAddress(address), JSON.stringify(meta));
-  }
-
   signAndSendTransaction (options, password) {
     return this._transport
       .execute('personal_signAndSendTransaction', inOptions(options), password);
-  }
-
-  testPassword (account, password) {
-    return this._transport
-      .execute('personal_testPassword', inAddress(account), password);
   }
 
   unlockAccount (account, password, duration = 1) {

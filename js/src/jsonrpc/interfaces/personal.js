@@ -17,58 +17,12 @@
 import { Address, Data, Quantity } from '../types';
 
 export default {
-  accountsInfo: {
-    desc: 'returns a map of accounts as an object',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'Account metadata',
-      details: {
-        name: {
-          type: String,
-          desc: 'Account name'
-        },
-        meta: {
-          type: String,
-          desc: 'Encoded JSON string the defines additional account metadata'
-        },
-        uuid: {
-          type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
-        }
-      }
-    }
-  },
-
   listAccounts: {
     desc: 'Returns a list of addresses owned by client.',
     params: [],
     returns: {
       type: Array,
       desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
-  listGethAccounts: {
-    desc: 'Returns a list of the accounts available from Geth',
-    params: [],
-    returns: {
-      type: Array,
-      desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
-  importGethAccounts: {
-    desc: 'Imports a list of accounts from geth',
-    params: [
-      {
-        type: Array,
-        desc: 'List of the geth addresses to import'
-      }
-    ],
-    returns: {
-      type: Array,
-      desc: 'Array of the imported addresses'
     }
   },
 
@@ -83,96 +37,6 @@ export default {
     returns: {
       type: Address,
       desc: 'The created address'
-    }
-  },
-
-  newAccountFromPhrase: {
-    desc: 'Creates a new account from a recovery passphrase',
-    params: [
-      {
-        type: String,
-        desc: 'Phrase'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  newAccountFromSecret: {
-    desc: 'Creates a new account from a private ethstore secret key',
-    params: [
-      {
-        type: Data,
-        desc: 'Secret, 32-byte hex'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  newAccountFromWallet: {
-    desc: 'Creates a new account from a JSON import',
-    params: [
-      {
-        type: String,
-        desc: 'JSON'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  setAccountName: {
-    desc: 'Sets a name for the account',
-    params: [
-      {
-        type: Address,
-        desc: 'Address'
-      },
-      {
-        type: String,
-        desc: 'Name'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'Returns null in all cases'
-    }
-  },
-
-  setAccountMeta: {
-    desc: 'Sets metadata for the account',
-    params: [
-      {
-        type: Address,
-        desc: 'Address'
-      },
-      {
-        type: String,
-        desc: 'Metadata (JSON encoded)'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'Returns null in all cases'
     }
   },
 

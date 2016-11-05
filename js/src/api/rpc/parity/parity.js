@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inData, inNumber16 } from '../../format/input';
-import { outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
+import { inAddress, inData, inHex, inNumber16 } from '../../format/input';
+import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
 
 export default class Ethcore {
   constructor (transport) {
@@ -27,9 +27,20 @@ export default class Ethcore {
       .execute('parity_acceptNonReservedPeers');
   }
 
+  accountsInfo () {
+    return this._transport
+      .execute('parity_accountsInfo')
+      .then(outAccountInfo);
+  }
+
   addReservedPeer (encode) {
     return this._transport
       .execute('parity_addReservedPeer', encode);
+  }
+
+  changePassword (account, password, newPassword) {
+    return this._transport
+      .execute('parity_changePassword', inAddress(account), password, newPassword);
   }
 
   dappsPort () {
@@ -90,6 +101,18 @@ export default class Ethcore {
       .execute('parity_hashContent', url);
   }
 
+  listGethAccounts () {
+    return this._transport
+      .execute('parity_listGethAccounts')
+      .then((accounts) => (accounts || []).map(outAddress));
+  }
+
+  importGethAccounts (accounts) {
+    return this._transport
+      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
+      .then((accounts) => (accounts || []).map(outAddress));
+  }
+
   minGasPrice () {
     return this._transport
       .execute('parity_minGasPrice')
@@ -124,6 +147,24 @@ export default class Ethcore {
       .then(outNumber);
   }
 
+  newAccountFromPhrase (phrase, password) {
+    return this._transport
+      .execute('parity_newAccountFromPhrase', phrase, password)
+      .then(outAddress);
+  }
+
+  newAccountFromSecret (secret, password) {
+    return this._transport
+      .execute('parity_newAccountFromSecret', inHex(secret), password)
+      .then(outAddress);
+  }
+
+  newAccountFromWallet (json, password) {
+    return this._transport
+      .execute('parity_newAccountFromWallet', json, password)
+      .then(outAddress);
+  }
+
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
@@ -149,6 +190,16 @@ export default class Ethcore {
   rpcSettings () {
     return this._transport
       .execute('parity_rpcSettings');
+  }
+
+  setAccountName (address, name) {
+    return this._transport
+      .execute('parity_setAccountName', inAddress(address), name);
+  }
+
+  setAccountMeta (address, meta) {
+    return this._transport
+      .execute('parity_setAccountMeta', inAddress(address), JSON.stringify(meta));
   }
 
   setAuthor (address) {
@@ -185,6 +236,11 @@ export default class Ethcore {
     return this._transport
       .execute('parity_signerPort')
       .then(outNumber);
+  }
+
+  testPassword (account, password) {
+    return this._transport
+      .execute('parity_testPassword', inAddress(account), password);
   }
 
   transactionsLimit () {

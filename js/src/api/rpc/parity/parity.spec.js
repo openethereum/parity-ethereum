@@ -23,6 +23,28 @@ import Parity from './parity';
 const instance = new Parity(new Http(TEST_HTTP_URL));
 
 describe('api/rpc/parity', () => {
+  describe('accountsInfo', () => {
+    it('retrieves the available account info', () => {
+      mockHttp([{ method: 'parity_accountsInfo', reply: {
+        result: {
+          '0x63cf90d3f0410092fc0fca41846f596223979195': {
+            name: 'name', uuid: 'uuid', meta: '{"data":"data"}'
+          }
+        }
+      } }]);
+
+      return instance.accountsInfo().then((result) => {
+        expect(result).to.deep.equal({
+          '0x63Cf90D3f0410092FC0fca41846f596223979195': {
+            name: 'name', uuid: 'uuid', meta: {
+              data: 'data'
+            }
+          }
+        });
+      });
+    });
+  });
+
   describe('gasFloorTarget', () => {
     it('returns the gasfloor, formatted', () => {
       mockHttp([{ method: 'parity_gasFloorTarget', reply: { result: '0x123456' } }]);
