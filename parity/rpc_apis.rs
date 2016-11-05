@@ -37,7 +37,7 @@ pub enum Api {
 	Net,
 	/// Eth (Safe)
 	Eth,
-	/// Personal (Semi-safe: Passwords, Side Effects (new account))
+	/// Personal (Semi-safe: Passwords, Side Effects (new account)) DEPRECATED; only used in `--geth` mode.
 	Personal,
 	/// Signer - Confirm transactions in Signer (Semi-unsafe: Passwords, List of transactions)
 	Signer,
@@ -150,12 +150,10 @@ impl ApiSet {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => safe_list,
 			ApiSet::IpcContext => {
-				safe_list.insert(Api::Personal);
 				safe_list.insert(Api::ParityAccounts);
 				safe_list
 			},
 			ApiSet::SafeContext => {
-				safe_list.insert(Api::Personal);
 				safe_list.insert(Api::ParityAccounts);
 				safe_list.insert(Api::ParitySet);
 				safe_list.insert(Api::Signer);
@@ -296,7 +294,7 @@ mod test {
 			// safe
 			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
 			// semi-safe
-			Api::Personal, Api::ParityAccounts
+			Api::ParityAccounts
 		].into_iter().collect();
 		assert_eq!(ApiSet::IpcContext.list_apis(), expected);
 	}
@@ -307,7 +305,7 @@ mod test {
 			// safe
 			Api::Web3, Api::Net, Api::Eth, Api::Parity, Api::Traces, Api::Rpc,
 			// semi-safe
-			Api::Personal, Api::ParityAccounts,
+			Api::ParityAccounts,
 			// Unsafe
 			Api::ParitySet, Api::Signer,
 		].into_iter().collect();
