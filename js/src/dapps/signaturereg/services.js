@@ -50,7 +50,7 @@ export function attachInterface (callback) {
         .all([
           registry.getAddress.call({}, [api.util.sha3('signaturereg'), 'A']),
           api.eth.accounts(),
-          api.personal.accountsInfo()
+          api.parity.accountsInfo()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {
