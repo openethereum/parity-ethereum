@@ -89,7 +89,7 @@ export default class DappsStore {
     this._fetch();
   }
 
-  @computed get visibleApps () {
+  @computed get visible () {
     return this.apps.filter((app) => !this.hidden.includes(app.id));
   }
 
