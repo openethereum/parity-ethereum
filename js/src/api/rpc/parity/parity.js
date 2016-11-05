@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inData, inHex, inNumber16 } from '../../format/input';
+import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
 import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
 
 export default class Ethcore {
@@ -41,6 +41,11 @@ export default class Ethcore {
   changePassword (account, password, newPassword) {
     return this._transport
       .execute('parity_changePassword', inAddress(account), password, newPassword);
+  }
+
+  checkRequest (requestId) {
+    return this._transport
+      .execute('parity_checkRequest', inNumber16(requestId));
   }
 
   dappsPort () {
@@ -174,6 +179,11 @@ export default class Ethcore {
     return this._transport
       .execute('parity_phraseToAddress', phrase)
       .then(outAddress);
+  }
+
+  postTransaction (options) {
+    return this._transport
+      .execute('parity_postTransaction', inOptions(options));
   }
 
   registryAddress () {

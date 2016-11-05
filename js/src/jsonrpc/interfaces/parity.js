@@ -63,6 +63,20 @@ export default {
     }
   },
 
+  checkRequest: {
+    desc: 'Returns the transactionhash of the requestId (received from parity_postTransaction) if the request was confirmed',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The requestId to check for'
+      }
+    ],
+    returns: {
+      type: Hash,
+      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
+    }
+  },
+
   dappsPort: {
     desc: 'Returns the port the dapps are running on, error if not enabled',
     params: [],
@@ -330,6 +344,22 @@ export default {
     returns: {
       type: Address,
       desc: 'Corresponding address'
+    }
+  },
+
+  postTransaction: {
+    desc: 'Posts a transaction to the Signer.',
+    params: [
+      {
+        type: Object,
+        desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
+        format: 'inputCallFormatter'
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'The id of the actual transaction',
+      format: 'utils.toDecimal'
     }
   },
 
