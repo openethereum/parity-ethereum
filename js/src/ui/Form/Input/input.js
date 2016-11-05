@@ -16,10 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import CopyToClipboard from 'react-copy-to-clipboard';
-import CopyIcon from 'material-ui/svg-icons/content/content-copy';
-import { TextField, IconButton } from 'material-ui';
-import { lightWhite, fullWhite } from 'material-ui/styles/colors';
+import { TextField } from 'material-ui';
+
+import CopyToClipboard from '../../CopyToClipboard';
 
 import styles from './input.css';
 
@@ -64,11 +63,49 @@ export default class Input extends Component {
       />
     );
   }
+
+  renderCopyButton (props, value) {
+    const { allowCopy, hideUnderline, label, hint, floatCopy } = props;
+
+    if (!allowCopy) {
+      return null;
+    }
+
+    const style = {
+      marginBottom: 13
+    };
+
+    const text = typeof allowCopy === 'string'
+      ? allowCopy
+      : value;
+
+    if (hideUnderline && !label) {
+      style.marginBottom = 2;
+    } else if (label && !hint) {
+      style.marginBottom = 4;
+    } else if (label && hint) {
+      style.marginBottom = 10;
+    }
+
+    if (floatCopy) {
+      style.position = 'absolute';
+      style.left = -24;
+      style.bottom = style.marginBottom;
+      style.marginBottom = 0;
+    }
+
+    return (
+      <div className={ styles.copy } style={ style }>
+        <CopyToClipboard
+          data={ text }
+        />
+      </div>
+    );
+  }
 }
 
-class ReadOnlyInput extends Component {
+class ReadOnlyInput extends Input {
   static propTypes = {
-    children: PropTypes.node,
     className: PropTypes.string,
     allowCopy: PropTypes.oneOfType([
       PropTypes.string,
@@ -87,34 +124,58 @@ class ReadOnlyInput extends Component {
   }
 
   render () {
-    const { value, label, hideUnderline, children, className } = this.props;
+    const { value, label, className, hideUnderline } = this.props;
+
+    const classes = [ styles.readOnly, className ];
+    const valueClasses = [ styles.value ];
+
+    if (label) {
+      classes.push(styles.withLabel);
+    }
+
+    if (hideUnderline) {
+      classes.push(styles.hideUnderline);
+    }
 
     return (
       <div className={ styles.container }>
-        <TextField
-          autoComplete='off'
-          className={ className }
+        { this.renderCopyButton(this.props, value) }
 
-          readOnly
-          floatingLabelFixed
-          fullWidth
-
-          floatingLabelText={ label }
-          id={ NAME_ID }
-          underlineDisabledStyle={ UNDERLINE_DISABLED }
-          underlineStyle={ UNDERLINE_READONLY }
-          underlineFocusStyle={ { display: 'none' } }
-          underlineShow={ !hideUnderline }
-          value={ value }
-        >
-          { children }
-        </TextField>
+        <div className={ classes.join(' ') }>
+          { this.renderLabel(label) }
+          <input
+            className={ valueClasses.join(' ') }
+            value={ value }
+            readOnly
+          />
+          { this.renderUnderline() }
+        </div>
       </div>
+    );
+  }
+
+  renderLabel (label) {
+    if (!label) {
+      return null;
+    }
+
+    return (
+      <label className={ styles.label }>{ label }</label>
+    );
+  }
+
+  renderUnderline () {
+    if (this.props.hideUnderline) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.underline }></div>
     );
   }
 }
 
-class FullInput extends Component {
+class FullInput extends Input {
   static propTypes = {
     children: PropTypes.node,
     className: PropTypes.string,
@@ -189,7 +250,7 @@ class FullInput extends Component {
 
     return (
       <div className={ styles.container }>
-        { this.renderCopyButton() }
+        { this.renderCopyButton(this.props, value) }
         <TextField
           autoComplete='off'
           className={ className }
@@ -221,84 +282,6 @@ class FullInput extends Component {
         </TextField>
       </div>
     );
-  }
-
-  renderCopyButton () {
-    const { allowCopy, hideUnderline, label, hint, floatCopy } = this.props;
-    const { copied, value } = this.state;
-
-    if (!allowCopy) {
-      return null;
-    }
-
-    const style = {
-      marginBottom: 13
-    };
-
-    const text = typeof allowCopy === 'string'
-      ? allowCopy
-      : value;
-
-    const scale = copied ? 'scale(1.15)' : 'scale(1)';
-
-    if (hideUnderline && !label) {
-      style.marginBottom = 2;
-    } else if (label && !hint) {
-      style.marginBottom = 4;
-    } else if (label && hint) {
-      style.marginBottom = 10;
-    }
-
-    if (floatCopy) {
-      style.position = 'absolute';
-      style.left = -24;
-      style.bottom = style.marginBottom;
-      style.marginBottom = 0;
-    }
-
-    return (
-      <div className={ styles.copy } style={ style }>
-        <CopyToClipboard
-          onCopy={ this.handleCopy }
-          text={ text } >
-          <IconButton
-            tooltip={ `${copied ? 'Copied' : 'Copy'} to clipboard` }
-            tooltipPosition='bottom-right'
-            style={ {
-              width: 16,
-              height: 16,
-              padding: 0
-            } }
-            iconStyle={ {
-              width: 16,
-              height: 16,
-              transform: scale
-            } }
-            tooltipStyles={ {
-              top: 16
-            } }
-          >
-            <CopyIcon
-              color={ copied ? lightWhite : fullWhite }
-            />
-          </IconButton>
-        </CopyToClipboard>
-      </div>
-    );
-  }
-
-  handleCopy = () => {
-    if (this.state.timeoutId) {
-      window.clearTimeout(this.state.timeoutId);
-    }
-
-    this.setState({ copied: true }, () => {
-      const timeoutId = window.setTimeout(() => {
-        this.setState({ copied: false });
-      }, 500);
-
-      this.setState({ timeoutId });
-    });
   }
 
   onChange = (event, value) => {

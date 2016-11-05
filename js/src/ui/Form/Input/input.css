@@ -29,3 +29,75 @@
     transition: all .5s ease-in-out;
   }
 }
+
+.readOnly {
+  width: 100%;
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 24px;
+  height: 48px;
+  display: inline-block;
+  position: relative;
+  font-family: Roboto, sans-serif;
+
+  &.withLabel {
+    height: 72px;
+
+    .value {
+      line-height: 72px;
+      margin-top: 14px;
+    }
+  }
+
+  .value {
+    position: relative;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+
+    overflow: hidden;
+
+    border: none;
+    outline: none;
+    color: rgb(255, 255, 255);
+    cursor: text;
+    font-style: inherit;
+    font-variant: inherit;
+    font-weight: inherit;
+    font-stretch: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    font-family: inherit;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-appearance: textfield;
+    background-color: rgba(0, 0, 0, 0);
+  }
+
+  &.hideUnderline {
+    height: initial;
+
+    .value {
+      margin-top: 2px;
+    }
+  }
+
+  .underline {
+    border-bottom: 2px dotted rgba(255, 255, 255, 0.125);
+    bottom: 8px;
+    box-sizing: content-box;
+    margin: 0px;
+    position: absolute;
+    width: 100%;
+  }
+
+  .label {
+    position: absolute;
+    line-height: 16.5px;
+    top: 17px;
+    color: rgba(255, 255, 255, 0.498039);
+    font-size: 12px;
+  }
+}

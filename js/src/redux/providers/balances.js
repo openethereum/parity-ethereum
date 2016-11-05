@@ -206,15 +206,15 @@ export default class Balances {
         this._api.eth.getBalance(address)
       ].concat(tokensPromises))
       .then(([ txCount, ethBalance, ...tokensBalance ]) => {
-        const tokens = _tokens
-          .map((token, index) => ({
-            token,
-            value: tokensBalance[index]
-          }))
-          .concat({
-            token: ETH,
-            value: ethBalance
-          });
+        const tokens = []
+          .concat(
+            { token: ETH, value: ethBalance },
+            _tokens
+              .map((token, index) => ({
+                token,
+                value: tokensBalance[index]
+              }))
+          );
 
         const balance = { txCount, tokens };
         return balance;
