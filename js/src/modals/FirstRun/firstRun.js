@@ -183,9 +183,9 @@ export default class FirstRun extends Component {
       canCreate: false
     });
 
-    return api.personal
+    return api.parity
       .newAccountFromPhrase(phrase, password)
-      .then((address) => api.personal.setAccountName(address, name))
+      .then((address) => api.parity.setAccountName(address, name))
       .then(() => {
         this.onNext();
       })

@@ -22,7 +22,7 @@ export const fetch = () => (dispatch) => {
   return Promise
     .all([
       api.eth.accounts(),
-      api.personal.accountsInfo()
+      api.parity.accountsInfo()
     ])
     .then(([ accounts, data ]) => {
       data = data || {};

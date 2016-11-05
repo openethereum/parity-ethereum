@@ -37,15 +37,15 @@ export default class Personal {
   }
 
   _listAccounts = () => {
-    return this._api.personal
-      .listAccounts()
+    return this._api.eth
+      .accounts()
       .then((accounts) => {
         this._updateSubscriptions('personal_listAccounts', null, accounts);
       });
   }
 
   _accountsInfo = () => {
-    return this._api.personal
+    return this._api.parity
       .accountsInfo()
       .then((info) => {
         this._updateSubscriptions('personal_accountsInfo', null, info);
