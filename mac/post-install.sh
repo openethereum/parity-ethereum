@@ -11,8 +11,6 @@ cat > $HOME/Library/LaunchAgents/io.parity.ethereum.plist <<EOF
     <key>ProgramArguments</key>
     <array>
         <string>/usr/local/libexec/parity</string>
-        <string>--mode</string>
-        <string>passive</string>
         <string>--warp</string>
     </array>
     <key>KeepAlive</key>
@@ -26,9 +24,11 @@ cat > $HOME/Library/LaunchAgents/io.parity.ethereum.plist <<EOF
 </dict>
 </plist>
 EOF
-mkdir -p $HOME/.parity
 
-chown $USER $HOME/.parity $HOME/Library/LaunchAgents $HOME/Library/LaunchAgents/io.parity.ethereum.plist
+mkdir -p $HOME/.parity/906a34e69aec8c0d
+echo -n '{"fat_db":false,"mode":"passive","pruning":"fast","tracing":false}' > $HOME/.parity/906a34e69aec8c0d/user_defaults
+
+chown -R $USER $HOME/.parity $HOME/Library/LaunchAgents $HOME/Library/LaunchAgents/io.parity.ethereum.plist
 
 su $USER -c "launchctl load $HOME/Library/LaunchAgents/io.parity.ethereum.plist"
 sleep 1

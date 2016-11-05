@@ -18,11 +18,12 @@ Usage:
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
+                           last - Uses the last-used mode, active if none.
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
                            wakes regularly to resync.
-                           dark - Parity syncs only when an external interface
-                           is active. (default: {flag_mode}).
+                           dark - Parity syncs only when the RPC is active.
+                           offline - Parity doesn't sync. (default: {flag_mode}).
   --mode-timeout SECS      Specify the number of seconds before inactivity
                            timeout occurs when mode is dark or passive
                            (default: {flag_mode_timeout}).
@@ -66,7 +67,6 @@ Account Options:
                            development. (default: {flag_signer_no_validation})
 
 Networking Options:
-  --no-network             Disable p2p networking. (default: {flag_no_network})
   --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).

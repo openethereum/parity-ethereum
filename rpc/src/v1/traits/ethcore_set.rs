@@ -76,11 +76,11 @@ build_rpc_trait! {
 
 		/// Stop the network.
 		///
-		/// Deprecated. Use `set_mode("off")` instead.
+		/// Deprecated. Use `set_mode("offline")` instead.
 		#[rpc(name = "ethcore_stopNetwork")]
 		fn stop_network(&self) -> Result<bool, Error>;
 
-		/// Set the mode. Argument must be one of: "active", "passive", "dark", "off".
+		/// Set the mode. Argument must be one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "ethcore_setMode")]
 		fn set_mode(&self, String) -> Result<bool, Error>;
 	}
