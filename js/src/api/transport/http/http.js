@@ -66,7 +66,8 @@ export default class Http extends JsonRpcBase {
 
         if (response.error) {
           this.error(JSON.stringify(response));
-          throw new Error(`${response.error.code}: ${response.error.message}`);
+          console.warn(`${method}(${JSON.stringify(params)}): ${response.error.code}: ${response.error.message}`);
+          throw new Error(`${method}: ${response.error.code}: ${response.error.message}`);
         }
 
         this.log(JSON.stringify(response));
