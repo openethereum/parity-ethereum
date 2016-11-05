@@ -271,7 +271,7 @@ export default class Application extends Component {
       .then((signerRequestId) => {
         this.setState({ signerRequestId, registerState: 'Transaction posted, Waiting for transaction authorization' });
 
-        return api.pollMethod('eth_checkRequest', signerRequestId);
+        return api.pollMethod('parity_checkRequest', signerRequestId);
       })
       .then((txHash) => {
         this.setState({ txHash, registerState: 'Transaction authorized, Waiting for network confirmations' });

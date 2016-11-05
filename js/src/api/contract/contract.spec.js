@@ -249,9 +249,9 @@ describe('api/contract/Contract', () => {
       before(() => {
         scope = mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: null } },
-          { method: 'eth_checkRequest', reply: { result: '0x890' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: null } },
+          { method: 'parity_checkRequest', reply: { result: '0x890' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_PEND } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
@@ -266,7 +266,7 @@ describe('api/contract/Contract', () => {
       });
 
       it('passes the options through to postTransaction (incl. gas calculation)', () => {
-        expect(scope.body.eth_postTransaction.params).to.deep.equal([
+        expect(scope.body.parity_postTransaction.params).to.deep.equal([
           { data: '0x123', gas: '0x4b0' }
         ]);
       });
@@ -280,8 +280,8 @@ describe('api/contract/Contract', () => {
       it('fails when gasUsed == gas', () => {
         mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: '0x789' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: '0x789' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_EXCP } }
         ]);
 
@@ -295,8 +295,8 @@ describe('api/contract/Contract', () => {
       it('fails when no code was deployed', () => {
         mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: '0x789' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: '0x789' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
           { method: 'eth_getCode', reply: { result: '0x' } }
         ]);
@@ -360,15 +360,15 @@ describe('api/contract/Contract', () => {
 
     describe('postTransaction', () => {
       beforeEach(() => {
-        scope = mockHttp([{ method: 'eth_postTransaction', reply: { result: ['hashId'] } }]);
+        scope = mockHttp([{ method: 'parity_postTransaction', reply: { result: ['hashId'] } }]);
       });
 
-      it('encodes options and mades an eth_postTransaction call', () => {
+      it('encodes options and mades an parity_postTransaction call', () => {
         return func
           .postTransaction({ someExtras: 'foo' }, VALUES)
           .then(() => {
             expect(scope.isDone()).to.be.true;
-            expect(scope.body.eth_postTransaction.params[0]).to.deep.equal({
+            expect(scope.body.parity_postTransaction.params[0]).to.deep.equal({
               someExtras: 'foo',
               to: ADDR,
               data: ENCODED

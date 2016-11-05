@@ -65,7 +65,7 @@ export default class Signer {
       }
 
       switch (data.method) {
-        case 'eth_postTransaction':
+        case 'parity_postTransaction':
         case 'eth_sendTranasction':
         case 'eth_sendRawTransaction':
           this._listRequests(false);
