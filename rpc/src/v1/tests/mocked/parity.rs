@@ -16,8 +16,7 @@
 
 use std::sync::Arc;
 use util::log::RotatingLogger;
-use util::{U256, Address};
-
+use util::Address;
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
 use ethstore::ethkey::{Generator, Random};
@@ -47,7 +46,7 @@ impl Dependencies {
 			miner: Arc::new(TestMinerService::default()),
 			client: Arc::new(TestBlockChainClient::default()),
 			sync: Arc::new(TestSyncProvider::new(Config {
-				network_id: U256::from(3),
+				network_id: 3,
 				num_peers: 120,
 			})),
 			logger: Arc::new(RotatingLogger::new("rpc=trace".to_owned())),

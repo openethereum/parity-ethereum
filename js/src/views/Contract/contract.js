@@ -116,6 +116,7 @@ class Contract extends Component {
             contract={ contract }
             values={ queryValues } />
           <Events
+            isTest={ isTest }
             events={ allEvents } />
         </Page>
       </div>
@@ -312,7 +313,7 @@ class Contract extends Component {
 
     const contract = api.newContract(account.meta.abi, params.address);
     contract
-      .subscribe(null, { limit: 50, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)
+      .subscribe(null, { limit: 25, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)
       .then((subscriptionId) => {
         this.setState({ subscriptionId });
       });

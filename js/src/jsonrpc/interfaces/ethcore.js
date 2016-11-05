@@ -85,6 +85,15 @@ export default {
     }
   },
 
+  enode: {
+    desc: 'Returns the node enode URI',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'Enode URI'
+    }
+  },
+
   extraData: {
     desc: 'Returns currently set extra data',
     params: [],
@@ -157,7 +166,7 @@ export default {
   },
 
   mode: {
-    desc: 'Get the mode. Results one of: "active", "passive", "dark", "off".',
+    desc: 'Get the mode. Results one of: "active", "passive", "dark", "offline".',
     params: [],
     returns: {
       type: String,
@@ -321,7 +330,7 @@ export default {
     params: [
       {
         type: String,
-        desc: 'The mode to set, one of "active", "passive", "dark", "off"'
+        desc: 'The mode to set, one of "active", "passive", "dark", "offline"'
       }
     ],
     returns: {

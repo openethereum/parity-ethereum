@@ -93,6 +93,10 @@ pub struct Schedule {
 	/// If Some(x): let limit = GAS * (x - 1) / x; let CALL's gas = min(requested, limit). let CREATE's gas = limit.
 	/// If None: let CALL's gas = (requested > GAS ? [OOG] : GAS). let CREATE's gas = GAS
 	pub sub_gas_cap_divisor: Option<usize>,
+	/// Don't ever make empty accounts; contracts start with nonce=1. Also, don't charge 25k when sending/suicide zero-value.
+	pub no_empty: bool,
+	/// Kill empty accounts if touched.
+	pub kill_empty: bool,
 }
 
 impl Schedule {
@@ -106,16 +110,16 @@ impl Schedule {
 		Self::new(true, true, 53000)
 	}
 
-	/// Schedule for the Homestead-era of the Ethereum main net.
-	pub fn new_homestead_gas_fix() -> Schedule {
-		Schedule{
+	/// Schedule for the post-EIP-150-era of the Ethereum main net.
+	pub fn new_post_eip150(fix_exp: bool, no_empty: bool, kill_empty: bool) -> Schedule {
+		Schedule {
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
 			stack_limit: 1024,
 			max_depth: 1024,
 			tier_step_gas: [0, 2, 3, 5, 8, 10, 20, 0],
 			exp_gas: 10,
-			exp_byte_gas: 10,
+			exp_byte_gas: if fix_exp {50} else {10},
 			sha3_gas: 30,
 			sha3_word_gas: 6,
 			sload_gas: 200,
@@ -146,11 +150,13 @@ impl Schedule {
 			suicide_gas: 5000,
 			suicide_to_new_account_cost: 25000,
 			sub_gas_cap_divisor: Some(64),
+			no_empty: no_empty,
+			kill_empty: kill_empty,
 		}
 	}
 
 	fn new(efcd: bool, hdc: bool, tcg: usize) -> Schedule {
-		Schedule{
+		Schedule {
 			exceptional_failed_code_deposit: efcd,
 			have_delegate_call: hdc,
 			stack_limit: 1024,
@@ -188,6 +194,8 @@ impl Schedule {
 			suicide_gas: 0,
 			suicide_to_new_account_cost: 0,
 			sub_gas_cap_divisor: None,
+			no_empty: false,
+			kill_empty: false,
 		}
 	}
 }

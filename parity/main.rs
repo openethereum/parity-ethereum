@@ -114,7 +114,7 @@ mod user_defaults;
 mod stratum;
 
 use std::{process, env};
-use std::io::BufReader;
+use std::io::{self as stdio, BufReader, Write};
 use std::fs::File;
 use util::sha3::sha3;
 use cli::Args;
@@ -213,7 +213,7 @@ fn main() {
 			info!("{}", result);
 		},
 		Err(err) => {
-			info!("{}", err);
+			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 			process::exit(1);
 		}
 	}

@@ -927,6 +927,16 @@
       "outputFormatter": null
     },
     {
+      "name": "ethcore_setMode",
+      "desc": "Changes current operating mode",
+      "params": [
+        "`DATA`- Mode name"
+      ],
+      "returns": "`Boolean` - whether the call was successful",
+      "inputFormatters": null,
+      "outputFormatter": null
+    },
+    {
       "name": "ethcore_setMinGasPrice",
       "desc": "Changes minimal gas price for transaction to be accepted to the queue.",
       "params": [
@@ -1027,6 +1037,14 @@
       "desc": "Returns node name (identity)",
       "params": [],
       "returns": "`DATA` - Node name",
+      "inputFormatters": [],
+      "outputFormatter": null
+    },
+    {
+      "name": "ethcore_mode",
+      "desc": "Returns current mode",
+      "params": [],
+      "returns": "`DATA` - Mode",
       "inputFormatters": [],
       "outputFormatter": null
     },

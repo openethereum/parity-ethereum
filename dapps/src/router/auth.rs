@@ -59,7 +59,8 @@ impl Authorization for HttpBasicAuth {
 					status::StatusCode::Unauthorized,
 					"Unauthorized",
 					"You need to provide valid credentials to access this page.",
-					None
+					None,
+					None,
 				)))
 			},
 			Access::AuthRequired => {

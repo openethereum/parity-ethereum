@@ -16,8 +16,6 @@
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 
-import { parityNode } from '../../environment';
-
 export default class Status {
   constructor (store, api) {
     this._api = api;
@@ -29,6 +27,20 @@ export default class Status {
     this._pollPing();
     this._pollStatus();
     this._pollLogs();
+    this._fetchEnode();
+  }
+
+  _fetchEnode () {
+    this._api
+      .ethcore.enode()
+      .then((enode) => {
+        this._store.dispatch(statusCollection({ enode }));
+      })
+      .catch(() => {
+        window.setTimeout(() => {
+          this._fetchEnode();
+        }, 1000);
+      });
   }
 
   _subscribeBlockNumber () {
@@ -51,7 +63,7 @@ export default class Status {
       setTimeout(this._pollPing, timeout);
     };
 
-    fetch(`${parityNode}/api/ping`, { method: 'GET' })
+    fetch('/', { method: 'HEAD' })
       .then((response) => dispatch(!!response.ok))
       .catch(() => dispatch(false));
   }
@@ -68,11 +80,18 @@ export default class Status {
 
   _pollStatus = () => {
     const { secureToken, isConnected, isConnecting, needsToken } = this._api;
+
     const nextTimeout = (timeout = 1000) => {
       setTimeout(this._pollStatus, timeout);
     };
 
+    const wasConnected = this._store.getState().nodeStatus.isConnected;
+    if (isConnected !== wasConnected) {
+      this._fetchEnode();
+    }
+
     this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
+
     if (!isConnected) {
       nextTimeout(250);
       return;

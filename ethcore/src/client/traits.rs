@@ -29,13 +29,13 @@ use error::{ImportResult, CallError};
 use receipt::LocalizedReceipt;
 use trace::LocalizedTrace;
 use evm::{Factory as EvmFactory, Schedule};
-use types::ids::*;
-use types::trace_filter::Filter as TraceFilter;
 use executive::Executed;
 use env_info::LastHashes;
-use types::call_analytics::CallAnalytics;
 use block_import_error::BlockImportError;
 use ipc::IpcConfig;
+use types::ids::*;
+use types::trace_filter::Filter as TraceFilter;
+use types::call_analytics::CallAnalytics;
 use types::blockchain_info::BlockChainInfo;
 use types::block_status::BlockStatus;
 use types::mode::Mode;
@@ -215,7 +215,7 @@ pub trait BlockChainClient : Sync + Send {
 	/// Calculate median gas price from recent blocks if they have any transactions.
 	fn gas_price_median(&self, sample_size: usize) -> Option<U256> {
 		let corpus = self.gas_price_corpus(sample_size);
-		corpus.get(corpus.len()/2).cloned()
+		corpus.get(corpus.len() / 2).cloned()
 	}
 
 	/// Get the gas price distribution based on recent blocks if they have any transactions.
@@ -223,13 +223,24 @@ pub trait BlockChainClient : Sync + Send {
 		let raw_corpus = self.gas_price_corpus(sample_size);
 		let raw_len = raw_corpus.len();
 		// Throw out outliers.
-		let (corpus, _) = raw_corpus.split_at(raw_len-raw_len/40);
+		let (corpus, _) = raw_corpus.split_at(raw_len - raw_len / 40);
 		Histogram::new(corpus, bucket_number)
 	}
 
+	/// Get the preferred network ID to sign on
+	fn signing_network_id(&self) -> Option<u8>;
+
+	/// Get the mode.
 	fn mode(&self) -> Mode;
 
+	/// Set the mode.
 	fn set_mode(&self, mode: Mode);
+
+	/// Returns engine-related extra info for `BlockID`.
+	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>>;
+
+	/// Returns engine-related extra info for `UncleID`.
+	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>>;
 }
 
 /// Extended client interface used for mining

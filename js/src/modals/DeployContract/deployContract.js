@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { BusyStep, CompletedStep, CopyToClipboard, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
@@ -155,6 +155,7 @@ export default class DeployContract extends Component {
           <CompletedStep>
             <div>Your contract has been deployed at</div>
             <div>
+              <CopyToClipboard data={ address } label='copy address to clipboard' />
               <IdentityIcon address={ address } inline center className={ styles.identityicon } />
               <div className={ styles.address }>{ address }</div>
             </div>

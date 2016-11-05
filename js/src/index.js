@@ -31,7 +31,7 @@ import ContractInstances from './contracts';
 
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsProxy, SettingsViews, Signer, Status } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
 
 import { setApi } from './redux/providers/apiActions';
 
@@ -59,6 +59,8 @@ const store = initStore(api);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
 
+window.secureApi = api;
+
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
@@ -79,6 +81,7 @@ ReactDOM.render(
           <Route path='background' component={ SettingsBackground } />
           <Route path='proxy' component={ SettingsProxy } />
           <Route path='views' component={ SettingsViews } />
+          <Route path='parity' component={ SettingsParity } />
         </Route>
         <Route path='signer' component={ Signer } />
         <Route path='status' component={ Status } />

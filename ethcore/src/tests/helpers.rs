@@ -28,6 +28,7 @@ use evm::Schedule;
 use engines::Engine;
 use env_info::EnvInfo;
 use ethereum;
+use ethereum::ethash::EthashParams;
 use devtools::*;
 use miner::Miner;
 use header::Header;
@@ -40,6 +41,7 @@ pub enum ChainEra {
 	Frontier,
 	Homestead,
 	Eip150,
+	Eip161,
 	TransitionTest,
 }
 
@@ -194,7 +196,7 @@ pub fn generate_dummy_client_with_spec_and_data<F>(get_test_spec: F, block_numbe
 				action: Action::Create,
 				data: vec![],
 				value: U256::zero(),
-			}.sign(kp.secret()), None).unwrap();
+			}.sign(kp.secret(), None), None).unwrap();
 			n += 1;
 		}
 
@@ -419,4 +421,30 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 	block_header.set_state_root(0xbad.into());
 
 	create_test_block(&block_header)
+}
+
+pub fn get_default_ethash_params() -> EthashParams{
+	EthashParams {
+		gas_limit_bound_divisor: U256::from(1024),
+		minimum_difficulty: U256::from(131072),
+		difficulty_bound_divisor: U256::from(2048),
+		difficulty_increment_divisor: 10,
+		duration_limit: 13,
+		block_reward: U256::from(0),
+		registrar: "0000000000000000000000000000000000000001".into(),
+		homestead_transition: 1150000,
+		dao_hardfork_transition: 0x7fffffffffffffff,
+		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
+		dao_hardfork_accounts: vec![],
+		difficulty_hardfork_transition: 0x7fffffffffffffff,
+		difficulty_hardfork_bound_divisor: U256::from(0),
+		bomb_defuse_transition: 0x7fffffffffffffff,
+		eip150_transition: 0x7fffffffffffffff,
+		eip155_transition: 0x7fffffffffffffff,
+		eip160_transition: 0x7fffffffffffffff,
+		eip161abc_transition: 0x7fffffffffffffff,
+		eip161d_transition: 0x7fffffffffffffff,
+		ecip1010_pause_transition: 0x7fffffffffffffff,
+		ecip1010_continue_transition: 0x7fffffffffffffff
+	}
 }

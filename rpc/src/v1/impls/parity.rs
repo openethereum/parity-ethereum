@@ -282,7 +282,7 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 
 	fn mode(&self) -> Result<String, Error> {
 		Ok(match take_weak!(self.client).mode() {
-			Mode::Off => "off",
+			Mode::Off => "offline",
 			Mode::Dark(..) => "dark",
 			Mode::Passive(..) => "passive",
 			Mode::Active => "active",

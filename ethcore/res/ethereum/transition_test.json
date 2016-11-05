@@ -130,7 +130,11 @@
 					"0xbb9bc244d798123fde783fcc1c72d3bb8c189413",
 					"0x807640a13483f8ac783c557fcdf27be11ea4ac7a"
 				],
-				"eip150Transition": "0xa"
+				"eip150Transition": "0xa",
+				"eip155Transition": "0x7fffffffffffffff",
+				"eip160Transition": "0x7fffffffffffffff",
+				"eip161abcTransition": "0x7fffffffffffffff",
+				"eip161dTransition": "0x7fffffffffffffff"
 			}
 		}
 	},

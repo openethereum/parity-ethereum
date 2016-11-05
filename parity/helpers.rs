@@ -46,7 +46,7 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
 		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
 		x if x.ends_with("seconds") => x[0..x.len() - 7].parse().map_err(bad),
-		x if x.ends_with("minutes") => x[0..x.len() -7].parse::<u64>().map_err(bad).map(|x| x * 60),
+		x if x.ends_with("minutes") => x[0..x.len() - 7].parse::<u64>().map_err(bad).map(|x| x * 60),
 		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
 		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
 		x => x.parse().map_err(bad),
@@ -58,7 +58,8 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 		"active" => Ok(Mode::Active),
 		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
 		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
-		_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", s)),
+		"offline" => Ok(Mode::Off),
+		_ => Err(format!("{}: Invalid value for --mode. Must be one of active, passive, dark or offline.", s)),
 	}
 }
 

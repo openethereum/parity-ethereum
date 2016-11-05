@@ -32,14 +32,15 @@ use random_filename;
 use SyncStatus;
 use util::{Mutex, H256};
 use util::sha3::sha3;
-use page::LocalPageEndpoint;
+use page::{LocalPageEndpoint, PageCache};
 use handlers::{ContentHandler, ContentFetcherHandler, ContentValidator};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::cache::{ContentCache, ContentStatus};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
 use apps::urlhint::{URLHintContract, URLHint, URLHintResult};
 
-const MAX_CACHED_DAPPS: usize = 10;
+/// Limit of cached dapps/content
+const MAX_CACHED_DAPPS: usize = 20;
 
 pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	dapps_path: PathBuf,
@@ -71,12 +72,13 @@ impl<R: URLHint> ContentFetcher<R> {
 		}
 	}
 
-	fn still_syncing() -> Box<Handler> {
+	fn still_syncing(port: Option<u16>) -> Box<Handler> {
 		Box::new(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
-			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>")
+			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
+			port,
 		))
 	}
 
@@ -143,19 +145,19 @@ impl<R: URLHint> ContentFetcher<R> {
 					match content {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
-							(None, Self::still_syncing())
+							(None, Self::still_syncing(self.embeddable_at))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								dapp.url(),
 								control,
-								path.using_dapps_domains,
 								DappInstaller {
 									id: content_id.clone(),
 									dapps_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
 									embeddable_at: self.embeddable_at,
-								}
+								},
+								self.embeddable_at,
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
@@ -164,19 +166,19 @@ impl<R: URLHint> ContentFetcher<R> {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
 								content.url,
 								control,
-								path.using_dapps_domains,
 								ContentInstaller {
 									id: content_id.clone(),
 									mime: content.mime,
 									content_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
-								}
+								},
+								self.embeddable_at,
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
 						},
 						None if self.sync.is_major_importing() => {
-							(None, Self::still_syncing())
+							(None, Self::still_syncing(self.embeddable_at))
 						},
 						None => {
 							// This may happen when sync status changes in between
@@ -185,7 +187,8 @@ impl<R: URLHint> ContentFetcher<R> {
 								StatusCode::NotFound,
 								"Resource Not Found",
 								"Requested resource was not found.",
-								None
+								None,
+								self.embeddable_at,
 							)) as Box<Handler>)
 						},
 					}
@@ -255,6 +258,17 @@ impl ContentValidator for ContentInstaller {
 		// Create dir
 		try!(fs::create_dir_all(&self.content_path));
 
+		// Validate hash
+		let mut file_reader = io::BufReader::new(try!(fs::File::open(&path)));
+		let hash = try!(sha3(&mut file_reader));
+		let id = try!(self.id.as_str().parse().map_err(|_| ValidationError::InvalidContentId));
+		if id != hash {
+			return Err(ValidationError::HashMismatch {
+				expected: id,
+				got: hash,
+			});
+		}
+
 		// And prepare path for a file
 		let filename = path.file_name().expect("We always fetch a file.");
 		let mut content_path = self.content_path.clone();
@@ -266,7 +280,7 @@ impl ContentValidator for ContentInstaller {
 
 		try!(fs::copy(&path, &content_path));
 
-		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone())))
+		Ok((self.id.clone(), LocalPageEndpoint::single_file(content_path, self.mime.clone(), PageCache::Enabled)))
 	}
 
 	fn done(&self, endpoint: Option<LocalPageEndpoint>) {
@@ -372,7 +386,7 @@ impl ContentValidator for DappInstaller {
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
 		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into(), self.embeddable_at);
+		let app = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_at);
 
 		// Return modified app manifest
 		Ok((manifest.id.clone(), app))
@@ -412,7 +426,7 @@ mod tests {
 			version: "".into(),
 			author: "".into(),
 			icon_url: "".into(),
-		}, None);
+		}, Default::default(), None);
 
 		// when
 		fetcher.set_status("test", ContentStatus::Ready(handler));

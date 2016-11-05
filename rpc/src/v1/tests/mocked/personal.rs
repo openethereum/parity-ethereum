@@ -139,8 +139,8 @@ fn sign_and_send_transaction() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
-	let signature = tester.accounts.sign(address, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -157,8 +157,8 @@ fn sign_and_send_transaction() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
-	let signature = tester.accounts.sign(address, None, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 

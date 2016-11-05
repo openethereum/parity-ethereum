@@ -245,7 +245,7 @@ mod tests {
 			gas: U256::from(100_000),
 			gas_price: U256::from(10),
 			nonce: U256::from(0),
-		}.sign(keypair.secret())
+		}.sign(keypair.secret(), None)
 	}
 
 	fn unwrap_err(res: Result<TransactionImportResult, Error>) -> TransactionError {
