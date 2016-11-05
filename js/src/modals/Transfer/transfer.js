@@ -592,7 +592,7 @@ export default class Transfer extends Component {
 
     Promise
       .all([
-        api.ethcore.gasPriceHistogram(),
+        api.parity.gasPriceHistogram(),
         api.eth.gasPrice()
       ])
       .then(([gasPriceHistogram, gasPrice]) => {

@@ -100,8 +100,8 @@ export function attachInstances () {
 
   return Promise
     .all([
-      api.ethcore.registryAddress(),
-      api.ethcore.netChain()
+      api.parity.registryAddress(),
+      api.parity.netChain()
     ])
     .then(([registryAddress, netChain]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;

@@ -32,7 +32,7 @@ export default class Registry {
         return;
       }
 
-      this._api.ethcore
+      this._api.parity
         .registryAddress()
         .then((address) => {
           this._instance = this._api.newContract(abis.registry, address).instance;

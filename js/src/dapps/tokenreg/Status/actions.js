@@ -34,7 +34,7 @@ export const FIND_CONTRACT = 'FIND_CONTRACT';
 export const loadContract = () => (dispatch) => {
   dispatch(setLoading(true));
 
-  api.ethcore
+  api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`registry found at ${registryAddress}`);
