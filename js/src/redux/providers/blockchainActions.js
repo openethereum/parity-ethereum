@@ -111,17 +111,18 @@ export function fetchAccountTransactions (address) {
 
     transactionsPromise
       .then((transactions) => {
-        dispatch(setAccount(address, {
-          loading: false,
-          transactions
-        }));
-
         // Load the corresponding blocks and transactions
         const blockNumbers = transactions.map(tx => tx.blockNumber);
         const txHashes = transactions.map(tx => tx.hash);
 
-        dispatch(fetchBlocks(blockNumbers));
-        dispatch(fetchTransactions(txHashes));
+        const blocksP = getFetchBlocks(dispatch, getState, blockNumbers);
+        const txsP = getFetchTransaction(dispatch, getState, txHashes);
+
+        Promise
+          .all([ blocksP, txsP ])
+          .then(() => {
+            dispatch(setAccount(address, { transactions, loading: false }));
+          });
       })
       .catch((e) => {
         console.error('::fetchAccountTransactions', address, e);

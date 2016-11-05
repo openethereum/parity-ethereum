@@ -42,14 +42,6 @@ class Transactions extends Component {
     transactions: PropTypes.array
   }
 
-  shouldComponentUpdate (nextProps, nextState) {
-    if (nextProps.loading && this.props.loading) {
-      return false;
-    }
-
-    return true;
-  }
-
   componentDidMount () {
     if (this.props.traceMode !== undefined) {
       this.getTransactions(this.props);
@@ -134,10 +126,6 @@ class Transactions extends Component {
     const { address, isTest, transactions } = this.props;
 
     return transactions
-      .sort((tA, tB) => {
-        return tB.blockNumber.comparedTo(tA.blockNumber);
-      })
-      .slice(0, 25)
       .map((transaction, index) => {
         return (
           <Transaction
@@ -168,8 +156,12 @@ function mapStateToProps (_, initProps) {
     return {
       isTest,
       traceMode,
-      transactions,
-      loading
+      loading,
+      transactions: transactions
+        .sort((tA, tB) => {
+          return tB.blockNumber.comparedTo(tA.blockNumber);
+        })
+        .slice(0, 25)
     };
   };
 }
