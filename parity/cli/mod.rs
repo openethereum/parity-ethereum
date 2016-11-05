@@ -74,7 +74,7 @@ usage! {
 	}
 	{
 		// -- Operating Options
-		flag_mode: String = "active", or |c: &Config| otry!(c.parity).mode.clone(),
+		flag_mode: String = "last", or |c: &Config| otry!(c.parity).mode.clone(),
 		flag_mode_timeout: u64 = 300u64, or |c: &Config| otry!(c.parity).mode_timeout.clone(),
 		flag_mode_alarm: u64 = 3600u64, or |c: &Config| otry!(c.parity).mode_alarm.clone(),
 		flag_chain: String = "homestead", or |c: &Config| otry!(c.parity).chain.clone(),
@@ -104,8 +104,6 @@ usage! {
 		flag_signer_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
-		flag_no_network: bool = false,
-			or |c: &Config| otry!(c.network).disable.clone(),
 		flag_warp: bool = false,
 			or |c: &Config| otry!(c.network).warp.clone(),
 		flag_port: u16 = 30303u16,
@@ -500,7 +498,7 @@ mod tests {
 			arg_path: vec![],
 
 			// -- Operating Options
-			flag_mode: "active".into(),
+			flag_mode: "last".into(),
 			flag_mode_timeout: 300u64,
 			flag_mode_alarm: 3600u64,
 			flag_chain: "xyz".into(),
@@ -521,7 +519,6 @@ mod tests {
 			flag_signer_no_validation: false,
 
 			// -- Networking Options
-			flag_no_network: false,
 			flag_warp: true,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,

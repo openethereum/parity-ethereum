@@ -16,8 +16,6 @@
 
 import BigNumber from 'bignumber.js';
 
-import { parityNode } from '../../environment';
-
 const builtinApps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
@@ -76,6 +74,12 @@ const networkApps = [
   }
 ];
 
+function getHost (api) {
+  return process.env.NODE_ENV === 'production'
+    ? api.dappsUrl
+    : '';
+}
+
 export function fetchAvailable (api) {
   // TODO: Since we don't have an extensive GithubHint app, get the value somehow
   // RESULT: 0x22cd66e1b05882c0fa17a16d252d3b3ee2238ccbac8153f69a35c83f02ca76ee
@@ -84,8 +88,7 @@ export function fetchAvailable (api) {
   //   .then((sha3) => {
   //     console.log('archive', sha3);
   //   });
-
-  return fetch(`${parityNode}/api/apps`)
+  return fetch(`${getHost(api)}/api/apps`)
     .then((response) => {
       return response.ok
         ? response.json()
@@ -134,8 +137,8 @@ export function fetchAvailable (api) {
     });
 }
 
-export function fetchManifest (app, contentHash) {
-  return fetch(`${parityNode}/${contentHash}/manifest.json`)
+export function fetchManifest (api, app, contentHash) {
+  return fetch(`${getHost(api)}/${contentHash}/manifest.json`)
     .then((response) => {
       return response.ok
         ? response.json()
