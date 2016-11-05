@@ -31,8 +31,8 @@ export default class Status {
   }
 
   _fetchEnode () {
-    this._api
-      .ethcore.enode()
+    this._api.parity
+      .enode()
       .then((enode) => {
         this._store.dispatch(statusCollection({ enode }));
       })

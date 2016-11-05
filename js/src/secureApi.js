@@ -96,8 +96,8 @@ export default class SecureApi extends Api {
 
     Promise
       .all([
-        this.ethcore.dappsPort(),
-        this.ethcore.signerPort()
+        this.parity.dappsPort(),
+        this.parity.signerPort()
       ])
       .then(([dappsPort, signerPort]) => {
         this._dappsPort = dappsPort.toNumber();
