@@ -37,13 +37,13 @@ pub enum Api {
 	Net,
 	/// Eth (Safe)
 	Eth,
-	/// Personal (Semi-safe: Passwords, Side Effects (new account)) DEPRECATED; only used in `--geth` mode.
+	/// Geth-compatible "personal" API (DEPRECATED; only used in `--geth` mode.) 
 	Personal,
-	/// Signer - Confirm transactions in Signer (Semi-unsafe: Passwords, List of transactions)
+	/// Signer - Confirm transactions in Signer (UNSAFE: Passwords, List of transactions)
 	Signer,
 	/// Parity - Custom extensions (Safe)
 	Parity,
-	/// Parity Accounts extensions (Semi-unsafe: Passwords, Side Effects (new account))
+	/// Parity Accounts extensions (UNSAFE: Passwords, Side Effects (new account))
 	ParityAccounts,
 	/// Parity - Set methods (UNSAFE: Side Effects affecting node operation)
 	ParitySet,
@@ -231,6 +231,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				).to_delegate());
 
 				add_signing_methods!(EthSigning, server, deps);
+				add_signing_methods!(ParitySigning, server, deps);
 			},
 			Api::ParityAccounts => {
 				server.add_delegate(ParityAccountsClient::new(&deps.secret_store, &deps.client).to_delegate());
