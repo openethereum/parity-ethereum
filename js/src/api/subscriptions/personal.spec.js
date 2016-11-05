@@ -34,14 +34,15 @@ function stubApi (accounts, info) {
 
   return {
     _calls,
-    personal: {
+    parity: {
       accountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
         _calls.accountsInfo.push(stub);
         return stub;
-      },
-
-      listAccounts: () => {
+      }
+    },
+    eth: {
+      accounts: () => {
         const stub = sinon.stub().resolves(accounts || TEST_LIST)();
         _calls.listAccounts.push(stub);
         return stub;
