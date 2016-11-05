@@ -40,60 +40,6 @@ export default {
     }
   },
 
-  generateAuthorizationToken: {
-    desc: 'Generates a new authorization token',
-    params: [],
-    returns: {
-      type: String,
-      desc: 'The new authorization token'
-    }
-  },
-
-  requestsToConfirm: {
-    desc: 'Returns a list of the transactions requiring authorization',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'A list of the outstanding transactions'
-    }
-  },
-
-  confirmRequest: {
-    desc: 'Confirm a request in the signer queue',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The request id'
-      },
-      {
-        type: Object,
-        desc: 'The request options'
-      },
-      {
-        type: String,
-        desc: 'The account password'
-      }
-    ],
-    returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation'
-    }
-  },
-
-  rejectRequest: {
-    desc: 'Rejects a request in the signer queue',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The request id'
-      }
-    ],
-    returns: {
-      type: Boolean,
-      desc: 'The status of the rejection'
-    }
-  },
-
   listAccounts: {
     desc: 'Returns a list of addresses owned by client.',
     params: [],
@@ -281,15 +227,6 @@ export default {
     returns: {
       type: Data,
       desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
-    }
-  },
-
-  signerEnabled: {
-    desc: 'Returns whether signer is enabled/disabled.',
-    params: [],
-    returns: {
-      type: Boolean,
-      desc: 'true when enabled, false when disabled'
     }
   },
 

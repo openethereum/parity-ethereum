@@ -14,12 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Db from './db';
-export Eth from './eth';
-export Parity from './parity';
-export Net from './net';
-export Personal from './personal';
-export Shh from './shh';
-export Signer from './signer';
-export Trace from './trace';
-export Web3 from './web3';
+export default from './signer';

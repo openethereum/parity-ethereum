@@ -17,7 +17,7 @@
 import { Http, Ws } from './transport';
 import Contract from './contract';
 
-import { Db, Eth, Parity, Net, Personal, Shh, Trace, Web3 } from './rpc';
+import { Db, Eth, Parity, Net, Personal, Shh, Signer, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
@@ -36,6 +36,7 @@ export default class Api {
     this._parity = new Parity(transport);
     this._personal = new Personal(transport);
     this._shh = new Shh(transport);
+    this._signer = new Signer(transport);
     this._trace = new Trace(transport);
     this._web3 = new Web3(transport);
 
@@ -64,6 +65,10 @@ export default class Api {
 
   get shh () {
     return this._shh;
+  }
+
+  get signer () {
+    return this._signer;
   }
 
   get trace () {
