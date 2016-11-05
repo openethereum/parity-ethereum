@@ -8,7 +8,7 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
-  variables[]=value
+  NIGHTLY: "nigtly"
 cache:
   key: "$CI_BUILD_REF_NAME"
   untracked: true
@@ -391,7 +391,7 @@ test-rust-stable:
   image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF $(git merge-base $CI_BUILD_REF master) | grep \.js | wc -l)
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
