@@ -68,7 +68,7 @@ fn should_be_able_to_get_account_info() {
 	tester.accounts.set_account_name(address.clone(), "Test".to_owned()).unwrap();
 	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".to_owned()).unwrap();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
 	assert_eq!(res, Some(response));
@@ -82,14 +82,14 @@ fn should_be_able_to_set_name() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
 	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
 	assert_eq!(res, Some(response));
@@ -103,14 +103,14 @@ fn should_be_able_to_set_meta() {
 	assert_eq!(accounts.len(), 1);
 	let address = accounts[0];
 
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
 	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
 	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"{}\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid, uuid);
 	assert_eq!(res, Some(response));
