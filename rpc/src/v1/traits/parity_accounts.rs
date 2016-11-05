@@ -24,7 +24,6 @@ use v1::types::{H160, H256};
 build_rpc_trait! {
 	/// Personal Parity rpc interface.
 	pub trait ParityAccounts {
-
 		/// Returns accounts information.
 		#[rpc(name = "parity_accountsInfo")]
 		fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error>;
@@ -61,6 +60,10 @@ build_rpc_trait! {
 		/// Set an account's metadata string.
 		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
+
+		/// Returns accounts information.
+		#[rpc(name = "parity_setAccountVisiblity")]
+		fn set_account_visibility(&self, H160, H256, bool) -> Result<bool, Error>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
 		#[rpc(name = "parity_importGethAccounts")]

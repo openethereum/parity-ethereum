@@ -17,6 +17,7 @@
 //! Parity-specific rpc interface.
 use jsonrpc_core::Error;
 
+use std::collections::BTreeMap;
 use v1::helpers::auto_args::Wrap;
 use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings, Histogram};
 
@@ -133,5 +134,9 @@ build_rpc_trait! {
 		/// Get the enode of this node.
 		#[rpc(name = "parity_enode")]
 		fn enode(&self) -> Result<String, Error>;
+
+		/// Returns accounts information.
+		#[rpc(name = "parity_accounts")]
+		fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error>;
 	}
 }

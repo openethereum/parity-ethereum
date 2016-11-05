@@ -19,6 +19,7 @@ use util::log::RotatingLogger;
 use util::Address;
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
+use ethcore::account_provider::AccountProvider;
 use ethstore::ethkey::{Generator, Random};
 
 use jsonrpc_core::IoHandler;
@@ -26,7 +27,6 @@ use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use super::manage_network::TestManageNetwork;
-
 
 pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider>;
 
@@ -37,6 +37,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
+	pub accounts: Arc<AccountProvider>,
 	pub dapps_port: Option<u16>,
 }
 
@@ -59,6 +60,7 @@ impl Dependencies {
 				rpc_port: 8545,
 			}),
 			network: Arc::new(TestManageNetwork),
+			accounts: Arc::new(AccountProvider::transient_provider()),
 			dapps_port: Some(18080),
 		}
 	}
@@ -69,6 +71,7 @@ impl Dependencies {
 			&self.miner,
 			&self.sync,
 			&self.network,
+			&self.accounts,
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,

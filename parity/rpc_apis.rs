@@ -224,6 +224,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					&deps.miner,
 					&deps.sync,
 					&deps.net_service,
+					&deps.secret_store,
 					deps.logger.clone(),
 					deps.settings.clone(),
 					signer,

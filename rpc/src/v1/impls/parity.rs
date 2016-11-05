@@ -17,6 +17,7 @@
 //! Parity-specific rpc implementation.
 use std::sync::{Arc, Weak};
 use std::str::FromStr;
+use std::collections::BTreeMap;
 
 use util::{RotatingLogger, Address};
 use util::misc::version_data;
@@ -29,6 +30,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockID;
 use ethcore::mode::Mode;
+use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
 use v1::traits::Parity;
@@ -46,6 +48,7 @@ pub struct ParityClient<C, M, S: ?Sized> where
 	miner: Weak<M>,
 	sync: Weak<S>,
 	net: Weak<ManageNetwork>,
+	accounts: Weak<AccountProvider>,
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
@@ -63,6 +66,7 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 		miner: &Arc<M>,
 		sync: &Arc<S>,
 		net: &Arc<ManageNetwork>,
+		store: &Arc<AccountProvider>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
@@ -73,6 +77,7 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 			miner: Arc::downgrade(miner),
 			sync: Arc::downgrade(sync),
 			net: Arc::downgrade(net),
+			accounts: Arc::downgrade(store),
 			logger: logger,
 			settings: settings,
 			signer: signer,
@@ -291,5 +296,23 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 
 	fn enode(&self) -> Result<String, Error> {
 		take_weak!(self.sync).enode().ok_or_else(errors::network_disabled)
+	}
+
+	fn accounts(&self) -> Result<BTreeMap<String, BTreeMap<String, String>>, Error> {
+		try!(self.active());
+		let store = take_weak!(self.accounts);
+		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
+		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
+
+		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
+			let mut m = map![
+				"name".to_owned() => v.name,
+				"meta".to_owned() => v.meta
+			];
+			if let &Some(ref uuid) = &v.uuid {
+				m.insert("uuid".to_owned(), format!("{}", uuid));
+			}
+			(format!("0x{}", a.hex()), m)
+		}).collect())
 	}
 }
