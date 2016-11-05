@@ -22,10 +22,10 @@ import { Select, Container, ContainerTitle } from '../../../ui';
 import layout from '../layout.css';
 
 const MODES = {
-  'active': 'active',
-  'passive': 'passive',
-  'dark': 'dark',
-  'off': 'off'
+  'active': 'Parity continuously syncs the chain',
+  'passive': 'Parity syncs initially, then sleeps and wakes regularly to resync',
+  'dark': 'Parity syncs only when the RPC is active',
+  'offline': 'Parity doesn\'t sync'
 };
 
 export default class Parity extends Component {
@@ -47,7 +47,7 @@ export default class Parity extends Component {
         <ContainerTitle title='Parity' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>Control the Parity node settings via this interface.</div>
+            <div>Control the Parity node settings and mode of operation via this interface.</div>
           </div>
           <div className={ layout.details }>
             { this.renderModes() }
@@ -86,8 +86,19 @@ export default class Parity extends Component {
     );
   }
 
-  onChangeMode = (event, mode) => {
-    this.setState({ mode });
+  onChangeMode = (event, index, mode) => {
+    const { api } = this.context;
+
+    api.ethcore
+      .setMode(mode)
+      .then((result) => {
+        if (result) {
+          this.setState({ mode });
+        }
+      })
+      .catch((error) => {
+        console.warn('onChangeMode', error);
+      });
   }
 
   loadMode () {
@@ -96,7 +107,7 @@ export default class Parity extends Component {
     api.ethcore
       .mode()
       .then((mode) => {
-        this.setMode({ mode });
+        this.setState({ mode });
       })
       .catch((error) => {
         console.warn('loadMode', error);
