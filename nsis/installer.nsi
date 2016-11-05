@@ -11,7 +11,8 @@
 !define VERSIONMAJOR 1
 !define VERSIONMINOR 4
 !define VERSIONBUILD 0
-!define ARGS "--warp --mode=passive"
+!define ARGS "--warp"
+!define FIRST_START_ARGS "--warp --mode=passive"
 
 !addplugindir .\
 
@@ -133,7 +134,7 @@ section "install"
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "EstimatedSize" ${INSTALLSIZE}
 
 	WriteRegStr HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Run" ${APPNAME} "$INSTDIR\ptray.exe ${ARGS}"
-	ExecShell "" "$INSTDIR\ptray.exe" "${ARGS}"
+	ExecShell "" "$INSTDIR\ptray.exe" "${FIRST_START_ARGS}"
 sectionEnd
 
 # Uninstaller
