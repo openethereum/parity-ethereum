@@ -23,7 +23,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::client::{VMType, Mode};
+use ethcore::client::VMType;
 use ethcore::miner::{MinerOptions, Banning};
 
 use rpc::{IpcConfiguration, HttpConfiguration};
@@ -80,7 +80,7 @@ impl Configuration {
 		let pruning = try!(self.args.flag_pruning.parse());
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = try!(self.vm_type());
-		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
+		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(try!(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm))), };
 		let miner_options = try!(self.miner_options());
 		let logger_config = self.logger_config();
 		let http_conf = try!(self.http_config());
@@ -93,7 +93,6 @@ impl Configuration {
 		let fat_db = try!(self.args.flag_fat_db.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
-		let enable_network = self.enable_network(&mode);
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
 		let signer_port = self.signer_port();
@@ -156,7 +155,6 @@ impl Configuration {
 				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
@@ -175,7 +173,6 @@ impl Configuration {
 				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
@@ -190,7 +187,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -207,7 +203,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -246,7 +241,6 @@ impl Configuration {
 				compaction: compaction,
 				wal: wal,
 				vm_type: vm_type,
-				enable_network: enable_network,
 				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
 				signer_port: signer_port,
@@ -266,13 +260,6 @@ impl Configuration {
 			logger: logger_config,
 			cmd: cmd,
 		})
-	}
-
-	fn enable_network(&self, mode: &Mode) -> bool {
-		match *mode {
-			Mode::Dark(_) => false,
-			_ => !self.args.flag_no_network,
-		}
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
@@ -767,7 +754,6 @@ mod tests {
 			pruning_history: 64,
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
@@ -790,7 +776,6 @@ mod tests {
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
@@ -813,7 +798,6 @@ mod tests {
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
@@ -858,7 +842,6 @@ mod tests {
 			compaction: Default::default(),
 			wal: true,
 			vm_type: Default::default(),
-			enable_network: true,
 			geth_compatibility: false,
 			signer_port: Some(8180),
 			net_settings: Default::default(),

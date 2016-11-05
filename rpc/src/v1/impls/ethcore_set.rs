@@ -151,7 +151,7 @@ impl<C, M> EthcoreSet for EthcoreSetClient<C, M> where
 
 	fn set_mode(&self, mode: String) -> Result<bool, Error> {
 		take_weak!(self.client).set_mode(match mode.as_str() {
-			"off" => Mode::Off,
+			"offline" => Mode::Off,
 			"dark" => Mode::Dark(300),
 			"passive" => Mode::Passive(300, 3600),
 			"active" => Mode::Active,

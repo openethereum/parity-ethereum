@@ -37,7 +37,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
-	tracing_switch_to_bool, fatdb_switch_to_bool,
+	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
@@ -75,13 +75,12 @@ pub struct RunCmd {
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
-	pub mode: Mode,
+	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
-	pub enable_network: bool,
 	pub geth_compatibility: bool,
 	pub signer_port: Option<u16>,
 	pub net_settings: NetworkSettings,
@@ -137,6 +136,11 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// check if fatdb is on
 	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
+	// get the mode
+	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
+	trace!(target: "mode", "mode is {:?}", mode);
+	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
+
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
@@ -162,6 +166,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 			false => "".to_owned(),
 		}
 	);
+	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -196,7 +201,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		cmd.mode,
+		mode,
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -248,7 +253,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	service.add_notify(chain_notify.clone());
 
 	// start network
-	if cmd.enable_network {
+	if network_enabled {
 		chain_notify.start();
 	}
 
@@ -321,6 +326,19 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	});
 	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
+	let on_mode_change = move |mode: &Mode| {
+		user_defaults.mode = mode.clone();
+		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
+	};
+
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(on_mode_change);
+
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
@@ -346,11 +364,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
-
-	// save user defaults
-	user_defaults.pruning = algorithm;
-	user_defaults.tracing = tracing;
-	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);
