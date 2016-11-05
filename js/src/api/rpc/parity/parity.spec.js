@@ -18,11 +18,11 @@ import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import { isBigNumber } from '../../../../test/types';
 
 import Http from '../../transport/http';
-import Ethcore from './ethcore';
+import Parity from './parity';
 
-const instance = new Ethcore(new Http(TEST_HTTP_URL));
+const instance = new Parity(new Http(TEST_HTTP_URL));
 
-describe('api/rpc/Ethcore', () => {
+describe('api/rpc/parity', () => {
   describe('gasFloorTarget', () => {
     it('returns the gasfloor, formatted', () => {
       mockHttp([{ method: 'parity_gasFloorTarget', reply: { result: '0x123456' } }]);
