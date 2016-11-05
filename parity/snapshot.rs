@@ -54,7 +54,6 @@ pub struct SnapshotCommand {
 	pub spec: SpecType,
 	pub pruning: Pruning,
 	pub pruning_history: u64,
-	pub mode: Mode,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
@@ -158,7 +157,7 @@ impl SnapshotCommand {
 		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, self.mode, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
+		let client_config = to_client_config(&self.cache_config, Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,
