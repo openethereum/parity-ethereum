@@ -20,6 +20,7 @@ use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
+use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
 use user_defaults::UserDefaults;
 
@@ -262,6 +263,10 @@ pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, algori
 		return Err("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`".into());
 	}
 	result
+}
+
+pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -> Result<Mode, String> {
+	Ok(switch.unwrap_or(user_defaults.mode.clone()))
 }
 
 #[cfg(test)]

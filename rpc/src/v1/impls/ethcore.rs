@@ -351,7 +351,7 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 
 	fn mode(&self) -> Result<String, Error> {
 		Ok(match take_weak!(self.client).mode() {
-			Mode::Off => "off",
+			Mode::Off => "offline",
 			Mode::Dark(..) => "dark",
 			Mode::Passive(..) => "passive",
 			Mode::Active => "active",

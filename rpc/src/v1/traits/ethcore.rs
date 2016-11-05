@@ -130,7 +130,7 @@ build_rpc_trait! {
 		#[rpc(name = "ethcore_nextNonce")]
 		fn next_nonce(&self, H160) -> Result<U256, Error>;
 
-		/// Get the mode. Results one of: "active", "passive", "dark", "off".
+		/// Get the mode. Results one of: "active", "passive", "dark", "offline".
 		#[rpc(name = "ethcore_mode")]
 		fn mode(&self) -> Result<String, Error>;
 
