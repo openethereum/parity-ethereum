@@ -46,11 +46,8 @@ export default class Dapps extends Component {
     return (
       <div>
         <AddDapps
-          available={ this.store.apps }
-          hidden={ this.store.hidden }
           open={ modalOpen }
-          onHideApp={ this.onHideApp }
-          onShowApp={ this.onShowApp }
+          store={ this.store }
           onClose={ this.closeModal }
         />
         <Actionbar
@@ -81,14 +78,6 @@ export default class Dapps extends Component {
         <Summary app={ app } />
       </div>
     );
-  }
-
-  onHideApp = (id) => {
-    this.store.hideApp(id);
-  }
-
-  onShowApp = (id) => {
-    this.store.showApp(id);
   }
 
   openModal = () => {
