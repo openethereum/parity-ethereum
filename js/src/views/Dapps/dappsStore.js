@@ -78,12 +78,6 @@ const networkApps = [
   }
 ];
 
-function getHost (api) {
-  return process.env.NODE_ENV === 'production'
-    ? api.dappsUrl
-    : '';
-}
-
 export default class DappsStore {
   @observable apps = [];
   @observable hidden = [];
@@ -91,16 +85,32 @@ export default class DappsStore {
   constructor (api) {
     this._api = api;
 
-    this.readHiddenApps();
-    this.fetch();
+    this._readHiddenApps();
+    this._fetch();
   }
 
   @computed get visibleApps () {
     return this.apps.filter((app) => !this.hidden.includes(app.id));
   }
 
-  fetch () {
-    fetch(`${getHost(this._api)}/api/apps`)
+  hideApp (id) {
+    this.hidden = this.hidden.concat(id);
+    this._writeHiddenApps();
+  }
+
+  showApp (id) {
+    this.hidden = this.hidden.filter((_id) => _id !== id);
+    this._writeHiddenApps();
+  }
+
+  _getHost (api) {
+    return process.env.NODE_ENV === 'production'
+      ? this._api.dappsUrl
+      : '';
+  }
+
+  _fetch () {
+    fetch(`${this._getHost()}/api/apps`)
       .then((response) => {
         return response.ok
           ? response.json()
@@ -142,7 +152,7 @@ export default class DappsStore {
             this.apps = registryApps
               .concat(localApps)
               .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-            this.loadImages();
+            this._loadImages();
           });
       })
       .catch((error) => {
@@ -150,7 +160,7 @@ export default class DappsStore {
       });
   }
 
-  loadImages () {
+  _loadImages () {
     const { dappReg } = Contracts.get();
 
     return Promise
@@ -184,8 +194,8 @@ export default class DappsStore {
       });
   }
 
-  manifest (app, contentHash) {
-    fetch(`${getHost(this._api)}/${contentHash}/manifest.json`)
+  _manifest (app, contentHash) {
+    fetch(`${this.getHost()}/${contentHash}/manifest.json`)
       .then((response) => {
         return response.ok
           ? response.json()
@@ -203,7 +213,7 @@ export default class DappsStore {
       });
   }
 
-  readHiddenApps () {
+  _readHiddenApps () {
     const stored = localStorage.getItem('hiddenApps');
 
     if (stored) {
@@ -215,17 +225,7 @@ export default class DappsStore {
     }
   }
 
-  writeHiddenApps () {
+  _writeHiddenApps () {
     localStorage.setItem('hiddenApps', JSON.stringify(this.hidden));
-  }
-
-  hideApp (id) {
-    this.hidden = this.hidden.concat(id);
-    this.writeHiddenApps();
-  }
-
-  showApp (id) {
-    this.hidden = this.hidden.filter((_id) => _id !== id);
-    this.writeHiddenApps();
   }
 }
