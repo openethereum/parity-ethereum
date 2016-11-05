@@ -78,8 +78,6 @@ const networkApps = [
   }
 ];
 
-const defaultHidden = [];
-
 function getHost (api) {
   return process.env.NODE_ENV === 'production'
     ? api.dappsUrl
@@ -92,7 +90,8 @@ export default class DappsStore {
 
   constructor (api) {
     this._api = api;
-    this.hidden = this.readHiddenApps();
+
+    this.readHiddenApps();
     this.fetch();
   }
 
@@ -209,13 +208,11 @@ export default class DappsStore {
 
     if (stored) {
       try {
-        return JSON.parse(stored);
+        this.hidden = JSON.parse(stored);
       } catch (error) {
-        console.warn('readHiddenApps', error);
+        console.warn('DappsStore:readHiddenApps', error);
       }
     }
-
-    return defaultHidden;
   }
 
   writeHiddenApps () {
