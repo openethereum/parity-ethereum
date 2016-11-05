@@ -76,7 +76,7 @@ export default class Balances {
   }
 
   _retrieveTokens () {
-    this._api.ethcore
+    this._api.parity
       .registryAddress()
       .then((registryAddress) => {
         const registry = this._api.newContract(abis.registry, registryAddress);

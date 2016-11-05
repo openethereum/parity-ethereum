@@ -29,7 +29,7 @@ export { addresses, accounts, lookup, events, names, records };
 export const setContract = (contract) => ({ type: 'set contract', contract });
 
 export const fetchContract = () => (dispatch) =>
-  api.ethcore.registryAddress()
+  api.parity.registryAddress()
   .then((address) => {
     const contract = api.newContract(registryAbi, address);
     dispatch(setContract(contract));

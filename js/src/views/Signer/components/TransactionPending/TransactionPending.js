@@ -64,7 +64,7 @@ export default class TransactionPending extends Component {
     const gasToDisplay = tUtil.getGasDisplay(gas);
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
 
-    this.context.api.ethcore.netChain()
+    this.context.api.parity.netChain()
       .then((chain) => {
         this.setState({ chain });
       })

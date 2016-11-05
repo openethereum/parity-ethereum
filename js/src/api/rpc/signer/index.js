@@ -14,29 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { signerRequestsToConfirm } from './signerActions';
-
-export default class Signer {
-  constructor (store, api) {
-    this._api = api;
-    this._store = store;
-  }
-
-  start () {
-    this._subscribeRequestsToConfirm();
-  }
-
-  _subscribeRequestsToConfirm () {
-    this._api
-      .subscribe('signer_requestsToConfirm', (error, pending) => {
-        if (error) {
-          return;
-        }
-
-        this._store.dispatch(signerRequestsToConfirm(pending || []));
-      })
-      .then((subscriptionId) => {
-        console.log('signer._subscribeRequestsToConfirm', 'subscriptionId', subscriptionId);
-      });
-  }
-}
+export default from './signer';

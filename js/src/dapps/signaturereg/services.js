@@ -39,7 +39,7 @@ const logToEvent = (log) => {
 };
 
 export function attachInterface (callback) {
-  return api.ethcore
+  return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);

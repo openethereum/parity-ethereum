@@ -26,7 +26,7 @@ const events = {
   'eth_blockNumber': { module: 'eth' },
   'personal_accountsInfo': { module: 'personal' },
   'personal_listAccounts': { module: 'personal' },
-  'personal_requestsToConfirm': { module: 'signer' }
+  'signer_requestsToConfirm': { module: 'signer' }
 };
 
 export default class Manager {

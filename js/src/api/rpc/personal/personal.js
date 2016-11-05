@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inHex, inNumber10, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outSignerRequest } from '../../format/output';
+import { inAddress, inHex, inNumber10, inOptions } from '../../format/input';
+import { outAccountInfo, outAddress } from '../../format/output';
 
 export default class Personal {
   constructor (transport) {
@@ -28,19 +28,9 @@ export default class Personal {
       .then(outAccountInfo);
   }
 
-  confirmRequest (requestId, options, password) {
-    return this._transport
-      .execute('personal_confirmRequest', inNumber16(requestId), options, password);
-  }
-
   changePassword (account, password, newPassword) {
     return this._transport
       .execute('personal_changePassword', inAddress(account), password, newPassword);
-  }
-
-  generateAuthorizationToken () {
-    return this._transport
-      .execute('personal_generateAuthorizationToken');
   }
 
   listAccounts () {
@@ -85,17 +75,6 @@ export default class Personal {
       .then(outAddress);
   }
 
-  rejectRequest (requestId) {
-    return this._transport
-      .execute('personal_rejectRequest', inNumber16(requestId));
-  }
-
-  requestsToConfirm () {
-    return this._transport
-      .execute('personal_requestsToConfirm')
-      .then((requests) => (requests || []).map(outSignerRequest));
-  }
-
   setAccountName (address, name) {
     return this._transport
       .execute('personal_setAccountName', inAddress(address), name);
@@ -109,11 +88,6 @@ export default class Personal {
   signAndSendTransaction (options, password) {
     return this._transport
       .execute('personal_signAndSendTransaction', inOptions(options), password);
-  }
-
-  signerEnabled () {
-    return this._transport
-      .execute('personal_signerEnabled');
   }
 
   testPassword (account, password) {

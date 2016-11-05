@@ -367,7 +367,7 @@ export default class Application extends Component {
 
     console.log(`lookupHash ${url}`);
 
-    api.ethcore
+    api.parity
       .hashContent(url)
       .then((contentHash) => {
         console.log('lookupHash', contentHash);

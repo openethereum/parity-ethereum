@@ -18,7 +18,7 @@ import * as abis from '../../contracts/abi';
 import { api } from './parity';
 
 export function attachInterface () {
-  return api.ethcore
+  return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);

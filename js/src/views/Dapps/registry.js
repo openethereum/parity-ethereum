@@ -83,7 +83,7 @@ function getHost (api) {
 export function fetchAvailable (api) {
   // TODO: Since we don't have an extensive GithubHint app, get the value somehow
   // RESULT: 0x22cd66e1b05882c0fa17a16d252d3b3ee2238ccbac8153f69a35c83f02ca76ee
-  // api.ethcore
+  // api.parity
   //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/5a9f11ff2ad0d05c565a938ceffdfa0d23af9981')
   //   .then((sha3) => {
   //     console.log('archive', sha3);
@@ -106,7 +106,7 @@ export function fetchAvailable (api) {
           return app;
         });
 
-      return api.ethcore
+      return api.parity
         .registryAddress()
         .then((registryAddress) => {
           if (new BigNumber(registryAddress).eq(0)) {

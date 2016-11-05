@@ -24,178 +24,178 @@ export default class Ethcore {
 
   acceptNonReservedPeers () {
     return this._transport
-      .execute('ethcore_acceptNonReservedPeers');
+      .execute('parity_acceptNonReservedPeers');
   }
 
   addReservedPeer (encode) {
     return this._transport
-      .execute('ethcore_addReservedPeer', encode);
+      .execute('parity_addReservedPeer', encode);
   }
 
   dappsPort () {
     return this._transport
-      .execute('ethcore_dappsPort')
+      .execute('parity_dappsPort')
       .then(outNumber);
   }
 
   defaultExtraData () {
     return this._transport
-      .execute('ethcore_defaultExtraData');
+      .execute('parity_defaultExtraData');
   }
 
   devLogs () {
     return this._transport
-      .execute('ethcore_devLogs');
+      .execute('parity_devLogs');
   }
 
   devLogsLevels () {
     return this._transport
-      .execute('ethcore_devLogsLevels');
+      .execute('parity_devLogsLevels');
   }
 
   dropNonReservedPeers () {
     return this._transport
-      .execute('ethcore_dropNonReservedPeers');
+      .execute('parity_dropNonReservedPeers');
   }
 
   enode () {
     return this._transport
-      .execute('ethcore_enode');
+      .execute('parity_enode');
   }
 
   extraData () {
     return this._transport
-      .execute('ethcore_extraData');
+      .execute('parity_extraData');
   }
 
   gasFloorTarget () {
     return this._transport
-      .execute('ethcore_gasFloorTarget')
+      .execute('parity_gasFloorTarget')
       .then(outNumber);
   }
 
   gasPriceHistogram () {
     return this._transport
-      .execute('ethcore_gasPriceHistogram')
+      .execute('parity_gasPriceHistogram')
       .then(outHistogram);
   }
 
   generateSecretPhrase () {
     return this._transport
-      .execute('ethcore_generateSecretPhrase');
+      .execute('parity_generateSecretPhrase');
   }
 
   hashContent (url) {
     return this._transport
-      .execute('ethcore_hashContent', url);
+      .execute('parity_hashContent', url);
   }
 
   minGasPrice () {
     return this._transport
-      .execute('ethcore_minGasPrice')
+      .execute('parity_minGasPrice')
       .then(outNumber);
   }
 
   mode () {
     return this._transport
-      .execute('ethcore_mode');
+      .execute('parity_mode');
   }
 
   netChain () {
     return this._transport
-      .execute('ethcore_netChain');
+      .execute('parity_netChain');
   }
 
   netPeers () {
     return this._transport
-      .execute('ethcore_netPeers')
+      .execute('parity_netPeers')
       .then(outPeers);
   }
 
   netMaxPeers () {
     return this._transport
-      .execute('ethcore_netMaxPeers')
+      .execute('parity_netMaxPeers')
       .then(outNumber);
   }
 
   netPort () {
     return this._transport
-      .execute('ethcore_netPort')
+      .execute('parity_netPort')
       .then(outNumber);
   }
 
   nodeName () {
     return this._transport
-      .execute('ethcore_nodeName');
+      .execute('parity_nodeName');
   }
 
   phraseToAddress (phrase) {
     return this._transport
-      .execute('ethcore_phraseToAddress', phrase)
+      .execute('parity_phraseToAddress', phrase)
       .then(outAddress);
   }
 
   registryAddress () {
     return this._transport
-      .execute('ethcore_registryAddress')
+      .execute('parity_registryAddress')
       .then(outAddress);
   }
 
   removeReservedPeer (encode) {
     return this._transport
-      .execute('ethcore_removeReservedPeer', encode);
+      .execute('parity_removeReservedPeer', encode);
   }
 
   rpcSettings () {
     return this._transport
-      .execute('ethcore_rpcSettings');
+      .execute('parity_rpcSettings');
   }
 
   setAuthor (address) {
     return this._transport
-      .execute('ethcore_setAuthor', inAddress(address));
+      .execute('parity_setAuthor', inAddress(address));
   }
 
   setExtraData (data) {
     return this._transport
-      .execute('ethcore_setExtraData', inData(data));
+      .execute('parity_setExtraData', inData(data));
   }
 
   setGasFloorTarget (quantity) {
     return this._transport
-      .execute('ethcore_setGasFloorTarget', inNumber16(quantity));
+      .execute('parity_setGasFloorTarget', inNumber16(quantity));
   }
 
   setMinGasPrice (quantity) {
     return this._transport
-      .execute('ethcore_setMinGasPrice', inNumber16(quantity));
+      .execute('parity_setMinGasPrice', inNumber16(quantity));
   }
 
   setMode (mode) {
     return this._transport
-      .execute('ethcore_setMode', mode);
+      .execute('parity_setMode', mode);
   }
 
   setTransactionsLimit (quantity) {
     return this._transport
-      .execute('ethcore_setTransactionsLimit', inNumber16(quantity));
+      .execute('parity_setTransactionsLimit', inNumber16(quantity));
   }
 
   signerPort () {
     return this._transport
-      .execute('ethcore_signerPort')
+      .execute('parity_signerPort')
       .then(outNumber);
   }
 
   transactionsLimit () {
     return this._transport
-      .execute('ethcore_transactionsLimit')
+      .execute('parity_transactionsLimit')
       .then(outNumber);
   }
 
   unsignedTransactionsCount () {
     return this._transport
-      .execute('ethcore_unsignedTransactionsCount')
+      .execute('parity_unsignedTransactionsCount')
       .then(outNumber);
   }
 }

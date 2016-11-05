@@ -173,15 +173,15 @@ export default class CreateAccount extends Component {
 
     Promise
       .all([
-        api.ethcore.generateSecretPhrase(),
-        api.ethcore.generateSecretPhrase(),
-        api.ethcore.generateSecretPhrase(),
-        api.ethcore.generateSecretPhrase(),
-        api.ethcore.generateSecretPhrase()
+        api.parity.generateSecretPhrase(),
+        api.parity.generateSecretPhrase(),
+        api.parity.generateSecretPhrase(),
+        api.parity.generateSecretPhrase(),
+        api.parity.generateSecretPhrase()
       ])
       .then((phrases) => {
         return Promise
-          .all(phrases.map((phrase) => api.ethcore.phraseToAddress(phrase)))
+          .all(phrases.map((phrase) => api.parity.phraseToAddress(phrase)))
           .then((addresses) => {
             const accounts = {};
 
