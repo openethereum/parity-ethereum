@@ -207,7 +207,9 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 							.map(Into::into);
 
 					// Receive ready and invoke with result.
-					let ready: Ready<H256> = rx.try_recv().expect("When on_done is invoked ready object is always sent.");
+					let ready: Ready<H256> = rx.recv().expect(
+						"recv() fails when `tx` has been dropped, if this closure is invoked `tx` is not dropped (`res == Ok()`); qed"
+					);
 					ready.ready(result);
 				}));
 
@@ -215,10 +217,11 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 				if let Err(e) = res {
 					ready.ready(Err(errors::from_fetch_error(e)));
 				} else {
-					tx.send(ready).expect("Rx end is sent to on_done closure.");
+					tx.send(ready).expect(
+						"send() fails when `rx` end is dropped, if `res == Ok()`: `rx` is moved to the closure; qed"
+					);
 				}
 			}
 		}
 	}
-
 }

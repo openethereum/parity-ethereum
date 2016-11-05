@@ -78,7 +78,6 @@ impl FromStr for Api {
 #[derive(Debug)]
 pub enum ApiSet {
 	SafeContext,
-	IpcContext,
 	UnsafeContext,
 	IpcContext,
 	List(HashSet<Api>),
@@ -154,10 +153,6 @@ impl ApiSet {
 				safe_list.insert(Api::Personal);
 				safe_list.insert(Api::ParityAccounts);
 				safe_list
-			},
-			ApiSet::IpcContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalAccounts, Api::PersonalSafe]
-					.into_iter().collect()
 			},
 			ApiSet::SafeContext => {
 				safe_list.insert(Api::Personal);
