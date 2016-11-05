@@ -16,6 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import Contracts from '../../contracts';
+import { fetchAvailable } from '../Dapps/registry';
+
 import styles from './dapp.css';
 
 export default class Dapp extends Component {
@@ -27,16 +30,32 @@ export default class Dapp extends Component {
     params: PropTypes.object
   };
 
+  state = {
+    app: null
+  }
+
+  componentWillMount () {
+    this.lookup();
+  }
+
   render () {
-    const { name, type } = this.props.params;
+    const { app } = this.state;
     const { dappsUrl } = this.context.api;
 
-    let src = `${dappsUrl}/${name}/`;
-    if (type === 'builtin') {
-      const dapphost = process.env.NODE_ENV === 'production'
+    if (!app) {
+      return null;
+    }
+
+    let src = null;
+    if (app.builtin) {
+      const dapphost = process.env.NODE_ENV === 'production' && !app.secure
         ? `${dappsUrl}/ui`
         : '';
-      src = `${dapphost}/${name}.html`;
+      src = `${dapphost}/${app.url}.html`;
+    } else if (app.local) {
+      src = `${dappsUrl}/${app.id}/`;
+    } else {
+      src = `${dappsUrl}/${app.contentHash}/`;
     }
 
     return (
@@ -49,5 +68,31 @@ export default class Dapp extends Component {
         src={ src }>
       </iframe>
     );
+  }
+
+  lookup () {
+    const { api } = this.context;
+    const { id } = this.props.params;
+    const { dappReg } = Contracts.get();
+
+    fetchAvailable(api)
+      .then((available) => {
+        return available.find((app) => app.id === id);
+      })
+      .then((app) => {
+        if (app.type !== 'network') {
+          return app;
+        }
+
+        return dappReg
+          .getContent(app.id)
+          .then((contentHash) => {
+            app.contentHash = contentHash;
+            return app;
+          });
+      })
+      .then((app) => {
+        this.setState({ app });
+      });
   }
 }

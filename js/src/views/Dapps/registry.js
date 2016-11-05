@@ -55,7 +55,8 @@ const builtinApps = [
     name: 'GitHub Hint',
     description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
+    version: '1.0.0',
+    secure: true
   }
 ];
 
@@ -81,13 +82,6 @@ function getHost (api) {
 }
 
 export function fetchAvailable (api) {
-  // TODO: Since we don't have an extensive GithubHint app, get the value somehow
-  // RESULT: 0x22cd66e1b05882c0fa17a16d252d3b3ee2238ccbac8153f69a35c83f02ca76ee
-  // api.parity
-  //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/5a9f11ff2ad0d05c565a938ceffdfa0d23af9981')
-  //   .then((sha3) => {
-  //     console.log('archive', sha3);
-  //   });
   return fetch(`${getHost(api)}/api/apps`)
     .then((response) => {
       return response.ok
