@@ -26,48 +26,48 @@ build_rpc_trait! {
 	pub trait ParityAccounts {
 
 		/// Returns accounts information.
-		#[rpc(name = "personal_accountsInfo")]
+		#[rpc(name = "parity_accountsInfo")]
 		fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error>;
 
 		/// Creates new account from the given phrase using standard brainwallet mechanism.
 		/// Second parameter is password for the new account.
-		#[rpc(name = "personal_newAccountFromPhrase")]
+		#[rpc(name = "parity_newAccountFromPhrase")]
 		fn new_account_from_phrase(&self, String, String) -> Result<H160, Error>;
 
 		/// Creates new account from the given JSON wallet.
 		/// Second parameter is password for the wallet and the new account.
-		#[rpc(name = "personal_newAccountFromWallet")]
+		#[rpc(name = "parity_newAccountFromWallet")]
 		fn new_account_from_wallet(&self, String, String) -> Result<H160, Error>;
 
 		/// Creates new account from the given raw secret.
 		/// Second parameter is password for the new account.
-		#[rpc(name = "personal_newAccountFromSecret")]
+		#[rpc(name = "parity_newAccountFromSecret")]
 		fn new_account_from_secret(&self, H256, String) -> Result<H160, Error>;
 
 		/// Returns true if given `password` would unlock given `account`.
 		/// Arguments: `account`, `password`.
-		#[rpc(name = "personal_testPassword")]
+		#[rpc(name = "parity_testPassword")]
 		fn test_password(&self, H160, String) -> Result<bool, Error>;
 
 		/// Changes an account's password.
 		/// Arguments: `account`, `password`, `new_password`.
-		#[rpc(name = "personal_changePassword")]
+		#[rpc(name = "parity_changePassword")]
 		fn change_password(&self, H160, String, String) -> Result<bool, Error>;
 
 		/// Set an account's name.
-		#[rpc(name = "personal_setAccountName")]
+		#[rpc(name = "parity_setAccountName")]
 		fn set_account_name(&self, H160, String) -> Result<bool, Error>;
 
 		/// Set an account's metadata string.
-		#[rpc(name = "personal_setAccountMeta")]
+		#[rpc(name = "parity_setAccountMeta")]
 		fn set_account_meta(&self, H160, String) -> Result<bool, Error>;
 
 		/// Imports a number of Geth accounts, with the list provided as the argument.
-		#[rpc(name = "personal_importGethAccounts")]
+		#[rpc(name = "parity_importGethAccounts")]
 		fn import_geth_accounts(&self, Vec<H160>) -> Result<Vec<H160>, Error>;
 
 		/// Returns the accounts available for importing from Geth.
-		#[rpc(name = "personal_listGethAccounts")]
+		#[rpc(name = "parity_listGethAccounts")]
 		fn geth_accounts(&self) -> Result<Vec<H160>, Error>;
 	}
 }
