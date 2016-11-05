@@ -62,7 +62,7 @@ export default class SecureApi extends Api {
       case 1:
         if (isConnected) {
           this._connectState = 2;
-          this.personal
+          this.parity
             .generateAuthorizationToken()
             .then((token) => {
               this.updateToken(token, 2);
