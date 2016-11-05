@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-// 0xecf69634885f27a8f78161e530f15a8d3b57d39e755c222c92cf297b6e25aaaa
-
 import React, { Component, PropTypes } from 'react';
 import { Tab, Tabs } from 'material-ui';
 import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
@@ -23,6 +21,7 @@ import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
 import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
 import { Actionbar, Page } from '../../ui';
+import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
 
@@ -37,11 +36,23 @@ export default class Settings extends Component {
 
   render () {
     const { children } = this.props;
+    const hash = (window.location.hash || '').split('?')[0].split('/')[2];
+    const isProxied = window.location.hostname.indexOf('.parity') !== -1;
+    let proxy = null;
+
+    if (!isProxied) {
+      proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
+    }
 
     return (
       <div className={ styles.layout }>
         <Actionbar title='settings' className={ styles.bar }>
-          { this.renderTabs() }
+          <Tabs className={ styles.tabs } value={ hash }>
+            { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
+            { this.renderTab(hash, 'background', <ImageBlurOn />) }
+            { proxy }
+            { this.renderTab(hash, 'parity', <img src={ imagesEthcoreBlock } className={ styles.imageIcon } />) }
+          </Tabs>
         </Actionbar>
         <Page>
           { children }
@@ -50,41 +61,15 @@ export default class Settings extends Component {
     );
   }
 
-  renderTabs () {
-    const hash = (window.location.hash || '').split('?')[0].split('/')[2];
-    const isProxied = window.location.hostname.indexOf('.parity') !== -1;
-    let proxy = null;
-
-    if (!isProxied) {
-      proxy = (
-        <Tab
-          className={ hash === 'proxy' ? styles.tabactive : styles.tab }
-          value='proxy'
-          key='proxy'
-          icon={ <ActionSettingsEthernet /> }
-          label={ <div className={ styles.menu }>proxy</div> }
-          onActive={ this.onActivate('proxy') } />
-      );
-    }
-
+  renderTab (hash, section, icon) {
     return (
-      <Tabs className={ styles.tabs } value={ hash }>
-        <Tab
-          className={ hash === 'views' ? styles.tabactive : styles.tab }
-          value='views'
-          key='views'
-          icon={ <ImageRemoveRedEye /> }
-          label={ <div className={ styles.menu }>views</div> }
-          onActive={ this.onActivate('views') } />
-        <Tab
-          className={ hash === 'background' ? styles.tabactive : styles.tab }
-          value='background'
-          key='background'
-          icon={ <ImageBlurOn /> }
-          label={ <div className={ styles.menu }>background</div> }
-          onActive={ this.onActivate('background') } />
-        { proxy }
-      </Tabs>
+      <Tab
+        className={ hash === section ? styles.tabactive : styles.tab }
+        value={ section }
+        key={ section }
+        icon={ icon }
+        label={ <div className={ styles.menu }>{ section }</div> }
+        onActive={ this.onActivate(section) } />
     );
   }
 
