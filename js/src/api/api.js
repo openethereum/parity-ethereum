@@ -17,7 +17,7 @@
 import { Http, Ws } from './transport';
 import Contract from './contract';
 
-import { Db, Eth, Ethcore, Net, Personal, Shh, Trace, Web3 } from './rpc';
+import { Db, Eth, Parity, Net, Personal, Shh, Trace, Web3 } from './rpc';
 import Subscriptions from './subscriptions';
 import util from './util';
 import { isFunction } from './util/types';
@@ -32,8 +32,8 @@ export default class Api {
 
     this._db = new Db(transport);
     this._eth = new Eth(transport);
-    this._ethcore = new Ethcore(transport);
     this._net = new Net(transport);
+    this._parity = new Parity(transport);
     this._personal = new Personal(transport);
     this._shh = new Shh(transport);
     this._trace = new Trace(transport);
@@ -50,8 +50,8 @@ export default class Api {
     return this._eth;
   }
 
-  get ethcore () {
-    return this._ethcore;
+  get parity () {
+    return this._parity;
   }
 
   get net () {
