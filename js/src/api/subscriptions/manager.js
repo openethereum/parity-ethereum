@@ -24,8 +24,8 @@ import Signer from './signer';
 const events = {
   'logging': { module: 'logging' },
   'eth_blockNumber': { module: 'eth' },
-  'personal_accountsInfo': { module: 'personal' },
-  'personal_listAccounts': { module: 'personal' },
+  'parity_accountsInfo': { module: 'personal' },
+  'eth_accounts': { module: 'personal' },
   'signer_requestsToConfirm': { module: 'signer' }
 };
 

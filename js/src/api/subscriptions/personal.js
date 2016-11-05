@@ -40,7 +40,7 @@ export default class Personal {
     return this._api.eth
       .accounts()
       .then((accounts) => {
-        this._updateSubscriptions('personal_listAccounts', null, accounts);
+        this._updateSubscriptions('eth_accounts', null, accounts);
       });
   }
 
@@ -48,7 +48,7 @@ export default class Personal {
     return this._api.parity
       .accountsInfo()
       .then((info) => {
-        this._updateSubscriptions('personal_accountsInfo', null, info);
+        this._updateSubscriptions('parity_accountsInfo', null, info);
       });
   }
 
@@ -59,16 +59,16 @@ export default class Personal {
       }
 
       switch (data.method) {
-        case 'personal_importGethAccounts':
+        case 'parity_importGethAccounts':
         case 'personal_newAccount':
-        case 'personal_newAccountFromPhrase':
-        case 'personal_newAccountFromWallet':
+        case 'parity_newAccountFromPhrase':
+        case 'parity_newAccountFromWallet':
           this._listAccounts();
           this._accountsInfo();
           return;
 
-        case 'personal_setAccountName':
-        case 'personal_setAccountMeta':
+        case 'parity_setAccountName':
+        case 'parity_setAccountMeta':
           this._accountsInfo();
           return;
       }
