@@ -25,7 +25,6 @@ import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { createHashHistory } from 'history';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
-import { useStrict } from 'mobx';
 
 import SecureApi from './secureApi';
 import ContractInstances from './contracts';
@@ -45,7 +44,6 @@ import styles from './reset.css';
 import './index.html';
 
 injectTapEventPlugin();
-useStrict(true);
 
 const parityUrl = process.env.PARITY_URL ||
   (

@@ -87,7 +87,7 @@ export default class DappsStore {
     this._api = api;
 
     this._readHiddenApps();
-    this.apps = this._fetch();
+    this._fetch();
   }
 
   @computed get visible () {
@@ -118,7 +118,7 @@ export default class DappsStore {
       : '';
   }
 
-  _fetch () {
+  @action _fetch () {
     const { dappReg } = Contracts.get();
 
     return fetch(`${this._getHost()}/api/apps`)
@@ -172,7 +172,7 @@ export default class DappsStore {
             Promise.all(apps.map((app) => dappReg.getContent(app.id)))
           ])
           .then(([images, content]) => {
-            return apps.map((app, index) => {
+            this.apps = apps.map((app, index) => {
               return Object.assign(app, {
                 image: hashToImageUrl(images[index]),
                 contentHash: this._api.util.bytesToHex(content[index]).substr(2)
@@ -204,7 +204,7 @@ export default class DappsStore {
       });
   }
 
-  _readHiddenApps () {
+  @action _readHiddenApps () {
     const stored = localStorage.getItem('hiddenApps');
 
     if (stored) {

@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
 
-import Contracts from '../../contracts';
-import { fetchAvailable } from '../Dapps/registry';
+import DappsStore from '../Dapps/dappsStore';
 
 import styles from './dapp.css';
 
+@observer
 export default class Dapp extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -30,17 +31,13 @@ export default class Dapp extends Component {
     params: PropTypes.object
   };
 
-  state = {
-    app: null
-  }
-
-  componentWillMount () {
-    this.lookup();
-  }
+  store = new DappsStore(this.context.api);
 
   render () {
-    const { app } = this.state;
     const { dappsUrl } = this.context.api;
+    const { id } = this.props.params;
+    console.log(this.store.apps);
+    const app = this.store.apps.find((app) => app.id === id);
 
     if (!app) {
       return null;
@@ -75,31 +72,5 @@ export default class Dapp extends Component {
         src={ src }>
       </iframe>
     );
-  }
-
-  lookup () {
-    const { api } = this.context;
-    const { id } = this.props.params;
-    const { dappReg } = Contracts.get();
-
-    fetchAvailable(api)
-      .then((available) => {
-        return available.find((app) => app.id === id);
-      })
-      .then((app) => {
-        if (app.type !== 'network') {
-          return app;
-        }
-
-        return dappReg
-          .getContent(app.id)
-          .then((contentHash) => {
-            app.contentHash = api.util.bytesToHex(contentHash).substr(2);
-            return app;
-          });
-      })
-      .then((app) => {
-        this.setState({ app });
-      });
   }
 }
