@@ -41,7 +41,9 @@ export default class Application extends Component {
     registerBusy: false,
     registerError: null,
     registerState: '',
-    registerType: 'file'
+    registerType: 'file',
+    repo: '',
+    repoError: null
   }
 
   componentDidMount () {
@@ -212,8 +214,9 @@ export default class Application extends Component {
 
     this.setState({ commit, commitError, contentHashError: null }, () => {
       const { repo } = this.state || '';
-      const parts = repo.split();
-      hasContent = commit.length !== 0 && parts.length() === 2 && parts[1].length !== 0 && parts[2].length !== 0;
+      const parts = repo.split('/');
+
+      hasContent = commit.length !== 0 && parts.length === 2 && parts[0].length !== 0 && parts[1].length !== 0;
       if (!commitError && hasContent) {
         this.setState({ contentHashError: 'hash lookup in progress' });
         this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
@@ -233,8 +236,9 @@ export default class Application extends Component {
 
     this.setState({ repo, repoError, contentHashError: null }, () => {
       const { commit } = this.state || '';
-      const parts = repo.split();
-      hasContent = commit.length !== 0 && parts.length() === 2 && parts[1].length !== 0 && parts[2].length !== 0;
+      const parts = repo.split('/');
+
+      hasContent = commit.length !== 0 && parts.length === 2 && parts[0].length !== 0 && parts[1].length !== 0;
       if (!repoError && hasContent) {
         this.setState({ contentHashError: 'hash lookup in progress' });
         this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
@@ -250,7 +254,7 @@ export default class Application extends Component {
     // TODO: field validation
     if (!urlError) {
       const parts = url.split('/');
-      hasContent = parts.length() !== 0;
+      hasContent = parts.length !== 0;
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
         url = `https://raw.githubusercontent.com/${parts.slice(3).join('/')}`.replace('/blob/', '/');
