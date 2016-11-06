@@ -26,6 +26,29 @@ export default {
     }
   },
 
+  accounts: {
+    desc: 'returns a map of accounts as an object',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Account metadata',
+      details: {
+        name: {
+          type: String,
+          desc: 'Account name'
+        },
+        meta: {
+          type: String,
+          desc: 'Encoded JSON string the defines additional account metadata'
+        },
+        uuid: {
+          type: String,
+          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+        }
+      }
+    }
+  },
+
   accountsInfo: {
     desc: 'returns a map of accounts as an object',
     params: [],

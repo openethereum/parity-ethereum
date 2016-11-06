@@ -17,7 +17,7 @@
 import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
 import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
 
-export default class Ethcore {
+export default class Parity {
   constructor (transport) {
     this._transport = transport;
   }
@@ -25,6 +25,12 @@ export default class Ethcore {
   acceptNonReservedPeers () {
     return this._transport
       .execute('parity_acceptNonReservedPeers');
+  }
+
+  accounts () {
+    return this._transport
+      .execute('parity_accounts')
+      .then(outAccountInfo);
   }
 
   accountsInfo () {

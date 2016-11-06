@@ -83,7 +83,7 @@ export default class Application extends Component {
     Promise
       .all([
         attachInstances(),
-        api.parity.accountsInfo()
+        api.parity.accounts()
       ])
       .then(([{ managerInstance, registryInstance, tokenregInstance }, accountsInfo]) => {
         accountsInfo = accountsInfo || {};

@@ -47,15 +47,22 @@ export default class Dapp extends Component {
     }
 
     let src = null;
-    if (app.builtin) {
-      const dapphost = process.env.NODE_ENV === 'production' && !app.secure
-        ? `${dappsUrl}/ui`
-        : '';
-      src = `${dapphost}/${app.url}.html`;
-    } else if (app.local) {
-      src = `${dappsUrl}/${app.id}/`;
-    } else {
-      src = `${dappsUrl}/${app.contentHash}/`;
+    switch (app.type) {
+      case 'builtin':
+        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
+          ? `${dappsUrl}/ui`
+          : '';
+        src = `${dapphost}/${app.url}.html`;
+        break;
+      case 'local':
+        src = `${dappsUrl}/${app.id}/`;
+        break;
+      case 'network':
+        src = `${dappsUrl}/${app.contentHash}/`;
+        break;
+      default:
+        console.error('unknown type', app.type);
+        break;
     }
 
     return (
@@ -87,7 +94,7 @@ export default class Dapp extends Component {
         return dappReg
           .getContent(app.id)
           .then((contentHash) => {
-            app.contentHash = contentHash;
+            app.contentHash = api.util.bytesToHex(contentHash).substr(2);
             return app;
           });
       })

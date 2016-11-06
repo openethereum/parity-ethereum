@@ -96,7 +96,7 @@ export function fetchAvailable (api) {
       const localApps = _localApps
         .filter((app) => !['ui'].includes(app.id))
         .map((app) => {
-          app.local = true;
+          app.type = 'local';
           return app;
         });
 
@@ -109,13 +109,13 @@ export function fetchAvailable (api) {
 
           const _builtinApps = builtinApps
             .map((app) => {
-              app.builtin = true;
+              app.type = 'builtin';
               return app;
             });
 
           return networkApps
             .map((app) => {
-              app.network = true;
+              app.type = 'network';
               return app;
             })
             .concat(_builtinApps);

@@ -29,7 +29,7 @@ export function attachInterface () {
         .all([
           registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A']),
           api.eth.accounts(),
-          api.parity.accountsInfo()
+          api.parity.accounts()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {
