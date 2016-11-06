@@ -56,6 +56,8 @@ export default class Http extends JsonRpcBase {
         if (response.status !== 200) {
           this._connected = false;
           this.error(JSON.stringify({ status: response.status, statusText: response.statusText }));
+          console.error(`${method}(${JSON.stringify(params)}): ${response.status}: ${response.statusText}`);
+
           throw new Error(`${response.status}: ${response.statusText}`);
         }
 
@@ -66,7 +68,9 @@ export default class Http extends JsonRpcBase {
 
         if (response.error) {
           this.error(JSON.stringify(response));
-          throw new Error(`${response.error.code}: ${response.error.message}`);
+          console.error(`${method}(${JSON.stringify(params)}): ${response.error.code}: ${response.error.message}`);
+
+          throw new Error(`${method}: ${response.error.code}: ${response.error.message}`);
         }
 
         this.log(JSON.stringify(response));

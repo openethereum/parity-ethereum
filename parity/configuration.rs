@@ -509,7 +509,11 @@ impl Configuration {
 	}
 
 	fn rpc_apis(&self) -> String {
-		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
+		let mut apis = self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone());
+		if self.args.flag_geth {
+			apis.push_str(",personal");
+		}
+		apis
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
@@ -541,7 +545,13 @@ impl Configuration {
 		let conf = IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
-			apis: try!(self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()).parse()),
+			apis: {
+				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
+				if self.args.flag_geth {
+					apis.push_str("personal");
+				}
+				try!(apis.parse())
+			},
 		};
 
 		Ok(conf)

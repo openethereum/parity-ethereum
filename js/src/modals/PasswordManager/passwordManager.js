@@ -317,7 +317,7 @@ export default class PasswordManager extends Component {
     this.setState({ waiting: true, showMessage: false });
 
     this.context
-      .api.personal
+      .api.parity
       .testPassword(account.address, currentPass)
       .then(correct => {
         const message = correct
@@ -343,7 +343,7 @@ export default class PasswordManager extends Component {
     this.setState({ waiting: true, showMessage: false });
 
     this.context
-      .api.personal
+      .api.parity
       .testPassword(account.address, currentPass)
       .then(correct => {
         if (!correct) {
@@ -363,11 +363,11 @@ export default class PasswordManager extends Component {
 
         return Promise.all([
           this.context
-            .api.personal
+            .api.parity
             .setAccountMeta(account.address, meta),
 
           this.context
-            .api.personal
+            .api.parity
             .changePassword(account.address, currentPass, newPass)
         ])
           .then(() => {

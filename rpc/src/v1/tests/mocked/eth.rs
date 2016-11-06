@@ -27,7 +27,7 @@ use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
-use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, EthSigningUnsafeClient};
+use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use rustc_serialize::hex::ToHex;
 use time::get_time;
@@ -83,7 +83,7 @@ impl EthTester {
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
 		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
-		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
+		let sign = SigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
 		io.add_delegate(sign);
