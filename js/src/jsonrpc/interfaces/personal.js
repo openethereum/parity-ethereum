@@ -17,112 +17,12 @@
 import { Address, Data, Quantity } from '../types';
 
 export default {
-  accountsInfo: {
-    desc: 'returns a map of accounts as an object',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'Account metadata',
-      details: {
-        name: {
-          type: String,
-          desc: 'Account name'
-        },
-        meta: {
-          type: String,
-          desc: 'Encoded JSON string the defines additional account metadata'
-        },
-        uuid: {
-          type: String,
-          desc: 'The account UUID, or null if not available/unknown/not applicable.'
-        }
-      }
-    }
-  },
-
-  generateAuthorizationToken: {
-    desc: 'Generates a new authorization token',
-    params: [],
-    returns: {
-      type: String,
-      desc: 'The new authorization token'
-    }
-  },
-
-  requestsToConfirm: {
-    desc: 'Returns a list of the transactions requiring authorization',
-    params: [],
-    returns: {
-      type: Array,
-      desc: 'A list of the outstanding transactions'
-    }
-  },
-
-  confirmRequest: {
-    desc: 'Confirm a request in the signer queue',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The request id'
-      },
-      {
-        type: Object,
-        desc: 'The request options'
-      },
-      {
-        type: String,
-        desc: 'The account password'
-      }
-    ],
-    returns: {
-      type: Boolean,
-      desc: 'The status of the confirmation'
-    }
-  },
-
-  rejectRequest: {
-    desc: 'Rejects a request in the signer queue',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The request id'
-      }
-    ],
-    returns: {
-      type: Boolean,
-      desc: 'The status of the rejection'
-    }
-  },
-
   listAccounts: {
     desc: 'Returns a list of addresses owned by client.',
     params: [],
     returns: {
       type: Array,
       desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
-  listGethAccounts: {
-    desc: 'Returns a list of the accounts available from Geth',
-    params: [],
-    returns: {
-      type: Array,
-      desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
-  importGethAccounts: {
-    desc: 'Imports a list of accounts from geth',
-    params: [
-      {
-        type: Array,
-        desc: 'List of the geth addresses to import'
-      }
-    ],
-    returns: {
-      type: Array,
-      desc: 'Array of the imported addresses'
     }
   },
 
@@ -137,96 +37,6 @@ export default {
     returns: {
       type: Address,
       desc: 'The created address'
-    }
-  },
-
-  newAccountFromPhrase: {
-    desc: 'Creates a new account from a recovery passphrase',
-    params: [
-      {
-        type: String,
-        desc: 'Phrase'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  newAccountFromSecret: {
-    desc: 'Creates a new account from a private ethstore secret key',
-    params: [
-      {
-        type: Data,
-        desc: 'Secret, 32-byte hex'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  newAccountFromWallet: {
-    desc: 'Creates a new account from a JSON import',
-    params: [
-      {
-        type: String,
-        desc: 'JSON'
-      },
-      {
-        type: String,
-        desc: 'Password'
-      }
-    ],
-    returns: {
-      type: Address,
-      desc: 'The created address'
-    }
-  },
-
-  setAccountName: {
-    desc: 'Sets a name for the account',
-    params: [
-      {
-        type: Address,
-        desc: 'Address'
-      },
-      {
-        type: String,
-        desc: 'Name'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'Returns null in all cases'
-    }
-  },
-
-  setAccountMeta: {
-    desc: 'Sets metadata for the account',
-    params: [
-      {
-        type: Address,
-        desc: 'Address'
-      },
-      {
-        type: String,
-        desc: 'Metadata (JSON encoded)'
-      }
-    ],
-    returns: {
-      type: Object,
-      desc: 'Returns null in all cases'
     }
   },
 
@@ -281,15 +91,6 @@ export default {
     returns: {
       type: Data,
       desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
-    }
-  },
-
-  signerEnabled: {
-    desc: 'Returns whether signer is enabled/disabled.',
-    params: [],
-    returns: {
-      type: Boolean,
-      desc: 'true when enabled, false when disabled'
     }
   },
 

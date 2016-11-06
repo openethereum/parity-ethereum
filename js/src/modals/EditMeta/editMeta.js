@@ -99,11 +99,10 @@ export default class EditMeta extends Component {
 
   renderTags () {
     const { meta } = this.state;
-    const { tags } = meta || [];
 
     return (
       <InputChip
-        tokens={ tags }
+        tokens={ meta.tags || [] }
         onTokensChange={ this.onTagsChange }
         label='(optional) tags'
         hint='press <Enter> to add a tag'
@@ -139,8 +138,8 @@ export default class EditMeta extends Component {
 
     Promise
       .all([
-        api.personal.setAccountName(account.address, name),
-        api.personal.setAccountMeta(account.address, Object.assign({}, account.meta, meta))
+        api.parity.setAccountName(account.address, name),
+        api.parity.setAccountMeta(account.address, Object.assign({}, account.meta, meta))
       ])
       .then(() => this.props.onClose())
       .catch((error) => {

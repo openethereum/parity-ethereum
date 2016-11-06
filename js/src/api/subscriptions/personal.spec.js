@@ -34,14 +34,15 @@ function stubApi (accounts, info) {
 
   return {
     _calls,
-    personal: {
+    parity: {
       accountsInfo: () => {
         const stub = sinon.stub().resolves(info || TEST_INFO)();
         _calls.accountsInfo.push(stub);
         return stub;
-      },
-
-      listAccounts: () => {
+      }
+    },
+    eth: {
+      accounts: () => {
         const stub = sinon.stub().resolves(accounts || TEST_LIST)();
         _calls.listAccounts.push(stub);
         return stub;
@@ -85,17 +86,17 @@ describe('api/subscriptions/personal', () => {
         expect(personal.isStarted).to.be.true;
       });
 
-      it('calls personal_accountsInfo', () => {
+      it('calls parity_accountsInfo', () => {
         expect(api._calls.accountsInfo.length).to.be.ok;
       });
 
-      it('calls personal_listAccounts', () => {
+      it('calls eth_accounts', () => {
         expect(api._calls.listAccounts.length).to.be.ok;
       });
 
       it('updates subscribers', () => {
-        expect(cb.firstCall).to.have.been.calledWith('personal_listAccounts', null, TEST_LIST);
-        expect(cb.secondCall).to.have.been.calledWith('personal_accountsInfo', null, TEST_INFO);
+        expect(cb.firstCall).to.have.been.calledWith('eth_accounts', null, TEST_LIST);
+        expect(cb.secondCall).to.have.been.calledWith('parity_accountsInfo', null, TEST_INFO);
       });
     });
 

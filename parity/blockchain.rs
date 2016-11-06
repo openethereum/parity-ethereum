@@ -78,7 +78,6 @@ pub struct ImportBlockchain {
 	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
-	pub mode: Mode,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub vm_type: VMType,
@@ -97,7 +96,6 @@ pub struct ExportBlockchain {
 	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
-	pub mode: Mode,
 	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockID,
@@ -155,7 +153,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
+	let client_config = to_client_config(&cmd.cache_config, Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -303,7 +301,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, cmd.mode, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
+	let client_config = to_client_config(&cmd.cache_config, Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	let service = try!(ClientService::start(
 		client_config,

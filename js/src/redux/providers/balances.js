@@ -42,7 +42,7 @@ export default class Balances {
 
   _subscribeAccountsInfo () {
     this._api
-      .subscribe('personal_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
         if (error) {
           return;
         }
@@ -76,7 +76,7 @@ export default class Balances {
   }
 
   _retrieveTokens () {
-    this._api.ethcore
+    this._api.parity
       .registryAddress()
       .then((registryAddress) => {
         const registry = this._api.newContract(abis.registry, registryAddress);

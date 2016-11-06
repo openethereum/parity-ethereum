@@ -147,6 +147,7 @@ pub struct Client {
 	factories: Factories,
 	history: u64,
 	rng: Mutex<OsRng>,
+	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
 }
 
 impl Client {
@@ -211,7 +212,7 @@ impl Client {
 		let panic_handler = PanicHandler::new_in_arc();
 		panic_handler.forward_from(&block_queue);
 
-		let awake = match config.mode { Mode::Dark(..) => false, _ => true };
+		let awake = match config.mode { Mode::Dark(..) | Mode::Off => false, _ => true };
 
 		let factories = Factories {
 			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
@@ -243,6 +244,7 @@ impl Client {
 			factories: factories,
 			history: history,
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
+			on_mode_change: Mutex::new(None),
 		};
 		Ok(Arc::new(client))
 	}
@@ -258,6 +260,11 @@ impl Client {
 				f(&*n);
 			}
 		}
+	}
+
+	/// Register an action to be done if a mode change happens. 
+	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
+		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
 
 	/// Flush the block import queue.
@@ -856,18 +863,37 @@ impl BlockChainClient for Client {
 	}
 
 	fn keep_alive(&self) {
-		let mode = self.mode.lock().clone();
-		if mode != Mode::Active {
+		let should_wake = match &*self.mode.lock() {
+			&Mode::Dark(..) | &Mode::Passive(..) => true,
+			_ => false,
+		};
+		if should_wake {
 			self.wake_up();
 			(*self.sleep_state.lock()).last_activity = Some(Instant::now());
 		}
 	}
 
-	fn mode(&self) -> IpcMode { self.mode.lock().clone().into() }
+	fn mode(&self) -> IpcMode {
+		let r = self.mode.lock().clone().into();
+		trace!(target: "mode", "Asked for mode = {:?}. returning {:?}", &*self.mode.lock(), r);
+		r
+	}
 
-	fn set_mode(&self, mode: IpcMode) {
-		*self.mode.lock() = mode.clone().into();
-		match mode {
+	fn set_mode(&self, new_mode: IpcMode) {
+		trace!(target: "mode", "Client::set_mode({:?})", new_mode);
+		{
+			let mut mode = self.mode.lock();
+			*mode = new_mode.clone().into();
+			trace!(target: "mode", "Mode now {:?}", &*mode);
+			match *self.on_mode_change.lock() {
+				Some(ref mut f) => {
+					trace!(target: "mode", "Making callback...");
+					f(&*mode)
+				},
+				_ => {} 
+			}
+		}
+		match new_mode {
 			IpcMode::Active => self.wake_up(),
 			IpcMode::Off => self.sleep(),
 			_ => {(*self.sleep_state.lock()).last_activity = Some(Instant::now()); }

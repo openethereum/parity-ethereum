@@ -39,7 +39,7 @@ const logToEvent = (log) => {
 };
 
 export function attachInterface (callback) {
-  return api.ethcore
+  return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);
@@ -50,7 +50,7 @@ export function attachInterface (callback) {
         .all([
           registry.getAddress.call({}, [api.util.sha3('signaturereg'), 'A']),
           api.eth.accounts(),
-          api.personal.accountsInfo()
+          api.parity.accounts()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {
