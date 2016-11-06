@@ -42,7 +42,12 @@ export default class AddDapps extends Component {
         compact
         title='visible applications'
         actions={ [
-          <Button label={ 'Done' } key='done' onClick={ store.closeModal } icon={ <DoneIcon /> } />
+          <Button
+            label={ 'Done' }
+            key='done'
+            onClick={ store.closeModal }
+            icon={ <DoneIcon /> }
+          />
         ] }
         visible
         scroll>
@@ -56,11 +61,6 @@ export default class AddDapps extends Component {
   renderApp = (app) => {
     const { store } = this.props;
     const isHidden = store.hidden.includes(app.id);
-    const description = (
-      <div className={ styles.description }>
-        { app.description }
-      </div>
-    );
     const onCheck = () => {
       if (isHidden) {
         store.showApp(app.id);
@@ -72,9 +72,19 @@ export default class AddDapps extends Component {
     return (
       <ListItem
         key={ app.id }
-        leftCheckbox={ <Checkbox checked={ !isHidden } onCheck={ onCheck } /> }
+        leftCheckbox={
+          <Checkbox
+            checked={ !isHidden }
+            onCheck={ onCheck }
+          />
+        }
         primaryText={ app.name }
-        secondaryText={ description } />
+        secondaryText={
+          <div className={ styles.description }>
+            { app.description }
+          </div>
+        }
+      />
     );
   }
 }

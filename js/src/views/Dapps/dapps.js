@@ -44,7 +44,12 @@ export default class Dapps extends Component {
           className={ styles.toolbar }
           title='Decentralized Applications'
           buttons={ [
-            <FlatButton label='edit' key='edit' icon={ <EyeIcon /> } onClick={ this.store.openModal } />
+            <FlatButton
+              label='edit'
+              key='edit'
+              icon={ <EyeIcon /> }
+              onClick={ this.store.openModal }
+            />
           ] }
         />
         <Page>

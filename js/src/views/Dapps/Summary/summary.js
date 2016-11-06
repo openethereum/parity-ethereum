@@ -52,9 +52,16 @@ export default class Summary extends Component {
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
-            title={ <Link to={ `/app/${app.id}` }>{ app.name }</Link> }
-            byline={ app.description } />
-          <div className={ styles.author }>{ app.author }, v{ app.version }</div>
+            title={
+              <Link to={ `/app/${app.id}` }>
+                { app.name }
+              </Link>
+            }
+            byline={ app.description }
+          />
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
           { this.props.children }
         </div>
       </Container>
