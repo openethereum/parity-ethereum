@@ -18,7 +18,7 @@ import * as abis from '../../contracts/abi';
 import { api } from './parity';
 
 export function attachInterface () {
-  return api.ethcore
+  return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);
@@ -29,7 +29,7 @@ export function attachInterface () {
         .all([
           registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A']),
           api.eth.accounts(),
-          api.personal.accountsInfo()
+          api.parity.accounts()
         ]);
     })
     .then(([address, addresses, accountsInfo]) => {

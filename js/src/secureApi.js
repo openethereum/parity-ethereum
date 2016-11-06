@@ -62,7 +62,7 @@ export default class SecureApi extends Api {
       case 1:
         if (isConnected) {
           this._connectState = 2;
-          this.personal
+          this.parity
             .generateAuthorizationToken()
             .then((token) => {
               this.updateToken(token, 2);
@@ -96,8 +96,8 @@ export default class SecureApi extends Api {
 
     Promise
       .all([
-        this.ethcore.dappsPort(),
-        this.ethcore.signerPort()
+        this.parity.dappsPort(),
+        this.parity.signerPort()
       ])
       .then(([dappsPort, signerPort]) => {
         this._dappsPort = dappsPort.toNumber();

@@ -139,8 +139,8 @@ export default class EditMeta extends Component {
 
     Promise
       .all([
-        api.personal.setAccountName(account.address, name),
-        api.personal.setAccountMeta(account.address, Object.assign({}, account.meta, meta))
+        api.parity.setAccountName(account.address, name),
+        api.parity.setAccountMeta(account.address, Object.assign({}, account.meta, meta))
       ])
       .then(() => this.props.onClose())
       .catch((error) => {

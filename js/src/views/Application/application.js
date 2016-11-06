@@ -104,8 +104,8 @@ class Application extends Component {
   checkAccounts () {
     const { api } = this.context;
 
-    api.personal
-      .listAccounts()
+    api.eth
+      .accounts()
       .then((accounts) => {
         this.setState({
           showFirstRun: showFirstRun || accounts.length === 0

@@ -16,19 +16,19 @@
 
 use std::sync::Arc;
 use util::log::RotatingLogger;
-use util::{Address};
+use util::Address;
 use ethsync::ManageNetwork;
 use ethcore::client::{TestBlockChainClient};
+use ethcore::account_provider::AccountProvider;
 use ethstore::ethkey::{Generator, Random};
 
 use jsonrpc_core::IoHandler;
-use v1::{Ethcore, EthcoreClient};
+use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestFetch};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
 use super::manage_network::TestManageNetwork;
 
-
-pub type TestEthcoreClient = EthcoreClient<TestBlockChainClient, TestMinerService, TestSyncProvider, TestFetch>;
+pub type TestParityClient = ParityClient<TestBlockChainClient, TestMinerService, TestSyncProvider>;
 
 pub struct Dependencies {
 	pub miner: Arc<TestMinerService>,
@@ -37,6 +37,7 @@ pub struct Dependencies {
 	pub logger: Arc<RotatingLogger>,
 	pub settings: Arc<NetworkSettings>,
 	pub network: Arc<ManageNetwork>,
+	pub accounts: Arc<AccountProvider>,
 	pub dapps_port: Option<u16>,
 }
 
@@ -59,16 +60,18 @@ impl Dependencies {
 				rpc_port: 8545,
 			}),
 			network: Arc::new(TestManageNetwork),
+			accounts: Arc::new(AccountProvider::transient_provider()),
 			dapps_port: Some(18080),
 		}
 	}
 
-	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestEthcoreClient {
-		EthcoreClient::with_fetch(
+	pub fn client(&self, signer: Option<Arc<SignerService>>) -> TestParityClient {
+		ParityClient::new(
 			&self.client,
 			&self.miner,
 			&self.sync,
 			&self.network,
+			&self.accounts,
 			self.logger.clone(),
 			self.settings.clone(),
 			signer,
@@ -90,105 +93,105 @@ impl Dependencies {
 }
 
 #[test]
-fn rpc_ethcore_extra_data() {
+fn rpc_parity_extra_data() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_extraData", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_extraData", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x01020304","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_default_extra_data() {
+fn rpc_parity_default_extra_data() {
 	use util::misc;
 	use util::ToPretty;
 
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_defaultExtraData", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_defaultExtraData", "params": [], "id": 1}"#;
 	let response = format!(r#"{{"jsonrpc":"2.0","result":"0x{}","id":1}}"#, misc::version_data().to_hex());
 
 	assert_eq!(io.handle_request_sync(request), Some(response));
 }
 
 #[test]
-fn rpc_ethcore_gas_floor_target() {
+fn rpc_parity_gas_floor_target() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_gasFloorTarget", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_gasFloorTarget", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x3039","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_min_gas_price() {
+fn rpc_parity_min_gas_price() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_minGasPrice", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_minGasPrice", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"0x1312d00","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_dev_logs() {
+fn rpc_parity_dev_logs() {
 	let deps = Dependencies::new();
 	deps.logger.append("a".to_owned());
 	deps.logger.append("b".to_owned());
 
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogs", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_devLogs", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":["b","a"],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_dev_logs_levels() {
+fn rpc_parity_dev_logs_levels() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_devLogsLevels", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_devLogsLevels", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"rpc=trace","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_transactions_limit() {
+fn rpc_parity_transactions_limit() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_transactionsLimit", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_transactionsLimit", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":1024,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_net_chain() {
+fn rpc_parity_net_chain() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netChain", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_netChain", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"testchain","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_net_peers() {
+fn rpc_parity_net_peers() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPeers", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_netPeers", "params":[], "id": 1}"#;
 	let response = "{\"jsonrpc\":\"2.0\",\"result\":{\"active\":0,\"connected\":120,\"max\":50,\"peers\":[{\"caps\":[\"eth/62\",\"eth/63\"],\
 \"id\":\"node1\",\"name\":\"Parity/1\",\"network\":{\"localAddress\":\"127.0.0.1:8888\",\"remoteAddress\":\"127.0.0.1:7777\"}\
 ,\"protocols\":{\"eth\":{\"difficulty\":\"0x28\",\"head\":\"0000000000000000000000000000000000000000000000000000000000000032\"\
@@ -200,101 +203,90 @@ fn rpc_ethcore_net_peers() {
 }
 
 #[test]
-fn rpc_ethcore_net_port() {
+fn rpc_parity_net_port() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_netPort", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_netPort", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":30303,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_rpc_settings() {
+fn rpc_parity_rpc_settings() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_rpcSettings", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_rpcSettings", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"enabled":true,"interface":"all","port":8545},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_node_name() {
+fn rpc_parity_node_name() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_nodeName", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_nodeName", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":"mynode","id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_unsigned_transactions_count() {
+fn rpc_parity_unsigned_transactions_count() {
 	let deps = Dependencies::new();
 	let io = deps.with_signer(SignerService::new_test(Some(18180)));
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_unsigned_transactions_count_when_signer_disabled() {
+fn rpc_parity_unsigned_transactions_count_when_signer_disabled() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_unsignedTransactionsCount", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_hash_content() {
+fn rpc_parity_pending_transactions() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_hashContent", "params":["https://ethcore.io/assets/images/ethcore-black-horizontal.png"], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"0x2be00befcf008bc0e7d9cdefc194db9c75352e8632f48498b5a6bfce9f02c88e","id":1}"#;
-
-	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn rpc_ethcore_pending_transactions() {
-	let deps = Dependencies::new();
-	let io = deps.default_client();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_pendingTransactions", "params":[], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactions", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }
 
 #[test]
-fn rpc_ethcore_encrypt() {
+fn rpc_parity_encrypt() {
 	let deps = Dependencies::new();
 	let io = deps.default_client();
 	let key = format!("{:?}", Random.generate().unwrap().public());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":["0x"#.to_owned() + &key + r#"", "0x01"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_encryptMessage", "params":["0x"#.to_owned() + &key + r#"", "0x01"], "id": 1}"#;
 	assert!(io.handle_request_sync(&request).unwrap().contains("result"), "Should return success.");
 }
 
 #[test]
-fn rpc_ethcore_signer_port() {
+fn rpc_parity_signer_port() {
 	// given
 	let deps = Dependencies::new();
 	let io1 = deps.with_signer(SignerService::new_test(Some(18180)));
 	let io2 = deps.default_client();
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_signerPort", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_signerPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18180,"id":1}"#;
 	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32030,"message":"Trusted Signer is disabled. This API is not available.","data":null},"id":1}"#;
 
@@ -304,7 +296,7 @@ fn rpc_ethcore_signer_port() {
 }
 
 #[test]
-fn rpc_ethcore_dapps_port() {
+fn rpc_parity_dapps_port() {
 	// given
 	let mut deps = Dependencies::new();
 	let io1 = deps.default_client();
@@ -312,7 +304,7 @@ fn rpc_ethcore_dapps_port() {
 	let io2 = deps.default_client();
 
 	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "ethcore_dappsPort", "params": [], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_dappsPort", "params": [], "id": 1}"#;
 	let response1 = r#"{"jsonrpc":"2.0","result":18080,"id":1}"#;
 	let response2 = r#"{"jsonrpc":"2.0","error":{"code":-32031,"message":"Dapps Server is disabled. This API is not available.","data":null},"id":1}"#;
 
@@ -322,7 +314,7 @@ fn rpc_ethcore_dapps_port() {
 }
 
 #[test]
-fn rpc_ethcore_next_nonce() {
+fn rpc_parity_next_nonce() {
 	let deps = Dependencies::new();
 	let address = Address::default();
 	let io1 = deps.default_client();
@@ -332,7 +324,7 @@ fn rpc_ethcore_next_nonce() {
 
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "ethcore_nextNonce",
+		"method": "parity_nextNonce",
 		"params": [""#.to_owned() + &format!("0x{:?}", address) + r#""],
 		"id": 1
 	}"#;

@@ -72,7 +72,7 @@ ReactDOM.render(
         <Route path='addresses' component={ Addresses } />
         <Route path='address/:address' component={ Address } />
         <Route path='apps' component={ Dapps } />
-        <Route path='app/:type/:name' component={ Dapp } />
+        <Route path='app/:id' component={ Dapp } />
         <Route path='contracts' component={ Contracts } />
         <Route path='contract/:address' component={ Contract } />
         <Route path='settings' component={ Settings }>

@@ -89,7 +89,7 @@ export default class Parity extends Component {
   onChangeMode = (event, index, mode) => {
     const { api } = this.context;
 
-    api.ethcore
+    api.parity
       .setMode(mode)
       .then((result) => {
         if (result) {
@@ -104,7 +104,7 @@ export default class Parity extends Component {
   loadMode () {
     const { api } = this.context;
 
-    api.ethcore
+    api.parity
       .mode()
       .then((mode) => {
         this.setState({ mode });

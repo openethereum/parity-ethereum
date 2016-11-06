@@ -107,7 +107,9 @@ export default class Ws extends JsonRpcBase {
       if (result.error) {
         this.error(event.data);
 
-        reject(new Error(`${result.error.code}: ${result.error.message}`));
+        console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
+
+        reject(new Error(`${method}: ${result.error.code}: ${result.error.message}`));
         delete this._messages[result.id];
         return;
       }

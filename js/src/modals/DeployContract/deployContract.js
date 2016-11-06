@@ -212,8 +212,8 @@ export default class DeployContract extends Component {
       .deploy(options, params, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
-          api.personal.setAccountName(address, name),
-          api.personal.setAccountMeta(address, {
+          api.parity.setAccountName(address, name),
+          api.parity.setAccountMeta(address, {
             abi: abiParsed,
             contract: true,
             timestamp: Date.now(),

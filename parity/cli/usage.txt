@@ -107,7 +107,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces, rpc, personal_safe.
+                           parity, parity_set, traces, rpc, parity_accounts.
                            (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it
@@ -284,7 +284,7 @@ Legacy Options:
   --geth                   Run in Geth-compatibility mode. Sets the IPC path
                            to be the same as Geth's. Overrides the --ipc-path
                            and --ipcpath options. Alters RPCs to reflect Geth
-                           bugs.
+                           bugs. Includes the personal_ RPC by default.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.

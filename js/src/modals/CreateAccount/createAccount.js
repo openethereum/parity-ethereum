@@ -208,13 +208,13 @@ export default class CreateAccount extends Component {
     });
 
     if (createType === 'fromNew' || createType === 'fromPhrase') {
-      return api.personal
+      return api.parity
         .newAccountFromPhrase(this.state.phrase, this.state.password)
         .then((address) => {
           this.setState({ address });
-          return api.personal
+          return api.parity
             .setAccountName(address, this.state.name)
-            .then(() => api.personal.setAccountMeta(address, {
+            .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
               passwordHint: this.state.passwordHint
             }));
@@ -233,13 +233,13 @@ export default class CreateAccount extends Component {
           this.newError(error);
         });
     } else if (createType === 'fromRaw') {
-      return api.personal
+      return api.parity
         .newAccountFromSecret(this.state.rawKey, this.state.password)
         .then((address) => {
           this.setState({ address });
-          return api.personal
+          return api.parity
             .setAccountName(address, this.state.name)
-            .then(() => api.personal.setAccountMeta(address, {
+            .then(() => api.parity.setAccountMeta(address, {
               timestamp: Date.now(),
               passwordHint: this.state.passwordHint
             }));
@@ -258,13 +258,13 @@ export default class CreateAccount extends Component {
           this.newError(error);
         });
     } else if (createType === 'fromGeth') {
-      return api.personal
+      return api.parity
         .importGethAccounts(this.state.gethAddresses)
         .then((result) => {
           console.log('result', result);
 
           return Promise.all(this.state.gethAddresses.map((address) => {
-            return api.personal.setAccountName(address, 'Geth Import');
+            return api.parity.setAccountName(address, 'Geth Import');
           }));
         })
         .then(() => {
@@ -282,16 +282,16 @@ export default class CreateAccount extends Component {
         });
     }
 
-    return api.personal
+    return api.parity
       .newAccountFromWallet(this.state.json, this.state.password)
       .then((address) => {
         this.setState({
           address: address
         });
 
-        return api.personal
+        return api.parity
           .setAccountName(address, this.state.name)
-          .then(() => api.personal.setAccountMeta(address, {
+          .then(() => api.parity.setAccountMeta(address, {
             timestamp: Date.now(),
             passwordHint: this.state.passwordHint
           }));
