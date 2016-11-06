@@ -27,7 +27,7 @@ const ERRORS = {
   noName: 'you need to specify a valid name for the account',
   noPhrase: 'you need to specify the recovery phrase',
   noKey: 'you need to provide the raw private key',
-  invalidKey: 'the raw key needs to be hex, 64 characters in length',
+  invalidKey: 'the raw key needs to be hex, 64 characters in length and contain the prefix "0x"',
   invalidPassword: 'you need to specify a password >= 8 characters',
   noMatchPassword: 'the supplied passwords does not match'
 };
