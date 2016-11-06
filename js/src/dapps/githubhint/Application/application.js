@@ -206,47 +206,62 @@ export default class Application extends Component {
   }
 
   onChangeCommit = (event) => {
-    const commit = event.target.value;
+    let commit = event.target.value;
     const commitError = null;
+    let hasContent = false;
 
-    // TODO: field validation
-
-    this.setState({ commit, commitError, contentHashError: 'hash lookup in progress' }, () => {
-      const { repo } = this.state;
-      this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+    this.setState({ commit, commitError, contentHashError: null }, () => {
+      const { repo } = this.state || '';
+      const parts = repo.split();
+      hasContent = commit.length !== 0 && parts.length() === 2 && parts[1].length !== 0 && parts[2].length !== 0;
+      if (!commitError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+      }
     });
   }
 
   onChangeRepo = (event) => {
     let repo = event.target.value;
     const repoError = null;
+    let hasContent = false;
 
     // TODO: field validation
     if (!repoError) {
       repo = repo.replace('https://github.com/', '');
     }
 
-    this.setState({ repo, repoError, contentHashError: 'hash lookup in progress' }, () => {
-      const { commit } = this.state;
-      this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+    this.setState({ repo, repoError, contentHashError: null }, () => {
+      const { commit } = this.state || '';
+      const parts = repo.split();
+      hasContent = commit.length !== 0 && parts.length() === 2 && parts[1].length !== 0 && parts[2].length !== 0;
+      if (!repoError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+      }
     });
   }
 
   onChangeUrl = (event) => {
     let url = event.target.value;
     const urlError = null;
+    let hasContent = false;
 
     // TODO: field validation
     if (!urlError) {
       const parts = url.split('/');
+      hasContent = parts.length() !== 0;
 
       if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
         url = `https://raw.githubusercontent.com/${parts.slice(3).join('/')}`.replace('/blob/', '/');
       }
     }
 
-    this.setState({ url, urlError, contentHashError: 'hash lookup in progress' }, () => {
-      this.lookupHash(url);
+    this.setState({ url, urlError, contentHashError: null }, () => {
+      if (!urlError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(url);
+      }
     });
   }
 
@@ -285,7 +300,7 @@ export default class Application extends Component {
         });
       })
       .then((txReceipt) => {
-        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', commit: '', commitError: null, contentHash: '', contentHashOwner: null, contentHashError: null });
+        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', commit: '', repo: '', commitError: null, contentHash: '', contentHashOwner: null, contentHashError: null });
       })
       .catch((error) => {
         console.error('onSend', error);
@@ -298,7 +313,7 @@ export default class Application extends Component {
 
     this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
 
-    const values = [contentHash, repo, commit];
+    const values = [contentHash, repo, commit.substr(0, 2) === '0x' ? commit : `0x${commit}`];
     const options = { from: fromAddress };
 
     this.trackRequest(
