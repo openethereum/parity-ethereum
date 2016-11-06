@@ -36,7 +36,6 @@ export default class Dapp extends Component {
   render () {
     const { dappsUrl } = this.context.api;
     const { id } = this.props.params;
-    console.log(this.store.apps);
     const app = this.store.apps.find((app) => app.id === id);
 
     if (!app) {
