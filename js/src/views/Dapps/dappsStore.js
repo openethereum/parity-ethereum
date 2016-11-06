@@ -94,20 +94,20 @@ export default class DappsStore {
     return this.apps.filter((app) => !this.hidden.includes(app.id));
   }
 
-  @action openModal () {
+  @action openModal = () => {
     this.modalOpen = true;
   }
 
-  @action closeModal () {
+  @action closeModal = () => {
     this.modalOpen = false;
   }
 
-  @action hideApp (id) {
+  @action hideApp = (id) => {
     this.hidden = this.hidden.concat(id);
     this._writeHiddenApps();
   }
 
-  @action showApp (id) {
+  @action showApp = (id) => {
     this.hidden = this.hidden.filter((_id) => _id !== id);
     this._writeHiddenApps();
   }

@@ -42,7 +42,7 @@ export default class AddDapps extends Component {
         compact
         title='visible applications'
         actions={ [
-          <Button label={ 'Done' } key='done' onClick={ this.onClose } icon={ <DoneIcon /> } />
+          <Button label={ 'Done' } key='done' onClick={ store.closeModal } icon={ <DoneIcon /> } />
         ] }
         visible
         scroll>
@@ -76,11 +76,5 @@ export default class AddDapps extends Component {
         primaryText={ app.name }
         secondaryText={ description } />
     );
-  }
-
-  onClose = () => {
-    const { store } = this.props;
-
-    store.closeModal();
   }
 }
