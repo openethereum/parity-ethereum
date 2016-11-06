@@ -83,31 +83,6 @@ pub struct HeaderProofs {
 	pub from_level: u32,
 }
 
-/// A request for block deltas -- merkle proofs of all changed trie nodes and code.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct BlockDeltas {
-	/// Block hashes deltas are being requested for.
-	pub block_hashes: Vec<H256>,
-}
-
-/// A request for a single transaction merkle proof.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TransactionProof {
-	/// The block hash to use the initial state from.
-	pub block_hash: H256,
-	/// The address to treat as the sender of the transaction.
-	pub sender: Address,
-	/// The raw transaction request itself.
-	pub transaction: Transaction,
-}
-
-/// A request for transaction merkle proofs.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct TransactionProofs {
-	/// Transaction proof requests.
-	pub tx_reqs: Vec<TransactionProof>,
-}
-
 /// Kinds of requests.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -123,10 +98,6 @@ pub enum Kind {
 	Codes,
 	/// Requesting header proofs (from the CHT).
 	HeaderProofs,
-	/// Requesting block deltas.
-	Deltas,
-	/// Requesting merkle proofs for transactions.
-	TransactionProofs,
 }
 
 /// Encompasses all possible types of requests in a single structure.
@@ -144,10 +115,6 @@ pub enum Request {
 	Codes(ContractCodes),
 	/// Requesting header proofs.
 	HeaderProofs(HeaderProofs),
-	/// Requesting block deltas.
-	Deltas(BlockDeltas),
-	/// Requesting transaction proofs.
-	TransactionProofs(TransactionProofs),
 }
 
 impl Request {
@@ -160,8 +127,6 @@ impl Request {
 			Request::StateProofs(_) => Kind::StateProofs,
 			Request::Codes(_) => Kind::Codes,
 			Request::HeaderProofs(_) => Kind::HeaderProofs,
-			Request::Deltas(_) => Kind::Deltas,
-			Request::TransactionProofs(_) => Kind::TransactionProofs,
 		}
 	}
 }

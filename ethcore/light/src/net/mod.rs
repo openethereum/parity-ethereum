@@ -23,13 +23,14 @@ use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, NetworkError, PeerId};
 use rlp::{DecoderError, RlpStream, Stream, UntrustedRlp, View};
 use util::hash::H256;
-use util::{Mutex, RwLock};
+use util::{U256, Mutex, RwLock};
 
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
 use request::{self, Request};
+use self::buffer_flow::FlowManager;
 
 mod buffer_flow;
 
@@ -47,8 +48,8 @@ mod packet {
 	// the status packet.
 	pub const STATUS: u8 = 0x00;
 
-	// broadcast that new block hashes have appeared.
-	pub const NEW_BLOCK_HASHES: u8 = 0x01;
+	// announcement of new block hashes or capabilities.
+	pub const ANNOUNCE: u8 = 0x01;
 
 	// request and response for block headers
 	pub const GET_BLOCK_HEADERS: u8 = 0x02;
@@ -197,8 +198,8 @@ impl LightProtocol {
 		unimplemented!()
 	}
 
-	// Handle a new block hashes message.
-	fn new_block_hashes(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	// Handle an announcement.
+	fn announcement(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		const MAX_NEW_HASHES: usize = 256;
 
 		unimplemented!()
@@ -327,7 +328,7 @@ impl NetworkProtocolHandler for LightProtocol {
 		let rlp = UntrustedRlp::new(data);
 		match packet_id {
 			packet::STATUS => self.status(peer, io, rlp),
-			packet::NEW_BLOCK_HASHES => self.new_block_hashes(peer, io, rlp),
+			packet::ANNOUNCE => self.announcement(peer, io, rlp),
 
 			packet::GET_BLOCK_HEADERS => self.get_block_headers(peer, io, rlp),
 			packet::BLOCK_HEADERS => self.block_headers(peer, io, rlp),

@@ -103,10 +103,6 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn block_deltas(&self, _req: request::BlockDeltas) -> Vec<Bytes> {
-		Vec::new()
-	}
-
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
 		Vec::new()
 	}

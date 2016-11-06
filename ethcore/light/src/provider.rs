@@ -60,9 +60,6 @@ pub trait Provider: Send + Sync {
 	/// Provide header proofs from the Canonical Hash Tries.
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
-	/// Provide block deltas.
-	fn block_deltas(&self, req: request::BlockDeltas) -> Vec<Bytes>;
-
 	/// Provide pending transactions.
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 }
