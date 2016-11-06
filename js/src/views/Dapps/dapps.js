@@ -57,10 +57,6 @@ export default class Dapps extends Component {
   }
 
   renderApp = (app) => {
-    if (!app.name) {
-      return null;
-    }
-
     return (
       <div
         className={ styles.item }
