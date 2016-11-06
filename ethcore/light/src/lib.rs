@@ -25,8 +25,8 @@
 //! low-latency applications, but perfectly suitable for simple everyday
 //! use-cases like sending transactions from a personal account.
 //!
-//! It starts by performing a header-only sync, verifying every header in
-//! the chain.
+//! It starts by performing a header-only sync, verifying random samples
+//! of members of the chain to varying degrees.
 
 pub mod client;
 pub mod net;

@@ -31,6 +31,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use provider::Provider;
 use request::{self, Request};
 
+mod buffer_flow;
+
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
 
@@ -39,8 +41,6 @@ const PROTOCOL_VERSION: u32 = 1;
 
 // TODO [rob] make configurable.
 const PROTOCOL_ID: [u8; 3] = *b"les";
-
-// TODO [rob] Buffer flow.
 
 // packet ID definitions.
 mod packet {
