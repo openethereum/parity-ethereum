@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { computed, observable } from 'mobx';
+import { action, computed, observable } from 'mobx';
 
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
@@ -87,27 +87,27 @@ export default class DappsStore {
     this._api = api;
 
     this._readHiddenApps();
-    this._fetch();
+    this.apps = this._fetch();
   }
 
   @computed get visible () {
     return this.apps.filter((app) => !this.hidden.includes(app.id));
   }
 
-  openModal () {
+  @action openModal () {
     this.modalOpen = true;
   }
 
-  closeModal () {
+  @action closeModal () {
     this.modalOpen = false;
   }
 
-  hideApp (id) {
+  @action hideApp (id) {
     this.hidden = this.hidden.concat(id);
     this._writeHiddenApps();
   }
 
-  showApp (id) {
+  @action showApp (id) {
     this.hidden = this.hidden.filter((_id) => _id !== id);
     this._writeHiddenApps();
   }
@@ -119,7 +119,9 @@ export default class DappsStore {
   }
 
   _fetch () {
-    fetch(`${this._getHost()}/api/apps`)
+    const { dappReg } = Contracts.get();
+
+    return fetch(`${this._getHost()}/api/apps`)
       .then((response) => {
         return response.ok
           ? response.json()
@@ -133,11 +135,11 @@ export default class DappsStore {
         const localApps = _localApps
           .filter((app) => !['ui'].includes(app.id))
           .map((app) => {
-            app.local = true;
+            app.type = 'local';
             return app;
           });
 
-        return this._api.ethcore
+        return this._api.parity
           .registryAddress()
           .then((registryAddress) => {
             if (new BigNumber(registryAddress).eq(0)) {
@@ -146,60 +148,40 @@ export default class DappsStore {
 
             const _builtinApps = builtinApps
               .map((app) => {
-                app.builtin = true;
+                app.type = 'builtin';
                 return app;
               });
 
             return networkApps
               .map((app) => {
-                app.network = true;
+                app.type = 'network';
                 return app;
               })
               .concat(_builtinApps);
           })
           .then((registryApps) => {
-            this.apps = registryApps
+            return registryApps
               .concat(localApps)
               .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-            this._loadImages();
+          });
+      })
+      .then((apps) => {
+        return Promise
+          .all([
+            Promise.all(apps.map((app) => dappReg.getImage(app.id))),
+            Promise.all(apps.map((app) => dappReg.getContent(app.id)))
+          ])
+          .then(([images, content]) => {
+            return apps.map((app, index) => {
+              return Object.assign(app, {
+                image: hashToImageUrl(images[index]),
+                contentHash: this._api.util.bytesToHex(content[index]).substr(2)
+              });
+            });
           });
       })
       .catch((error) => {
         console.warn('DappsStore:fetch', error);
-      });
-  }
-
-  _loadImages () {
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(this.apps.map((app) => dappReg.getImage(app.id)))
-      .then((images) => {
-        this.apps = images
-          .map(hashToImageUrl)
-          .map((image, index) => Object.assign({}, this.apps[index], { image }));
-
-        const _networkApps = this.apps.filter((app) => app.network);
-
-        return Promise
-          .all(_networkApps.map((app) => dappReg.getContent(app.id)))
-          .then((content) => {
-            const networkApps = content.map((_contentHash, index) => {
-              const networkApp = _networkApps[index];
-              const contentHash = this._api.util.bytesToHex(_contentHash).substr(2);
-              const app = this.apps.find((_app) => _app.id === networkApp.id);
-
-              console.log(`found content for ${app.id} at ${contentHash}`);
-              return Object.assign({}, app, { contentHash });
-            });
-
-            this.apps = this.apps.map((app) => {
-              return Object.assign({}, networkApps.find((napp) => app.id === napp.id) || app);
-            });
-          });
-      })
-      .catch((error) => {
-        console.warn('DappsStore:loadImages', error);
       });
   }
 
