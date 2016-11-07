@@ -26,6 +26,7 @@ const contract = '0x7B3F58965439b22ef1dA4BB78f16191d11ab80B0';
 
 import CheckIfCertified from './CheckIfCertified';
 import GatherData from './GatherData';
+import SendRequest from './SendRequest';
 
 export default class SMSVerification extends Component {
   static contextTypes = {
@@ -62,7 +63,7 @@ export default class SMSVerification extends Component {
         title='verify your account via SMS'
         visible scroll
         current={ step }
-        steps={ ['first step', 'second step'] }
+        steps={ ['first step', 'second step', 'third step'] }
       >
         { this.renderStep() }
       </Modal>
@@ -81,7 +82,7 @@ export default class SMSVerification extends Component {
       />
     );
 
-    if (step === 1) {
+    if (step === 2) {
       return (
         <div>
           { cancel }
@@ -108,8 +109,15 @@ export default class SMSVerification extends Component {
   }
 
   renderStep () {
+    const { contract } = this.state;
+    if (!contract) {
+      return null;
+    }
+
     const { step } = this.state;
-    if (step === 1) {
+    if (step === 2) {
+      return this.renderThirdStep();
+    } else if (step === 1) {
       return this.renderSecondStep();
     } else {
       return this.renderFirstStep();
@@ -148,15 +156,24 @@ export default class SMSVerification extends Component {
   renderSecondStep () {
     return (
       <GatherData
+        onData={ this.onData }
         onDataIsValid={ this.onDataIsValid }
         onDataIsInvalid={ this.onDataIsInvalid }
       />
     );
   }
 
-  renderSecondStep () {
+  renderThirdStep () {
+    const { account } = this.props;
+    const { contract, data } = this.state;
+
     return (
-      <span>second step</span>
+      <SendRequest
+        account={ account } contract={ contract } data={ data }
+        onData={ this.onData }
+        onSuccess={ this.onDataIsValid }
+        onError={ this.onDataIsInvalid }
+      />
     );
   }
 }
