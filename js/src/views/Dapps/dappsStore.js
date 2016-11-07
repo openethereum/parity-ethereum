@@ -58,7 +58,8 @@ const builtinApps = [
     name: 'GitHub Hint',
     description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
+    version: '1.0.0',
+    secure: true
   }
 ];
 
