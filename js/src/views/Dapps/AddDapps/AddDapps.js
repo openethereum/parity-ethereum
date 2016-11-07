@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
 import DoneIcon from 'material-ui/svg-icons/action/done';
 import { List, ListItem } from 'material-ui/List';
 import Checkbox from 'material-ui/Checkbox';
@@ -23,57 +24,67 @@ import { Modal, Button } from '../../../ui';
 
 import styles from './AddDapps.css';
 
+@observer
 export default class AddDapps extends Component {
   static propTypes = {
-    available: PropTypes.array.isRequired,
-    hidden: PropTypes.array.isRequired,
-    open: PropTypes.bool.isRequired,
-    onHideApp: PropTypes.func.isRequired,
-    onShowApp: PropTypes.func.isRequired,
-    onClose: PropTypes.func.isRequired
+    store: PropTypes.object.isRequired
   };
 
   render () {
-    const { onClose, open, available } = this.props;
+    const { store } = this.props;
+
+    if (!store.modalOpen) {
+      return null;
+    }
 
     return (
       <Modal
         compact
         title='visible applications'
         actions={ [
-          <Button label={ 'Done' } key='done' onClick={ onClose } icon={ <DoneIcon /> } />
+          <Button
+            label={ 'Done' }
+            key='done'
+            onClick={ store.closeModal }
+            icon={ <DoneIcon /> }
+          />
         ] }
-        visible={ open }
+        visible
         scroll>
         <List>
-          { available.map(this.renderApp) }
+          { store.apps.map(this.renderApp) }
         </List>
       </Modal>
     );
   }
 
   renderApp = (app) => {
-    const { hidden, onHideApp, onShowApp } = this.props;
-    const isHidden = hidden.includes(app.id);
-    const description = (
-      <div className={ styles.description }>
-        { app.description }
-      </div>
-    );
+    const { store } = this.props;
+    const isHidden = store.hidden.includes(app.id);
     const onCheck = () => {
       if (isHidden) {
-        onShowApp(app.id);
+        store.showApp(app.id);
       } else {
-        onHideApp(app.id);
+        store.hideApp(app.id);
       }
     };
 
     return (
       <ListItem
         key={ app.id }
-        leftCheckbox={ <Checkbox checked={ !isHidden } onCheck={ onCheck } /> }
+        leftCheckbox={
+          <Checkbox
+            checked={ !isHidden }
+            onCheck={ onCheck }
+          />
+        }
         primaryText={ app.name }
-        secondaryText={ description } />
+        secondaryText={
+          <div className={ styles.description }>
+            { app.description }
+          </div>
+        }
+      />
     );
   }
 }

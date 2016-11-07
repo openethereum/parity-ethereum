@@ -35,7 +35,7 @@ export default class Proxy extends Component {
         <ContainerTitle title='Proxy' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memororable addresses.</div>
+            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.</div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.details }>

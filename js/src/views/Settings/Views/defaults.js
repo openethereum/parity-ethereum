@@ -49,7 +49,7 @@ const defaultViews = {
     label: 'Applications',
     route: '/apps',
     value: 'app',
-    description: 'Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the newtork.'
+    description: 'Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
   },
 
   contracts: {
