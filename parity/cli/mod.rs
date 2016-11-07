@@ -90,18 +90,18 @@ usage! {
 		flag_keys_iterations: u32 = 10240u32,
 			or |c: &Config| otry!(c.account).keys_iterations.clone(),
 
-		flag_force_signer: bool = false,
+		flag_force_ui: bool = false,
 			or |c: &Config| otry!(c.signer).force.clone(),
-		flag_no_signer: bool = false,
+		flag_no_ui: bool = false,
 			or |c: &Config| otry!(c.signer).disable.clone(),
-		flag_signer_port: u16 = 8180u16,
+		flag_ui_port: u16 = 8180u16,
 			or |c: &Config| otry!(c.signer).port.clone(),
-		flag_signer_interface: String = "local",
+		flag_ui_interface: String = "local",
 			or |c: &Config| otry!(c.signer).interface.clone(),
-		flag_signer_path: String = "$HOME/.parity/signer",
+		flag_ui_path: String = "$HOME/.parity/signer",
 			or |c: &Config| otry!(c.signer).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
-		flag_signer_no_validation: bool = false, or |_| None,
+		flag_ui_no_validation: bool = false, or |_| None,
 
 		// -- Networking Options
 		flag_warp: bool = false,
@@ -511,12 +511,12 @@ mod tests {
 			flag_password: vec!["~/.safe/password.file".into()],
 			flag_keys_iterations: 10240u32,
 
-			flag_force_signer: false,
-			flag_no_signer: false,
-			flag_signer_port: 8180u16,
-			flag_signer_interface: "127.0.0.1".into(),
-			flag_signer_path: "$HOME/.parity/signer".into(),
-			flag_signer_no_validation: false,
+			flag_force_ui: false,
+			flag_no_ui: false,
+			flag_ui_port: 8180u16,
+			flag_ui_interface: "127.0.0.1".into(),
+			flag_ui_path: "$HOME/.parity/signer".into(),
+			flag_ui_no_validation: false,
 
 			// -- Networking Options
 			flag_warp: true,
