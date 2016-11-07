@@ -101,38 +101,38 @@ linux-centos:
     - target/release/parity
     name: "x86_64-unknown-centos-gnu_parity"
   allow_failure: true
-#linux-i686:   
-#  stage: build   
-#  image: ethcore/rust-i686:latest   
-#  only:
-#    - beta
+linux-i686:   
+  stage: build   
+  image: ethcore/rust-i686:latest   
+  only:
+    - beta
 #    - tags
-#    - stable
-#  script:
-#    - export HOST_CC=gcc
-#    - export HOST_CXX=g++
-#    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
-#    - strip target/i686-unknown-linux-gnu/release/parity
-#    - md5sum target/i686-unknown-linux-gnu/release/parity >> parity.md5
-#    - sh scripts/deb-build.sh i386
-#    - cp target/i686-unknown-linux-gnu/release/parity deb/usr/bin/parity
-#    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-#    - dpkg-deb -b deb "parity_"$VER"_i386.deb"
-#    - md5sum "parity_"$VER"_i386.deb" >> "parity_"$VER"_i386.deb.md5"
-#    - aws configure set aws_access_key_id $s3_key
-#    - aws configure set aws_secret_access_key $s3_secret
-#    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
-#    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity.md5 --body parity.md5
-#    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
-#    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
-#  tags:
-#    - rust
-#    - rust-i686
-#  artifacts:
-#    paths:
-#      - target/i686-unknown-linux-gnu/release/parity
-#    name: "i686-unknown-linux-gnu"
-#  allow_failure: true
+    - stable
+  script:
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
+    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - strip target/i686-unknown-linux-gnu/release/parity
+    - md5sum target/i686-unknown-linux-gnu/release/parity >> parity.md5
+    - sh scripts/deb-build.sh i386
+    - cp target/i686-unknown-linux-gnu/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_i386.deb"
+    - md5sum "parity_"$VER"_i386.deb" >> "parity_"$VER"_i386.deb.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
+  tags:
+    - rust
+    - rust-i686
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/parity
+    name: "i686-unknown-linux-gnu"
+  allow_failure: true
 linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
@@ -215,8 +215,8 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - beta
-    - tags
+#    - beta
+#    - tags
     - stable
   script:
     - export CC=arm-linux-gnueabi-gcc
