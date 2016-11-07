@@ -339,7 +339,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let store = take_weak!(self.accounts);
 		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
-		Ok(accounts.into_iter().map(Into::into).collect())
+		let addresses = try!(store.accounts_info().map_err(|e| errors::internal("Could not fetch accounts.", e)));
+
+		let set: HashSet<H160> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
+		Ok(set.into_iter().collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
