@@ -16,7 +16,6 @@ linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -47,7 +46,6 @@ linux-stable-14.04:
   stage: build
   image: ethcore/rust-14.04:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -78,7 +76,6 @@ linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -98,7 +95,6 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -118,7 +114,6 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -144,7 +139,6 @@ linux-i686:
   stage: build   
   image: ethcore/rust-i686:latest   
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -178,7 +172,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -219,7 +212,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -260,7 +252,6 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -294,7 +285,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -334,7 +324,6 @@ linux-aarch64:
 darwin:
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -359,7 +348,6 @@ windows:
     untracked: true
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -410,9 +398,6 @@ windows:
 test-darwin:
   stage: test
   only:
-    - beta
-    - tags
-    - stable
     - triggers
   before_script:
     - git submodule update --init --recursive
@@ -421,12 +406,11 @@ test-darwin:
     - ./test.sh $CARGOFLAGS --no-release
   tags:
     - osx
+  allow_failure: true
 test-windows:
   stage: test
   only:
-    - beta
-    - tags
-    - stable
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:
@@ -450,6 +434,42 @@ test-rust-stable:
   tags:
     - rust
     - rust-stable
+test-rust-beta:
+  stage: test
+  only:
+    - triggers
+  image: ethcore/rust:beta
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-beta
+  allow_failure: true
+test-rust-nightly:
+  stage: test
+  only:
+    - triggers
+  image: ethcore/rust:nightly
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-nightly
+  allow_failure: true
 js-tests:
   stage: test
   image: ethcore/rust:stable
