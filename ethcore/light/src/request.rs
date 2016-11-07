@@ -51,9 +51,9 @@ pub struct Receipts {
 	pub block_hashes: Vec<H256>,
 }
 
-/// A request for state proofs.
+/// A request for a state proof
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct StateProofs {
+pub struct StateProof {
 	/// Block hash to query state from.
 	pub block: H256,
 	/// Key of the state trie -- corresponds to account hash.
@@ -65,6 +65,13 @@ pub struct StateProofs {
 	pub from_level: u32, // could even safely be u8; trie w/ 32-byte key can be at most 64-levels deep.
 }
 
+/// A request for state proofs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StateProofs {
+	/// All the proof requests.
+	pub requests: Vec<StateProof>,
+}
+
 /// A request for contract code.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractCodes {
@@ -72,15 +79,22 @@ pub struct ContractCodes {
 	pub code_requests: Vec<(H256, H256)>,
 }
 
-/// A request for header proofs from the Canonical Hash Trie.
+/// A request for a header proof from the Canonical Hash Trie.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HeaderProofs {
+pub struct HeaderProof {
 	/// Number of the CHT.
 	pub cht_number: u64,
 	/// Block number requested.
 	pub block_number: u64,
 	/// If greater than zero, trie nodes beyond this level may be omitted.
 	pub from_level: u32,
+}
+
+/// A request for header proofs from the CHT.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HeaderProofs {
+	/// All the proof requests.
+	pub requests: Vec<HeaderProofs>,
 }
 
 /// Kinds of requests.

@@ -13,3 +13,4 @@ ethcore-util = { path = "../../util" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
 rlp = { path = "../../util/rlp" }
+time = "0.1"

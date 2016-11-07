@@ -38,6 +38,7 @@ extern crate ethcore_network as network;
 extern crate ethcore_io as io;
 extern crate ethcore;
 extern crate rlp;
+extern crate time;
 
 #[macro_use]
 extern crate log;

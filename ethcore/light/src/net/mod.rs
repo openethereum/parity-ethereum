@@ -30,7 +30,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
 use request::{self, Request};
-use self::buffer_flow::FlowManager;
+use self::buffer_flow::FlowParams;
 
 mod buffer_flow;
 
@@ -77,33 +77,6 @@ mod packet {
 	// request and response for header proofs in a CHT.
 	pub const GET_HEADER_PROOFS: u8 = 0x0d;
 	pub const HEADER_PROOFS: u8 = 0x0e;
-
-	// broadcast dynamic capabilities.
-	pub const CAPABILITIES: u8 = 0x0f;
-
-	// request and response for block-level state deltas.
-	pub const GET_BLOCK_DELTAS: u8 = 0x10;
-	pub const BLOCK_DELTAS: u8 = 0x11;
-
-	// request and response for transaction proofs.
-	pub const GET_TRANSACTION_PROOFS: u8 = 0x12;
-	pub const TRANSACTION_PROOFS: u8 = 0x13;
-}
-
-// helper macro for disconnecting peer on error while returning
-// the value if ok.
-// requires that error types are debug.
-macro_rules! try_dc {
-	($io: expr, $peer: expr, $e: expr) => {
-		match $e {
-			Ok(x) => x,
-			Err(e) => {
-				debug!(target: "les", "disconnecting peer {} due to error {:?}", $peer, e);
-				$io.disconnect_peer($peer);
-				return;
-			}
-		}
-	}
 }
 
 struct Requested {
@@ -209,26 +182,7 @@ impl LightProtocol {
 	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		const MAX_HEADERS: u64 = 512;
 
-		let req_id: u64 = try_dc!(io, *peer, data.val_at(0));
-		let req = request::Headers {
-			block: try_dc!(io, *peer, data.at(1).and_then(|block_list| {
-				Ok((try!(block_list.val_at(0)), try!(block_list.val_at(1))))
-			})),
-			max: ::std::cmp::min(MAX_HEADERS, try_dc!(io, *peer, data.val_at(2))),
-			skip: try_dc!(io, *peer, data.val_at(3)),
-			reverse: try_dc!(io, *peer, data.val_at(4)),
-		};
-
-		let res = self.provider.block_headers(req);
-
-		let mut res_stream = RlpStream::new_list(2 + res.len());
-		res_stream.append(&req_id);
-		res_stream.append(&0u64); // TODO: Buffer Flow.
-		for raw_header in res {
-			res_stream.append_raw(&raw_header, 1);
-		}
-
-		try_dc!(io, *peer, io.respond(packet::BLOCK_HEADERS, res_stream.out()))
+		unimplemented!()
 	}
 
 	// Receive a response for block headers.
@@ -292,31 +246,6 @@ impl LightProtocol {
 	fn relay_transactions(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
 		unimplemented!()
 	}
-
-	// Receive updated capabilities from a peer.
-	fn capabilities(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
-	}
-
-	// Handle a request for block deltas.
-	fn get_block_deltas(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
-	}
-
-	// Receive block deltas.
-	fn block_deltas(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
-	}
-
-	// Handle a request for transaction proofs.
-	fn get_transaction_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
-	}
-
-	// Receive transaction proofs.
-	fn transaction_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
-	}
 }
 
 impl NetworkProtocolHandler for LightProtocol {
@@ -346,16 +275,6 @@ impl NetworkProtocolHandler for LightProtocol {
 			packet::CONTRACT_CODES => self.contract_code(peer, io, rlp),
 
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
-			packet::CAPABILITIES => self.capabilities(peer, io, rlp),
-
-			packet::GET_HEADER_PROOFS => self.get_header_proofs(peer, io, rlp),
-			packet::HEADER_PROOFS => self.header_proofs(peer, io, rlp),
-
-			packet::GET_BLOCK_DELTAS => self.get_block_deltas(peer, io, rlp),
-			packet::BLOCK_DELTAS => self.block_deltas(peer, io, rlp),
-
-			packet::GET_TRANSACTION_PROOFS => self.get_transaction_proofs(peer, io, rlp),
-			packet::TRANSACTION_PROOFS => self.transaction_proofs(peer, io, rlp),
 
 			other => {
 				debug!(target: "les", "Disconnecting peer {} on unexpected packet {}", peer, other);

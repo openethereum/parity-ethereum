@@ -24,19 +24,245 @@
 //! flow costs and recharge rates.
 
 use request::{self, Request};
+use super::packet;
 
-/// Manages buffer flow costs for specific requests.
-pub struct FlowManager;
+use rlp::*;
+use util::U256;
+use time::{Duration, SteadyTime};
 
-impl FlowManager {
-	/// Estimate the maximum cost of this request.
-	pub fn estimate_cost(&self, req: &request::Request) -> usize {
-		unimplemented!()
+/// A request cost specification.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Cost(pub U256, pub U256);
+
+/// An error: insufficient buffer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct InsufficientBuffer;
+
+/// Buffer value.
+///
+/// Produced and recharged using `FlowParams`.
+/// Definitive updates can be made as well -- these will reset the recharge
+/// point to the time of the update.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Buffer {
+	estimate: U256,
+	recharge_point: SteadyTime,
+}
+
+impl Buffer {
+	/// Make a definitive update.
+	/// This will be the value obtained after receiving
+	/// a response to a request.
+	pub fn update_to(&mut self, value: U256) {
+		self.estimate = value;
+		self.recharge_point = SteadyTime::now();
 	}
 
-	/// Get an exact cost based on request kind and amount of requests fulfilled.
-	pub fn exact_cost(&self, kind: request::Kind, amount: usize) -> usize {
-		unimplemented!()
+	/// Attempt to apply the given cost to the buffer.
+	/// If successful, the cost will be deducted successfully.
+	/// If unsuccessful, the structure will be unaltered an an
+	/// error will be produced.
+	pub fn deduct_cost(&mut self, cost: U256) -> Result<(), InsufficientBuffer> {
+		match cost > self.estimate {
+			true => Err(InsufficientBuffer),
+			false => {
+				self.estimate = self.estimate - cost;
+				Ok(())
+			}
+		}
 	}
 }
 
+/// A cost table, mapping requests to base and per-request costs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CostTable {
+	headers: Cost,
+	bodies: Cost,
+	receipts: Cost,
+	state_proofs: Cost,
+	contract_codes: Cost,
+	header_proofs: Cost,
+}
+
+impl Default for CostTable {
+	fn default() -> Self {
+		// arbitrarily chosen constants.
+		CostTable {
+			headers: Cost(100000.into(), 10000.into()),
+			bodies: Cost(150000.into(), 15000.into()),
+			receipts: Cost(50000.into(), 5000.into()),
+			state_proofs: Cost(250000.into(), 25000.into()),
+			contract_codes: Cost(200000.into(), 20000.into()),
+			header_proofs: Cost(150000.into(), 15000.into()),
+		}
+	}
+}
+
+impl RlpEncodable for CostTable {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		fn append_cost(s: &mut RlpStream, msg_id: u8, cost: &Cost) {
+			s.begin_list(3)
+				.append(&msg_id)
+				.append(&cost.0)
+				.append(&cost.1);
+		}
+
+		s.begin_list(6);
+
+		append_cost(s, packet::GET_BLOCK_HEADERS, &self.headers);
+		append_cost(s, packet::GET_BLOCK_BODIES, &self.bodies);
+		append_cost(s, packet::GET_RECEIPTS, &self.receipts);
+		append_cost(s, packet::GET_PROOFS, &self.state_proofs);
+		append_cost(s, packet::GET_CONTRACT_CODES, &self.contract_codes);
+		append_cost(s, packet::GET_HEADER_PROOFS, &self.header_proofs);
+	}
+}
+
+impl RlpDecodable for CostTable {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		let rlp = decoder.as_rlp();
+
+		let mut headers = None;
+		let mut bodies = None;
+		let mut receipts = None;
+		let mut state_proofs = None;
+		let mut contract_codes = None;
+		let mut header_proofs = None;
+
+		for row in rlp.iter() {
+			let msg_id: u8 = try!(row.val_at(0));
+			let cost = {
+				let base = try!(row.val_at(1));
+				let per = try!(row.val_at(2));
+
+				Cost(base, per)
+			};
+
+			match msg_id {
+				packet::GET_BLOCK_HEADERS => headers = Some(cost),
+				packet::GET_BLOCK_BODIES => bodies = Some(cost),
+				packet::GET_RECEIPTS => receipts = Some(cost),
+				packet::GET_PROOFS => state_proofs = Some(cost),
+				packet::GET_CONTRACT_CODES => contract_codes = Some(cost),
+				packet::GET_HEADER_PROOFS => header_proofs = Some(cost),
+				_ => return Err(DecoderError::Custom("Unrecognized message in cost table")),
+			}
+		}
+
+		Ok(CostTable {
+			headers: try!(headers.ok_or(DecoderError::Custom("No headers cost specified"))),
+			bodies: try!(bodies.ok_or(DecoderError::Custom("No bodies cost specified"))),
+			receipts: try!(receipts.ok_or(DecoderError::Custom("No receipts cost specified"))),
+			state_proofs: try!(state_proofs.ok_or(DecoderError::Custom("No proofs cost specified"))),
+			contract_codes: try!(contract_codes.ok_or(DecoderError::Custom("No contract codes specified"))),
+			header_proofs: try!(header_proofs.ok_or(DecoderError::Custom("No header proofs cost specified"))),
+		})
+	}
+}
+
+/// A buffer-flow manager handles costs, recharge, limits
+#[derive(Debug, Clone, PartialEq)]
+pub struct FlowParams {
+	costs: CostTable,
+	limit: U256,
+	recharge: U256,
+}
+
+impl FlowParams {
+	/// Create new flow parameters from a request cost table,
+	/// buffer limit, and (minimum) rate of recharge.
+	pub fn new(costs: CostTable, limit: U256, recharge: U256) -> Self {
+		FlowParams {
+			costs: costs,
+			limit: limit,
+			recharge: recharge,
+		}
+	}
+
+	/// Estimate the maximum cost of the request.
+	pub fn max_cost(&self, req: &Request) -> U256 {
+		let amount = match *req {
+			Request::Headers(ref req) => req.max as usize,
+			Request::Bodies(ref req) => req.block_hashes.len(),
+			Request::Receipts(ref req) => req.block_hashes.len(),
+			Request::StateProofs(ref req) => req.requests.len(),
+			Request::Codes(ref req) => req.code_requests.len(),
+			Request::HeaderProofs(ref req) => req.requests.len(),
+		};
+
+		self.actual_cost(req.kind(), amount)
+	}
+
+	/// Compute the actual cost of a request, given the kind of request
+	/// and number of requests made.
+	pub fn actual_cost(&self, kind: request::Kind, amount: usize) -> U256 {
+		let cost = match kind {
+			request::Kind::Headers => &self.costs.headers,
+			request::Kind::Bodies => &self.costs.bodies,
+			request::Kind::Receipts => &self.costs.receipts,
+			request::Kind::StateProofs => &self.costs.state_proofs,
+			request::Kind::Codes => &self.costs.contract_codes,
+			request::Kind::HeaderProofs => &self.costs.header_proofs,
+		};
+
+		let amount: U256 = amount.into();
+		cost.0 + (amount * cost.1)
+	}
+
+	/// Create initial buffer parameter.
+	pub fn create_buffer(&self) -> Buffer {
+		Buffer {
+			estimate: self.limit,
+			recharge_point: SteadyTime::now(),
+		}
+	}
+
+	/// Recharge the buffer based on time passed since last
+	/// update.
+	pub fn recharge(&self, buf: &mut Buffer) {
+		let now = SteadyTime::now();
+
+		// recompute and update only in terms of full seconds elapsed
+		// in order to keep the estimate as an underestimate.
+		let elapsed = (now - buf.recharge_point).num_seconds();
+		buf.recharge_point = buf.recharge_point + Duration::seconds(elapsed);
+
+		let elapsed: U256 = elapsed.into();
+
+		buf.estimate = ::std::cmp::min(self.limit, buf.estimate + (elapsed * self.recharge));
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use util::U256;
+
+	#[test]
+	fn should_serialize_cost_table() {
+		let costs = CostTable::default();
+		let serialized = ::rlp::encode(&costs);
+
+		let new_costs: CostTable = ::rlp::decode(&*serialized);
+
+		assert_eq!(costs, new_costs);
+	}
+
+	#[test]
+	fn buffer_mechanism() {
+		use std::thread;
+		use std::time::Duration;
+
+		let flow_params = FlowParams::new(Default::default(), 100.into(), 20.into());
+		let mut buffer =  flow_params.create_buffer();
+
+		assert!(buffer.deduct_cost(101.into()).is_err());
+		assert!(buffer.deduct_cost(10.into()).is_ok());
+
+		thread::sleep(Duration::from_secs(1));
+
+		flow_params.recharge(&mut buffer);
+
+		assert_eq!(buffer.estimate, 100.into());
+	}
+}
