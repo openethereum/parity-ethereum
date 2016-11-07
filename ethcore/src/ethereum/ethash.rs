@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager, H256 as EH256};
+use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
 use util::*;
 use block::*;
 use builtin::Builtin;
@@ -70,6 +70,10 @@ pub struct EthashParams {
 	pub eip161abc_transition: u64,
 	/// Number of first block where EIP-161.d begins.
 	pub eip161d_transition: u64,
+	/// Number of first block where ECIP-1010 begins.
+	pub ecip1010_pause_transition: u64,
+	/// Number of first block where ECIP-1010 ends.
+	pub ecip1010_continue_transition: u64
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -94,6 +98,8 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
 			eip161d_transition: p.eip161d_transition.map_or(0x7fffffffffffffff, Into::into),
+			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(0x7fffffffffffffff, Into::into),
+			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(0x7fffffffffffffff, Into::into),
 		}
 	}
 }
@@ -237,10 +243,10 @@ impl Engine for Ethash {
 			return Err(From::from(BlockError::DifficultyOutOfBounds(OutOfBounds { min: Some(min_difficulty), max: None, found: header.difficulty().clone() })))
 		}
 
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(quick_get_difficulty(
-			&Ethash::to_ethash(header.bare_hash()),
+		let difficulty = Ethash::boundary_to_difficulty(&H256(quick_get_difficulty(
+			&header.bare_hash().0,
 			header.nonce().low_u64(),
-			&Ethash::to_ethash(header.mix_hash())
+			&header.mix_hash().0
 		)));
 		if &difficulty < header.difficulty() {
 			return Err(From::from(BlockError::InvalidProofOfWork(OutOfBounds { min: Some(header.difficulty().clone()), max: None, found: difficulty })));
@@ -265,10 +271,10 @@ impl Engine for Ethash {
 				Mismatch { expected: self.seal_fields(), found: header.seal().len() }
 			)));
 		}
-		let result = self.pow.compute_light(header.number() as u64, &Ethash::to_ethash(header.bare_hash()), header.nonce().low_u64());
-		let mix = Ethash::from_ethash(result.mix_hash);
-		let difficulty = Ethash::boundary_to_difficulty(&Ethash::from_ethash(result.value));
-		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, Ethash::from_ethash(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), Ethash::from_ethash(result.mix_hash), Ethash::from_ethash(result.value));
+		let result = self.pow.compute_light(header.number() as u64, &header.bare_hash().0, header.nonce().low_u64());
+		let mix = H256(result.mix_hash);
+		let difficulty = Ethash::boundary_to_difficulty(&H256(result.value));
+		trace!(target: "miner", "num: {}, seed: {}, h: {}, non: {}, mix: {}, res: {}" , header.number() as u64, H256(slow_get_seedhash(header.number() as u64)), header.bare_hash(), header.nonce().low_u64(), H256(result.mix_hash), H256(result.value));
 		if mix != header.mix_hash() {
 			return Err(From::from(BlockError::MismatchedH256SealElement(Mismatch { expected: mix, found: header.mix_hash() })));
 		}
@@ -317,7 +323,7 @@ impl Engine for Ethash {
 	}
 }
 
-#[cfg_attr(feature="dev", allow(wrong_self_convention))] // to_ethash should take self
+#[cfg_attr(feature="dev", allow(wrong_self_convention))]
 impl Ethash {
 	fn calculate_difficulty(&self, header: &Header, parent: &Header) -> U256 {
 		const EXP_DIFF_PERIOD: u64 = 100000;
@@ -353,9 +359,20 @@ impl Ethash {
 		};
 		target = max(min_difficulty, target);
 		if header.number() < self.ethash_params.bomb_defuse_transition {
-			let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
-			if period > 1 {
-				target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+			if header.number() < self.ethash_params.ecip1010_pause_transition {
+				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				if period > 1 {
+					target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+				}
+			}
+			else if header.number() < self.ethash_params.ecip1010_continue_transition {
+				let fixed_difficulty = ((self.ethash_params.ecip1010_pause_transition / EXP_DIFF_PERIOD) - 2) as usize;
+				target = max(min_difficulty, target + (U256::from(1) << fixed_difficulty));
+			}
+			else {
+				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				let delay = ((self.ethash_params.ecip1010_continue_transition - self.ethash_params.ecip1010_pause_transition) / EXP_DIFF_PERIOD) as usize;
+				target = max(min_difficulty, target + (U256::from(1) << (period - delay - 2)));
 			}
 		}
 		target
@@ -378,14 +395,6 @@ impl Ethash {
 		} else {
 			(((U256::one() << 255) / *difficulty) << 1).into()
 		}
-	}
-
-	fn to_ethash(hash: H256) -> EH256 {
-		unsafe { mem::transmute(hash) }
-	}
-
-	fn from_ethash(hash: EH256) -> H256 {
-		unsafe { mem::transmute(hash) }
 	}
 }
 
@@ -414,8 +423,8 @@ mod tests {
 	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use header::Header;
-	use super::super::new_morden;
-	use super::Ethash;
+	use super::super::{new_morden, new_homestead_test};
+	use super::{Ethash, EthashParams};
 	use rlp;
 
 	#[test]
@@ -637,5 +646,122 @@ mod tests {
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
 	}
 
-	// TODO: difficulty test
+	#[test]
+	fn difficulty_frontier() {
+		let spec = new_homestead_test();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1000000);
+		parent_header.set_difficulty(U256::from_str("b69de81a22b").unwrap());
+		parent_header.set_timestamp(1455404053);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(1455404058);
+
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		assert_eq!(U256::from_str("b6b4bbd735f").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn difficulty_homestead() {
+		let spec = new_homestead_test();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1500000);
+		parent_header.set_difficulty(U256::from_str("1fd0fd70792b").unwrap());
+		parent_header.set_timestamp(1463003133);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(1463003177);
+
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn difficulty_classic_bomb_delay() {
+		let spec = new_homestead_test();
+		let ethparams = EthashParams {
+			ecip1010_pause_transition: 3000000,
+			..get_default_ethash_params()
+		};
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(3500000);
+		parent_header.set_difficulty(U256::from_str("6F62EAF8D3C").unwrap());
+		parent_header.set_timestamp(1452838500);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+
+		header.set_timestamp(parent_header.timestamp() + 20);
+		assert_eq!(
+			U256::from_str("6F55FE9B74B").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		header.set_timestamp(parent_header.timestamp() + 5);
+		assert_eq!(
+			U256::from_str("6F71D75632D").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		header.set_timestamp(parent_header.timestamp() + 80);
+		assert_eq!(
+			U256::from_str("6F02746B3A5").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+	}
+
+	#[test]
+	fn test_difficulty_bomb_continue() {
+		let spec = new_homestead_test();
+		let ethparams = EthashParams {
+			ecip1010_pause_transition: 3000000,
+			ecip1010_continue_transition: 5000000,
+			..get_default_ethash_params()
+		};
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(5000102);
+		parent_header.set_difficulty(U256::from_str("14944397EE8B").unwrap());
+		parent_header.set_timestamp(1513175023);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 6);
+		assert_eq!(
+			U256::from_str("1496E6206188").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(5100123);
+		parent_header.set_difficulty(U256::from_str("14D24B39C7CF").unwrap());
+		parent_header.set_timestamp(1514609324);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 41);
+		assert_eq!(
+			U256::from_str("14CA9C5D9227").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(6150001);
+		parent_header.set_difficulty(U256::from_str("305367B57227").unwrap());
+		parent_header.set_timestamp(1529664575);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 105);
+		assert_eq!(
+			U256::from_str("309D09E0C609").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(8000000);
+		parent_header.set_difficulty(U256::from_str("1180B36D4CE5B6A").unwrap());
+		parent_header.set_timestamp(1535431724);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 420);
+		assert_eq!(
+			U256::from_str("5126FFD5BCBB9E7").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+	}
 }

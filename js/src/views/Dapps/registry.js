@@ -16,8 +16,6 @@
 
 import BigNumber from 'bignumber.js';
 
-import { parityNode } from '../../environment';
-
 const builtinApps = [
   {
     id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
@@ -57,7 +55,8 @@ const builtinApps = [
     name: 'GitHub Hint',
     description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
     author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
+    version: '1.0.0',
+    secure: true
   }
 ];
 
@@ -76,16 +75,14 @@ const networkApps = [
   }
 ];
 
-export function fetchAvailable (api) {
-  // TODO: Since we don't have an extensive GithubHint app, get the value somehow
-  // RESULT: 0x22cd66e1b05882c0fa17a16d252d3b3ee2238ccbac8153f69a35c83f02ca76ee
-  // api.ethcore
-  //   .hashContent('https://codeload.github.com/gavofyork/gavcoin/zip/5a9f11ff2ad0d05c565a938ceffdfa0d23af9981')
-  //   .then((sha3) => {
-  //     console.log('archive', sha3);
-  //   });
+function getHost (api) {
+  return process.env.NODE_ENV === 'production'
+    ? api.dappsUrl
+    : '';
+}
 
-  return fetch(`${parityNode}/api/apps`)
+export function fetchAvailable (api) {
+  return fetch(`${getHost(api)}/api/apps`)
     .then((response) => {
       return response.ok
         ? response.json()
@@ -99,11 +96,11 @@ export function fetchAvailable (api) {
       const localApps = _localApps
         .filter((app) => !['ui'].includes(app.id))
         .map((app) => {
-          app.local = true;
+          app.type = 'local';
           return app;
         });
 
-      return api.ethcore
+      return api.parity
         .registryAddress()
         .then((registryAddress) => {
           if (new BigNumber(registryAddress).eq(0)) {
@@ -112,13 +109,13 @@ export function fetchAvailable (api) {
 
           const _builtinApps = builtinApps
             .map((app) => {
-              app.builtin = true;
+              app.type = 'builtin';
               return app;
             });
 
           return networkApps
             .map((app) => {
-              app.network = true;
+              app.type = 'network';
               return app;
             })
             .concat(_builtinApps);
@@ -134,8 +131,8 @@ export function fetchAvailable (api) {
     });
 }
 
-export function fetchManifest (app, contentHash) {
-  return fetch(`${parityNode}/${contentHash}/manifest.json`)
+export function fetchManifest (api, app, contentHash) {
+  return fetch(`${getHost(api)}/${contentHash}/manifest.json`)
     .then((response) => {
       return response.ok
         ? response.json()

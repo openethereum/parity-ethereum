@@ -65,7 +65,7 @@ export default class TransactionFinished extends Component {
     const totalValue = tUtil.getTotalValue(fee, value);
     this.setState({ totalValue });
 
-    this.context.api.ethcore.netChain()
+    this.context.api.parity.netChain()
       .then((chain) => {
         this.setState({ chain });
       })

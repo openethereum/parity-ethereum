@@ -26,6 +26,52 @@ export default {
     }
   },
 
+  accounts: {
+    desc: 'returns a map of accounts as an object',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Account metadata',
+      details: {
+        name: {
+          type: String,
+          desc: 'Account name'
+        },
+        meta: {
+          type: String,
+          desc: 'Encoded JSON string the defines additional account metadata'
+        },
+        uuid: {
+          type: String,
+          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+        }
+      }
+    }
+  },
+
+  accountsInfo: {
+    desc: 'returns a map of accounts as an object',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Account metadata',
+      details: {
+        name: {
+          type: String,
+          desc: 'Account name'
+        },
+        meta: {
+          type: String,
+          desc: 'Encoded JSON string the defines additional account metadata'
+        },
+        uuid: {
+          type: String,
+          desc: 'The account UUID, or null if not available/unknown/not applicable.'
+        }
+      }
+    }
+  },
+
   addReservedPeer: {
     desc: '?',
     params: [
@@ -37,6 +83,20 @@ export default {
     returns: {
       type: Boolean,
       desc: '?'
+    }
+  },
+
+  checkRequest: {
+    desc: 'Returns the transactionhash of the requestId (received from parity_postTransaction) if the request was confirmed',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The requestId to check for'
+      }
+    ],
+    returns: {
+      type: Hash,
+      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
     }
   },
 
@@ -155,6 +215,29 @@ export default {
     }
   },
 
+  listGethAccounts: {
+    desc: 'Returns a list of the accounts available from Geth',
+    params: [],
+    returns: {
+      type: Array,
+      desc: '20 Bytes addresses owned by the client.'
+    }
+  },
+
+  importGethAccounts: {
+    desc: 'Imports a list of accounts from geth',
+    params: [
+      {
+        type: Array,
+        desc: 'List of the geth addresses to import'
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'Array of the imported addresses'
+    }
+  },
+
   minGasPrice: {
     desc: 'Returns currently set minimal gas price',
     params: [],
@@ -166,7 +249,7 @@ export default {
   },
 
   mode: {
-    desc: 'Get the mode. Results one of: "active", "passive", "dark", "off".',
+    desc: 'Get the mode. Results one of: "active", "passive", "dark", "offline".',
     params: [],
     returns: {
       type: String,
@@ -210,6 +293,60 @@ export default {
     }
   },
 
+  newAccountFromPhrase: {
+    desc: 'Creates a new account from a recovery passphrase',
+    params: [
+      {
+        type: String,
+        desc: 'Phrase'
+      },
+      {
+        type: String,
+        desc: 'Password'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'The created address'
+    }
+  },
+
+  newAccountFromSecret: {
+    desc: 'Creates a new account from a private ethstore secret key',
+    params: [
+      {
+        type: Data,
+        desc: 'Secret, 32-byte hex'
+      },
+      {
+        type: String,
+        desc: 'Password'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'The created address'
+    }
+  },
+
+  newAccountFromWallet: {
+    desc: 'Creates a new account from a JSON import',
+    params: [
+      {
+        type: String,
+        desc: 'JSON'
+      },
+      {
+        type: String,
+        desc: 'Password'
+      }
+    ],
+    returns: {
+      type: Address,
+      desc: 'The created address'
+    }
+  },
+
   nodeName: {
     desc: 'Returns node name (identity)',
     params: [],
@@ -230,6 +367,22 @@ export default {
     returns: {
       type: Address,
       desc: 'Corresponding address'
+    }
+  },
+
+  postTransaction: {
+    desc: 'Posts a transaction to the Signer.',
+    params: [
+      {
+        type: Object,
+        desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
+        format: 'inputCallFormatter'
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'The id of the actual transaction',
+      format: 'utils.toDecimal'
     }
   },
 
@@ -262,6 +415,42 @@ export default {
     returns: {
       type: Object,
       desc: 'JSON object containing rpc settings'
+    }
+  },
+
+  setAccountName: {
+    desc: 'Sets a name for the account',
+    params: [
+      {
+        type: Address,
+        desc: 'Address'
+      },
+      {
+        type: String,
+        desc: 'Name'
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Returns null in all cases'
+    }
+  },
+
+  setAccountMeta: {
+    desc: 'Sets metadata for the account',
+    params: [
+      {
+        type: Address,
+        desc: 'Address'
+      },
+      {
+        type: String,
+        desc: 'Metadata (JSON encoded)'
+      }
+    ],
+    returns: {
+      type: Object,
+      desc: 'Returns null in all cases'
     }
   },
 
@@ -330,7 +519,7 @@ export default {
     params: [
       {
         type: String,
-        desc: 'The mode to set, one of "active", "passive", "dark", "off"'
+        desc: 'The mode to set, one of "active", "passive", "dark", "offline"'
       }
     ],
     returns: {

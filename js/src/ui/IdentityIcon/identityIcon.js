@@ -81,7 +81,7 @@ class IdentityIcon extends Component {
     }
 
     if (image) {
-      return image;
+      return `${api.dappsUrl}${image}`;
     }
 
     if (icon && icon[scale]) {

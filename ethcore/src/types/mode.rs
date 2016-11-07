@@ -20,7 +20,7 @@ pub use std::time::Duration;
 use client::Mode as ClientMode;
 
 /// IPC-capable shadow-type for client::config::Mode
-#[derive(Clone, Binary)]
+#[derive(Clone, Binary, Debug)]
 pub enum Mode {
 	/// Same as ClientMode::Off.
 	Off,

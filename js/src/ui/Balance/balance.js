@@ -88,7 +88,13 @@ class Balance extends Component {
           ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
           : api.util.fromWei(balance.value).toFormat(3);
 
-        const image = token.image || images[token.address] || unknownImage;
+        let image = token.image;
+        if (!image) {
+          image =
+            images[token.address]
+              ? `${api.dappsUrl}${images[token.address]}`
+              : unknownImage;
+        }
 
         return {
           name: token.name,

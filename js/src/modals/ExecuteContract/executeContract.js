@@ -223,7 +223,7 @@ class ExecuteContract extends Component {
       })
       .then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('eth_checkRequest', requestId);
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .then((txhash) => {
         this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });

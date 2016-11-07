@@ -28,9 +28,9 @@ export default class Personal {
 
   _subscribeAccountsInfo () {
     this._api
-      .subscribe('personal_accountsInfo', (error, accountsInfo) => {
+      .subscribe('parity_accountsInfo', (error, accountsInfo) => {
         if (error) {
-          console.error('personal_accountsInfo', error);
+          console.error('parity_accountsInfo', error);
           return;
         }
 

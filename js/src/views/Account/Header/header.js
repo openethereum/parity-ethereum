@@ -159,7 +159,7 @@ export default class Header extends Component {
     const { account } = this.props;
 
     this.setState({ name }, () => {
-      api.personal
+      api.parity
         .setAccountName(account.address, name)
         .catch((error) => {
           console.error(error);

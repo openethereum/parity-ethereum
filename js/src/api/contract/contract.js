@@ -102,7 +102,7 @@ export default class Contract {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
-        return this._api.eth.postTransaction(this._encodeOptions(this.constructors[0], options, values));
+        return this._api.parity.postTransaction(this._encodeOptions(this.constructors[0], options, values));
       })
       .then((requestId) => {
         setState({ state: 'checkRequest', requestId });
@@ -166,7 +166,7 @@ export default class Contract {
   }
 
   _pollCheckRequest = (requestId) => {
-    return this._api.pollMethod('eth_checkRequest', requestId);
+    return this._api.pollMethod('parity_checkRequest', requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
@@ -208,7 +208,7 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        return this._api.eth
+        return this._api.parity
           .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
 
