@@ -24,6 +24,7 @@ import { validateAddress, validateUint } from '../../util/validation';
 import ABI from '../../contracts/abi/sms-verification.json';
 const contract = '0x7B3F58965439b22ef1dA4BB78f16191d11ab80B0';
 
+import CheckIfCertified from './CheckIfCertified';
 import GatherData from './GatherData';
 
 export default class SMSVerification extends Component {
@@ -119,16 +120,28 @@ export default class SMSVerification extends Component {
   onDataIsValid = () => {
     this.setState({ stepIsValid: true });
   }
-
   onDataIsInvalid = () => {
     this.setState({ stepIsValid: false });
   }
 
   next = () => {
-    this.setState({ step: this.state.step + 1 });
+    this.setState({ step: this.state.step + 1, stepIsValid: false });
   }
 
   renderFirstStep () {
+    const { account } = this.props;
+    const { contract } = this.state;
+
+    return (
+      <CheckIfCertified
+        account={ account } contract={ contract }
+        onIsCertified={ this.onDataIsInvalid }
+        onIsNotCertified={ this.onDataIsValid }
+      />
+    );
+  }
+
+  renderSecondStep () {
     return (
       <GatherData
         onDataIsValid={ this.onDataIsValid }
