@@ -14,11 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import ethUtil from 'ethereumjs-util';
 import scrypt from 'scryptsy';
 import Transaction from 'ethereumjs-tx';
-import crypto from 'crypto';
-import aes from 'browserify-aes';
+import { pbkdf2Sync } from 'crypto';
+import { createDecipheriv } from 'browserify-aes';
+
+import { inHex } from '../api/format/input';
+import { sha3 } from '../api/util/sha3';
 
 // Adapted from https://github.com/kvhnuke/etherwallet/blob/mercury/app/scripts/myetherwallet.js
 
@@ -31,8 +33,8 @@ export class Wallet {
 
     const { kdf } = json.crypto;
     const kdfparams = json.crypto.kdfparams || {};
-    const pwd = new Buffer(password);
-    const salt = new Buffer(kdfparams.salt, 'hex');
+    const pwd = Buffer.from(password);
+    const salt = Buffer.from(kdfparams.salt, 'hex');
     let derivedKey;
 
     if (kdf === 'scrypt') {
@@ -41,27 +43,26 @@ export class Wallet {
       if (kdfparams.prf !== 'hmac-sha256') {
         throw new Error('Unsupported parameters to PBKDF2');
       }
-      derivedKey = crypto.pbkdf2Sync(pwd, salt, kdfparams.c, kdfparams.dklen, 'sha256');
+      derivedKey = pbkdf2Sync(pwd, salt, kdfparams.c, kdfparams.dklen, 'sha256');
     } else {
       throw new Error('Unsupported key derivation scheme');
     }
 
-    const ciphertext = new Buffer(json.crypto.ciphertext, 'hex');
-    const mac = ethUtil.sha3(Buffer.concat([derivedKey.slice(16, 32), ciphertext]));
-
-    if (mac.toString('hex') !== json.crypto.mac) {
+    const ciphertext = Buffer.from(json.crypto.ciphertext, 'hex');
+    let mac = sha3(Buffer.concat([derivedKey.slice(16, 32), ciphertext]));
+    if (mac !== inHex(json.crypto.mac)) {
       throw new Error('Key derivation failed - possibly wrong passphrase');
     }
 
-    const decipher = aes.createDecipheriv(
+    const decipher = createDecipheriv(
       json.crypto.cipher,
       derivedKey.slice(0, 16),
-      new Buffer(json.crypto.cipherparams.iv, 'hex')
+      Buffer.from(json.crypto.cipherparams.iv, 'hex')
     );
     let seed = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
 
     while (seed.length < 32) {
-      const nullBuff = new Buffer([0x00]);
+      const nullBuff = Buffer.from([0x00]);
       seed = Buffer.concat([nullBuff, seed]);
     }
 
@@ -75,7 +76,7 @@ export class Wallet {
   signTransaction (transaction) {
     const tx = new Transaction(transaction);
     tx.sign(this.seed);
-    return `0x${tx.serialize().toString('hex')}`;
+    return inHex(tx.serialize().toString('hex'));
   }
 
 }

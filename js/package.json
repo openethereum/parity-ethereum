@@ -119,7 +119,6 @@
     "chart.js": "^2.3.0",
     "es6-promise": "^3.2.1",
     "ethereumjs-tx": "^1.1.2",
-    "ethereumjs-util": "^4.5.0",
     "file-saver": "^1.3.3",
     "format-json": "^1.0.3",
     "format-number": "^2.0.1",
