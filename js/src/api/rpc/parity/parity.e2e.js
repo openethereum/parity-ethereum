@@ -16,12 +16,12 @@
 
 import { createHttpApi } from '../../../../test/e2e/ethapi';
 
-describe('ethapi.ethcore', () => {
+describe('ethapi.parity', () => {
   const ethapi = createHttpApi();
 
   describe('gasFloorTarget', () => {
     it('returns and translates the target', () => {
-      return ethapi.ethcore.gasFloorTarget().then((value) => {
+      return ethapi.parity.gasFloorTarget().then((value) => {
         expect(value.gt(0)).to.be.true;
       });
     });
@@ -29,7 +29,7 @@ describe('ethapi.ethcore', () => {
 
   describe('gasPriceHistogram', () => {
     it('returns and translates the target', () => {
-      return ethapi.ethcore.gasPriceHistogram().then((result) => {
+      return ethapi.parity.gasPriceHistogram().then((result) => {
         expect(Object.keys(result)).to.deep.equal(['bucketBounds', 'counts']);
         expect(result.bucketBounds.length > 0).to.be.true;
         expect(result.counts.length > 0).to.be.true;
@@ -39,7 +39,7 @@ describe('ethapi.ethcore', () => {
 
   describe('netChain', () => {
     it('returns and the chain', () => {
-      return ethapi.ethcore.netChain().then((value) => {
+      return ethapi.parity.netChain().then((value) => {
         expect(value).to.equal('morden');
       });
     });
@@ -47,7 +47,7 @@ describe('ethapi.ethcore', () => {
 
   describe('netPort', () => {
     it('returns and translates the port', () => {
-      return ethapi.ethcore.netPort().then((value) => {
+      return ethapi.parity.netPort().then((value) => {
         expect(value.gt(0)).to.be.true;
       });
     });
@@ -55,7 +55,7 @@ describe('ethapi.ethcore', () => {
 
   describe('transactionsLimit', () => {
     it('returns and translates the limit', () => {
-      return ethapi.ethcore.transactionsLimit().then((value) => {
+      return ethapi.parity.transactionsLimit().then((value) => {
         expect(value.gt(0)).to.be.true;
       });
     });
@@ -63,7 +63,7 @@ describe('ethapi.ethcore', () => {
 
   describe('rpcSettings', () => {
     it('returns and translates the settings', () => {
-      return ethapi.ethcore.rpcSettings().then((value) => {
+      return ethapi.parity.rpcSettings().then((value) => {
         expect(value).to.be.ok;
       });
     });

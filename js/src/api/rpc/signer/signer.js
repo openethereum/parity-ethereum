@@ -14,33 +14,37 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inAddress, inNumber10, inOptions } from '../../format/input';
-import { outAddress } from '../../format/output';
+import { inNumber16 } from '../../format/input';
+import { outSignerRequest } from '../../format/output';
 
-export default class Personal {
+export default class Signer {
   constructor (transport) {
     this._transport = transport;
   }
 
-  listAccounts () {
+  confirmRequest (requestId, options, password) {
     return this._transport
-      .execute('personal_listAccounts')
-      .then((accounts) => (accounts || []).map(outAddress));
+      .execute('signer_confirmRequest', inNumber16(requestId), options, password);
   }
 
-  newAccount (password) {
+  generateAuthorizationToken () {
     return this._transport
-      .execute('personal_newAccount', password)
-      .then(outAddress);
+      .execute('signer_generateAuthorizationToken');
   }
 
-  signAndSendTransaction (options, password) {
+  rejectRequest (requestId) {
     return this._transport
-      .execute('personal_signAndSendTransaction', inOptions(options), password);
+      .execute('signer_rejectRequest', inNumber16(requestId));
   }
 
-  unlockAccount (account, password, duration = 1) {
+  requestsToConfirm () {
     return this._transport
-      .execute('personal_unlockAccount', inAddress(account), password, inNumber10(duration));
+      .execute('signer_requestsToConfirm')
+      .then((requests) => (requests || []).map(outSignerRequest));
+  }
+
+  signerEnabled () {
+    return this._transport
+      .execute('signer_signerEnabled');
   }
 }

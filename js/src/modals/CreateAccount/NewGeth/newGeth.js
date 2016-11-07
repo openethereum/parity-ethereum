@@ -102,7 +102,7 @@ export default class NewGeth extends Component {
     const { api } = this.context;
     const { accounts } = this.props;
 
-    api.personal
+    api.parity
       .listGethAccounts()
       .then((_addresses) => {
         const addresses = (addresses || []).filter((address) => !accounts[address]);
