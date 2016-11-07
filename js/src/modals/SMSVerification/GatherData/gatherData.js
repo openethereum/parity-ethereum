@@ -25,7 +25,8 @@ import styles from './gatherData.css';
 export default class GatherData extends Component {
   static propTypes = {
     onDataIsValid: PropTypes.func.isRequired,
-    onDataIsInvalid: PropTypes.func.isRequired
+    onDataIsInvalid: PropTypes.func.isRequired,
+    onData: PropTypes.func.isRequired
   }
 
   state = {
@@ -56,6 +57,7 @@ export default class GatherData extends Component {
 
   numberOnSubmit = (value) => {
     this.numberOnChange(null, value);
+    this.props.onData({ number: value });
   }
 
   numberOnChange = (_, value) => {
@@ -68,6 +70,7 @@ export default class GatherData extends Component {
     this.setState({
       consentGiven: !!consentGiven
     }, this.onChange);
+    this.props.onData({ consent: consentGiven });
   }
 
   onChange = () => {

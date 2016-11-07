@@ -42,8 +42,7 @@ export default class SMSVerification extends Component {
     contract: null,
     step: 0,
     stepIsValid: false,
-    number: null,
-    numberError: null
+    data: {}
   }
 
   componentDidMount () {
@@ -122,6 +121,11 @@ export default class SMSVerification extends Component {
   }
   onDataIsInvalid = () => {
     this.setState({ stepIsValid: false });
+  }
+  onData = (data) => {
+    this.setState({
+      data: Object.assign({}, this.state.data, data)
+    });
   }
 
   next = () => {
