@@ -48,7 +48,6 @@ export default class Transfer extends Component {
   static propTypes = {
     account: PropTypes.object,
     balance: PropTypes.object,
-    balances: PropTypes.object,
     images: PropTypes.object.isRequired,
     onClose: PropTypes.func
   }

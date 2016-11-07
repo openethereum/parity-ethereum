@@ -24,6 +24,10 @@
   border-spacing: 0;
 }
 
+.eventsContainer {
+  margin-top: 0.25em;
+}
+
 .events tr {
   line-height: 32px;
   vertical-align: top;

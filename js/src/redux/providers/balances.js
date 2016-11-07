@@ -32,7 +32,9 @@ export default class Balances {
     this._api = api;
     this._store = store;
     this._accountsInfo = null;
-    this._tokens = [];
+    this._tokens = {};
+    this._images = {};
+    this._tokenreg = null;
   }
 
   start () {
@@ -75,8 +77,12 @@ export default class Balances {
       });
   }
 
-  _retrieveTokens () {
-    this._api.parity
+  getTokenRegistry () {
+    if (this._tokenreg) {
+      return Promise.resolve(this._tokenreg);
+    }
+
+    return this._api.parity
       .registryAddress()
       .then((registryAddress) => {
         const registry = this._api.newContract(abis.registry, registryAddress);
@@ -85,55 +91,42 @@ export default class Balances {
       })
       .then((tokenregAddress) => {
         const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
+        this._tokenreg = tokenreg;
 
+        return tokenreg;
+      });
+  }
+
+  _retrieveTokens () {
+    this
+      .getTokenRegistry()
+      .then((tokenreg) => {
         return tokenreg.instance.tokenCount
           .call()
           .then((numTokens) => {
-            const promisesTokens = [];
-            const promisesImages = [];
+            const promises = [];
 
-            while (promisesTokens.length < numTokens.toNumber()) {
-              const index = promisesTokens.length;
-
-              promisesTokens.push(tokenreg.instance.token.call({}, [index]));
-              promisesImages.push(tokenreg.instance.meta.call({}, [index, 'IMG']));
+            for (let i = 0; i < numTokens.toNumber(); i++) {
+              promises.push(this.fetchTokenInfo(tokenreg, i));
             }
 
-            return Promise.all([
-              Promise.all(promisesTokens),
-              Promise.all(promisesImages)
-            ]);
+            return Promise.all(promises);
           });
       })
-      .then(([_tokens, images]) => {
-        const tokens = {};
-        this._tokens = _tokens
-          .map((_token, index) => {
-            const [address, tag, format, name] = _token;
+      .then((_tokens) => {
+        const prevHashes = Object.values(this._tokens).map((t) => t.hash).sort().join('');
+        const nextHashes = _tokens.map((t) => t.hash).sort().join('');
 
-            const token = {
-              address,
-              name,
-              tag,
-              format: format.toString(),
-              contract: this._api.newContract(abis.eip20, address)
-            };
-            tokens[address] = token;
-            this._store.dispatch(setAddressImage(address, images[index]));
+        if (prevHashes !== nextHashes) {
+          this._tokens = _tokens
+            .reduce((obj, token) => {
+              obj[token.address] = token;
+              return obj;
+            }, {});
 
-            return token;
-          })
-          .sort((a, b) => {
-            if (a.tag < b.tag) {
-              return -1;
-            } else if (a.tag > b.tag) {
-              return 1;
-            }
+          this._store.dispatch(getTokens(this._tokens));
+        }
 
-            return 0;
-          });
-
-        this._store.dispatch(getTokens(tokens));
         this._retrieveBalances();
       })
       .catch((error) => {
@@ -151,50 +144,80 @@ export default class Balances {
     this._balances = {};
 
     Promise
-      .all(
-        addresses.map((address) => Promise.all([
-          this._api.eth.getBalance(address),
-          this._api.eth.getTransactionCount(address)
-        ]))
-      )
-      .then((balanceTxCount) => {
-        return Promise.all(
-          balanceTxCount.map(([value, txCount], idx) => {
-            const address = addresses[idx];
-
-            this._balances[address] = {
-              txCount,
-              tokens: [{
-                token: ETH,
-                value
-              }]
-            };
-
-            return Promise.all(
-              this._tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [address]);
-              })
-            );
-          })
-        );
-      })
-      .then((tokenBalances) => {
-        addresses.forEach((address, idx) => {
-          const balanceOf = tokenBalances[idx];
-          const balance = this._balances[address];
-
-          this._tokens.forEach((token, tidx) => {
-            balance.tokens.push({
-              token,
-              value: balanceOf[tidx]
-            });
-          });
+      .all(addresses.map((a) => this.fetchAccountBalance(a)))
+      .then((balances) => {
+        addresses.forEach((a, idx) => {
+          this._balances[a] = balances[idx];
         });
 
         this._store.dispatch(getBalances(this._balances));
       })
       .catch((error) => {
         console.warn('_retrieveBalances', error);
+      });
+  }
+
+  fetchTokenInfo (tokenreg, tokenId) {
+    return Promise
+      .all([
+        tokenreg.instance.token.call({}, [tokenId]),
+        tokenreg.instance.meta.call({}, [tokenId, 'IMG'])
+      ])
+      .then(([ token, image ]) => {
+        const [ address, tag, format, name ] = token;
+        const oldToken = this._tokens[address];
+
+        if (this._images[address] !== image.toString()) {
+          this._store.dispatch(setAddressImage(address, image));
+          this._images[address] = image.toString();
+        }
+
+        const newToken = {
+          address,
+          name,
+          tag,
+          format: format.toString()
+        };
+
+        const hash = this._api.util.sha3(JSON.stringify(newToken));
+
+        const contract = oldToken
+          ? oldToken.contract
+          : this._api.newContract(abis.eip20, address);
+
+        return {
+          ...newToken,
+          hash,
+          contract
+        };
+      });
+  }
+
+  fetchAccountBalance (address) {
+    const _tokens = Object.values(this._tokens);
+    const tokensPromises = _tokens
+      .map((token) => {
+        return token.contract.instance.balanceOf.call({}, [ address ]);
+      });
+
+    return Promise
+      .all([
+        this._api.eth.getTransactionCount(address),
+        this._api.eth.getBalance(address)
+      ].concat(tokensPromises))
+      .then(([ txCount, ethBalance, ...tokensBalance ]) => {
+        const tokens = []
+          .concat(
+            { token: ETH, value: ethBalance },
+            _tokens
+              .map((token, index) => ({
+                token,
+                value: tokensBalance[index]
+              }))
+          );
+
+        const balance = { txCount, tokens };
+        return balance;
       });
   }
 }

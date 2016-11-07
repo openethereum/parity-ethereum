@@ -16,13 +16,14 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
+import { isEqual } from 'lodash';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
 
 export default class Summary extends Component {
   static contextTypes = {
     api: React.PropTypes.object
-  }
+  };
 
   static propTypes = {
     account: PropTypes.object.isRequired,
@@ -30,14 +31,25 @@ export default class Summary extends Component {
     link: PropTypes.string,
     children: PropTypes.node,
     handleAddSearchToken: PropTypes.func
-  }
+  };
 
-  state = {
-    name: 'Unnamed'
+  shouldComponentUpdate (nextProps) {
+    const addressChanged = nextProps.account.address !== this.props.account.address;
+    if (addressChanged) return true;
+
+    const prevTokens = this.props.balance.tokens;
+    const nextTokens = nextProps.balance.tokens;
+    if (!prevTokens || !nextTokens) return true;
+    if (prevTokens.length !== nextTokens.length) return true;
+
+    const prevValues = prevTokens.map(t => `${t.token}:${t.value}`).sort();
+    const nextValues = nextTokens.map(t => `${t.token}:${t.value}`).sort();
+
+    return !isEqual(prevValues, nextValues);
   }
 
   render () {
-    const { account, balance, children, link, handleAddSearchToken } = this.props;
+    const { account, children, link, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -59,15 +71,31 @@ export default class Summary extends Component {
     return (
       <Container>
         <Tags tags={ tags } handleAddSearchToken={ handleAddSearchToken } />
-        <IdentityIcon
-          address={ address } />
+
+        <IdentityIcon address={ address } memorize />
+
         <ContainerTitle
           title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
-          byline={ addressComponent } />
-        <Balance
-          balance={ balance } />
+          byline={ addressComponent }
+        />
+
+        { this.renderBalance() }
+
         { children }
       </Container>
     );
   }
+
+  renderBalance () {
+    const { balance } = this.props;
+
+    if (!balance) {
+      return null;
+    }
+
+    return (
+      <Balance balances={ balance.tokens } />
+    );
+  }
+
 }

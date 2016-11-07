@@ -265,6 +265,7 @@ export default class Contract {
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
+
             this._subscriptions[subscriptionId] = {
               options,
               callback,
@@ -277,19 +278,19 @@ export default class Contract {
   }
 
   unsubscribe (subscriptionId) {
+    const subscription = this._subscriptions[subscriptionId];
+    delete this._subscriptions[subscriptionId];
+
     return this._api.eth
-      .uninstallFilter(this._subscriptions[subscriptionId].filterId)
-      .then(() => {
-        delete this._subscriptions[subscriptionId];
-      })
+      .uninstallFilter(subscription.filterId)
       .catch((error) => {
-        console.error('unsubscribe', error);
+        console.error('contract::unsubscribe', subscription.address, error);
       });
   }
 
   _sendSubscriptionChanges = () => {
     const subscriptions = Object.values(this._subscriptions);
-    const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
+    const timeout = () => setTimeout(() => this._sendSubscriptionChanges(), 1000);
 
     Promise
       .all(

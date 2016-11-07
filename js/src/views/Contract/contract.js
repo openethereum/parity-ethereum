@@ -22,6 +22,7 @@ import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
 import { newError } from '../../redux/actions';
+import { attachContract, detachContract } from '../../redux/providers/blockchainActions';
 import { EditMeta, ExecuteContract } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
@@ -39,91 +40,90 @@ class Contract extends Component {
   }
 
   static propTypes = {
-    accounts: PropTypes.object,
-    balances: PropTypes.object,
-    contracts: PropTypes.object,
+    baseAccount: PropTypes.string,
+    balance: PropTypes.object,
+    contract: PropTypes.object,
+    ready: PropTypes.bool,
     isTest: PropTypes.bool,
     params: PropTypes.object
   }
 
   state = {
-    contract: null,
     fromAddress: '',
     showDeleteDialog: false,
     showEditDialog: false,
-    showExecuteDialog: false,
-    subscriptionId: -1,
-    blockSubscriptionId: -1,
-    allEvents: [],
-    minedEvents: [],
-    pendingEvents: [],
-    queryValues: {}
+    showExecuteDialog: false
+  }
+
+  attachContract (props = this.props) {
+    const { attachContract, params } = props;
+    attachContract(params.address);
+  }
+
+  detachContract (props = this.props) {
+    const { detachContract, params } = props;
+    detachContract(params.address);
   }
 
   componentDidMount () {
-    const { api } = this.context;
-
-    this.attachContract(this.props);
     this.setBaseAccount(this.props);
 
-    api
-      .subscribe('eth_blockNumber', this.queryContract)
-      .then(blockSubscriptionId => this.setState({ blockSubscriptionId }));
+    if (this.props.ready) {
+      this.attachContract();
+    }
   }
 
   componentWillReceiveProps (newProps) {
-    const { accounts, contracts } = newProps;
+    const { baseAccount, params } = newProps;
 
-    if (Object.keys(contracts).length !== Object.keys(this.props.contracts).length) {
+    if (!this.props.ready && newProps.ready) {
+      this.attachContract();
+    }
+
+    // New contract address
+    if (params.address !== this.props.params.address) {
       this.attachContract(newProps);
     }
 
-    if (Object.keys(accounts).length !== Object.keys(this.props.accounts).length) {
+    if (baseAccount !== this.props.baseAccount) {
       this.setBaseAccount(newProps);
     }
   }
 
   componentWillUnmount () {
-    const { api } = this.context;
-    const { subscriptionId, blockSubscriptionId, contract } = this.state;
-
-    api.unsubscribe(blockSubscriptionId);
-    contract.unsubscribe(subscriptionId);
+    this.detachContract();
   }
 
   render () {
-    const { balances, contracts, params, isTest } = this.props;
-    const { allEvents, contract, queryValues } = this.state;
-    const account = contracts[params.address];
-    const balance = balances[params.address];
+    const { balance, contract, params, isTest } = this.props;
+    const { address } = params;
 
-    if (!account) {
+    if (!contract) {
       return null;
     }
 
     return (
       <div className={ styles.contract }>
-        { this.renderActionbar(account) }
-        { this.renderDeleteDialog(account) }
-        { this.renderEditDialog(account) }
+        { this.renderActionbar() }
+        { this.renderDeleteDialog() }
+        { this.renderEditDialog() }
         { this.renderExecuteDialog() }
         <Page>
           <Header
             isTest={ isTest }
-            account={ account }
+            account={ contract }
             balance={ balance } />
-          <Queries
-            contract={ contract }
-            values={ queryValues } />
-          <Events
-            isTest={ isTest }
-            events={ allEvents } />
+
+          <Queries address={ address } />
+          <Events address={ address } />
         </Page>
       </div>
     );
   }
 
-  renderActionbar (account) {
+  renderActionbar () {
+    const { contract } = this.props;
+
     const buttons = [
       <Button
         key='execute'
@@ -145,23 +145,25 @@ class Contract extends Component {
     return (
       <Actionbar
         title='Contract Information'
-        buttons={ !account || account.meta.deleted ? [] : buttons } />
+        buttons={ !contract || contract.meta.deleted ? [] : buttons } />
     );
   }
 
-  renderDeleteDialog (account) {
+  renderDeleteDialog () {
+    const { contract } = this.props;
     const { showDeleteDialog } = this.state;
 
     return (
       <Delete
-        account={ account }
+        account={ contract }
         visible={ showDeleteDialog }
         route='/contracts'
         onClose={ this.closeDeleteDialog } />
     );
   }
 
-  renderEditDialog (account) {
+  renderEditDialog () {
+    const { contract } = this.props;
     const { showEditDialog } = this.state;
 
     if (!showEditDialog) {
@@ -170,15 +172,15 @@ class Contract extends Component {
 
     return (
       <EditMeta
-        account={ account }
+        account={ contract }
         keys={ ['description'] }
         onClose={ this.onEditClick } />
     );
   }
 
   renderExecuteDialog () {
-    const { contract, fromAddress, showExecuteDialog } = this.state;
-    const { accounts } = this.props;
+    const { fromAddress, showExecuteDialog } = this.state;
+    const { contract } = this.props;
 
     if (!showExecuteDialog) {
       return null;
@@ -186,39 +188,12 @@ class Contract extends Component {
 
     return (
       <ExecuteContract
-        accounts={ accounts }
-        contract={ contract }
+        contract={ contract.instance }
         fromAddress={ fromAddress }
         onClose={ this.closeExecuteDialog }
-        onFromAddressChange={ this.onFromAddressChange } />
+        onFromAddressChange={ this.onFromAddressChange }
+      />
     );
-  }
-
-  queryContract = () => {
-    const { contract } = this.state;
-
-    if (!contract) {
-      return;
-    }
-
-    const queries = contract.functions
-      .filter((fn) => fn.constant)
-      .filter((fn) => !fn.inputs.length);
-
-    Promise
-      .all(queries.map((query) => query.call()))
-      .then(results => {
-        const values = queries.reduce((object, fn, idx) => {
-          const key = fn.name;
-          object[key] = results[idx];
-          return object;
-        }, {});
-
-        this.setState({ queryValues: values });
-      })
-      .catch((error) => {
-        console.error('queryContract', error);
-      });
   }
 
   onEditClick = () => {
@@ -243,84 +218,6 @@ class Contract extends Component {
     this.setState({ showExecuteDialog: true });
   }
 
-  _sortEvents = (a, b) => {
-    return b.blockNumber.cmp(a.blockNumber) || b.logIndex.cmp(a.logIndex);
-  }
-
-  _logToEvent = (log) => {
-    const { api } = this.context;
-    const key = api.util.sha3(JSON.stringify(log));
-    const { address, blockNumber, logIndex, transactionHash, transactionIndex, params, type } = log;
-
-    return {
-      type: log.event,
-      state: type,
-      address,
-      blockNumber,
-      logIndex,
-      transactionHash,
-      transactionIndex,
-      params,
-      key
-    };
-  }
-
-  _receiveEvents = (error, logs) => {
-    if (error) {
-      console.error('_receiveEvents', error);
-      return;
-    }
-
-    const events = logs.map(this._logToEvent);
-    const minedEvents = events
-      .filter((event) => event.state === 'mined')
-      .reverse()
-      .concat(this.state.minedEvents)
-      .sort(this._sortEvents);
-    const pendingEvents = events
-      .filter((event) => event.state === 'pending')
-      .reverse()
-      .concat(this.state.pendingEvents.filter((pending) => {
-        return !events.find((event) => {
-          const isMined = (event.state === 'mined') && (event.transactionHash === pending.transactionHash);
-          const isPending = (event.state === 'pending') && (event.key === pending.key);
-
-          return isMined || isPending;
-        });
-      }))
-      .sort(this._sortEvents);
-    const allEvents = pendingEvents.concat(minedEvents);
-
-    this.setState({
-      allEvents,
-      minedEvents,
-      pendingEvents
-    });
-  }
-
-  attachContract (props) {
-    if (!props) {
-      return;
-    }
-
-    const { api } = this.context;
-    const { contracts, params } = props;
-    const account = contracts[params.address];
-
-    if (!account) {
-      return;
-    }
-
-    const contract = api.newContract(account.meta.abi, params.address);
-    contract
-      .subscribe(null, { limit: 25, fromBlock: 0, toBlock: 'pending' }, this._receiveEvents)
-      .then((subscriptionId) => {
-        this.setState({ subscriptionId });
-      });
-
-    this.setState({ contract }, this.queryContract);
-  }
-
   setBaseAccount (props) {
     const { fromAccount } = this.state;
 
@@ -328,35 +225,46 @@ class Contract extends Component {
       return;
     }
 
-    const { accounts } = props;
+    const { baseAccount } = props;
 
-    this.setState({
-      fromAddress: Object.keys(accounts)[0]
-    });
+    this.setState({ fromAddress: baseAccount });
   }
 
   onFromAddressChange = (event, fromAddress) => {
-    this.setState({
-      fromAddress
-    });
+    this.setState({ fromAddress });
   }
+
 }
 
-function mapStateToProps (state) {
-  const { accounts, contracts } = state.personal;
-  const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
+function mapStateToProps (_, initProps) {
+  const { address } = initProps.params;
 
-  return {
-    isTest,
-    accounts,
-    contracts,
-    balances
+  return (state) => {
+    const { accounts } = state.personal;
+    const { balances } = state.balances;
+    const { isTest } = state.nodeStatus;
+    const { contracts } = state.blockchain;
+
+    const contract = contracts[address];
+    const balance = balances[address];
+    const ready = Object.keys(state.personal.contracts).length > 0;
+    const baseAccount = Object.keys(accounts)[0];
+
+    return {
+      ready,
+      isTest,
+      baseAccount,
+      contract,
+      balance
+    };
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError }, dispatch);
+  return bindActionCreators({
+    newError,
+    attachContract, detachContract
+  }, dispatch);
 }
 
 export default connect(

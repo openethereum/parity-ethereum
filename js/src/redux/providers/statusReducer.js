@@ -40,6 +40,7 @@ const initialState = {
   nodeName: '',
   rpcSettings: {},
   syncing: false,
+  isConnected: false,
   isApiConnected: true,
   isPingConnected: true,
   isTest: false,

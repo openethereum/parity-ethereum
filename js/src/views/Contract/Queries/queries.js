@@ -17,37 +17,123 @@
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import LinearProgress from 'material-ui/LinearProgress';
 
 import InputQuery from './inputQuery';
+import { subscribeToContractQueries } from '../../../redux/providers/blockchainActions';
 import { Container, ContainerTitle, Input } from '../../../ui';
 
 import styles from './queries.css';
 
-export default class Queries extends Component {
+class Query extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
-    contract: PropTypes.object,
-    values: PropTypes.object
+    fn: PropTypes.object.isRequired,
+    value: PropTypes.any
+  };
+
+  shouldComponentUpdate (nextProps) {
+    const newFn = nextProps.fn.signature !== this.props.fn.signature;
+    const newValue = nextProps.value !== this.props.value;
+
+    return newFn || newValue;
+  }
+
+  render () {
+    const { fn } = this.props;
+
+    return (
+      <div className={ styles.container } key={ fn.signature }>
+        <Card className={ styles.method }>
+          <CardTitle
+            className={ styles.methodTitle }
+            title={ fn.name }
+          />
+          <CardText
+            className={ styles.methodContent }
+          >
+            { this.renderValue() }
+          </CardText>
+        </Card>
+      </div>
+    );
+  }
+
+  renderValue () {
+    const { value } = this.props;
+
+    if (!value) {
+      return null;
+    }
+
+    const { api } = this.context;
+    let valueToDisplay = null;
+
+    if (api.util.isInstanceOf(value, BigNumber)) {
+      valueToDisplay = value.toFormat(0);
+    } else if (api.util.isArray(value)) {
+      valueToDisplay = api.util.bytesToHex(value);
+    } else if (typeof value === 'boolean') {
+      valueToDisplay = value ? 'true' : 'false';
+    } else {
+      valueToDisplay = value.toString();
+    }
+
+    return (
+      <Input
+        className={ styles.queryValue }
+        value={ valueToDisplay }
+        readOnly
+        allowCopy
+      />
+    );
+  }
+}
+
+class Queries extends Component {
+  static contextTypes = {
+    api: PropTypes.object
+  };
+
+  static propTypes = {
+    subscribeToContractQueries: PropTypes.func.isRequired,
+    address: PropTypes.string.isRequired,
+    contract: PropTypes.object
+  };
+
+  componentDidMount () {
+    const { address, subscribeToContractQueries } = this.props;
+    subscribeToContractQueries(address);
   }
 
   render () {
     const { contract } = this.props;
 
-    if (!contract) {
-      return null;
+    if (!contract || !contract.instance || !contract.queries) {
+      return (
+        <Container>
+          <ContainerTitle title='queries' />
+          <LinearProgress mode='indeterminate' />
+        </Container>
+      );
     }
 
-    const queries = contract.functions
+    const values = contract.queries;
+
+    const queries = contract.instance
+      .functions
       .filter((fn) => fn.constant)
       .sort(this._sortEntries);
 
     const noInputQueries = queries
       .slice()
       .filter((fn) => fn.inputs.length === 0)
-      .map((fn) => this.renderQuery(fn));
+      .map((fn) => this.renderQuery(values[fn.name], fn));
 
     const withInputQueries = queries
       .slice()
@@ -80,56 +166,18 @@ export default class Queries extends Component {
           inputs={ abi.inputs }
           outputs={ abi.outputs }
           name={ name }
-          contract={ contract }
+          contract={ contract.instance }
         />
       </div>
     );
   }
 
-  renderQuery (fn) {
-    const { values } = this.props;
-
+  renderQuery (value, fn) {
     return (
-      <div className={ styles.container } key={ fn.signature }>
-        <Card className={ styles.method }>
-          <CardTitle
-            className={ styles.methodTitle }
-            title={ fn.name }
-          />
-          <CardText
-            className={ styles.methodContent }
-          >
-            { this.renderValue(values[fn.name]) }
-          </CardText>
-        </Card>
-      </div>
-    );
-  }
-
-  renderValue (value) {
-    if (typeof value === 'undefined') {
-      return null;
-    }
-
-    const { api } = this.context;
-    let valueToDisplay = null;
-
-    if (api.util.isInstanceOf(value, BigNumber)) {
-      valueToDisplay = value.toFormat(0);
-    } else if (api.util.isArray(value)) {
-      valueToDisplay = api.util.bytesToHex(value);
-    } else if (typeof value === 'boolean') {
-      valueToDisplay = value ? 'true' : 'false';
-    } else {
-      valueToDisplay = value.toString();
-    }
-
-    return (
-      <Input
-        className={ styles.queryValue }
-        value={ valueToDisplay }
-        readOnly
-        allowCopy
+      <Query
+        key={ fn.signature }
+        value={ value }
+        fn={ fn }
       />
     );
   }
@@ -138,3 +186,22 @@ export default class Queries extends Component {
     return a.name.localeCompare(b.name);
   }
 }
+
+function mapStateToProps (state, ownProps) {
+  const { contracts } = state.blockchain;
+  const contract = contracts[ownProps.address];
+
+  return { contract };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    subscribeToContractQueries
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Queries);
+

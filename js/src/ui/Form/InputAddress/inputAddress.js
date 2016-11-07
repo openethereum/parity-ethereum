@@ -39,6 +39,14 @@ class InputAddress extends Component {
     onSubmit: PropTypes.func
   };
 
+  shouldComponentUpdate (nextProps) {
+    if (nextProps.disabled) {
+      return nextProps.value !== this.props.value;
+    }
+
+    return true;
+  }
+
   render () {
     const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
 

@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 import { txLink } from '../../../../3rdparty/etherscan/links';
@@ -30,38 +31,37 @@ export default class Event extends Component {
 
   static propTypes = {
     event: PropTypes.object.isRequired,
+    timestamp: PropTypes.any,
+    transaction: PropTypes.object,
     isTest: PropTypes.bool
   }
 
-  state = {
-    transaction: {}
-  }
-
-  componentDidMount () {
-    this.retrieveTransaction();
+  shouldComponentUpdate (nextProps) {
+    return nextProps.event.transactionHash !== this.props.event.transactionHash;
   }
 
   render () {
-    const { event, isTest } = this.props;
-    const { block, transaction } = this.state;
+    const { event, timestamp, transaction, isTest } = this.props;
 
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
-    const values = Object.keys(event.params).map((name, index) => {
-      const param = event.params[name];
+    const values = Object
+      .keys(event.params)
+      .map((name, index) => {
+        const param = event.params[name];
 
-      return (
-        <div className={ styles.eventValue } key={ `${event.key}_val_${index}` }>
-          { this.renderParam(name, param) }
-        </div>
-      );
-    });
+        return (
+          <div className={ styles.eventValue } key={ `${event.key}_val_${index}` }>
+            { this.renderParam(name, param) }
+          </div>
+        );
+      });
 
     return (
       <tr className={ classes }>
         <td className={ styles.timestamp }>
-          <div>{ event.state === 'pending' ? 'pending' : this.formatBlockTimestamp(block) }</div>
+          <div>{ event.state === 'pending' ? 'pending' : this.formatBlockTimestamp(timestamp) }</div>
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         <td className={ styles.txhash }>
@@ -94,7 +94,12 @@ export default class Event extends Component {
     return (
       <span className={ styles.eventAddress }>
         <IdentityIcon center inline address={ address } className={ styles.eventIdentityicon } />
-        { withName ? <IdentityName address={ address } /> : address }
+
+        {
+          withName
+          ? <IdentityName address={ address } />
+          : address
+        }
       </span>
     );
   }
@@ -110,7 +115,8 @@ export default class Event extends Component {
             text
             className={ styles.input }
             value={ param.value }
-            label={ name } />
+            label={ name }
+          />
         );
 
       default:
@@ -135,12 +141,12 @@ export default class Event extends Component {
     }
   }
 
-  formatBlockTimestamp (block) {
-    if (!block) {
+  formatBlockTimestamp (timestamp) {
+    if (!timestamp) {
       return null;
     }
 
-    return moment(block.timestamp).fromNow();
+    return moment(timestamp).fromNow();
   }
 
   formatNumber (number) {
@@ -151,20 +157,31 @@ export default class Event extends Component {
     return new BigNumber(number).toFormat();
   }
 
-  retrieveTransaction () {
-    const { api } = this.context;
-    const { event } = this.props;
-
-    Promise
-      .all([
-        api.eth.getBlockByNumber(event.blockNumber),
-        api.eth.getTransactionByHash(event.transactionHash)
-      ])
-      .then(([block, transaction]) => {
-        this.setState({ block, transaction });
-      })
-      .catch((error) => {
-        console.warn('retrieveTransaction', error);
-      });
-  }
 }
+
+function mapStateToProps (_, initProps) {
+  const { event } = initProps;
+
+  const blockNumber = event.blockNumber.toString();
+  const txHash = event.transactionHash;
+
+  return (state) => {
+    const { isTest } = state.nodeStatus;
+    const { blocks, transactions } = state.blockchain;
+
+    const block = blocks[blockNumber];
+    const transaction = transactions[txHash];
+
+    const { timestamp } = block;
+
+    return {
+      isTest,
+      timestamp,
+      transaction
+    };
+  };
+}
+
+export default connect(
+  mapStateToProps
+)(Event);

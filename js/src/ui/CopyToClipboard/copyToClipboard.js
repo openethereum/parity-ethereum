@@ -24,6 +24,7 @@ const { textColor, disabledTextColor } = Theme.flatButton;
 export default class CopyToClipboard extends Component {
   static propTypes = {
     data: PropTypes.string.isRequired,
+    className: PropTypes.string,
     label: PropTypes.string,
     onCopy: PropTypes.func,
     size: PropTypes.number, // in px
@@ -43,12 +44,13 @@ export default class CopyToClipboard extends Component {
   };
 
   render () {
-    const { data, label, size } = this.props;
+    const { data, label, size, className } = this.props;
     const { copied } = this.state;
 
     return (
       <Clipboard onCopy={ this.onCopy } text={ data }>
         <IconButton
+          className={ className }
           tooltip={ copied ? 'done!' : label }
           disableTouchRipple
           tooltipPosition={ 'top-right' }

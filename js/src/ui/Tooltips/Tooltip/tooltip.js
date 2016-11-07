@@ -31,6 +31,7 @@ let tooltipId = 0;
 class Tooltip extends Component {
   static propTypes = {
     title: PropTypes.string,
+    hide: PropTypes.bool,
     text: PropTypes.string,
     right: PropTypes.bool,
     currentId: PropTypes.number,
@@ -46,6 +47,10 @@ class Tooltip extends Component {
   }
 
   componentWillMount () {
+    if (this.props.hide) {
+      return;
+    }
+
     const { onNewTooltip } = this.props;
 
     onNewTooltip(tooltipId);
@@ -53,6 +58,10 @@ class Tooltip extends Component {
   }
 
   render () {
+    if (this.props.hide) {
+      return null;
+    }
+
     const { id } = this.state;
     const { className, currentId, maxId, right, onCloseTooltips, onNextTooltip } = this.props;
     const classes = `${styles.box} ${right ? styles.arrowRight : styles.arrowLeft} ${className}`;
@@ -98,9 +107,8 @@ class Tooltip extends Component {
 }
 
 function mapStateToProps (state) {
-  const { currentId, maxId } = state.tooltip;
-
-  return { currentId, maxId };
+  const { currentId, maxId, hide } = state.tooltip;
+  return { currentId, maxId, hide };
 }
 
 function mapDispatchToProps (dispatch) {

@@ -25,58 +25,30 @@ import styles from './balance.css';
 class Balance extends Component {
   static contextTypes = {
     api: PropTypes.object
-  }
+  };
 
   static propTypes = {
-    balance: PropTypes.object,
-    images: PropTypes.object.isRequired
-  }
+    images: PropTypes.object.isRequired,
+    balances: PropTypes.array
+  };
+
+  static defaultProps = {
+    balances: []
+  };
 
   render () {
-    const { api } = this.context;
-    const { balance, images } = this.props;
+    const tokens = this.getTokens();
 
-    if (!balance) {
-      return null;
-    }
-
-    let body = (balance.tokens || [])
-      .filter((balance) => new BigNumber(balance.value).gt(0))
-      .map((balance) => {
-        const token = balance.token;
-        const value = token.format
-          ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
-          : api.util.fromWei(balance.value).toFormat(3);
-        let imagesrc = token.image;
-        if (!imagesrc) {
-          imagesrc =
-            images[token.address]
-              ? `${api.dappsUrl}${images[token.address]}`
-              : unknownImage;
-        }
-
-        return (
-          <div
-            className={ styles.balance }
-            key={ token.tag }>
-            <img
-              src={ imagesrc }
-              alt={ token.name } />
-            <div className={ styles.balanceValue }>
-              <span title={ value }> { value } </span>
-            </div>
-            <div className={ styles.balanceTag }> { token.tag } </div>
-          </div>
-        );
-      });
-
-    if (!body.length) {
-      body = (
+    if (tokens.length === 0) {
+      return (
         <div className={ styles.empty }>
           There are no balances associated with this account
         </div>
       );
     }
+
+    let body = tokens
+      .map((token) => this.renderToken(token));
 
     return (
       <div className={ styles.balances }>
@@ -84,12 +56,62 @@ class Balance extends Component {
       </div>
     );
   }
+
+  renderToken (token) {
+    const { name, tag, value, image } = token;
+
+    return (
+      <div
+        className={ styles.balance }
+        key={ tag }>
+        <img
+          src={ image }
+          alt={ name } />
+        <div className={ styles.balanceValue }>
+          <span title={ value }> { value } </span>
+        </div>
+        <div className={ styles.balanceTag }> { tag } </div>
+      </div>
+    );
+  }
+
+  getTokens () {
+    const { api } = this.context;
+    const { images, balances } = this.props;
+
+    return balances
+      .filter((balance) => new BigNumber(balance.value).gt(0))
+      .map((balance) => {
+        const token = balance.token;
+
+        const value = token.format
+          ? new BigNumber(balance.value).div(new BigNumber(token.format)).toFormat(3)
+          : api.util.fromWei(balance.value).toFormat(3);
+
+        let image = token.image;
+        if (!image) {
+          image =
+            images[token.address]
+              ? `${api.dappsUrl}${images[token.address]}`
+              : unknownImage;
+        }
+
+        return {
+          name: token.name,
+          tag: token.tag,
+          value,
+          image
+        };
+      });
+  }
+
 }
 
-function mapStateToProps (state) {
-  const { images } = state;
-
-  return { images };
+function mapStateToProps (_, initProps) {
+  return (state) => {
+    const { images } = state;
+    return { images };
+  };
 }
 
 function mapDispatchToProps (dispatch) {

@@ -13,6 +13,8 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+import Perf from 'react-addons-perf';
+window.Perf = Perf;
 
 import 'babel-polyfill';
 import 'whatwg-fetch';
@@ -34,6 +36,7 @@ import { ContextProvider, muiTheme } from './ui';
 import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
 
 import { setApi } from './redux/providers/apiActions';
+import { loadTooltips } from './ui/Tooltips/actions';
 
 import './environment';
 
@@ -58,6 +61,7 @@ ContractInstances.create(api);
 const store = initStore(api);
 store.dispatch({ type: 'initAll', api });
 store.dispatch(setApi(api));
+store.dispatch(loadTooltips());
 
 window.secureApi = api;
 

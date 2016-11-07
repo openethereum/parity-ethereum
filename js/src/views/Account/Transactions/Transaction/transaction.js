@@ -16,6 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
 import moment from 'moment';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
@@ -23,7 +24,7 @@ import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
 
-export default class Transaction extends Component {
+class Transaction extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -31,28 +32,31 @@ export default class Transaction extends Component {
   static propTypes = {
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
-    transaction: PropTypes.object.isRequired
+
+    loading: PropTypes.bool,
+    timestamp: PropTypes.object,
+    transaction: PropTypes.object
   }
 
-  state = {
-    isContract: false,
-    isReceived: false,
-    transaction: null,
-    block: null
-  }
+  shouldComponentUpdate (nextProps) {
+    if (this.props.loading && nextProps.loading) {
+      return false;
+    }
 
-  componentDidMount () {
-    this.lookup();
+    return true;
   }
 
   render () {
-    const { block } = this.state;
-    const { transaction } = this.props;
+    if (this.props.loading) {
+      return null;
+    }
+
+    const { timestamp, transaction } = this.props;
 
     return (
       <tr>
         <td className={ styles.timestamp }>
-          <div>{ this.formatBlockTimestamp(block) }</div>
+          <div>{ this.formatBlockTimestamp(timestamp) }</div>
           <div>{ this.formatNumber(transaction.blockNumber) }</div>
         </td>
         { this.renderAddress(transaction.from) }
@@ -66,8 +70,7 @@ export default class Transaction extends Component {
   }
 
   renderMethod () {
-    const { address } = this.props;
-    const { transaction } = this.state;
+    const { address, transaction } = this.props;
 
     if (!transaction) {
       return null;
@@ -131,7 +134,7 @@ export default class Transaction extends Component {
 
   renderEtherValue () {
     const { api } = this.context;
-    const { transaction } = this.state;
+    const { transaction } = this.props;
 
     if (!transaction) {
       return null;
@@ -162,30 +165,37 @@ export default class Transaction extends Component {
     return new BigNumber(number).toFormat();
   }
 
-  formatBlockTimestamp (block) {
-    if (!block) {
+  formatBlockTimestamp (timestamp) {
+    if (!timestamp) {
       return null;
     }
 
-    return moment(block.timestamp).fromNow();
+    return moment(timestamp).fromNow();
   }
 
-  lookup () {
-    const { api } = this.context;
-    const { transaction, address } = this.props;
-
-    this.setState({ isReceived: address === transaction.to });
-
-    Promise
-      .all([
-        api.eth.getBlockByNumber(transaction.blockNumber),
-        api.eth.getTransactionByHash(transaction.hash)
-      ])
-      .then(([block, transaction]) => {
-        this.setState({ block, transaction });
-      })
-      .catch((error) => {
-        console.warn('lookup', error);
-      });
-  }
 }
+
+function mapStateToProps (_, initProps) {
+  const { transaction } = initProps;
+
+  const { hash } = transaction;
+  const blockNumber = transaction.blockNumber.toString();
+
+  return (state) => {
+    const { blocks, transactions } = state.blockchain;
+
+    const block = blocks[blockNumber];
+    const transaction = transactions[hash];
+
+    const { timestamp } = block || {};
+    const loading = !block || !transaction || block.pending || transaction.pending;
+
+    return {
+      timestamp,
+      transaction,
+      loading
+    };
+  };
+}
+
+export default connect(mapStateToProps)(Transaction);
