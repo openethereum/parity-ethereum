@@ -16,9 +16,9 @@
 
 //! Tendermint specific parameters.
 
-use common::{Address, U256};
 use ethjson;
 use super::timeout::DefaultTimeouts;
+use util::{Address, U256};
 
 /// `Tendermint` params.
 #[derive(Debug, Clone)]

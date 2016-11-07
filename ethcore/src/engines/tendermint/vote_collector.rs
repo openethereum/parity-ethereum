@@ -17,9 +17,9 @@
 //! Collects votes on hashes at each height and round.
 
 use super::vote::Vote;
-use super::{Height, Round, BlockHash};
-use common::{HashSet, HashMap, RwLock, H256, Address, Error, Hashable};
-use ethkey::{Signature, recover};
+use super::{Height, Round};
+use ethkey::recover;
+use util::{RwLock, HashMap, HashSet};
 
 /// Signed voting on hashes.
 #[derive(Debug)]

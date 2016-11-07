@@ -1,0 +1,51 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+use ethcore::snapshot::{ManifestData, RestorationStatus, SnapshotService};
+
+use util::{Bytes, Mutex};
+use util::hash::H256;
+
+/// Mocked snapshot service (used for sync info extensions).
+pub struct TestSnapshotService {
+	status: Mutex<RestorationStatus>,
+}
+
+impl TestSnapshotService {
+	/// Create a test snapshot service. Only the `status` function matters -- it'll
+	/// return `Inactive` by default.
+	pub fn new() -> Self {
+		TestSnapshotService {
+			status: Mutex::new(RestorationStatus::Inactive),
+		}
+	}
+
+	/// Set the restoration status.
+	pub fn set_status(&self, status: RestorationStatus) {
+		*self.status.lock() = status;
+	}
+}
+
+impl SnapshotService for TestSnapshotService {
+	fn manifest(&self) -> Option<ManifestData> { None }
+	fn chunk(&self, _hash: H256) -> Option<Bytes> { None }
+	fn status(&self) -> RestorationStatus { self.status.lock().clone() }
+	fn begin_restore(&self, _manifest: ManifestData) { }
+	fn abort_restore(&self) { }
+	fn restore_state_chunk(&self, _hash: H256, _chunk: Bytes) { }
+	fn restore_block_chunk(&self, _hash: H256, _chunk: Bytes) { }
+	fn provide_canon_hashes(&self, _hashes: &[(u64, H256)]) { }
+}

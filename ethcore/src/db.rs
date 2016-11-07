@@ -114,7 +114,7 @@ pub trait Writable {
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					self.write(col, &key, &value);
 					cache.insert(key, value);
 				}
@@ -135,7 +135,7 @@ pub trait Writable {
 	R: Deref<Target = [u8]> {
 		match policy {
 			CacheUpdatePolicy::Overwrite => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					match value {
 						Some(ref v) => self.write(col, &key, v),
 						None => self.delete(col, &key),
@@ -144,7 +144,7 @@ pub trait Writable {
 				}
 			},
 			CacheUpdatePolicy::Remove => {
-				for (key, value) in values.into_iter() {
+				for (key, value) in values {
 					match value {
 						Some(v) => self.write(col, &key, &v),
 						None => self.delete(col, &key),

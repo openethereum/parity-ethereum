@@ -77,7 +77,7 @@ pub fn diff_pod(pre: &PodState, post: &PodState) -> StateDiff {
 
 #[cfg(test)]
 mod test {
-	use common::*;
+	use util::*;
 	use types::state_diff::*;
 	use types::account_diff::*;
 	use pod_account::PodAccount;

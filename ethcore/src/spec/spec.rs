@@ -16,10 +16,12 @@
 
 //! Parameters for a block chain.
 
-use common::*;
+use util::*;
+use builtin::Builtin;
 use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, Tendermint};
 use pod_state::*;
 use account_db::*;
+use header::{BlockNumber, Header};
 use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
@@ -151,7 +153,8 @@ impl Spec {
 		if self.state_root_memo.read().is_none() {
 			*self.state_root_memo.write() = Some(self.genesis_state.root());
 		}
-		self.state_root_memo.read().as_ref().unwrap().clone()
+		self.state_root_memo.read().as_ref().cloned()
+			.expect("state root memo ensured to be set at this point; qed")
 	}
 
 	/// Get the known knodes of the network in enode format.

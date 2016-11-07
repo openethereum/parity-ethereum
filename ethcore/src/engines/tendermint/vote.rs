@@ -16,8 +16,8 @@
 
 //! Tendermint block seal.
 
-use common::{H256, Address, H520, Header};
-use util::Hashable;
+use util::*;
+use header::Header;
 use account_provider::AccountProvider;
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 use basic_types::Seal;
@@ -46,7 +46,7 @@ impl Vote {
 	/// Use any unlocked validator account to create a vote.
 	pub fn validate(header: &Header, accounts: &AccountProvider, validator: Address) -> Option<Vote> {
 		let message = block_hash(&header);
-		accounts.sign(validator, message)
+		accounts.sign(validator, None, message)
 			.ok()
 			.map(Into::into)
 			.map(|sig| Self::new(message, sig))

@@ -16,7 +16,7 @@
 
 //! Snapshot network service implementation.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::fs;
 use std::path::PathBuf;
@@ -75,6 +75,8 @@ struct Restoration {
 	snappy_buffer: Bytes,
 	final_state_root: H256,
 	guard: Guard,
+	canonical_hashes: HashMap<u64, H256>,
+	db: Arc<Database>,
 }
 
 struct RestorationParams<'a> {
@@ -99,19 +101,21 @@ impl Restoration {
 			.map_err(UtilError::SimpleString)));
 
 		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone(), Spec::new_null().engine);
-		let blocks = try!(BlockRebuilder::new(chain, manifest.block_number));
+		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), &manifest));
 
 		let root = manifest.state_root.clone();
 		Ok(Restoration {
 			manifest: manifest,
 			state_chunks_left: state_chunks,
 			block_chunks_left: block_chunks,
-			state: StateRebuilder::new(raw_db, params.pruning),
+			state: StateRebuilder::new(raw_db.clone(), params.pruning),
 			blocks: blocks,
 			writer: params.writer,
 			snappy_buffer: Vec::new(),
 			final_state_root: root,
 			guard: params.guard,
+			canonical_hashes: HashMap::new(),
+			db: raw_db,
 		})
 	}
 
@@ -137,11 +141,16 @@ impl Restoration {
 
 			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
 			if let Some(ref mut writer) = self.writer.as_mut() {
-				try!(writer.write_block_chunk(hash, chunk));
+				 try!(writer.write_block_chunk(hash, chunk));
 			}
 		}
 
 		Ok(())
+	}
+
+	// note canonical hashes.
+	fn note_canonical(&mut self, hashes: &[(u64, H256)]) {
+		self.canonical_hashes.extend(hashes.iter().cloned());
 	}
 
 	// finish up restoration.
@@ -160,8 +169,8 @@ impl Restoration {
 		// check for missing code.
 		try!(self.state.check_missing());
 
-		// connect out-of-order chunks.
-		self.blocks.glue_chunks();
+		// connect out-of-order chunks and verify chain integrity.
+		try!(self.blocks.finalize(self.canonical_hashes));
 
 		if let Some(writer) = self.writer {
 			try!(writer.finish(self.manifest));
@@ -205,7 +214,7 @@ pub struct Service {
 	restoration: Mutex<Option<Restoration>>,
 	snapshot_root: PathBuf,
 	db_config: DatabaseConfig,
-	io_channel: Channel,
+	io_channel: Mutex<Channel>,
 	pruning: Algorithm,
 	status: Mutex<RestorationStatus>,
 	reader: RwLock<Option<LooseReader>>,
@@ -225,7 +234,7 @@ impl Service {
 			restoration: Mutex::new(None),
 			snapshot_root: params.snapshot_root,
 			db_config: params.db_config,
-			io_channel: params.channel,
+			io_channel: Mutex::new(params.channel),
 			pruning: params.pruning,
 			status: Mutex::new(RestorationStatus::Inactive),
 			reader: RwLock::new(None),
@@ -347,11 +356,12 @@ impl Service {
 
 		self.taking_snapshot.store(false, Ordering::SeqCst);
 		if let Err(e) = res {
-			if client.chain_info().best_block_number >= num + ::client::HISTORY {
+			if client.chain_info().best_block_number >= num + client.pruning_history() {
 				// "Cancelled" is mincing words a bit -- what really happened
 				// is that the state we were snapshotting got pruned out
 				// before we could finish.
-				info!("Cancelled prematurely-started periodic snapshot.");
+				info!("Periodic snapshot failed: block state pruned.\
+					Run with a longer `--pruning-history` or with `--no-periodic-snapshot`");
 				return Ok(())
 			} else {
 				return Err(e);
@@ -416,9 +426,14 @@ impl Service {
 			guard: Guard::new(rest_dir),
 		};
 
+		let state_chunks = params.manifest.state_hashes.len();
+		let block_chunks = params.manifest.block_hashes.len();
+
 		*res = Some(try!(Restoration::new(params)));
 
 		*self.status.lock() = RestorationStatus::Ongoing {
+			state_chunks: state_chunks as u32,
+			block_chunks: block_chunks as u32,
 			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
 			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
@@ -463,39 +478,47 @@ impl Service {
 	/// Feed a chunk of either kind. no-op if no restoration or status is wrong.
 	fn feed_chunk(&self, hash: H256, chunk: &[u8], is_state: bool) -> Result<(), Error> {
 		// TODO: be able to process block chunks and state chunks at same time?
-		let mut restoration = self.restoration.lock();
+		let (result, db) = {
+			let mut restoration = self.restoration.lock();
 
-		match self.status() {
-			RestorationStatus::Inactive | RestorationStatus::Failed => Ok(()),
-			RestorationStatus::Ongoing { .. } => {
-				let res = {
-					let rest = match *restoration {
-						Some(ref mut r) => r,
-						None => return Ok(()),
-					};
-
-					match is_state {
-						true => rest.feed_state(hash, chunk),
-						false => rest.feed_blocks(hash, chunk, &*self.engine),
-					}.map(|_| rest.is_done())
-				};
-
-				match res {
-					Ok(is_done) => {
-						match is_state {
-							true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
-							false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
+			match self.status() {
+				RestorationStatus::Inactive | RestorationStatus::Failed => return Ok(()),
+				RestorationStatus::Ongoing { .. } => {
+					let (res, db) = {
+						let rest = match *restoration {
+							Some(ref mut r) => r,
+							None => return Ok(()),
 						};
 
-						match is_done {
-							true => self.finalize_restoration(&mut *restoration),
-							false => Ok(())
+						(match is_state {
+							true => rest.feed_state(hash, chunk),
+							false => rest.feed_blocks(hash, chunk, &*self.engine),
+						}.map(|_| rest.is_done()), rest.db.clone())
+					};
+
+					let res = match res {
+						Ok(is_done) => {
+							match is_state {
+								true => self.state_chunks.fetch_add(1, Ordering::SeqCst),
+								false => self.block_chunks.fetch_add(1, Ordering::SeqCst),
+							};
+
+							match is_done {
+								true => {
+									try!(db.flush().map_err(::util::UtilError::SimpleString));
+									drop(db);
+									return self.finalize_restoration(&mut *restoration);
+								},
+								false => Ok(())
+							}
 						}
-					}
-					other => other.map(drop),
+						other => other.map(drop),
+					};
+					(res, db)
 				}
 			}
-		}
+		};
+		result.and_then(|_| db.flush().map_err(|e| ::util::UtilError::SimpleString(e).into()))
 	}
 
 	/// Feed a state chunk to be processed synchronously.
@@ -536,7 +559,7 @@ impl SnapshotService for Service {
 
 	fn status(&self) -> RestorationStatus {
 		let mut cur_status = self.status.lock();
-		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done } = *cur_status {
+		if let RestorationStatus::Ongoing { ref mut state_chunks_done, ref mut block_chunks_done, .. } = *cur_status {
 			*state_chunks_done = self.state_chunks.load(Ordering::SeqCst) as u32;
 			*block_chunks_done = self.block_chunks.load(Ordering::SeqCst) as u32;
 		}
@@ -545,8 +568,9 @@ impl SnapshotService for Service {
 	}
 
 	fn begin_restore(&self, manifest: ManifestData) {
-		self.io_channel.send(ClientIoMessage::BeginRestoration(manifest))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::BeginRestoration(manifest)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
 	}
 
 	fn abort_restore(&self) {
@@ -555,13 +579,23 @@ impl SnapshotService for Service {
 	}
 
 	fn restore_state_chunk(&self, hash: H256, chunk: Bytes) {
-		self.io_channel.send(ClientIoMessage::FeedStateChunk(hash, chunk))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedStateChunk(hash, chunk)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
 	}
 
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes) {
-		self.io_channel.send(ClientIoMessage::FeedBlockChunk(hash, chunk))
-			.expect("snapshot service and io service are kept alive by client service; qed");
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::FeedBlockChunk(hash, chunk)) {
+			trace!("Error sending snapshot service message: {:?}", e);
+		}
+	}
+
+	fn provide_canon_hashes(&self, canonical: &[(u64, H256)]) {
+		let mut rest = self.restoration.lock();
+
+		if let Some(ref mut rest) = rest.as_mut() {
+			rest.note_canonical(canonical);
+		}
 	}
 }
 

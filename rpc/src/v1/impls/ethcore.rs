@@ -30,11 +30,13 @@ use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
 use ethcore::ids::BlockID;
+use ethcore::mode::Mode;
 
 use jsonrpc_core::Error;
 use v1::traits::Ethcore;
-use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
+use v1::helpers::dispatch::DEFAULT_MAC;
 use v1::helpers::auto_args::Ready;
 
 /// Ethcore implementation.
@@ -51,7 +53,8 @@ pub struct EthcoreClient<C, M, S: ?Sized, F=FetchClient> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
-	fetch: Mutex<F>
+	fetch: Mutex<F>,
+	dapps_port: Option<u16>,
 }
 
 impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
@@ -66,9 +69,10 @@ impl<C, M, S: ?Sized> EthcoreClient<C, M, S> where
 		net: &Arc<ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		signer: Option<Arc<SignerService>>
+		signer: Option<Arc<SignerService>>,
+		dapps_port: Option<u16>,
 	) -> Self {
-		Self::with_fetch(client, miner, sync, net, logger, settings, signer)
+		Self::with_fetch(client, miner, sync, net, logger, settings, signer, dapps_port)
 	}
 }
 
@@ -86,7 +90,8 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 		net: &Arc<ManageNetwork>,
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
-		signer: Option<Arc<SignerService>>
+		signer: Option<Arc<SignerService>>,
+		dapps_port: Option<u16>,
 		) -> Self {
 		EthcoreClient {
 			client: Arc::downgrade(client),
@@ -97,6 +102,7 @@ impl<C, M, S: ?Sized, F> EthcoreClient<C, M, S, F> where
 			settings: settings,
 			signer: signer,
 			fetch: Mutex::new(F::default()),
+			dapps_port: dapps_port,
 		}
 	}
 
@@ -165,13 +171,16 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 	fn net_peers(&self) -> Result<Peers, Error> {
 		try!(self.active());
 
-		let sync_status = take_weak!(self.sync).status();
+		let sync = take_weak!(self.sync);
+		let sync_status = sync.status();
 		let net_config = take_weak!(self.net).network_config();
+		let peers = sync.peers().into_iter().map(Into::into).collect();
 
 		Ok(Peers {
 			active: sync_status.num_active_peers,
 			connected: sync_status.num_peers,
 			max: sync_status.current_max_peers(net_config.min_peers, net_config.max_peers),
+			peers: peers
 		})
 	}
 
@@ -214,13 +223,9 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 		Ok(Bytes::new(version_data()))
 	}
 
-	fn gas_price_statistics(&self) -> Result<Vec<U256>, Error> {
+	fn gas_price_histogram(&self) -> Result<Histogram, Error> {
 		try!(self.active());
-
-		match take_weak!(self.client).gas_price_statistics(100, 8) {
-			Ok(stats) => Ok(stats.into_iter().map(Into::into).collect()),
-			_ => Err(Error::internal_error()),
-		}
+		take_weak!(self.client).gas_price_histogram(100, 10).ok_or_else(errors::not_enough_data).map(Into::into)
 	}
 
 	fn unsigned_transactions_count(&self) -> Result<usize, Error> {
@@ -262,8 +267,8 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
 		try!(self.active());
 
-		ecies::encrypt(&key.into(), &[0; 0], &phrase.0)
-			.map_err(|_| Error::internal_error())
+		ecies::encrypt(&key.into(), &DEFAULT_MAC, &phrase.0)
+			.map_err(errors::encryption_error)
 			.map(Into::into)
 	}
 
@@ -309,5 +314,43 @@ impl<C, M, S: ?Sized, F> Ethcore for EthcoreClient<C, M, S, F> where
 				}
 			}
 		}
+	}
+
+	fn signer_port(&self) -> Result<u16, Error> {
+		try!(self.active());
+
+		self.signer
+			.clone()
+			.and_then(|signer| signer.port())
+			.ok_or_else(|| errors::signer_disabled())
+	}
+
+	fn dapps_port(&self) -> Result<u16, Error> {
+		try!(self.active());
+
+		self.dapps_port
+			.ok_or_else(|| errors::dapps_disabled())
+	}
+
+	fn next_nonce(&self, address: H160) -> Result<U256, Error> {
+		try!(self.active());
+		let address: Address = address.into();
+		let miner = take_weak!(self.miner);
+		let client = take_weak!(self.client);
+
+		Ok(miner.last_nonce(&address)
+			.map(|n| n + 1.into())
+			.unwrap_or_else(|| client.latest_nonce(&address))
+			.into()
+		)
+	}
+
+	fn mode(&self) -> Result<String, Error> {
+		Ok(match take_weak!(self.client).mode() {
+			Mode::Off => "off",
+			Mode::Dark(..) => "dark",
+			Mode::Passive(..) => "passive",
+			Mode::Active => "active",
+		}.into())
 	}
 }

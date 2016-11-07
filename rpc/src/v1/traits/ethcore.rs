@@ -18,7 +18,7 @@
 use jsonrpc_core::Error;
 
 use v1::helpers::auto_args::{Wrap, WrapAsync, Ready};
-use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings};
+use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings, Histogram};
 
 build_rpc_trait! {
 	/// Ethcore-specific rpc interface.
@@ -76,8 +76,8 @@ build_rpc_trait! {
 		fn default_extra_data(&self) -> Result<Bytes, Error>;
 
 		/// Returns distribution of gas price in latest blocks.
-		#[rpc(name = "ethcore_gasPriceStatistics")]
-		fn gas_price_statistics(&self) -> Result<Vec<U256>, Error>;
+		#[rpc(name = "ethcore_gasPriceHistogram")]
+		fn gas_price_histogram(&self) -> Result<Histogram, Error>;
 
 		/// Returns number of unsigned transactions waiting in the signer queue (if signer enabled)
 		/// Returns error when signer is disabled
@@ -117,5 +117,21 @@ build_rpc_trait! {
 		/// Hash a file content under given URL.
 		#[rpc(async, name = "ethcore_hashContent")]
 		fn hash_content(&self, Ready<H256>, String);
+
+		/// Returns current Trusted Signer port or an error if signer is disabled.
+		#[rpc(name = "ethcore_signerPort")]
+		fn signer_port(&self) -> Result<u16, Error>;
+
+		/// Returns current Dapps Server port or an error if dapps server is disabled.
+		#[rpc(name = "ethcore_dappsPort")]
+		fn dapps_port(&self) -> Result<u16, Error>;
+
+		/// Returns next nonce for particular sender. Should include all transactions in the queue.
+		#[rpc(name = "ethcore_nextNonce")]
+		fn next_nonce(&self, H160) -> Result<U256, Error>;
+
+		/// Get the mode. Results one of: "active", "passive", "dark", "off".
+		#[rpc(name = "ethcore_mode")]
+		fn mode(&self) -> Result<String, Error>;
 	}
 }

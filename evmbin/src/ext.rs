@@ -16,6 +16,7 @@
 
 //! Externalities implementation.
 
+use std::sync::Arc;
 use std::collections::HashMap;
 use util::{U256, H256, Address, Bytes, FixedHash};
 use ethcore::client::EnvInfo;
@@ -24,13 +25,15 @@ use ethcore::evm::{self, Ext, ContractCreateResult, MessageCallResult, Schedule,
 pub struct FakeExt {
 	schedule: Schedule,
 	store: HashMap<H256, H256>,
+	depth: usize,
 }
 
 impl Default for FakeExt {
 	fn default() -> Self {
 		FakeExt {
-			schedule: Schedule::new_homestead(),
+			schedule: Schedule::new_homestead_gas_fix(),
 			store: HashMap::new(),
+			depth: 1,
 		}
 	}
 }
@@ -72,7 +75,11 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
-	fn extcode(&self, _address: &Address) -> Bytes {
+	fn extcode(&self, _address: &Address) -> Arc<Bytes> {
+		unimplemented!();
+	}
+
+	fn extcodesize(&self, _address: &Address) -> usize {
 		unimplemented!();
 	}
 
@@ -97,8 +104,7 @@ impl Ext for FakeExt {
 	}
 
 	fn depth(&self) -> usize {
-		unimplemented!();
-		// self.depth
+		self.depth
 	}
 
 	fn inc_sstore_clears(&mut self) {

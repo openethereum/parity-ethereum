@@ -21,6 +21,7 @@ use ethcore::client::{TestBlockChainClient, BlockChainClient};
 use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use sync_io::SyncIo;
+use api::WARP_SYNC_PROTOCOL_ID;
 use chain::ChainSync;
 use ::SyncConfig;
 
@@ -30,6 +31,7 @@ pub struct TestIo<'p> {
 	pub queue: &'p mut VecDeque<TestPacket>,
 	pub sender: Option<PeerId>,
 	pub to_disconnect: HashSet<PeerId>,
+	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
 }
 
 impl<'p> TestIo<'p> {
@@ -40,6 +42,7 @@ impl<'p> TestIo<'p> {
 			queue: queue,
 			sender: sender,
 			to_disconnect: HashSet::new(),
+			overlay: RwLock::new(HashMap::new()),
 		}
 	}
 }
@@ -75,6 +78,10 @@ impl<'p> SyncIo for TestIo<'p> {
 		Ok(())
 	}
 
+	fn send_protocol(&mut self, _protocol: ProtocolId, peer_id: PeerId, packet_id: PacketId, data: Vec<u8>) -> Result<(), NetworkError> {
+		self.send(peer_id, packet_id, data)
+	}
+
 	fn chain(&self) -> &BlockChainClient {
 		self.chain
 	}
@@ -83,8 +90,20 @@ impl<'p> SyncIo for TestIo<'p> {
 		self.snapshot_service
 	}
 
+	fn peer_session_info(&self, _peer_id: PeerId) -> Option<SessionInfo> {
+		None
+	}
+
 	fn eth_protocol_version(&self, _peer: PeerId) -> u8 {
-		64
+		63
+	}
+
+	fn protocol_version(&self, protocol: &ProtocolId, peer_id: PeerId) -> u8 {
+		if protocol == &WARP_SYNC_PROTOCOL_ID { 1 } else { self.eth_protocol_version(peer_id) }
+	}
+
+	fn chain_overlay(&self) -> &RwLock<HashMap<BlockNumber, Bytes>> {
+		&self.overlay
 	}
 }
 
@@ -108,20 +127,24 @@ pub struct TestNet {
 
 impl TestNet {
 	pub fn new(n: usize) -> TestNet {
-		Self::new_with_fork(n, None)
+		Self::new_with_config(n, SyncConfig::default())
 	}
 
 	pub fn new_with_fork(n: usize, fork: Option<(BlockNumber, H256)>) -> TestNet {
+		let mut config = SyncConfig::default();
+		config.fork_block = fork;
+		Self::new_with_config(n, config)
+	}
+
+	pub fn new_with_config(n: usize, config: SyncConfig) -> TestNet {
 		let mut net = TestNet {
 			peers: Vec::new(),
 			started: false,
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
-			let mut config = SyncConfig::default();
-			config.fork_block = fork;
 			let ss = Arc::new(TestSnapshotService::new());
-			let sync = ChainSync::new(config, &chain);
+			let sync = ChainSync::new(config.clone(), &chain);
 			net.peers.push(TestPeer {
 				sync: RwLock::new(sync),
 				snapshot_service: ss,
@@ -145,6 +168,7 @@ impl TestNet {
 			for client in 0..self.peers.len() {
 				if peer != client {
 					let mut p = self.peers.get_mut(peer).unwrap();
+					p.sync.write().update_targets(&mut p.chain);
 					p.sync.write().on_peer_connected(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}

@@ -21,8 +21,8 @@ use std::path::Path;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::{PendingSet, GasLimit};
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
 use dir::DatabaseDirectories;
 use upgrade::upgrade;
@@ -101,6 +101,15 @@ pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
 	}
 }
 
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
+	match s {
+		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		other => Err(format!("Invalid queue strategy: {}", other)),
+	}
+}
+
 pub fn to_address(s: Option<String>) -> Result<Address, String> {
 	match s {
 		Some(ref a) => clean_0x(a).parse().map_err(|_| format!("Invalid address: {:?}", a)),
@@ -176,10 +185,10 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::NetworkConfiguration;
+	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
-		net_config_path: Some(replace_home("$HOME/.parity/network/1")),
+		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
 		udp_port: None,
@@ -189,6 +198,9 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		use_secret: None,
 		max_peers: 50,
 		min_peers: 25,
+		snapshot_peers: 0,
+		max_pending_peers: 64,
+		allow_ips: AllowIP::All,
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}
@@ -205,6 +217,8 @@ pub fn to_client_config(
 		vm_type: VMType,
 		name: String,
 		pruning: Algorithm,
+		pruning_history: u64,
+		check_seal: bool,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -223,15 +237,21 @@ pub fn to_client_config(
 	client_config.tracing.max_cache_size = cache_config.traces() as usize * mb;
 	// in bytes
 	client_config.tracing.pref_cache_size = cache_config.traces() as usize * 3 / 4 * mb;
+	// in bytes
+	client_config.state_cache_size = cache_config.state() as usize * mb;
+	// in bytes
+	client_config.jump_table_size = cache_config.jump_tables() as usize * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
 	client_config.fat_db = fat_db;
 	client_config.pruning = pruning;
+	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
+	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config
 }
 

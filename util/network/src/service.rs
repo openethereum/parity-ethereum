@@ -73,11 +73,12 @@ impl NetworkService {
 	}
 
 	/// Regiter a new protocol handler with the event loop.
-	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, versions: &[u8]) -> Result<(), NetworkError> {
+	pub fn register_protocol(&self, handler: Arc<NetworkProtocolHandler + Send + Sync>, protocol: ProtocolId, packet_count: u8, versions: &[u8]) -> Result<(), NetworkError> {
 		try!(self.io_service.send_message(NetworkIoMessage::AddHandler {
 			handler: handler,
 			protocol: protocol,
 			versions: versions.to_vec(),
+			packet_count: packet_count,
 		}));
 		Ok(())
 	}
@@ -177,6 +178,13 @@ impl NetworkService {
 		if let Some(ref host) = host.as_ref() {
 			host.with_context(protocol, &io, action);
 		};
+	}
+
+	/// Evaluates function in the network context
+	pub fn with_context_eval<F, T>(&self, protocol: ProtocolId, action: F) -> Option<T> where F: Fn(&NetworkContext) -> T {
+		let io = IoContext::new(self.io_service.channel(), 0);
+		let host = self.host.read();
+		host.as_ref().map(|ref host| host.with_context_eval(protocol, &io, action))
 	}
 }
 

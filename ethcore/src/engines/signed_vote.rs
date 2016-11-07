@@ -17,7 +17,8 @@
 //! Voting on hashes, where each vote has to come from a set of public keys.
 
 use super::EngineError;
-use common::{HashSet, HashMap, RwLock, H256, Address, Error, Hashable};
+use util::*;
+use error::Error;
 use ethkey::{Signature, recover};
 
 /// Signed voting on hashes.
@@ -82,7 +83,8 @@ impl SignedVote {
 
 #[cfg(test)]	
 mod tests {
-	use common::*;
+	use util::*;
+	use header::Header;
 	use engines::signed_vote::SignedVote;
 	use account_provider::AccountProvider;
 
@@ -105,18 +107,18 @@ mod tests {
 		let bare_hash = header.bare_hash();
 
 		// Unapproved voter.
-		let signature = tap.sign(addr3, bare_hash).unwrap();
+		let signature = tap.sign(addr3, None, bare_hash).unwrap();
 		assert!(!vote.vote(bare_hash, signature));
 		assert!(vote.winner().is_none());
 		// First good vote.
-		let signature = tap.sign(addr1, bare_hash).unwrap();
+		let signature = tap.sign(addr1, None, bare_hash).unwrap();
 		assert!(vote.vote(bare_hash, signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 		// Voting again is ineffective.
-		let signature = tap.sign(addr1, bare_hash).unwrap();
+		let signature = tap.sign(addr1, None, bare_hash).unwrap();
 		assert!(!vote.vote(bare_hash, signature));
 		// Second valid vote.
-		let signature = tap.sign(addr2, bare_hash).unwrap();
+		let signature = tap.sign(addr2, None, bare_hash).unwrap();
 		assert!(vote.vote(bare_hash, signature));
 		assert_eq!(vote.winner().unwrap(), bare_hash);
 	}

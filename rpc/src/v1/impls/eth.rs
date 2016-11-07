@@ -24,7 +24,7 @@ use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
 use time::get_time;
-use ethsync::{SyncProvider, SyncState};
+use ethsync::{SyncProvider};
 use ethcore::miner::{MinerService, ExternalMinerService};
 use jsonrpc_core::*;
 use util::{H256, Address, FixedHash, U256, H64, Uint};
@@ -40,6 +40,7 @@ use ethcore::ethereum::Ethash;
 use ethcore::transaction::{Transaction as EthTransaction, SignedTransaction, Action};
 use ethcore::log_entry::LogEntry;
 use ethcore::filter::Filter as EthcoreFilter;
+use ethcore::snapshot::SnapshotService;
 use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{
@@ -49,6 +50,7 @@ use v1::types::{
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
 use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::block_import::is_major_importing;
 use v1::helpers::auto_args::Trailing;
 
 /// Eth RPC options
@@ -69,13 +71,15 @@ impl Default for EthClientOptions {
 }
 
 /// Eth rpc implementation.
-pub struct EthClient<C, S: ?Sized, M, EM> where
+pub struct EthClient<C, SN: ?Sized, S: ?Sized, M, EM> where
 	C: MiningBlockChainClient,
+	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	client: Weak<C>,
+	snapshot: Weak<SN>,
 	sync: Weak<S>,
 	accounts: Weak<AccountProvider>,
 	miner: Weak<M>,
@@ -84,17 +88,26 @@ pub struct EthClient<C, S: ?Sized, M, EM> where
 	options: EthClientOptions,
 }
 
-impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
+impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	C: MiningBlockChainClient,
+	SN: SnapshotService,
 	S: SyncProvider,
 	M: MinerService,
 	EM: ExternalMinerService {
 
 	/// Creates new EthClient.
-	pub fn new(client: &Arc<C>, sync: &Arc<S>, accounts: &Arc<AccountProvider>, miner: &Arc<M>, em: &Arc<EM>, options: EthClientOptions)
-		-> EthClient<C, S, M, EM> {
+	pub fn new(
+		client: &Arc<C>,
+		snapshot: &Arc<SN>,
+		sync: &Arc<S>,
+		accounts: &Arc<AccountProvider>,
+		miner: &Arc<M>,
+		em: &Arc<EM>,
+		options: EthClientOptions
+	) -> Self {
 		EthClient {
 			client: Arc::downgrade(client),
+			snapshot: Arc::downgrade(snapshot),
 			sync: Arc::downgrade(sync),
 			miner: Arc::downgrade(miner),
 			accounts: Arc::downgrade(accounts),
@@ -219,8 +232,9 @@ pub fn pending_logs<M>(miner: &M, best_block: EthBlockNumber, filter: &EthcoreFi
 
 const MAX_QUEUE_SIZE_TO_MINE_ON: usize = 4;	// because uncles go back 6.
 
-impl<C, S: ?Sized, M, EM> EthClient<C, S, M, EM> where
+impl<C, SN: ?Sized, S: ?Sized, M, EM> EthClient<C, SN, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
+	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
 	EM: ExternalMinerService + 'static {
@@ -238,8 +252,9 @@ static SOLC: &'static str = "solc.exe";
 #[cfg(not(windows))]
 static SOLC: &'static str = "solc";
 
-impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
+impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 	C: MiningBlockChainClient + 'static,
+	SN: SnapshotService + 'static,
 	S: SyncProvider + 'static,
 	M: MinerService + 'static,
 	EM: ExternalMinerService + 'static {
@@ -252,27 +267,37 @@ impl<C, S: ?Sized, M, EM> Eth for EthClient<C, S, M, EM> where
 	}
 
 	fn syncing(&self) -> Result<SyncStatus, Error> {
+		use ethcore::snapshot::RestorationStatus;
+
 		try!(self.active());
-
 		let status = take_weak!(self.sync).status();
-		match status.state {
-			SyncState::Idle => Ok(SyncStatus::None),
-			SyncState::Waiting | SyncState::Blocks | SyncState::NewBlocks | SyncState::ChainHead
-				| SyncState::SnapshotManifest | SyncState::SnapshotData | SyncState::SnapshotWaiting => {
-				let current_block = U256::from(take_weak!(self.client).chain_info().best_block_number);
-				let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+		let client = take_weak!(self.client);
+		let snapshot_status = take_weak!(self.snapshot).status();
 
-				if highest_block > current_block + U256::from(6) {
-					let info = SyncInfo {
-						starting_block: status.start_block_number.into(),
-						current_block: current_block.into(),
-						highest_block: highest_block.into(),
-					};
-					Ok(SyncStatus::Info(info))
-				} else {
-					Ok(SyncStatus::None)
-				}
-			}
+		let (warping, warp_chunks_amount, warp_chunks_processed) = match snapshot_status {
+			RestorationStatus::Ongoing { state_chunks, block_chunks, state_chunks_done, block_chunks_done } =>
+				(true, Some(block_chunks + state_chunks), Some(block_chunks_done + state_chunks_done)),
+			_ => (false, None, None),
+		};
+
+
+		if warping || is_major_importing(Some(status.state), client.queue_info()) {
+			let chain_info = client.chain_info();
+			let current_block = U256::from(chain_info.best_block_number);
+			let highest_block = U256::from(status.highest_block_number.unwrap_or(status.start_block_number));
+			let gap = chain_info.ancient_block_number.map(|x| U256::from(x + 1))
+				.and_then(|first| chain_info.first_block_number.map(|last| (first, U256::from(last))));
+			let info = SyncInfo {
+				starting_block: status.start_block_number.into(),
+				current_block: current_block.into(),
+				highest_block: highest_block.into(),
+				warp_chunks_amount: warp_chunks_amount.map(|x| U256::from(x as u64)).map(Into::into),
+				warp_chunks_processed: warp_chunks_processed.map(|x| U256::from(x as u64)).map(Into::into),
+				block_gap: gap.map(|(x, y)| (x.into(), y.into())),
+			};
+			Ok(SyncStatus::Info(info))
+		} else {
+			Ok(SyncStatus::None)
 		}
 	}
 

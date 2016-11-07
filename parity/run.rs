@@ -18,16 +18,16 @@ use std::sync::{Arc, Mutex, Condvar};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
 use ethcore_logger::{Config as LogConfig, setup_log};
-use ethcore_rpc::NetworkSettings;
+use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
 use util::{Colour, version, U256};
 use io::{MayPanic, ForwardPanic, PanicHandler};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::{SyncConfig, SyncProvider};
+use ethsync::SyncConfig;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
@@ -53,7 +53,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 500;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -61,6 +61,7 @@ pub struct RunCmd {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -69,6 +70,7 @@ pub struct RunCmd {
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
 	pub network_id: Option<U256>,
+	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
@@ -88,6 +90,7 @@ pub struct RunCmd {
 	pub name: String,
 	pub custom_bootnodes: bool,
 	pub no_periodic_snapshot: bool,
+	pub check_seal: bool,
 }
 
 pub fn execute(cmd: RunCmd) -> Result<(), String> {
@@ -132,7 +135,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -170,6 +173,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
 	}
 	sync_config.fork_block = spec.fork_block();
+	sync_config.warp_sync = cmd.warp_sync;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -193,6 +197,8 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		cmd.vm_type,
 		cmd.name,
 		algorithm,
+		cmd.pruning_history,
+		cmd.check_seal,
 	);
 
 	// set up bootnodes
@@ -200,6 +206,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
@@ -226,7 +235,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
@@ -239,10 +248,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_port: cmd.signer_port,
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		})),
+		}, cmd.signer_port)),
+		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -253,6 +262,10 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_port: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.port),
+			false => None,
+		},
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -282,7 +295,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// start signer server
 	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
 
-	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let informant = Arc::new(Informant::new(
+		service.client(),
+		Some(sync_provider.clone()),
+		Some(manage_network.clone()),
+		Some(snapshot_service.clone()),
+		cmd.logger_config.color
+	));
 	let info_notify: Arc<ChainNotify> = informant.clone();
 	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {
@@ -302,7 +321,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || sync.status().is_major_syncing(),
+				move || is_major_importing(Some(sync.status().state), client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,

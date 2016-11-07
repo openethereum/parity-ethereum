@@ -30,14 +30,20 @@ pub use self::tendermint::Tendermint;
 pub use self::signed_vote::SignedVote;
 pub use self::propose_collect::ProposeCollect;
 
-use common::*;
 use rlp::UntrustedRlp;
+use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
+use header::Header;
+use transaction::SignedTransaction;
 use ethereum::ethash;
 use blockchain::extras::BlockDetails;
+use views::HeaderView;
 
 /// Voting errors.
 #[derive(Debug)]
@@ -153,10 +159,14 @@ pub trait Engine : Sync + Send {
 	fn is_builtin(&self, a: &Address) -> bool { self.builtins().contains_key(a) }
 	/// Determine the code execution cost of the builtin contract with address `a`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
+	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 {
+		self.builtins().get(a).expect("queried cost of nonexistent builtin").cost(input.len())
+	}
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
+		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
+	}
 
 	/// Check if new block should be chosen as the one  in chain.
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {

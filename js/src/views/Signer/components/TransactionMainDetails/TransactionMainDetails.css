@@ -1,0 +1,72 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+.transaction {
+}
+
+.transaction > * {
+  display: inline-block;
+}
+
+.account {
+  text-align: center;
+}
+
+.from, .to {
+  width: 50%;
+}
+
+.from .account {
+  padding-right: 75px;
+}
+
+.to .account {
+  padding-left: 75px;
+}
+
+.from img, .to img {
+  display: inline-block;
+  width: 50px;
+  height: 50px;
+  margin: 5px;
+}
+
+.from span, .to span {
+  display: block;
+}
+
+.tx {
+  position: relative;
+  text-align: center;
+  margin: 0 -75px;
+  width: 150px;
+  top: -20px;
+  white-space: nowrap;
+}
+
+.total {
+  font-size: 0.6em;
+  opacity: .5;
+}
+
+.contractIcon {
+  background: #eee;
+  width: 50px !important;
+  height: 50px !important;
+  box-sizing: border-box;
+  border-radius: 50%;
+  padding: 13px;
+}

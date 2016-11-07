@@ -15,31 +15,51 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use lru_cache::LruCache;
-use util::{H256, Mutex};
+use util::{H256, HeapSizeOf, Mutex};
 use util::sha3::*;
+use util::cache::MemoryLruCache;
 use bit_set::BitSet;
 use super::super::instructions;
 
-const CACHE_CODE_ITEMS: usize = 65536;
+const DEFAULT_CACHE_SIZE: usize = 4 * 1024 * 1024;
 
-/// GLobal cache for EVM interpreter
+// stub for a HeapSizeOf implementation.
+struct Bits(Arc<BitSet>);
+
+impl HeapSizeOf for Bits {
+	fn heap_size_of_children(&self) -> usize {
+		// dealing in bits here
+		self.0.capacity() * 8
+	}
+}
+
+/// Global cache for EVM interpreter
 pub struct SharedCache {
-	jump_destinations: Mutex<LruCache<H256, Arc<BitSet>>>
+	jump_destinations: Mutex<MemoryLruCache<H256, Bits>>,
 }
 
 impl SharedCache {
-	/// Get jump destincations bitmap for a contract.
+	/// Create a jump destinations cache with a maximum size in bytes
+	/// to cache.
+	pub fn new(max_size: usize) -> Self {
+		SharedCache {
+			jump_destinations: Mutex::new(MemoryLruCache::new(max_size)),
+		}
+	}
+
+	/// Get jump destinations bitmap for a contract.
 	pub fn jump_destinations(&self, code_hash: &H256, code: &[u8]) -> Arc<BitSet> {
 		if code_hash == &SHA3_EMPTY {
 			return Self::find_jump_destinations(code);
 		}
+
 		if let Some(d) = self.jump_destinations.lock().get_mut(code_hash) {
-			return d.clone();
+			return d.0.clone();
 		}
 
 		let d = Self::find_jump_destinations(code);
-		self.jump_destinations.lock().insert(code_hash.clone(), d.clone());
+		self.jump_destinations.lock().insert(code_hash.clone(), Bits(d.clone()));
+
 		d
 	}
 
@@ -57,15 +77,15 @@ impl SharedCache {
 			}
 			position += 1;
 		}
+
+		jump_dests.shrink_to_fit();
 		Arc::new(jump_dests)
 	}
 }
 
 impl Default for SharedCache {
-	fn default() -> SharedCache {
-		SharedCache {
-			jump_destinations: Mutex::new(LruCache::new(CACHE_CODE_ITEMS)),
-		}
+	fn default() -> Self {
+		SharedCache::new(DEFAULT_CACHE_SIZE)
 	}
 }
 

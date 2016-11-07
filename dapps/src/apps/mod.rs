@@ -25,17 +25,14 @@ pub mod urlhint;
 pub mod fetcher;
 pub mod manifest;
 
-extern crate parity_dapps_status;
-extern crate parity_dapps_home;
+extern crate parity_ui;
 
+pub const HOME_PAGE: &'static str = "home";
 pub const DAPPS_DOMAIN : &'static str = ".parity";
 pub const RPC_PATH : &'static str =  "rpc";
 pub const API_PATH : &'static str =  "api";
 pub const UTILS_PATH : &'static str =  "parity-utils";
 
-pub fn main_page() -> &'static str {
-	"home"
-}
 pub fn redirection_address(using_dapps_domains: bool, app_id: &str) -> String {
 	if using_dapps_domains {
 		format!("http://{}{}/", app_id, DAPPS_DOMAIN)
@@ -45,36 +42,29 @@ pub fn redirection_address(using_dapps_domains: bool, app_id: &str) -> String {
 }
 
 pub fn utils() -> Box<Endpoint> {
-	Box::new(PageEndpoint::with_prefix(parity_dapps_home::App::default(), UTILS_PATH.to_owned()))
+	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints(dapps_path: String) -> Endpoints {
+pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path);
-	// Home page needs to be safe embed
-	// because we use Cross-Origin LocalStorage.
-	// TODO [ToDr] Account naming should be moved to parity.
-	pages.insert("home".into(), Box::new(
-		PageEndpoint::new_safe_to_embed(parity_dapps_home::App::default())
-	));
-	pages.insert("proxy".into(), ProxyPac::boxed());
-	insert::<parity_dapps_status::App>(&mut pages, "parity");
-	insert::<parity_dapps_status::App>(&mut pages, "status");
+	let mut pages = fs::local_endpoints(dapps_path, signer_port);
 
-	// Optional dapps
-	wallet_page(&mut pages);
+	// NOTE [ToDr] Dapps will be currently embeded on 8180
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_port));
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_port));
 
 	pages
 }
 
-#[cfg(feature = "parity-dapps-wallet")]
-fn wallet_page(pages: &mut Endpoints) {
-	extern crate parity_dapps_wallet;
-	insert::<parity_dapps_wallet::App>(pages, "wallet");
+fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable) {
+	pages.insert(id.to_owned(), Box::new(match embed_at {
+		Embeddable::Yes(port) => PageEndpoint::new_safe_to_embed(T::default(), port),
+		Embeddable::No => PageEndpoint::new(T::default()),
+	}));
 }
-#[cfg(not(feature = "parity-dapps-wallet"))]
-fn wallet_page(_pages: &mut Endpoints) {}
 
-fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str) {
-	pages.insert(id.to_owned(), Box::new(PageEndpoint::new(T::default())));
+enum Embeddable {
+	Yes(Option<u16>),
+	#[allow(dead_code)]
+	No,
 }

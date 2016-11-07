@@ -23,7 +23,12 @@ mod vote;
 mod vote_collector;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
-use common::*;
+use util::*;
+use error::{Error, BlockError};
+use header::Header;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use transaction::SignedTransaction;
 use rlp::{UntrustedRlp, View, encode};
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
@@ -31,6 +36,7 @@ use block::*;
 use spec::CommonParams;
 use engines::{Engine, EngineError, ProposeCollect};
 use blockchain::extras::BlockDetails;
+use views::HeaderView;
 use evm::Schedule;
 use io::IoService;
 use self::message::ConsensusMessage;
@@ -368,11 +374,14 @@ impl Engine for Tendermint {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
 	use std::thread::sleep;
 	use std::time::{Duration};
+	use util::*;
 	use rlp::{UntrustedRlp, RlpStream, Stream, View, encode};
 	use block::*;
+	use error::{Error, BlockError};
+	use header::Header;
+	use env_info::EnvInfo;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
@@ -406,11 +415,11 @@ mod tests {
 		let mut seal = Vec::new();
 
 		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
-		let sig0 = tap.sign_with_password(v0, "0".into(), header.bare_hash()).unwrap();
+		let sig0 = tap.sign(v0, Some("0".into()), header.bare_hash()).unwrap();
 		seal.push(encode(&(&*sig0 as &[u8])).to_vec());
 
 		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
-		let sig1 = tap.sign_with_password(v1, "1".into(), header.bare_hash()).unwrap();
+		let sig1 = tap.sign(v1, Some("1".into()), header.bare_hash()).unwrap();
 		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
 		seal
 	}
@@ -465,7 +474,7 @@ mod tests {
 		let mut seal = Vec::new();
 
 		let v1 = tap.insert_account("0".sha3(), "0").unwrap();
-		let sig1 = tap.sign_with_password(v1, "0".into(), header.bare_hash()).unwrap();
+		let sig1 = tap.sign(v1, Some("0".into()), header.bare_hash()).unwrap();
 		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
 
 		header.set_seal(seal.clone());
@@ -474,7 +483,7 @@ mod tests {
 		assert!(engine.verify_block_basic(&header, None).is_err());
 
 		let v2 = tap.insert_account("101".sha3(), "101").unwrap();
-		let sig2 = tap.sign_with_password(v2, "101".into(), header.bare_hash()).unwrap();
+		let sig2 = tap.sign(v2, Some("101".into()), header.bare_hash()).unwrap();
 		seal.push(encode(&(&*sig2 as &[u8])).to_vec());
 
 		header.set_seal(seal);

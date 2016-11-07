@@ -101,6 +101,7 @@ extern crate bit_set;
 extern crate rlp;
 extern crate ethcore_bloom_journal as bloom_journal;
 extern crate byteorder;
+extern crate transient_hashmap;
 
 #[macro_use]
 extern crate log;
@@ -140,7 +141,6 @@ pub mod db;
 
 mod cache_manager;
 mod blooms;
-mod common;
 mod basic_types;
 mod env_info;
 mod pod_account;

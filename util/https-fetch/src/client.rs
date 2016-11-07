@@ -31,6 +31,7 @@ use url::Url;
 pub enum FetchError {
 	InvalidAddress,
 	ReadingCaCertificates,
+	UnexpectedStatus(String),
 	CaCertificates(io::Error),
 	Io(io::Error),
 	Notify(mio::NotifyError<ClientMessage>),
@@ -162,10 +163,13 @@ impl mio::Handler for ClientLoop {
 
 				if let Ok(mut tlsclient) = TlsClient::new(mio::Token(token), &url, writer, abort, callback, self.size_limit.clone()) {
 					let httpreq = format!(
-						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nAccept-Encoding: identity\r\n\r\n",
+						"GET {} HTTP/1.1\r\nHost: {}\r\nConnection: close\r\nUser-Agent: {}/{}\r\nAccept-Encoding: identity\r\n\r\n",
 						url.path(),
-						url.hostname()
+						url.hostname(),
+						env!("CARGO_PKG_NAME"),
+						env!("CARGO_PKG_VERSION")
 					);
+					debug!("Requesting content: {}", httpreq);
 					let _ = tlsclient.write(httpreq.as_bytes());
 					tlsclient.register(event_loop);
 

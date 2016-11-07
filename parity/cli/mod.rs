@@ -106,14 +106,22 @@ usage! {
 		// -- Networking Options
 		flag_no_network: bool = false,
 			or |c: &Config| otry!(c.network).disable.clone(),
+		flag_warp: bool = false,
+			or |c: &Config| otry!(c.network).warp.clone(),
 		flag_port: u16 = 30303u16,
 			or |c: &Config| otry!(c.network).port.clone(),
 		flag_min_peers: u16 = 25u16,
 			or |c: &Config| otry!(c.network).min_peers.clone(),
 		flag_max_peers: u16 = 50u16,
 			or |c: &Config| otry!(c.network).max_peers.clone(),
+		flag_max_pending_peers: u16 = 64u16,
+			or |c: &Config| otry!(c.network).max_pending_peers.clone(),
+		flag_snapshot_peers: u16 = 0u16,
+			or |c: &Config| otry!(c.network).snapshot_peers.clone(),
 		flag_nat: String = "any",
 			or |c: &Config| otry!(c.network).nat.clone(),
+		flag_allow_ips: String = "all",
+			or |c: &Config| otry!(c.network).allow_ips.clone(),
 		flag_network_id: Option<String> = None,
 			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
@@ -137,7 +145,7 @@ usage! {
 			or |c: &Config| otry!(c.rpc).interface.clone(),
 		flag_jsonrpc_cors: Option<String> = None,
 			or |c: &Config| otry!(c.rpc).cors.clone().map(Some),
-		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
+		flag_jsonrpc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
 			or |c: &Config| otry!(c.rpc).apis.clone().map(|vec| vec.join(",")),
 		flag_jsonrpc_hosts: String = "none",
 			or |c: &Config| otry!(c.rpc).hosts.clone().map(|vec| vec.join(",")),
@@ -147,7 +155,7 @@ usage! {
 			or |c: &Config| otry!(c.ipc).disable.clone(),
 		flag_ipc_path: String = "$HOME/.parity/jsonrpc.ipc",
 			or |c: &Config| otry!(c.ipc).path.clone(),
-		flag_ipc_apis: String = "web3,eth,net,ethcore,personal,traces,rpc",
+		flag_ipc_apis: String = "web3,eth,net,ethcore,traces,rpc,personal_safe",
 			or |c: &Config| otry!(c.ipc).apis.clone().map(|vec| vec.join(",")),
 
 		// DAPPS
@@ -179,6 +187,8 @@ usage! {
 			or |c: &Config| otry!(c.mining).work_queue_size.clone(),
 		flag_tx_gas_limit: Option<String> = None,
 			or |c: &Config| otry!(c.mining).tx_gas_limit.clone().map(Some),
+		flag_tx_time_limit: Option<u64> = None,
+			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
 		flag_usd_per_tx: String = "0",
@@ -197,6 +207,12 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_tx_queue_gas: String = "auto",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
+		flag_tx_queue_strategy: String = "gas_price",
+			or |c: &Config| otry!(c.mining).tx_queue_strategy.clone(),
+		flag_tx_queue_ban_count: u16 = 1u16,
+			or |c: &Config| otry!(c.mining).tx_queue_ban_count.clone(),
+		flag_tx_queue_ban_time: u16 = 180u16,
+			or |c: &Config| otry!(c.mining).tx_queue_ban_time.clone(),
 		flag_remove_solved: bool = false,
 			or |c: &Config| otry!(c.mining).remove_solved.clone(),
 		flag_notify_work: Option<String> = None,
@@ -207,17 +223,21 @@ usage! {
 			or |c: &Config| otry!(c.footprint).tracing.clone(),
 		flag_pruning: String = "auto",
 			or |c: &Config| otry!(c.footprint).pruning.clone(),
+		flag_pruning_history: u64 = 64u64,
+			or |c: &Config| otry!(c.footprint).pruning_history.clone(),
 		flag_cache_size_db: u32 = 64u32,
 			or |c: &Config| otry!(c.footprint).cache_size_db.clone(),
 		flag_cache_size_blocks: u32 = 8u32,
 			or |c: &Config| otry!(c.footprint).cache_size_blocks.clone(),
 		flag_cache_size_queue: u32 = 50u32,
 			or |c: &Config| otry!(c.footprint).cache_size_queue.clone(),
+		flag_cache_size_state: u32 = 25u32,
+			or |c: &Config| otry!(c.footprint).cache_size_state.clone(),
 		flag_cache_size: Option<u32> = None,
 			or |c: &Config| otry!(c.footprint).cache_size.clone().map(Some),
 		flag_fast_and_loose: bool = false,
 			or |c: &Config| otry!(c.footprint).fast_and_loose.clone(),
-		flag_db_compaction: String = "ssd",
+		flag_db_compaction: String = "auto",
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
@@ -226,6 +246,7 @@ usage! {
 		flag_from: String = "1", or |_| None,
 		flag_to: String = "latest", or |_| None,
 		flag_format: Option<String> = None, or |_| None,
+		flag_no_seal_check: bool = false, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -294,10 +315,14 @@ struct Signer {
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
 struct Network {
 	disable: Option<bool>,
+	warp: Option<bool>,
 	port: Option<u16>,
 	min_peers: Option<u16>,
 	max_peers: Option<u16>,
+	snapshot_peers: Option<u16>,
+	max_pending_peers: Option<u16>,
 	nat: Option<String>,
+	allow_ips: Option<String>,
 	id: Option<String>,
 	bootnodes: Option<Vec<String>>,
 	discovery: Option<bool>,
@@ -342,6 +367,7 @@ struct Mining {
 	reseal_min_period: Option<u64>,
 	work_queue_size: Option<usize>,
 	tx_gas_limit: Option<String>,
+	tx_time_limit: Option<u64>,
 	relay_set: Option<String>,
 	usd_per_tx: Option<String>,
 	usd_per_eth: Option<String>,
@@ -351,6 +377,9 @@ struct Mining {
 	extra_data: Option<String>,
 	tx_queue_size: Option<usize>,
 	tx_queue_gas: Option<String>,
+	tx_queue_strategy: Option<String>,
+	tx_queue_ban_count: Option<u16>,
+	tx_queue_ban_time: Option<u16>,
 	remove_solved: Option<bool>,
 	notify_work: Option<Vec<String>>,
 }
@@ -359,11 +388,13 @@ struct Mining {
 struct Footprint {
 	tracing: Option<String>,
 	pruning: Option<String>,
+	pruning_history: Option<u64>,
 	fast_and_loose: Option<bool>,
 	cache_size: Option<u32>,
 	cache_size_db: Option<u32>,
 	cache_size_blocks: Option<u32>,
 	cache_size_queue: Option<u32>,
+	cache_size_state: Option<u32>,
 	db_compaction: Option<String>,
 	fat_db: Option<String>,
 }
@@ -424,6 +455,20 @@ mod tests {
 	}
 
 	#[test]
+	fn should_use_config_if_cli_is_missing() {
+		let mut config = Config::default();
+		let mut footprint = Footprint::default();
+		footprint.pruning_history = Some(128);
+		config.footprint = Some(footprint);
+
+		// when
+		let args = Args::parse_with_config(&["parity"], config).unwrap();
+
+		// then
+		assert_eq!(args.flag_pruning_history, 128);
+	}
+
+	#[test]
 	fn should_parse_full_config() {
 		// given
 		let config = toml::decode_str(include_str!("./config.full.toml")).unwrap();
@@ -477,9 +522,13 @@ mod tests {
 
 			// -- Networking Options
 			flag_no_network: false,
+			flag_warp: true,
 			flag_port: 30303u16,
 			flag_min_peers: 25u16,
 			flag_max_peers: 50u16,
+			flag_max_pending_peers: 64u16,
+			flag_snapshot_peers: 0u16,
+			flag_allow_ips: "all".into(),
 			flag_nat: "any".into(),
 			flag_network_id: Some("0x1".into()),
 			flag_bootnodes: Some("".into()),
@@ -494,13 +543,13 @@ mod tests {
 			flag_jsonrpc_port: 8545u16,
 			flag_jsonrpc_interface: "local".into(),
 			flag_jsonrpc_cors: Some("null".into()),
-			flag_jsonrpc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
+			flag_jsonrpc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
 			flag_jsonrpc_hosts: "none".into(),
 
 			// IPC
 			flag_no_ipc: false,
 			flag_ipc_path: "$HOME/.parity/jsonrpc.ipc".into(),
-			flag_ipc_apis: "web3,eth,net,personal,ethcore,traces,rpc".into(),
+			flag_ipc_apis: "web3,eth,net,ethcore,traces,rpc,personal_safe".into(),
 
 			// DAPPS
 			flag_no_dapps: false,
@@ -518,6 +567,7 @@ mod tests {
 			flag_reseal_min_period: 4000u64,
 			flag_work_queue_size: 20usize,
 			flag_tx_gas_limit: Some("6283184".into()),
+			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
 			flag_usd_per_tx: "0".into(),
 			flag_usd_per_eth: "auto".into(),
@@ -525,17 +575,27 @@ mod tests {
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
+<<<<<<< HEAD
 			flag_tx_queue_size: 2048usize,
 			flag_tx_queue_gas: "auto".into(),
+=======
+			flag_tx_queue_size: 1024usize,
+			flag_tx_queue_gas: "auto".into(),
+			flag_tx_queue_strategy: "gas_factor".into(),
+			flag_tx_queue_ban_count: 1u16,
+			flag_tx_queue_ban_time: 180u16,
+>>>>>>> parity/master
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 
 			// -- Footprint Options
 			flag_tracing: "auto".into(),
 			flag_pruning: "auto".into(),
+			flag_pruning_history: 64u64,
 			flag_cache_size_db: 64u32,
 			flag_cache_size_blocks: 8u32,
 			flag_cache_size_queue: 50u32,
+			flag_cache_size_state: 25u32,
 			flag_cache_size: Some(128),
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
@@ -545,6 +605,7 @@ mod tests {
 			flag_from: "1".into(),
 			flag_to: "latest".into(),
 			flag_format: None,
+			flag_no_seal_check: false,
 
 			// -- Snapshot Optons
 			flag_at: "latest".into(),
@@ -631,9 +692,13 @@ mod tests {
 			}),
 			network: Some(Network {
 				disable: Some(false),
+				warp: Some(false),
 				port: None,
 				min_peers: Some(10),
 				max_peers: Some(20),
+				max_pending_peers: Some(30),
+				snapshot_peers: Some(40),
+				allow_ips: Some("public".into()),
 				nat: Some("any".into()),
 				id: None,
 				bootnodes: None,
@@ -676,9 +741,18 @@ mod tests {
 				price_update_period: Some("hourly".into()),
 				gas_floor_target: None,
 				gas_cap: None,
+<<<<<<< HEAD
 				tx_queue_size: Some(2048),
 				tx_queue_gas: Some("auto".into()),
+=======
+				tx_queue_size: Some(1024),
+				tx_queue_gas: Some("auto".into()),
+				tx_queue_strategy: None,
+				tx_queue_ban_count: None,
+				tx_queue_ban_time: None,
+>>>>>>> parity/master
 				tx_gas_limit: None,
+				tx_time_limit: None,
 				extra_data: None,
 				remove_solved: None,
 				notify_work: None,
@@ -686,11 +760,13 @@ mod tests {
 			footprint: Some(Footprint {
 				tracing: Some("on".into()),
 				pruning: Some("fast".into()),
+				pruning_history: Some(64),
 				fast_and_loose: None,
 				cache_size: None,
 				cache_size_db: Some(128),
 				cache_size_blocks: Some(16),
 				cache_size_queue: Some(100),
+				cache_size_state: Some(25),
 				db_compaction: Some("ssd".into()),
 				fat_db: Some("off".into()),
 			}),

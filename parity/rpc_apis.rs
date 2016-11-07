@@ -23,6 +23,7 @@ use util::RotatingLogger;
 use ethcore::miner::{Miner, ExternalMiner};
 use ethcore::client::Client;
 use ethcore::account_provider::AccountProvider;
+use ethcore::snapshot::SnapshotService;
 use ethsync::{ManageNetwork, SyncProvider};
 use ethcore_rpc::{Extendable, NetworkSettings};
 pub use ethcore_rpc::SignerService;
@@ -33,7 +34,8 @@ pub enum Api {
 	Web3,
 	Net,
 	Eth,
-	Personal,
+	PersonalSafe,
+	PersonalAccounts,
 	Signer,
 	Ethcore,
 	EthcoreSet,
@@ -51,7 +53,8 @@ impl FromStr for Api {
 			"web3" => Ok(Web3),
 			"net" => Ok(Net),
 			"eth" => Ok(Eth),
-			"personal" => Ok(Personal),
+			"personal" => Ok(PersonalAccounts),
+			"personal_safe" => Ok(PersonalSafe),
 			"signer" => Ok(Signer),
 			"ethcore" => Ok(Ethcore),
 			"ethcore_set" => Ok(EthcoreSet),
@@ -93,9 +96,9 @@ impl FromStr for ApiSet {
 }
 
 pub struct Dependencies {
-	pub signer_port: Option<u16>,
 	pub signer_service: Arc<SignerService>,
 	pub client: Arc<Client>,
+	pub snapshot: Arc<SnapshotService>,
 	pub sync: Arc<SyncProvider>,
 	pub net: Arc<ManageNetwork>,
 	pub secret_store: Arc<AccountProvider>,
@@ -105,6 +108,7 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub geth_compatibility: bool,
+	pub dapps_port: Option<u16>,
 }
 
 fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
@@ -114,7 +118,8 @@ fn to_modules(apis: &[Api]) -> BTreeMap<String, String> {
 			Api::Web3 => ("web3", "1.0"),
 			Api::Net => ("net", "1.0"),
 			Api::Eth => ("eth", "1.0"),
-			Api::Personal => ("personal", "1.0"),
+			Api::PersonalSafe => ("personal_safe", "1.0"),
+			Api::PersonalAccounts => ("personal", "1.0"),
 			Api::Signer => ("signer", "1.0"),
 			Api::Ethcore => ("ethcore", "1.0"),
 			Api::EthcoreSet => ("ethcore_set", "1.0"),
@@ -131,11 +136,11 @@ impl ApiSet {
 		match *self {
 			ApiSet::List(ref apis) => apis.clone(),
 			ApiSet::UnsafeContext => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+				vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
 					.into_iter().collect()
 			},
-			_ => {
-				vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+			ApiSet::SafeContext => {
+				vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 					.into_iter().collect()
 			},
 		}
@@ -158,6 +163,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 			Api::Eth => {
 				let client = EthClient::new(
 					&deps.client,
+					&deps.snapshot,
 					&deps.sync,
 					&deps.secret_store,
 					&deps.miner,
@@ -172,21 +178,36 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 				let filter_client = EthFilterClient::new(&deps.client, &deps.miner);
 				server.add_delegate(filter_client.to_delegate());
 
-				if deps.signer_port.is_some() {
+				if deps.signer_service.is_enabled() {
 					server.add_delegate(EthSigningQueueClient::new(&deps.signer_service, &deps.client, &deps.miner, &deps.secret_store).to_delegate());
 				} else {
 					server.add_delegate(EthSigningUnsafeClient::new(&deps.client, &deps.secret_store, &deps.miner).to_delegate());
 				}
 			},
-			Api::Personal => {
-				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.signer_port, deps.geth_compatibility).to_delegate());
+			Api::PersonalAccounts => {
+				server.add_delegate(PersonalAccountsClient::new(&deps.secret_store, &deps.client, &deps.miner, deps.geth_compatibility).to_delegate());
+			},
+			Api::PersonalSafe => {
+				server.add_delegate(PersonalClient::new(&deps.secret_store, &deps.client).to_delegate());
 			},
 			Api::Signer => {
 				server.add_delegate(SignerClient::new(&deps.secret_store, &deps.client, &deps.miner, &deps.signer_service).to_delegate());
 			},
 			Api::Ethcore => {
-				let signer = deps.signer_port.map(|_| deps.signer_service.clone());
-				server.add_delegate(EthcoreClient::new(&deps.client, &deps.miner, &deps.sync, &deps.net_service, deps.logger.clone(), deps.settings.clone(), signer).to_delegate())
+				let signer = match deps.signer_service.is_enabled() {
+					true => Some(deps.signer_service.clone()),
+					false => None,
+				};
+				server.add_delegate(EthcoreClient::new(
+					&deps.client,
+					&deps.miner,
+					&deps.sync,
+					&deps.net_service,
+					deps.logger.clone(),
+					deps.settings.clone(),
+					signer,
+					deps.dapps_port,
+				).to_delegate())
 			},
 			Api::EthcoreSet => {
 				server.add_delegate(EthcoreSetClient::new(&deps.client, &deps.miner, &deps.net_service).to_delegate())
@@ -212,7 +233,8 @@ mod test {
 		assert_eq!(Api::Web3, "web3".parse().unwrap());
 		assert_eq!(Api::Net, "net".parse().unwrap());
 		assert_eq!(Api::Eth, "eth".parse().unwrap());
-		assert_eq!(Api::Personal, "personal".parse().unwrap());
+		assert_eq!(Api::PersonalAccounts, "personal".parse().unwrap());
+		assert_eq!(Api::PersonalSafe, "personal_safe".parse().unwrap());
 		assert_eq!(Api::Signer, "signer".parse().unwrap());
 		assert_eq!(Api::Ethcore, "ethcore".parse().unwrap());
 		assert_eq!(Api::EthcoreSet, "ethcore_set".parse().unwrap());
@@ -233,14 +255,14 @@ mod test {
 
 	#[test]
 	fn test_api_set_unsafe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Ethcore, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Ethcore, Api::Traces, Api::Rpc, Api::PersonalSafe]
 			.into_iter().collect();
 		assert_eq!(ApiSet::UnsafeContext.list_apis(), expected);
 	}
 
 	#[test]
 	fn test_api_set_safe_context() {
-		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::Personal, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
+		let expected = vec![Api::Web3, Api::Net, Api::Eth, Api::PersonalAccounts, Api::PersonalSafe, Api::Signer, Api::Ethcore, Api::EthcoreSet, Api::Traces, Api::Rpc]
 			.into_iter().collect();
 		assert_eq!(ApiSet::SafeContext.list_apis(), expected);
 	}

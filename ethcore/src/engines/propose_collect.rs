@@ -17,7 +17,7 @@
 //! Voting on a hash, where each vote has to come from a set of addresses.
 
 use std::sync::atomic::{AtomicBool, Ordering};
-use common::{HashSet, RwLock, H256, Address};
+use util::{HashSet, RwLock, H256, Address};
 
 /// Collect votes on a hash.
 #[derive(Debug)]
@@ -70,9 +70,10 @@ impl ProposeCollect {
 
 #[cfg(test)]	
 mod tests {
-	use common::*;
 	use engines::propose_collect::ProposeCollect;
 	use account_provider::AccountProvider;
+	use util::*;
+	use header::Header;
 
 	#[test]
 	fn simple_propose_collect() {

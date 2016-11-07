@@ -28,7 +28,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, EthSigningUnsafeClient};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use rustc_serialize::hex::ToHex;
 use time::get_time;
 
@@ -52,11 +52,16 @@ fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
 
+fn snapshot_service() -> Arc<TestSnapshotService> {
+	Arc::new(TestSnapshotService::new())
+}
+
 struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
 	pub miner: Arc<TestMinerService>,
+	pub snapshot: Arc<TestSnapshotService>,
 	hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
 	pub io: IoHandler,
 }
@@ -73,9 +78,10 @@ impl EthTester {
 		let sync = sync_provider();
 		let ap = accounts_provider();
 		let miner = miner_service();
+		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, options).to_delegate();
+		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
 		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
@@ -88,9 +94,15 @@ impl EthTester {
 			sync: sync,
 			accounts_provider: ap,
 			miner: miner,
+			snapshot: snapshot,
 			io: io,
 			hashrates: hashrates,
 		}
+	}
+
+	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
+		self.client.add_blocks(count, with);
+		self.sync.increase_imported_block_number(count as u64);
 	}
 }
 
@@ -104,6 +116,8 @@ fn rpc_eth_protocol_version() {
 
 #[test]
 fn rpc_eth_syncing() {
+	use ethcore::snapshot::RestorationStatus;
+
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
 
 	let tester = EthTester::default();
@@ -115,24 +129,38 @@ fn rpc_eth_syncing() {
 		let mut status = tester.sync.status.write();
 		status.state = SyncState::Blocks;
 		status.highest_block_number = Some(2500);
-
-		// "sync" to 1000 blocks.
-		// causes TestBlockChainClient to return 1000 for its best block number.
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1000 {
-			blocks.insert(H256::from(i), Vec::new());
-		}
 	}
 
-	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0"},"id":1}"#;
+	// "sync" to 1000 blocks.
+	// causes TestBlockChainClient to return 1000 for its best block number.
+	tester.add_blocks(1000, EachBlockWith::Nothing);
+	*tester.client.ancient_block.write() = Some((H256::new(), 5));
+	*tester.client.first_block.write() = Some((H256::from(U256::from(1234)), 3333));
+
+	let true_res = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"],"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
+	*tester.client.ancient_block.write() = None;
+	*tester.client.first_block.write() = None;
+
+	let snap_res = r#"{"jsonrpc":"2.0","result":{"blockGap":null,"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":"0x32","warpChunksProcessed":"0x18"},"id":1}"#;
+	tester.snapshot.set_status(RestorationStatus::Ongoing {
+		state_chunks: 40,
+		block_chunks: 10,
+		state_chunks_done: 18,
+		block_chunks_done: 6,
+	});
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(snap_res.to_owned()));
+
+	tester.snapshot.set_status(RestorationStatus::Inactive);
+
+	// finish "syncing"
+	tester.add_blocks(1500, EachBlockWith::Nothing);
+
 	{
-		// finish "syncing"
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1500 {
-			blocks.insert(H256::from(i + 1000), Vec::new());
-		}
+		let mut status = tester.sync.status.write();
+		status.state = SyncState::Idle;
 	}
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));
@@ -264,7 +292,7 @@ fn rpc_eth_sign() {
 	let account = tester.accounts_provider.new_account("abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
-	let signed = tester.accounts_provider.sign(account, message).unwrap();
+	let signed = tester.accounts_provider.sign(account, None, message).unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -709,7 +737,7 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
@@ -726,7 +754,7 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
@@ -791,7 +819,7 @@ fn rpc_eth_send_raw_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
+	let signature = tester.accounts_provider.sign(address, None, t.hash()).unwrap();
 	let t = t.with_signature(signature);
 
 	let rlp = ::rlp::encode(&t).to_vec().to_hex();

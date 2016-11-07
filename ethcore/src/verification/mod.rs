@@ -31,6 +31,8 @@ pub use self::queue::{BlockQueue, Config as QueueConfig, VerificationQueue, Queu
 pub enum VerifierType {
 	/// Verifies block normally.
 	Canon,
+	/// Verifies block normallly, but skips seal verification.
+	CanonNoSeal,
 	/// Does not verify block at all.
 	/// Used in tests.
 	Noop,
@@ -44,7 +46,17 @@ impl Default for VerifierType {
 
 pub fn new(v: VerifierType) -> Box<Verifier> {
 	match v {
-		VerifierType::Canon => Box::new(CanonVerifier),
+		VerifierType::Canon | VerifierType::CanonNoSeal => Box::new(CanonVerifier),
 		VerifierType::Noop => Box::new(NoopVerifier),
+	}
+}
+
+impl VerifierType {
+	/// Check if seal verification is enabled for this verifier type.
+	pub fn verifying_seal(&self) -> bool {
+		match *self {
+			VerifierType::Canon => true,
+			VerifierType::Noop | VerifierType::CanonNoSeal => false,
+		}
 	}
 }
