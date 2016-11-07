@@ -165,13 +165,9 @@ export default class DappsStore {
       .then((apps) => {
         return Promise
           .all(apps.map((app) => {
-            if (!app.manifestHash) {
-              return null;
-            }
-
-            return fetch(`${this._getHost()}/api/content/${app.manifestHash}/`)
-              .then((response) => response.ok ? response.json() : null)
-              .catch(() => null);
+            return app.manifestHash
+              ? this._fetchManifest(app.manifestHash)
+              : null;
           }))
           .then((manifests) => {
             return apps.map((app, index) => {
@@ -197,6 +193,28 @@ export default class DappsStore {
       })
       .catch((error) => {
         console.warn('DappsStore:fetchRegistry', error);
+      });
+  }
+
+  _fetchManifest (manifestHash, count = 0) {
+    return fetch(`${this._getHost()}/api/content/${manifestHash}/`)
+      .then((response) => {
+        if (response.ok) {
+          return response.json();
+        }
+
+        if (count < 1) {
+          return this._fetchManifest(manifestHash, count + 1);
+        }
+
+        return null;
+      })
+      .catch(() => {
+        if (count < 1) {
+          return this._fetchManifest(manifestHash, count + 1);
+        }
+
+        return null;
       });
   }
 
