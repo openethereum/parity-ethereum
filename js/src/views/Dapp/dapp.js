@@ -44,12 +44,6 @@ export default class Dapp extends Component {
 
     let src = null;
     switch (app.type) {
-      case 'builtin':
-        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
-          ? `${dappsUrl}/ui`
-          : '';
-        src = `${dapphost}/${app.url}.html`;
-        break;
       case 'local':
         src = `${dappsUrl}/${app.id}/`;
         break;
@@ -57,7 +51,10 @@ export default class Dapp extends Component {
         src = `${dappsUrl}/${app.contentHash}/`;
         break;
       default:
-        console.error('unknown type', app.type);
+        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
+          ? `${dappsUrl}/ui`
+          : '';
+        src = `${dapphost}/${app.url}.html`;
         break;
     }
 
