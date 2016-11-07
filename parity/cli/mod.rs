@@ -91,15 +91,15 @@ usage! {
 			or |c: &Config| otry!(c.account).keys_iterations.clone(),
 
 		flag_force_ui: bool = false,
-			or |c: &Config| otry!(c.signer).force.clone(),
+			or |c: &Config| otry!(c.ui).force.clone(),
 		flag_no_ui: bool = false,
-			or |c: &Config| otry!(c.signer).disable.clone(),
+			or |c: &Config| otry!(c.ui).disable.clone(),
 		flag_ui_port: u16 = 8180u16,
-			or |c: &Config| otry!(c.signer).port.clone(),
+			or |c: &Config| otry!(c.ui).port.clone(),
 		flag_ui_interface: String = "local",
-			or |c: &Config| otry!(c.signer).interface.clone(),
+			or |c: &Config| otry!(c.ui).interface.clone(),
 		flag_ui_path: String = "$HOME/.parity/signer",
-			or |c: &Config| otry!(c.signer).path.clone(),
+			or |c: &Config| otry!(c.ui).path.clone(),
 		// NOTE [todr] For security reasons don't put this to config files
 		flag_ui_no_validation: bool = false, or |_| None,
 
@@ -271,7 +271,7 @@ usage! {
 struct Config {
 	parity: Option<Operating>,
 	account: Option<Account>,
-	signer: Option<Signer>,
+	ui: Option<Ui>,
 	network: Option<Network>,
 	rpc: Option<Rpc>,
 	ipc: Option<Ipc>,
@@ -302,7 +302,7 @@ struct Account {
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
-struct Signer {
+struct Ui {
 	force: Option<bool>,
 	disable: Option<bool>,
 	port: Option<u16>,
@@ -418,7 +418,7 @@ struct Misc {
 mod tests {
 	use super::{
 		Args, ArgsError,
-		Config, Operating, Account, Signer, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
+		Config, Operating, Account, Ui, Network, Rpc, Ipc, Dapps, Mining, Footprint, Snapshots, VM, Misc
 	};
 	use toml;
 
@@ -675,7 +675,7 @@ mod tests {
 				password: Some(vec!["passwdfile path".into()]),
 				keys_iterations: None,
 			}),
-			signer: Some(Signer {
+			ui: Some(Ui {
 				force: None,
 				disable: Some(true),
 				port: None,
