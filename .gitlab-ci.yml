@@ -8,7 +8,6 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
-  NIGHTLY: "nightly"
 cache:
   key: "CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -16,7 +15,6 @@ linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -42,41 +40,10 @@ linux-stable:
     paths:
     - target/release/parity
     name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-stable-14.04:
-  stage: build
-  image: ethcore/rust-14.04:latest
-  only:
-    - $NIGHTLY
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release $CARGOFLAGS
-    - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
-    - sh scripts/deb-build.sh amd64
-    - cp target/release/parity deb/usr/bin/parity
-    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-    - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
-    - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
-    - aws configure set aws_access_key_id $s3_key
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
-  tags:
-    - rust
-    - rust-14.04
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "stable-x86_64-unknown-ubuntu_14_04-gnu_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -95,7 +62,6 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -114,7 +80,6 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -140,7 +105,6 @@ linux-centos:
 #  stage: build   
 #  image: ethcore/rust-i686:latest   
 #  only:
-#    - $NIGHTLY
 #    - beta
 #    - tags
 #    - stable
@@ -173,7 +137,6 @@ linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -213,7 +176,6 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -253,7 +215,6 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -286,7 +247,6 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -325,7 +285,6 @@ linux-aarch64:
 darwin:
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
@@ -349,7 +308,6 @@ windows:
     untracked: true
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
