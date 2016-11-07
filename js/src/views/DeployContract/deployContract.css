@@ -37,4 +37,40 @@
 .parameters {
   flex: 35%;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+
+  .panel {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 1em;
+    flex: 1;
+  }
+}
+
+.messageContainer {
+  padding: 0.5em 0;
+
+  .errorPosition {
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 0.25em 0.5em;
+    top: 0;
+    position: relative;
+    margin-bottom: 0.25em;
+    font-size: 0.75em;
+  }
+}
+
+.message {
+  font-family: monospace;
+  padding: 0.5em;
+  font-size: 0.9em;
+  white-space: pre-wrap;
+
+  &.error {
+    background-color: rgba(244, 67, 54, 0.5);
+  }
+
+  &.warning {
+    background-color: rgba(255, 235, 59, 0.5);
+  }
 }

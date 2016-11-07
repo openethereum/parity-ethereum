@@ -19,6 +19,7 @@ import { FlatButton } from 'material-ui';
 
 export default class Button extends Component {
   static propTypes = {
+    backgroundColor: PropTypes.string,
     className: PropTypes.string,
     disabled: PropTypes.bool,
     icon: PropTypes.node,
@@ -35,11 +36,12 @@ export default class Button extends Component {
   }
 
   render () {
-    const { className, disabled, icon, label, primary, onClick } = this.props;
+    const { className, backgroundColor, disabled, icon, label, primary, onClick } = this.props;
 
     return (
       <FlatButton
         className={ className }
+        backgroundColor={ backgroundColor }
         disabled={ disabled }
         icon={ icon }
         label={ label }
