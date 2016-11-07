@@ -7,7 +7,8 @@ RUN apt-get update && \
         curl \
         git \
         file \
-        binutils
+        binutils \
+	make
 
 # install rustup
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
