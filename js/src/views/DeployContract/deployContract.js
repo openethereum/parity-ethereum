@@ -1,4 +1,4 @@
-// Copyright 2015, 2016 Ethcore (UK) Ltd.
+  // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
 // Parity is free software: you can redistribute it and/or modify
@@ -14,9 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import ContentAdd from 'material-ui/svg-icons/content/add';
+import React, { PropTypes, Component } from 'react';
 import { MenuItem } from 'material-ui';
+import { connect } from 'react-redux';
 
 import 'brace';
 import AceEditor from 'react-ace';
@@ -25,12 +25,17 @@ import 'brace/theme/solarized_dark';
 import 'brace/mode/javascript';
 
 import { Actionbar, Button, Page, Select, Input } from '../../ui';
+import { DeployContract as ModalDeployContract } from '../../modals';
 
 import styles from './deployContract.css';
 
 import CompilerWorker from 'worker-loader!./compilerWorker.js';
 
-export default class DeployContract extends Component {
+class DeployContract extends Component {
+
+  static propTypes = {
+    accounts: PropTypes.object.isRequired
+  }
 
   state = {
     sourceCode: '',
@@ -39,15 +44,27 @@ export default class DeployContract extends Component {
     compiling: false,
     contracts: {},
     errors: [],
-    selectedContract: 0
+    selectedContract: -1,
+    contractAnnotations: []
   };
 
   render () {
-    const { sourceCode } = this.state;
+    const { sourceCode, selectedContract, contractAnnotations, compiling } = this.state;
+
+    const commands = [
+      {
+        name: 'compile',
+        bindKey: { win: 'Ctrl-Enter',  mac: 'Command-Enter' },
+        exec: this.compile
+      }
+    ];
 
     return (
       <div>
-        { this.renderActionbar() }
+        { this.renderDeployModal() }
+        <Actionbar
+          title='Write a Contract'
+        />
         <Page>
           <div className={ styles.container }>
             <div className={ styles.editor }>
@@ -59,10 +76,11 @@ export default class DeployContract extends Component {
                 onChange={ this.onEditSource }
                 name='PARITY_EDITOR'
                 editorProps={ { $blockScrolling: true } }
-                setOptions={ {
-                  showPrintMargin: false
-                } }
+                setOptions={ { useWorker: false } }
+                showPrintMargin={ false }
+                annotations={ contractAnnotations }
                 value={ sourceCode }
+                commands={ commands }
               />
             </div>
             <div className={ styles.parameters }>
@@ -72,7 +90,17 @@ export default class DeployContract extends Component {
                   label='Compile'
                   onClick={ this.compile }
                   primary={ false }
+                  disabled={ compiling }
                 />
+                {
+                  selectedContract > -1
+                  ? <Button
+                    label='Deploy'
+                    onClick={ this.onShowDeployModal }
+                    primary={ false }
+                  />
+                  : null
+                }
                 { this.renderCompilation() }
               </div>
             </div>
@@ -82,20 +110,22 @@ export default class DeployContract extends Component {
     );
   }
 
-  renderActionbar () {
-    const buttons = [
-      <Button
-        key='deployContract'
-        icon={ <ContentAdd /> }
-        label='deploy'
-        onClick={ this.onDeployContract }
-      />
-    ];
+  renderDeployModal () {
+    const { showDeployModal, selectedContract, contracts } = this.state;
+
+    if (!showDeployModal) {
+      return null;
+    }
+
+    const contract = contracts[Object.keys(contracts)[selectedContract]];
 
     return (
-      <Actionbar
-        title='Write a Contract'
-        buttons={ buttons }
+      <ModalDeployContract
+        abi={ contract.interface }
+        code={ `0x${contract.bytecode}` }
+        accounts={ this.props.accounts }
+        onClose={ this.onCloseDeployModal }
+        readOnly
       />
     );
   }
@@ -168,7 +198,7 @@ export default class DeployContract extends Component {
 
         <Input
           readOnly
-          value={ bytecode }
+          value={ `0x${bytecode}` }
           label='Bytecode'
         />
       </div>
@@ -202,9 +232,18 @@ export default class DeployContract extends Component {
 
     return (
       <div>
+        <h4>Compiler messages</h4>
         { body }
       </div>
     );
+  }
+
+  onShowDeployModal = () => {
+    this.setState({ showDeployModal: true });
+  }
+
+  onCloseDeployModal = () => {
+    this.setState({ showDeployModal: false });
   }
 
   onSelectContract = (_, index, value) => {
@@ -240,10 +279,28 @@ export default class DeployContract extends Component {
   setCompiledCode = (data) => {
     const { contracts, errors } = data;
 
+    const contractAnnotations = errors
+      .map((error, index) => {
+        const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/gi;
+        const match = regex.exec(error);
+
+        const row = parseInt(match[1]) - 1;
+        const column = parseInt(match[2]);
+
+        const type = match[3].toLowerCase();
+        const text = match[4];
+
+        return {
+          row, column,
+          type, text
+        };
+      });
+
     this.setState({
       compiled: true,
       compiling: false,
-      contracts, errors
+      selectedContract: contracts && Object.keys(contracts).length ? 0 : -1,
+      contracts, errors, contractAnnotations
     });
   }
 
@@ -261,3 +318,15 @@ export default class DeployContract extends Component {
   }
 
 }
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return {
+    accounts
+  };
+}
+
+export default connect(
+  mapStateToProps
+)(DeployContract);

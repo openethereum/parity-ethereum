@@ -36,8 +36,15 @@ export default class DeployContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    onClose: PropTypes.func.isRequired
-  }
+    onClose: PropTypes.func.isRequired,
+    abi: PropTypes.string,
+    code: PropTypes.string,
+    readOnly: PropTypes.bool
+  };
+
+  static defaultProps = {
+    readOnly: false
+  };
 
   state = {
     abi: '',
@@ -55,6 +62,31 @@ export default class DeployContract extends Component {
     paramsError: [],
     step: 0,
     deployError: null
+  }
+
+  componentWillMount () {
+    const { abi, code } = this.props;
+
+    if (abi && code) {
+      this.setState({ abi, code });
+    }
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { abi, code } = nextProps;
+    const newState = {};
+
+    if (abi !== this.props.abi) {
+      newState.abi = abi;
+    }
+
+    if (code !== this.props.code) {
+      newState.code = code;
+    }
+
+    if (Object.keys(newState).length) {
+      this.setState(newState);
+    }
   }
 
   render () {
@@ -115,7 +147,7 @@ export default class DeployContract extends Component {
   }
 
   renderStep () {
-    const { accounts } = this.props;
+    const { accounts, readOnly } = this.props;
     const { address, deployError, step, deployState, txhash } = this.state;
 
     if (deployError) {
@@ -129,6 +161,7 @@ export default class DeployContract extends Component {
         return (
           <DetailsStep
             { ...this.state }
+            readOnly={ readOnly }
             accounts={ accounts }
             onAbiChange={ this.onAbiChange }
             onCodeChange={ this.onCodeChange }

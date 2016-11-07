@@ -30,7 +30,7 @@ onmessage = (event) => {
 };
 
 function compile (sourceCode) {
-  fetchSolc('1')
+  fetchSolc('latest')
     .then((compiler) => {
       const compiled = compiler.compile(sourceCode);
 
@@ -47,7 +47,7 @@ function fetchSolc (version) {
   }
 
   console.log('fetching solc version', version);
-  return fetch('https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/soljson.js')
+  return fetch(`https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/soljson-${version}.js`)
     .then((r) => r.text())
     .then((code) => {
       const solcCode = code.replace(/^var Module;/, 'var Module=self.__solcModule;');
