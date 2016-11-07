@@ -16,7 +16,7 @@
 
 //! LES Protocol Version 1 implementation.
 //!
-//! This uses a "Provider" to answer requests and syncs to a `Client`.
+//! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
 use io::TimerToken;
@@ -33,6 +33,7 @@ use request::{self, Request};
 use self::buffer_flow::FlowParams;
 
 mod buffer_flow;
+mod status;
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
@@ -77,11 +78,6 @@ mod packet {
 	// request and response for header proofs in a CHT.
 	pub const GET_HEADER_PROOFS: u8 = 0x0d;
 	pub const HEADER_PROOFS: u8 = 0x0e;
-}
-
-struct Requested {
-	timestamp: usize,
-	req: Request,
 }
 
 // data about each peer.
