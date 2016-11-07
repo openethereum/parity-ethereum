@@ -10,7 +10,7 @@ variables:
   CARGOFLAGS: ""
   NIGHTLY: "nightly"
 cache:
-  key: "$CI_BUILD_REF_NAME"
+  key: "CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
@@ -344,6 +344,9 @@ darwin:
     - target/release/parity
     name: "x86_64-apple-darwin_parity"
 windows:
+  cache:
+    key: "%CI_BUILD_STAGE%/%CI_BUILD_REF_NAME%"
+    untracked: true
   stage: build
   only:
     - $NIGHTLY
