@@ -27,6 +27,8 @@ import { Actionbar, Button, Page } from '../../ui';
 
 import styles from './deployContract.css';
 
+import CompilerWorker from 'worker-loader!./compilerWorker.js';
+
 export default class DeployContract extends Component {
 
   state = {
@@ -58,6 +60,11 @@ export default class DeployContract extends Component {
             </div>
             <div className={ styles.parameters }>
               <h2>Parameters</h2>
+              <Button
+                label='Compile'
+                onClick={ this.compile }
+                primary={ false }
+              />
             </div>
           </div>
         </Page>
@@ -85,6 +92,21 @@ export default class DeployContract extends Component {
 
   onEditSource = (sourceCode) => {
     this.setState({ sourceCode });
+  }
+
+  compile = () => {
+    const { sourceCode } = this.state;
+    const compiler = new CompilerWorker();
+
+    compiler.postMessage(JSON.stringify({
+      action: 'compile',
+      data: sourceCode
+    }));
+
+    compiler.onmessage = (event) => {
+      const message = JSON.parse(event.data);
+      console.log(message);
+    };
   }
 
 }

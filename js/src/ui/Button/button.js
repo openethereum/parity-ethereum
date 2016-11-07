@@ -26,11 +26,16 @@ export default class Button extends Component {
       React.PropTypes.string,
       React.PropTypes.object
     ]),
-    onClick: PropTypes.func
+    onClick: PropTypes.func,
+    primary: PropTypes.bool
+  }
+
+  static defaultProps = {
+    primary: true
   }
 
   render () {
-    const { className, disabled, icon, label, onClick } = this.props;
+    const { className, disabled, icon, label, primary, onClick } = this.props;
 
     return (
       <FlatButton
@@ -38,7 +43,7 @@ export default class Button extends Component {
         disabled={ disabled }
         icon={ icon }
         label={ label }
-        primary
+        primary={ primary }
         onTouchTap={ onClick } />
     );
   }

@@ -146,10 +146,12 @@
     "redux-actions": "^0.10.1",
     "redux-thunk": "^2.1.0",
     "rlp": "^2.0.0",
+    "solc": "ngotchac/solc-js",
     "store": "^1.3.20",
     "utf8": "^2.1.1",
     "validator": "^5.7.0",
     "web3": "^0.17.0-beta",
-    "whatwg-fetch": "^1.0.0"
+    "whatwg-fetch": "^1.0.0",
+    "worker-loader": "^0.7.1"
   }
 }
