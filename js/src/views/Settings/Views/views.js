@@ -40,7 +40,7 @@ class Views extends Component {
           <div className={ layout.overview }>
             <div>Manage the available application views, using only the parts of the application that is applicable to you.</div>
             <div>Are you an end-user? The defaults are setups for both beginner and advanced users alike.</div>
-            <div>Are you a developer? Add some features to manage contracts are interact with application develoyments.</div>
+            <div>Are you a developer? Add some features to manage contracts are interact with application deployments.</div>
             <div>Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.</div>
           </div>
           <div className={ layout.details }>
