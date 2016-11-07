@@ -50,7 +50,7 @@ export default class SignRequest extends Component {
   }
 
   componentWillMount () {
-    this.context.api.ethcore.netChain()
+    this.context.api.parity.netChain()
       .then((chain) => {
         this.setState({ chain });
       })

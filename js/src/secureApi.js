@@ -25,6 +25,8 @@ export default class SecureApi extends Api {
     this._isConnecting = true;
     this._connectState = 0;
     this._needsToken = false;
+    this._dappsPort = 8080;
+    this._signerPort = 8180;
 
     this._followConnection();
   }
@@ -50,7 +52,7 @@ export default class SecureApi extends Api {
       case 0:
         if (isConnected) {
           this._isConnecting = false;
-          return this.setToken();
+          return this.connectSuccess();
         } else if (lastError) {
           this.updateToken('initial', 1);
         }
@@ -60,7 +62,7 @@ export default class SecureApi extends Api {
       case 1:
         if (isConnected) {
           this._connectState = 2;
-          this.personal
+          this.parity
             .generateAuthorizationToken()
             .then((token) => {
               this.updateToken(token, 2);
@@ -79,7 +81,7 @@ export default class SecureApi extends Api {
       case 2:
         if (isConnected) {
           this._isConnecting = false;
-          return this.setToken();
+          return this.connectSuccess();
         } else if (lastError) {
           return setManual();
         }
@@ -89,10 +91,36 @@ export default class SecureApi extends Api {
     nextTick();
   }
 
+  connectSuccess () {
+    this.setToken();
+
+    Promise
+      .all([
+        this.parity.dappsPort(),
+        this.parity.signerPort()
+      ])
+      .then(([dappsPort, signerPort]) => {
+        this._dappsPort = dappsPort.toNumber();
+        this._signerPort = signerPort.toNumber();
+      });
+  }
+
   updateToken (token, connectedState = 0) {
     this._connectState = connectedState;
     this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
+  }
+
+  get dappsPort () {
+    return this._dappsPort;
+  }
+
+  get dappsUrl () {
+    return `http://127.0.0.1:${this._dappsPort}`;
+  }
+
+  get signerPort () {
+    return this._signerPort;
   }
 
   get isConnecting () {

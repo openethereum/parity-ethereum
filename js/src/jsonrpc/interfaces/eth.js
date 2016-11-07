@@ -86,20 +86,6 @@ export default {
     }
   },
 
-  checkRequest: {
-    desc: 'Returns the transactionhash of the requestId (received from eth_postTransaction) if the request was confirmed',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The requestId to check for'
-      }
-    ],
-    returns: {
-      type: Hash,
-      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
-    }
-  },
-
   coinbase: {
     desc: 'Returns the client coinbase address.',
     params: [],
@@ -820,22 +806,6 @@ export default {
     returns: {
       type: Boolean,
       desc: 'whether the call was successful'
-    }
-  },
-
-  postTransaction: {
-    desc: 'Posts a transaction to the Signer.',
-    params: [
-      {
-        type: Object,
-        desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
-        format: 'inputCallFormatter'
-      }
-    ],
-    returns: {
-      type: Quantity,
-      desc: 'The id of the actual transaction',
-      format: 'utils.toDecimal'
     }
   },
 

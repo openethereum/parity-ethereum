@@ -16,8 +16,6 @@
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
 
-import { parityNode } from '../../environment';
-
 export default class Status {
   constructor (store, api) {
     this._api = api;
@@ -33,8 +31,8 @@ export default class Status {
   }
 
   _fetchEnode () {
-    this._api
-      .ethcore.enode()
+    this._api.parity
+      .enode()
       .then((enode) => {
         this._store.dispatch(statusCollection({ enode }));
       })
@@ -65,7 +63,7 @@ export default class Status {
       setTimeout(this._pollPing, timeout);
     };
 
-    fetch(`${parityNode}/api/ping`, { method: 'GET' })
+    fetch('/', { method: 'HEAD' })
       .then((response) => dispatch(!!response.ok))
       .catch(() => dispatch(false));
   }
@@ -103,16 +101,16 @@ export default class Status {
       .all([
         this._api.web3.clientVersion(),
         this._api.eth.coinbase(),
-        this._api.ethcore.defaultExtraData(),
-        this._api.ethcore.extraData(),
-        this._api.ethcore.gasFloorTarget(),
+        this._api.parity.defaultExtraData(),
+        this._api.parity.extraData(),
+        this._api.parity.gasFloorTarget(),
         this._api.eth.hashrate(),
-        this._api.ethcore.minGasPrice(),
-        this._api.ethcore.netChain(),
-        this._api.ethcore.netPeers(),
-        this._api.ethcore.netPort(),
-        this._api.ethcore.nodeName(),
-        this._api.ethcore.rpcSettings(),
+        this._api.parity.minGasPrice(),
+        this._api.parity.netChain(),
+        this._api.parity.netPeers(),
+        this._api.parity.netPort(),
+        this._api.parity.nodeName(),
+        this._api.parity.rpcSettings(),
         this._api.eth.syncing(),
         this._pollTraceMode()
       ])
@@ -155,8 +153,8 @@ export default class Status {
 
     Promise
       .all([
-        this._api.ethcore.devLogs(),
-        this._api.ethcore.devLogsLevels()
+        this._api.parity.devLogs(),
+        this._api.parity.devLogsLevels()
       ])
       .then(([devLogs, devLogsLevels]) => {
         this._store.dispatch(statusLogs({

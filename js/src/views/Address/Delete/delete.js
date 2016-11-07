@@ -81,7 +81,7 @@ class Delete extends Component {
 
     account.meta.deleted = true;
 
-    api.personal
+    api.parity
       .setAccountMeta(account.address, account.meta)
       .then(() => {
         router.push(route);
