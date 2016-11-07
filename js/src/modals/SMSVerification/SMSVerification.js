@@ -24,7 +24,7 @@ import { validateAddress, validateUint } from '../../util/validation';
 import ABI from '../../contracts/abi/sms-verification.json';
 const contract = '0x7B3F58965439b22ef1dA4BB78f16191d11ab80B0';
 
-import SendRequest from './SendRequest';
+import GatherData from './GatherData';
 
 export default class SMSVerification extends Component {
   static contextTypes = {
@@ -130,7 +130,7 @@ export default class SMSVerification extends Component {
 
   renderFirstStep () {
     return (
-      <SendRequest
+      <GatherData
         onDataIsValid={ this.onDataIsValid }
         onDataIsInvalid={ this.onDataIsInvalid }
       />

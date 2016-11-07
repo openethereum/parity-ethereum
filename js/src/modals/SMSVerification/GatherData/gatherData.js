@@ -20,9 +20,9 @@ import phone from 'phoneformat.js';
 
 import { Form, Input } from '../../../ui';
 
-import styles from './SendRequest.css';
+import styles from './gatherData.css';
 
-export default class SendRequest extends Component {
+export default class GatherData extends Component {
   static propTypes = {
     onDataIsValid: PropTypes.func.isRequired,
     onDataIsInvalid: PropTypes.func.isRequired
