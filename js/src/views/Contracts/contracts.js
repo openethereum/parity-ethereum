@@ -19,9 +19,10 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq } from 'lodash';
+import { Link } from 'react-router';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
-import { AddContract, DeployContract } from '../../modals';
+import { AddContract } from '../../modals';
 
 import List from '../Accounts/List';
 
@@ -41,7 +42,6 @@ class Contracts extends Component {
 
   state = {
     addContract: false,
-    deployContract: false,
     sortOrder: 'timestamp',
     searchValues: [],
     searchTokens: []
@@ -56,7 +56,6 @@ class Contracts extends Component {
         { this.renderActionbar() }
         { this.renderAddContract() }
         { this.renderAddContract() }
-        { this.renderDeployContract() }
         <Page>
           <List
             link='contract'
@@ -109,11 +108,15 @@ class Contracts extends Component {
         icon={ <ContentAdd /> }
         label='watch contract'
         onClick={ this.onAddContract } />,
-      <Button
+      <Link
         key='deployContract'
-        icon={ <ContentAdd /> }
-        label='deploy contract'
-        onClick={ this.onDeployContract } />,
+        to='/deploy'
+      >
+        <Button
+          icon={ <ContentAdd /> }
+          label='deploy contract'
+        />
+      </Link>,
 
       this.renderSearchButton(),
       this.renderSortButton()
@@ -142,33 +145,10 @@ class Contracts extends Component {
     );
   }
 
-  renderDeployContract () {
-    const { accounts } = this.props;
-    const { deployContract } = this.state;
-
-    if (!deployContract) {
-      return null;
-    }
-
-    return (
-      <DeployContract
-        accounts={ accounts }
-        onClose={ this.onDeployContractClose } />
-    );
-  }
-
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
     this.setState({ searchTokens: newSearchTokens });
-  }
-
-  onDeployContractClose = () => {
-    this.setState({ deployContract: false });
-  }
-
-  onDeployContract = () => {
-    this.setState({ deployContract: true });
   }
 
   onAddContractClose = () => {

@@ -21,6 +21,7 @@ import Addresses from './Addresses';
 import Application from './Application';
 import Contract from './Contract';
 import Contracts from './Contracts';
+import DeployContract from './DeployContract';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
@@ -36,6 +37,7 @@ export {
   Application,
   Contract,
   Contracts,
+  DeployContract,
   Dapp,
   Dapps,
   ParityBar,
