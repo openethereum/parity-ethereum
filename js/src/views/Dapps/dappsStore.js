@@ -170,13 +170,15 @@ export default class DappsStore {
             }
 
             return fetch(`${this._getHost()}/api/content/${app.manifestHash}/`)
-              .then((response) => response.ok ? response.json() : null);
+              .then((response) => response.ok ? response.json() : null)
+              .catch(() => null);
           }))
           .then((manifests) => {
             return apps.map((app, index) => {
               const manifest = manifests[index];
 
               if (manifest) {
+                app.manifestHash = null;
                 Object.keys(manifest)
                   .filter((key) => key !== 'id')
                   .forEach((key) => {
@@ -185,6 +187,11 @@ export default class DappsStore {
               }
 
               return app;
+            });
+          })
+          .then((apps) => {
+            return apps.filter((app) => {
+              return !app.manifestHash && app.id;
             });
           });
       })
