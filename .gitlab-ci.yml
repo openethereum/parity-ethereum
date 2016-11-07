@@ -10,7 +10,7 @@ variables:
   CARGOFLAGS: ""
   NIGHTLY: "nigtly"
 cache:
-  key: "$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
@@ -20,6 +20,7 @@ linux-stable:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -50,6 +51,7 @@ linux-stable-14.04:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -80,6 +82,7 @@ linux-beta:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -99,6 +102,7 @@ linux-nightly:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -118,6 +122,7 @@ linux-centos:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CXX="g++"
     - export CC="gcc"
@@ -135,6 +140,40 @@ linux-centos:
     paths:
     - target/release/parity
     name: "x86_64-unknown-centos-gnu_parity"
+linux-i686:   
+  stage: build   
+  image: ethcore/rust-i686:latest   
+  only:
+    - $NIGHTLY
+    - beta
+    - tags
+    - stable
+    - triggers
+  script:
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
+    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - strip target/i686-unknown-linux-gnu/release/parity
+    - md5sum target/i686-unknown-linux-gnu/release/parity >> parity.md5
+    - sh scripts/deb-build.sh i386
+    - cp target/i686-unknown-linux-gnu/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_i386.deb"
+    - md5sum "parity_"$VER"_i386.deb" >> "parity_"$VER"_i386.deb.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
+  tags:
+    - rust
+    - rust-i686
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/parity
+    name: "i686-unknown-linux-gnu"
+  allow_failure: true
 linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
@@ -143,6 +182,7 @@ linux-armv7:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
@@ -183,6 +223,7 @@ linux-arm:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
@@ -223,6 +264,7 @@ linux-armv6:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
@@ -256,6 +298,7 @@ linux-aarch64:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
@@ -295,6 +338,7 @@ darwin:
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
@@ -310,12 +354,16 @@ darwin:
     - target/release/parity
     name: "x86_64-apple-darwin_parity"
 windows:
+  cache:
+    key: "%CI_BUILD_STAGE%/%CI_BUILD_REF_NAME%"
+    untracked: true
   stage: build
   only:
     - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
@@ -365,6 +413,7 @@ test-darwin:
     - beta
     - tags
     - stable
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:
@@ -419,6 +468,7 @@ js-release:
     - beta
     - stable
     - tags
+    - triggers
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
