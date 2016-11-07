@@ -21,7 +21,8 @@ const isProd = ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
-  'babel-polyfill',
+  'babel-polyfill', 'browserify-aes',
+  'ethereumjs-util', 'ethereumjs-tx', 'scryptsy',
   'react', 'react-dom', 'react-redux', 'react-router',
   'redux', 'redux-thunk', 'react-router-redux',
   'lodash', 'material-ui', 'moment', 'blockies'

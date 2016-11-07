@@ -16,6 +16,8 @@
 
 import * as actions from './signerActions';
 
+import { Wallet } from '../../util/wallet';
+
 export default class SignerMiddleware {
   constructor (api) {
     this._api = api;
@@ -49,23 +51,56 @@ export default class SignerMiddleware {
   }
 
   onConfirmStart = (store, action) => {
-    const { id, password } = action.payload;
+    const { id, password, wallet, payload } = action.payload;
 
-    this._api.signer
-      .confirmRequest(id, {}, password)
-      .then((txHash) => {
-        console.log('confirmRequest', id, txHash);
-        if (!txHash) {
-          store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
-          return;
-        }
+    const handlePromise = promise => {
+      promise
+        .then((txHash) => {
+          console.log('confirmRequest', id, txHash);
+          if (!txHash) {
+            store.dispatch(actions.errorConfirmRequest({ id, err: 'Unable to confirm.' }));
+            return;
+          }
 
-        store.dispatch(actions.successConfirmRequest({ id, txHash }));
-      })
-      .catch((error) => {
-        console.error('confirmRequest', id, error);
-        store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
-      });
+          store.dispatch(actions.successConfirmRequest({ id, txHash }));
+        })
+        .catch((error) => {
+          console.error('confirmRequest', id, error);
+          store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
+        });
+    };
+
+    // Sign request in-browser
+    if (wallet && payload.transaction) {
+      const { transaction } = payload;
+      this._api.parity
+        .nextNonce(transaction.from)
+        .then(nonce => {
+          let txData = {
+            to: asHex(transaction.to),
+            nonce: asHex(transaction.nonce.isZero() ? nonce : transaction.nonce),
+            gasPrice: asHex(transaction.gasPrice),
+            gasLimit: asHex(transaction.gas),
+            value: asHex(transaction.value),
+            data: asHex(transaction.data)
+          };
+
+          try {
+            // NOTE: Derving the key takes significant amount of time,
+            // make sure to display some kind of "in-progress" state.
+            const signer = Wallet.fromJson(wallet, password);
+            const rawTx = signer.signTransaction(txData);
+
+            handlePromise(this._api.signer.confirmRequestRaw(id, rawTx));
+          } catch (error) {
+            console.error(error);
+            store.dispatch(actions.errorConfirmRequest({ id, err: error.message }));
+          }
+        });
+      return;
+    }
+
+    handlePromise(this._api.signer.confirmRequest(id, {}, password));
   }
 
   onRejectStart = (store, action) => {
@@ -81,4 +116,16 @@ export default class SignerMiddleware {
         store.dispatch(actions.errorRejectRequest({ id, err: error.message }));
       });
   }
+}
+
+function asHex (val) {
+  if (val[0] === '0' && val[1] === 'x') {
+    return val;
+  }
+
+  if (val.toString) {
+    return `0x${val.toString(16)}`;
+  }
+
+  return '0x';
 }

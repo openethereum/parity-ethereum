@@ -40,3 +40,7 @@
 .passwordHint span {
   opacity: 0.85;
 }
+
+.fileInput input {
+  top: 22px;
+}

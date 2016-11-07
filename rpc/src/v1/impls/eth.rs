@@ -20,6 +20,7 @@ extern crate ethash;
 
 use std::io::{Write};
 use std::process::{Command, Stdio};
+use std::collections::HashSet;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -341,8 +342,8 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
 		let addresses = try!(store.accounts_info().map_err(|e| errors::internal("Could not fetch accounts.", e)));
 
-		let set: HashSet<H160> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
-		Ok(set.into_iter().collect())
+		let set: HashSet<Address> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
+		Ok(set.into_iter().map(Into::into).collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
