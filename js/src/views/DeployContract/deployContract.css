@@ -74,3 +74,9 @@
     background-color: rgba(255, 235, 59, 0.5);
   }
 }
+
+.messagesHeader {
+  margin-bottom: 0.25em;
+  text-transform: uppercase;
+  font-size: 0.9em;
+}

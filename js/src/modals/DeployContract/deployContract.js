@@ -39,11 +39,13 @@ export default class DeployContract extends Component {
     onClose: PropTypes.func.isRequired,
     abi: PropTypes.string,
     code: PropTypes.string,
-    readOnly: PropTypes.bool
+    readOnly: PropTypes.bool,
+    source: PropTypes.string
   };
 
   static defaultProps = {
-    readOnly: false
+    readOnly: false,
+    source: ''
   };
 
   state = {
@@ -233,6 +235,7 @@ export default class DeployContract extends Component {
 
   onDeployStart = () => {
     const { api, store } = this.context;
+    const { source } = this.props;
     const { abiParsed, code, description, name, params, fromAddress } = this.state;
     const options = {
       data: code,
@@ -252,6 +255,7 @@ export default class DeployContract extends Component {
             contract: true,
             timestamp: Date.now(),
             deleted: false,
+            source,
             description
           })
         ])

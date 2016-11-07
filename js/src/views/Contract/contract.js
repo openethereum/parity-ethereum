@@ -118,7 +118,25 @@ class Contract extends Component {
           <Events
             isTest={ isTest }
             events={ allEvents } />
+
+          { this.renderSource(account) }
         </Page>
+      </div>
+    );
+  }
+
+  renderSource (contract) {
+    const { source = '' } = contract.meta;
+
+    if (!source) {
+      return null;
+    }
+
+    return (
+      <div>
+        <div className={ styles.source }>
+          { source }
+        </div>
       </div>
     );
   }

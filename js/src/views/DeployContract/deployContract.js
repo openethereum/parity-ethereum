@@ -111,7 +111,7 @@ class DeployContract extends Component {
   }
 
   renderDeployModal () {
-    const { showDeployModal, selectedContract, contracts } = this.state;
+    const { showDeployModal, selectedContract, contracts, sourceCode } = this.state;
 
     if (!showDeployModal) {
       return null;
@@ -123,6 +123,7 @@ class DeployContract extends Component {
       <ModalDeployContract
         abi={ contract.interface }
         code={ `0x${contract.bytecode}` }
+        source={ sourceCode }
         accounts={ this.props.accounts }
         onClose={ this.onCloseDeployModal }
         readOnly
@@ -232,7 +233,7 @@ class DeployContract extends Component {
 
     return (
       <div>
-        <h4>Compiler messages</h4>
+        <h4 className={ styles.messagesHeader }>Compiler messages</h4>
         { body }
       </div>
     );
