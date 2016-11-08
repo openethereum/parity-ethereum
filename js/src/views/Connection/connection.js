@@ -52,6 +52,8 @@ class Connection extends Component {
       return null;
     }
 
+    console.log('isOk', isConnected, isConnecting, isPingable);
+
     const typeIcon = isPingable
       ? <NotificationVpnLock className={ styles.svg } />
       : <ActionDashboard className={ styles.svg } />;
@@ -83,9 +85,8 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    const { api } = this.context;
     const { token, validToken } = this.state;
-    const { needsToken, isConnecting } = api;
+    const { isConnecting, needsToken } = this.props;
 
     if (needsToken && !isConnecting) {
       return (
