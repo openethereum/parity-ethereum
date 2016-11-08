@@ -16,67 +16,95 @@
 
 //! Tendermint message handling.
 
-use super::{Height, Round, BlockHash};
+use std::cmp::Ordering;
+use super::{Height, Round, BlockHash, Step};
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 
-#[derive(Debug)]
-pub enum ConsensusMessage {
-	Prevote(Height, Round, BlockHash),
-	Precommit(Height, Round, BlockHash),
-	Commit(Height, BlockHash),
+#[derive(Debug, PartialEq, Eq)]
+pub enum Step {
+	Prevote,
+	Precommit
 }
 
-/// (height, step, ...)
+#[derive(Debug, PartialEq, Eq)]
+pub struct ConsensusMessage {
+	signature: H520,
+	height: Height,
+	round: Round,
+	step: Step,
+	block_hash: BlockHash
+}
+
+impl PartialOrd for ConsensusMessage {
+	fn partial_cmp(&self, m: &ConsensusMessage) -> Option<Ordering> {
+		Some(self.cmp(m))
+	}
+}
+
+impl Ord for ConsensusMessage {
+	fn cmp(&self, m: &ConsensusMessage) -> Ordering {
+		if self.height != m.height {
+			self.height.cmp(&m.height)
+		} else if self.round != m.round {
+			self.round.cmp(&m.round)
+		} else if self.step != m.step {
+			match self.step {
+				Step::Prevote => Ordering::Less,
+				Step::Precommit => Ordering::Greater,
+			}
+		} else {
+			self.block_hash.cmp(&m.block_hash)
+		}
+	}
+}
+
+impl Decodable for Step {
+	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
+		match try!(decoder.as_rlp().as_val()) {
+			0u8 => Ok(Step::Prevote),
+			1 => Ok(Step::Precommit),
+			_ => Err(DecoderError::Custom("Unknown step.")),
+		}
+	}
+}
+
+
+impl Encodable for Step {
+	fn rlp_append(&self, s: &mut RlpStream) {
+		match *self {
+			Step::Prevote => s.append(&0u8),
+			Step::Precommit => s.append(&1u8),
+			_ => panic!("No encoding needed for other steps"),
+		};
+	}
+}
+
+/// (signature, height, round, step, block_hash)
 impl Decodable for ConsensusMessage {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
-		// Handle according to step.
 		let rlp = decoder.as_rlp();
 		if decoder.as_raw().len() != try!(rlp.payload_info()).total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		let height = try!(rlp.val_at(0));
-		Ok(match try!(rlp.val_at(1)) {
-			0u8 => ConsensusMessage::Prevote(
-				height,
-				try!(rlp.val_at(2)),
-				try!(rlp.val_at(3))
-			),
-			1 => ConsensusMessage::Precommit(
-				height,
-				try!(rlp.val_at(2)),
-				try!(rlp.val_at(3))
-			),
-			2 => ConsensusMessage::Commit(
-				height,
-				try!(rlp.val_at(2))),
-			_ => return Err(DecoderError::Custom("Unknown step.")),
+		let m = rlp.at(1);
+		Ok(ConsensusMessage {
+			signature: try!(rlp.val_at(0)),
+			height: try!(m.val_at(0)),
+			round: try!(m.val_at(1)),
+			step: try!(m.val_at(2)),
+			block_hash: try!(m.val_at(3))
 		})
     }
 }
 
 impl Encodable for ConsensusMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		match *self {
-			ConsensusMessage::Prevote(h, r, hash) => {
-				s.begin_list(4);
-				s.append(&h);
-				s.append(&0u8);
-				s.append(&r);
-				s.append(&hash);
-			},
-			ConsensusMessage::Precommit(h, r, hash) => {
-				s.begin_list(4);
-				s.append(&h);
-				s.append(&1u8);
-				s.append(&r);
-				s.append(&hash);
-			},
-			ConsensusMessage::Commit(h, hash) => {
-				s.begin_list(3);
-				s.append(&h);
-				s.append(&2u8);
-				s.append(&hash);
-			},
-		}
+		s.begin_list(2);
+		s.append(&self.signature);
+		s.begin_list(4);
+		s.append(&self.height);
+		s.append(&self.round);
+		s.append(&self.step);
+		s.append(&self.block_hash);
 	}
 }
