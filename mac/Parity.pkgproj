@@ -681,7 +681,7 @@
 						<key>VALUE</key>
 						<dict>
 							<key>PATH</key>
-							<string>../LICENCE</string>
+							<string>install-licence.txt</string>
 							<key>PATH_TYPE</key>
 							<integer>3</integer>
 						</dict>
