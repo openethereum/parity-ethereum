@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.16",
+  "version": "0.2.19",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -46,7 +46,7 @@
   "devDependencies": {
     "babel-cli": "^6.10.1",
     "babel-core": "^6.10.4",
-    "babel-eslint": "^6.1.2",
+    "babel-eslint": "^7.1.0",
     "babel-loader": "^6.2.3",
     "babel-plugin-lodash": "^3.2.2",
     "babel-plugin-transform-class-properties": "^6.11.5",
@@ -129,6 +129,9 @@
     "marked": "^0.3.6",
     "material-ui": "^0.16.1",
     "material-ui-chip-input": "^0.8.0",
+    "mobx": "^2.6.1",
+    "mobx-react": "^3.5.8",
+    "mobx-react-devtools": "^4.2.9",
     "moment": "^2.14.1",
     "qs": "^6.3.0",
     "react": "^15.2.1",
