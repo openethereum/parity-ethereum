@@ -15,14 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import FileIcon from 'material-ui/svg-icons/action/description';
 import { uniq } from 'lodash';
-import { Link } from 'react-router';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
-import { AddContract } from '../../modals';
+import { AddContract, DeployContract } from '../../modals';
 
 import List from '../Accounts/List';
 
@@ -42,6 +43,7 @@ class Contracts extends Component {
 
   state = {
     addContract: false,
+    deployContract: false,
     sortOrder: 'timestamp',
     searchValues: [],
     searchTokens: []
@@ -56,6 +58,7 @@ class Contracts extends Component {
         { this.renderActionbar() }
         { this.renderAddContract() }
         { this.renderAddContract() }
+        { this.renderDeployContract() }
         <Page>
           <List
             link='contract'
@@ -108,13 +111,18 @@ class Contracts extends Component {
         icon={ <ContentAdd /> }
         label='watch contract'
         onClick={ this.onAddContract } />,
-      <Link
+      <Button
         key='deployContract'
-        to='/deploy'
+        icon={ <ContentAdd /> }
+        label='deploy contract'
+        onClick={ this.onDeployContract } />,
+      <Link
+        to='/contracts/write'
+        key='writeContract'
       >
         <Button
-          icon={ <ContentAdd /> }
-          label='deploy contract'
+          icon={ <FileIcon /> }
+          label='write contract'
         />
       </Link>,
 
@@ -145,10 +153,33 @@ class Contracts extends Component {
     );
   }
 
+  renderDeployContract () {
+    const { accounts } = this.props;
+    const { deployContract } = this.state;
+
+    if (!deployContract) {
+      return null;
+    }
+
+    return (
+      <DeployContract
+        accounts={ accounts }
+        onClose={ this.onDeployContractClose } />
+    );
+  }
+
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
     this.setState({ searchTokens: newSearchTokens });
+  }
+
+  onDeployContractClose = () => {
+    this.setState({ deployContract: false });
+  }
+
+  onDeployContract = () => {
+    this.setState({ deployContract: true });
   }
 
   onAddContractClose = () => {

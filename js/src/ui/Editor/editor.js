@@ -41,6 +41,19 @@ export default class Editor extends Component {
     readOnly: false
   };
 
+  componentDidMount () {
+    window.setTimeout(() => this.resize(), 1000);
+  }
+
+  resize = (editor) => {
+    if (this.props.readOnly) {
+      return;
+    }
+
+    const editorInstance = editor || this.refs.brace.editor;
+    editorInstance.resize();
+  }
+
   render () {
     const { annotations, value, readOnly } = this.props;
     const commands = [
@@ -56,13 +69,17 @@ export default class Editor extends Component {
         mode='javascript'
         theme='solarized_dark'
         width='100%'
+        ref='brace'
+        style={ { flex: 1 } }
         onChange={ this.handleOnChange }
+        onLoad={ this.resize }
         name='PARITY_EDITOR'
-        editorProps={ { $blockScrolling: true } }
+        editorProps={ { $blockScrolling: Infinity } }
         setOptions={ {
           useWorker: false,
           fontFamily: 'monospace',
-          fontSize: '0.9em'
+          fontSize: '0.9em',
+          maxLines: Infinity
         } }
         showPrintMargin={ false }
         annotations={ annotations }

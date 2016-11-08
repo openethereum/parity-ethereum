@@ -19,13 +19,13 @@ import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 
 import { Actionbar, Button, Editor, Page, Select, Input } from '../../ui';
-import { DeployContract as ModalDeployContract } from '../../modals';
+import { DeployContract } from '../../modals';
 
-import styles from './deployContract.css';
+import styles from './writeContract.css';
 
 import CompilerWorker from 'worker-loader!./compilerWorker.js';
 
-class DeployContract extends Component {
+class WriteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired
@@ -46,12 +46,12 @@ class DeployContract extends Component {
     const { sourceCode, selectedContract, contractAnnotations, compiling } = this.state;
 
     return (
-      <div>
+      <div className={ styles.outer }>
         { this.renderDeployModal() }
         <Actionbar
           title='Write a Contract'
         />
-        <Page>
+        <Page className={ styles.page }>
           <div className={ styles.container }>
             <div className={ styles.editor }>
               <h2>Solidity Source Code</h2>
@@ -99,7 +99,7 @@ class DeployContract extends Component {
     const contract = contracts[Object.keys(contracts)[selectedContract]];
 
     return (
-      <ModalDeployContract
+      <DeployContract
         abi={ contract.interface }
         code={ `0x${contract.bytecode}` }
         source={ sourceCode }
@@ -309,4 +309,4 @@ function mapStateToProps (state) {
 
 export default connect(
   mapStateToProps
-)(DeployContract);
+)(WriteContract);

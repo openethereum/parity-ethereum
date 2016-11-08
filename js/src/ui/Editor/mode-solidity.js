@@ -19,7 +19,7 @@
  *
  * @see: https://raw.githubusercontent.com/ethereum/browser-solidity/master/src/mode-solidity.js
  */
-
+/* eslint-disable */
 var ace = window.ace;
 
 ace.define("ace/mode/doc_comment_highlight_rules",["require","exports","module","ace/lib/oop","ace/mode/text_highlight_rules"], function(acequire, exports, module) {
