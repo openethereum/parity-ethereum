@@ -35,6 +35,15 @@
   }
 }
 
+.centeredMessage {
+  width: 100%;
+  height: 75%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
 .editor {
   flex: 65%;
   width: 100%;

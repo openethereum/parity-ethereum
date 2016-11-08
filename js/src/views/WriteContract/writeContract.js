@@ -15,35 +15,28 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { PropTypes, Component } from 'react';
+import { observer } from 'mobx-react';
 import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
+import CircularProgress from 'material-ui/CircularProgress';
 
 import { Actionbar, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract } from '../../modals';
 
+import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';
 
-import CompilerWorker from 'worker-loader!./compilerWorker.js';
-
+@observer
 class WriteContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired
-  }
-
-  state = {
-    sourceCode: '',
-    worker: null,
-    compiled: false,
-    compiling: false,
-    contracts: {},
-    errors: [],
-    selectedContract: -1,
-    contractAnnotations: []
   };
 
+  store = new WriteContractStore();
+
   render () {
-    const { sourceCode, selectedContract, contractAnnotations, compiling } = this.state;
+    const { sourcecode, contract, annotations, compiling } = this.store;
 
     return (
       <div className={ styles.outer }>
@@ -56,10 +49,10 @@ class WriteContract extends Component {
             <div className={ styles.editor }>
               <h2>Solidity Source Code</h2>
               <Editor
-                onChange={ this.onEditSource }
-                onExecute={ this.compile }
-                annotations={ contractAnnotations }
-                value={ sourceCode }
+                onChange={ this.store.handleEditSourcecode }
+                onExecute={ this.store.handleCompile }
+                annotations={ annotations.slice() }
+                value={ sourcecode }
               />
             </div>
             <div className={ styles.parameters }>
@@ -67,15 +60,15 @@ class WriteContract extends Component {
               <div className={ styles.panel }>
                 <Button
                   label='Compile'
-                  onClick={ this.compile }
+                  onClick={ this.store.handleCompile }
                   primary={ false }
                   disabled={ compiling }
                 />
                 {
-                  selectedContract > -1
+                  contract
                   ? <Button
                     label='Deploy'
-                    onClick={ this.onShowDeployModal }
+                    onClick={ this.store.handleOpenDeployModal }
                     primary={ false }
                   />
                   : null
@@ -90,38 +83,41 @@ class WriteContract extends Component {
   }
 
   renderDeployModal () {
-    const { showDeployModal, selectedContract, contracts, sourceCode } = this.state;
+    const { showDeployModal, contract, sourcecode } = this.store;
 
     if (!showDeployModal) {
       return null;
     }
 
-    const contract = contracts[Object.keys(contracts)[selectedContract]];
-
     return (
       <DeployContract
         abi={ contract.interface }
         code={ `0x${contract.bytecode}` }
-        source={ sourceCode }
+        source={ sourcecode }
         accounts={ this.props.accounts }
-        onClose={ this.onCloseDeployModal }
+        onClose={ this.store.handleCloseDeployModal }
         readOnly
       />
     );
   }
 
   renderCompilation () {
-    const { compiled, contracts, compiling, selectedContract } = this.state;
+    const { compiled, contracts, compiling, contractIndex, contract } = this.store;
 
     if (compiling) {
       return (
-        <p>Compiling...</p>
+        <div className={ styles.centeredMessage }>
+          <CircularProgress size={ 80 } thickness={ 5 } />
+          <p>Compiling...</p>
+        </div>
       );
     }
 
     if (!compiled) {
       return (
-        <p>Please compile the source code.</p>
+        <div className={ styles.centeredMessage }>
+          <p>Please compile the source code.</p>
+        </div>
       );
     }
 
@@ -133,7 +129,9 @@ class WriteContract extends Component {
 
     if (contractKeys.length === 0) {
       return (
-        <p>No contract has been found.</p>
+        <div className={ styles.centeredMessage }>
+          <p>No contract has been found.</p>
+        </div>
       );
     }
 
@@ -147,18 +145,16 @@ class WriteContract extends Component {
       </MenuItem>
     ));
 
-    const selected = contracts[contractKeys[selectedContract]];
-
     return (
       <div>
         <Select
           label='Select a contract'
-          value={ selectedContract }
-          onChange={ this.onSelectContract }
+          value={ contractIndex }
+          onChange={ this.store.handleSelectContract }
         >
           { contractsList }
         </Select>
-        { this.renderContract(selected) }
+        { this.renderContract(contract) }
         { this.renderErrors() }
       </div>
     );
@@ -186,7 +182,7 @@ class WriteContract extends Component {
   }
 
   renderErrors () {
-    const { errors } = this.state;
+    const { errors } = this.store;
 
     const body = errors.map((error, index) => {
       const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/gi;
@@ -218,93 +214,11 @@ class WriteContract extends Component {
     );
   }
 
-  onShowDeployModal = () => {
-    this.setState({ showDeployModal: true });
-  }
-
-  onCloseDeployModal = () => {
-    this.setState({ showDeployModal: false });
-  }
-
-  onSelectContract = (_, index, value) => {
-    this.setState({ selectedContract: value });
-  }
-
-  onEditSource = (sourceCode) => {
-    this.setState({ sourceCode });
-  }
-
-  compile = () => {
-    this.setState({ compiling: true });
-
-    const { sourceCode } = this.state;
-    const worker = this.getWorker();
-
-    worker.postMessage(JSON.stringify({
-      action: 'compile',
-      data: sourceCode
-    }));
-
-    worker.onmessage = (event) => {
-      const message = JSON.parse(event.data);
-
-      switch (message.event) {
-        case 'compiled':
-          this.setCompiledCode(message.data);
-          break;
-      }
-    };
-  }
-
-  setCompiledCode = (data) => {
-    const { contracts, errors } = data;
-
-    const contractAnnotations = errors
-      .map((error, index) => {
-        const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/gi;
-        const match = regex.exec(error);
-
-        const row = parseInt(match[1]) - 1;
-        const column = parseInt(match[2]);
-
-        const type = match[3].toLowerCase();
-        const text = match[4];
-
-        return {
-          row, column,
-          type, text
-        };
-      });
-
-    this.setState({
-      compiled: true,
-      compiling: false,
-      selectedContract: contracts && Object.keys(contracts).length ? 0 : -1,
-      contracts, errors, contractAnnotations
-    });
-  }
-
-  getWorker = () => {
-    const { worker } = this.state;
-
-    if (worker) {
-      return worker;
-    }
-
-    const compiler = new CompilerWorker();
-    this.setState({ worker: compiler });
-
-    return compiler;
-  }
-
 }
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-
-  return {
-    accounts
-  };
+  return { accounts };
 }
 
 export default connect(
