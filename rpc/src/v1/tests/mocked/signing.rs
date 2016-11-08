@@ -16,6 +16,8 @@
 
 use std::str::FromStr;
 use std::sync::Arc;
+use rlp;
+
 use jsonrpc_core::{IoHandler, to_value, Success};
 use v1::impls::SigningQueueClient;
 use v1::traits::{EthSigning, ParitySigning, Parity};
@@ -24,7 +26,7 @@ use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, H256, H520};
+use util::{Address, FixedHash, Uint, U256, H256, H520, ToPretty};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -229,6 +231,53 @@ fn should_add_transaction_to_queue() {
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&RpcH256::from(H256::default()))));
+	assert!(async_result.on_result(move |res| {
+		assert_eq!(res, response.to_owned());
+	}));
+}
+
+#[test]
+fn should_add_sign_transaction_to_the_queue() {
+	// given
+	let tester = eth_signing();
+	let address = tester.accounts.new_account("test").unwrap();
+
+	assert_eq!(tester.signer.requests().len(), 0);
+
+	// when
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_signTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
+	let rlp = rlp::encode(&t);
+
+	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+
+	// then
+	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+	let async_result = tester.io.handle_request(&request).unwrap();
+	assert_eq!(tester.signer.requests().len(), 1);
+	// respond
+	tester.signer.request_confirmed(U256::from(1), Ok(to_value(Bytes(rlp.to_vec()))));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));

@@ -14,13 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use rlp;
 use util::{Address, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
+
 use ethkey::Signature;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::transaction::{Action, SignedTransaction, Transaction};
 use ethcore::account_provider::AccountProvider;
+
 use jsonrpc_core::{Error, Value, to_value};
 use v1::helpers::TransactionRequest;
 use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes};
@@ -60,7 +63,7 @@ pub fn decrypt(accounts: &AccountProvider, address: Address, password: Option<St
 		.map(to_value)
 }
 
-pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<RpcH256, Error>
+pub fn sign_no_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<SignedTransaction, Error>
 	where C: MiningBlockChainClient, M: MinerService {
 
 	let network_id = client.signing_network_id();
@@ -71,8 +74,16 @@ pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider
 		let signature = try!(signature(accounts, address, password, hash));
 		t.with_signature(signature, network_id)
 	};
+	Ok(signed_transaction)
+}
 
-	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", ::rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
+pub fn sign_and_dispatch<C, M>(client: &C, miner: &M, accounts: &AccountProvider, request: TransactionRequest, password: Option<String>) -> Result<RpcH256, Error>
+	where C: MiningBlockChainClient, M: MinerService {
+
+	let network_id = client.signing_network_id();
+	let signed_transaction = try!(sign_no_dispatch(client, miner, accounts, request, password));
+
+	trace!(target: "miner", "send_transaction: dispatching tx: {} for network ID {:?}", rlp::encode(&signed_transaction).to_vec().pretty(), network_id);
 	dispatch_transaction(&*client, &*miner, signed_transaction)
 }
 

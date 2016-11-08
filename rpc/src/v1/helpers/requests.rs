@@ -101,6 +101,8 @@ pub struct ConfirmationRequest {
 pub enum ConfirmationPayload {
 	/// Transaction
 	Transaction(FilledTransactionRequest),
+	/// Sign Transaction
+	SignTransaction(FilledTransactionRequest),
 	/// Sign request
 	Sign(Address, H256),
 	/// Decrypt request

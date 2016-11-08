@@ -62,6 +62,9 @@ pub enum ConfirmationPayload {
 	/// Transaction
 	#[serde(rename="transaction")]
 	Transaction(TransactionRequest),
+	/// Sign Transaction
+	#[serde(rename="transaction")]
+	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename="sign")]
 	Sign(SignRequest),
@@ -74,6 +77,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 	fn from(c: helpers::ConfirmationPayload) -> Self {
 		match c {
 			helpers::ConfirmationPayload::Transaction(t) => ConfirmationPayload::Transaction(t.into()),
+			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
 			helpers::ConfirmationPayload::Sign(address, hash) => ConfirmationPayload::Sign(SignRequest {
 				address: address.into(),
 				hash: hash.into(),

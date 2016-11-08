@@ -17,16 +17,17 @@
 //! Signing RPC implementation.
 
 use std::sync::{Arc, Weak};
+use transient_hashmap::TransientHashMap;
+use util::{U256, Address, H256, Mutex};
+use rlp;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
-use transient_hashmap::TransientHashMap;
-use util::{U256, Address, H256, Mutex};
 
 use jsonrpc_core::*;
 use v1::helpers::{errors, SigningQueue, ConfirmationPromise, ConfirmationResult, ConfirmationPayload, TransactionRequest as TRequest, FilledTransactionRequest as FilledRequest, SignerService};
-use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch, sign, decrypt};
+use v1::helpers::dispatch::{default_gas_price, sign_and_dispatch, sign, sign_no_dispatch, decrypt};
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, U256 as RpcU256, Bytes as RpcBytes};
 
@@ -122,6 +123,26 @@ impl<C, M> SigningQueueClient<C, M> where
 			)
 		})
 	}
+
+	fn sign_transaction(&self, params: Params) -> Result<DispatchResult, Error> {
+		from_params::<(TransactionRequest, )>(params).and_then(|(request, )| {
+			let request: TRequest = request.into();
+			let (client, miner) = (take_weak!(self.client), take_weak!(self.miner));
+			self.add_to_queue(
+				request.from,
+				|accounts| {
+					sign_no_dispatch(&*client, &*miner, accounts, request.clone(), None)
+						.map(|tx| rlp::encode(&tx).to_vec())
+						.map(RpcBytes)
+						.map(to_value)
+				},
+				|| {
+					let request = fill_optional_fields(request.clone(), &*client, &*miner);
+					ConfirmationPayload::SignTransaction(request)
+				}
+			)
+		})
+	}
 }
 
 impl<C: 'static, M: 'static> ParitySigning for SigningQueueClient<C, M> where
@@ -198,6 +219,11 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 
 	fn send_transaction(&self, params: Params, ready: Ready) {
 		let res = self.active().and_then(|_| self.dispatch_transaction(params));
+		self.handle_dispatch(res, ready);
+	}
+
+	fn sign_transaction(&self, params: Params, ready: Ready) {
+		let res = self.active().and_then(|_| self.sign_transaction(params));
 		self.handle_dispatch(res, ready);
 	}
 }

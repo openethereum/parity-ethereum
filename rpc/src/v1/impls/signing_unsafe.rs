@@ -17,6 +17,7 @@
 //! Unsafe Signing RPC implementation.
 
 use std::sync::{Arc, Weak};
+use rlp;
 
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
@@ -24,7 +25,7 @@ use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::*;
 use v1::helpers::errors;
-use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
+use v1::helpers::dispatch::{sign_and_dispatch, sign_no_dispatch, sign, decrypt};
 use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, Bytes as RpcBytes};
 
@@ -77,6 +78,17 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 			.and_then(|_| from_params::<(TransactionRequest, )>(params))
 			.and_then(|(request, )| {
 				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None).map(to_value)
+			}))
+	}
+
+	fn sign_transaction(&self, params: Params, ready: Ready) {
+		ready.ready(self.active()
+			.and_then(|_| from_params::<(TransactionRequest, )>(params))
+			.and_then(|(request, )| {
+				sign_no_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None)
+					.map(|tx| rlp::encode(&tx).to_vec())
+					.map(RpcBytes)
+					.map(to_value)
 			}))
 	}
 }

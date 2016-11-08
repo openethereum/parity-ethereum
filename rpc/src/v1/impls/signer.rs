@@ -17,14 +17,16 @@
 //! Transactions Confirmations rpc implementation
 
 use std::sync::{Arc, Weak};
+use rlp;
+
 use jsonrpc_core::*;
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
 use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, U256};
+use v1::types::{TransactionModification, ConfirmationRequest, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
+use v1::helpers::dispatch::{sign_no_dispatch, sign_and_dispatch, sign, decrypt};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -90,6 +92,16 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 						request.gas_price = gas_price.into();
 					}
 					sign_and_dispatch(&*client, &*miner, &*accounts, request.into(), Some(pass)).map(to_value)
+				},
+				ConfirmationPayload::SignTransaction(mut request) => {
+					// apply modification
+					if let Some(gas_price) = modification.gas_price {
+						request.gas_price = gas_price.into();
+					}
+					sign_no_dispatch(&*client, &*miner, &*accounts, request.into(), Some(pass))
+						.map(|tx| rlp::encode(&tx).to_vec())
+						.map(Bytes)
+						.map(to_value)
 				},
 				ConfirmationPayload::Sign(address, hash) => {
 					sign(&*accounts, address, Some(pass), hash)

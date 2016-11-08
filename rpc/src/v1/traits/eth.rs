@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc interface.
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
 
 use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
