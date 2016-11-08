@@ -27,6 +27,7 @@ export default class WriteContractStore {
 
   @observable compiled = false;
   @observable compiling = false;
+  @observable loading = false;
 
   @observable contractIndex = -1;
   @observable contract = null;
@@ -51,6 +52,9 @@ export default class WriteContractStore {
         case 'compiled':
           this.parseCompiled(message.data);
           break;
+        case 'loading':
+          this.parseLoading(message.data);
+          break;
       }
     };
 
@@ -65,6 +69,7 @@ export default class WriteContractStore {
       .then((r) => r.json())
       .then((data) => {
         const { builds, releases, latestRelease } = data;
+        let latestIndex = -1;
 
         this.builds = builds.reverse().map((build, index) => {
           if (releases[build.version] === build.path) {
@@ -72,17 +77,34 @@ export default class WriteContractStore {
 
             if (build.version === latestRelease) {
               build.latest = true;
-              this.selectedBuild = index;
+              this.loadSolidityVersion(build);
+              latestIndex = index;
             }
           }
 
           return build;
         });
+
+        this.selectedBuild = latestIndex;
       });
+  }
+
+  @action closeWorker = () => {
+    this.compiler.postMessage(JSON.stringify({
+      action: 'close'
+    }));
   }
 
   @action handleSelectBuild = (_, index, value) => {
     this.selectedBuild = value;
+    this.loadSolidityVersion(this.builds[value]);
+  }
+
+  @action loadSolidityVersion = (build) => {
+    this.compiler.postMessage(JSON.stringify({
+      action: 'load',
+      data: build
+    }));
   }
 
   @action handleOpenDeployModal = () => {
@@ -146,6 +168,10 @@ export default class WriteContractStore {
     this.contracts = contracts;
     this.errors = errors;
     this.annotations = annotations;
+  }
+
+  @action parseLoading = (isLoading) => {
+    this.loading = isLoading;
   }
 
   @action handleEditSourcecode = (value) => {

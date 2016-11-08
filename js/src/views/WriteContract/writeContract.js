@@ -35,8 +35,12 @@ class WriteContract extends Component {
 
   store = new WriteContractStore();
 
+  componentWillUnmount () {
+    this.store.closeWorker();
+  }
+
   render () {
-    const { sourcecode, contract, annotations, compiling } = this.store;
+    const { sourcecode, annotations } = this.store;
 
     return (
       <div className={ styles.outer }>
@@ -66,13 +70,26 @@ class WriteContract extends Component {
   }
 
   renderParameters () {
-    const { compiling, contract, selectedBuild } = this.store;
+    const { compiling, contract, selectedBuild, loading } = this.store;
 
     if (selectedBuild < 0) {
       return (
         <div className={ `${styles.panel} ${styles.centeredMessage}` }>
           <CircularProgress size={ 80 } thickness={ 5 } />
           <p>Loading...</p>
+        </div>
+      );
+    }
+
+    if (loading) {
+      const { longVersion } = this.store.builds[selectedBuild];
+
+      return (
+        <div className={ styles.panel }>
+          <div className={ styles.centeredMessage }>
+            <CircularProgress size={ 80 } thickness={ 5 } />
+            <p>Loading Solidity { longVersion }</p>
+          </div>
         </div>
       );
     }

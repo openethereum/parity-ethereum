@@ -26,13 +26,19 @@ onmessage = (event) => {
     case 'compile':
       compile(message.data);
       break;
+    case 'load':
+      load(message.data);
+      break;
+    case 'close':
+      close();
+      break;
   }
 };
 
 function compile (data) {
   const { sourcecode, build } = data;
 
-  fetchSolc(build.path)
+  fetchSolc(build)
     .then((compiler) => {
       const compiled = compiler.compile(sourcecode);
 
@@ -43,13 +49,36 @@ function compile (data) {
     });
 }
 
-function fetchSolc (path) {
+function load (build) {
+  postMessage(JSON.stringify({
+    event: 'loading',
+    data: true
+  }));
+
+  fetchSolc(build)
+    .then(() => {
+      postMessage(JSON.stringify({
+        event: 'loading',
+        data: false
+      }));
+    })
+    .catch(() => {
+      postMessage(JSON.stringify({
+        event: 'loading',
+        data: false
+      }));
+    });
+}
+
+function fetchSolc (build) {
+  const { path, longVersion } = build;
+
   if (self.solcVersions[path]) {
     return Promise.resolve(self.solcVersions[path]);
   }
 
   const URL = `https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/${path}`;
-  console.log(`fetching solc version ${path} at ${URL}`);
+  console.log(`[worker] fetching solc-bin ${longVersion} at ${URL}`);
 
   return fetch(URL)
     .then((r) => r.text())
@@ -57,8 +86,12 @@ function fetchSolc (path) {
       const solcCode = code.replace(/^var Module;/, 'var Module=self.__solcModule;');
       self.__solcModule = {};
 
+      console.log(`[worker] evaluating ${longVersion}`);
+
       // eslint-disable-next-line no-eval
       eval(solcCode);
+
+      console.log(`[worker] done evaluating ${longVersion}`);
 
       const compiler = solc(self.__solcModule);
       self.solcVersions[path] = compiler;
