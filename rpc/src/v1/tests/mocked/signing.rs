@@ -18,15 +18,15 @@ use std::str::FromStr;
 use std::sync::Arc;
 use rlp;
 
-use jsonrpc_core::{IoHandler, to_value, Success};
+use jsonrpc_core::{IoHandler, Success};
 use v1::impls::SigningQueueClient;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
-use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
+use v1::types::ConfirmationResponse;
 use v1::tests::helpers::TestMinerService;
 use v1::tests::mocked::parity;
 
-use util::{Address, FixedHash, Uint, U256, H256, H520, ToPretty};
+use util::{Address, FixedHash, Uint, U256, H256, ToPretty};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
@@ -90,7 +90,7 @@ fn should_add_sign_to_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&RpcH520::from(H520::default()))));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(0.into())));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
@@ -164,7 +164,7 @@ fn should_check_status_of_request_when_its_resolved() {
 		"id": 1
 	}"#;
 	tester.io.handle_request_sync(&request).expect("Sent");
-	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&"Hello World!")));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(1.into())));
 
 	// when
 	let request = r#"{
@@ -173,7 +173,7 @@ fn should_check_status_of_request_when_its_resolved() {
 		"params": ["0x1"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":"Hello World!","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001","id":1}"#;
 
 	// then
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
@@ -230,7 +230,7 @@ fn should_add_transaction_to_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(U256::from(1), Ok(to_value(&RpcH256::from(H256::default()))));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SendTransaction(0.into())));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
@@ -277,7 +277,7 @@ fn should_add_sign_transaction_to_the_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(U256::from(1), Ok(to_value(Bytes(rlp.to_vec()))));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(rlp.to_vec().into())));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
@@ -374,7 +374,7 @@ fn should_add_decryption_to_the_queue() {
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(U256::from(1), Ok(to_value(Bytes(vec![0x1, 0x2]))));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));
