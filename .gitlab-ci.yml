@@ -289,13 +289,19 @@ darwin:
     - tags
     - stable
   script:
+    - cargo build --release -p ethstore $CARGOFLAGS
     - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity >> parity.md5
+    - packagesbuild -v mac/Parity.pkgproj
+    - mv target/release/Parity\ Ethereum.pkg parity-1.4.0-osx-installer-EXPERIMENTAL.pkg
+    - md5sum parity-1.4.0-osx-installer-EXPERIMENTAL.pkg >> parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-1.4.0-osx-installer-EXPERIMENTAL.pkg --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5 --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5
   tags:
     - osx
   artifacts:
