@@ -488,7 +488,6 @@ js-release:
     - beta
     - stable
     - tags
-    - triggers
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
