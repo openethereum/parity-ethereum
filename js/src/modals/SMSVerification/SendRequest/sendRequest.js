@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
+import qs from 'querystring';
 
 import { Form, Input } from '../../../ui';
 import TxHash from '../../../ui/TxHash';
@@ -24,6 +25,21 @@ import { toWei } from '../../../api/util/wei';
 import { sha3 } from '../../../api/util/sha3';
 
 import styles from './sendRequest.css';
+
+const postToVerificationServer = (query) => {
+  query = qs.stringify(query);
+  return fetch('https://sms-verification.parity.io/?' + query, {
+    method: 'POST', mode: 'cors', cache: 'no-store'
+  })
+  .then((res) => {
+    return res.json().then((data) => {
+      if (res.ok) {
+        return data.message;
+      }
+      throw new Error(data.message || 'unknown error');
+    });
+  });
+};
 
 export default class SendRequest extends Component {
   static contextTypes = {
@@ -71,7 +87,11 @@ export default class SendRequest extends Component {
     }
 
     if (step === 'mined') {
-      return (<p>mined</p>);
+      return (<p>Requesting an SMS from the Parity server.</p>);
+    }
+
+    if (step === 'sms-sent') {
+      return (<p>The SMS has been sent to { this.props.data.number }</p>);
     }
 
     return null;
@@ -79,8 +99,8 @@ export default class SendRequest extends Component {
 
   send = () => {
     const { api } = this.context;
-    const { account, contract, onData, onError } = this.props;
-    // const { number } = this.props.data;
+    const { account, contract, onData, onError, onSuccess } = this.props;
+    const { number } = this.props.data;
 
     // TODO: redeploy SMSVerification.sol, it has a public fee prop now
     const fee = toWei(.01); // .01 Eth
@@ -125,6 +145,11 @@ export default class SendRequest extends Component {
       }))
       .then(() => {
         this.setState({ step: 'mined' });
+        return postToVerificationServer({ number, address: account });
+      })
+      .then(() => {
+        this.setState({ step: 'sms-sent' });
+        onSuccess();
       })
       .catch((err) => {
         console.error('failed to request sms verification', err);
