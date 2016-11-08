@@ -490,9 +490,9 @@ js-release:
     - tags
   image: ethcore/rust:stable
   before_script:
-    - ./js/scripts/install-deps.sh
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/install-deps.sh; fi
   script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/build.sh; fi
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/release.sh; fi
   tags:
     - javascript
