@@ -171,13 +171,22 @@ pub struct FlowParams {
 impl FlowParams {
 	/// Create new flow parameters from a request cost table,
 	/// buffer limit, and (minimum) rate of recharge.
-	pub fn new(costs: CostTable, limit: U256, recharge: U256) -> Self {
+	pub fn new(limit: U256, costs: CostTable, recharge: U256) -> Self {
 		FlowParams {
 			costs: costs,
 			limit: limit,
 			recharge: recharge,
 		}
 	}
+
+	/// Get a reference to the buffer limit.
+	pub fn limit(&self) -> &U256 { &self.limit }
+
+	/// Get a reference to the cost table.
+	pub fn cost_table(&self) -> &CostTable { &self.costs }
+
+	/// Get a reference to the recharge rate.
+	pub fn recharge_rate(&self) -> &U256 { &self.recharge }
 
 	/// Estimate the maximum cost of the request.
 	pub fn max_cost(&self, req: &Request) -> U256 {
@@ -253,7 +262,7 @@ mod tests {
 		use std::thread;
 		use std::time::Duration;
 
-		let flow_params = FlowParams::new(Default::default(), 100.into(), 20.into());
+		let flow_params = FlowParams::new(100.into(), Default::default(), 20.into());
 		let mut buffer =  flow_params.create_buffer();
 
 		assert!(buffer.deduct_cost(101.into()).is_err());

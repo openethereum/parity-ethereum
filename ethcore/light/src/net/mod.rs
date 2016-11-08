@@ -97,7 +97,7 @@ pub struct LightProtocol {
 	genesis_hash: H256,
 	mainnet: bool,
 	peers: RwLock<HashMap<PeerId, Peer>>,
-	pending_requests: RwLock<HashMap<usize, Requested>>,
+	pending_requests: RwLock<HashMap<usize, Request>>,
 	req_id: AtomicUsize,
 }
 
