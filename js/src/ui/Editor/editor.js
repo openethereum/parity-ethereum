@@ -41,15 +41,15 @@ export default class Editor extends Component {
     readOnly: false
   };
 
+  componentWillMount () {
+    this.name = `PARITY_EDITOR_${Math.round(Math.random() * 99999)}`;
+  }
+
   componentDidMount () {
     window.setTimeout(() => this.resize(), 1000);
   }
 
   resize = (editor) => {
-    if (this.props.readOnly) {
-      return;
-    }
-
     const editorInstance = editor || this.refs.brace.editor;
     editorInstance.resize();
   }
@@ -64,6 +64,8 @@ export default class Editor extends Component {
       }
     ];
 
+    const maxLines = readOnly ? value.split('\n').length : Infinity;
+
     return (
       <AceEditor
         mode='javascript'
@@ -72,14 +74,13 @@ export default class Editor extends Component {
         ref='brace'
         style={ { flex: 1 } }
         onChange={ this.handleOnChange }
-        onLoad={ this.resize }
-        name='PARITY_EDITOR'
+        name={ this.name }
         editorProps={ { $blockScrolling: Infinity } }
         setOptions={ {
           useWorker: false,
           fontFamily: 'monospace',
           fontSize: '0.9em',
-          maxLines: Infinity
+          maxLines
         } }
         showPrintMargin={ false }
         annotations={ annotations }

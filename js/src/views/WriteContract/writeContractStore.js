@@ -16,6 +16,7 @@
 
 import { action, observable } from 'mobx';
 import store from 'store';
+import { debounce } from 'lodash';
 
 const WRITE_CONTRACT_SAVED_KEY = 'WRITE_CONTRACT_SAVED';
 
@@ -25,7 +26,7 @@ export default class WriteContractStore {
 
   @observable compiled = false;
   @observable compiling = false;
-  @observable loading = false;
+  @observable loading = true;
 
   @observable contractIndex = -1;
   @observable contract = null;
@@ -44,6 +45,12 @@ export default class WriteContractStore {
     this.sourcecode = saveSourcecode || '';
 
     this.fetchSolidityVersions();
+
+    this.debouncedCompile = debounce(this.handleCompile, 1000);
+  }
+
+  @action setEditor (editor) {
+    this.editor = editor;
   }
 
   @action setCompiler (compiler) {
@@ -171,10 +178,16 @@ export default class WriteContractStore {
     this.contracts = contracts;
     this.errors = errors;
     this.annotations = annotations;
+
+    window.setTimeout(() => this.editor.resize(), 500);
   }
 
   @action parseLoading = (isLoading) => {
     this.loading = isLoading;
+
+    if (!isLoading) {
+      this.handleCompile();
+    }
   }
 
   @action handleEditSourcecode = (value, compile = false) => {
@@ -183,6 +196,8 @@ export default class WriteContractStore {
 
     if (compile) {
       this.handleCompile();
+    } else {
+      this.debouncedCompile();
     }
   }
 

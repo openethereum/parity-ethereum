@@ -49,6 +49,10 @@ class WriteContract extends Component {
     }
   }
 
+  componentDidMount () {
+    this.store.setEditor(this.refs.editor);
+  }
+
   componentWillReceiveProps (nextProps) {
     if (!this.props.worker && nextProps.worker) {
       this.store.setCompiler(nextProps.worker);
@@ -67,6 +71,7 @@ class WriteContract extends Component {
             <div className={ styles.editor }>
               <h2>Solidity Source Code</h2>
               <Editor
+                ref='editor'
                 onChange={ this.store.handleEditSourcecode }
                 onExecute={ this.store.handleCompile }
                 annotations={ annotations.slice() }
