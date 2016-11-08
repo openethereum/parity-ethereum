@@ -23,7 +23,7 @@ import TxHash from '../../../ui/TxHash';
 import { toWei } from '../../../api/util/wei';
 import { sha3 } from '../../../api/util/sha3';
 
-// import styles from './sendRequest.css';
+import styles from './sendRequest.css';
 
 export default class SendRequest extends Component {
   static contextTypes = {
@@ -65,11 +65,13 @@ export default class SendRequest extends Component {
 
     if (step === 'posted') {
       return (
-        <div>
-          <p>The transaction has been sent to the network.</p>
-          <TxHash hash={ this.props.data.txHash } />
-        </div>
-      );
+        <div className={ styles.centered }>
+          <TxHash hash={ this.props.data.txHash } maxConfirmations={ 3 } />
+        </div>);
+    }
+
+    if (step === 'mined') {
+      return (<p>mined</p>);
     }
 
     return null;
@@ -101,7 +103,28 @@ export default class SendRequest extends Component {
       .then((txHash) => {
         onData({ txHash: txHash });
         this.setState({ step: 'posted' });
-        // TODO: subscribe to `Requested`
+
+        return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
+          return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
+        });
+      })
+      .then((receipt) => new Promise((resolve, reject) => {
+        let subscription;
+        api.subscribe('eth_blockNumber', (err, block) => {
+          if (err) {
+            reject(err);
+          } else if (block.minus(2).gte(receipt.blockNumber)) {
+            api.unsubscribe(subscription);
+            resolve();
+          }
+        })
+        .then((_subscription) => {
+          subscription = _subscription;
+        })
+        .catch(reject);
+      }))
+      .then(() => {
+        this.setState({ step: 'mined' });
       })
       .catch((err) => {
         console.error('failed to request sms verification', err);
