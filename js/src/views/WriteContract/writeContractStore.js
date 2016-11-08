@@ -35,6 +35,9 @@ export default class WriteContractStore {
   @observable errors = [];
   @observable annotations = [];
 
+  @observable builds = [];
+  @observable selectedBuild = -1;
+
   @observable showDeployModal = false;
 
   constructor () {
@@ -53,6 +56,33 @@ export default class WriteContractStore {
 
     const saveSourcecode = store.get(WRITE_CONTRACT_SAVED_KEY);
     this.sourcecode = saveSourcecode || '';
+
+    this.fetchSolidityVersions();
+  }
+
+  fetchSolidityVersions () {
+    fetch('https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/list.json')
+      .then((r) => r.json())
+      .then((data) => {
+        const { builds, releases, latestRelease } = data;
+
+        this.builds = builds.reverse().map((build, index) => {
+          if (releases[build.version] === build.path) {
+            build.release = true;
+
+            if (build.version === latestRelease) {
+              build.latest = true;
+              this.selectedBuild = index;
+            }
+          }
+
+          return build;
+        });
+      });
+  }
+
+  @action handleSelectBuild = (_, index, value) => {
+    this.selectedBuild = value;
   }
 
   @action handleOpenDeployModal = () => {
@@ -72,9 +102,14 @@ export default class WriteContractStore {
     this.compiled = false;
     this.compiling = true;
 
+    const build = this.builds[this.selectedBuild];
+
     this.compiler.postMessage(JSON.stringify({
       action: 'compile',
-      data: this.sourcecode
+      data: {
+        sourcecode: this.sourcecode,
+        build: build
+      }
     }));
   }
 
@@ -82,8 +117,10 @@ export default class WriteContractStore {
     this.compiled = true;
     this.compiling = false;
 
-    const { contracts, errors } = data;
+    const { contracts } = data;
     const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/i;
+
+    const errors = data.errors || data.formal && data.formal.errors || [];
 
     const annotations = errors
       .map((error, index) => {

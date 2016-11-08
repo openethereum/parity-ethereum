@@ -29,10 +29,12 @@ onmessage = (event) => {
   }
 };
 
-function compile (sourceCode) {
-  fetchSolc('latest')
+function compile (data) {
+  const { sourcecode, build } = data;
+
+  fetchSolc(build.path)
     .then((compiler) => {
-      const compiled = compiler.compile(sourceCode);
+      const compiled = compiler.compile(sourcecode);
 
       postMessage(JSON.stringify({
         event: 'compiled',
@@ -41,13 +43,15 @@ function compile (sourceCode) {
     });
 }
 
-function fetchSolc (version) {
-  if (self.solcVersions[version]) {
-    return Promise.resolve(self.solcVersions[version]);
+function fetchSolc (path) {
+  if (self.solcVersions[path]) {
+    return Promise.resolve(self.solcVersions[path]);
   }
 
-  console.log('fetching solc version', version);
-  return fetch(`https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/soljson-${version}.js`)
+  const URL = `https://raw.githubusercontent.com/ethereum/solc-bin/gh-pages/bin/${path}`;
+  console.log(`fetching solc version ${path} at ${URL}`);
+
+  return fetch(URL)
     .then((r) => r.text())
     .then((code) => {
       const solcCode = code.replace(/^var Module;/, 'var Module=self.__solcModule;');
@@ -57,7 +61,7 @@ function fetchSolc (version) {
       eval(solcCode);
 
       const compiler = solc(self.__solcModule);
-      self.solcVersions[version] = compiler;
+      self.solcVersions[path] = compiler;
       return compiler;
     })
     .catch((e) => {

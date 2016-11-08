@@ -57,27 +57,75 @@ class WriteContract extends Component {
             </div>
             <div className={ styles.parameters }>
               <h2>Parameters</h2>
-              <div className={ styles.panel }>
-                <Button
-                  label='Compile'
-                  onClick={ this.store.handleCompile }
-                  primary={ false }
-                  disabled={ compiling }
-                />
-                {
-                  contract
-                  ? <Button
-                    label='Deploy'
-                    onClick={ this.store.handleOpenDeployModal }
-                    primary={ false }
-                  />
-                  : null
-                }
-                { this.renderCompilation() }
-              </div>
+              { this.renderParameters() }
             </div>
           </div>
         </Page>
+      </div>
+    );
+  }
+
+  renderParameters () {
+    const { compiling, contract, selectedBuild } = this.store;
+
+    if (selectedBuild < 0) {
+      return (
+        <div className={ `${styles.panel} ${styles.centeredMessage}` }>
+          <CircularProgress size={ 80 } thickness={ 5 } />
+          <p>Loading...</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={ styles.panel }>
+        <Button
+          label='Compile'
+          onClick={ this.store.handleCompile }
+          primary={ false }
+          disabled={ compiling }
+        />
+        {
+          contract
+          ? <Button
+            label='Deploy'
+            onClick={ this.store.handleOpenDeployModal }
+            primary={ false }
+          />
+          : null
+        }
+        { this.renderSolidityVersions() }
+        { this.renderCompilation() }
+      </div>
+    );
+  }
+
+  renderSolidityVersions () {
+    const { builds, selectedBuild } = this.store;
+
+    const buildsList = builds.map((build, index) => (
+      <MenuItem
+        key={ index }
+        value={ index }
+        label={ build.release ? build.version : build.longVersion }
+      >
+        {
+          build.release
+          ? (<span className={ styles.big }>{ build.version }</span>)
+          : build.longVersion
+        }
+      </MenuItem>
+    ));
+
+    return (
+      <div>
+        <Select
+          label='Select a Solidity version'
+          value={ selectedBuild }
+          onChange={ this.store.handleSelectBuild }
+        >
+          { buildsList }
+        </Select>
       </div>
     );
   }
