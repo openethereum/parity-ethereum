@@ -31,8 +31,13 @@ class TxHash extends Component {
   static propTypes = {
     hash: PropTypes.string.isRequired,
     isTest: PropTypes.bool,
-    summary: PropTypes.bool
+    summary: PropTypes.bool,
+    maxConfirmations: PropTypes.number
   }
+
+  static defaultProps = {
+    maxConfirmations: 10
+  };
 
   state = {
     blockNumber: new BigNumber(0),
@@ -79,6 +84,7 @@ class TxHash extends Component {
   }
 
   renderConfirmations () {
+    const { maxConfirmations } = this.props;
     const { blockNumber, transaction } = this.state;
 
     let txBlock = 'Pending';
@@ -89,14 +95,14 @@ class TxHash extends Component {
       const num = blockNumber.minus(transaction.blockNumber).plus(1);
       txBlock = `#${transaction.blockNumber.toFormat(0)}`;
       confirmations = num.toFormat(0);
-      value = num.gt(10) ? 10 : num.toNumber();
+      value = num.gt(maxConfirmations) ? maxConfirmations : num.toNumber();
     }
 
     return (
       <div className={ styles.confirm }>
         <LinearProgress
           className={ styles.progressbar }
-          min={ 0 } max={ 10 } value={ value }
+          min={ 0 } max={ maxConfirmations } value={ value }
           color='white'
           mode='determinate' />
         <div className={ styles.progressinfo }>
