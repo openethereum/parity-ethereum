@@ -33,6 +33,7 @@
 #define MAX_LOADSTRING 100
 #define IDM_EXIT 100
 #define IDM_OPEN 101
+#define IDM_AUTOSTART 102
 #define	WM_USER_SHELLICON WM_USER + 1
 
 HANDLE parityHandle = INVALID_HANDLE_VALUE;
@@ -49,12 +50,14 @@ LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 void KillParity();
 void OpenUI();
 bool ParityIsRunning();
+bool AutostartEnabled();
+void EnableAutostart(bool enable);
 
 bool GetParityExePath(TCHAR* dest, size_t destSize)
 {
 	if (!dest || MAX_PATH > destSize)
 		return false;
-	GetModuleFileName(NULL, dest, destSize);
+	GetModuleFileName(NULL, dest, (DWORD)destSize);
 	if (!PathRemoveFileSpec(dest))
 		return false;
 	return PathAppend(dest, _T("parity.exe")) == TRUE;
@@ -201,7 +204,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			HMENU hPopMenu = CreatePopupMenu();
 			InsertMenu(hPopMenu, 0xFFFFFFFF, MF_BYPOSITION | MF_STRING, IDM_OPEN, _T("Open"));
 			InsertMenu(hPopMenu, 0xFFFFFFFF, MF_SEPARATOR | MF_BYPOSITION, 0, nullptr);
+			InsertMenu(hPopMenu, 0xFFFFFFFF, MF_BYPOSITION | MF_STRING, IDM_AUTOSTART, _T("Start at Login"));
+			InsertMenu(hPopMenu, 0xFFFFFFFF, MF_SEPARATOR | MF_BYPOSITION, 0, nullptr);
 			InsertMenu(hPopMenu, 0xFFFFFFFF, MF_BYPOSITION | MF_STRING, IDM_EXIT, _T("Exit"));
+			bool autoStart = AutostartEnabled();
+			CheckMenuItem(hPopMenu, IDM_AUTOSTART, autoStart ? MF_CHECKED : autoStart);
 
 			SetForegroundWindow(hWnd);
 			TrackPopupMenu(hPopMenu, TPM_LEFTALIGN | TPM_LEFTBUTTON | TPM_BOTTOMALIGN, lpClickPoint.x, lpClickPoint.y, 0, hWnd, NULL);
@@ -220,6 +227,12 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 		case IDM_OPEN:
 			OpenUI();
+			break;
+		case IDM_AUTOSTART:
+			{
+				bool autoStart = AutostartEnabled();
+				EnableAutostart(!autoStart);
+			}
 			break;
 		default:
 			return DefWindowProc(hWnd, message, wParam, lParam);
@@ -276,3 +289,37 @@ void OpenUI()
 	LPWSTR cmd = _T("parity.exe ui");
 	CreateProcess(path, cmd, nullptr, nullptr, false, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &procInfo);
 }
+
+bool AutostartEnabled() {
+	HKEY hKey;
+	LONG lRes = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_READ, &hKey);
+	if (lRes != ERROR_SUCCESS)
+		return false;
+
+	WCHAR szBuffer[512];
+	DWORD dwBufferSize = sizeof(szBuffer);
+	ULONG nError;
+	nError = RegQueryValueExW(hKey, L"Parity", 0, nullptr, (LPBYTE)szBuffer, &dwBufferSize);
+	if (ERROR_SUCCESS != nError)
+		return false;
+	return true;
+}
+
+void EnableAutostart(bool enable) {
+	HKEY hKey;
+	LONG lRes = RegOpenKeyExW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Run", 0, KEY_WRITE, &hKey);
+	if (lRes != ERROR_SUCCESS)
+		return;
+
+	if (enable) {
+		TCHAR path[MAX_PATH] = { 0 };
+		if (!GetParityExePath(path, MAX_PATH))
+			return;
+		RegSetValueEx(hKey, L"Parity", 0, REG_SZ, (LPBYTE)path, MAX_PATH);
+	}
+	else
+	{
+		RegDeleteValue(hKey, L"Parity");
+	}
+}
+
