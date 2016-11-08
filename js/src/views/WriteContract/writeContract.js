@@ -20,7 +20,7 @@ import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import { Actionbar, Button, Editor, Page, Select, Input } from '../../ui';
+import { Actionbar, ActionbarExport, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract } from '../../modals';
 
 import WriteContractStore from './writeContractStore';
@@ -45,9 +45,7 @@ class WriteContract extends Component {
     return (
       <div className={ styles.outer }>
         { this.renderDeployModal() }
-        <Actionbar
-          title='Write a Contract'
-        />
+        { this.renderActionBar() }
         <Page className={ styles.page }>
           <div className={ styles.container }>
             <div className={ styles.editor }>
@@ -66,6 +64,24 @@ class WriteContract extends Component {
           </div>
         </Page>
       </div>
+    );
+  }
+
+  renderActionBar () {
+    const { sourcecode } = this.store;
+
+    const buttons = [
+      <ActionbarExport
+        key='exportSourcecode'
+        content={ sourcecode }
+        filename='contract.sol' />
+    ];
+
+    return (
+      <Actionbar
+        title='Write a Contract'
+        buttons={ buttons }
+      />
     );
   }
 
