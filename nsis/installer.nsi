@@ -85,7 +85,7 @@ section "install"
 	setOutPath $INSTDIR
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
-	file /oname=ptray.exe ..\windows\ptray\Release\ptray.exe
+	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
 	
 	file "logo.ico"
 	file vc_redist.x64.exe
