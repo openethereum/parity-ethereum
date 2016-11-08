@@ -83,9 +83,8 @@ class Connection extends Component {
   }
 
   renderSigner () {
-    const { api } = this.context;
     const { token, validToken } = this.state;
-    const { needsToken, isConnecting } = api;
+    const { isConnecting, needsToken } = this.props;
 
     if (needsToken && !isConnecting) {
       return (
