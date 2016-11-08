@@ -363,7 +363,7 @@ windows:
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
     - msbuild windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release
-    - signtool sign /f %keyfile% /p %certpass% windows\ptray\release\ptray.exe
+    - signtool sign /f %keyfile% /p %certpass% windows\ptray\x64\release\ptray.exe
     - cd nsis
     - makensis.exe installer.nsi
     - copy installer.exe InstallParity.exe
