@@ -551,7 +551,10 @@ impl Configuration {
 			apis: {
 				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
 				if self.args.flag_geth {
-					apis.push_str(",personal");
+					if !apis.is_empty() {
+ 						apis.push_str(",");
+ 					}
+					apis.push_str("personal");
 				}
 				try!(apis.parse())
 			},
