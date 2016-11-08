@@ -22,7 +22,7 @@ import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
 import { validateAddress, validateUint } from '../../util/validation';
 
 import ABI from '../../contracts/abi/sms-verification.json';
-const contract = '0x7B3F58965439b22ef1dA4BB78f16191d11ab80B0';
+const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
 
 import CheckIfCertified from './CheckIfCertified';
 import GatherData from './GatherData';
