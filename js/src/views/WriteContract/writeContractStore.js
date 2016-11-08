@@ -95,6 +95,10 @@ export default class WriteContractStore {
     }));
   }
 
+  @action handleImport = (sourcecode) => {
+    this.handleEditSourcecode(sourcecode, true);
+  }
+
   @action handleSelectBuild = (_, index, value) => {
     this.selectedBuild = value;
     this.loadSolidityVersion(this.builds[value]);
@@ -174,9 +178,13 @@ export default class WriteContractStore {
     this.loading = isLoading;
   }
 
-  @action handleEditSourcecode = (value) => {
+  @action handleEditSourcecode = (value, compile = false) => {
     this.sourcecode = value;
     store.set(WRITE_CONTRACT_SAVED_KEY, value);
+
+    if (compile) {
+      this.handleCompile();
+    }
   }
 
 }

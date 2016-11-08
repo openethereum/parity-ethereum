@@ -139,6 +139,7 @@
     "react-addons-css-transition-group": "^15.2.1",
     "react-chartjs-2": "^1.5.0",
     "react-dom": "^15.2.1",
+    "react-dropzone": "^3.7.3",
     "react-redux": "^4.4.5",
     "react-router": "^2.6.1",
     "react-router-redux": "^4.0.5",

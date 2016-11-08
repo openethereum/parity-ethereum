@@ -16,6 +16,7 @@
 
 import Actionbar from './Actionbar';
 import ActionbarExport from './Actionbar/Export';
+import ActionbarImport from './Actionbar/Import';
 import ActionbarSearch from './Actionbar/Search';
 import ActionbarSort from './Actionbar/Sort';
 import Badge from './Badge';
@@ -44,6 +45,7 @@ import TxHash from './TxHash';
 export {
   Actionbar,
   ActionbarExport,
+  ActionbarImport,
   ActionbarSearch,
   ActionbarSort,
   AddressSelect,

@@ -20,7 +20,7 @@ import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import { Actionbar, ActionbarExport, Button, Editor, Page, Select, Input } from '../../ui';
+import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract } from '../../modals';
 
 import WriteContractStore from './writeContractStore';
@@ -74,13 +74,29 @@ class WriteContract extends Component {
       <ActionbarExport
         key='exportSourcecode'
         content={ sourcecode }
-        filename='contract.sol' />
+        filename='contract.sol'
+      />,
+      <ActionbarImport
+        key='importSourcecode'
+        title='Import Solidity code'
+        onConfirm={ this.store.handleImport }
+        renderValidation={ this.renderImportValidation }
+      />
     ];
 
     return (
       <Actionbar
         title='Write a Contract'
         buttons={ buttons }
+      />
+    );
+  }
+
+  renderImportValidation = (content) => {
+    return (
+      <Editor
+        readOnly
+        value={ content }
       />
     );
   }
