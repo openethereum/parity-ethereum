@@ -60,21 +60,23 @@ class InputAddress extends Component {
           error={ error }
           value={ text && hasAccount ? account.name : value }
           onChange={ this.handleInputChange }
-          onSubmit={ onSubmit } />
+          onSubmit={ onSubmit }
+          allowCopy={ disabled ? value : false }
+        />
         { icon }
       </div>
     );
   }
 
   renderIcon () {
-    const { value } = this.props;
+    const { value, disabled } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
     }
 
     return (
-      <div className={ styles.icon }>
+      <div className={ disabled ? styles.iconDisabled : styles.icon }>
         <IdentityIcon
           inline center
           address={ value } />

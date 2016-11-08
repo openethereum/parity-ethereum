@@ -279,7 +279,7 @@ export default class Send extends Component {
       .then((signerRequestId) => {
         this.setState({ signerRequestId, sendState: 'Transaction posted, Waiting for transaction authorization' });
 
-        return api.pollMethod('eth_checkRequest', signerRequestId);
+        return api.pollMethod('parity_checkRequest', signerRequestId);
       })
       .then((txHash) => {
         this.setState({ txHash, sendState: 'Transaction authorized, Waiting for network confirmations' });

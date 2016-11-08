@@ -15,13 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
+use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_logger::{Config as LogConfig, setup_log};
 use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, U256};
+use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
+use ethcore_logger::{Config as LogConfig};
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
@@ -36,7 +37,7 @@ use dapps::WebappServer;
 use io_handler::ClientIoHandler;
 use params::{
 	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
-	tracing_switch_to_bool, fatdb_switch_to_bool,
+	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
 };
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
@@ -69,20 +70,19 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<U256>,
+	pub network_id: Option<usize>,
 	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
-	pub mode: Mode,
+	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
-	pub enable_network: bool,
 	pub geth_compatibility: bool,
-	pub signer_port: Option<u16>,
+	pub ui_port: Option<u16>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
@@ -93,12 +93,18 @@ pub struct RunCmd {
 	pub check_seal: bool,
 }
 
-pub fn execute(cmd: RunCmd) -> Result<(), String> {
+pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+	if cmd.ui && cmd.dapps_conf.enabled {
+		// Check if Parity is already running
+		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
+		if !TcpListener::bind(&addr as &str).is_ok() {
+			url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+			return Ok(());
+		}
+	}
+
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
-
-	// set up logger
-	let logger = try!(setup_log(&cmd.logger_config));
 
 	// increase max number of open files
 	raise_fd_limit();
@@ -130,6 +136,11 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// check if fatdb is on
 	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
+	// get the mode
+	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
+	trace!(target: "mode", "mode is {:?}", mode);
+	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
+
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
@@ -155,6 +166,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			false => "".to_owned(),
 		}
 	);
+	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -189,7 +201,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		cmd.mode,
+		mode,
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -241,7 +253,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	service.add_notify(chain_notify.clone());
 
 	// start network
-	if cmd.enable_network {
+	if network_enabled {
 		chain_notify.start();
 	}
 
@@ -250,7 +262,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.signer_port)),
+		}, cmd.ui_port)),
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -314,6 +326,19 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	});
 	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
+	let on_mode_change = move |mode: &Mode| {
+		user_defaults.mode = mode.clone();
+		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
+	};
+
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(on_mode_change);
+
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
@@ -339,11 +364,6 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		}
 		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
 	}
-
-	// save user defaults
-	user_defaults.pruning = algorithm;
-	user_defaults.tracing = tracing;
-	try!(user_defaults.save(&user_defaults_path));
 
 	// Handle exit
 	wait_for_exit(panic_handler, http_server, ipc_server, dapps_server, signer_server);

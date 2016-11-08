@@ -141,10 +141,11 @@ export default class AddContract extends Component {
     const { abiParsed, address, name, description } = this.state;
 
     Promise.all([
-      api.personal.setAccountName(address, name),
-      api.personal.setAccountMeta(address, {
+      api.parity.setAccountName(address, name),
+      api.parity.setAccountMeta(address, {
         contract: true,
         deleted: false,
+        timestamp: Date.now(),
         abi: abiParsed,
         description
       })

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use page::handler;
+use page::{handler, PageCache};
 use std::sync::Arc;
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 use parity_dapps::{WebApp, File, Info};
@@ -80,6 +80,7 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			prefix: self.prefix.clone(),
 			path: path,
 			file: handler::ServedFile::new(self.safe_to_embed_at_port.clone()),
+			cache: PageCache::Disabled,
 			safe_to_embed_at_port: self.safe_to_embed_at_port.clone(),
 		})
 	}

@@ -82,6 +82,10 @@
 .capture {
 }
 
+.capture+.capture {
+  margin-top: 0.5em;
+}
+
 .capture * {
   display: inline-block;
   padding: 0.75em;
@@ -123,4 +127,21 @@
 
 .hashOk {
   opacity: 0.5;
+}
+
+.typeButtons {
+  text-align: center;
+  padding: 0 0 1em 0;
+}
+
+.typeButtons>div {
+  border-radius: 0 !important;
+
+  &:first-child {
+    border-radius: 5px 0 0 5px !important;
+  }
+
+  &:last-child {
+    border-radius: 0 5px 5px 0 !important;
+  }
 }

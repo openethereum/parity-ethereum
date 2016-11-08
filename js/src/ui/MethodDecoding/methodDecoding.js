@@ -19,11 +19,10 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import Contracts from '../../contracts';
 import IdentityIcon from '../IdentityIcon';
 import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
-
-import { fetchBytecode, fetchMethod } from '../../redux/providers/blockchainActions';
 
 import styles from './methodDecoding.css';
 
@@ -41,12 +40,7 @@ class MethodDecoding extends Component {
     address: PropTypes.string.isRequired,
     tokens: PropTypes.object,
     transaction: PropTypes.object,
-    historic: PropTypes.bool,
-
-    fetchBytecode: PropTypes.func,
-    fetchMethod: PropTypes.func,
-    bytecodes: PropTypes.object,
-    methods: PropTypes.object
+    historic: PropTypes.bool
   }
 
   state = {
@@ -63,58 +57,7 @@ class MethodDecoding extends Component {
   }
 
   componentWillMount () {
-    const { transaction } = this.props;
-    this.lookup(transaction);
-  }
-
-  componentDidMount () {
-    this.setMethod(this.props);
-  }
-
-  componentWillReceiveProps (newProps) {
-    const { transaction } = this.props;
-    this.setMethod(newProps);
-
-    if (newProps.transaction.hash !== transaction.hash) {
-      this.lookup(transaction);
-      return;
-    }
-  }
-
-  setMethod (props) {
-    const { bytecodes, methods } = props;
-    const { contractAddress, methodSignature, methodParams } = this.state;
-
-    if (contractAddress && bytecodes[contractAddress]) {
-      const bytecode = bytecodes[contractAddress];
-
-      if (bytecode && bytecode !== '0x') {
-        this.setState({ isContract: true });
-      }
-    }
-
-    if (methodSignature && methods[methodSignature]) {
-      const method = methods[methodSignature];
-      const { api } = this.context;
-
-      let methodInputs = null;
-      let methodName = null;
-
-      if (method && method.length) {
-        const abi = api.util.methodToAbi(method);
-
-        methodName = abi.name;
-        methodInputs = api.util
-          .decodeMethodInput(abi, methodParams)
-          .map((value, index) => {
-            const type = abi.inputs[index].type;
-
-            return { type, value };
-          });
-      }
-
-      this.setState({ method, methodName, methodInputs });
-    }
+    this.lookup();
   }
 
   render () {
@@ -268,7 +211,8 @@ class MethodDecoding extends Component {
         default:
           return (
             <Input
-              disabled
+              readOnly
+              allowCopy
               key={ index }
               className={ styles.input }
               value={ this.renderValue(input.value) }
@@ -320,7 +264,9 @@ class MethodDecoding extends Component {
     );
   }
 
-  lookup (transaction) {
+  lookup () {
+    const { transaction } = this.props;
+
     if (!transaction) {
       return;
     }
@@ -346,26 +292,51 @@ class MethodDecoding extends Component {
       return;
     }
 
-    const { fetchBytecode, fetchMethod } = this.props;
+    Promise
+      .all([
+        api.eth.getCode(contractAddress),
+        Contracts.get().signatureReg.lookup(signature)
+      ])
+      .then(([bytecode, method]) => {
+        let methodInputs = null;
+        let methodName = null;
 
-    fetchBytecode(contractAddress);
-    fetchMethod(signature);
+        if (method && method.length) {
+          const { methodParams } = this.state;
+          const abi = api.util.methodToAbi(method);
+
+          methodName = abi.name;
+          methodInputs = api.util
+            .decodeMethodInput(abi, methodParams)
+            .map((value, index) => {
+              const type = abi.inputs[index].type;
+
+              return { type, value };
+            });
+        }
+
+        this.setState({
+          method,
+          methodName,
+          methodInputs,
+          bytecode,
+          isContract: bytecode && bytecode !== '0x'
+        });
+      })
+      .catch((error) => {
+        console.warn('lookup', error);
+      });
   }
 }
 
 function mapStateToProps (state) {
   const { tokens } = state.balances;
-  const { bytecodes, methods } = state.blockchain;
 
-  return {
-    tokens, bytecodes, methods
-  };
+  return { tokens };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBytecode, fetchMethod
-  }, dispatch);
+  return bindActionCreators({}, dispatch);
 }
 
 export default connect(

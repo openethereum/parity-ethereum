@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use tests::helpers::{serve, request, assert_security_headers};
+use tests::helpers::{serve, request, assert_security_headers, assert_security_headers_for_embed};
 
 #[test]
 fn should_redirect_to_home() {
@@ -93,7 +93,7 @@ fn should_display_404_on_invalid_dapp() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert_security_headers(&response.headers);
+	assert_security_headers_for_embed(&response.headers);
 }
 
 #[test]
@@ -113,7 +113,7 @@ fn should_display_404_on_invalid_dapp_with_domain() {
 
 	// then
 	assert_eq!(response.status, "HTTP/1.1 404 Not Found".to_owned());
-	assert_security_headers(&response.headers);
+	assert_security_headers_for_embed(&response.headers);
 }
 
 #[test]

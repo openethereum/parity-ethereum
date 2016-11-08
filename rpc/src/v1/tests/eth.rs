@@ -33,7 +33,7 @@ use util::{U256, H256, Uint, Address};
 use jsonrpc_core::IoHandler;
 use ethjson::blockchain::BlockChain;
 
-use v1::impls::{EthClient, EthSigningUnsafeClient};
+use v1::impls::{EthClient, SigningUnsafeClient};
 use v1::types::U256 as NU256;
 use v1::traits::eth::Eth;
 use v1::traits::eth_signing::EthSigning;
@@ -45,7 +45,7 @@ fn account_provider() -> Arc<AccountProvider> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: U256::from(3),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }
@@ -140,7 +140,7 @@ impl EthTester {
 			&external_miner,
 			Default::default(),
 		);
-		let eth_sign = EthSigningUnsafeClient::new(
+		let eth_sign = SigningUnsafeClient::new(
 			&client,
 			&account_provider,
 			&miner_service

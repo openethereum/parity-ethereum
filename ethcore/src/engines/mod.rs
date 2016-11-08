@@ -47,7 +47,7 @@ pub trait Engine : Sync + Send {
 	fn seal_fields(&self) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
+	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
@@ -107,6 +107,9 @@ pub trait Engine : Sync + Send {
 	fn verify_transaction_basic(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 	/// Verify a particular transaction is valid.
 	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
+
+	/// The network ID that transactions should be signed with.
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u8> { None }
 
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer

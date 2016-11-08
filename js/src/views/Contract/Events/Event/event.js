@@ -17,27 +17,24 @@
 import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
-import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
-import { fetchBlock, fetchTransaction } from '../../../../redux/providers/blockchainActions';
 import { IdentityIcon, IdentityName, Input, InputAddress } from '../../../../ui';
 import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';
 
-class Event extends Component {
+export default class Event extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     event: PropTypes.object.isRequired,
-    blocks: PropTypes.object,
-    transactions: PropTypes.object,
-    isTest: PropTypes.bool,
-    fetchBlock: PropTypes.func.isRequired,
-    fetchTransaction: PropTypes.func.isRequired
+    isTest: PropTypes.bool
+  }
+
+  state = {
+    transaction: {}
   }
 
   componentDidMount () {
@@ -45,10 +42,9 @@ class Event extends Component {
   }
 
   render () {
-    const { event, blocks, transactions, isTest } = this.props;
+    const { event, isTest } = this.props;
+    const { block, transaction } = this.state;
 
-    const block = blocks[event.blockNumber.toString()];
-    const transaction = transactions[event.transactionHash] || {};
     const classes = `${styles.event} ${styles[event.state]}`;
     const url = txLink(event.transactionHash, isTest);
     const keys = Object.keys(event.params).join(', ');
@@ -129,10 +125,12 @@ class Event extends Component {
 
         return (
           <Input
-            disabled
+            readOnly
+            allowCopy
             className={ styles.input }
             value={ value }
-            label={ name } />
+            label={ name }
+          />
         );
     }
   }
@@ -154,31 +152,19 @@ class Event extends Component {
   }
 
   retrieveTransaction () {
-    const { event, fetchBlock, fetchTransaction } = this.props;
+    const { api } = this.context;
+    const { event } = this.props;
 
-    fetchBlock(event.blockNumber);
-    fetchTransaction(event.transactionHash);
+    Promise
+      .all([
+        api.eth.getBlockByNumber(event.blockNumber),
+        api.eth.getTransactionByHash(event.transactionHash)
+      ])
+      .then(([block, transaction]) => {
+        this.setState({ block, transaction });
+      })
+      .catch((error) => {
+        console.warn('retrieveTransaction', error);
+      });
   }
 }
-
-function mapStateToProps (state) {
-  const { isTest } = state.nodeStatus;
-  const { blocks, transactions } = state.blockchain;
-
-  return {
-    isTest,
-    blocks,
-    transactions
-  };
-}
-
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({
-    fetchBlock, fetchTransaction
-  }, dispatch);
-}
-
-export default connect(
-  mapStateToProps,
-  mapDispatchToProps
-)(Event);

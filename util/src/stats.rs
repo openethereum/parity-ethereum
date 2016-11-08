@@ -28,13 +28,17 @@ pub struct Histogram {
 }
 
 impl Histogram {
-	/// Histogram if a sorted corpus is at least fills the buckets.
+	/// Histogram of a sorted corpus if it at least spans the buckets. Bounds are left closed.
 	pub fn new(corpus: &[U256], bucket_number: usize) -> Option<Histogram> {
-		if corpus.len() < bucket_number { return None; }
-		let corpus_end = corpus.last().expect("there are at least bucket_number elements; qed").clone();
-		// If there are extremely few transactions, go from zero.
-		let corpus_start = corpus.first().expect("there are at least bucket_number elements; qed").clone();
-		let bucket_size = (corpus_end - corpus_start + 1.into()) / bucket_number.into();
+		if corpus.len() < 1 { return None; }
+		let corpus_end = corpus.last().expect("there is at least 1 element; qed").clone();
+		let corpus_start = corpus.first().expect("there is at least 1 element; qed").clone();
+		// Bucket needs to be at least 1 wide.
+		let bucket_size = {
+			// Round up to get the entire corpus included.
+			let raw_bucket_size = (corpus_end - corpus_start + bucket_number.into()) / bucket_number.into();
+			if raw_bucket_size == 0.into() { 1.into() } else { raw_bucket_size }
+		};
 		let mut bucket_end = corpus_start + bucket_size;
 
 		let mut bucket_bounds = vec![corpus_start; bucket_number + 1];
@@ -42,10 +46,12 @@ impl Histogram {
 		let mut corpus_i = 0;
 		// Go through the corpus adding to buckets.
 		for bucket in 0..bucket_number {
-			while corpus[corpus_i] < bucket_end {
+			while corpus.get(corpus_i).map_or(false, |v| v < &bucket_end) {
+				// Initialized to size bucket_number above; iterates up to bucket_number; qed
 				counts[bucket] += 1;
 				corpus_i += 1;
 			}
+			// Initialized to size bucket_number + 1 above; iterates up to bucket_number; subscript is in range; qed
 			bucket_bounds[bucket + 1] = bucket_end;
 			bucket_end = bucket_end + bucket_size;
 		}
@@ -62,9 +68,36 @@ mod tests {
 	#[test]
 	fn check_histogram() {
 		let hist = Histogram::new(&vec_into![643,689,1408,2000,2296,2512,4250,4320,4842,4958,5804,6065,6098,6354,7002,7145,7845,8589,8593,8895], 5).unwrap();
-		let correct_bounds: Vec<U256> = vec_into![643,2293,3943,5593,7243,8893];
-		assert_eq!(Histogram { bucket_bounds: correct_bounds, counts: vec![4,2,4,6,3] }, hist);
+		let correct_bounds: Vec<U256> = vec_into![643, 2294, 3945, 5596, 7247, 8898];
+		assert_eq!(Histogram { bucket_bounds: correct_bounds, counts: vec![4,2,4,6,4] }, hist);
+	}
 
-		assert!(Histogram::new(&vec_into![1, 2], 5).is_none());
+	#[test]
+	fn smaller_data_range_than_bucket_range() {
+		assert_eq!(
+			Histogram::new(&vec_into![1, 2, 2], 3),
+			Some(Histogram { bucket_bounds: vec_into![1, 2, 3, 4], counts: vec![1, 2, 0] })
+		);
+	}
+
+	#[test]
+	fn data_range_is_not_multiple_of_bucket_range() {
+		assert_eq!(
+			Histogram::new(&vec_into![1, 2, 5], 2),
+			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
+		);
+	}
+
+	#[test]
+	fn data_range_is_multiple_of_bucket_range() {
+		assert_eq!(
+			Histogram::new(&vec_into![1, 2, 6], 2),
+			Some(Histogram { bucket_bounds: vec_into![1, 4, 7], counts: vec![2, 1] })
+		);
+	}
+
+	#[test]
+	fn none_when_too_few_data() {
+		assert!(Histogram::new(&vec_into![], 1).is_none());
 	}
 }

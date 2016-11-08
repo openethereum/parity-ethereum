@@ -22,14 +22,14 @@ use std::sync::{mpsc, Arc};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Instant, Duration};
 use util::Mutex;
+use url::Url;
 use fetch::{Client, Fetch, FetchResult};
 
 use hyper::{server, Decoder, Encoder, Next, Method, Control};
 use hyper::net::HttpStream;
 use hyper::status::StatusCode;
 
-use handlers::{ContentHandler, Redirection};
-use apps::redirection_address;
+use handlers::{ContentHandler, Redirection, extract_url};
 use page::LocalPageEndpoint;
 
 const FETCH_TIMEOUT: u64 = 30;
@@ -136,8 +136,9 @@ pub struct ContentFetcherHandler<H: ContentValidator> {
 	control: Option<Control>,
 	status: FetchState,
 	client: Option<Client>,
-	using_dapps_domains: bool,
 	installer: H,
+	request_url: Option<Url>,
+	embeddable_at: Option<u16>,
 }
 
 impl<H: ContentValidator> Drop for ContentFetcherHandler<H> {
@@ -155,8 +156,9 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 	pub fn new(
 		url: String,
 		control: Control,
-		using_dapps_domains: bool,
-		handler: H) -> (Self, Arc<FetchControl>) {
+		handler: H,
+		embeddable_at: Option<u16>,
+	) -> (Self, Arc<FetchControl>) {
 
 		let fetch_control = Arc::new(FetchControl::default());
 		let client = Client::default();
@@ -165,8 +167,9 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 			control: Some(control),
 			client: Some(client),
 			status: FetchState::NotStarted(url),
-			using_dapps_domains: using_dapps_domains,
 			installer: handler,
+			request_url: None,
+			embeddable_at: embeddable_at,
 		};
 
 		(handler, fetch_control)
@@ -189,6 +192,7 @@ impl<H: ContentValidator> ContentFetcherHandler<H> {
 
 impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<H> {
 	fn on_request(&mut self, request: server::Request<HttpStream>) -> Next {
+		self.request_url = extract_url(&request);
 		let status = if let FetchState::NotStarted(ref url) = self.status {
 			Some(match *request.method() {
 				// Start fetching content
@@ -204,6 +208,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							"Unable To Start Dapp Download",
 							"Could not initialize download of the dapp. It might be a problem with the remote server.",
 							Some(&format!("{}", e)),
+							self.embeddable_at,
 						)),
 					}
 				},
@@ -213,6 +218,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 					"Method Not Allowed",
 					"Only <code>GET</code> requests are allowed.",
 					None,
+					self.embeddable_at,
 				)),
 			})
 		} else { None };
@@ -234,7 +240,8 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 					StatusCode::GatewayTimeout,
 					"Download Timeout",
 					&format!("Could not fetch content within {} seconds.", FETCH_TIMEOUT),
-					None
+					None,
+					self.embeddable_at,
 				);
 				Self::close_client(&mut self.client);
 				(Some(FetchState::Error(timeout)), Next::write())
@@ -255,12 +262,15 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 									StatusCode::BadGateway,
 									"Invalid Dapp",
 									"Downloaded bundle does not contain a valid content.",
-									Some(&format!("{:?}", e))
+									Some(&format!("{:?}", e)),
+									self.embeddable_at,
 								))
 							},
 							Ok((id, result)) => {
-								let address = redirection_address(self.using_dapps_domains, &id);
-								FetchState::Done(id, result, Redirection::new(&address))
+								let url: String = self.request_url.take()
+									.map(|url| url.raw.into_string())
+									.expect("Request URL always read in on_request; qed");
+								FetchState::Done(id, result, Redirection::new(&url))
 							},
 						};
 						// Remove temporary zip file
@@ -274,6 +284,7 @@ impl<H: ContentValidator> server::Handler<HttpStream> for ContentFetcherHandler<
 							"Download Error",
 							"There was an error when fetching the content.",
 							Some(&format!("{:?}", e)),
+							self.embeddable_at,
 						);
 						(Some(FetchState::Error(error)), Next::write())
 					},

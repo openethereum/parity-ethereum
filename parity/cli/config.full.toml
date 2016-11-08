@@ -1,5 +1,5 @@
 [parity]
-mode = "active"
+mode = "last"
 mode_timeout = 300
 mode_alarm = 3600
 chain = "homestead"
@@ -12,7 +12,7 @@ unlock = ["0xdeadbeefcafe0000000000000000000000000000"]
 password = ["~/.safe/password.file"]
 keys_iterations = 10240
 
-[signer]
+[ui]
 force = false
 disable = false
 port = 8180
@@ -25,7 +25,7 @@ port = 30303
 min_peers = 25
 max_peers = 50
 nat = "any"
-id = "0x1"
+id = 1
 bootnodes = []
 discovery = true
 warp = true
@@ -41,13 +41,13 @@ disable = false
 port = 8545
 interface = "local"
 cors = "null"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
+apis = ["web3", "eth", "net", "parity", "traces", "rpc"]
 hosts = ["none"]
 
 [ipc]
 disable = false
 path = "$HOME/.parity/jsonrpc.ipc"
-apis = ["web3", "eth", "net", "ethcore", "traces", "rpc", "personal_safe"]
+apis = ["web3", "eth", "net", "parity", "parity_accounts", "personal", "traces", "rpc"]
 
 [dapps]
 disable = false

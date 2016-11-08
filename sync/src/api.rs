@@ -42,7 +42,7 @@ pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
 	/// Network ID
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
 	/// Fork block to check
@@ -55,7 +55,7 @@ impl Default for SyncConfig {
 	fn default() -> SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
-			network_id: U256::from(1),
+			network_id: 1,
 			subprotocol_name: *b"eth",
 			fork_block: None,
 			warp_sync: false,
@@ -73,6 +73,9 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
+    
+	/// Get the enode if available.
+	fn enode(&self) -> Option<String>;
 }
 
 /// Peer connection information
@@ -142,6 +145,10 @@ impl SyncProvider for EthSync {
 			let sync_io = NetSyncIo::new(context, &*self.handler.chain, &*self.handler.snapshot_service, &self.handler.overlay);
 			self.handler.sync.write().peers(&sync_io)
 		}).unwrap_or(Vec::new())
+	}
+
+	fn enode(&self) -> Option<String> {
+		self.network.external_url()
 	}
 }
 

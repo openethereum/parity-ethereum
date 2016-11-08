@@ -26,7 +26,16 @@
   padding-left: 0 !important;
 }
 
-.icon {
+.icon,
+.iconDisabled {
   position: absolute;
   top: 35px;
+}
+
+.icon {
+  left: 0;
+}
+
+.iconDisabled {
+  left: 24px;
 }

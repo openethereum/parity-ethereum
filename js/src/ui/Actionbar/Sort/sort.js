@@ -27,14 +27,23 @@ import styles from './sort.css';
 export default class ActionbarSort extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
-    order: PropTypes.string
+    order: PropTypes.string,
+    showDefault: PropTypes.bool,
+    metas: PropTypes.array
   };
+
+  static defaultProps = {
+    metas: [],
+    showDefault: true
+  }
 
   state = {
     menuOpen: false
   }
 
   render () {
+    const { showDefault } = this.props;
+
     return (
       <IconMenu
         iconButtonElement={
@@ -50,11 +59,53 @@ export default class ActionbarSort extends Component {
         onItemTouchTap={ this.handleSortChange }
         targetOrigin={ { horizontal: 'right', vertical: 'top' } }
         anchorOrigin={ { horizontal: 'right', vertical: 'top' } }
-        >
-        <MenuItem value='' primaryText='Default' />
-        <MenuItem value='tags' primaryText='Sort by tags' />
-        <MenuItem value='name' primaryText='Sort by name' />
+        touchTapCloseDelay={ 0 }
+      >
+        {
+          showDefault
+          ? this.renderMenuItem('', 'Default')
+          : null
+        }
+        { this.renderMenuItem('tags', 'Sort by tags') }
+        { this.renderMenuItem('name', 'Sort by name') }
+        { this.renderMenuItem('eth', 'Sort by ETH') }
+
+        { this.renderSortByMetas() }
       </IconMenu>
+    );
+  }
+
+  renderSortByMetas () {
+    const { metas } = this.props;
+
+    return metas
+      .map((meta, index) => {
+        return this
+          .renderMenuItem(meta.key, `Sort by ${meta.label}`, index);
+      });
+  }
+
+  renderMenuItem (value, label, key = null) {
+    const { order } = this.props;
+
+    const props = {};
+
+    if (key !== null) {
+      props.key = key;
+    }
+
+    const checked = order === value;
+
+    return (
+      <MenuItem
+        checked={ checked }
+        value={ value }
+        primaryText={ label }
+        innerDivStyle={ {
+          paddingLeft: checked ? 50 : 16
+        } }
+        { ...props }
+      />
     );
   }
 

@@ -49,7 +49,6 @@ class Tooltips extends Component {
   redirect (props = this.props) {
     const { currentId } = props;
 
-    console.log('c', { currentId });
     if (currentId !== undefined && currentId !== -1) {
       const viewLink = '/accounts/';
       this.context.router.push(viewLink);
