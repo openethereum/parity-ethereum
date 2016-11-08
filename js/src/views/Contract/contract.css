@@ -90,3 +90,7 @@
   margin-bottom: -10px;
   margin-right: 0.5em;
 }
+
+.source {
+  font-family: monospace;
+}

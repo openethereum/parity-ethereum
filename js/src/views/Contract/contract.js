@@ -20,10 +20,12 @@ import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
+import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { newError } from '../../redux/actions';
 import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -52,6 +54,7 @@ class Contract extends Component {
     showDeleteDialog: false,
     showEditDialog: false,
     showExecuteDialog: false,
+    showSourceDialog: false,
     subscriptionId: -1,
     blockSubscriptionId: -1,
     allEvents: [],
@@ -126,22 +129,39 @@ class Contract extends Component {
   }
 
   renderSource (contract) {
-    const { source = '' } = contract.meta;
+    const { source } = contract.meta;
+    const { showSourceDialog } = this.state;
 
-    if (!source) {
+    if (!source || !showSourceDialog) {
       return null;
     }
 
+    const cancelBtn = (
+      <Button
+        icon={ <ContentClear /> }
+        label='Close'
+        onClick={ this.closeSourceDialog } />
+    );
+
     return (
-      <div>
+      <Modal
+        actions={ [ cancelBtn ] }
+        title={ 'source code' }
+        visible
+      >
         <div className={ styles.source }>
-          { source }
+          <Editor
+            value={ source }
+            readOnly
+          />
         </div>
-      </div>
+      </Modal>
     );
   }
 
   renderActionbar (account) {
+    const { source } = account.meta;
+
     const buttons = [
       <Button
         key='execute'
@@ -159,6 +179,16 @@ class Contract extends Component {
         label='delete contract'
         onClick={ this.showDeleteDialog } />
     ];
+
+    if (source) {
+      buttons.push(
+        <Button
+          key='viewSource'
+          icon={ <EyeIcon /> }
+          label='view source'
+          onClick={ this.showSourceDialog } />
+      );
+    }
 
     return (
       <Actionbar
@@ -251,6 +281,14 @@ class Contract extends Component {
 
   showDeleteDialog = () => {
     this.setState({ showDeleteDialog: true });
+  }
+
+  showSourceDialog = () => {
+    this.setState({ showSourceDialog: true });
+  }
+
+  closeSourceDialog = () => {
+    this.setState({ showSourceDialog: false });
   }
 
   closeExecuteDialog = () => {

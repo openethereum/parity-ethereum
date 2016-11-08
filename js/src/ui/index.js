@@ -26,6 +26,7 @@ import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
+import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select } from './Form';
 import IdentityIcon from './IdentityIcon';
@@ -55,6 +56,7 @@ export {
   ContainerTitle,
   ContextProvider,
   CopyToClipboard,
+  Editor,
   Errors,
   Form,
   FormWrap,

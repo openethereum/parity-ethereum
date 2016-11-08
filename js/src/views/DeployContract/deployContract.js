@@ -18,13 +18,7 @@ import React, { PropTypes, Component } from 'react';
 import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 
-import 'brace';
-import AceEditor from 'react-ace';
-
-import 'brace/theme/solarized_dark';
-import 'brace/mode/javascript';
-
-import { Actionbar, Button, Page, Select, Input } from '../../ui';
+import { Actionbar, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract as ModalDeployContract } from '../../modals';
 
 import styles from './deployContract.css';
@@ -51,14 +45,6 @@ class DeployContract extends Component {
   render () {
     const { sourceCode, selectedContract, contractAnnotations, compiling } = this.state;
 
-    const commands = [
-      {
-        name: 'compile',
-        bindKey: { win: 'Ctrl-Enter',  mac: 'Command-Enter' },
-        exec: this.compile
-      }
-    ];
-
     return (
       <div>
         { this.renderDeployModal() }
@@ -69,18 +55,11 @@ class DeployContract extends Component {
           <div className={ styles.container }>
             <div className={ styles.editor }>
               <h2>Solidity Source Code</h2>
-              <AceEditor
-                mode='javascript'
-                theme='solarized_dark'
-                width='100%'
+              <Editor
                 onChange={ this.onEditSource }
-                name='PARITY_EDITOR'
-                editorProps={ { $blockScrolling: true } }
-                setOptions={ { useWorker: false } }
-                showPrintMargin={ false }
+                onExecute={ this.compile }
                 annotations={ contractAnnotations }
                 value={ sourceCode }
-                commands={ commands }
               />
             </div>
             <div className={ styles.parameters }>
