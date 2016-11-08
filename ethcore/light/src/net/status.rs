@@ -24,7 +24,7 @@ use super::buffer_flow::{CostTable, FlowParams};
 // recognized handshake/announcement keys.
 // unknown keys are to be skipped, known keys have a defined order.
 // their string values are defined in the LES spec.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 enum Key {
 	ProtocolVersion,
 	NetworkId,
@@ -61,6 +61,7 @@ impl Key {
 		}
 	}
 
+	// try to parse the key value from a string.
 	fn from_str(s: &str) -> Option<Self> {
 		match s {
 			"protocolVersion" => Some(Key::ProtocolVersion),
@@ -78,10 +79,6 @@ impl Key {
 			"flowControl/MRR" => Some(Key::BufferRechargeRate),
 			_ => None
 		}
-	}
-
-	fn is_recognized(s: &str) -> bool {
-		Key::from_str(s).is_some()
 	}
 }
 
@@ -112,32 +109,38 @@ struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-	// attempt to parse the next key, value pair, and decode the value to the given type.
+	// expect a specific next key, and decode the value.
+	// error on unexpected key or invalid value.
 	fn expect<T: RlpDecodable>(&mut self, key: Key) -> Result<T, DecoderError> {
 		self.expect_raw(key).and_then(|item| item.as_val())
 	}
 
-	// attempt to parse the next key, value pair, and returns the value's RLP.
+	// expect a specific next key, and get the value's RLP.
+	// if the key isn't found, the position isn't advanced.
 	fn expect_raw(&mut self, key: Key) -> Result<UntrustedRlp<'a>, DecoderError> {
-		loop {
-			let pair =  try!(self.rlp.at(self.pos));
-			let k: String = try!(pair.val_at(0));
-			let k = match Key::from_str(&k) {
-				Some(k) => k,
-				None => {
-					// skip any unrecognized keys.
-					self.pos += 1;
-					continue;
-				}
-			};
+		let pre_pos = self.pos;
+		if let Some((k, val)) = try!(self.get_next()) {
+			if k == key { return Ok(val) }
+		}
 
-			if k == key {
-				self.pos += 1;
-				return pair.at(1)
-			} else {
-				return Err(DecoderError::Custom("Missing expected key"))
+		self.pos = pre_pos;
+		Err(DecoderError::Custom("Missing expected key"))
+	}
+
+	// get the next key and value RLP.
+	fn get_next(&mut self) -> Result<Option<(Key, UntrustedRlp<'a>)>, DecoderError> {
+		while self.pos < self.rlp.item_count() {
+			let pair = try!(self.rlp.at(self.pos));
+			let k: String = try!(pair.val_at(0));
+
+			self.pos += 1;
+			match Key::from_str(&k) {
+				Some(key) => return Ok(Some((key , try!(pair.at(1))))),
+				None => continue,
 			}
 		}
+
+		Ok(None)
 	}
 }
 
@@ -278,18 +281,88 @@ pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Announcement {
 	/// Hash of the best block.
-	head_hash: H256,
+	pub head_hash: H256,
 	/// Number of the best block.
-	head_num: u64,
+	pub head_num: u64,
 	/// Head total difficulty
-	head_td: U256,
+	pub head_td: U256,
 	/// reorg depth to common ancestor of last announced head.
-	reorg_depth: u64,
+	pub reorg_depth: u64,
+	/// optional new header-serving capability. false means "no change"
+	pub serve_headers: bool,
 	/// optional new state-serving capability
-	serve_state_since: Option<u64>,
+	pub serve_state_since: Option<u64>,
 	/// optional new chain-serving capability
-	serve_chain_since: Option<u64>,
+	pub serve_chain_since: Option<u64>,
+	/// optional new transaction-relay capability. false means "no change"
+	pub tx_relay: bool,
 	// TODO: changes in buffer flow?
+}
+
+/// Parse an announcement.
+pub fn parse_announcement(rlp: UntrustedRlp) -> Result<Announcement, DecoderError> {
+	let mut last_key = None;
+
+	let mut announcement = Announcement {
+		head_hash: try!(rlp.val_at(0)),
+		head_num: try!(rlp.val_at(1)),
+		head_td: try!(rlp.val_at(2)),
+		reorg_depth: try!(rlp.val_at(3)),
+		serve_headers: false,
+		serve_state_since: None,
+		serve_chain_since: None,
+		tx_relay: false,
+	};
+
+	let mut parser = Parser {
+		pos: 4,
+		rlp: rlp,
+	};
+
+	while let Some((key, item)) = try!(parser.get_next()) {
+		if Some(key) <= last_key { return Err(DecoderError::Custom("Invalid announcement key ordering")) }
+		last_key = Some(key);
+
+		match key {
+			Key::ServeHeaders => announcement.serve_headers = true,
+			Key::ServeStateSince => announcement.serve_state_since = Some(try!(item.as_val())),
+			Key::ServeChainSince => announcement.serve_chain_since = Some(try!(item.as_val())),
+			Key::TxRelay => announcement.tx_relay = true,
+			_ => return Err(DecoderError::Custom("Nonsensical key in announcement")),
+		}
+	}
+
+	Ok(announcement)
+}
+
+/// Write an announcement out.
+pub fn write_announcement(announcement: &Announcement) -> Vec<u8> {
+	let mut pairs = Vec::new();
+	if announcement.serve_headers {
+		pairs.push(encode_flag(Key::ServeHeaders));
+	}
+	if let Some(ref serve_chain_since) = announcement.serve_chain_since {
+		pairs.push(encode_pair(Key::ServeChainSince, serve_chain_since));
+	}
+	if let Some(ref serve_state_since) = announcement.serve_state_since {
+		pairs.push(encode_pair(Key::ServeStateSince, serve_state_since));
+	}
+	if announcement.tx_relay {
+		pairs.push(encode_flag(Key::TxRelay));
+	}
+
+	let mut stream = RlpStream::new_list(4 + pairs.len());
+	stream
+		.append(&announcement.head_hash)
+		.append(&announcement.head_num)
+		.append(&announcement.head_td)
+		.append(&announcement.reorg_depth);
+
+	for item in pairs {
+		stream.append_raw(&item, 1);
+	}
+
+	stream.out()
 }
 
 #[cfg(test)]
@@ -417,5 +490,53 @@ mod tests {
 		assert_eq!(read_status, status);
 		assert_eq!(read_capabilities, capabilities);
 		assert_eq!(read_flow, flow_params);
+	}
+
+	#[test]
+	fn announcement_roundtrip() {
+		let announcement = Announcement {
+			head_hash: H256::random(),
+			head_num: 100_000,
+			head_td: 1_000_000.into(),
+			reorg_depth: 4,
+			serve_headers: false,
+			serve_state_since: Some(99_000),
+			serve_chain_since: Some(1),
+			tx_relay: true,
+		};
+
+		let serialized = write_announcement(&announcement);
+		let read = parse_announcement(UntrustedRlp::new(&serialized)).unwrap();
+
+		assert_eq!(read, announcement);
+	}
+
+	#[test]
+	fn keys_out_of_order() {
+		use super::{Key, encode_pair, encode_flag};
+
+		let mut stream = RlpStream::new_list(6);
+		stream
+			.append(&H256::zero())
+			.append(&10u64)
+			.append(&100_000u64)
+			.append(&2u64)
+			.append_raw(&encode_pair(Key::ServeStateSince, &44u64), 1)
+			.append_raw(&encode_flag(Key::ServeHeaders), 1);
+
+		let out = stream.drain();
+		assert!(parse_announcement(UntrustedRlp::new(&out)).is_err());
+
+		let mut stream = RlpStream::new_list(6);
+		stream
+			.append(&H256::zero())
+			.append(&10u64)
+			.append(&100_000u64)
+			.append(&2u64)
+			.append_raw(&encode_flag(Key::ServeHeaders), 1)
+			.append_raw(&encode_pair(Key::ServeStateSince, &44u64), 1);
+
+		let out = stream.drain();
+		assert!(parse_announcement(UntrustedRlp::new(&out)).is_ok());
 	}
 }
