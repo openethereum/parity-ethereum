@@ -18,10 +18,13 @@ import React, { PropTypes, Component } from 'react';
 import { observer } from 'mobx-react';
 import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract } from '../../modals';
+
+import { setupWorker } from '../../redux/providers/compilerActions';
 
 import WriteContractStore from './writeContractStore';
 import styles from './writeContract.css';
@@ -30,13 +33,26 @@ import styles from './writeContract.css';
 class WriteContract extends Component {
 
   static propTypes = {
-    accounts: PropTypes.object.isRequired
+    accounts: PropTypes.object.isRequired,
+    setupWorker: PropTypes.func.isRequired,
+    worker: PropTypes.object
   };
 
   store = new WriteContractStore();
 
-  componentWillUnmount () {
-    this.store.closeWorker();
+  componentWillMount () {
+    const { setupWorker, worker } = this.props;
+    setupWorker();
+
+    if (worker) {
+      this.store.setCompiler(worker);
+    }
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (!this.props.worker && nextProps.worker) {
+      this.store.setCompiler(nextProps.worker);
+    }
   }
 
   render () {
@@ -315,9 +331,17 @@ class WriteContract extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
-  return { accounts };
+  const { worker } = state.compiler;
+  return { accounts, worker };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    setupWorker
+  }, dispatch);
 }
 
 export default connect(
-  mapStateToProps
+  mapStateToProps,
+  mapDispatchToProps
 )(WriteContract);

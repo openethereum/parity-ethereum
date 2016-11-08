@@ -17,8 +17,6 @@
 import { action, observable } from 'mobx';
 import store from 'store';
 
-import CompilerWorker from 'worker-loader!./compilerWorker.js';
-
 const WRITE_CONTRACT_SAVED_KEY = 'WRITE_CONTRACT_SAVED';
 
 export default class WriteContractStore {
@@ -42,7 +40,13 @@ export default class WriteContractStore {
   @observable showDeployModal = false;
 
   constructor () {
-    const compiler = new CompilerWorker();
+    const saveSourcecode = store.get(WRITE_CONTRACT_SAVED_KEY);
+    this.sourcecode = saveSourcecode || '';
+
+    this.fetchSolidityVersions();
+  }
+
+  @action setCompiler (compiler) {
     this.compiler = compiler;
 
     this.compiler.onmessage = (event) => {
@@ -57,11 +61,6 @@ export default class WriteContractStore {
           break;
       }
     };
-
-    const saveSourcecode = store.get(WRITE_CONTRACT_SAVED_KEY);
-    this.sourcecode = saveSourcecode || '';
-
-    this.fetchSolidityVersions();
   }
 
   fetchSolidityVersions () {

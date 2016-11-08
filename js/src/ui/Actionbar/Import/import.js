@@ -140,7 +140,7 @@ export default class ActionbarImport extends Component {
     );
   }
 
-  renderValidation() {
+  renderValidation () {
     const { validationBody } = this.state;
 
     return (
