@@ -83,6 +83,10 @@ functionEnd
 section "install"
 	# Files for the install directory - to build the installer, these should be in the same directory as the install script (this file)
 	setOutPath $INSTDIR
+
+	# Close parity if running
+	!insertmacro TerminateApp
+
 	# Files added here should be removed by the uninstaller (see section "uninstall")
 	file /oname=parity.exe ..\target\release\parity.exe
 	file /oname=ptray.exe ..\windows\ptray\x64\Release\ptray.exe
@@ -99,6 +103,7 @@ section "install"
 
 	# Start Menu
 	createDirectory "$SMPROGRAMS\${COMPANYNAME}"
+	delete "$SMPROGRAMS\${COMPANYNAME}\${APPNAME}.lnk"
 	createShortCut "$SMPROGRAMS\${COMPANYNAME}\${APPNAME} Ethereum.lnk" "$INSTDIR\ptray.exe" "ui" "$INSTDIR\logo.ico"
 	createShortCut "$DESKTOP\${APPNAME} Ethereum.lnk" "$INSTDIR\ptray.exe" "ui" "$INSTDIR\logo.ico"
 
@@ -115,7 +120,7 @@ section "install"
 	SimpleFC::AdvAddRule  "Parity UDP discovery (UDP:30303)" "" 17 2 1 2147483647 1 "$INSTDIR\parity.exe" "" "" "Parity"    "" 30303 "" ""
 
 	# Registry information for add/remove programs
-	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${COMPANYNAME} - ${APPNAME} - ${DESCRIPTION}"
+	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "DisplayName" "${APPNAME} - ${DESCRIPTION}"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "UninstallString" "$\"$INSTDIR\uninstall.exe$\""
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "QuietUninstallString" "$\"$INSTDIR\uninstall.exe$\" /S"
 	WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "InstallLocation" "$\"$INSTDIR$\""
@@ -133,7 +138,8 @@ section "install"
 	# Set the INSTALLSIZE constant (!defined at the top of this script) so Add/Remove Programs can accurately report the size
 	WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}" "EstimatedSize" ${INSTALLSIZE}
 
-	WriteRegStr HKEY_LOCAL_MACHINE "Software\Microsoft\Windows\CurrentVersion\Run" ${APPNAME} "$INSTDIR\ptray.exe ${ARGS}"
+	WriteRegStr HKEY_CURRENT_USER "Software\Microsoft\Windows\CurrentVersion\Run" ${APPNAME} "$INSTDIR\ptray.exe ${ARGS}"
+	DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}"
 	ExecShell "" "$INSTDIR\ptray.exe" "${FIRST_START_ARGS}"
 sectionEnd
 
@@ -177,5 +183,6 @@ section "uninstall"
 	# Remove uninstaller information from the registry
 	DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\${COMPANYNAME} ${APPNAME}"
 	DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}"
+	DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${APPNAME}"
 sectionEnd
 
