@@ -18,8 +18,7 @@
 
 // TODO: make IPC compatible.
 
-use ethcore::transaction::Transaction;
-use util::{Address, H256};
+use util::H256;
 
 /// A request for block headers.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,9 +26,9 @@ pub struct Headers {
 	/// Block information for the request being made.
 	pub block: (u64, H256),
 	/// The maximum amount of headers which can be returned.
-	pub max: u64,
+	pub max: usize,
 	/// The amount of headers to skip between each response entry.
-	pub skip: u64,
+	pub skip: usize,
 	/// Whether the headers should proceed in falling number from the initial block.
 	pub reverse: bool,
 }

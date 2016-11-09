@@ -23,8 +23,9 @@
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
 
-use request::{self, Request};
+use request;
 use super::packet;
+use super::error::Error;
 
 use rlp::*;
 use util::U256;
@@ -33,10 +34,6 @@ use time::{Duration, SteadyTime};
 /// A request cost specification.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Cost(pub U256, pub U256);
-
-/// An error: insufficient buffer.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct InsufficientBuffer;
 
 /// Buffer value.
 ///
@@ -50,6 +47,9 @@ pub struct Buffer {
 }
 
 impl Buffer {
+	/// Get the current buffer value.
+	pub fn current(&self) -> U256 { self.estimate.clone() }
+
 	/// Make a definitive update.
 	/// This will be the value obtained after receiving
 	/// a response to a request.
@@ -59,12 +59,14 @@ impl Buffer {
 	}
 
 	/// Attempt to apply the given cost to the buffer.
+	///
 	/// If successful, the cost will be deducted successfully.
+	///
 	/// If unsuccessful, the structure will be unaltered an an
 	/// error will be produced.
-	pub fn deduct_cost(&mut self, cost: U256) -> Result<(), InsufficientBuffer> {
+	pub fn deduct_cost(&mut self, cost: U256) -> Result<(), Error> {
 		match cost > self.estimate {
-			true => Err(InsufficientBuffer),
+			true => Err(Error::BufferEmpty),
 			false => {
 				self.estimate = self.estimate - cost;
 				Ok(())
@@ -188,23 +190,9 @@ impl FlowParams {
 	/// Get a reference to the recharge rate.
 	pub fn recharge_rate(&self) -> &U256 { &self.recharge }
 
-	/// Estimate the maximum cost of the request.
-	pub fn max_cost(&self, req: &Request) -> U256 {
-		let amount = match *req {
-			Request::Headers(ref req) => req.max as usize,
-			Request::Bodies(ref req) => req.block_hashes.len(),
-			Request::Receipts(ref req) => req.block_hashes.len(),
-			Request::StateProofs(ref req) => req.requests.len(),
-			Request::Codes(ref req) => req.code_requests.len(),
-			Request::HeaderProofs(ref req) => req.requests.len(),
-		};
-
-		self.actual_cost(req.kind(), amount)
-	}
-
 	/// Compute the actual cost of a request, given the kind of request
 	/// and number of requests made.
-	pub fn actual_cost(&self, kind: request::Kind, amount: usize) -> U256 {
+	pub fn compute_cost(&self, kind: request::Kind, amount: usize) -> U256 {
 		let cost = match kind {
 			request::Kind::Headers => &self.costs.headers,
 			request::Kind::Bodies => &self.costs.bodies,

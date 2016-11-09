@@ -21,11 +21,10 @@ use std::sync::Arc;
 
 use ethcore::engines::Engine;
 use ethcore::ids::BlockID;
-use ethcore::miner::TransactionQueue;
 use ethcore::service::ClientIoMessage;
 use ethcore::block_import_error::BlockImportError;
 use ethcore::block_status::BlockStatus;
-use ethcore::verification::queue::{Config as QueueConfig, HeaderQueue, QueueInfo, Status};
+use ethcore::verification::queue::{HeaderQueue, QueueInfo};
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
 
@@ -62,7 +61,7 @@ impl Client {
 	}
 
 	/// Inquire about the status of a given block.
-	pub fn status(&self, id: BlockID) -> BlockStatus {
+	pub fn status(&self, _id: BlockID) -> BlockStatus {
 		BlockStatus::Unknown
 	}
 

@@ -19,7 +19,7 @@
 use rlp::{DecoderError, RlpDecodable, RlpEncodable, RlpStream, Stream, UntrustedRlp, View};
 use util::{H256, U256};
 
-use super::buffer_flow::{CostTable, FlowParams};
+use super::buffer_flow::FlowParams;
 
 // recognized handshake/announcement keys.
 // unknown keys are to be skipped, known keys have a defined order.
