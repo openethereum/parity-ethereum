@@ -197,7 +197,7 @@ export default class DappsStore {
       });
   }
 
-  _fetchManifest (manifestHash, count = 0) {
+  _fetchManifest (manifestHash) {
     return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
       .then((response) => {
         return response.ok
