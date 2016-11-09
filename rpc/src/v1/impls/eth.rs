@@ -49,7 +49,7 @@ use v1::types::{
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::helpers::auto_args::Trailing;
 
@@ -610,7 +610,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let raw_transaction = raw.to_vec();
 		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
+			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction).map(Into::into),
 			Err(e) => Err(errors::from_rlp_error(e)),
 		}
 	}
