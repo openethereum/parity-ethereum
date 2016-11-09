@@ -20,7 +20,7 @@
 pub mod auth;
 mod host_validation;
 
-use signer_address;
+use address;
 use std::sync::Arc;
 use std::collections::HashMap;
 use url::{Url, Host};
@@ -43,7 +43,7 @@ pub enum SpecialEndpoint {
 
 pub struct Router<A: Authorization + 'static> {
 	control: Option<Control>,
-	signer_port: Option<u16>,
+	signer_address: Option<(String, u16)>,
 	endpoints: Arc<Endpoints>,
 	fetch: Arc<ContentFetcher>,
 	special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
@@ -117,14 +117,14 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 					"404 Not Found",
 					"Requested content was not found.",
 					None,
-					self.signer_port,
+					self.signer_address.clone(),
 				))
 			},
 			// Redirect any other GET request to signer.
 			_ if *req.method() == hyper::Method::Get => {
-				if let Some(port) = self.signer_port {
+				if let Some(signer_address) = self.signer_address.clone() {
 					trace!(target: "dapps", "Redirecting to signer interface.");
-					Redirection::boxed(&format!("http://{}", signer_address(port)))
+					Redirection::boxed(&format!("http://{}", address(signer_address)))
 				} else {
 					trace!(target: "dapps", "Signer disabled, returning 404.");
 					Box::new(ContentHandler::error(
@@ -132,7 +132,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 						"404 Not Found",
 						"Your homepage is not available when Trusted Signer is disabled.",
 						Some("You can still access dapps by writing a correct address, though. Re-enabled Signer to get your homepage back."),
-						self.signer_port,
+						self.signer_address.clone(),
 					))
 				}
 			},
@@ -168,7 +168,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 impl<A: Authorization> Router<A> {
 	pub fn new(
 		control: Control,
-		signer_port: Option<u16>,
+		signer_address: Option<(String, u16)>,
 		content_fetcher: Arc<ContentFetcher>,
 		endpoints: Arc<Endpoints>,
 		special: Arc<HashMap<SpecialEndpoint, Box<Endpoint>>>,
@@ -181,7 +181,7 @@ impl<A: Authorization> Router<A> {
 			.to_handler(EndpointPath::default());
 		Router {
 			control: Some(control),
-			signer_port: signer_port,
+			signer_address: signer_address,
 			endpoints: endpoints,
 			fetch: content_fetcher,
 			special: special,

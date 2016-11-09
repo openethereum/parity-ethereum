@@ -37,26 +37,26 @@ pub fn utils() -> Box<Endpoint> {
 	Box::new(PageEndpoint::with_prefix(parity_ui::App::default(), UTILS_PATH.to_owned()))
 }
 
-pub fn all_endpoints(dapps_path: String, signer_port: Option<u16>) -> Endpoints {
+pub fn all_endpoints(dapps_path: String, signer_address: Option<(String, u16)>) -> Endpoints {
 	// fetch fs dapps at first to avoid overwriting builtins
-	let mut pages = fs::local_endpoints(dapps_path, signer_port);
+	let mut pages = fs::local_endpoints(dapps_path, signer_address.clone());
 
 	// NOTE [ToDr] Dapps will be currently embeded on 8180
-	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_port));
-	pages.insert("proxy".into(), ProxyPac::boxed(signer_port));
+	insert::<parity_ui::App>(&mut pages, "ui", Embeddable::Yes(signer_address.clone()));
+	pages.insert("proxy".into(), ProxyPac::boxed(signer_address));
 
 	pages
 }
 
 fn insert<T : WebApp + Default + 'static>(pages: &mut Endpoints, id: &str, embed_at: Embeddable) {
 	pages.insert(id.to_owned(), Box::new(match embed_at {
-		Embeddable::Yes(port) => PageEndpoint::new_safe_to_embed(T::default(), port),
+		Embeddable::Yes(address) => PageEndpoint::new_safe_to_embed(T::default(), address),
 		Embeddable::No => PageEndpoint::new(T::default()),
 	}));
 }
 
 enum Embeddable {
-	Yes(Option<u16>),
+	Yes(Option<(String, u16)>),
 	#[allow(dead_code)]
 	No,
 }

@@ -95,7 +95,7 @@ impl Configuration {
 		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let ui_port = self.ui_port();
+		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
 		let format = try!(self.format());
@@ -243,7 +243,7 @@ impl Configuration {
 				vm_type: vm_type,
 				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
-				ui_port: ui_port,
+				ui_address: ui_address,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,

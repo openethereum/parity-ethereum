@@ -264,7 +264,8 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 
 		self.signer
 			.clone()
-			.and_then(|signer| signer.port())
+			.and_then(|signer| signer.address())
+			.map(|address| address.1)
 			.ok_or_else(|| errors::signer_disabled())
 	}
 
