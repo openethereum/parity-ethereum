@@ -17,3 +17,14 @@
 .spacing {
   margin-top: 1.5em;
 }
+
+.container {
+  margin-top: .5em;
+  display: flex;
+  align-items: center;
+}
+.message {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-left: .5em;
+}

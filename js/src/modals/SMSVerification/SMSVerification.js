@@ -24,7 +24,6 @@ import { validateAddress, validateUint } from '../../util/validation';
 import ABI from '../../contracts/abi/sms-verification.json';
 const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
 
-import CheckIfCertified from './CheckIfCertified';
 import GatherData from './GatherData';
 import SendRequest from './SendRequest';
 import QueryCode from './QueryCode';
@@ -64,7 +63,7 @@ export default class SMSVerification extends Component {
         title='verify your account via SMS'
         visible scroll
         current={ step }
-        steps={ ['Preparations', 'Enter Data', 'Request', 'Enter Code', 'Confirm'] }
+        steps={ ['Enter Data', 'Request', 'Enter Code', 'Confirm'] }
       >
         { this.renderStep() }
       </Modal>
@@ -83,7 +82,7 @@ export default class SMSVerification extends Component {
       />
     );
 
-    if (step === 4) {
+    if (step === 3) {
       return (
         <div>
           { cancel }
@@ -117,9 +116,7 @@ export default class SMSVerification extends Component {
     }
 
     const { step } = this.state;
-    if (step === 4) {
-      return this.renderFifthStep();
-    } else if (step === 3) {
+    if (step === 3) {
       return this.renderFourthStep();
     } else if (step === 2) {
       return this.renderThirdStep();
@@ -148,23 +145,11 @@ export default class SMSVerification extends Component {
 
   renderFirstStep () {
     const { account } = this.props;
-    const { contract } = this.state;
-
-    return (
-      <CheckIfCertified
-        account={ account } contract={ contract }
-        onIsCertified={ this.onDataIsInvalid }
-        onIsNotCertified={ this.onDataIsValid }
-      />
-    );
-  }
-
-  renderSecondStep () {
     const { contract, data } = this.state;
 
     return (
       <GatherData
-        contract={ contract } data={ data }
+        account={ account } contract={ contract } data={ data }
         onData={ this.onData }
         onDataIsValid={ this.onDataIsValid }
         onDataIsInvalid={ this.onDataIsInvalid }
@@ -172,7 +157,7 @@ export default class SMSVerification extends Component {
     );
   }
 
-  renderThirdStep () {
+  renderSecondStep () {
     const { account } = this.props;
     const { contract, data } = this.state;
 
@@ -186,7 +171,7 @@ export default class SMSVerification extends Component {
     );
   }
 
-  renderFourthStep () {
+  renderThirdStep () {
     const { data } = this.state;
 
     return (
@@ -199,7 +184,7 @@ export default class SMSVerification extends Component {
     );
   }
 
-  renderFifthStep () {
+  renderFourthStep () {
     const { account } = this.props;
     const { contract, data } = this.state;
 
