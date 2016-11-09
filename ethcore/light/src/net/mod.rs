@@ -200,15 +200,47 @@ impl LightProtocol {
 			sent_head: pending.sent_head,
 		});
 
-
 		Ok(())
 	}
 
 	// Handle an announcement.
 	fn announcement(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
-		const MAX_NEW_HASHES: usize = 256;
+		if !self.peers.read().contains_key(peer) {
+			debug!(target: "les", "Ignoring announcement from unknown peer");
+			return Ok(())
+		}
 
-		unimplemented!()
+		let announcement = try!(status::parse_announcement(data));
+		let mut peers = self.peers.write();
+
+		let peer_info = match peers.get_mut(peer) {
+			Some(info) => info,
+			None => return Ok(()),
+		};
+
+		// update status.
+		{
+			// TODO: punish peer if they've moved backwards.
+			let status = &mut peer_info.status;
+			let last_head = status.head_hash;
+			status.head_hash = announcement.head_hash;
+			status.head_td = announcement.head_td;
+			status.head_num = announcement.head_num;
+			status.last_head = Some((last_head, announcement.reorg_depth));
+		}
+
+		// update capabilities.
+		{
+			let caps = &mut peer_info.capabilities;
+			caps.serve_headers = caps.serve_headers || announcement.serve_headers;
+			caps.serve_state_since = caps.serve_state_since.or(announcement.serve_state_since);
+			caps.serve_chain_since = caps.serve_chain_since.or(announcement.serve_chain_since);
+			caps.tx_relay = caps.tx_relay || announcement.tx_relay;
+		}
+
+		// TODO: notify listeners if new best block.
+
+		Ok(())
 	}
 
 	// Handle a request for block headers.
