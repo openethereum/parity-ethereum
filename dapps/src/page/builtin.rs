@@ -25,7 +25,7 @@ pub struct PageEndpoint<T : WebApp + 'static> {
 	/// Prefix to strip from the path (when `None` deducted from `app_id`)
 	pub prefix: Option<String>,
 	/// Safe to be loaded in frame by other origin. (use wisely!)
-	safe_to_embed_at_port: Option<u16>,
+	safe_to_embed_on: Option<(String, u16)>,
 	info: EndpointInfo,
 }
 
@@ -36,7 +36,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: None,
-			safe_to_embed_at_port: None,
+			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
 		}
 	}
@@ -49,7 +49,7 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: Some(prefix),
-			safe_to_embed_at_port: None,
+			safe_to_embed_on: None,
 			info: EndpointInfo::from(info),
 		}
 	}
@@ -57,12 +57,12 @@ impl<T: WebApp + 'static> PageEndpoint<T> {
 	/// Creates new `PageEndpoint` which can be safely used in iframe
 	/// even from different origin. It might be dangerous (clickjacking).
 	/// Use wisely!
-	pub fn new_safe_to_embed(app: T, port: Option<u16>) -> Self {
+	pub fn new_safe_to_embed(app: T, address: Option<(String, u16)>) -> Self {
 		let info = app.info();
 		PageEndpoint {
 			app: Arc::new(app),
 			prefix: None,
-			safe_to_embed_at_port: port,
+			safe_to_embed_on: address,
 			info: EndpointInfo::from(info),
 		}
 	}
@@ -79,9 +79,9 @@ impl<T: WebApp> Endpoint for PageEndpoint<T> {
 			app: BuiltinDapp::new(self.app.clone()),
 			prefix: self.prefix.clone(),
 			path: path,
-			file: handler::ServedFile::new(self.safe_to_embed_at_port.clone()),
+			file: handler::ServedFile::new(self.safe_to_embed_on.clone()),
 			cache: PageCache::Disabled,
-			safe_to_embed_at_port: self.safe_to_embed_at_port.clone(),
+			safe_to_embed_on: self.safe_to_embed_on.clone(),
 		})
 	}
 }

@@ -47,7 +47,7 @@ pub struct ContentFetcher<R: URLHint = URLHintContract> {
 	resolver: R,
 	cache: Arc<Mutex<ContentCache>>,
 	sync: Arc<SyncStatus>,
-	embeddable_at: Option<u16>,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl<R: URLHint> Drop for ContentFetcher<R> {
@@ -59,7 +59,7 @@ impl<R: URLHint> Drop for ContentFetcher<R> {
 
 impl<R: URLHint> ContentFetcher<R> {
 
-	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_at: Option<u16>) -> Self {
+	pub fn new(resolver: R, sync_status: Arc<SyncStatus>, embeddable_on: Option<(String, u16)>) -> Self {
 		let mut dapps_path = env::temp_dir();
 		dapps_path.push(random_filename());
 
@@ -68,17 +68,17 @@ impl<R: URLHint> ContentFetcher<R> {
 			resolver: resolver,
 			sync: sync_status,
 			cache: Arc::new(Mutex::new(ContentCache::default())),
-			embeddable_at: embeddable_at,
+			embeddable_on: embeddable_on,
 		}
 	}
 
-	fn still_syncing(port: Option<u16>) -> Box<Handler> {
+	fn still_syncing(address: Option<(String, u16)>) -> Box<Handler> {
 		Box::new(ContentHandler::error(
 			StatusCode::ServiceUnavailable,
 			"Sync In Progress",
 			"Your node is still syncing. We cannot resolve any content before it's fully synced.",
 			Some("<a href=\"javascript:window.location.reload()\">Refresh</a>"),
-			port,
+			address,
 		))
 	}
 
@@ -145,7 +145,7 @@ impl<R: URLHint> ContentFetcher<R> {
 					match content {
 						// Don't serve dapps if we are still syncing (but serve content)
 						Some(URLHintResult::Dapp(_)) if self.sync.is_major_importing() => {
-							(None, Self::still_syncing(self.embeddable_at))
+							(None, Self::still_syncing(self.embeddable_on.clone()))
 						},
 						Some(URLHintResult::Dapp(dapp)) => {
 							let (handler, fetch_control) = ContentFetcherHandler::new(
@@ -155,9 +155,9 @@ impl<R: URLHint> ContentFetcher<R> {
 									id: content_id.clone(),
 									dapps_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
-									embeddable_at: self.embeddable_at,
+									embeddable_on: self.embeddable_on.clone(),
 								},
-								self.embeddable_at,
+								self.embeddable_on.clone(),
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
@@ -172,13 +172,13 @@ impl<R: URLHint> ContentFetcher<R> {
 									content_path: self.dapps_path.clone(),
 									on_done: Box::new(on_done),
 								},
-								self.embeddable_at,
+								self.embeddable_on.clone(),
 							);
 
 							(Some(ContentStatus::Fetching(fetch_control)), Box::new(handler) as Box<Handler>)
 						},
 						None if self.sync.is_major_importing() => {
-							(None, Self::still_syncing(self.embeddable_at))
+							(None, Self::still_syncing(self.embeddable_on.clone()))
 						},
 						None => {
 							// This may happen when sync status changes in between
@@ -188,7 +188,7 @@ impl<R: URLHint> ContentFetcher<R> {
 								"Resource Not Found",
 								"Requested resource was not found.",
 								None,
-								self.embeddable_at,
+								self.embeddable_on.clone(),
 							)) as Box<Handler>)
 						},
 					}
@@ -293,7 +293,7 @@ struct DappInstaller {
 	id: String,
 	dapps_path: PathBuf,
 	on_done: Box<Fn(String, Option<LocalPageEndpoint>) + Send>,
-	embeddable_at: Option<u16>,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl DappInstaller {
@@ -386,7 +386,7 @@ impl ContentValidator for DappInstaller {
 		try!(manifest_file.write_all(manifest_str.as_bytes()));
 
 		// Create endpoint
-		let app = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_at);
+		let app = LocalPageEndpoint::new(target, manifest.clone().into(), PageCache::Enabled, self.embeddable_on.clone());
 
 		// Return modified app manifest
 		Ok((manifest.id.clone(), app))

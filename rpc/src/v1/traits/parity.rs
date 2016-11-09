@@ -123,6 +123,10 @@ build_rpc_trait! {
 		#[rpc(name = "parity_dappsPort")]
 		fn dapps_port(&self) -> Result<u16, Error>;
 
+		/// Returns current Dapps Server interface address or an error if dapps server is disabled.
+		#[rpc(name = "parity_dappsInterface")]
+		fn dapps_interface(&self) -> Result<String, Error>;
+
 		/// Returns next nonce for particular sender. Should include all transactions in the queue.
 		#[rpc(name = "parity_nextNonce")]
 		fn next_nonce(&self, H160) -> Result<U256, Error>;
