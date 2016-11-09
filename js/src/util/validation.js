@@ -38,10 +38,21 @@ export function validateAbi (abi, api) {
     abiParsed = JSON.parse(abi);
 
     if (!api.util.isArray(abiParsed) || !abiParsed.length) {
-      abiError = ERRORS.inavlidAbi;
-    } else {
-      abi = JSON.stringify(abiParsed);
+      abiError = ERRORS.invalidAbi;
+      return { abi, abiError, abiParsed };
     }
+
+    // Validate each elements of the Array
+    const isValid = abiParsed
+      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api))
+      .reduce((currentTruth, truth) => currentTruth && truth, true);
+
+    if (!isValid) {
+      abiError = ERRORS.invalidAbi;
+      return { abi, abiError, abiParsed };
+    }
+
+    abi = JSON.stringify(abiParsed);
   } catch (error) {
     abiError = ERRORS.invalidAbi;
   }
@@ -51,6 +62,26 @@ export function validateAbi (abi, api) {
     abiError,
     abiParsed
   };
+}
+
+function isValidAbiFunction (object, api) {
+  if (!object) {
+    return false;
+  }
+
+  return (object.type === 'function' || object.type === 'constructor') &&
+    (object.type === 'function' && object.name) &&
+    (object.inputs && api.util.isArray(object.inputs));
+}
+
+function isValidAbiEvent (object, api) {
+  if (!object) {
+    return false;
+  }
+
+  return (object.type === 'event') &&
+    (object.name) &&
+    (object.inputs && api.util.isArray(object.inputs));
 }
 
 export function validateAddress (address) {

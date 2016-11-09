@@ -138,10 +138,11 @@ export default class AddContract extends Component {
     this.onEditAbi(abiType.value);
   }
 
-  onEditAbi = (abi) => {
+  onEditAbi = (abiIn) => {
     const { api } = this.context;
+    const { abi, abiError, abiParsed } = validateAbi(abiIn, api);
 
-    this.setState(validateAbi(abi, api));
+    this.setState({ abi, abiError, abiParsed });
   }
 
   onEditAddress = (_address) => {
