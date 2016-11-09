@@ -64,7 +64,7 @@ export default class Editor extends Component {
       }
     ];
 
-    const maxLines = readOnly ? value.split('\n').length : Infinity;
+    const maxLines = readOnly ? value.split('\n').length : null;
 
     return (
       <AceEditor
@@ -79,9 +79,10 @@ export default class Editor extends Component {
         setOptions={ {
           useWorker: false,
           fontFamily: 'monospace',
-          fontSize: '0.9em',
-          maxLines
+          fontSize: '0.9em'
         } }
+        maxLines={ maxLines }
+        enableBasicAutocompletion={ !readOnly }
         showPrintMargin={ false }
         annotations={ annotations }
         value={ value }

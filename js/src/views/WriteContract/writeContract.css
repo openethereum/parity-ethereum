@@ -50,12 +50,12 @@
 
 .editor {
   flex: 65%;
-  width: 100%;
+  width: 0;
 }
 
 .parameters {
   flex: 35%;
-  width: 100%;
+  width: 0;
   display: flex;
   flex-direction: column;
 
@@ -83,7 +83,8 @@
   font-family: monospace;
   padding: 0.5em;
   font-size: 0.9em;
-  white-space: pre-wrap;
+  white-space: pre;
+  overflow: auto;
 
   &.error {
     background-color: rgba(244, 67, 54, 0.5);
