@@ -52,6 +52,8 @@ class Connection extends Component {
       return null;
     }
 
+    console.log('isConnected', isConnected, 'isConnecting', isConnecting, 'isPingable', isPingable);
+
     const typeIcon = isPingable
       ? <NotificationVpnLock className={ styles.svg } />
       : <ActionDashboard className={ styles.svg } />;
@@ -128,7 +130,7 @@ class Connection extends Component {
     const { api } = this.context;
     const { token } = this.state;
 
-    api.updateToken(token);
+    api.updateToken(token, 0);
     this.setState({ token: '', validToken: false });
   }
 }

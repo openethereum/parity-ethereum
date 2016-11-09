@@ -90,6 +90,7 @@ export default class Status {
       this._fetchEnode();
     }
 
+    console.log('status', 'isConnected', isConnected, 'isConnecting', isConnecting);
     this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
 
     if (!isConnected) {
