@@ -23,7 +23,7 @@ export default class SecureApi extends Api {
     super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
-    this._connectState = 0;
+    this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
     this._dappsPort = 8080;
     this._signerPort = 8180;
@@ -110,7 +110,7 @@ export default class SecureApi extends Api {
     console.log('SecureApi:connectSuccess', this._transport.token);
   }
 
-  updateToken (token, connectState) {
+  updateToken (token, connectState = 0) {
     this._connectState = connectState;
     this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
