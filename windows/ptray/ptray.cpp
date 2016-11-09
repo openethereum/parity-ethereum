@@ -63,6 +63,14 @@ bool GetParityExePath(TCHAR* dest, size_t destSize)
 	return PathAppend(dest, _T("parity.exe")) == TRUE;
 }
 
+bool GetTrayExePath(TCHAR* dest, size_t destSize)
+{
+	if (!dest || MAX_PATH > destSize)
+		return false;
+	GetModuleFileName(NULL, dest, (DWORD)destSize);
+	return true;
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 	_In_opt_ HINSTANCE hPrevInstance,
 	_In_ LPWSTR    lpCmdLine,
@@ -311,9 +319,10 @@ void EnableAutostart(bool enable) {
 	if (lRes != ERROR_SUCCESS)
 		return;
 
-	if (enable) {
+	if (enable) 
+	{
 		TCHAR path[MAX_PATH] = { 0 };
-		if (!GetParityExePath(path, MAX_PATH))
+		if (!GetTrayExePath(path, MAX_PATH))
 			return;
 		RegSetValueEx(hKey, L"Parity", 0, REG_SZ, (LPBYTE)path, MAX_PATH);
 	}
