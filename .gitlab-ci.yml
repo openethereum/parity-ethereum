@@ -21,12 +21,12 @@ linux-stable:
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
+    - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
     - cp target/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
-    - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
+    - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
@@ -88,7 +88,7 @@ linux-centos:
     - export CC="gcc"
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
+    - md5sum target/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
@@ -113,12 +113,12 @@ linux-i686:
     - export HOST_CXX=g++
     - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
     - strip target/i686-unknown-linux-gnu/release/parity
-    - md5sum target/i686-unknown-linux-gnu/release/parity >> parity.md5
+    - md5sum target/i686-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh i386
     - cp target/i686-unknown-linux-gnu/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_i386.deb"
-    - md5sum "parity_"$VER"_i386.deb" >> "parity_"$VER"_i386.deb.md5"
+    - md5sum "parity_"$VER"_i386.deb" > "parity_"$VER"_i386.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
@@ -152,12 +152,12 @@ linux-armv7:
     - cat .cargo/config
     - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
-    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - md5sum target/armv7-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
     - cp target/armv7-unknown-linux-gnueabihf/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
-    - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
+    - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
@@ -191,12 +191,12 @@ linux-arm:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
-    - md5sum target/arm-unknown-linux-gnueabihf/release/parity >> parity.md5
+    - md5sum target/arm-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
     - cp target/arm-unknown-linux-gnueabihf/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_armhf.deb"
-    - md5sum "parity_"$VER"_armhf.deb" >> "parity_"$VER"_armhf.deb.md5"
+    - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
@@ -230,7 +230,7 @@ linux-armv6:
     - cat .cargo/config
     - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
-    - md5sum target/arm-unknown-linux-gnueabi/release/parity >> parity.md5
+    - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
@@ -262,12 +262,12 @@ linux-aarch64:
     - cat .cargo/config
     - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
-    - md5sum target/aarch64-unknown-linux-gnu/release/parity >> parity.md5
+    - md5sum target/aarch64-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
     - cp target/aarch64-unknown-linux-gnu/release/parity deb/usr/bin/parity
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
     - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
-    - md5sum "parity_"$VER"_arm64.deb" >> "parity_"$VER"_arm64.deb.md5"
+    - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
@@ -292,16 +292,16 @@ darwin:
     - cargo build --release -p ethstore $CARGOFLAGS
     - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
-    - md5sum target/release/parity >> parity.md5
+    - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
-    - mv target/release/Parity\ Ethereum.pkg parity-1.4.0-osx-installer-EXPERIMENTAL.pkg
-    - md5sum parity-1.4.0-osx-installer-EXPERIMENTAL.pkg >> parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5
+    - mv target/release/Parity\ Ethereum.pkg parity-osx-installer-EXPERIMENTAL.pkg
+    - md5sum parity-osx-installer-EXPERIMENTAL.pkg > parity-osx-installer-EXPERIMENTAL.pkg.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-1.4.0-osx-installer-EXPERIMENTAL.pkg --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5 --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-osx-installer-EXPERIMENTAL.pkg --body parity-osx-installer-EXPERIMENTAL.pkg
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-osx-installer-EXPERIMENTAL.pkg.md5 --body parity-osx-installer-EXPERIMENTAL.pkg.md5
   tags:
     - osx
   artifacts:
