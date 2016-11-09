@@ -27,17 +27,17 @@ pub struct LocalPageEndpoint {
 	mime: Option<String>,
 	info: Option<EndpointInfo>,
 	cache: PageCache,
-	embeddable_at: Option<u16>,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_at: Option<u16>) -> Self {
+	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Option<(String, u16)>) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: None,
 			info: Some(info),
 			cache: cache,
-			embeddable_at: embeddable_at,
+			embeddable_on: embeddable_on,
 		}
 	}
 
@@ -47,7 +47,7 @@ impl LocalPageEndpoint {
 			mime: Some(mime),
 			info: None,
 			cache: cache,
-			embeddable_at: None,
+			embeddable_on: None,
 		}
 	}
 
@@ -68,7 +68,7 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: handler::ServedFile::new(None),
-				safe_to_embed_at_port: self.embeddable_at,
+				safe_to_embed_on: self.embeddable_on.clone(),
 				cache: self.cache,
 			})
 		} else {
@@ -77,7 +77,7 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: handler::ServedFile::new(None),
-				safe_to_embed_at_port: self.embeddable_at,
+				safe_to_embed_on: self.embeddable_on.clone(),
 				cache: self.cache,
 			})
 		}

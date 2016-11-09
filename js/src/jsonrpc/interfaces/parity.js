@@ -109,6 +109,15 @@ export default {
     }
   },
 
+  dappsInterface: {
+    desc: 'Returns the interface the dapps are running on, error if not enabled',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The interface'
+    }
+  },
+
   defaultExtraData: {
     desc: 'Returns the default extra data',
     params: [],
