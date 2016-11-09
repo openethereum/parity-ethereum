@@ -128,7 +128,7 @@ class Connection extends Component {
     const { api } = this.context;
     const { token } = this.state;
 
-    api.updateToken(token);
+    api.updateToken(token, 0);
     this.setState({ token: '', validToken: false });
   }
 }
