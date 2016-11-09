@@ -58,7 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
-	let signer_port = deps.apis.signer_service.port();
+	let signer_address = deps.apis.signer_service.address();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
@@ -73,7 +73,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_port))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_address))))
 }
 
 pub use self::server::WebappServer;
@@ -91,7 +91,7 @@ mod server {
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
-		_signer_port: Option<u16>,
+		_signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -120,7 +120,7 @@ mod server {
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
 		auth: Option<(String, String)>,
-		signer_port: Option<u16>,
+		signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
@@ -131,7 +131,7 @@ mod server {
 		let sync = deps.sync.clone();
 		let client = deps.client.clone();
 		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
-		server.with_signer_port(signer_port);
+		server.with_signer_address(signer_address);
 
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {

@@ -82,7 +82,7 @@ pub struct RunCmd {
 	pub wal: bool,
 	pub vm_type: VMType,
 	pub geth_compatibility: bool,
-	pub ui_port: Option<u16>,
+	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
@@ -262,7 +262,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
 		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
 			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
-		}, cmd.ui_port)),
+		}, cmd.ui_address)),
 		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
@@ -274,6 +274,10 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_interface: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.interface.clone()),
+			false => None,
+		},
 		dapps_port: match cmd.dapps_conf.enabled {
 			true => Some(cmd.dapps_conf.port),
 			false => None,
