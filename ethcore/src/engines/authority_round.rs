@@ -174,7 +174,7 @@ impl Engine for AuthorityRound {
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
+	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { map!["signature".to_owned() => "TODO".to_owned()] }
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		Schedule::new_post_eip150(true, true, true)

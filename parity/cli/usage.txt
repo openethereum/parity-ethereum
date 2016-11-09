@@ -18,11 +18,12 @@ Usage:
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
+                           last - Uses the last-used mode, active if none.
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
                            wakes regularly to resync.
-                           dark - Parity syncs only when an external interface
-                           is active. (default: {flag_mode}).
+                           dark - Parity syncs only when the RPC is active.
+                           offline - Parity doesn't sync. (default: {flag_mode}).
   --mode-timeout SECS      Specify the number of seconds before inactivity
                            timeout occurs when mode is dark or passive
                            (default: {flag_mode_timeout}).
@@ -42,31 +43,31 @@ Operating Options:
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
-                           Implies --no-signer. (default: {flag_unlock:?})
+                           Implies --no-ui. (default: {flag_unlock:?})
   --password FILE          Provide a file containing a password for unlocking
                            an account. Leading and trailing whitespace is trimmed.
                            (default: {flag_password:?})
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) (default: {flag_keys_iterations}).
-  --force-signer           Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs, even when --unlock is in use.
-                           (default: ${flag_force_signer})
-  --no-signer              Disable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. (default: ${flag_no_signer})
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           (default: {flag_signer_port}).
-  --signer-interface IP    Specify the hostname portion of the Trusted Signer
+
+UI Options:
+  --force-ui               Enable Trusted UI WebSocket endpoint,
+                           even when --unlock is in use. (default: ${flag_force_ui})
+  --no-ui                  Disable Trusted UI WebSocket endpoint.
+                           (default: ${flag_no_ui})
+  --ui-port PORT           Specify the port of Trusted UI server
+                           (default: {flag_ui_port}).
+  --ui-interface IP        Specify the hostname portion of the Trusted UI
                            server, IP should be an interface's IP address,
-                           or local (default: {flag_signer_interface}).
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. (default: {flag_signer_path})
-  --signer-no-validation   Disable Origin and Host headers validation for
-                           Trusted Signer. WARNING: INSECURE. Used only for
-                           development. (default: {flag_signer_no_validation})
+                           or local (default: {flag_ui_interface}).
+  --ui-path PATH           Specify directory where Trusted UIs tokens should
+                           be stored. (default: {flag_ui_path})
+  --ui-no-validation       Disable Origin and Host headers validation for
+                           Trusted UI. WARNING: INSECURE. Used only for
+                           development. (default: {flag_ui_no_validation})
 
 Networking Options:
-  --no-network             Disable p2p networking. (default: {flag_no_network})
   --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).
@@ -107,7 +108,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces, rpc, personal_safe.
+                           parity, parity_set, traces, rpc, parity_accounts.
                            (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it
@@ -284,7 +285,7 @@ Legacy Options:
   --geth                   Run in Geth-compatibility mode. Sets the IPC path
                            to be the same as Geth's. Overrides the --ipc-path
                            and --ipcpath options. Alters RPCs to reflect Geth
-                           bugs.
+                           bugs. Includes the personal_ RPC by default.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.

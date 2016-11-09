@@ -453,6 +453,9 @@ impl<Message> IoService<Message> where Message: Send + Sync + Clone + 'static {
 impl<Message> Drop for IoService<Message> where Message: Send + Sync + Clone {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoService] Closing...");
+		// Clear handlers so that shared pointers are not stuck on stack
+		// in Channel::send_sync
+		self.handlers.write().clear();
 		self.host_channel.lock().send(IoMessage::Shutdown).unwrap_or_else(|e| warn!("Error on IO service shutdown: {:?}", e));
 		if let Some(thread) = self.thread.take() {
 			thread.join().unwrap_or_else(|e| {

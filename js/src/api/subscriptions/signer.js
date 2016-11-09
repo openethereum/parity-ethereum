@@ -49,10 +49,10 @@ export default class Signer {
       return;
     }
 
-    return this._api.personal
+    return this._api.signer
       .requestsToConfirm()
       .then((requests) => {
-        this._updateSubscriptions('personal_requestsToConfirm', null, requests);
+        this._updateSubscriptions('signer_requestsToConfirm', null, requests);
         nextTimeout();
       })
       .catch(nextTimeout);
@@ -65,7 +65,7 @@ export default class Signer {
       }
 
       switch (data.method) {
-        case 'eth_postTransaction':
+        case 'parity_postTransaction':
         case 'eth_sendTranasction':
         case 'eth_sendRawTransaction':
           this._listRequests(false);

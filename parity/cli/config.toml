@@ -8,7 +8,7 @@ chain = "./chain.json"
 unlock = ["0x1", "0x2", "0x3"]
 password = ["passwdfile path"]
 
-[signer]
+[ui]
 disable = true
 
 [network]

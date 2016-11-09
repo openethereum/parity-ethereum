@@ -8,17 +8,18 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
+  NIGHTLY: "nigtly"
 cache:
-  key: "$CI_BUILD_REF_NAME"
+  key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
 linux-stable:
   stage: build
   image: ethcore/rust:stable
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -41,44 +42,14 @@ linux-stable:
     paths:
     - target/release/parity
     name: "stable-x86_64-unknown-linux-gnu_parity"
-linux-stable-14.04:
-  stage: build
-  image: ethcore/rust-14.04:latest
-  only:
-    - $NIGHTLY
-    - beta
-    - tags
-    - stable
-  script:
-    - cargo build --release $CARGOFLAGS
-    - strip target/release/parity
-    - md5sum target/release/parity >> parity.md5
-    - sh scripts/deb-build.sh amd64
-    - cp target/release/parity deb/usr/bin/parity
-    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-    - dpkg-deb -b deb "parity_"$VER"_amd64.deb"
-    - md5sum "parity_"$VER"_amd64.deb" >> "parity_"$VER"_amd64.deb.md5"
-    - aws configure set aws_access_key_id $s3_key
-    - aws configure set aws_secret_access_key $s3_secret
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity --body target/release/parity
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/parity.md5 --body parity.md5
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb" --body "parity_"$VER"_amd64.deb"
-    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-ubuntu_14_04-gnu/"parity_"$VER"_amd64.deb.md5" --body "parity_"$VER"_amd64.deb.md5"
-  tags:
-    - rust
-    - rust-14.04
-  artifacts:
-    paths:
-    - target/release/parity
-    name: "stable-x86_64-unknown-ubuntu_14_04-gnu_parity"
 linux-beta:
   stage: build
   image: ethcore/rust:beta
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -94,10 +65,10 @@ linux-nightly:
   stage: build
   image: ethcore/rust:nightly
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
@@ -113,10 +84,10 @@ linux-centos:
   stage: build
   image: ethcore/rust-centos:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CXX="g++"
     - export CC="gcc"
@@ -134,14 +105,47 @@ linux-centos:
     paths:
     - target/release/parity
     name: "x86_64-unknown-centos-gnu_parity"
+linux-i686:   
+  stage: build   
+  image: ethcore/rust-i686:latest   
+  only:
+    - beta
+    - tags
+    - stable
+    - triggers
+  script:
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
+    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - strip target/i686-unknown-linux-gnu/release/parity
+    - md5sum target/i686-unknown-linux-gnu/release/parity >> parity.md5
+    - sh scripts/deb-build.sh i386
+    - cp target/i686-unknown-linux-gnu/release/parity deb/usr/bin/parity
+    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+    - dpkg-deb -b deb "parity_"$VER"_i386.deb"
+    - md5sum "parity_"$VER"_i386.deb" >> "parity_"$VER"_i386.deb.md5"
+    - aws configure set aws_access_key_id $s3_key
+    - aws configure set aws_secret_access_key $s3_secret
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity.md5 --body parity.md5
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb" --body "parity_"$VER"_i386.deb"
+    - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/"parity_"$VER"_i386.deb.md5" --body "parity_"$VER"_i386.deb.md5"
+  tags:
+    - rust
+    - rust-i686
+  artifacts:
+    paths:
+      - target/i686-unknown-linux-gnu/release/parity
+    name: "i686-unknown-linux-gnu"
+  allow_failure: true
 linux-armv7:
   stage: build
   image: ethcore/rust-armv7:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
@@ -178,10 +182,10 @@ linux-arm:
   stage: build
   image: ethcore/rust-arm:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabihf-gcc
     - export CXX=arm-linux-gnueabihf-g++
@@ -218,10 +222,10 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
     - export CXX=arm-linux-gnueabi-g++
@@ -251,10 +255,10 @@ linux-aarch64:
   stage: build
   image: ethcore/rust-aarch64:latest
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - export CC=aarch64-linux-gnu-gcc
     - export CXX=aarch64-linux-gnu-g++
@@ -290,10 +294,10 @@ linux-aarch64:
 darwin:
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - cargo build --release $CARGOFLAGS
     - rm -rf parity.md5
@@ -309,12 +313,15 @@ darwin:
     - target/release/parity
     name: "x86_64-apple-darwin_parity"
 windows:
+  cache:
+    key: "%CI_BUILD_STAGE%/%CI_BUILD_REF_NAME%"
+    untracked: true
   stage: build
   only:
-    - $NIGHTLY
     - beta
     - tags
     - stable
+    - triggers
   script:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
@@ -325,8 +332,8 @@ windows:
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
-    - msbuild windows\ptray\ptray.vcxproj /p:Platform=x86 /p:Configuration=Release
-    - signtool sign /f %keyfile% /p %certpass% windows\ptray\release\ptray.exe
+    - msbuild windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release
+    - signtool sign /f %keyfile% /p %certpass% windows\ptray\x64\release\ptray.exe
     - cd nsis
     - makensis.exe installer.nsi
     - copy installer.exe InstallParity.exe
@@ -361,9 +368,7 @@ windows:
 test-darwin:
   stage: test
   only:
-    - beta
-    - tags
-    - stable
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:
@@ -371,12 +376,11 @@ test-darwin:
     - ./test.sh $CARGOFLAGS --no-release
   tags:
     - osx
+  allow_failure: true
 test-windows:
   stage: test
   only:
-    - beta
-    - tags
-    - stable
+    - triggers
   before_script:
     - git submodule update --init --recursive
   script:
@@ -390,7 +394,7 @@ test-rust-stable:
   image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF_NAME $(git merge-base $CI_BUILD_REF_NAME master) | grep \.js | wc -l)
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
@@ -400,6 +404,42 @@ test-rust-stable:
   tags:
     - rust
     - rust-stable
+test-rust-beta:
+  stage: test
+  only:
+    - triggers
+  image: ethcore/rust:beta
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-beta
+  allow_failure: true
+test-rust-nightly:
+  stage: test
+  only:
+    - triggers
+  image: ethcore/rust:nightly
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+  tags:
+    - rust
+    - rust-nightly
+  allow_failure: true
 js-tests:
   stage: test
   image: ethcore/rust:stable
@@ -417,12 +457,11 @@ js-release:
     - master
     - beta
     - stable
-    - tags
   image: ethcore/rust:stable
   before_script:
-    - ./js/scripts/install-deps.sh
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/install-deps.sh; fi
   script:
-    - ./js/scripts/build.sh
-    - ./js/scripts/release.sh
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/build.sh; fi
+    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/release.sh; fi
   tags:
     - javascript

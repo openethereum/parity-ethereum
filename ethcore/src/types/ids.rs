@@ -55,7 +55,7 @@ pub struct TraceId {
 }
 
 /// Uniquely identifies Uncle.
-#[derive(Debug, Binary)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Binary)]
 pub struct UncleID {
 	/// Block id.
 	pub block: BlockID,

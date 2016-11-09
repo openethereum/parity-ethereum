@@ -16,6 +16,7 @@
 
 use std::str::FromStr;
 use std::path::Path;
+use std::fmt::{Display, Formatter, Error as FmtError};
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::Config as TraceConfig;
@@ -83,6 +84,17 @@ pub enum Mode {
 impl Default for Mode {
 	fn default() -> Self {
 		Mode::Active
+	}
+}
+
+impl Display for Mode {
+	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+		match *self {
+			Mode::Active => write!(f, "active"),
+			Mode::Passive(..) => write!(f, "passive"),
+			Mode::Dark(..) => write!(f, "dark"),
+			Mode::Off => write!(f, "offline"),
+		}
 	}
 }
 

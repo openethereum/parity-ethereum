@@ -17,8 +17,6 @@
 import { handleActions } from 'redux-actions';
 import { bytesToHex } from '../../api/util/format';
 
-import { parityNode } from '../../environment';
-
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 const initialState = {
@@ -28,7 +26,7 @@ const initialState = {
 export function hashToImageUrl (hashArray) {
   const hash = hashArray ? bytesToHex(hashArray) : ZERO;
 
-  return hash === ZERO ? null : `${parityNode}/api/content/${hash.substr(2)}`;
+  return hash === ZERO ? null : `/api/content/${hash.substr(2)}`;
 }
 
 export default handleActions({

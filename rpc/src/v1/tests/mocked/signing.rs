@@ -17,12 +17,12 @@
 use std::str::FromStr;
 use std::sync::Arc;
 use jsonrpc_core::{IoHandler, to_value, Success};
-use v1::impls::EthSigningQueueClient;
-use v1::traits::{EthSigning, Ethcore};
+use v1::impls::SigningQueueClient;
+use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
 use v1::types::{H256 as RpcH256, H520 as RpcH520, Bytes};
 use v1::tests::helpers::TestMinerService;
-use v1::tests::mocked::ethcore;
+use v1::tests::mocked::parity;
 
 use util::{Address, FixedHash, Uint, U256, H256, H520};
 use ethcore::account_provider::AccountProvider;
@@ -31,7 +31,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethstore::ethkey::{Generator, Random};
 use serde_json;
 
-struct EthSigningTester {
+struct SigningTester {
 	pub signer: Arc<SignerService>,
 	pub client: Arc<TestBlockChainClient>,
 	pub miner: Arc<TestMinerService>,
@@ -39,16 +39,19 @@ struct EthSigningTester {
 	pub io: IoHandler,
 }
 
-impl Default for EthSigningTester {
+impl Default for SigningTester {
 	fn default() -> Self {
 		let signer = Arc::new(SignerService::new_test(None));
 		let client = Arc::new(TestBlockChainClient::default());
 		let miner = Arc::new(TestMinerService::default());
 		let accounts = Arc::new(AccountProvider::transient_provider());
 		let io = IoHandler::new();
-		io.add_delegate(EthSigningQueueClient::new(&signer, &client, &miner, &accounts).to_delegate());
+		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
+		io.add_delegate(EthSigning::to_delegate(rpc));
+		let rpc = SigningQueueClient::new(&signer, &client, &miner, &accounts);
+		io.add_delegate(ParitySigning::to_delegate(rpc));
 
-		EthSigningTester {
+		SigningTester {
 			signer: signer,
 			client: client,
 			miner: miner,
@@ -58,8 +61,8 @@ impl Default for EthSigningTester {
 	}
 }
 
-fn eth_signing() -> EthSigningTester {
-	EthSigningTester::default()
+fn eth_signing() -> SigningTester {
+	SigningTester::default()
 }
 
 #[test]
@@ -101,7 +104,7 @@ fn should_post_sign_to_queue() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -122,7 +125,7 @@ fn should_check_status_of_request() {
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -134,7 +137,7 @@ fn should_check_status_of_request() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_checkRequest",
+		"method": "parity_checkRequest",
 		"params": ["0x1"],
 		"id": 1
 	}"#;
@@ -151,7 +154,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	let address = Address::random();
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_postSign",
+		"method": "parity_postSign",
 		"params": [
 			""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
 			"0x0000000000000000000000000000000000000000000000000000000000000005"
@@ -164,7 +167,7 @@ fn should_check_status_of_request_when_its_resolved() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "eth_checkRequest",
+		"method": "parity_checkRequest",
 		"params": ["0x1"],
 		"id": 1
 	}"#;
@@ -272,15 +275,15 @@ fn should_dispatch_transaction_if_account_is_unlock() {
 fn should_decrypt_message_if_account_is_unlocked() {
 	// given
 	let tester = eth_signing();
-	let ethcore = ethcore::Dependencies::new();
-	tester.io.add_delegate(ethcore.client(None).to_delegate());
+	let parity = parity::Dependencies::new();
+	tester.io.add_delegate(parity.client(None).to_delegate());
 	let (address, public) = tester.accounts.new_account_and_public("test").unwrap();
 	tester.accounts.unlock_account_permanently(address, "test".into()).unwrap();
 
 
 	// First encrypt message
 	let request = format!("{}0x{:?}{}",
-		r#"{"jsonrpc": "2.0", "method": "ethcore_encryptMessage", "params":[""#,
+		r#"{"jsonrpc": "2.0", "method": "parity_encryptMessage", "params":[""#,
 		public,
 		r#"", "0x01020304"], "id": 1}"#
 	);
@@ -288,7 +291,7 @@ fn should_decrypt_message_if_account_is_unlocked() {
 
 	// then call decrypt
 	let request = format!("{}{:?}{}{:?}{}",
-		r#"{"jsonrpc": "2.0", "method": "ethcore_decryptMessage", "params":["0x"#,
+		r#"{"jsonrpc": "2.0", "method": "parity_decryptMessage", "params":["0x"#,
 		address,
 		r#"","#,
 		encrypted.result,
@@ -311,7 +314,7 @@ fn should_add_decryption_to_the_queue() {
 	// when
 	let request = r#"{
 		"jsonrpc": "2.0",
-		"method": "ethcore_decryptMessage",
+		"method": "parity_decryptMessage",
 		"params": ["0x"#.to_owned() + &format!("{:?}", acc.address()) + r#"",
 		"0x012345"],
 		"id": 1

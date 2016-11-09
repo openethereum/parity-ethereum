@@ -12,24 +12,6 @@
 // GNU General Public License for more details.
 
 // You should have received a copy of the GNU General Public License
-// along with Parity. If not, see <http://www.gnu.org/licenses/>.
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const defaultHidden = [];
-
-export function readHiddenApps () {
-  const stored = localStorage.getItem('hiddenApps');
-
-  if (stored) {
-    try {
-      return JSON.parse(stored);
-    } catch (error) {
-      console.warn('readHiddenApps', error);
-    }
-  }
-
-  return defaultHidden;
-}
-
-export function writeHiddenApps (hidden) {
-  localStorage.setItem('hiddenApps', JSON.stringify(hidden));
-}
+export default from './parity';

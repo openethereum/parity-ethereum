@@ -15,7 +15,9 @@
 				"eip155Transition": "0x7fffffffffffffff",
 				"eip160Transition": "0x7fffffffffffffff",
 				"eip161abcTransition": "0x7fffffffffffffff",
-				"eip161dTransition": "0x7fffffffffffffff"
+				"eip161dTransition": "0x7fffffffffffffff",
+				"ecip1010PauseTransition": "0x2dc6c0",
+				"ecip1010ContinueTransition": "0x4c4b40"
 			}
 		}
 	},

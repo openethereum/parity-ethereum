@@ -38,6 +38,7 @@ use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
 use types::mode::Mode;
+use views::BlockView;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -427,6 +428,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None	// Simple default.
 	}
 
+	fn uncle_extra_info(&self, _id: UncleID) -> Option<BTreeMap<String, String>> {
+		None
+	}
+
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
 	}
@@ -468,6 +473,13 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).cloned())
 	}
+
+	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>> {
+		self.block(id)
+			.map(|block| BlockView::new(&block).header())
+			.map(|header| self.spec.engine.extra_info(&header))
+	}
+
 
 	fn block_status(&self, id: BlockID) -> BlockStatus {
 		match id {
