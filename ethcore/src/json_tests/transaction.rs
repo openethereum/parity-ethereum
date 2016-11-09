@@ -26,8 +26,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 	let old_schedule = evm::Schedule::new_frontier();
 	let new_schedule = evm::Schedule::new_homestead();
 	for (name, test) in tests.into_iter() {
-		let mut fail = false;
-		let mut fail_unless = |cond: bool| if !cond && !fail { failed.push(name.clone()); println!("Transaction failed: {:?}", name); fail = true };
+		let mut fail_unless = |cond: bool, title: &str| if !cond { failed.push(name.clone()); println!("Transaction failed: {:?}: {:?}", name, title); };
 
 		let number: Option<u64> = test.block_number.map(Into::into);
 		let schedule = match number {
@@ -35,7 +34,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
-		let allow_network_id_of_one = number.map_or(false, |n| n > 2600000); 
+		let allow_network_id_of_one = number.map_or(false, |n| n >= 3_500_000); 
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
@@ -43,26 +42,26 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			.map_err(From::from)
 			.and_then(|t: SignedTransaction| t.validate(schedule, schedule.have_delegate_call, allow_network_id_of_one));
 
-		fail_unless(test.transaction.is_none() == res.is_err());
+		fail_unless(test.transaction.is_none() == res.is_err(), "Validity different");
 		if let (Some(tx), Some(sender)) = (test.transaction, test.sender) {
 			let t = res.unwrap();
-			fail_unless(t.sender().unwrap() == sender.into());
+			fail_unless(t.sender().unwrap() == sender.into(), "sender mismatch");
 			let is_acceptable_network_id = match t.network_id() {
 				None => true,
 				Some(1) if allow_network_id_of_one => true,
 				_ => false,
 			};
-			fail_unless(is_acceptable_network_id);
+			fail_unless(is_acceptable_network_id, "Network ID unacceptable");
 			let data: Vec<u8> = tx.data.into();
-			fail_unless(t.data == data);
-			fail_unless(t.gas_price == tx.gas_price.into());
-			fail_unless(t.nonce == tx.nonce.into());
-			fail_unless(t.value == tx.value.into());
+			fail_unless(t.data == data, "data mismatch");
+			fail_unless(t.gas_price == tx.gas_price.into(), "gas_price mismatch");
+			fail_unless(t.nonce == tx.nonce.into(), "nonce mismatch");
+			fail_unless(t.value == tx.value.into(), "value mismatch");
 			let to: Option<ethjson::hash::Address> = tx.to.into();
 			let to: Option<Address> = to.map(Into::into);
 			match t.action {
-				Action::Call(dest) => fail_unless(Some(dest) == to),
-				Action::Create => fail_unless(None == to),
+				Action::Call(dest) => fail_unless(Some(dest) == to, "call/destination mismatch"),
+				Action::Create => fail_unless(None == to, "create mismatch"),
 			}
 		}
 	}
@@ -80,3 +79,7 @@ declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Ho
 declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}
 declare_test!{TransactionTests_Homestead_ttWrongRLPTransaction, "TransactionTests/Homestead/ttWrongRLPTransaction"}
 declare_test!{TransactionTests_RandomTests_tr201506052141PYTHON, "TransactionTests/RandomTests/tr201506052141PYTHON"}
+declare_test!{TransactionTests_Homestead_ttTransactionTestEip155VitaliksTests, "TransactionTests/Homestead/ttTransactionTestEip155VitaliksTests"}
+declare_test!{TransactionTests_EIP155_ttTransactionTest, "TransactionTests/EIP155/ttTransactionTest"}
+declare_test!{TransactionTests_EIP155_ttTransactionTestEip155VitaliksTests, "TransactionTests/EIP155/ttTransactionTestEip155VitaliksTests"}
+declare_test!{TransactionTests_EIP155_ttTransactionTestVRule, "TransactionTests/EIP155/ttTransactionTestVRule"}
