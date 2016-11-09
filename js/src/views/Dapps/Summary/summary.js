@@ -40,10 +40,10 @@ export default class Summary extends Component {
     }
 
     let image = <div className={ styles.image }>&nbsp;</div>;
-    if (app.image) {
-      image = <img src={ `http://127.0.0.1:${dappsPort}${app.image}` } className={ styles.image } />;
-    } else if (app.iconUrl) {
+    if (app.type === 'local') {
       image = <img src={ `http://127.0.0.1:${dappsPort}/${app.id}/${app.iconUrl}` } className={ styles.image } />;
+    } else {
+      image = <img src={ `http://127.0.0.1:${dappsPort}${app.image}` } className={ styles.image } />;
     }
 
     return (
@@ -52,9 +52,16 @@ export default class Summary extends Component {
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
-            title={ <Link to={ `/app/${app.id}` }>{ app.name }</Link> }
-            byline={ app.description } />
-          <div className={ styles.author }>{ app.author }, v{ app.version }</div>
+            title={
+              <Link to={ `/app/${app.id}` }>
+                { app.name }
+              </Link>
+            }
+            byline={ app.description }
+          />
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
           { this.props.children }
         </div>
       </Container>

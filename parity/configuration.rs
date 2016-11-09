@@ -95,7 +95,7 @@ impl Configuration {
 		let wal = !self.args.flag_fast_and_loose;
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let signer_port = self.signer_port();
+		let ui_port = self.ui_port();
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
 		let format = try!(self.format());
@@ -243,7 +243,7 @@ impl Configuration {
 				vm_type: vm_type,
 				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
-				signer_port: signer_port,
+				ui_port: ui_port,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
@@ -396,11 +396,11 @@ impl Configuration {
 
 	fn signer_config(&self) -> SignerConfiguration {
 		SignerConfiguration {
-			enabled: self.signer_enabled(),
-			port: self.args.flag_signer_port,
-			interface: self.signer_interface(),
+			enabled: self.ui_enabled(),
+			port: self.args.flag_ui_port,
+			interface: self.ui_interface(),
 			signer_path: self.directories().signer,
-			skip_origin_validation: self.args.flag_signer_no_validation,
+			skip_origin_validation: self.args.flag_ui_no_validation,
 		}
 	}
 
@@ -511,7 +511,10 @@ impl Configuration {
 	fn rpc_apis(&self) -> String {
 		let mut apis = self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone());
 		if self.args.flag_geth {
-			apis.push_str(",personal");
+			if !apis.is_empty() {
+				apis.push_str(",");
+			}
+			apis.push_str("personal");
 		}
 		apis
 	}
@@ -548,6 +551,9 @@ impl Configuration {
 			apis: {
 				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
 				if self.args.flag_geth {
+					if !apis.is_empty() {
+ 						apis.push_str(",");
+ 					}
 					apis.push_str("personal");
 				}
 				try!(apis.parse())
@@ -595,7 +601,7 @@ impl Configuration {
 		);
 
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
-		let signer_path = replace_home(&self.args.flag_signer_path);
+		let ui_path = replace_home(&self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
 			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
@@ -616,7 +622,7 @@ impl Configuration {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
-			signer: signer_path,
+			signer: ui_path,
 		}
 	}
 
@@ -628,16 +634,16 @@ impl Configuration {
 		}
 	}
 
-	fn signer_port(&self) -> Option<u16> {
-		if !self.signer_enabled() {
+	fn ui_port(&self) -> Option<u16> {
+		if !self.ui_enabled() {
 			None
 		} else {
-			Some(self.args.flag_signer_port)
+			Some(self.args.flag_ui_port)
 		}
 	}
 
-	fn signer_interface(&self) -> String {
-		match self.args.flag_signer_interface.as_str() {
+	fn ui_interface(&self) -> String {
+		match self.args.flag_ui_interface.as_str() {
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
@@ -662,16 +668,16 @@ impl Configuration {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
-	fn signer_enabled(&self) -> bool {
-		if self.args.flag_force_signer {
+	fn ui_enabled(&self) -> bool {
+		if self.args.flag_force_ui {
 			return true;
 		}
 
-		let signer_disabled = self.args.flag_unlock.is_some() ||
+		let ui_disabled = self.args.flag_unlock.is_some() ||
 			self.args.flag_geth ||
-			self.args.flag_no_signer;
+			self.args.flag_no_ui;
 
-		!signer_disabled
+		!ui_disabled
 	}
 }
 
@@ -853,7 +859,7 @@ mod tests {
 			wal: true,
 			vm_type: Default::default(),
 			geth_compatibility: false,
-			signer_port: Some(8180),
+			ui_port: Some(8180),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
@@ -976,11 +982,11 @@ mod tests {
 
 		// when
 		let conf0 = parse(&["parity", "--geth"]);
-		let conf1 = parse(&["parity", "--geth", "--force-signer"]);
+		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
 
 		// then
-		assert_eq!(conf0.signer_enabled(), false);
-		assert_eq!(conf1.signer_enabled(), true);
+		assert_eq!(conf0.ui_enabled(), false);
+		assert_eq!(conf1.ui_enabled(), true);
 	}
 
 	#[test]
@@ -991,7 +997,7 @@ mod tests {
 		let conf0 = parse(&["parity", "--unlock", "0x0"]);
 
 		// then
-		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf0.ui_enabled(), false);
 	}
 
 	#[test]
@@ -999,10 +1005,10 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--signer-path", "signer"]);
-		let conf1 = parse(&["parity", "--signer-path", "signer", "--signer-no-validation"]);
-		let conf2 = parse(&["parity", "--signer-path", "signer", "--signer-port", "3123"]);
-		let conf3 = parse(&["parity", "--signer-path", "signer", "--signer-interface", "test"]);
+		let conf0 = parse(&["parity", "--ui-path", "signer"]);
+		let conf1 = parse(&["parity", "--ui-path", "signer", "--ui-no-validation"]);
+		let conf2 = parse(&["parity", "--ui-path", "signer", "--ui-port", "3123"]);
+		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
 		assert_eq!(conf0.signer_config(), SignerConfiguration {

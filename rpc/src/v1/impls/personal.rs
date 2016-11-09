@@ -26,7 +26,7 @@ use jsonrpc_core::Error;
 use v1::traits::Personal;
 use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
 use v1::helpers::errors;
-use v1::helpers::dispatch::sign_and_dispatch;
+use v1::helpers::dispatch::{self, sign_and_dispatch};
 
 /// Account management (personal) rpc implementation.
 pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -92,13 +92,17 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 
 	fn sign_and_send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
 		try!(self.active());
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+		let accounts = take_weak!(self.accounts);
 
+		let request = dispatch::fill_optional_fields(request.into(), &*client, &*miner);
 		sign_and_dispatch(
-			&*take_weak!(self.client),
-			&*take_weak!(self.miner),
-			&*take_weak!(self.accounts),
-			request.into(),
+			&*client,
+			&*miner,
+			&*accounts,
+			request,
 			Some(password)
-		)
+		).map(Into::into)
 	}
 }

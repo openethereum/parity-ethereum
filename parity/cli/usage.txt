@@ -43,28 +43,29 @@ Operating Options:
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
-                           Implies --no-signer. (default: {flag_unlock:?})
+                           Implies --no-ui. (default: {flag_unlock:?})
   --password FILE          Provide a file containing a password for unlocking
                            an account. Leading and trailing whitespace is trimmed.
                            (default: {flag_password:?})
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) (default: {flag_keys_iterations}).
-  --force-signer           Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs, even when --unlock is in use.
-                           (default: ${flag_force_signer})
-  --no-signer              Disable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. (default: ${flag_no_signer})
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           (default: {flag_signer_port}).
-  --signer-interface IP    Specify the hostname portion of the Trusted Signer
+
+UI Options:
+  --force-ui               Enable Trusted UI WebSocket endpoint,
+                           even when --unlock is in use. (default: ${flag_force_ui})
+  --no-ui                  Disable Trusted UI WebSocket endpoint.
+                           (default: ${flag_no_ui})
+  --ui-port PORT           Specify the port of Trusted UI server
+                           (default: {flag_ui_port}).
+  --ui-interface IP        Specify the hostname portion of the Trusted UI
                            server, IP should be an interface's IP address,
-                           or local (default: {flag_signer_interface}).
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. (default: {flag_signer_path})
-  --signer-no-validation   Disable Origin and Host headers validation for
-                           Trusted Signer. WARNING: INSECURE. Used only for
-                           development. (default: {flag_signer_no_validation})
+                           or local (default: {flag_ui_interface}).
+  --ui-path PATH           Specify directory where Trusted UIs tokens should
+                           be stored. (default: {flag_ui_path})
+  --ui-no-validation       Disable Origin and Host headers validation for
+                           Trusted UI. WARNING: INSECURE. Used only for
+                           development. (default: {flag_ui_no_validation})
 
 Networking Options:
   --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})

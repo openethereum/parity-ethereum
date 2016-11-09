@@ -474,6 +474,22 @@
 													<key>UID</key>
 													<integer>0</integer>
 												</dict>
+												<dict>
+													<key>CHILDREN</key>
+													<array/>
+													<key>GID</key>
+													<integer>0</integer>
+													<key>PATH</key>
+													<string>uninstall-parity.sh</string>
+													<key>PATH_TYPE</key>
+													<integer>3</integer>
+													<key>PERMISSIONS</key>
+													<integer>493</integer>
+													<key>TYPE</key>
+													<integer>3</integer>
+													<key>UID</key>
+													<integer>0</integer>
+												</dict>
 											</array>
 											<key>GID</key>
 											<integer>0</integer>
@@ -562,7 +578,7 @@
 				<key>OVERWRITE_PERMISSIONS</key>
 				<false/>
 				<key>VERSION</key>
-				<string>1.4</string>
+				<string>1.5.0</string>
 			</dict>
 			<key>UUID</key>
 			<string>2DCD5B81-7BAF-4DA1-9251-6274B089FD36</string>
@@ -652,6 +668,44 @@
 			<dict>
 				<key>LOCALIZATIONS</key>
 				<array/>
+			</dict>
+			<key>LICENSE</key>
+			<dict>
+				<key>KEYWORDS</key>
+				<dict/>
+				<key>LOCALIZATIONS</key>
+				<array>
+					<dict>
+						<key>LANGUAGE</key>
+						<string>English</string>
+						<key>VALUE</key>
+						<dict>
+							<key>PATH</key>
+							<string>install-licence.txt</string>
+							<key>PATH_TYPE</key>
+							<integer>3</integer>
+						</dict>
+					</dict>
+				</array>
+				<key>MODE</key>
+				<integer>0</integer>
+			</dict>
+			<key>README</key>
+			<dict>
+				<key>LOCALIZATIONS</key>
+				<array>
+					<dict>
+						<key>LANGUAGE</key>
+						<string>English</string>
+						<key>VALUE</key>
+						<dict>
+							<key>PATH</key>
+							<string>install-readme.txt</string>
+							<key>PATH_TYPE</key>
+							<integer>3</integer>
+						</dict>
+					</dict>
+				</array>
 			</dict>
 			<key>TITLE</key>
 			<dict>
