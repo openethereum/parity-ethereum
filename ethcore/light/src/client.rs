@@ -52,7 +52,7 @@ impl Client {
 	}
 
 	/// Whether the block is already known (but not necessarily part of the canonical chain)
-	pub fn is_known(&self, id: BlockID) -> bool {
+	pub fn is_known(&self, _id: BlockID) -> bool {
 		false
 	}
 
@@ -74,9 +74,16 @@ impl Client {
 
 // dummy implementation -- may draw from canonical cache further on.
 impl Provider for Client {
-	/// Get the chain info.
 	fn chain_info(&self) -> BlockChainInfo {
 		unimplemented!()
+	}
+
+	fn reorg_depth(&self, _a: &H256, _b: &H256) -> Option<u64> {
+		None
+	}
+
+	fn earliest_state(&self) -> Option<u64> {
+		None
 	}
 
 	fn block_headers(&self, _req: request::Headers) -> Vec<Bytes> {

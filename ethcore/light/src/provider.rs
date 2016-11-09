@@ -19,7 +19,7 @@
 
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
-use util::Bytes;
+use util::{Bytes, H256};
 
 use request;
 
@@ -32,6 +32,12 @@ use request;
 pub trait Provider: Send + Sync {
 	/// Provide current blockchain info.
 	fn chain_info(&self) -> BlockChainInfo;
+
+	/// Find the depth of a common ancestor between two blocks.
+	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64>;
+
+	/// Earliest state.
+	fn earliest_state(&self) -> Option<u64>;
 
 	/// Provide a list of headers starting at the requested block,
 	/// possibly in reverse and skipping `skip` at a time.

@@ -30,9 +30,13 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 use provider::Provider;
 use request::{self, Request};
-use self::buffer_flow::FlowParams;
+
+use self::buffer_flow::{Buffer, FlowParams};
+use self::error::{Error, Punishment};
+use self::status::{Status, Capabilities};
 
 mod buffer_flow;
+mod error;
 mod status;
 
 const TIMEOUT: TimerToken = 0;
@@ -80,10 +84,21 @@ mod packet {
 	pub const HEADER_PROOFS: u8 = 0x0e;
 }
 
+// A pending peer: one we've sent our status to but
+// may not have received one for.
+struct PendingPeer {
+	sent_head: H256,
+}
+
 // data about each peer.
 struct Peer {
-	buffer: u64, // remaining buffer value.
+	local_buffer: Buffer, // their buffer relative to us
+	remote_buffer: Buffer, // our buffer relative to them
 	current_asking: HashSet<usize>, // pending request ids.
+	status: Status,
+	capabilities: Capabilities,
+	remote_flow: FlowParams,
+	sent_head: H256, // last head we've given them.
 }
 
 /// This is an implementation of the light ethereum network protocol, abstracted
@@ -95,31 +110,32 @@ struct Peer {
 pub struct LightProtocol {
 	provider: Box<Provider>,
 	genesis_hash: H256,
-	mainnet: bool,
+	network_id: status::NetworkId,
+	pending_peers: RwLock<HashMap<PeerId, PendingPeer>>,
 	peers: RwLock<HashMap<PeerId, Peer>>,
 	pending_requests: RwLock<HashMap<usize, Request>>,
+	capabilities: RwLock<Capabilities>,
+	flow_params: FlowParams, // assumed static and same for every peer.
 	req_id: AtomicUsize,
 }
 
 impl LightProtocol {
-	// make a request to a given peer.
-	fn request_from(&self, peer: &PeerId, req: Request) {
+	// Check on the status of all pending requests.
+	fn check_pending_requests(&self) {
 		unimplemented!()
 	}
 
 	// called when a peer connects.
 	fn on_connect(&self, peer: &PeerId, io: &NetworkContext) {
 		let peer = *peer;
+
 		match self.send_status(peer, io) {
-			Ok(()) => {
-				self.peers.write().insert(peer, Peer {
-					buffer: 0,
-					current_asking: HashSet::new(),
-				});
+			Ok(pending_peer) => {
+				self.pending_peers.write().insert(peer, pending_peer);
 			}
 			Err(e) => {
 				trace!(target: "les", "Error while sending status: {}", e);
-				io.disable_peer(peer);
+				io.disconnect_peer(peer);
 			}
 		}
 	}
@@ -127,119 +143,140 @@ impl LightProtocol {
 	// called when a peer disconnects.
 	fn on_disconnect(&self, peer: PeerId, io: &NetworkContext) {
 		// TODO: reassign all requests assigned to this peer.
+		self.pending_peers.write().remove(&peer);
 		self.peers.write().remove(&peer);
 	}
 
-	fn send_status(&self, peer: PeerId, io: &NetworkContext) -> Result<(), NetworkError> {
+	// send status to a peer.
+	fn send_status(&self, peer: PeerId, io: &NetworkContext) -> Result<PendingPeer, NetworkError> {
 		let chain_info = self.provider.chain_info();
 
-		// TODO [rob] use optional keys too.
-		let mut stream = RlpStream::new_list(6);
-		stream
-			.begin_list(2)
-				.append(&"protocolVersion")
-				.append(&PROTOCOL_VERSION)
-			.begin_list(2)
-				.append(&"networkId")
-				.append(&(self.mainnet as u8))
-			.begin_list(2)
-				.append(&"headTd")
-				.append(&chain_info.total_difficulty)
-			.begin_list(2)
-				.append(&"headHash")
-				.append(&chain_info.best_block_hash)
-			.begin_list(2)
-				.append(&"headNum")
-				.append(&chain_info.best_block_number)
-			.begin_list(2)
-				.append(&"genesisHash")
-				.append(&self.genesis_hash);
+		// TODO: could update capabilities here.
 
-		io.send(peer, packet::STATUS, stream.out())
+		let status = Status {
+			head_td: chain_info.total_difficulty,
+			head_hash: chain_info.best_block_hash,
+			head_num: chain_info.best_block_number,
+			genesis_hash: chain_info.genesis_hash,
+			protocol_version: PROTOCOL_VERSION,
+			network_id: self.network_id,
+			last_head: None,
+		};
+
+		let capabilities = self.capabilities.read().clone();
+		let status_packet = status::write_handshake(&status, &capabilities, &self.flow_params);
+
+		try!(io.send(peer, packet::STATUS, status_packet));
+
+		Ok(PendingPeer {
+			sent_head: chain_info.best_block_hash,
+		})
 	}
 
-	/// Check on the status of all pending requests.
-	fn check_pending_requests(&self) {
-		unimplemented!()
-	}
+	// Handle status message from peer.
+	fn status(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
+		let pending = match self.pending_peers.write().remove(peer) {
+			Some(pending) => pending,
+			None => {
+				return Err(Error::UnexpectedHandshake);
+			}
+		};
 
-	fn status(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
-		unimplemented!()
+		let (status, capabilities, flow_params) = try!(status::parse_handshake(data));
+
+		trace!(target: "les", "Connected peer with chain head {:?}", (status.head_hash, status.head_num));
+
+		if (status.network_id, status.genesis_hash) != (self.network_id, self.genesis_hash) {
+			return Err(Error::WrongNetwork);
+		}
+
+		self.peers.write().insert(*peer, Peer {
+			local_buffer: self.flow_params.create_buffer(),
+			remote_buffer: flow_params.create_buffer(),
+			current_asking: HashSet::new(),
+			status: status,
+			capabilities: capabilities,
+			remote_flow: flow_params,
+			sent_head: pending.sent_head,
+		});
+
+
+		Ok(())
 	}
 
 	// Handle an announcement.
-	fn announcement(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn announcement(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_NEW_HASHES: usize = 256;
 
 		unimplemented!()
 	}
 
 	// Handle a request for block headers.
-	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_HEADERS: u64 = 512;
 
 		unimplemented!()
 	}
 
 	// Receive a response for block headers.
-	fn block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn block_headers(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Handle a request for block bodies.
-	fn get_block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		const MAX_BODIES: usize = 512;
 
 		unimplemented!()
 	}
 
 	// Receive a response for block bodies.
-	fn block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn block_bodies(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Handle a request for receipts.
-	fn get_receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Receive a response for receipts.
-	fn receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn receipts(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Handle a request for proofs.
-	fn get_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Receive a response for proofs.
-	fn proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Handle a request for contract code.
-	fn get_contract_code(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_contract_code(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Receive a response for contract code.
-	fn contract_code(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn contract_code(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Handle a request for header proofs
-	fn get_header_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn get_header_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Receive a response for header proofs
-	fn header_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn header_proofs(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) {
+	fn relay_transactions(&self, peer: &PeerId, io: &NetworkContext, data: UntrustedRlp) -> Result<(), Error> {
 		unimplemented!()
 	}
 }
@@ -251,7 +288,7 @@ impl NetworkProtocolHandler for LightProtocol {
 
 	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
 		let rlp = UntrustedRlp::new(data);
-		match packet_id {
+		let res = match packet_id {
 			packet::STATUS => self.status(peer, io, rlp),
 			packet::ANNOUNCE => self.announcement(peer, io, rlp),
 
@@ -273,8 +310,21 @@ impl NetworkProtocolHandler for LightProtocol {
 			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
 
 			other => {
-				debug!(target: "les", "Disconnecting peer {} on unexpected packet {}", peer, other);
-				io.disconnect_peer(*peer);
+				Err(Error::UnrecognizedPacket(other))
+			}
+		};
+
+		if let Err(e) = res {
+			match e.punishment() {
+				Punishment::None => {}
+				Punishment::Disconnect => {
+					debug!(target: "les", "Disconnecting peer {}: {}", peer, e);
+					io.disconnect_peer(*peer)
+				}
+				Punishment::Disable => {
+					debug!(target: "les", "Disabling peer {}: {}", peer, e);
+					io.disable_peer(*peer)
+				}
 			}
 		}
 	}

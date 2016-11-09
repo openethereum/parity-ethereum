@@ -172,7 +172,7 @@ pub struct Status {
 	/// Number of the best block.
 	pub head_num: u64,
 	/// Genesis hash
-	pub genesis_hash: Option<H256>,
+	pub genesis_hash: H256,
 	/// Last announced chain head and reorg depth to common ancestor.
 	pub last_head: Option<(H256, u64)>,
 }
@@ -182,7 +182,7 @@ pub struct Status {
 pub struct Capabilities {
 	/// Whether this peer can serve headers
 	pub serve_headers: bool,
-	/// Earliest block number it can serve chain requests for.
+	/// Earliest block number it can serve block/receipt requests for.
 	pub serve_chain_since: Option<u64>,
 	/// Earliest block number it can serve state requests for.
 	pub serve_state_since: Option<u64>,
@@ -193,7 +193,7 @@ pub struct Capabilities {
 impl Default for Capabilities {
 	fn default() -> Self {
 		Capabilities {
-			serve_headers: false,
+			serve_headers: true,
 			serve_chain_since: None,
 			serve_state_since: None,
 			tx_relay: false,
@@ -218,7 +218,7 @@ pub fn parse_handshake(rlp: UntrustedRlp) -> Result<(Status, Capabilities, FlowP
 		head_td: try!(parser.expect(Key::HeadTD)),
 		head_hash: try!(parser.expect(Key::HeadHash)),
 		head_num: try!(parser.expect(Key::HeadNum)),
-		genesis_hash: parser.expect(Key::GenesisHash).ok(),
+		genesis_hash: try!(parser.expect(Key::GenesisHash)),
 		last_head: None,
 	};
 
@@ -246,10 +246,7 @@ pub fn write_handshake(status: &Status, capabilities: &Capabilities, flow_params
 	pairs.push(encode_pair(Key::HeadTD, &status.head_td));
 	pairs.push(encode_pair(Key::HeadHash, &status.head_hash));
 	pairs.push(encode_pair(Key::HeadNum, &status.head_num));
-
-	if let Some(ref genesis_hash) = status.genesis_hash {
-		pairs.push(encode_pair(Key::GenesisHash, genesis_hash));
-	}
+	pairs.push(encode_pair(Key::GenesisHash, &status.genesis_hash));
 
 	if capabilities.serve_headers {
 		pairs.push(encode_flag(Key::ServeHeaders));
@@ -380,7 +377,7 @@ mod tests {
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,
-			genesis_hash: Some(H256::zero()),
+			genesis_hash: H256::zero(),
 			last_head: None,
 		};
 
@@ -415,7 +412,7 @@ mod tests {
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,
-			genesis_hash: None,
+			genesis_hash: H256::zero(),
 			last_head: None,
 		};
 
@@ -450,7 +447,7 @@ mod tests {
 			head_td: U256::default(),
 			head_hash: H256::default(),
 			head_num: 10,
-			genesis_hash: None,
+			genesis_hash: H256::zero(),
 			last_head: None,
 		};
 
