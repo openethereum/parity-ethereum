@@ -30,8 +30,7 @@ import SendRequest from './SendRequest';
 
 export default class SMSVerification extends Component {
   static contextTypes = {
-    api: PropTypes.object.isRequired,
-    // store: PropTypes.object.isRequired
+    api: PropTypes.object.isRequired
   }
 
   static propTypes = {
@@ -63,7 +62,7 @@ export default class SMSVerification extends Component {
         title='verify your account via SMS'
         visible scroll
         current={ step }
-        steps={ ['first step', 'second step', 'third step'] }
+        steps={ ['Preparations', 'Enter Data', 'Send Request'] }
       >
         { this.renderStep() }
       </Modal>
@@ -88,6 +87,7 @@ export default class SMSVerification extends Component {
           { cancel }
           <Button
             key='done' label='Done'
+            disabled={ !stepIsValid }
             icon={ <ActionDoneAll /> }
             onClick={ onClose }
           />

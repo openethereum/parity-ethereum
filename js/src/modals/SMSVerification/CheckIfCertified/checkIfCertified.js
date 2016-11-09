@@ -15,11 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Checkbox } from 'material-ui';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
 import ErrorIcon from 'material-ui/svg-icons/alert/error-outline';
-
-import { Form, Input } from '../../../ui';
 
 import styles from './checkIfCertified.css';
 

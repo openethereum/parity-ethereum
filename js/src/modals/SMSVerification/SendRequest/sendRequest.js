@@ -103,6 +103,7 @@ export default class SendRequest extends Component {
       return (
         <div className={ styles.centered }>
           <TxHash hash={ this.props.data.txHash } maxConfirmations={ 3 } />
+          <p>Please keep this window open.</p>
         </div>);
     }
 
@@ -111,7 +112,7 @@ export default class SendRequest extends Component {
     }
 
     if (step === 'sms-sent') {
-      return (<p>The SMS has been sent to { this.props.data.number }</p>);
+      return (<p>The verification code has been sent to { this.props.data.number }.</p>);
     }
 
     return null;
@@ -153,7 +154,10 @@ export default class SendRequest extends Component {
       .catch((err) => {
         console.error('failed to request sms verification', err);
         onError(err);
-        this.setState({ step: 'error', error: err.message });
+        this.setState({
+          step: 'error',
+          error: 'Failed to request a confirmation SMS: ' + err.message
+        });
         // TODO: show message in SnackBar
       });
   }
