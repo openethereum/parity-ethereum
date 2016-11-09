@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
+import InfoIcon from 'material-ui/svg-icons/action/info-outline';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
 import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
@@ -59,12 +60,12 @@ export default class GatherData extends Component {
   }
 
   render () {
-    const { fee } = this.props.data;
     const { numberIsValid } = this.state;
 
+    // TODO: proper legal text
     return (
       <Form>
-        <p>{ fee ? `The fee is ${fromWei(fee).toFixed(3)} ETH.` : 'Fetching the fee…' }</p>
+        { this.renderFee() }
         { this.renderCertified() }
         { this.renderRequested() }
         <Input
@@ -80,6 +81,20 @@ export default class GatherData extends Component {
           onCheck={ this.consentOnChange }
         />
       </Form>
+    );
+  }
+
+  renderFee () {
+    const { fee } = this.props.data;
+
+    if (!fee) {
+      return (<p>Fetching the fee…</p>);
+    }
+    return (
+      <div className={ styles.container }>
+        <InfoIcon />
+        <p className={ styles.message }>The fee is { fromWei(fee).toFixed(3) } ETH.</p>
+      </div>
     );
   }
 
