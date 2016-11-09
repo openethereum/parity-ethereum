@@ -233,7 +233,6 @@ impl FlowParams {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::U256;
 
 	#[test]
 	fn should_serialize_cost_table() {
