@@ -332,7 +332,7 @@ mod util_tests {
 
 		// when
 		let none = Server::cors_domains(None);
-		let some = Server::cors_domains(Some(18180));
+		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)));
 
 		// then
 		assert_eq!(none, Vec::<String>::new());
