@@ -43,12 +43,13 @@ export function validateAbi (abi, api) {
     }
 
     // Validate each elements of the Array
-    const isValid = abiParsed
+    const invalidIndex = abiParsed
       .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api))
-      .reduce((currentTruth, truth) => currentTruth && truth, true);
+      .findIndex((valid) => !valid);
 
-    if (!isValid) {
-      abiError = ERRORS.invalidAbi;
+    if (invalidIndex !== -1) {
+      const invalid = abiParsed[invalidIndex];
+      abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
       return { abi, abiError, abiParsed };
     }
 
@@ -69,8 +70,7 @@ function isValidAbiFunction (object, api) {
     return false;
   }
 
-  return (object.type === 'function' || object.type === 'constructor') &&
-    (object.type === 'function' && object.name) &&
+  return ((object.type === 'function' && object.name) || object.type === 'constructor') &&
     (object.inputs && api.util.isArray(object.inputs));
 }
 
