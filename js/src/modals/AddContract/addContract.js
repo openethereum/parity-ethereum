@@ -31,15 +31,18 @@ import styles from './addContract.css';
 const ABI_TYPES = [
   {
     label: 'Token', readOnly: true, value: JSON.stringify(eip20),
+    type: 'token',
     description: (<span>A standard <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>ERC 20</a> token</span>)
   },
   {
     label: 'Multisig Wallet', readOnly: true,
+    type: 'multisig',
     value: JSON.stringify(wallet),
     description: (<span>Official Multisig contract: <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>see contract code</a></span>)
   },
   {
     label: 'Custom Contract', value: '',
+    type: 'custom',
     description: 'Contract created from custom ABI'
   }
 ];
@@ -59,8 +62,8 @@ export default class AddContract extends Component {
   state = {
     abi: '',
     abiError: ERRORS.invalidAbi,
-    abiType: ABI_TYPES[0],
-    abiTypeIndex: 0,
+    abiType: ABI_TYPES[2],
+    abiTypeIndex: 2,
     abiParsed: null,
     address: '',
     addressError: ERRORS.invalidAddress,
@@ -259,7 +262,7 @@ export default class AddContract extends Component {
 
   onAdd = () => {
     const { api } = this.context;
-    const { abiParsed, address, name, description } = this.state;
+    const { abiParsed, address, name, description, abiType } = this.state;
 
     Promise.all([
       api.parity.setAccountName(address, name),
@@ -268,6 +271,7 @@ export default class AddContract extends Component {
         deleted: false,
         timestamp: Date.now(),
         abi: abiParsed,
+        type: abiType.type,
         description
       })
     ]).catch((error) => {
