@@ -17,9 +17,18 @@
 import React, { Component, PropTypes } from 'react';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import { MenuItem } from 'material-ui';
 
-import { Button, Modal, Form, Input, InputAddress } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress, Select } from '../../ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
+
+import { eip20, wallet } from '../../contracts/abi';
+
+const ABI_TYPES = [
+  { label: 'Custom ABI', value: '' },
+  { label: 'Token', readOnly: true, value: JSON.stringify(eip20) },
+  { label: 'Multisig Wallet', readOnly: true, value: JSON.stringify(wallet) }
+];
 
 export default class AddContract extends Component {
   static contextTypes = {
@@ -34,6 +43,8 @@ export default class AddContract extends Component {
   state = {
     abi: '',
     abiError: ERRORS.invalidAbi,
+    abiType: ABI_TYPES[0],
+    abiTypeIndex: 0,
     abiParsed: null,
     address: '',
     addressError: ERRORS.invalidAddress,
@@ -71,7 +82,7 @@ export default class AddContract extends Component {
   }
 
   renderFields () {
-    const { abi, abiError, address, addressError, description, name, nameError } = this.state;
+    const { abi, abiError, address, addressError, description, name, nameError, abiType, abiTypeIndex } = this.state;
 
     return (
       <Form>
@@ -94,14 +105,37 @@ export default class AddContract extends Component {
           hint='an expanded description for the entry'
           value={ description }
           onSubmit={ this.onEditDescription } />
+
+        <Select
+          label='abi type'
+          value={ abiTypeIndex }
+          onChange={ this.onChangeABIType }
+        >
+          { this.renderAbiTypes() }
+        </Select>
+
         <Input
           label='contract abi'
           hint='the abi for the contract'
           error={ abiError }
           value={ abi }
-          onSubmit={ this.onEditAbi } />
+          readOnly={ abiType.readOnly }
+          onSubmit={ this.onEditAbi }
+        />
       </Form>
     );
+  }
+
+  renderAbiTypes () {
+    return ABI_TYPES.map((type, index) => (
+      <MenuItem value={ index } key={ index } primaryText={ type.label } />
+    ));
+  }
+
+  onChangeABIType = (event, index) => {
+    const abiType = ABI_TYPES[index];
+    this.setState({ abiTypeIndex: index, abiType });
+    this.onEditAbi(abiType.value);
   }
 
   onEditAbi = (abi) => {
