@@ -20,7 +20,7 @@ extern crate ethash;
 
 use std::io::{Write};
 use std::process::{Command, Stdio};
-use std::collections::HashSet;
+use std::collections::BTreeSet;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -342,7 +342,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
 		let addresses = try!(store.addresses_info().map_err(|e| errors::internal("Could not fetch accounts.", e)));
 
-		let set: HashSet<Address> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
+		let set: BTreeSet<Address> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
 		Ok(set.into_iter().map(Into::into).collect())
 	}
 
