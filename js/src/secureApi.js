@@ -122,7 +122,7 @@ export default class SecureApi extends Api {
   }
 
   get dappsUrl () {
-    return `http://127.0.0.1:${this._dappsPort}`;
+    return `http://${window.location.hostname}:${this._dappsPort}`;
   }
 
   get signerPort () {
