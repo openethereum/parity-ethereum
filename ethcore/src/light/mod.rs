@@ -28,20 +28,13 @@
 //! It starts by performing a header-only sync, verifying random samples
 //! of members of the chain to varying degrees.
 
-// TODO: remove when integrating with parity.
+// TODO: remove when integrating with the rest of parity.
 #![allow(dead_code)]
 
 pub mod client;
 pub mod net;
 pub mod provider;
 pub mod request;
-
-extern crate ethcore_util as util;
-extern crate ethcore_network as network;
-extern crate ethcore_io as io;
-extern crate ethcore;
-extern crate rlp;
-extern crate time;
 
 #[macro_use]
 extern crate log;
