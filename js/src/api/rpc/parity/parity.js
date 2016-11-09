@@ -62,8 +62,7 @@ export default class Parity {
 
   dappsInterface () {
     return this._transport
-      .execute('parity_dappsInterface')
-      .then(outNumber);
+      .execute('parity_dappsInterface');
   }
 
   defaultExtraData () {

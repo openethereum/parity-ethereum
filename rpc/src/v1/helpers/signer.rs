@@ -59,8 +59,8 @@ impl SignerService {
 
 	#[cfg(test)]
 	/// Creates new Signer Service for tests.
-	pub fn new_test(port: Option<u16>) -> Self {
-		SignerService::new(|| Ok("new_token".into()), port)
+	pub fn new_test(address: Option<(String, u16)>) -> Self {
+		SignerService::new(|| Ok("new_token".into()), address)
 	}
 }
 

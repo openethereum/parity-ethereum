@@ -859,7 +859,7 @@ mod tests {
 			wal: true,
 			vm_type: Default::default(),
 			geth_compatibility: false,
-			ui_port: Some(8180),
+			ui_address: Some(("127.0.0.1".into(), 8180)),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),

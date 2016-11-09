@@ -241,7 +241,7 @@ fn rpc_parity_node_name() {
 #[test]
 fn rpc_parity_unsigned_transactions_count() {
 	let deps = Dependencies::new();
-	let io = deps.with_signer(SignerService::new_test(Some(18180)));
+	let io = deps.with_signer(SignerService::new_test(Some(("127.0.0.1".into(), 18180))));
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_unsignedTransactionsCount", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":0,"id":1}"#;
@@ -285,7 +285,7 @@ fn rpc_parity_encrypt() {
 fn rpc_parity_signer_port() {
 	// given
 	let deps = Dependencies::new();
-	let io1 = deps.with_signer(SignerService::new_test(Some(18180)));
+	let io1 = deps.with_signer(SignerService::new_test(Some(("127.0.0.1".into(), 18180))));
 	let io2 = deps.default_client();
 
 	// when
