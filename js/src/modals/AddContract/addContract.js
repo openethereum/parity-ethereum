@@ -29,9 +29,19 @@ import { eip20, wallet } from '../../contracts/abi';
 import styles from './addContract.css';
 
 const ABI_TYPES = [
-  { label: 'Token', readOnly: true, value: JSON.stringify(eip20) },
-  { label: 'Multisig Wallet', readOnly: true, value: JSON.stringify(wallet) },
-  { label: 'Custom Contract', value: '' }
+  {
+    label: 'Token', readOnly: true, value: JSON.stringify(eip20),
+    description: (<span>A standard <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>ERC 20</a> token</span>)
+  },
+  {
+    label: 'Multisig Wallet', readOnly: true,
+    value: JSON.stringify(wallet),
+    description: (<span>Official Multisig contract: <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>see contract code</a></span>)
+  },
+  {
+    label: 'Custom Contract', value: '',
+    description: 'Contract created from custom ABI'
+  }
 ];
 
 const STEPS = [ 'choose a contract type', 'enter contract details' ];
@@ -185,8 +195,13 @@ export default class AddContract extends Component {
     return ABI_TYPES.map((type, index) => (
       <RadioButton
         className={ styles.spaced }
-        label={ type.label }
         value={ index }
+        label={ (
+          <div className={ styles.typeContainer }>
+            <span>{ type.label }</span>
+            <span className={ styles.desc }>{ type.description }</span>
+          </div>
+        ) }
         key={ index }
       />
     ));
