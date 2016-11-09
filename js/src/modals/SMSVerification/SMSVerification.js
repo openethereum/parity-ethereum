@@ -154,8 +154,11 @@ export default class SMSVerification extends Component {
   }
 
   renderSecondStep () {
+    const { contract, data } = this.state;
+
     return (
       <GatherData
+        contract={ contract } data={ data }
         onData={ this.onData }
         onDataIsValid={ this.onDataIsValid }
         onDataIsInvalid={ this.onDataIsInvalid }

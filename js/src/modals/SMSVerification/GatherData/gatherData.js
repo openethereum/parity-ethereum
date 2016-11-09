@@ -18,27 +18,41 @@ import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 import phone from 'phoneformat.js';
 
+import { fromWei } from '../../../api/util/wei';
 import { Form, Input } from '../../../ui';
 
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
   static propTypes = {
+    contract: PropTypes.object.isRequired,
+    data: PropTypes.object.isRequired,
+    onData: PropTypes.func.isRequired,
     onDataIsValid: PropTypes.func.isRequired,
-    onDataIsInvalid: PropTypes.func.isRequired,
-    onData: PropTypes.func.isRequired
+    onDataIsInvalid: PropTypes.func.isRequired
   }
 
   state = {
+    init: true,
     numberIsValid: null,
     consentGiven: false
   };
 
+  componentWillMount () {
+    const { init } = this.state;
+    if (init) {
+      this.queryFee();
+      this.setState({ init: false });
+    }
+  }
+
   render () {
+    const { fee } = this.props.data;
     const { numberIsValid } = this.state;
 
     return (
       <Form>
+        <p>{ fee ? `The fee is ${fromWei(fee).toFixed(3)} ETH.` : 'Fetching the fee…' }</p>
         <Input
           label={ 'phone number' }
           hint={ 'the sms will be sent to this number' }
@@ -53,6 +67,20 @@ export default class GatherData extends Component {
         />
       </Form>
     );
+  }
+
+  queryFee = () => {
+    const { contract, onData } = this.props;
+
+    contract.instance.fee.call()
+    .then((fee) => {
+      onData({ fee });
+      this.onChange();
+    })
+    .catch((err) => {
+      console.error('error fetching fee', err);
+      this.onChange();
+    });
   }
 
   numberOnSubmit = (value) => {
@@ -74,9 +102,10 @@ export default class GatherData extends Component {
   }
 
   onChange = () => {
+    const { fee } = this.props.data;
     const { numberIsValid, consentGiven } = this.state;
 
-    if (numberIsValid && consentGiven) {
+    if (fee && numberIsValid && consentGiven) {
       this.props.onDataIsValid();
     } else {
       this.props.onDataIsInvalid();

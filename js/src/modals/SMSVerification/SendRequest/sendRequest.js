@@ -18,7 +18,6 @@ import React, { Component, PropTypes } from 'react';
 import qs from 'querystring';
 
 import TxHash from '../../../ui/TxHash';
-import { toWei } from '../../../api/util/wei';
 
 import styles from './sendRequest.css';
 
@@ -121,10 +120,7 @@ export default class SendRequest extends Component {
   send = () => {
     const { api } = this.context;
     const { account, contract, onData, onError, onSuccess } = this.props;
-    const { number } = this.props.data;
-
-    // TODO: redeploy SMSVerification.sol, it has a public fee prop now
-    const fee = toWei(0.01); // 0.01 Eth
+    const { fee, number } = this.props.data;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
