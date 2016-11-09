@@ -52,8 +52,6 @@ class Connection extends Component {
       return null;
     }
 
-    console.log('isConnected', isConnected, 'isConnecting', isConnecting, 'isPingable', isPingable);
-
     const typeIcon = isPingable
       ? <NotificationVpnLock className={ styles.svg } />
       : <ActionDashboard className={ styles.svg } />;
