@@ -21,12 +21,15 @@ import AceEditor from 'react-ace';
 import { noop } from 'lodash';
 
 import 'brace/theme/solarized_dark';
+import 'brace/mode/json';
 import './mode-solidity';
 
 export default class Editor extends Component {
 
   static propTypes = {
     value: PropTypes.string,
+    mode: PropTypes.string,
+    maxLines: PropTypes.number,
     annotations: PropTypes.array,
     onExecute: PropTypes.func,
     onChange: PropTypes.func,
@@ -35,6 +38,7 @@ export default class Editor extends Component {
 
   static defaultProps = {
     value: '',
+    mode: 'javascript',
     annotations: [],
     onExecute: noop,
     onChange: noop,
@@ -55,7 +59,7 @@ export default class Editor extends Component {
   }
 
   render () {
-    const { annotations, value, readOnly } = this.props;
+    const { annotations, value, readOnly, mode, maxLines } = this.props;
     const commands = [
       {
         name: 'execut',
@@ -64,11 +68,11 @@ export default class Editor extends Component {
       }
     ];
 
-    const maxLines = readOnly ? value.split('\n').length : null;
+    const max = maxLines || (readOnly ? value.split('\n').length + 1 : null);
 
     return (
       <AceEditor
-        mode='javascript'
+        mode={ mode }
         theme='solarized_dark'
         width='100%'
         ref='brace'
@@ -81,7 +85,7 @@ export default class Editor extends Component {
           fontFamily: 'monospace',
           fontSize: '0.9em'
         } }
-        maxLines={ maxLines }
+        maxLines={ max }
         enableBasicAutocompletion={ !readOnly }
         showPrintMargin={ false }
         annotations={ annotations }

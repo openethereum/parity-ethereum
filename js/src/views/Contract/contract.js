@@ -54,7 +54,7 @@ class Contract extends Component {
     showDeleteDialog: false,
     showEditDialog: false,
     showExecuteDialog: false,
-    showSourceDialog: false,
+    showDetailsDialog: false,
     subscriptionId: -1,
     blockSubscriptionId: -1,
     allEvents: [],
@@ -122,17 +122,16 @@ class Contract extends Component {
             isTest={ isTest }
             events={ allEvents } />
 
-          { this.renderSource(account) }
+          { this.renderDetails(account) }
         </Page>
       </div>
     );
   }
 
-  renderSource (contract) {
-    const { source } = contract.meta;
-    const { showSourceDialog } = this.state;
+  renderDetails (contract) {
+    const { showDetailsDialog } = this.state;
 
-    if (!source || !showSourceDialog) {
+    if (!showDetailsDialog) {
       return null;
     }
 
@@ -140,28 +139,52 @@ class Contract extends Component {
       <Button
         icon={ <ContentClear /> }
         label='Close'
-        onClick={ this.closeSourceDialog } />
+        onClick={ this.closeDetailsDialog } />
     );
 
     return (
       <Modal
         actions={ [ cancelBtn ] }
-        title={ 'source code' }
+        title={ 'contract details' }
         visible
+        scroll
       >
-        <div className={ styles.source }>
-          <Editor
-            value={ source }
-            readOnly
-          />
+        <div className={ styles.details }>
+          { this.renderSource(contract) }
+
+          <div>
+            <h4>Contract ABI</h4>
+            <Editor
+              value={ JSON.stringify(contract.meta.abi, null, 2) }
+              mode='json'
+              maxLines={ 20 }
+              readOnly
+            />
+          </div>
         </div>
       </Modal>
     );
   }
 
-  renderActionbar (account) {
-    const { source } = account.meta;
+  renderSource (contract) {
+    const { source } = contract.meta;
 
+    if (!source) {
+      return null;
+    }
+
+    return (
+      <div>
+        <h4>Contract source code</h4>
+        <Editor
+          value={ source }
+          readOnly
+        />
+      </div>
+    );
+  }
+
+  renderActionbar (account) {
     const buttons = [
       <Button
         key='execute'
@@ -177,18 +200,13 @@ class Contract extends Component {
         key='delete'
         icon={ <ActionDelete /> }
         label='delete contract'
-        onClick={ this.showDeleteDialog } />
+        onClick={ this.showDeleteDialog } />,
+      <Button
+        key='viewDetails'
+        icon={ <EyeIcon /> }
+        label='view details'
+        onClick={ this.showDetailsDialog } />
     ];
-
-    if (source) {
-      buttons.push(
-        <Button
-          key='viewSource'
-          icon={ <EyeIcon /> }
-          label='view source'
-          onClick={ this.showSourceDialog } />
-      );
-    }
 
     return (
       <Actionbar
@@ -283,12 +301,12 @@ class Contract extends Component {
     this.setState({ showDeleteDialog: true });
   }
 
-  showSourceDialog = () => {
-    this.setState({ showSourceDialog: true });
+  showDetailsDialog = () => {
+    this.setState({ showDetailsDialog: true });
   }
 
-  closeSourceDialog = () => {
-    this.setState({ showSourceDialog: false });
+  closeDetailsDialog = () => {
+    this.setState({ showDetailsDialog: false });
   }
 
   closeExecuteDialog = () => {

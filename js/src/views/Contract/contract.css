@@ -91,6 +91,11 @@
   margin-right: 0.5em;
 }
 
-.source {
-  font-family: monospace;
+.details {
+  margin-top: -1.5em;
+
+  h4 {
+    text-transform: uppercase;
+    margin: 1.5em 0 1em;
+  }
 }
