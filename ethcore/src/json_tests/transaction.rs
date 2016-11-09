@@ -79,6 +79,7 @@ declare_test!{TransactionTests_Homestead_ttTransactionTest, "TransactionTests/Ho
 declare_test!{heavy => TransactionTests_Homestead_tt10mbDataField, "TransactionTests/Homestead/tt10mbDataField"}
 declare_test!{TransactionTests_Homestead_ttWrongRLPTransaction, "TransactionTests/Homestead/ttWrongRLPTransaction"}
 declare_test!{TransactionTests_RandomTests_tr201506052141PYTHON, "TransactionTests/RandomTests/tr201506052141PYTHON"}
+declare_test!{TransactionTests_Homestead_ttTransactionTestEip155VitaliksTests, "TransactionTests/Homestead/ttTransactionTestEip155VitaliksTests"}
 declare_test!{TransactionTests_EIP155_ttTransactionTest, "TransactionTests/EIP155/ttTransactionTest"}
 declare_test!{TransactionTests_EIP155_ttTransactionTestEip155VitaliksTests, "TransactionTests/EIP155/ttTransactionTestEip155VitaliksTests"}
 declare_test!{TransactionTests_EIP155_ttTransactionTestVRule, "TransactionTests/EIP155/ttTransactionTestVRule"}
