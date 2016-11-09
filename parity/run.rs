@@ -274,6 +274,10 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_interface: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.interface),
+			false => None,
+		},
 		dapps_port: match cmd.dapps_conf.enabled {
 			true => Some(cmd.dapps_conf.port),
 			false => None,

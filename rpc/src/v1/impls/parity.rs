@@ -52,6 +52,7 @@ pub struct ParityClient<C, M, S: ?Sized> where
 	logger: Arc<RotatingLogger>,
 	settings: Arc<NetworkSettings>,
 	signer: Option<Arc<SignerService>>,
+	dapps_interface: Option<String>,
 	dapps_port: Option<u16>,
 }
 
@@ -70,6 +71,7 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 		logger: Arc<RotatingLogger>,
 		settings: Arc<NetworkSettings>,
 		signer: Option<Arc<SignerService>>,
+		dapps_interface: Option<String>,
 		dapps_port: Option<u16>,
 	) -> Self {
 		ParityClient {
@@ -81,6 +83,7 @@ impl<C, M, S: ?Sized> ParityClient<C, M, S> where
 			logger: logger,
 			settings: settings,
 			signer: signer,
+			dapps_interface: dapps_interface,
 			dapps_port: dapps_port,
 		}
 	}
@@ -269,6 +272,13 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		try!(self.active());
 
 		self.dapps_port
+			.ok_or_else(|| errors::dapps_disabled())
+	}
+
+	fn dapps_interface(&self) -> Result<String, Error> {
+		try!(self.active());
+
+		self.dapps_interface.clone()
 			.ok_or_else(|| errors::dapps_disabled())
 	}
 
