@@ -468,7 +468,7 @@ impl ChainSync {
 				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
 					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
 					sn > fork_block &&
-					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) > SNAPSHOT_RESTORE_THRESHOLD)
+					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
 				))
 				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
 
