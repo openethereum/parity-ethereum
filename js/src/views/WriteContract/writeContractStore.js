@@ -46,14 +46,7 @@ export default class WriteContractStore {
   @observable selectedContract = {};
 
   constructor () {
-    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
-
-    if (localStore.currentId) {
-      this.reloadContracts(localStore.currentId);
-    } else {
-      this.sourcecode = localStore.current || '';
-    }
-
+    this.reloadContracts();
     this.fetchSolidityVersions();
 
     this.debouncedCompile = debounce(this.handleCompile, 1000);
@@ -112,7 +105,7 @@ export default class WriteContractStore {
   }
 
   @action handleImport = (sourcecode) => {
-    this.handleEditSourcecode(sourcecode, true);
+    this.reloadContracts(-1, sourcecode);
   }
 
   @action handleSelectBuild = (_, index, value) => {
@@ -162,13 +155,15 @@ export default class WriteContractStore {
 
     const build = this.builds[this.selectedBuild];
 
-    this.compiler.postMessage(JSON.stringify({
-      action: 'compile',
-      data: {
-        sourcecode: this.sourcecode,
-        build: build
-      }
-    }));
+    if (this.compiler && typeof this.compiler.postMessage == 'function') {
+      this.compiler.postMessage(JSON.stringify({
+        action: 'compile',
+        data: {
+          sourcecode: this.sourcecode,
+          build: build
+        }
+      }));
+    }
   }
 
   @action parseCompiled = (data) => {
@@ -204,8 +199,6 @@ export default class WriteContractStore {
     this.contracts = contracts;
     this.errors = errors;
     this.annotations = annotations;
-
-    window.setTimeout(() => this.editor.resize(), 500);
   }
 
   @action parseLoading = (isLoading) => {
@@ -233,7 +226,7 @@ export default class WriteContractStore {
   }
 
   @action handleSaveContract = () => {
-    if (this.selectedContract && this.selectedContract.id) {
+    if (this.selectedContract && this.selectedContract.id !== undefined) {
       return this.handleSaveNewContract({
         ...this.selectedContract,
         sourcecode: this.sourcecode
@@ -243,12 +236,18 @@ export default class WriteContractStore {
     return this.handleOpenSaveModal();
   }
 
+  getId (contracts) {
+    return Object.values(contracts)
+      .map((c) => c.id)
+      .reduce((max, id) => Math.max(max, id), -1) + 1;
+  }
+
   @action handleSaveNewContract = (data) => {
     const { name, sourcecode, id } = data;
 
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
     const savedContracts = localStore.saved || {};
-    const cId = id || Object.keys(savedContracts).length;
+    const cId = id || this.getId(savedContracts);
 
     store.set(WRITE_CONTRACT_STORE_KEY, {
       ...localStore,
@@ -261,17 +260,49 @@ export default class WriteContractStore {
     this.reloadContracts(cId);
   }
 
-  @action reloadContracts = (id) => {
+  @action reloadContracts = (id, sourcecode) => {
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
-
     this.savedContracts = localStore.saved || {};
-    this.selectedContract = this.savedContracts[id];
-    this.sourcecode = this.selectedContract.sourcecode;
+
+    const cId = id !== undefined ? id : localStore.currentId;
+
+    this.selectedContract = this.savedContracts[cId] || {};
+    this.sourcecode = sourcecode !== undefined
+      ? sourcecode
+      : this.selectedContract.sourcecode || localStore.current || '';
 
     store.set(WRITE_CONTRACT_STORE_KEY, {
       ...localStore,
-      currentId: id
+      currentId: this.selectedContract ? cId : null,
+      current: this.sourcecode
     });
+
+    this.handleCompile();
+  }
+
+  @action handleLoadContract = (contract) => {
+    this.reloadContracts(contract.id);
+  }
+
+  @action handleDeleteContract = (id) => {
+    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+
+    const savedContracts = Object.assign({}, localStore.saved || {});
+
+    if (savedContracts[id]) {
+      delete savedContracts[id];
+    }
+
+    store.set(WRITE_CONTRACT_STORE_KEY, {
+      ...localStore,
+      saved: savedContracts
+    });
+
+    this.reloadContracts();
+  }
+
+  @action handleNewContract = () => {
+    this.reloadContracts(-1, '');
   }
 
 }

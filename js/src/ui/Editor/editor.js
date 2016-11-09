@@ -51,15 +51,6 @@ export default class Editor extends Component {
     this.name = `PARITY_EDITOR_${Math.round(Math.random() * 99999)}`;
   }
 
-  componentDidMount () {
-    window.setTimeout(() => this.resize(), 1000);
-  }
-
-  resize = (editor) => {
-    const editorInstance = editor || this.refs.brace.editor;
-    editorInstance.resize();
-  }
-
   render () {
     const { className, annotations, value, readOnly, mode, maxLines } = this.props;
     const commands = [
@@ -70,7 +61,9 @@ export default class Editor extends Component {
       }
     ];
 
-    const max = maxLines || (readOnly ? value.split('\n').length + 1 : null);
+    const max = (maxLines !== undefined)
+      ? maxLines
+      : (readOnly ? value.split('\n').length + 1 : null);
 
     return (
       <AceEditor

@@ -22,6 +22,7 @@ import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 import moment from 'moment';
 
+import ContentClear from 'material-ui/svg-icons/content/clear';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import ListIcon from 'material-ui/svg-icons/action/view-list';
 
@@ -100,7 +101,7 @@ class WriteContract extends Component {
     const { selectedContract } = this.store;
 
     if (!selectedContract || !selectedContract.name) {
-      return 'Solidity Source Code';
+      return 'New Solidity Contract';
     }
 
     return (
@@ -120,6 +121,12 @@ class WriteContract extends Component {
     const { sourcecode } = this.store;
 
     const buttons = [
+      <Button
+        icon={ <ContentClear /> }
+        label='New'
+        key='newContract'
+        onClick={ this.store.handleNewContract }
+      />,
       <Button
         icon={ <ListIcon /> }
         label='Load'
@@ -269,6 +276,7 @@ class WriteContract extends Component {
     return (
       <LoadContract
         onLoad={ this.store.handleLoadContract }
+        onDelete={ this.store.handleDeleteContract }
         onClose={ this.store.handleCloseLoadModal }
         contracts={ this.store.savedContracts }
       />
