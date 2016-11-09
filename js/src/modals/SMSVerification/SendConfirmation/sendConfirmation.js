@@ -15,17 +15,17 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import qs from 'querystring';
-
 import TxHash from '../../../ui/TxHash';
 
-import styles from './sendRequest.css';
+import { sha3 } from '../../../api/util/sha3';
+
+import styles from './sendConfirmation.css';
 
 const isValidReceipt = (receipt) => {
   return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
 };
 
-// TODO: DRY up with ../SendConfirmation
+// TODO: DRY up with ../SendRequest
 const waitForConfirmations = (api, tx, confirmations) => {
   return new Promise((resolve, reject) => {
     api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
@@ -47,22 +47,7 @@ const waitForConfirmations = (api, tx, confirmations) => {
   });
 };
 
-const postToVerificationServer = (query) => {
-  query = qs.stringify(query);
-  return fetch('https://sms-verification.parity.io/?' + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
-  })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
-    });
-  });
-};
-
-export default class SendRequest extends Component {
+export default class SendConfirmation extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
@@ -109,11 +94,7 @@ export default class SendRequest extends Component {
     }
 
     if (step === 'mined') {
-      return (<p>Requesting an SMS from the Parity server.</p>);
-    }
-
-    if (step === 'sms-sent') {
-      return (<p>The verification code has been sent to { this.props.data.number }.</p>);
+      return (<p>Congratulations, your account is verified!</p>);
     }
 
     return null;
@@ -122,17 +103,20 @@ export default class SendRequest extends Component {
   send = () => {
     const { api } = this.context;
     const { account, contract, onData, onError, onSuccess } = this.props;
-    const { fee, number } = this.props.data;
 
-    const request = contract.functions.find((fn) => fn.name === 'request');
-    const options = { from: account, value: fee.toString() };
+    const { code } = this.props.data;
+    const token = sha3(code);
 
-    request.estimateGas(options, [])
+    const confirm = contract.functions.find((fn) => fn.name === 'confirm');
+    const options = { from: account };
+    const values = [ token ];
+
+    confirm.estimateGas(options, values)
       .then((gas) => {
         options.gas = gas.mul(1.2).toFixed(0);
         // TODO: show message
         this.setState({ step: 'pending' });
-        return request.postTransaction(options, []);
+        return confirm.postTransaction(options, values);
       })
       .then((handle) => {
         // TODO: The "request rejected" error doesn't have any property to
@@ -146,18 +130,14 @@ export default class SendRequest extends Component {
       })
       .then(() => {
         this.setState({ step: 'mined' });
-        return postToVerificationServer({ number, address: account });
-      })
-      .then(() => {
-        this.setState({ step: 'sms-sent' });
         onSuccess();
       })
       .catch((err) => {
-        console.error('failed to request sms verification', err);
+        console.error('failed to confirm sms verification', err);
         onError(err);
         this.setState({
           step: 'error',
-          error: 'Failed to request a confirmation SMS: ' + err.message
+          error: 'Failed to send the verification code: ' + err.message
         });
         // TODO: show message in SnackBar
       });

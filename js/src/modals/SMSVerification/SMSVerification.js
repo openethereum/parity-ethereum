@@ -28,6 +28,7 @@ import CheckIfCertified from './CheckIfCertified';
 import GatherData from './GatherData';
 import SendRequest from './SendRequest';
 import QueryCode from './QueryCode';
+import SendConfirmation from './SendConfirmation';
 
 export default class SMSVerification extends Component {
   static contextTypes = {
@@ -63,7 +64,7 @@ export default class SMSVerification extends Component {
         title='verify your account via SMS'
         visible scroll
         current={ step }
-        steps={ ['Preparations', 'Enter Data', 'Send Request', 'Enter Code'] }
+        steps={ ['Preparations', 'Enter Data', 'Request', 'Enter Code', 'Confirm'] }
       >
         { this.renderStep() }
       </Modal>
@@ -82,7 +83,7 @@ export default class SMSVerification extends Component {
       />
     );
 
-    if (step === 3) {
+    if (step === 4) {
       return (
         <div>
           { cancel }
@@ -116,7 +117,9 @@ export default class SMSVerification extends Component {
     }
 
     const { step } = this.state;
-    if (step === 3) {
+    if (step === 4) {
+      return this.renderFifthStep();
+    } else if (step === 3) {
       return this.renderFourthStep();
     } else if (step === 2) {
       return this.renderThirdStep();
@@ -192,6 +195,20 @@ export default class SMSVerification extends Component {
         onData={ this.onData }
         onDataIsValid={ this.onDataIsValid }
         onDataIsInvalid={ this.onDataIsInvalid }
+      />
+    );
+  }
+
+  renderFifthStep () {
+    const { account } = this.props;
+    const { contract, data } = this.state;
+
+    return (
+      <SendConfirmation
+        account={ account } contract={ contract } data={ data }
+        onData={ this.onData }
+        onSuccess={ this.onDataIsValid }
+        onError={ this.onDataIsInvalid }
       />
     );
   }
