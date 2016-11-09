@@ -50,7 +50,7 @@ pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
 	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
-	thread::sleep(Duration::from_millis(25));
+	thread::sleep(Duration::from_millis(50));
 
 	(res, port, GuardedAuthCodes {
 		authcodes: AuthCodes::from_file(&path).unwrap(),
