@@ -20,6 +20,12 @@
   flex-direction: column;
 }
 
+.timestamp {
+  font-size: 0.75em;
+  margin-left: 1em;
+  color: #ccc;
+}
+
 .container {
   padding: 1em 0;
   display: flex;

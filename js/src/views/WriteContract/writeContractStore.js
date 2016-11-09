@@ -18,7 +18,7 @@ import { action, observable } from 'mobx';
 import store from 'store';
 import { debounce } from 'lodash';
 
-const WRITE_CONTRACT_SAVED_KEY = 'WRITE_CONTRACT_SAVED';
+const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
 export default class WriteContractStore {
 
@@ -39,10 +39,20 @@ export default class WriteContractStore {
   @observable selectedBuild = -1;
 
   @observable showDeployModal = false;
+  @observable showSaveModal = false;
+  @observable showLoadModal = false;
+
+  @observable savedContracts = {};
+  @observable selectedContract = {};
 
   constructor () {
-    const saveSourcecode = store.get(WRITE_CONTRACT_SAVED_KEY);
-    this.sourcecode = saveSourcecode || '';
+    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+
+    if (localStore.currentId) {
+      this.reloadContracts(localStore.currentId);
+    } else {
+      this.sourcecode = localStore.current || '';
+    }
 
     this.fetchSolidityVersions();
 
@@ -125,6 +135,22 @@ export default class WriteContractStore {
     this.showDeployModal = false;
   }
 
+  @action handleOpenLoadModal = () => {
+    this.showLoadModal = true;
+  }
+
+  @action handleCloseLoadModal = () => {
+    this.showLoadModal = false;
+  }
+
+  @action handleOpenSaveModal = () => {
+    this.showSaveModal = true;
+  }
+
+  @action handleCloseSaveModal = () => {
+    this.showSaveModal = false;
+  }
+
   @action handleSelectContract = (_, index, value) => {
     this.contractIndex = value;
     this.contract = this.contracts[Object.keys(this.contracts)[value]];
@@ -192,13 +218,60 @@ export default class WriteContractStore {
 
   @action handleEditSourcecode = (value, compile = false) => {
     this.sourcecode = value;
-    store.set(WRITE_CONTRACT_SAVED_KEY, value);
+
+    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+    store.set(WRITE_CONTRACT_STORE_KEY, {
+      ...localStore,
+      current: value
+    });
 
     if (compile) {
       this.handleCompile();
     } else {
       this.debouncedCompile();
     }
+  }
+
+  @action handleSaveContract = () => {
+    if (this.selectedContract && this.selectedContract.id) {
+      return this.handleSaveNewContract({
+        ...this.selectedContract,
+        sourcecode: this.sourcecode
+      });
+    }
+
+    return this.handleOpenSaveModal();
+  }
+
+  @action handleSaveNewContract = (data) => {
+    const { name, sourcecode, id } = data;
+
+    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+    const savedContracts = localStore.saved || {};
+    const cId = id || Object.keys(savedContracts).length;
+
+    store.set(WRITE_CONTRACT_STORE_KEY, {
+      ...localStore,
+      saved: {
+        ...savedContracts,
+        [ cId ]: { sourcecode, id: cId, name, timestamp: Date.now() }
+      }
+    });
+
+    this.reloadContracts(cId);
+  }
+
+  @action reloadContracts = (id) => {
+    const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
+
+    this.savedContracts = localStore.saved || {};
+    this.selectedContract = this.savedContracts[id];
+    this.sourcecode = this.selectedContract.sourcecode;
+
+    store.set(WRITE_CONTRACT_STORE_KEY, {
+      ...localStore,
+      currentId: id
+    });
   }
 
 }

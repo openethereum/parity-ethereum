@@ -20,9 +20,13 @@ import { MenuItem } from 'material-ui';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
+import moment from 'moment';
+
+import SaveIcon from 'material-ui/svg-icons/content/save';
+import ListIcon from 'material-ui/svg-icons/action/view-list';
 
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
-import { DeployContract } from '../../modals';
+import { DeployContract, SaveContract, LoadContract } from '../../modals';
 
 import { setupWorker } from '../../redux/providers/compilerActions';
 
@@ -65,11 +69,15 @@ class WriteContract extends Component {
     return (
       <div className={ styles.outer }>
         { this.renderDeployModal() }
+        { this.renderSaveModal() }
+        { this.renderLoadModal() }
+
         { this.renderActionBar() }
         <Page className={ styles.page }>
           <div className={ styles.container }>
             <div className={ styles.editor }>
-              <h2>Solidity Source Code</h2>
+              <h2>{ this.renderTitle() }</h2>
+
               <Editor
                 ref='editor'
                 onChange={ this.store.handleEditSourcecode }
@@ -88,10 +96,42 @@ class WriteContract extends Component {
     );
   }
 
+  renderTitle () {
+    const { selectedContract } = this.store;
+
+    if (!selectedContract || !selectedContract.name) {
+      return 'Solidity Source Code';
+    }
+
+    return (
+      <span>
+        { selectedContract.name }
+        <span
+          className={ styles.timestamp }
+          title={ `saved @ ${(new Date(selectedContract.timestamp)).toISOString()}` }
+        >
+          (saved { moment(selectedContract.timestamp).fromNow() })
+        </span>
+      </span>
+    );
+  }
+
   renderActionBar () {
     const { sourcecode } = this.store;
 
     const buttons = [
+      <Button
+        icon={ <ListIcon /> }
+        label='Load'
+        key='loadContract'
+        onClick={ this.store.handleOpenLoadModal }
+      />,
+      <Button
+        icon={ <SaveIcon /> }
+        label='Save'
+        key='saveContract'
+        onClick={ this.store.handleSaveContract }
+      />,
       <ActionbarExport
         key='exportSourcecode'
         content={ sourcecode }
@@ -215,6 +255,38 @@ class WriteContract extends Component {
         accounts={ this.props.accounts }
         onClose={ this.store.handleCloseDeployModal }
         readOnly
+      />
+    );
+  }
+
+  renderLoadModal () {
+    const { showLoadModal } = this.store;
+
+    if (!showLoadModal) {
+      return null;
+    }
+
+    return (
+      <LoadContract
+        onLoad={ this.store.handleLoadContract }
+        onClose={ this.store.handleCloseLoadModal }
+        contracts={ this.store.savedContracts }
+      />
+    );
+  }
+
+  renderSaveModal () {
+    const { showSaveModal, sourcecode } = this.store;
+
+    if (!showSaveModal) {
+      return null;
+    }
+
+    return (
+      <SaveContract
+        sourcecode={ sourcecode }
+        onSave={ this.store.handleSaveNewContract }
+        onClose={ this.store.handleCloseSaveModal }
       />
     );
   }

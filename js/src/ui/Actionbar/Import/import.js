@@ -145,7 +145,9 @@ export default class ActionbarImport extends Component {
 
     return (
       <div>
-        <p>Validate that this is what was intended to import.</p>
+        <p className={ styles.desc }>
+          Confirm that this is what was intended to import.
+        </p>
         <div>
           { validationBody }
         </div>

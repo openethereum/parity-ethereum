@@ -27,6 +27,7 @@ import './mode-solidity';
 export default class Editor extends Component {
 
   static propTypes = {
+    className: PropTypes.string,
     value: PropTypes.string,
     mode: PropTypes.string,
     maxLines: PropTypes.number,
@@ -37,6 +38,7 @@ export default class Editor extends Component {
   };
 
   static defaultProps = {
+    className: '',
     value: '',
     mode: 'javascript',
     annotations: [],
@@ -59,7 +61,7 @@ export default class Editor extends Component {
   }
 
   render () {
-    const { annotations, value, readOnly, mode, maxLines } = this.props;
+    const { className, annotations, value, readOnly, mode, maxLines } = this.props;
     const commands = [
       {
         name: 'execut',
@@ -92,6 +94,7 @@ export default class Editor extends Component {
         value={ value }
         commands={ commands }
         readOnly={ readOnly }
+        className={ className }
       />
     );
   }
