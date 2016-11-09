@@ -148,7 +148,7 @@ export default class Deployment extends Component {
               addresses={ addresses }
               onChange={ this.onChangeFrom } />
             <div className={ styles.hint }>
-              the owner account to eploy from
+              the owner account to deploy from
             </div>
           </div>
           <div className={ nameError ? error : styles.input }>

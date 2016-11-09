@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use rlp;
 use jsonrpc_core::IoHandler;
 use util::{Uint, U256, Address, H256, FixedHash, Mutex};
 use ethcore::account_provider::AccountProvider;
@@ -761,6 +762,44 @@ fn rpc_eth_send_transaction() {
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
+
+#[test]
+fn rpc_eth_sign_transaction() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_signTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
+	let rlp = rlp::encode(&t);
+
+	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+
+	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
+}
+
 #[test]
 fn rpc_eth_send_transaction_with_bad_to() {
 	let tester = EthTester::default();
@@ -839,7 +878,7 @@ fn rpc_eth_send_raw_transaction() {
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
 
-	let rlp = ::rlp::encode(&t).to_vec().to_hex();
+	let rlp = rlp::encode(&t).to_vec().to_hex();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
