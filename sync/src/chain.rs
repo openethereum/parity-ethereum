@@ -457,12 +457,19 @@ impl ChainSync {
 		if self.state != SyncState::WaitingPeers {
 			return;
 		}
-		let best_block = io.chain().chain_info().best_block_number;
+		// Make sure the snapshot block is not too far away from best block and network best block and
+		// that it is higher than fork detection block
+		let our_best_block = io.chain().chain_info().best_block_number;
+		let fork_block = self.fork_block.as_ref().map(|&(n, _)| n).unwrap_or(0);
 
 		let (best_hash, max_peers, snapshot_peers) = {
 			//collect snapshot infos from peers
 			let snapshots = self.peers.iter()
-				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn| best_block < sn && (sn - best_block) > SNAPSHOT_RESTORE_THRESHOLD))
+				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
+					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
+					sn > fork_block &&
+					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
+				))
 				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
 
 			let mut snapshot_peers = HashMap::new();
