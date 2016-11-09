@@ -122,28 +122,33 @@ export default class SendRequest extends Component {
   send = () => {
     const { api } = this.context;
     const { account, contract, onData, onError, onSuccess } = this.props;
-    const { fee, number } = this.props.data;
+    const { fee, number, hasRequested } = this.props.data;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
 
-    request.estimateGas(options, [])
-      .then((gas) => {
-        options.gas = gas.mul(1.2).toFixed(0);
-        // TODO: show message
-        this.setState({ step: 'pending' });
-        return request.postTransaction(options, []);
-      })
-      .then((handle) => {
-        // TODO: The "request rejected" error doesn't have any property to
-        // distinguish it from other errors, so we can't give a meaningful error here.
-        return api.pollMethod('parity_checkRequest', handle);
-      })
-      .then((txHash) => {
-        onData({ txHash: txHash });
-        this.setState({ step: 'posted' });
-        return waitForConfirmations(api, txHash, 3);
-      })
+    let chain = Promise.resolve();
+    if (!hasRequested) {
+      chain = request.estimateGas(options, [])
+        .then((gas) => {
+          options.gas = gas.mul(1.2).toFixed(0);
+          // TODO: show message
+          this.setState({ step: 'pending' });
+          return request.postTransaction(options, []);
+        })
+        .then((handle) => {
+          // TODO: The "request rejected" error doesn't have any property to
+          // distinguish it from other errors, so we can't give a meaningful error here.
+          return api.pollMethod('parity_checkRequest', handle);
+        })
+        .then((txHash) => {
+          onData({ txHash: txHash });
+          this.setState({ step: 'posted' });
+          return waitForConfirmations(api, txHash, 3);
+        });
+    }
+
+    chain
       .then(() => {
         this.setState({ step: 'mined' });
         return postToVerificationServer({ number, address: account });

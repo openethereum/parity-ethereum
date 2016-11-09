@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
-import ErrorIcon from 'material-ui/svg-icons/alert/error-outline';
+import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
 import phone from 'phoneformat.js';
 
@@ -43,6 +43,7 @@ export default class GatherData extends Component {
   state = {
     init: true,
     isCertified: null,
+    hasRequested: null,
     numberIsValid: null,
     consentGiven: false
   };
@@ -53,6 +54,7 @@ export default class GatherData extends Component {
       this.setState({ init: false });
       this.queryFee();
       this.checkIfCertified();
+      this.checkIfRequested();
     }
   }
 
@@ -64,6 +66,7 @@ export default class GatherData extends Component {
       <Form>
         <p>{ fee ? `The fee is ${fromWei(fee).toFixed(3)} ETH.` : 'Fetching the fee…' }</p>
         { this.renderCertified() }
+        { this.renderRequested() }
         <Input
           label={ 'phone number' }
           hint={ 'the sms will be sent to this number' }
@@ -102,6 +105,28 @@ export default class GatherData extends Component {
     return (<p className={ styles.message }>Checking if your account is verified…</p>);
   }
 
+  renderRequested () {
+    const { hasRequested } = this.props.data;
+
+    if (hasRequested) {
+      return (
+        <div className={ styles.container }>
+          <ErrorIcon />
+          <p className={ styles.message }>You already requested verification.</p>
+        </div>
+      );
+    }
+    if (hasRequested === false) {
+      return (
+        <div className={ styles.container }>
+          <SuccessIcon />
+          <p className={ styles.message }>You did not request verification yet.</p>
+        </div>
+      );
+    }
+    return (<p className={ styles.message }>Checking if you requested verification…</p>);
+  }
+
   queryFee = () => {
     const { contract, onData } = this.props;
 
@@ -129,6 +154,24 @@ export default class GatherData extends Component {
     });
   }
 
+  checkIfRequested = () => {
+    const { account, contract, onData } = this.props;
+
+    contract.subscribe('Requested', {
+      fromBlock: 0, toBlock: 'pending',
+      // limit: 1
+    }, (err, logs) => {
+      if (err) {
+        return console.error('error checking if requested', err);
+      }
+      const hasRequested = logs.some((l) => {
+        return l.type === 'mined' && l.params.who && l.params.who.value === account;
+      });
+      onData({ hasRequested });
+      this.onChange();
+    });
+  }
+
   numberOnSubmit = (value) => {
     this.numberOnChange(null, value);
     this.props.onData({ number: value });
@@ -148,7 +191,7 @@ export default class GatherData extends Component {
   }
 
   onChange = () => {
-    const { fee, isCertified } = this.props.data;
+    const { fee, isCertified, hasRequested } = this.props.data;
     const { numberIsValid, consentGiven } = this.state;
 
     if (fee && numberIsValid && consentGiven && isCertified === false) {
