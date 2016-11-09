@@ -17,8 +17,11 @@
 //! A provider for the LES protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
+use ethcore::client::BlockChainClient;
 use ethcore::transaction::SignedTransaction;
 use ethcore::blockchain_info::BlockChainInfo;
+
+use rlp::EMPTY_LIST_RLP;
 use util::{Bytes, H256};
 
 use request;
@@ -36,8 +39,9 @@ pub trait Provider: Send + Sync {
 	/// Find the depth of a common ancestor between two blocks.
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64>;
 
-	/// Earliest state.
-	fn earliest_state(&self) -> Option<u64>;
+	/// Earliest block where state queries are available.
+	/// All states between this value and
+	fn earliest_state(&self) -> u64;
 
 	/// Provide a list of headers starting at the requested block,
 	/// possibly in reverse and skipping `skip` at a time.
@@ -67,5 +71,53 @@ pub trait Provider: Send + Sync {
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes>;
 
 	/// Provide pending transactions.
+	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+}
+
+// TODO [rob] move into trait definition file after ethcore crate
+// is split up. ideally `ethcore-light` will be between `ethcore-blockchain`
+// and `ethcore-client`
+impl<T: BlockChainClient + ?Sized> Provider for T {
+	fn chain_info(&self) -> BlockChainInfo {
+		BlockChainClient::chain_info(self)
+	}
+
+	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {
+		self.tree_route.map(|route| route.index as u64)
+	}
+
+	fn earliest_state(&self) -> u64 {
+		self.pruning_info().earliest_state
+	}
+
+	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
+		unimplemented!()
+	}
+
+	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
+		req.block_hashes.into_iter()
+			.map(|hash| self.block_body(hash.into()))
+			.map(|body| body.unwrap_or_else(|| EMPTY_LIST_RLP.into()))
+			.collect()
+	}
+
+	fn receipts(&self, req: request::Receipts) -> Vec<Bytes> {
+		req.block_hashes.into_iter()
+			.map(|hash| self.block_receipts(&hash)
+			.map(|receipts| receips.unwrap_or_else(|| EMPTY_LIST_RLP.into()))
+			.collect()
+	}
+
+	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
+		unimplemented!()
+	}
+
+	fn code(&self, req: request::ContractCodes) -> Vec<Bytes>;
+
+	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes> {
+		// TODO: [rob] implement CHT stuff on `ethcore` side.
+		req.requests.into_iter().map(|_| EMPTY_LIST_RLP.into()).collect()
+	}
+
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;
 }

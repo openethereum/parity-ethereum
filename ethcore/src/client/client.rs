@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify,
+	ChainNotify, PruningInfo,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -262,7 +262,7 @@ impl Client {
 		}
 	}
 
-	/// Register an action to be done if a mode change happens. 
+	/// Register an action to be done if a mode change happens.
 	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
 		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
@@ -890,7 +890,7 @@ impl BlockChainClient for Client {
 					trace!(target: "mode", "Making callback...");
 					f(&*mode)
 				},
-				_ => {} 
+				_ => {}
 			}
 		}
 		match new_mode {
@@ -1225,6 +1225,13 @@ impl BlockChainClient for Client {
 	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&decode(&header)))
+	}
+
+	fn pruning_info(&self) -> PruningInfo {
+		PruningInfo {
+			earliest_chain: self.chain.read().first_block().unwrap_or(1),
+			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
+		}
 	}
 }
 
