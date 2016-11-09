@@ -15,16 +15,37 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Checkbox } from 'material-ui';
 import qs from 'querystring';
 
-import { Form, Input } from '../../../ui';
 import TxHash from '../../../ui/TxHash';
-
 import { toWei } from '../../../api/util/wei';
-import { sha3 } from '../../../api/util/sha3';
 
 import styles from './sendRequest.css';
+
+const isValidReceipt = (receipt) => {
+  return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
+};
+
+const waitForConfirmations = (api, tx, confirmations) => {
+  return new Promise((resolve, reject) => {
+    api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
+    .then((receipt) => {
+      let subscription;
+      api.subscribe('eth_blockNumber', (err, block) => {
+        if (err) {
+          reject(err);
+        } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
+          api.unsubscribe(subscription);
+          resolve();
+        }
+      })
+      .then((_subscription) => {
+        subscription = _subscription;
+      })
+      .catch(reject);
+    });
+  });
+};
 
 const postToVerificationServer = (query) => {
   query = qs.stringify(query);
@@ -103,7 +124,7 @@ export default class SendRequest extends Component {
     const { number } = this.props.data;
 
     // TODO: redeploy SMSVerification.sol, it has a public fee prop now
-    const fee = toWei(.01); // .01 Eth
+    const fee = toWei(0.01); // 0.01 Eth
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
@@ -123,26 +144,8 @@ export default class SendRequest extends Component {
       .then((txHash) => {
         onData({ txHash: txHash });
         this.setState({ step: 'posted' });
-
-        return api.pollMethod('eth_getTransactionReceipt', txHash, (receipt) => {
-          return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
-        });
+        return waitForConfirmations(api, txHash, 3);
       })
-      .then((receipt) => new Promise((resolve, reject) => {
-        let subscription;
-        api.subscribe('eth_blockNumber', (err, block) => {
-          if (err) {
-            reject(err);
-          } else if (block.minus(2).gte(receipt.blockNumber)) {
-            api.unsubscribe(subscription);
-            resolve();
-          }
-        })
-        .then((_subscription) => {
-          subscription = _subscription;
-        })
-        .catch(reject);
-      }))
       .then(() => {
         this.setState({ step: 'mined' });
         return postToVerificationServer({ number, address: account });
