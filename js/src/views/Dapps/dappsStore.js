@@ -197,24 +197,15 @@ export default class DappsStore {
       });
   }
 
-  _fetchManifest (manifestHash, count = 0) {
-    return fetch(`${this._getHost()}/api/content/${manifestHash}/`)
+  _fetchManifest (manifestHash) {
+    return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
       .then((response) => {
-        if (response.ok) {
-          return response.json();
-        }
-
-        if (count < 1) {
-          return this._fetchManifest(manifestHash, count + 1);
-        }
-
-        return null;
+        return response.ok
+          ? response.json()
+          : null;
       })
-      .catch(() => {
-        if (count < 1) {
-          return this._fetchManifest(manifestHash, count + 1);
-        }
-
+      .catch((error) => {
+        console.warn('DappsStore:fetchManifest', error);
         return null;
       });
   }
