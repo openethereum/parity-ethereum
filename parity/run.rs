@@ -275,7 +275,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
 		dapps_interface: match cmd.dapps_conf.enabled {
-			true => Some(cmd.dapps_conf.interface),
+			true => Some(cmd.dapps_conf.interface.clone()),
 			false => None,
 		},
 		dapps_port: match cmd.dapps_conf.enabled {
