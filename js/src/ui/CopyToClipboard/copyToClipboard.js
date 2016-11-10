@@ -16,10 +16,14 @@
 
 import React, { Component, PropTypes } from 'react';
 import { IconButton } from 'material-ui';
+import Snackbar from 'material-ui/Snackbar';
 import Clipboard from 'react-copy-to-clipboard';
 import CopyIcon from 'material-ui/svg-icons/content/content-copy';
 import Theme from '../Theme';
+import { darkBlack } from 'material-ui/styles/colors';
 const { textColor, disabledTextColor } = Theme.flatButton;
+
+import styles from './copyToClipboard.css';
 
 export default class CopyToClipboard extends Component {
   static propTypes = {
@@ -56,16 +60,26 @@ export default class CopyToClipboard extends Component {
 
     return (
       <Clipboard onCopy={ this.onCopy } text={ data }>
-        <IconButton
-          tooltip={ copied ? 'done!' : label }
-          disableTouchRipple
-          tooltipPosition={ 'top-right' }
-          tooltipStyles={ { marginTop: `-${size / 4}px` } }
-          style={ { width: size, height: size, padding: '0' } }
-          iconStyle={ { width: size, height: size } }
-        >
-          <CopyIcon color={ copied ? disabledTextColor : textColor } />
-        </IconButton>
+        <div>
+          <Snackbar
+            open={ copied }
+            message={
+              <div>copied <code className={ styles.data }>{ data }</code> to clipboard</div>
+            }
+            autoHideDuration={ 2000 }
+            bodyStyle={ { backgroundColor: darkBlack } }
+          />
+          <IconButton
+            tooltip={ copied ? 'done!' : label }
+            disableTouchRipple
+            tooltipPosition={ 'top-right' }
+            tooltipStyles={ { marginTop: `-${size / 4}px` } }
+            style={ { width: size, height: size, padding: '0' } }
+            iconStyle={ { width: size, height: size } }
+          >
+            <CopyIcon color={ copied ? disabledTextColor : textColor } />
+          </IconButton>
+        </div>
       </Clipboard>
     );
   }
