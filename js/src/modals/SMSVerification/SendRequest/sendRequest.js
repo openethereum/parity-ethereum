@@ -18,34 +18,9 @@ import React, { Component, PropTypes } from 'react';
 import qs from 'querystring';
 
 import TxHash from '../../../ui/TxHash';
+import waitForConfirmations from '../wait-for-confirmations';
 
 import styles from './sendRequest.css';
-
-const isValidReceipt = (receipt) => {
-  return receipt && receipt.blockNumber && receipt.blockNumber.gt(0);
-};
-
-// TODO: DRY up with ../SendConfirmation
-const waitForConfirmations = (api, tx, confirmations) => {
-  return new Promise((resolve, reject) => {
-    api.pollMethod('eth_getTransactionReceipt', tx, isValidReceipt)
-    .then((receipt) => {
-      let subscription;
-      api.subscribe('eth_blockNumber', (err, block) => {
-        if (err) {
-          reject(err);
-        } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
-          api.unsubscribe(subscription);
-          resolve();
-        }
-      })
-      .then((_subscription) => {
-        subscription = _subscription;
-      })
-      .catch(reject);
-    });
-  });
-};
 
 const postToVerificationServer = (query) => {
   query = qs.stringify(query);

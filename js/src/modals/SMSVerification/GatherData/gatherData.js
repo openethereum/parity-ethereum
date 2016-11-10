@@ -24,6 +24,8 @@ import phone from 'phoneformat.js';
 
 import { fromWei } from '../../../api/util/wei';
 import { Form, Input } from '../../../ui';
+import checkIfVerified from '../check-if-verified';
+import checkIfRequested from '../check-if-requested';
 
 import styles from './gatherData.css';
 
@@ -43,7 +45,7 @@ export default class GatherData extends Component {
 
   state = {
     init: true,
-    isCertified: null,
+    isVerified: null,
     hasRequested: null,
     numberIsValid: null,
     consentGiven: false
@@ -99,9 +101,9 @@ export default class GatherData extends Component {
   }
 
   renderCertified () {
-    const { isCertified } = this.props.data;
+    const { isVerified } = this.props.data;
 
-    if (isCertified) {
+    if (isVerified) {
       return (
         <div className={ styles.container }>
           <ErrorIcon />
@@ -109,7 +111,7 @@ export default class GatherData extends Component {
         </div>
       );
     }
-    if (isCertified === false) {
+    if (isVerified === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
@@ -159,9 +161,9 @@ export default class GatherData extends Component {
   checkIfCertified = () => {
     const { account, contract, onData } = this.props;
 
-    contract.instance.certified.call({}, [account])
-    .then((isCertified) => {
-      onData({ isCertified });
+    checkIfVerified(contract, account)
+    .then((isVerified) => {
+      onData({ isVerified });
       this.onChange();
     })
     .catch((err) => {
@@ -172,18 +174,13 @@ export default class GatherData extends Component {
   checkIfRequested = () => {
     const { account, contract, onData } = this.props;
 
-    contract.subscribe('Requested', {
-      fromBlock: 0, toBlock: 'pending',
-      // limit: 1
-    }, (err, logs) => {
-      if (err) {
-        return console.error('error checking if requested', err);
-      }
-      const hasRequested = logs.some((l) => {
-        return l.type === 'mined' && l.params.who && l.params.who.value === account;
-      });
+    checkIfRequested(contract, account)
+    .then((hasRequested) => {
       onData({ hasRequested });
       this.onChange();
+    })
+    .catch((err) => {
+      console.error('error checking if requested', err);
     });
   }
 
@@ -206,10 +203,10 @@ export default class GatherData extends Component {
   }
 
   onChange = () => {
-    const { fee, isCertified, hasRequested } = this.props.data;
+    const { fee, isVerified, hasRequested } = this.props.data;
     const { numberIsValid, consentGiven } = this.state;
 
-    if (fee && numberIsValid && consentGiven && isCertified === false) {
+    if (fee && numberIsValid && consentGiven && isVerified === false) {
       this.props.onDataIsValid();
     } else {
       this.props.onDataIsInvalid();
