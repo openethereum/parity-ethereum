@@ -133,16 +133,15 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 bool InitInstance(HINSTANCE hInstance, int nCmdShow, LPWSTR cmdLine)
 {
-	// Remove "ui" from command line
 	if (lstrlen(cmdLine) > 0)
 	{
 		int commandLineArgs = 0;
 		LPWSTR* commandLine = CommandLineToArgvW(cmdLine, &commandLineArgs);
 		LPWSTR filteredArgs = new WCHAR[lstrlen(cmdLine) + 2];
 		filteredArgs[0] = '\0';
-		// skip exe name
 		for (int i = 0; i < commandLineArgs; i++)
 		{
+			// Remove "ui" from command line
 			if (lstrcmp(commandLine[i], L"ui") != 0)
 			{
 				lstrcat(filteredArgs, commandLine[i]);
