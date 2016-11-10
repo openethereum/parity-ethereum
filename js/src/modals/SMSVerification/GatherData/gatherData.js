@@ -45,8 +45,6 @@ export default class GatherData extends Component {
 
   state = {
     init: true,
-    isVerified: null,
-    hasRequested: null,
     numberIsValid: null,
     consentGiven: false
   };
@@ -63,6 +61,7 @@ export default class GatherData extends Component {
 
   render () {
     const { numberIsValid } = this.state;
+    const { isVerified, hasRequested } = this.props.data;
 
     // TODO: proper legal text
     return (
@@ -74,12 +73,14 @@ export default class GatherData extends Component {
           label={ 'phone number' }
           hint={ 'the sms will be sent to this number' }
           error={ numberIsValid ? null : 'invalid number' }
+          disabled={ isVerified || hasRequested }
           onChange={ this.numberOnChange }
           onSubmit={ this.numberOnSubmit }
         />
         <Checkbox
           className={ styles.spacing }
           label={ 'I agree that my number will be stored.' }
+          disabled={ isVerified || hasRequested }
           onCheck={ this.consentOnChange }
         />
       </Form>
@@ -123,7 +124,12 @@ export default class GatherData extends Component {
   }
 
   renderRequested () {
-    const { hasRequested } = this.props.data;
+    const { isVerified, hasRequested } = this.props.data;
+
+    // If the account is verified, don't show that it has requested verification.
+    if (isVerified) {
+      return null;
+    }
 
     if (hasRequested) {
       return (
@@ -203,7 +209,7 @@ export default class GatherData extends Component {
   }
 
   onChange = () => {
-    const { fee, isVerified, hasRequested } = this.props.data;
+    const { fee, isVerified } = this.props.data;
     const { numberIsValid, consentGiven } = this.state;
 
     if (fee && numberIsValid && consentGiven && isVerified === false) {

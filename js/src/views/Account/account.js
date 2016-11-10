@@ -105,7 +105,7 @@ class Account extends Component {
       <Button
         key='sms-verification'
         icon={ <VerifyIcon /> }
-        label='Verify via SMS'
+        label='Verify'
         onClick={ this.openVerification } />,
       <Button
         key='editmeta'
