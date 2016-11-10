@@ -12,7 +12,7 @@
 !define VERSIONMINOR 5
 !define VERSIONBUILD 0
 !define ARGS "--warp"
-!define FIRST_START_ARGS "--warp --mode=passive"
+!define FIRST_START_ARGS "ui --warp --mode=passive"
 
 !addplugindir .\
 
@@ -160,6 +160,9 @@ section "uninstall"
 	!insertmacro TerminateApp
 	# Remove Start Menu launcher
 	delete "$SMPROGRAMS\${COMPANYNAME}\${APPNAME}.lnk"
+	delete "$SMPROGRAMS\${COMPANYNAME}\${APPNAME} Ethereum.lnk"
+	delete "$DESKTOP\${APPNAME} Ethereum.lnk"
+
 	# Try to remove the Start Menu folder - this will only happen if it is empty
 	rmDir "$SMPROGRAMS\${COMPANYNAME}"
 
