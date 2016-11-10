@@ -26,7 +26,7 @@ export default class SecureApi extends Api {
     this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
     this._dappsPort = 8080;
-    this._dappsInterface = window.location.hostname;
+    this._dappsInterface = null;
     this._signerPort = 8180;
 
     console.log('SecureApi:constructor', sysuiToken);
@@ -129,7 +129,7 @@ export default class SecureApi extends Api {
 
     if (window.location.hostname === 'home.parity') {
       hostname = 'dapps.parity';
-    } else if (this._dappsInterface === '0.0.0.0') {
+    } else if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
       hostname = window.location.hostname;
     } else {
       hostname = this._dappsInterface;
