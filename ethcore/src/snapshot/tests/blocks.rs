@@ -28,6 +28,7 @@ use util::kvdb::{Database, DatabaseConfig};
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
@@ -75,10 +76,11 @@ fn chunk_and_restore(amount: u64) {
 	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), &manifest).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
+	let flag = AtomicBool::new(true);
 	for chunk_hash in &reader.manifest().block_hashes {
 		let compressed = reader.chunk(*chunk_hash).unwrap();
 		let chunk = snappy::decompress(&compressed).unwrap();
-		rebuilder.feed(&chunk, &engine).unwrap();
+		rebuilder.feed(&chunk, &engine, &flag).unwrap();
 	}
 
 	rebuilder.finalize(HashMap::new()).unwrap();

@@ -29,6 +29,7 @@ use util::Mutex;
 use devtools::RandomTempPath;
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[test]
 fn snap_and_restore() {
@@ -65,11 +66,13 @@ fn snap_and_restore() {
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
+		let flag = AtomicBool::new(true);
+
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
 			let chunk = ::util::snappy::decompress(&raw).unwrap();
 
-			rebuilder.feed(&chunk).unwrap();
+			rebuilder.feed(&chunk, &flag).unwrap();
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);

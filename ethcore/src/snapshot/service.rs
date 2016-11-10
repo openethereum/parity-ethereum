@@ -118,12 +118,12 @@ impl Restoration {
 		})
 	}
 
-	// feeds a state chunk
-	fn feed_state(&mut self, hash: H256, chunk: &[u8]) -> Result<(), Error> {
+	// feeds a state chunk, aborts early if `flag` becomes false.
+	fn feed_state(&mut self, hash: H256, chunk: &[u8], flag: &AtomicBool) -> Result<(), Error> {
 		if self.state_chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
-			try!(self.state.feed(&self.snappy_buffer[..len]));
+			try!(self.state.feed(&self.snappy_buffer[..len], flag));
 
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				try!(writer.write_state_chunk(hash, chunk));
@@ -134,11 +134,11 @@ impl Restoration {
 	}
 
 	// feeds a block chunk
-	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine) -> Result<(), Error> {
+	fn feed_blocks(&mut self, hash: H256, chunk: &[u8], engine: &Engine, flag: &AtomicBool) -> Result<(), Error> {
 		if self.block_chunks_left.remove(&hash) {
 			let len = try!(snappy::decompress_into(chunk, &mut self.snappy_buffer));
 
-			try!(self.blocks.feed(&self.snappy_buffer[..len], engine));
+			try!(self.blocks.feed(&self.snappy_buffer[..len], engine, flag));
 			if let Some(ref mut writer) = self.writer.as_mut() {
 				 try!(writer.write_block_chunk(hash, chunk));
 			}
@@ -224,6 +224,7 @@ pub struct Service {
 	db_restore: Arc<DatabaseRestore>,
 	progress: super::Progress,
 	taking_snapshot: AtomicBool,
+	restoring_snapshot: AtomicBool,
 }
 
 impl Service {
@@ -244,6 +245,7 @@ impl Service {
 			db_restore: params.db_restore,
 			progress: Default::default(),
 			taking_snapshot: AtomicBool::new(false),
+			restoring_snapshot: AtomicBool::new(false),
 		};
 
 		// create the root snapshot dir if it doesn't exist.
@@ -436,6 +438,8 @@ impl Service {
 			state_chunks_done: self.state_chunks.load(Ordering::SeqCst) as u32,
 			block_chunks_done: self.block_chunks.load(Ordering::SeqCst) as u32,
 		};
+
+		self.restoring_snapshot.store(true, Ordering::SeqCst);
 		Ok(())
 	}
 
@@ -490,8 +494,8 @@ impl Service {
 						};
 
 						(match is_state {
-							true => rest.feed_state(hash, chunk),
-							false => rest.feed_blocks(hash, chunk, &*self.engine),
+							true => rest.feed_state(hash, chunk, &self.restoring_snapshot),
+							false => rest.feed_blocks(hash, chunk, &*self.engine, &self.restoring_snapshot),
 						}.map(|_| rest.is_done()), rest.db.clone())
 					};
 
@@ -573,6 +577,7 @@ impl SnapshotService for Service {
 	}
 
 	fn abort_restore(&self) {
+		self.restoring_snapshot.store(false, Ordering::SeqCst);
 		*self.restoration.lock() = None;
 		*self.status.lock() = RestorationStatus::Inactive;
 	}

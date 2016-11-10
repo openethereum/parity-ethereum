@@ -73,7 +73,7 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Get peers information
 	fn peers(&self) -> Vec<PeerInfo>;
-    
+
 	/// Get the enode if available.
 	fn enode(&self) -> Option<String>;
 }
@@ -231,6 +231,7 @@ impl ChainNotify for EthSync {
 	}
 
 	fn stop(&self) {
+		self.handler.snapshot_service.abort_restore();
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 }
