@@ -43,6 +43,6 @@
 }
 
 .address {
-  white-space: nowrap;
-  font-family: monospace;
+  display: inline-block;
+  margin-left: .5em;
 }
