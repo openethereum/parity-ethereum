@@ -122,7 +122,11 @@ export default class SecureApi extends Api {
   }
 
   get dappsUrl () {
-    return `http://${window.location.hostname}:${this._dappsPort}`;
+    const hostname = window.location.hostname === 'home.parity'
+      ? 'dapps.parity'
+      : window.location.hostname;
+
+    return `http://${hostname}:${this._dappsPort}`;
   }
 
   get signerPort () {
