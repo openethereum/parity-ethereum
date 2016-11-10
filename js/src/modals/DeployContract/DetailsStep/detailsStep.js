@@ -16,11 +16,123 @@
 
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
+import { range } from 'lodash';
 
 import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
 
 import styles from '../deployContract.css';
+
+class TypedInput extends Component {
+
+  static propTypes = {
+    onChange: PropTypes.func.isRequired,
+    accounts: PropTypes.object.isRequired,
+    type: PropTypes.string.isRequired,
+
+    error: PropTypes.any,
+    value: PropTypes.any,
+    label: PropTypes.string
+  };
+
+  render () {
+    const { type } = this.props;
+
+    const arrayRegex = /^(.+)\[(\d*)\]$/;
+
+    if (arrayRegex.test(type)) {
+      const matches = arrayRegex.exec(type);
+      return this.renderArray(matches[1], matches[2] || Infinity);
+    }
+
+    switch (type) {
+      case 'address':
+        return this.renderAddress();
+
+      case 'bool':
+        return this.renderBoolean();
+
+      default:
+        return this.renderDefault();
+    }
+  }
+
+  renderArray (type, max) {
+    const { label, value, error } = this.props;
+
+    return (
+      <
+    );
+  }
+
+  renderDefault () {
+    const { label, value, error } = this.props;
+
+    return (
+      <Input
+        label={ label }
+        value={ value }
+        error={ error }
+        onSubmit={ this.onSubmit }
+      />
+    );
+  }
+
+  renderAddress () {
+    const { accounts, label, value, error } = this.props;
+
+    return (
+      <InputAddressSelect
+        accounts={ accounts }
+        label={ label }
+        value={ value }
+        error={ error }
+        onChange={ this.onChange }
+        editing
+      />
+    );
+  }
+
+  renderBoolean () {
+    const { label, value, error } = this.props;
+
+    const boolitems = ['false', 'true'].map((bool) => {
+      return (
+        <MenuItem
+          key={ bool }
+          value={ bool }
+          label={ bool }
+        >
+          { bool }
+        </MenuItem>
+      );
+    });
+
+    return (
+      <Select
+        label={ label }
+        value={ value ? 'true' : 'false' }
+        error={ error }
+        onChange={ this.onChangeBool }
+      >
+        { boolitems }
+      </Select>
+    );
+  }
+
+  onChangeBool = (event, _index, value) => {
+    this.props.onChange(value === 'true');
+  }
+
+  onChange = (event, value) => {
+    this.props.onChange(value);
+  }
+
+  onSubmit = (value) => {
+    this.props.onChange(value);
+  }
+
+}
 
 export default class DetailsStep extends Component {
   static contextTypes = {
@@ -98,59 +210,22 @@ export default class DetailsStep extends Component {
     }
 
     return inputs.map((input, index) => {
-      const onChange = (event, value) => this.onParamChange(index, value);
-      const onChangeBool = (event, _index, value) => this.onParamChange(index, value === 'true');
-      const onSubmit = (value) => this.onParamChange(index, value);
-      const label = `${input.name}: ${input.type}`;
-      let inputBox = null;
+      const onChange = (value) => this.onParamChange(index, value);
 
-      switch (input.type) {
-        case 'address':
-          inputBox = (
-            <InputAddressSelect
-              accounts={ accounts }
-              editing
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onChange={ onChange } />
-          );
-          break;
-
-        case 'bool':
-          const boolitems = ['false', 'true'].map((bool) => {
-            return (
-              <MenuItem
-                key={ bool }
-                value={ bool }
-                label={ bool }>{ bool }</MenuItem>
-            );
-          });
-          inputBox = (
-            <Select
-              label={ label }
-              value={ params[index] ? 'true' : 'false' }
-              error={ paramsError[index] }
-              onChange={ onChangeBool }>
-              { boolitems }
-            </Select>
-          );
-          break;
-
-        default:
-          inputBox = (
-            <Input
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onSubmit={ onSubmit } />
-            );
-          break;
-      }
+      const label = `${input.name ? `${input.name}: ` : ''}${input.type}`;
+      const value = params[index];
+      const error = paramsError[index];
 
       return (
         <div key={ index } className={ styles.funcparams }>
-          { inputBox }
+          <TypedInput
+            label={ label }
+            value={ value }
+            error={ error }
+            accounts={ accounts }
+            onChange={ onChange }
+            type={ input.type }
+          />
         </div>
       );
     });
@@ -181,7 +256,9 @@ export default class DetailsStep extends Component {
     const { abiError, abiParsed } = validateAbi(abi, api);
 
     if (!abiError) {
-      const { inputs } = abiParsed.find((method) => method.type === 'constructor') || { inputs: [] };
+      const { inputs } = abiParsed
+        .find((method) => method.type === 'constructor') || { inputs: [] };
+
       const params = [];
 
       inputs.forEach((input) => {
@@ -226,5 +303,106 @@ export default class DetailsStep extends Component {
     const { onCodeChange } = this.props;
 
     onCodeChange(code);
+  }
+}
+
+const ARRAY_TYPE = 'ARRAY_TYPE';
+const ADDRESS_TYPE = 'ADDRESS_TYPE';
+const STRING_TYPE = 'STRING_TYPE';
+const BOOL_TYPE = 'BOOL_TYPE';
+const BYTES_TYPE = 'BYTES_TYPE';
+const UINT_TYPE = 'UINT_TYPE';
+const INT_TYPE = 'INT_TYPE';
+
+function parseAbiType (type) {
+  if (type === 'string') {
+    return {
+      type: STRING_TYPE,
+      default: ''
+    };
+  }
+
+  if (type === 'bool') {
+    return {
+      type: BOOL_TYPE,
+      default: false
+    };
+  }
+
+  if (type === 'address') {
+    return {
+      type: ADDRESS_TYPE,
+      default: '0x'
+    };
+  }
+
+  const arrayRegex = /^(.+)\[(\d*)\]$/;
+
+  if (arrayRegex.test(type)) {
+    const matches = arrayRegex.exec(type);
+
+    const subtype = parseAbiType(matches[1]);
+    const M = parseInt(matches[2]) || Infinity;
+    const defaultValue = M === Infinity
+      ? []
+      : range(M).map(() => subtype.default);
+
+    return {
+      type: ARRAY_TYPE,
+      subtype: subtype,
+      length: M,
+      default: defaultValue
+    };
+  }
+
+  const lengthRegex = /^([a-z]+)(\d{1,3})$/;
+
+  if (lengthRegex.test(type)) {
+    const subtype = parseAbiType(matches[1]);
+    const length = parseInt(matches[2]) || Infinity;
+
+    return {
+      ...subtype,
+      length
+    };
+  }
+
+  if (type === 'bytes') {
+    return {
+      type: BYTES_TYPE,
+      default: '0x'
+    };
+  }
+
+  if (type === 'uint') {
+    return {
+      type: UINT_TYPE,
+      default: 0,
+      length: 256
+    };
+  }
+
+  if (type === 'int') {
+    return {
+      type: INT_TYPE,
+      default: 0,
+      length: 256
+    };
+  }
+
+  if (type === 'ufixed') {
+    return {
+      type: UFIXED_TYPE,
+      default: 0,
+      length: 256
+    };
+  }
+
+  if (type === 'fixed') {
+    return {
+      type: FIXED_TYPE,
+      default: 0,
+      length: 256
+    };
   }
 }
