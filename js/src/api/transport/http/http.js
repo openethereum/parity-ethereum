@@ -24,6 +24,8 @@ export default class Http extends JsonRpcBase {
 
     this._connected = true;
     this._url = url;
+
+    this._pollConnection();
   }
 
   _encodeOptions (method, params) {
@@ -76,5 +78,14 @@ export default class Http extends JsonRpcBase {
         this.log(JSON.stringify(response));
         return response.result;
       });
+  }
+
+  _pollConnection = () => {
+    const nextTimeout = () => setTimeout(this._pollConnection, 1000);
+
+    this
+      .execute('net_listening')
+      .then(nextTimeout)
+      .catch(nextTimeout);
   }
 }
