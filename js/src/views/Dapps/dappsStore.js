@@ -14,69 +14,39 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, computed, observable } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 
-const builtinApps = [
-  {
-    id: '0xf9f2d620c2e08f83e45555247146c62185e4ab7cf82a4b9002a265a0d020348f',
-    url: 'basiccoin',
-    name: 'Token Deployment',
-    description: 'Deploy new basic tokens that you are able to send around',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
-  },
-  {
-    id: '0xd1adaede68d344519025e2ff574650cd99d3830fe6d274c7a7843cdc00e17938',
-    url: 'registry',
-    name: 'Registry',
-    description: 'A global registry of addresses on the network',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
-  },
-  {
-    id: '0x0a8048117e51e964628d0f2d26342b3cd915248b59bcce2721e1d05f5cfa2208',
-    url: 'tokenreg',
-    name: 'Token Registry',
-    description: 'A registry of transactable tokens on the network',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
-  },
-  {
-    id: '0xf49089046f53f5d2e5f3513c1c32f5ff57d986e46309a42d2b249070e4e72c46',
-    url: 'signaturereg',
-    name: 'Method Registry',
-    description: 'A registry of method signatures for lookups on transactions',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0'
-  },
-  {
-    id: '0x058740ee9a5a3fb9f1cfa10752baec87e09cc45cd7027fd54708271aca300c75',
-    url: 'githubhint',
-    name: 'GitHub Hint',
-    description: 'A mapping of GitHub URLs to hashes for use in contracts as references',
-    author: 'Parity Team <admin@ethcore.io>',
-    version: '1.0.0',
-    secure: true
-  }
-];
+import builtinApps from './builtin.json';
+
+const LS_KEY_HIDDEN = 'hiddenApps';
+const LS_KEY_EXTERNAL = 'externalApps';
 
 export default class DappsStore {
   @observable apps = [];
-  @observable hidden = [];
+  @observable externalApps = [];
+  @observable hiddenApps = [];
   @observable modalOpen = false;
 
   constructor (api) {
     this._api = api;
 
     this._readHiddenApps();
-    this._fetch();
+    this._readExternalApps();
+
+    this._fetchBuiltinApps();
+    this._fetchLocalApps();
+    this._fetchRegistryApps();
   }
 
   @computed get visible () {
-    return this.apps.filter((app) => !this.hidden.includes(app.id));
+    return this.apps
+      .filter((app) => {
+        return this.externalApps.includes(app.id) || !this.hiddenApps.includes(app.id);
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   @action openModal = () => {
@@ -88,12 +58,12 @@ export default class DappsStore {
   }
 
   @action hideApp = (id) => {
-    this.hidden = this.hidden.concat(id);
+    this.hiddenApps = this.hiddenApps.concat(id);
     this._writeHiddenApps();
   }
 
   @action showApp = (id) => {
-    this.hidden = this.hidden.filter((_id) => _id !== id);
+    this.hiddenApps = this.hiddenApps.filter((_id) => _id !== id);
     this._writeHiddenApps();
   }
 
@@ -103,25 +73,48 @@ export default class DappsStore {
       : '';
   }
 
-  _fetch () {
-    Promise
-      .all([
-        this._fetchLocal(),
-        this._fetchRegistry()
-      ])
-      .then(([localApps, registryApps]) => {
-        this.apps = []
-          .concat(localApps)
-          .concat(registryApps)
-          .filter((app) => app.id)
-          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-      })
-      .catch((error) => {
-        console.warn('DappStore:fetch', error);
+  _fetchBuiltinApps () {
+    const { dappReg } = Contracts.get();
+
+    return Promise
+      .all(builtinApps.map((app) => dappReg.getImage(app.id)))
+      .then((imageIds) => {
+        transaction(() => {
+          builtinApps.forEach((app, index) => {
+            app.type = 'builtin';
+            app.image = hashToImageUrl(imageIds[index]);
+            this.apps.push(app);
+          });
+        });
       });
   }
 
-  _fetchRegistry () {
+  _fetchLocalApps () {
+    return fetch(`${this._getHost()}/api/apps`)
+      .then((response) => {
+        return response.ok
+          ? response.json()
+          : [];
+      })
+      .then((apps) => {
+        return apps
+          .map((app) => {
+            app.type = 'local';
+            return app;
+          })
+          .filter((app) => app.id && !['ui'].includes(app.id));
+      })
+      .then((apps) => {
+        transaction(() => {
+          (apps || []).forEach((app) => this.apps.push(app));
+        });
+      })
+      .catch((error) => {
+        console.warn('DappsStore:fetchLocal', error);
+      });
+  }
+
+  _fetchRegistryApps () {
     const { dappReg } = Contracts.get();
 
     return dappReg
@@ -137,9 +130,9 @@ export default class DappsStore {
         return Promise.all(promises);
       })
       .then((appsInfo) => {
-        const appIds = appsInfo.map(([appId, owner]) => {
-          return this._api.util.bytesToHex(appId);
-        });
+        const appIds = appsInfo
+          .map(([appId, owner]) => this._api.util.bytesToHex(appId))
+          .filter((appId) => !builtinApps.find((app) => app.id === appId));
 
         return Promise
           .all([
@@ -149,15 +142,13 @@ export default class DappsStore {
           ])
           .then(([imageIds, contentIds, manifestIds]) => {
             return appIds.map((appId, index) => {
-              const app = builtinApps.find((ba) => ba.id === appId) || {
+              const app = {
                 id: appId,
+                image: hashToImageUrl(imageIds[index]),
                 contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
                 manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
                 type: 'network'
               };
-
-              app.image = hashToImageUrl(imageIds[index]);
-              app.type = app.type || 'builtin';
 
               return app;
             });
@@ -165,11 +156,7 @@ export default class DappsStore {
       })
       .then((apps) => {
         return Promise
-          .all(apps.map((app) => {
-            return app.manifestHash
-              ? this._fetchManifest(app.manifestHash)
-              : null;
-          }))
+          .all(apps.map((app) => this._fetchManifest(app.manifestHash)))
           .then((manifests) => {
             return apps.map((app, index) => {
               const manifest = manifests[index];
@@ -177,7 +164,7 @@ export default class DappsStore {
               if (manifest) {
                 app.manifestHash = null;
                 Object.keys(manifest)
-                  .filter((key) => key !== 'id')
+                  .filter((key) => ['author', 'description', 'name', 'version'].includes(key))
                   .forEach((key) => {
                     app[key] = manifest[key];
                   });
@@ -191,6 +178,11 @@ export default class DappsStore {
               return !app.manifestHash && app.id;
             });
           });
+      })
+      .then((apps) => {
+        transaction(() => {
+          (apps || []).forEach((app) => this.apps.push(app));
+        });
       })
       .catch((error) => {
         console.warn('DappsStore:fetchRegistry', error);
@@ -210,39 +202,43 @@ export default class DappsStore {
       });
   }
 
-  _fetchLocal () {
-    return fetch(`${this._getHost()}/api/apps`)
-      .then((response) => {
-        return response.ok
-          ? response.json()
-          : [];
-      })
-      .then((localApps) => {
-        return localApps
-          .filter((app) => app && app.id && !['ui'].includes(app.id))
-          .map((app) => {
-            app.type = 'local';
-            return app;
-          });
-      })
-      .catch((error) => {
-        console.warn('DappsStore:fetchLocal', error);
-      });
-  }
-
   _readHiddenApps () {
-    const stored = localStorage.getItem('hiddenApps');
+    const stored = localStorage.getItem(LS_KEY_HIDDEN);
 
     if (stored) {
       try {
-        this.hidden = JSON.parse(stored);
+        this.hiddenApps = JSON.parse(stored);
       } catch (error) {
         console.warn('DappsStore:readHiddenApps', error);
       }
     }
   }
 
+  _readExternalApps () {
+    const stored = localStorage.getItem(LS_KEY_EXTERNAL);
+
+    if (stored) {
+      try {
+        this.externalApps = JSON.parse(stored);
+      } catch (error) {
+        console.warn('DappsStore:readExternalApps', error);
+      }
+    }
+  }
+
+  _writeExternalApps () {
+    try {
+      localStorage.setItem(LS_KEY_EXTERNAL, JSON.stringify(this.externalApps));
+    } catch (error) {
+      console.error('DappsStore:writeExternalApps', error);
+    }
+  }
+
   _writeHiddenApps () {
-    localStorage.setItem('hiddenApps', JSON.stringify(this.hidden));
+    try {
+      localStorage.setItem(LS_KEY_HIDDEN, JSON.stringify(this.hiddenApps));
+    } catch (error) {
+      console.error('DappsStore:writeHiddenApps', error);
+    }
   }
 }
