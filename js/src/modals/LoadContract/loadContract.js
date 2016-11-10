@@ -76,19 +76,25 @@ export default class LoadContract extends Component {
 
     const { contracts, snippets } = this.props;
 
+    const contractsTab = Object.keys(contracts).length === 0
+      ? null
+      : (
+        <Tab label='Local' >
+          { this.renderEditor() }
+
+          <SelectableList
+            onChange={ this.onClickContract }
+          >
+            <Subheader>Saved Contracts</Subheader>
+            { this.renderContracts(contracts) }
+          </SelectableList>
+        </Tab>
+      );
+
     return (
       <div className={ styles.loadContainer }>
         <Tabs onChange={ this.handleChangeTab }>
-          <Tab label='Local' >
-            { this.renderEditor() }
-
-            <SelectableList
-              onChange={ this.onClickContract }
-            >
-              <Subheader>Saved Contracts</Subheader>
-              { this.renderContracts(contracts) }
-            </SelectableList>
-          </Tab>
+          { contractsTab }
 
           <Tab label='Snippets' >
             { this.renderEditor() }

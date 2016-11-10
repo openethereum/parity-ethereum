@@ -271,7 +271,7 @@ export default class WriteContractStore {
   getId (contracts) {
     return Object.values(contracts)
       .map((c) => c.id)
-      .reduce((max, id) => Math.max(max, id), -1) + 1;
+      .reduce((max, id) => Math.max(max, id), 0) + 1;
   }
 
   @action handleSaveNewContract = (data) => {
@@ -279,7 +279,9 @@ export default class WriteContractStore {
 
     const localStore = store.get(WRITE_CONTRACT_STORE_KEY) || {};
     const savedContracts = localStore.saved || {};
-    const cId = id || this.getId(savedContracts);
+    const cId = (id !== undefined)
+      ? id
+      : this.getId(savedContracts);
 
     store.set(WRITE_CONTRACT_STORE_KEY, {
       ...localStore,
