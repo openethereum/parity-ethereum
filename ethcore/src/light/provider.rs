@@ -17,14 +17,14 @@
 //! A provider for the LES protocol. This is typically a full node, who can
 //! give as much data as necessary to its peers.
 
-use ethcore::client::BlockChainClient;
-use ethcore::transaction::SignedTransaction;
-use ethcore::blockchain_info::BlockChainInfo;
+use client::BlockChainClient;
+use transaction::SignedTransaction;
+use blockchain_info::BlockChainInfo;
 
 use rlp::EMPTY_LIST_RLP;
 use util::{Bytes, H256};
 
-use request;
+use light::request;
 
 /// Defines the operations that a provider for `LES` must fulfill.
 ///
@@ -40,8 +40,8 @@ pub trait Provider: Send + Sync {
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64>;
 
 	/// Earliest block where state queries are available.
-	/// All states between this value and
-	fn earliest_state(&self) -> u64;
+	/// If `None`, no state queries are servable.
+	fn earliest_state(&self) -> Option<u64>;
 
 	/// Provide a list of headers starting at the requested block,
 	/// possibly in reverse and skipping `skip` at a time.
@@ -83,11 +83,11 @@ impl<T: BlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {
-		self.tree_route.map(|route| route.index as u64)
+		self.tree_route(a, b).map(|route| route.index as u64)
 	}
 
-	fn earliest_state(&self) -> u64 {
-		self.pruning_info().earliest_state
+	fn earliest_state(&self) -> Option<u64> {
+		Some(self.pruning_info().earliest_state)
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
@@ -95,16 +95,18 @@ impl<T: BlockChainClient + ?Sized> Provider for T {
 	}
 
 	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
+		use ids::BlockID;
+
 		req.block_hashes.into_iter()
-			.map(|hash| self.block_body(hash.into()))
-			.map(|body| body.unwrap_or_else(|| EMPTY_LIST_RLP.into()))
+			.map(|hash| self.block_body(BlockID::Hash(hash)))
+			.map(|body| body.unwrap_or_else(|| EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
 
 	fn receipts(&self, req: request::Receipts) -> Vec<Bytes> {
 		req.block_hashes.into_iter()
-			.map(|hash| self.block_receipts(&hash)
-			.map(|receipts| receips.unwrap_or_else(|| EMPTY_LIST_RLP.into()))
+			.map(|hash| self.block_receipts(&hash))
+			.map(|receipts| receipts.unwrap_or_else(|| EMPTY_LIST_RLP.to_vec()))
 			.collect()
 	}
 
@@ -112,12 +114,16 @@ impl<T: BlockChainClient + ?Sized> Provider for T {
 		unimplemented!()
 	}
 
-	fn code(&self, req: request::ContractCodes) -> Vec<Bytes>;
+	fn code(&self, req: request::ContractCodes) -> Vec<Bytes> {
+		unimplemented!()
+	}
 
 	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes> {
 		// TODO: [rob] implement CHT stuff on `ethcore` side.
-		req.requests.into_iter().map(|_| EMPTY_LIST_RLP.into()).collect()
+		req.requests.into_iter().map(|_| EMPTY_LIST_RLP.to_vec()).collect()
 	}
 
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	fn pending_transactions(&self) -> Vec<SignedTransaction> {
+		unimplemented!()
+	}
 }

@@ -289,6 +289,7 @@ dependencies = [
  "ethcore-ipc 1.4.0",
  "ethcore-ipc-codegen 1.4.0",
  "ethcore-ipc-nano 1.4.0",
+ "ethcore-network 1.5.0",
  "ethcore-util 1.5.0",
  "ethjson 0.1.0",
  "ethkey 0.2.0",

@@ -41,6 +41,7 @@ ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
 lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
+ethcore-network = { path = "../util/network" }
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"

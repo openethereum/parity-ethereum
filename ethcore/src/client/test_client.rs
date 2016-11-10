@@ -655,7 +655,7 @@ impl BlockChainClient for TestBlockChainClient {
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
 			earliest_chain: 1,
-			earlest_state: 1,
+			earliest_state: 1,
 		}
 	}
 }

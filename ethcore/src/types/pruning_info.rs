@@ -24,7 +24,7 @@
 #[derive(Debug, Clone, Binary)]
 pub struct PruningInfo {
 	/// The first block which everything can be served after.
-	pub earliest_chain: u64
+	pub earliest_chain: u64,
 	/// The first block where state requests may be served.
-	pub earliest_state: u64
+	pub earliest_state: u64,
 }

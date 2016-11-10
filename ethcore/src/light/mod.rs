@@ -34,7 +34,5 @@
 pub mod client;
 pub mod net;
 pub mod provider;
-pub mod request;
 
-#[macro_use]
-extern crate log;
+pub use types::les_request as request;

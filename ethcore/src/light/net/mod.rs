@@ -28,8 +28,8 @@ use util::RwLock;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::AtomicUsize;
 
-use provider::Provider;
-use request::{self, Request};
+use light::provider::Provider;
+use light::request::{self, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
 use self::error::{Error, Punishment};
@@ -287,11 +287,14 @@ impl LightProtocol {
 		self.flow_params.recharge(&mut present_buffer);
 		let req_id: u64 = try!(data.val_at(0));
 
+		let block = {
+			let rlp = try!(data.at(1));
+			(try!(rlp.val_at(0)), try!(rlp.val_at(1)))
+		};
+
 		let req = request::Headers {
-			block: {
-				let rlp = try!(data.at(1));
-				(try!(rlp.val_at(0)), try!(rlp.val_at(1)))
-			},
+			block_num: block.0,
+			block_hash: block.1,
 			max: ::std::cmp::min(MAX_HEADERS, try!(data.val_at(2))),
 			skip: try!(data.val_at(3)),
 			reverse: try!(data.val_at(4)),

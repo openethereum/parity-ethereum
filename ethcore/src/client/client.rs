@@ -1229,7 +1229,7 @@ impl BlockChainClient for Client {
 
 	fn pruning_info(&self) -> PruningInfo {
 		PruningInfo {
-			earliest_chain: self.chain.read().first_block().unwrap_or(1),
+			earliest_chain: self.chain.read().first_block_number().unwrap_or(1),
 			earliest_state: self.state_db.lock().journal_db().earliest_era().unwrap_or(0),
 		}
 	}
