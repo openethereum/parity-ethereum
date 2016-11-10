@@ -41,6 +41,20 @@
   }
 }
 
+.mainEditor {
+  &:global(.ace-solarized-dark) {
+    background-color: rgba(0, 0, 0, 0.5);
+
+    :global(.ace_gutter) {
+      background-color: rgba(0, 0, 0, 0.7);
+    }
+
+    :global(.ace_content) {
+      background-color: transparent;
+    }
+  }
+}
+
 .big {
   font-size: 1.2em;
 }
@@ -87,11 +101,22 @@
   .errors {
     flex: 1 0 0;
     overflow: auto;
+    margin-right: -0.5em;
+    margin-top: 0.5em;
   }
 }
 
 .messageContainer {
   padding: 0.5em 0;
+  margin-right: 0.5em;
+
+  &:first-child {
+    padding-top: 0;
+  }
+
+  &:last-child {
+    padding-bottom: 0;
+  }
 
   .errorPosition {
     background-color: rgba(0, 0, 0, 0.5);
@@ -116,6 +141,10 @@
 
   &.warning {
     background-color: rgba(255, 235, 59, 0.5);
+  }
+
+  &.formal {
+    background-color: rgba(243, 156, 18, 0.5);
   }
 }
 

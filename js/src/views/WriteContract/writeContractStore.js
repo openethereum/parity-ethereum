@@ -191,13 +191,10 @@ export default class WriteContractStore {
     }
   }
 
-  @action parseCompiled = (data) => {
-    const { contracts } = data;
+  parseErrors = (data, formal = false) => {
     const regex = /^(.*):(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/i;
 
-    const errors = data.errors || data.formal && data.formal.errors || [];
-
-    const annotations = errors
+    return (data || [])
       .filter((e) => regex.test(e))
       .map((error, index) => {
         const match = regex.exec(error);
@@ -206,15 +203,29 @@ export default class WriteContractStore {
         const row = parseInt(match[2]) - 1;
         const column = parseInt(match[3]);
 
-        const type = match[4].toLowerCase();
+        const type = formal ? 'warning' : match[4].toLowerCase();
         const text = match[5];
 
         return {
           contract,
           row, column,
-          type, text
+          type, text,
+          formal
         };
       });
+  }
+
+  @action parseCompiled = (data) => {
+    const { contracts } = data;
+
+    const { errors = [] } = data;
+    const errorAnnotations = this.parseErrors(errors);
+    const formalAnnotations = this.parseErrors(data.formal && data.formal.errors, true);
+
+    const annotations = [].concat(
+      errorAnnotations,
+      formalAnnotations
+    );
 
     if (annotations.findIndex((a) => /__parity_tryAgain/.test(a.text)) > -1) {
       return;

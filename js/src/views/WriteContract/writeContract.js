@@ -25,6 +25,8 @@ import moment from 'moment';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import ListIcon from 'material-ui/svg-icons/action/view-list';
+import SettingsIcon from 'material-ui/svg-icons/action/settings';
+import SendIcon from 'material-ui/svg-icons/content/send';
 
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from '../../ui';
 import { DeployContract, SaveContract, LoadContract } from '../../modals';
@@ -108,6 +110,7 @@ class WriteContract extends Component {
                 onExecute={ this.store.handleCompile }
                 annotations={ annotations }
                 value={ sourcecode }
+                className={ styles.mainEditor }
               />
             </div>
 
@@ -243,6 +246,7 @@ class WriteContract extends Component {
       <div className={ styles.panel }>
         <div>
           <Button
+            icon={ <SettingsIcon /> }
             label='Compile'
             onClick={ this.store.handleCompile }
             primary={ false }
@@ -251,6 +255,7 @@ class WriteContract extends Component {
           {
             contract
             ? <Button
+              icon={ <SendIcon /> }
               label='Deploy'
               onClick={ this.store.handleOpenDeployModal }
               primary={ false }
@@ -433,8 +438,9 @@ class WriteContract extends Component {
     const { annotations } = this.store;
 
     const body = annotations.map((annotation, index) => {
-      const { text, row, column, contract, type } = annotation;
-      const classes = [ styles.message, styles[type] ];
+      const { text, row, column, contract, type, formal } = annotation;
+      const classType = formal ? 'formal' : type;
+      const classes = [ styles.message, styles[classType] ];
 
       return (
         <div key={ index } className={ styles.messageContainer }>

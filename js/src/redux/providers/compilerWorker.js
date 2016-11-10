@@ -20,6 +20,11 @@ const URLregex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\
 
 self.solcVersions = {};
 self.files = {};
+self.lastCompile = {
+  sourcecode: '',
+  result: '',
+  version: ''
+};
 
 // eslint-disable-next-line no-undef
 onmessage = (event) => {
@@ -90,6 +95,14 @@ function findImports (path) {
 
 function compile (data) {
   const { sourcecode, build } = data;
+  const { longVersion } = build;
+
+  if (lastCompile.sourcecode === sourcecode && lastCompile.longVersion === longVersion) {
+    return postMessage(JSON.stringify({
+      event: 'compiled',
+      data: lastCompile.result
+    }));
+  }
 
   fetchSolc(build)
     .then((compiler) => {
@@ -98,6 +111,11 @@ function compile (data) {
       };
 
       const compiled = compiler.compile({ sources: input }, 0, findImports);
+
+      self.lastCompile = {
+        version: longVersion, result: compiled,
+        sourcecode
+      };
 
       postMessage(JSON.stringify({
         event: 'compiled',
