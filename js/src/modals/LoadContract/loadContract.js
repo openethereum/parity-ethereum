@@ -79,16 +79,16 @@ export default class LoadContract extends Component {
     const contractsTab = Object.keys(contracts).length === 0
       ? null
       : (
-        <Tab label='Local' >
-          { this.renderEditor() }
+      <Tab label='Local' >
+        { this.renderEditor() }
 
-          <SelectableList
-            onChange={ this.onClickContract }
-          >
-            <Subheader>Saved Contracts</Subheader>
-            { this.renderContracts(contracts) }
-          </SelectableList>
-        </Tab>
+        <SelectableList
+          onChange={ this.onClickContract }
+        >
+          <Subheader>Saved Contracts</Subheader>
+          { this.renderContracts(contracts) }
+        </SelectableList>
+      </Tab>
       );
 
     return (
