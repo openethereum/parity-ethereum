@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Canonical verifier.
+
 use blockchain::BlockProvider;
 use engines::Engine;
 use error::Error;
@@ -21,6 +23,7 @@ use header::Header;
 use super::Verifier;
 use super::verification;
 
+/// A canonial verifier -- this does full verification.
 pub struct CanonVerifier;
 
 impl Verifier for CanonVerifier {
