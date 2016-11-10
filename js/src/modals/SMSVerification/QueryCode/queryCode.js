@@ -31,10 +31,11 @@ export default class QueryCode extends Component {
   }
 
   render () {
-    const { code } = this.props.data;
+    const { number, code } = this.props.data;
 
     return (
       <Form>
+        <p>The verification code has been sent to { number }.</p>
         <Input
           label={ 'verification code' }
           hint={ 'Enter the code you received via SMS.' }

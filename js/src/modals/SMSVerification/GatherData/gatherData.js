@@ -66,12 +66,18 @@ export default class GatherData extends Component {
     // TODO: proper legal text
     return (
       <Form>
+        <p>The following steps will let you prove that you control both an account and a phone number.</p>
+        <ol className={ styles.list }>
+          <li>You send a verification request to a specific contract.</li>
+          <li>Our server puts a puzzle into this contract.</li>
+          <li>The code you receive via SMS is the solution to this puzzle.</li>
+        </ol>
         { this.renderFee() }
         { this.renderCertified() }
         { this.renderRequested() }
         <Input
           label={ 'phone number' }
-          hint={ 'the sms will be sent to this number' }
+          hint={ 'the SMS will be sent to this number' }
           error={ numberIsValid ? null : 'invalid number' }
           disabled={ isVerified || hasRequested }
           onChange={ this.numberOnChange }

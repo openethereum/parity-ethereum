@@ -33,7 +33,8 @@ export default class SendConfirmation extends Component {
     data: PropTypes.object.isRequired,
     onData: PropTypes.func.isRequired,
     onSuccess: PropTypes.func.isRequired,
-    onError: PropTypes.func.isRequired
+    onError: PropTypes.func.isRequired,
+    nextStep: PropTypes.func.isRequired
   }
 
   state = {
@@ -57,7 +58,7 @@ export default class SendConfirmation extends Component {
     }
 
     if (step === 'pending') {
-      return (<p>Waiting for authorization by the Parity Signer.</p>);
+      return (<p>The verification code will be sent to the contract. Please authorize this using the Parity Signer.</p>);
     }
 
     if (step === 'posted') {
@@ -68,16 +69,12 @@ export default class SendConfirmation extends Component {
         </div>);
     }
 
-    if (step === 'mined') {
-      return (<p>Congratulations, your account is verified!</p>);
-    }
-
     return null;
   }
 
   send = () => {
     const { api } = this.context;
-    const { account, contract, onData, onError, onSuccess } = this.props;
+    const { account, contract, onData, onError, onSuccess, nextStep } = this.props;
 
     const { code } = this.props.data;
     const token = sha3(code);
@@ -104,8 +101,8 @@ export default class SendConfirmation extends Component {
         return waitForConfirmations(api, txHash, 3);
       })
       .then(() => {
-        this.setState({ step: 'mined' });
         onSuccess();
+        nextStep();
       })
       .catch((err) => {
         console.error('failed to confirm sms verification', err);

@@ -48,7 +48,8 @@ export default class SendRequest extends Component {
     data: PropTypes.object.isRequired,
     onData: PropTypes.func.isRequired,
     onSuccess: PropTypes.func.isRequired,
-    onError: PropTypes.func.isRequired
+    onError: PropTypes.func.isRequired,
+    nextStep: PropTypes.func.isRequired
   }
 
   state = {
@@ -72,7 +73,7 @@ export default class SendRequest extends Component {
     }
 
     if (step === 'pending') {
-      return (<p>Waiting for authorization by the Parity Signer.</p>);
+      return (<p>A verification request will be sent to the contract. Please authorize this using the Parity Signer.</p>);
     }
 
     if (step === 'posted') {
@@ -87,16 +88,12 @@ export default class SendRequest extends Component {
       return (<p>Requesting an SMS from the Parity server.</p>);
     }
 
-    if (step === 'sms-sent') {
-      return (<p>The verification code has been sent to { this.props.data.number }.</p>);
-    }
-
     return null;
   }
 
   send = () => {
     const { api } = this.context;
-    const { account, contract, onData, onError, onSuccess } = this.props;
+    const { account, contract, onData, onError, onSuccess, nextStep } = this.props;
     const { fee, number, hasRequested } = this.props.data;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
@@ -131,6 +128,7 @@ export default class SendRequest extends Component {
       .then(() => {
         this.setState({ step: 'sms-sent' });
         onSuccess();
+        nextStep();
       })
       .catch((err) => {
         console.error('failed to request sms verification', err);
