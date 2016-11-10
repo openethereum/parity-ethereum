@@ -39,8 +39,16 @@ export default class CopyToClipboard extends Component {
   };
 
   state = {
-    copied: false
+    copied: false,
+    timeout: null
   };
+
+  componentWillUnmount () {
+    const { timeoutId } = this.state;
+    if (timeoutId) {
+      window.clearTimeout(timeoutId);
+    }
+  }
 
   render () {
     const { data, label, size } = this.props;
@@ -65,11 +73,12 @@ export default class CopyToClipboard extends Component {
   onCopy = () => {
     const { cooldown, onCopy } = this.props;
 
-    this.setState({ copied: true });
-    setTimeout(() => {
-      this.setState({ copied: false });
-    }, cooldown);
-
+    this.setState({
+      copied: true,
+      timeout: setTimeout(() => {
+        this.setState({ copied: false, timeout: null });
+      }, cooldown)
+    });
     onCopy();
   }
 }
