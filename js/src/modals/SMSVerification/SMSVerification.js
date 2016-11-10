@@ -18,10 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal } from '../../ui';
-import { validateAddress, validateUint } from '../../util/validation';
+import { Button, IdentityIcon, Modal } from '../../ui';
 
 import ABI from '../../contracts/abi/sms-verification.json';
+// TODO: move this to a better place
 const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
 
 import GatherData from './GatherData';
@@ -120,9 +120,9 @@ export default class SMSVerification extends Component {
     const { step } = this.state;
     if (step === 4) {
       return this.renderFifthStep();
-    } else if (step === 3) {
+    } else if (step === 3) {
       return this.renderFourthStep();
-    } else if (step === 2) {
+    } else if (step === 2) {
       return this.renderThirdStep();
     } else if (step === 1) {
       return this.renderSecondStep();

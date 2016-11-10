@@ -18,8 +18,6 @@ import React, { Component, PropTypes } from 'react';
 
 import { Form, Input } from '../../../ui';
 
-// import styles from './gatherData.css';
-
 const isValidCode = /^[A-Z0-9_-]{7,14}$/i;
 
 export default class QueryCode extends Component {
