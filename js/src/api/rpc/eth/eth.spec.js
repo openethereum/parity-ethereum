@@ -20,7 +20,7 @@ import { isBigNumber } from '../../../../test/types';
 import Http from '../../transport/http';
 import Eth from './eth';
 
-const instance = new Eth(new Http(TEST_HTTP_URL));
+const instance = new Eth(new Http(TEST_HTTP_URL, -1));
 
 describe('rpc/Eth', () => {
   const address = '0x63Cf90D3f0410092FC0fca41846f596223979195';
