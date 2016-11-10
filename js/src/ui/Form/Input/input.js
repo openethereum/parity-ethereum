@@ -15,11 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { TextField } from 'material-ui';
 
-import CopyToClipboard from 'react-copy-to-clipboard';
-import CopyIcon from 'material-ui/svg-icons/content/content-copy';
-import { TextField, IconButton } from 'material-ui';
-import { lightWhite, fullWhite } from 'material-ui/styles/colors';
+import CopyToClipboard from '../../CopyToClipboard';
 
 import styles from './input.css';
 
@@ -77,22 +75,12 @@ export default class Input extends Component {
   }
 
   state = {
-    value: this.props.value || '',
-    timeoutId: null,
-    copied: false
+    value: this.props.value || ''
   }
 
   componentWillReceiveProps (newProps) {
     if (newProps.value !== this.props.value) {
       this.setValue(newProps.value);
-    }
-  }
-
-  componentWillUnmount () {
-    const { timeoutId } = this.state;
-
-    if (timeoutId) {
-      window.clearTimeout(timeoutId);
     }
   }
 
@@ -151,7 +139,7 @@ export default class Input extends Component {
 
   renderCopyButton () {
     const { allowCopy, hideUnderline, label, hint, floatCopy } = this.props;
-    const { copied, value } = this.state;
+    const { value } = this.state;
 
     if (!allowCopy) {
       return null;
@@ -164,8 +152,6 @@ export default class Input extends Component {
     const text = typeof allowCopy === 'string'
       ? allowCopy
       : value;
-
-    const scale = copied ? 'scale(1.15)' : 'scale(1)';
 
     if (hideUnderline && !label) {
       style.marginBottom = 2;
@@ -184,47 +170,9 @@ export default class Input extends Component {
 
     return (
       <div className={ styles.copy } style={ style }>
-        <CopyToClipboard
-          onCopy={ this.handleCopy }
-          text={ text } >
-          <IconButton
-            tooltip={ `${copied ? 'Copied' : 'Copy'} to clipboard` }
-            tooltipPosition='bottom-right'
-            style={ {
-              width: 16,
-              height: 16,
-              padding: 0
-            } }
-            iconStyle={ {
-              width: 16,
-              height: 16,
-              transform: scale
-            } }
-            tooltipStyles={ {
-              top: 16
-            } }
-          >
-            <CopyIcon
-              color={ copied ? lightWhite : fullWhite }
-            />
-          </IconButton>
-        </CopyToClipboard>
+        <CopyToClipboard data={ text } />
       </div>
     );
-  }
-
-  handleCopy = () => {
-    if (this.state.timeoutId) {
-      window.clearTimeout(this.state.timeoutId);
-    }
-
-    this.setState({ copied: true }, () => {
-      const timeoutId = window.setTimeout(() => {
-        this.setState({ copied: false });
-      }, 500);
-
-      this.setState({ timeoutId });
-    });
   }
 
   onChange = (event, value) => {
