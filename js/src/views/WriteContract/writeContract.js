@@ -75,8 +75,12 @@ class WriteContract extends Component {
   }
 
   render () {
-    const { sourcecode, annotations } = this.store;
+    const { sourcecode } = this.store;
     const { size, resizing } = this.state;
+
+    const annotations = this.store.annotations
+      .slice()
+      .filter((a) => a.contract === '');
 
     return (
       <div className={ styles.outer }>
@@ -102,7 +106,7 @@ class WriteContract extends Component {
                 ref='editor'
                 onChange={ this.store.handleEditSourcecode }
                 onExecute={ this.store.handleCompile }
-                annotations={ annotations.slice() }
+                annotations={ annotations }
                 value={ sourcecode }
               />
             </div>
@@ -237,21 +241,23 @@ class WriteContract extends Component {
 
     return (
       <div className={ styles.panel }>
-        <Button
-          label='Compile'
-          onClick={ this.store.handleCompile }
-          primary={ false }
-          disabled={ compiling }
-        />
-        {
-          contract
-          ? <Button
-            label='Deploy'
-            onClick={ this.store.handleOpenDeployModal }
+        <div>
+          <Button
+            label='Compile'
+            onClick={ this.store.handleCompile }
             primary={ false }
+            disabled={ compiling }
           />
-          : null
-        }
+          {
+            contract
+            ? <Button
+              label='Deploy'
+              onClick={ this.store.handleOpenDeployModal }
+              primary={ false }
+            />
+            : null
+          }
+        </div>
         { this.renderSolidityVersions() }
         { this.renderCompilation() }
       </div>
@@ -386,7 +392,7 @@ class WriteContract extends Component {
     ));
 
     return (
-      <div>
+      <div className={ styles.compilation }>
         <Select
           label='Select a contract'
           value={ contractIndex }
@@ -395,6 +401,8 @@ class WriteContract extends Component {
           { contractsList }
         </Select>
         { this.renderContract(contract) }
+
+        <h4 className={ styles.messagesHeader }>Compiler messages</h4>
         { this.renderErrors() }
       </div>
     );
@@ -422,33 +430,25 @@ class WriteContract extends Component {
   }
 
   renderErrors () {
-    const { errors } = this.store;
+    const { annotations } = this.store;
 
-    const body = errors.map((error, index) => {
-      const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/gi;
-      const match = regex.exec(error);
-
-      const line = parseInt(match[1]);
-      const column = parseInt(match[2]);
-
-      const type = match[3].toLowerCase();
-      const message = match[4];
-
+    const body = annotations.map((annotation, index) => {
+      const { text, row, column, contract, type } = annotation;
       const classes = [ styles.message, styles[type] ];
 
       return (
         <div key={ index } className={ styles.messageContainer }>
-          <div className={ classes.join(' ') }>{ message }</div>
+          <div className={ classes.join(' ') }>{ text }</div>
           <span className={ styles.errorPosition }>
-            L{ line } C{ column }
+            { contract ? `[ ${contract} ]   ` : '' }
+            { row }: { column }
           </span>
         </div>
       );
     });
 
     return (
-      <div>
-        <h4 className={ styles.messagesHeader }>Compiler messages</h4>
+      <div className={ styles.errors }>
         { body }
       </div>
     );

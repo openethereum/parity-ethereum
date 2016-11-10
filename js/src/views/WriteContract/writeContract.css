@@ -74,6 +74,19 @@
     background-color: rgba(0, 0, 0, 0.5);
     padding: 1em;
     flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .compilation {
+    flex: 1 0 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .errors {
+    flex: 1 0 0;
+    overflow: auto;
   }
 }
 
@@ -113,13 +126,13 @@
 }
 
 .sliderContainer {
-  flex: 0 0 1.25em;
+  flex: 0 0 .8em;
   display: flex;
   align-items: center;
   justify-content: center;
 
   .slider {
-    width: 0.5em;
+    width: 0.4em;
     height: 3em;
     border-radius: 0.75em;
     background-color: rgba(0, 0, 0, 0.5);

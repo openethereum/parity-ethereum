@@ -27,9 +27,14 @@ const SNIPPETS = {
     id: 'snippet0', sourcecode: require('raw!../../contracts/snippets/token.sol')
   },
   snippet1: {
-    name: 'Standard Token.sol',
+    name: 'StandardToken.sol',
     description: 'Implementation of ERP20 Token Contract',
     id: 'snippet1', sourcecode: require('raw!../../contracts/snippets/standard-token.sol')
+  },
+  snippet2: {
+    name: 'HumanStandardToken.sol',
+    description: 'Implementation of the Human Token Contract',
+    id: 'snippet2', sourcecode: require('raw!../../contracts/snippets/human-standard-token.sol')
   }
 };
 
@@ -83,6 +88,9 @@ export default class WriteContractStore {
           break;
         case 'loading':
           this.parseLoading(message.data);
+          break;
+        case 'try-again':
+          this.handleCompile();
           break;
       }
     };
@@ -171,6 +179,8 @@ export default class WriteContractStore {
     const build = this.builds[this.selectedBuild];
 
     if (this.compiler && typeof this.compiler.postMessage === 'function') {
+      this.sendFilesToWorker();
+
       this.compiler.postMessage(JSON.stringify({
         action: 'compile',
         data: {
@@ -182,29 +192,33 @@ export default class WriteContractStore {
   }
 
   @action parseCompiled = (data) => {
-    this.compiled = true;
-    this.compiling = false;
-
     const { contracts } = data;
-    const regex = /^:(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/i;
+    const regex = /^(.*):(\d+):(\d+):\s*([a-z]+):\s*((.|[\r\n])+)$/i;
 
     const errors = data.errors || data.formal && data.formal.errors || [];
 
     const annotations = errors
+      .filter((e) => regex.test(e))
       .map((error, index) => {
         const match = regex.exec(error);
 
-        const row = parseInt(match[1]) - 1;
-        const column = parseInt(match[2]);
+        const contract = match[1];
+        const row = parseInt(match[2]) - 1;
+        const column = parseInt(match[3]);
 
-        const type = match[3].toLowerCase();
-        const text = match[4];
+        const type = match[4].toLowerCase();
+        const text = match[5];
 
         return {
+          contract,
           row, column,
           type, text
         };
       });
+
+    if (annotations.findIndex((a) => /__parity_tryAgain/.test(a.text)) > -1) {
+      return;
+    }
 
     const contractKeys = Object.keys(contracts || {});
 
@@ -214,6 +228,9 @@ export default class WriteContractStore {
     this.contracts = contracts;
     this.errors = errors;
     this.annotations = annotations;
+
+    this.compiled = true;
+    this.compiling = false;
   }
 
   @action parseLoading = (isLoading) => {
@@ -326,6 +343,18 @@ export default class WriteContractStore {
     try {
       this.editor.refs.brace.editor.resize();
     } catch (e) {}
+  }
+
+  sendFilesToWorker = () => {
+    const files = [].concat(
+      Object.values(this.snippets),
+      Object.values(this.savedContracts)
+    );
+
+    this.compiler.postMessage(JSON.stringify({
+      action: 'setFiles',
+      data: files
+    }));
   }
 
 }

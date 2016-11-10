@@ -16,7 +16,10 @@
 
 import solc from 'solc/browser-wrapper';
 
+const URLregex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)?/;
+
 self.solcVersions = {};
+self.files = {};
 
 // eslint-disable-next-line no-undef
 onmessage = (event) => {
@@ -29,18 +32,72 @@ onmessage = (event) => {
     case 'load':
       load(message.data);
       break;
+    case 'setFiles':
+      setFiles(message.data);
+      break;
     case 'close':
       close();
       break;
   }
 };
 
+function setFiles (files) {
+  const prevFiles = self.files;
+  const nextFiles = files.reduce((obj, file) => {
+    obj[file.name] = file.sourcecode;
+    return obj;
+  }, {});
+
+  self.files = {
+    ...prevFiles,
+    ...nextFiles
+  };
+}
+
+function findImports (path) {
+  if (self.files[path]) {
+    if (self.files[path].error) {
+      return { error: self.files[path].error };
+    }
+
+    return { contents: self.files[path] };
+  }
+
+  if (URLregex.test(path)) {
+    console.log('[worker] fetching', path);
+
+    fetch(path)
+      .then((r) => r.text())
+      .then((c) => {
+        console.log('[worker]', 'got content at ' + path);
+        self.files[path] = c;
+
+        postMessage(JSON.stringify({
+          event: 'try-again'
+        }));
+      })
+      .catch((e) => {
+        console.error('[worker]', 'fetching', path, e);
+        self.files[path] = { error: e };
+      });
+
+    return { error: '__parity_tryAgain' };
+  }
+
+  console.log(`[worker] path ${path} not found...`);
+  return { error: 'File not found' };
+}
+
 function compile (data) {
   const { sourcecode, build } = data;
 
   fetchSolc(build)
     .then((compiler) => {
-      const compiled = compiler.compile(sourcecode);
+      const input = {
+        '': sourcecode
+      };
+
+      const compiled = compiler.compile({ sources: input }, 0, findImports);
 
       postMessage(JSON.stringify({
         event: 'compiled',
