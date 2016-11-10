@@ -45,6 +45,11 @@ class WriteContract extends Component {
 
   store = new WriteContractStore();
 
+  state = {
+    resizing: false,
+    size: 65
+  };
+
   componentWillMount () {
     const { setupWorker, worker } = this.props;
     setupWorker();
@@ -56,6 +61,11 @@ class WriteContract extends Component {
 
   componentDidMount () {
     this.store.setEditor(this.refs.editor);
+
+    // Wait for editor to be loaded
+    window.setTimeout(() => {
+      this.store.resizeEditor();
+    }, 2000);
   }
 
   componentWillReceiveProps (nextProps) {
@@ -66,6 +76,7 @@ class WriteContract extends Component {
 
   render () {
     const { sourcecode, annotations } = this.store;
+    const { size, resizing } = this.state;
 
     return (
       <div className={ styles.outer }>
@@ -75,8 +86,16 @@ class WriteContract extends Component {
 
         { this.renderActionBar() }
         <Page className={ styles.page }>
-          <div className={ styles.container }>
-            <div className={ styles.editor }>
+          <div
+            className={ `${styles.container} ${resizing ? styles.resizing : ''}` }
+            onMouseMove={ this.handleResize }
+            onMouseUp={ this.handleStopResize }
+            onMouseLeave={ this.handleStopResize }
+          >
+            <div
+              className={ styles.editor }
+              style={ { flex: `${size}%` } }
+            >
               <h2>{ this.renderTitle() }</h2>
 
               <Editor
@@ -87,7 +106,19 @@ class WriteContract extends Component {
                 value={ sourcecode }
               />
             </div>
-            <div className={ styles.parameters }>
+
+            <div className={ styles.sliderContainer }>
+              <span
+                className={ styles.slider }
+                onMouseDown={ this.handleStartResize }
+              >
+              </span>
+            </div>
+
+            <div
+              className={ styles.parameters }
+              style={ { flex: `${100 - size}%` } }
+            >
               <h2>Parameters</h2>
               { this.renderParameters() }
             </div>
@@ -118,7 +149,16 @@ class WriteContract extends Component {
   }
 
   renderActionBar () {
-    const { sourcecode } = this.store;
+    const { sourcecode, selectedContract } = this.store;
+
+    const filename = selectedContract && selectedContract.name
+      ? selectedContract.name
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/-$/, '')
+        .toLowerCase()
+      : 'contract.sol';
+
+    const extension = /\.sol$/.test(filename) ? '' : '.sol';
 
     const buttons = [
       <Button
@@ -142,7 +182,7 @@ class WriteContract extends Component {
       <ActionbarExport
         key='exportSourcecode'
         content={ sourcecode }
-        filename='contract.sol'
+        filename={ `${filename}${extension}` }
       />,
       <ActionbarImport
         key='importSourcecode'
@@ -165,6 +205,7 @@ class WriteContract extends Component {
       <Editor
         readOnly
         value={ content }
+        maxLines={ 20 }
       />
     );
   }
@@ -279,6 +320,7 @@ class WriteContract extends Component {
         onDelete={ this.store.handleDeleteContract }
         onClose={ this.store.handleCloseLoadModal }
         contracts={ this.store.savedContracts }
+        snippets={ this.store.snippets }
       />
     );
   }
@@ -410,6 +452,28 @@ class WriteContract extends Component {
         { body }
       </div>
     );
+  }
+
+  handleStartResize = () => {
+    this.setState({ resizing: true });
+  }
+
+  handleStopResize = () => {
+    this.setState({ resizing: false });
+  }
+
+  handleResize = (event) => {
+    if (!this.state.resizing) {
+      return;
+    }
+
+    const { pageX, currentTarget } = event;
+    const { width, left } = currentTarget.getBoundingClientRect();
+
+    const x = pageX - left;
+
+    this.setState({ size: 100 * x / width });
+    event.stopPropagation();
   }
 
 }

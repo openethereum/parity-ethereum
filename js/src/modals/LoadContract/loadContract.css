@@ -32,6 +32,11 @@
 
   p {
     line-height: 48px;
+    height: 48px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
     margin: 0;
     font-size: 1.2em;
   }

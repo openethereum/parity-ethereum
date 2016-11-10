@@ -33,7 +33,7 @@
   flex-direction: row;
 
   > * {
-    margin: 0 0.5em;
+    margin: 0;
 
     > h2 {
       margin-top: 0;
@@ -54,16 +54,21 @@
   justify-content: center;
 }
 
+.resizing * {
+  cursor: ew-resize !important;
+  user-select: none !important;
+}
+
 .editor {
-  flex: 65%;
   width: 0;
+  margin-left: 0.5em;
 }
 
 .parameters {
-  flex: 35%;
   width: 0;
   display: flex;
   flex-direction: column;
+  margin-right: 0.5em;
 
   .panel {
     background-color: rgba(0, 0, 0, 0.5);
@@ -105,4 +110,23 @@
   margin-bottom: 0.25em;
   text-transform: uppercase;
   font-size: 0.9em;
+}
+
+.sliderContainer {
+  flex: 0 0 1.25em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .slider {
+    width: 0.5em;
+    height: 3em;
+    border-radius: 0.75em;
+    background-color: rgba(0, 0, 0, 0.5);
+    content: ' ';
+
+    &:hover {
+      cursor: ew-resize;
+    }
+  }
 }

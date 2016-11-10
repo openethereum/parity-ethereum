@@ -20,6 +20,19 @@ import { debounce } from 'lodash';
 
 const WRITE_CONTRACT_STORE_KEY = '_parity::writeContractStore';
 
+const SNIPPETS = {
+  snippet0: {
+    name: 'Token.sol',
+    description: 'Standard ERP20 Token Contract',
+    id: 'snippet0', sourcecode: require('raw!../../contracts/snippets/token.sol')
+  },
+  snippet1: {
+    name: 'Standard Token.sol',
+    description: 'Implementation of ERP20 Token Contract',
+    id: 'snippet1', sourcecode: require('raw!../../contracts/snippets/standard-token.sol')
+  }
+};
+
 export default class WriteContractStore {
 
   @observable sourcecode = '';
@@ -44,6 +57,8 @@ export default class WriteContractStore {
 
   @observable savedContracts = {};
   @observable selectedContract = {};
+
+  snippets = SNIPPETS;
 
   constructor () {
     this.reloadContracts();
@@ -155,7 +170,7 @@ export default class WriteContractStore {
 
     const build = this.builds[this.selectedBuild];
 
-    if (this.compiler && typeof this.compiler.postMessage == 'function') {
+    if (this.compiler && typeof this.compiler.postMessage === 'function') {
       this.compiler.postMessage(JSON.stringify({
         action: 'compile',
         data: {
@@ -278,10 +293,12 @@ export default class WriteContractStore {
     });
 
     this.handleCompile();
+    this.resizeEditor();
   }
 
   @action handleLoadContract = (contract) => {
-    this.reloadContracts(contract.id);
+    const { sourcecode, id } = contract;
+    this.reloadContracts(id, sourcecode);
   }
 
   @action handleDeleteContract = (id) => {
@@ -303,6 +320,12 @@ export default class WriteContractStore {
 
   @action handleNewContract = () => {
     this.reloadContracts(-1, '');
+  }
+
+  @action resizeEditor = () => {
+    try {
+      this.editor.refs.brace.editor.resize();
+    } catch (e) {}
   }
 
 }
