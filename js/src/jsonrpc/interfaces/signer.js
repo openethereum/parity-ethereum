@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { Quantity } from '../types';
+import { Quantity, Data } from '../types';
 
 export default {
   generateAuthorizationToken: {
@@ -49,6 +49,24 @@ export default {
       {
         type: String,
         desc: 'The account password'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'The status of the confirmation'
+    }
+  },
+
+  confirmRequestRaw: {
+    desc: 'Confirm a request in the signer queue providing signed request.',
+    params: [
+      {
+        type: Quantity,
+        desc: 'The request id'
+      },
+      {
+        type: Data,
+        desc: 'Signed request (transaction RLP)'
       }
     ],
     returns: {

@@ -19,24 +19,24 @@
 use endpoint::{Endpoint, Handler, EndpointPath};
 use handlers::ContentHandler;
 use apps::{HOME_PAGE, DAPPS_DOMAIN};
-use signer_address;
+use address;
 
 pub struct ProxyPac {
-	signer_port: Option<u16>,
+	signer_address: Option<(String, u16)>,
 }
 
 impl ProxyPac {
-	pub fn boxed(signer_port: Option<u16>) -> Box<Endpoint> {
+	pub fn boxed(signer_address: Option<(String, u16)>) -> Box<Endpoint> {
 		Box::new(ProxyPac {
-			signer_port: signer_port
+			signer_address: signer_address
 		})
 	}
 }
 
 impl Endpoint for ProxyPac {
 	fn to_handler(&self, path: EndpointPath) -> Box<Handler> {
-		let signer = self.signer_port
-			.map(signer_address)
+		let signer = self.signer_address.clone()
+			.map(address)
 			.unwrap_or_else(|| format!("{}:{}", path.host, path.port));
 
 		let content = format!(
