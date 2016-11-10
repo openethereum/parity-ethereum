@@ -17,7 +17,7 @@
 //! RPC Error codes and error objects
 
 macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented()))
+	() => (Err(::v1::helpers::errors::unimplemented(None)))
 }
 
 use std::fmt;
@@ -51,11 +51,11 @@ mod codes {
 	pub const FETCH_ERROR: i64 = -32060;
 }
 
-pub fn unimplemented() -> Error {
+pub fn unimplemented(details: Option<String>) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not implemented yet. Please create an issue on Github repo.".into(),
-		data: None
+		data: details.map(Value::String),
 	}
 }
 

@@ -181,6 +181,12 @@ export default class Parity {
       .then(outAddress);
   }
 
+  nextNonce (account) {
+    return this._transport
+      .execute('parity_nextNonce', inAddress(account))
+      .then(outNumber);
+  }
+
   nodeName () {
     return this._transport
       .execute('parity_nodeName');

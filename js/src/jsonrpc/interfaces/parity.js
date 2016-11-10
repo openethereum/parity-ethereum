@@ -356,6 +356,20 @@ export default {
     }
   },
 
+  nextNonce: {
+    desc: 'Returns next available nonce for transaction from given account. Includes pending block and transaction queue.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account'
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'Next valid nonce'
+    }
+  },
+
   nodeName: {
     desc: 'Returns node name (identity)',
     params: [],

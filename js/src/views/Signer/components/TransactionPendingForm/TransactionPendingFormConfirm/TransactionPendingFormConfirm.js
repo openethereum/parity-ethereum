@@ -35,26 +35,33 @@ class TransactionPendingFormConfirm extends Component {
   id = Math.random(); // for tooltip
 
   state = {
+    walletError: null,
+    wallet: null,
     password: ''
   }
 
   render () {
     const { accounts, address, isSending } = this.props;
-    const { password } = this.state;
+    const { password, walletError, wallet } = this.state;
     const account = accounts[address] || {};
+    const isExternal = !account.uuid;
 
     const passwordHint = account.meta && account.meta.passwordHint
       ? (<div><span>(hint) </span>{ account.meta.passwordHint }</div>)
       : null;
 
+    const isWalletOk = !isExternal || (walletError === null && wallet !== null);
+    const keyInput = isExternal ? this.renderKeyInput() : null;
+
     return (
       <div className={ styles.confirmForm }>
         <Form>
+          { keyInput }
           <Input
             onChange={ this.onModifyPassword }
             onKeyDown={ this.onKeyDown }
-            label='Account Password'
-            hint='unlock the account'
+            label={ isExternal ? 'Key Password' : 'Account Password' }
+            hint={ isExternal ? 'decrypt the key' : 'unlock the account' }
             type='password'
             value={ password } />
           <div className={ styles.passwordHint }>
@@ -71,7 +78,7 @@ class TransactionPendingFormConfirm extends Component {
               className={ styles.confirmButton }
               fullWidth
               primary
-              disabled={ isSending }
+              disabled={ isSending || !isWalletOk }
               icon={ <IdentityIcon address={ address } button className={ styles.signerIcon } /> }
               label={ isSending ? 'Confirming...' : 'Confirm Transaction' }
             />
@@ -79,6 +86,20 @@ class TransactionPendingFormConfirm extends Component {
           { this.renderTooltip() }
         </Form>
       </div>
+    );
+  }
+
+  renderKeyInput () {
+    const { walletError } = this.state;
+
+    return (
+      <Input
+        className={ styles.fileInput }
+        onChange={ this.onKeySelect }
+        error={ walletError }
+        label='Select Local Key'
+        type='file'
+        />
     );
   }
 
@@ -94,6 +115,26 @@ class TransactionPendingFormConfirm extends Component {
     );
   }
 
+  onKeySelect = evt => {
+    const fileReader = new FileReader();
+    fileReader.onload = e => {
+      try {
+        const wallet = JSON.parse(e.target.result);
+        this.setState({
+          walletError: null,
+          wallet: wallet
+        });
+      } catch (e) {
+        this.setState({
+          walletError: 'Given wallet file is invalid.',
+          wallet: null
+        });
+      }
+    };
+
+    fileReader.readAsText(evt.target.files[0]);
+  }
+
   onModifyPassword = evt => {
     const password = evt.target.value;
     this.setState({
@@ -102,8 +143,11 @@ class TransactionPendingFormConfirm extends Component {
   }
 
   onConfirm = () => {
-    const { password } = this.state;
-    this.props.onConfirm(password);
+    const { password, wallet } = this.state;
+
+    this.props.onConfirm({
+      password, wallet
+    });
   }
 
   onKeyDown = evt => {
