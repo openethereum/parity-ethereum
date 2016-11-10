@@ -48,9 +48,7 @@ class Transactions extends Component {
   }
 
   componentDidMount () {
-    if (this.props.traceMode !== undefined) {
-      this.getTransactions(this.props);
-    }
+    this.getTransactions(this.props);
   }
 
   componentWillReceiveProps (newProps) {
