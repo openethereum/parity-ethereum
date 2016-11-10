@@ -41,6 +41,7 @@ DWORD parityProcId = 0;
 NOTIFYICONDATA nidApp;
 WCHAR szTitle[MAX_LOADSTRING];
 WCHAR szWindowClass[MAX_LOADSTRING];
+LPCWCHAR commandLineFiltered = L"";
 
 LPCWSTR cParityExe = _T("parity.exe");
 
@@ -85,7 +86,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 		OpenUI();
 		return 0;
 	}
-		
 
 	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
 	LoadStringW(hInstance, IDC_PTRAY, szWindowClass, MAX_LOADSTRING);
@@ -133,6 +133,24 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 
 bool InitInstance(HINSTANCE hInstance, int nCmdShow, LPWSTR cmdLine)
 {
+	if (lstrlen(cmdLine) > 0)
+	{
+		int commandLineArgs = 0;
+		LPWSTR* commandLine = CommandLineToArgvW(cmdLine, &commandLineArgs);
+		LPWSTR filteredArgs = new WCHAR[lstrlen(cmdLine) + 2];
+		filteredArgs[0] = '\0';
+		for (int i = 0; i < commandLineArgs; i++)
+		{
+			// Remove "ui" from command line
+			if (lstrcmp(commandLine[i], L"ui") != 0)
+			{
+				lstrcat(filteredArgs, commandLine[i]);
+				lstrcat(filteredArgs, L" ");
+			}
+		}
+		commandLineFiltered = filteredArgs;
+	}
+
 	// Check if already running
 	PROCESSENTRY32 entry;
 	entry.dwSize = sizeof(PROCESSENTRY32);
@@ -190,7 +208,9 @@ bool InitInstance(HINSTANCE hInstance, int nCmdShow, LPWSTR cmdLine)
 	nidApp.uCallbackMessage = WM_USER_SHELLICON;
 	LoadString(hInstance, IDS_CONTROL_PARITY, nidApp.szTip, MAX_LOADSTRING);
 	Shell_NotifyIcon(NIM_ADD, &nidApp);
-	return TRUE;
+
+	SetTimer(hWnd, 0, 1000, nullptr);
+	return true;
 
 }
 
@@ -294,8 +314,10 @@ void OpenUI()
 	PROCESS_INFORMATION procInfo = { 0 };
 	STARTUPINFO startupInfo = { sizeof(STARTUPINFO) };
 
-	LPWSTR cmd = _T("parity.exe ui");
-	CreateProcess(path, cmd, nullptr, nullptr, false, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &procInfo);
+	LPWSTR args = new WCHAR[lstrlen(commandLineFiltered) + MAX_PATH + 2];
+	lstrcpy(args, L"parity.exe ui ");
+	lstrcat(args, commandLineFiltered);
+	CreateProcess(path, args, nullptr, nullptr, false, CREATE_NO_WINDOW, nullptr, nullptr, &startupInfo, &procInfo);
 }
 
 bool AutostartEnabled() {
@@ -321,10 +343,14 @@ void EnableAutostart(bool enable) {
 
 	if (enable) 
 	{
-		TCHAR path[MAX_PATH] = { 0 };
-		if (!GetTrayExePath(path, MAX_PATH))
-			return;
-		RegSetValueEx(hKey, L"Parity", 0, REG_SZ, (LPBYTE)path, MAX_PATH);
+		LPWSTR args = new WCHAR[lstrlen(commandLineFiltered) + MAX_PATH + 2];
+		if (GetTrayExePath(args, MAX_PATH))
+		{
+			lstrcat(args, L" ");
+			lstrcat(args, commandLineFiltered);
+			RegSetValueEx(hKey, L"Parity", 0, REG_SZ, (LPBYTE)args, MAX_PATH);
+		}
+		delete[] args;
 	}
 	else
 	{
