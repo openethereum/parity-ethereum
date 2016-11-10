@@ -75,7 +75,7 @@ const validateTokenAddress = (address, contract, simple) => {
 
   return getTokenTotalSupply(address)
     .then(balance => {
-      if (balance === null) {
+      if (balance === null || balance.equals(0)) {
         return {
           error: ERRORS.invalidTokenAddress,
           valid: false
