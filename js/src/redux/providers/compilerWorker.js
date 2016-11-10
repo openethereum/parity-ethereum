@@ -97,10 +97,10 @@ function compile (data) {
   const { sourcecode, build } = data;
   const { longVersion } = build;
 
-  if (lastCompile.sourcecode === sourcecode && lastCompile.longVersion === longVersion) {
+  if (self.lastCompile.sourcecode === sourcecode && self.lastCompile.longVersion === longVersion) {
     return postMessage(JSON.stringify({
       event: 'compiled',
-      data: lastCompile.result
+      data: self.lastCompile.result
     }));
   }
 
