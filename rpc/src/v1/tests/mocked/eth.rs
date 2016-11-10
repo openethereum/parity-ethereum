@@ -353,9 +353,16 @@ fn rpc_eth_gas_price() {
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("").unwrap();
+	let address2 = Address::default();
+
+	tester.accounts_provider.set_address_name(address2, "Test Account".into()).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned()
+		+ &format!("0x{:?}", address2)
+		+ r#"",""#
+		+ &format!("0x{:?}", address)
+		+ r#""],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
