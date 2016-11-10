@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Parity Signer-related rpc interface.
-use jsonrpc_core::{Value, Error};
+use jsonrpc_core::Error;
 
 use v1::helpers::auto_args::Wrap;
-use v1::types::{U256, TransactionModification, ConfirmationRequest};
+use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse};
 
 
 build_rpc_trait! {
@@ -31,7 +31,11 @@ build_rpc_trait! {
 
 		/// Confirm specific request.
 		#[rpc(name = "signer_confirmRequest")]
-		fn confirm_request(&self, U256, TransactionModification, String) -> Result<Value, Error>;
+		fn confirm_request(&self, U256, TransactionModification, String) -> Result<ConfirmationResponse, Error>;
+
+		/// Confirm specific request with already signed data.
+		#[rpc(name = "signer_confirmRequestRaw")]
+		fn confirm_request_raw(&self, U256, Bytes) -> Result<ConfirmationResponse, Error>;
 
 		/// Reject the confirmation request.
 		#[rpc(name = "signer_rejectRequest")]

@@ -22,6 +22,7 @@ const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
   'babel-polyfill',
+  'browserify-aes', 'ethereumjs-tx', 'scryptsy',
   'react', 'react-dom', 'react-redux', 'react-router',
   'redux', 'redux-thunk', 'react-router-redux',
   'lodash', 'material-ui', 'moment', 'blockies'

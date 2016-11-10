@@ -136,27 +136,30 @@ export default class Contract {
   }
 
   parseEventLogs (logs) {
-    return logs.map((log) => {
-      const signature = log.topics[0].substr(2);
-      const event = this.events.find((evt) => evt.signature === signature);
+    return logs
+      .map((log) => {
+        const signature = log.topics[0].substr(2);
+        const event = this.events.find((evt) => evt.signature === signature);
 
-      if (!event) {
-        throw new Error(`Unable to find event matching signature ${signature}`);
-      }
+        if (!event) {
+          console.warn(`Unable to find event matching signature ${signature}`);
+          return null;
+        }
 
-      const decoded = event.decodeLog(log.topics, log.data);
+        const decoded = event.decodeLog(log.topics, log.data);
 
-      log.params = {};
-      log.event = event.name;
+        log.params = {};
+        log.event = event.name;
 
-      decoded.params.forEach((param) => {
-        const { type, value } = param.token;
+        decoded.params.forEach((param) => {
+          const { type, value } = param.token;
 
-        log.params[param.name] = { type, value };
-      });
+          log.params[param.name] = { type, value };
+        });
 
-      return log;
-    });
+        return log;
+      })
+      .filter((log) => log);
   }
 
   parseTransactionEvents (receipt) {

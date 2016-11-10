@@ -22,11 +22,19 @@ use ethcore::account_provider::AccountProvider;
 use ethcore::miner::MinerService;
 use ethcore::client::MiningBlockChainClient;
 
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
+use v1::helpers::auto_args::Ready;
 use v1::helpers::errors;
-use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
+use v1::helpers::dispatch;
 use v1::traits::{EthSigning, ParitySigning};
-use v1::types::{TransactionRequest, H160 as RpcH160, H256 as RpcH256, Bytes as RpcBytes};
+use v1::types::{
+	U256 as RpcU256,
+	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
+	Either as RpcEither,
+	TransactionRequest as RpcTransactionRequest,
+	ConfirmationPayload as RpcConfirmationPayload,
+	ConfirmationResponse as RpcConfirmationResponse,
+};
 
 /// Implementation of functions that require signing when no trusted signer is used.
 pub struct SigningUnsafeClient<C, M> where
@@ -58,26 +66,47 @@ impl<C, M> SigningUnsafeClient<C, M> where
 		take_weak!(self.client).keep_alive();
 		Ok(())
 	}
+
+	fn handle(&self, payload: RpcConfirmationPayload) -> Result<RpcConfirmationResponse, Error> {
+		try!(self.active());
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+		let accounts = take_weak!(self.accounts);
+
+		let payload = dispatch::from_rpc(payload, &*client, &*miner);
+		dispatch::execute(&*client, &*miner, &*accounts, payload, None)
+	}
 }
 
 impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn sign(&self, params: Params, ready: Ready) {
-		ready.ready(self.active()
-			.and_then(|_| from_params::<(RpcH160, RpcH256)>(params))
-			.and_then(|(address, msg)| {
-				sign(&*take_weak!(self.accounts), address.into(), None, msg.into())
-			}))
+	fn sign(&self, ready: Ready<RpcH520>, address: RpcH160, hash: RpcH256) {
+		let result = match self.handle(RpcConfirmationPayload::Signature((address, hash).into())) {
+			Ok(RpcConfirmationResponse::Signature(signature)) => Ok(signature),
+			Err(e) => Err(e),
+			e => Err(errors::internal("Unexpected result", e)),
+		};
+		ready.ready(result);
 	}
 
-	fn send_transaction(&self, params: Params, ready: Ready) {
-		ready.ready(self.active()
-			.and_then(|_| from_params::<(TransactionRequest, )>(params))
-			.and_then(|(request, )| {
-				sign_and_dispatch(&*take_weak!(self.client), &*take_weak!(self.miner), &*take_weak!(self.accounts), request.into(), None).map(to_value)
-			}))
+	fn send_transaction(&self, ready: Ready<RpcH256>, request: RpcTransactionRequest) {
+		let result = match self.handle(RpcConfirmationPayload::SendTransaction(request)) {
+			Ok(RpcConfirmationResponse::SendTransaction(hash)) => Ok(hash),
+			Err(e) => Err(e),
+			e => Err(errors::internal("Unexpected result", e)),
+		};
+		ready.ready(result);
+	}
+
+	fn sign_transaction(&self, ready: Ready<RpcBytes>, request: RpcTransactionRequest) {
+		let result = match self.handle(RpcConfirmationPayload::SignTransaction(request)) {
+			Ok(RpcConfirmationResponse::SignTransaction(rlp)) => Ok(rlp),
+			Err(e) => Err(e),
+			e => Err(errors::internal("Unexpected result", e)),
+		};
+		ready.ready(result);
 	}
 }
 
@@ -85,25 +114,26 @@ impl<C: 'static, M: 'static> ParitySigning for SigningUnsafeClient<C, M> where
 	C: MiningBlockChainClient,
 	M: MinerService,
 {
-	fn decrypt_message(&self, params: Params, ready: Ready) {
-		ready.ready(self.active()
-			.and_then(|_| from_params::<(RpcH160, RpcBytes)>(params))
-			.and_then(|(address, ciphertext)| {
-				decrypt(&*take_weak!(self.accounts), address.into(), None, ciphertext.0)
-			}))
+	fn decrypt_message(&self, ready: Ready<RpcBytes>, address: RpcH160, data: RpcBytes) {
+		let result = match self.handle(RpcConfirmationPayload::Decrypt((address, data).into())) {
+			Ok(RpcConfirmationResponse::Decrypt(data)) => Ok(data),
+			Err(e) => Err(e),
+			e => Err(errors::internal("Unexpected result", e)),
+		};
+		ready.ready(result);
 	}
 
-	fn post_sign(&self, _: Params) -> Result<Value, Error> {
+	fn post_sign(&self, _: RpcH160, _: RpcH256) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		Err(errors::signer_disabled())
 	}
 
-	fn post_transaction(&self, _: Params) -> Result<Value, Error> {
+	fn post_transaction(&self, _: RpcTransactionRequest) -> Result<RpcEither<RpcU256, RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		Err(errors::signer_disabled())
 	}
 
-	fn check_request(&self, _: Params) -> Result<Value, Error> {
+	fn check_request(&self, _: RpcU256) -> Result<Option<RpcConfirmationResponse>, Error> {
 		// We don't support this in non-signer mode.
 		Err(errors::signer_disabled())
 	}

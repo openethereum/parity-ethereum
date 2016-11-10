@@ -14,31 +14,19 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.container {
-  padding: 25px 0 15px;
+
+.spaced {
+  margin: 0.25em 0;
 }
 
-.transactionDetails {
-  margin-right: 321px;
-}
+.typeContainer {
+  display: flex;
+  flex-direction: column;
 
-.mainContainer {
-  position: relative;
-}
-
-.mainContainer:after {
-  clear: both;
-}
-
-.mainContainer > * {
-  vertical-align: middle;
-  min-height: 190px;
-}
-
-.inputs {
-  margin-right: 30px;
-  margin-left: 30px;
-  width: 180px;
-  position: relative;
-  top: -15px; /* due to material ui weird styling */
+  .desc {
+    font-size: 0.8em;
+    margin-bottom: 0.5em;
+    color: #ccc;
+    z-index: 2;
+  }
 }
