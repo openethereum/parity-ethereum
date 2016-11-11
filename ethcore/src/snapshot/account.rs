@@ -225,7 +225,7 @@ mod tests {
 	use util::{Address, FixedHash, H256, HashDB, DBValue};
 	use rlp::{UntrustedRlp, View};
 
-	use std::collections::{HashSet, HashMap};
+	use std::collections::HashSet;
 
 	use super::{ACC_EMPTY, Account};
 
