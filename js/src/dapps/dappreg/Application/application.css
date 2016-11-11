@@ -27,7 +27,9 @@
 
 .warning {
   background: #f80;
+  border-radius: 1em;
   color: #fff;
   margin: 1em 3em;
   padding: 1.5em;
+  opacity: 0.75;
 }

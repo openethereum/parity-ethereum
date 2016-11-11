@@ -15,35 +15,37 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import { observer } from 'mobx-react';
 
 import Store from '../store';
 import styles from './application.css';
 
 import { api } from '../parity';
 
+@observer
 export default class Application extends Component {
-  static propTypes = {
-  }
-
   store = Store.get();
 
-  state = {
+  render () {
+    return this.store.loading
+      ? this.renderLoading()
+      : this.renderApp();
   }
 
-  render () {
-    if (this.store.loading) {
-      return (
-        <div className={ styles.body }>
-          <div className={ styles.loading }>Loading application</div>
-        </div>
-      );
-    }
-
+  renderApp () {
     return (
       <div className={ styles.body }>
         <div className={ styles.warning }>
-          WARNING: Registering a dapp is for advanced users and developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries. A non-refundable fee of { api.util.fromWei().toFormat(3) }<small>ETH</small> is required for any registration.
+          WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries. A non-refundable fee of { api.util.fromWei(this.store.fee).toFormat(3) }<small>ETH</small> is required for any registration.
         </div>
+      </div>
+    );
+  }
+
+  renderLoading () {
+    return (
+      <div className={ styles.body }>
+        <div className={ styles.loading }>Loading application</div>
       </div>
     );
   }

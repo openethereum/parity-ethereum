@@ -14,17 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { action, computed, observable } from 'mobx';
+
 import * as abis from '../../contracts/abi';
+// import builtins from '../../views/Dapps/builtin.json';
 
 import { api } from './parity';
 
 let instance = null;
 
 export default class Store {
-  @observable loading = true;
-  @observable count = 0;
+  @observable accounts = [];
   @observable apps = [];
+  @observable count = 0;
+  @observable fee = new BigNumber(0);
+  @observable loading = true;
 
   constructor () {
     this._startupTime = Date.now();
@@ -41,33 +46,60 @@ export default class Store {
     return instance;
   }
 
-  @computed getNewId () {
+  @computed get getNewId () {
     return api.util.sha3(`${this._startupTime}_${Date.now()}_${Math.random()}`);
   }
 
-  @action _getCount () {
+  @action setApps (apps) {
+    this.apps = apps;
+  }
+
+  @action setAppInfo (app, info) {
+    Object.keys(info).forEach((key) => {
+      app[key] = info[key];
+    });
+  }
+
+  @action setAccounts (accounts) {
+    this.accounts = accounts;
+  }
+
+  @action setCount (count) {
+    this.count = count;
+  }
+
+  @action setFee (fee) {
+    this.fee = fee;
+  }
+
+  @action setLoading (loading) {
+    this.loading = loading;
+  }
+
+  _getCount () {
     return this._instance
-      .count()
+      .count.call()
       .then((count) => {
-        this.count = count.toNumber();
+        this.setCount(count.toNumber());
       })
       .catch((error) => {
         console.error('Store:getCount', error);
       });
   }
 
-  @action _getFee () {
+  _getFee () {
     return this._instance
-      .fee()
+      .fee.call()
       .then((fee) => {
-        this.fee = fee;
+        console.log(fee);
+        this.setFee(fee);
       })
       .catch((error) => {
         console.error('Store:getFee', error);
       });
   }
 
-  @action _loadDapps () {
+  _loadDapps () {
     return this._loadRegistry()
       .then(() => this._attachContract())
       .then(() => Promise.all([
@@ -78,27 +110,29 @@ export default class Store {
         const promises = [];
 
         for (let index = 0; index < this.count; index++) {
-          promises.push(this._instance.at(index));
+          promises.push(this._instance.at.call({}, [index]));
         }
 
         return Promise.all(promises);
       })
       .then((appsInfo) => {
-        this.apps = appsInfo.map(([appId, owner]) => {
-          return { owner, id: api.util.bytesToHex(appId) };
-        });
+        this.setApps(
+          appsInfo.map(([appId, owner]) => {
+            return { owner, id: api.util.bytesToHex(appId) };
+          })
+        );
 
-        return Promise.all(this.apps.map(this._loadDapp));
+        return Promise.all(this.apps.map((app) => this._loadDapp(app)));
       })
       .then(() => {
-        this.loading = this.count === 0;
+        this.setLoading(this.count === 0);
       })
       .catch((error) => {
         console.error('Store:loadDapps', error);
       });
   }
 
-  @action _loadDapp (app) {
+  _loadDapp (app) {
     return Promise
       .all([
         this._loadMeta(app.id, 'CONTENT'),
@@ -109,10 +143,7 @@ export default class Store {
         return this
           ._loadManifest(manifestHash)
           .then((manifest) => {
-            app.manifest = manifest;
-            app.contentHash = contentHash;
-            app.imageHash = imageHash;
-            app.manifestHash = manifestHash;
+            this.setAppInfo(app, { manifest, contentHash, imageHash, manifestHash });
 
             return app;
           });
@@ -140,12 +171,12 @@ export default class Store {
           : null;
       })
       .catch((error) => {
-        console.warn('Store:loadManifest', error);
+        console.error('Store:loadManifest', error);
         return null;
       });
   }
 
-  @action _loadAccounts () {
+  _loadAccounts () {
     return api.parity
       .accounts()
       .then((accountsInfo) => {
@@ -159,7 +190,7 @@ export default class Store {
           });
       })
       .then((accounts) => {
-        this.accounts = accounts;
+        this.setAccounts(accounts);
       })
       .catch((error) => {
         console.error('Store:loadAccounts', error);
@@ -185,8 +216,6 @@ export default class Store {
         console.log(`dappreg was found at ${dappregAddress}`);
         this._contract = api.newContract(abis.dappreg, dappregAddress);
         this._instance = this._contract.instance;
-        console.log(this._instance);
-        
       })
       .catch((error) => {
         console.error('Store:attachContract', error);
