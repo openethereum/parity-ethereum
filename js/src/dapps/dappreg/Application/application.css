@@ -18,6 +18,24 @@
 .body {
 }
 
+.apps, .box, .footer, .header, .warning {
+  border-radius: 0.25em;
+  margin: 1em;
+  padding: 1.5em;
+}
+
+.footer, .header {
+  background: #eee;
+  text-align: center;
+}
+
+.footer {
+  font-size: 0.75em;
+}
+
+.header {
+}
+
 .loading {
   text-align: center;
   padding-top: 5em;
@@ -27,9 +45,6 @@
 
 .warning {
   background: #f80;
-  border-radius: 1em;
   color: #fff;
-  margin: 1em 3em;
-  padding: 1.5em;
   opacity: 0.75;
 }

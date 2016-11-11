@@ -18,7 +18,7 @@ import BigNumber from 'bignumber.js';
 import { action, computed, observable } from 'mobx';
 
 import * as abis from '../../contracts/abi';
-// import builtins from '../../views/Dapps/builtin.json';
+import builtins from '../../views/Dapps/builtin.json';
 
 import { api } from './parity';
 
@@ -32,13 +32,12 @@ export default class Store {
   @observable loading = true;
 
   constructor () {
-    this._startupTime = Date.now();
+    this._startTime = Date.now();
 
-    this._loadAccounts();
     this._loadDapps();
   }
 
-  static get () {
+  static instance () {
     if (!instance) {
       instance = new Store();
     }
@@ -47,33 +46,53 @@ export default class Store {
   }
 
   @computed get getNewId () {
-    return api.util.sha3(`${this._startupTime}_${Date.now()}_${Math.random()}`);
+    return api.util.sha3(`${this._startTime}_${Date.now()}`);
   }
 
-  @action setApps (apps) {
+  @computed get ownedCount () {
+    return (this.apps.filter((app) => app.isOwner) || []).length;
+  }
+
+  @computed get sortedApps () {
+    return this.apps
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .sort((a, b) => {
+        return a.isOwner === b.isOwner
+          ? 0
+          : (a.isOwner ? -1 : 1);
+      });
+  }
+
+  @action setApps = (apps) => {
     this.apps = apps;
+    return apps;
   }
 
-  @action setAppInfo (app, info) {
+  @action setAppInfo = (app, info) => {
     Object.keys(info).forEach((key) => {
       app[key] = info[key];
     });
+    return app;
   }
 
-  @action setAccounts (accounts) {
+  @action setAccounts = (accounts) => {
     this.accounts = accounts;
+    return accounts;
   }
 
-  @action setCount (count) {
+  @action setCount = (count) => {
     this.count = count;
+    return count;
   }
 
-  @action setFee (fee) {
+  @action setFee = (fee) => {
     this.fee = fee;
+    return fee;
   }
 
-  @action setLoading (loading) {
+  @action setLoading = (loading) => {
     this.loading = loading;
+    return loading;
   }
 
   _getCount () {
@@ -90,10 +109,7 @@ export default class Store {
   _getFee () {
     return this._instance
       .fee.call()
-      .then((fee) => {
-        console.log(fee);
-        this.setFee(fee);
-      })
+      .then(this.setFee)
       .catch((error) => {
         console.error('Store:getFee', error);
       });
@@ -101,7 +117,10 @@ export default class Store {
 
   _loadDapps () {
     return this._loadRegistry()
-      .then(() => this._attachContract())
+      .then(() => Promise.all([
+        this._attachContract(),
+        this._loadAccounts()
+      ]))
       .then(() => Promise.all([
         this._getCount(),
         this._getFee()
@@ -116,13 +135,14 @@ export default class Store {
         return Promise.all(promises);
       })
       .then((appsInfo) => {
-        this.setApps(
-          appsInfo.map(([appId, owner]) => {
-            return { owner, id: api.util.bytesToHex(appId) };
-          })
+        return Promise.all(
+          this
+            .setApps(appsInfo.map(([appId, owner]) => {
+              const isOwner = !!this.accounts.find((account) => account.address === owner);
+              return { owner, isOwner, name: '-', id: api.util.bytesToHex(appId) };
+            }))
+            .map(this._loadDapp)
         );
-
-        return Promise.all(this.apps.map((app) => this._loadDapp(app)));
       })
       .then(() => {
         this.setLoading(this.count === 0);
@@ -132,7 +152,7 @@ export default class Store {
       });
   }
 
-  _loadDapp (app) {
+  _loadDapp = (app) => {
     return Promise
       .all([
         this._loadMeta(app.id, 'CONTENT'),
@@ -141,9 +161,12 @@ export default class Store {
       ])
       .then(([contentHash, imageHash, manifestHash]) => {
         return this
-          ._loadManifest(manifestHash)
+          ._loadManifest(app.id, manifestHash)
           .then((manifest) => {
-            this.setAppInfo(app, { manifest, contentHash, imageHash, manifestHash });
+            this.setAppInfo(app, {
+              manifest, contentHash, imageHash, manifestHash,
+              name: manifest ? manifest.name : '-'
+            });
 
             return app;
           });
@@ -163,7 +186,13 @@ export default class Store {
       });
   }
 
-  _loadManifest (manifestHash) {
+  _loadManifest (appId, manifestHash) {
+    const builtin = builtins.find((app) => app.id === appId);
+
+    if (builtin) {
+      return Promise.resolve(builtin);
+    }
+
     return fetch(`/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
       .then((response) => {
         return response.ok
@@ -189,9 +218,7 @@ export default class Store {
             return account;
           });
       })
-      .then((accounts) => {
-        this.setAccounts(accounts);
-      })
+      .then(this.setAccounts)
       .catch((error) => {
         console.error('Store:loadAccounts', error);
       });

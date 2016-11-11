@@ -24,20 +24,34 @@ import { api } from '../parity';
 
 @observer
 export default class Application extends Component {
-  store = Store.get();
+  store = Store.instance();
 
   render () {
     return this.store.loading
       ? this.renderLoading()
-      : this.renderApp();
+      : this.renderApplication();
   }
 
-  renderApp () {
+  renderApplication () {
     return (
       <div className={ styles.body }>
         <div className={ styles.warning }>
           WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries. A non-refundable fee of { api.util.fromWei(this.store.fee).toFormat(3) }<small>ETH</small> is required for any registration.
         </div>
+        <div className={ styles.header }>
+          { this.store.count } applications registered, { this.store.ownedCount } owned by user
+        </div>
+        <div className={ styles.apps }>
+          { this.store.sortedApps.map(this.renderApp) }
+        </div>
+      </div>
+    );
+  }
+
+  renderApp = (app) => {
+    return (
+      <div className={ styles.app } key={ app.id }>
+        { app.id } ({ app.isOwner ? 'true' : 'false' }) { app.name }
       </div>
     );
   }
