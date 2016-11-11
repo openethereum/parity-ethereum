@@ -27,7 +27,7 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
-//! use spec::Spec;
+//! use ethcore::spec::Spec;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
 //!
