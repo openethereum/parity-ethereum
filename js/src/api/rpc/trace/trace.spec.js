@@ -19,7 +19,7 @@ import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import Http from '../../transport/http';
 import Trace from './trace';
 
-const instance = new Trace(new Http(TEST_HTTP_URL));
+const instance = new Trace(new Http(TEST_HTTP_URL, -1));
 
 describe('api/rpc/Trace', () => {
   let scope;
