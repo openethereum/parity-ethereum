@@ -496,8 +496,7 @@ fn rebuild_accounts(
 	account_chunk: &[&[u8]],
 	out_chunk: &mut [(H256, Bytes)],
 	known_code: &HashMap<H256, H256>,
-) -> Result<RebuiltStatus, ::error::Error>
-{
+) -> Result<RebuiltStatus, ::error::Error> {
 	let mut status = RebuiltStatus::default();
 	for (account_pair, out) in account_chunk.into_iter().zip(out_chunk) {
 		let account_rlp = UntrustedRlp::new(account_pair);
