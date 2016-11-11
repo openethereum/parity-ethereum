@@ -279,7 +279,7 @@ impl Spec {
 	pub fn new_null() -> Spec { load_bundled!("null") }
 
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
-	pub fn new_test_instant() -> Spec { load_bundled!("instant_seal") }
+	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 
 	/// Create a new Olympic chain spec.
 	pub fn new_ethereum_olympic() -> Spec { load_bundled!("ethereum/olympic") }
