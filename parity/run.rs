@@ -80,13 +80,17 @@ pub struct RunCmd {
 	pub custom_bootnodes: bool,
 }
 
-pub fn execute(cmd: RunCmd) -> Result<(), String> {
+pub fn execute(mut cmd: RunCmd) -> Result<(), String> {
 	// increase max number of open files
 	raise_fd_limit();
 
 	// set up logger
 	let logger = try!(setup_log(&cmd.logger_config));
 
+	if cmd.dapps_conf.enabled {
+		warn!("Warning: Parity UI is disabled in this release. Please upgrade to version 1.4.2 or higher.");
+		cmd.dapps_conf.enabled = false;
+	}
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
