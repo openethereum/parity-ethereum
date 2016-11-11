@@ -315,7 +315,7 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
-			.map(|l| l.unwrap())
+			.filter_map(|l| l.ok())
 			.collect::<Vec<String>>();
 		Ok(lines)
 		}).collect::<Result<Vec<Vec<String>>, String>>();
