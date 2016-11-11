@@ -71,12 +71,23 @@ fn codes_path(path: String) -> PathBuf {
 #[derive(Debug, PartialEq)]
 pub struct SignerCommand {
 	pub path: String,
+	pub signer_interface: String,
+	pub signer_port: u16,
 }
 
 pub fn execute(cmd: SignerCommand) -> Result<String, String> {
-	generate_new_token(cmd.path)
-		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
-		.map_err(|err| format!("Error generating token: {:?}", err))
+	let code = try!(generate_new_token(cmd.path).map_err(|err| format!("Error generating token: {:?}", err)));
+
+	let url = format!("http://{}:{}/#/auth?token={}", cmd.signer_interface, cmd.signer_port, code);
+	Ok(format!(
+		r#"
+Open: {}
+to authorize your browser.
+Or use the code: {}
+		"#,
+		Colour::White.bold().paint(url),
+		code
+	))
 }
 
 pub fn generate_new_token(path: String) -> io::Result<String> {

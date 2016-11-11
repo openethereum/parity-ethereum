@@ -104,7 +104,9 @@ impl Configuration {
 			Cmd::Version
 		} else if self.args.cmd_signer && self.args.cmd_new_token {
 			Cmd::SignerToken(SignerCommand {
-				path: dirs.signer
+				path: dirs.signer,
+				signer_interface: signer_conf.interface,
+				signer_port: signer_conf.port,
 			})
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
