@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import solc from 'solc/browser-wrapper';
-
-const URLregex = /^https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,6}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)?/;
+import { isWebUri } from 'valid-url';
 
 self.solcVersions = {};
 self.files = {};
@@ -68,7 +67,7 @@ function findImports (path) {
     return { contents: self.files[path] };
   }
 
-  if (URLregex.test(path)) {
+  if (isWebUri(path)) {
     console.log('[worker] fetching', path);
 
     fetch(path)
