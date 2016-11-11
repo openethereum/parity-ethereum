@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use ansi_term::Colour;
 use io::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
+use url;
 use rpc_apis;
 use ethcore_signer as signer;
 use helpers::replace_home;
@@ -77,15 +78,16 @@ pub struct SignerCommand {
 
 pub fn execute(cmd: SignerCommand) -> Result<String, String> {
 	let code = try!(generate_new_token(cmd.path).map_err(|err| format!("Error generating token: {:?}", err)));
-
-	let url = format!("http://{}:{}/#/auth?token={}", cmd.signer_interface, cmd.signer_port, code);
+	let auth_url = format!("http://{}:{}/#/auth?token={}", cmd.signer_interface, cmd.signer_port, code);
+	// Open a browser
+	url::open(&auth_url);
+	// And print in to the console
 	Ok(format!(
 		r#"
 Open: {}
 to authorize your browser.
-Or use the code: {}
-		"#,
-		Colour::White.bold().paint(url),
+Or use the code: {}"#,
+		Colour::White.bold().paint(auth_url),
 		code
 	))
 }
