@@ -19,7 +19,6 @@ use std::time::Duration;
 use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
-use ethcore::ethereum;
 use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
 use user_defaults::UserDefaults;
@@ -59,11 +58,11 @@ impl str::FromStr for SpecType {
 impl SpecType {
 	pub fn spec(&self) -> Result<Spec, String> {
 		match *self {
-			SpecType::Mainnet => Ok(ethereum::new_frontier()),
-			SpecType::Testnet => Ok(ethereum::new_morden()),
-			SpecType::Olympic => Ok(ethereum::new_olympic()),
-			SpecType::Classic => Ok(ethereum::new_classic()),
-			SpecType::Expanse => Ok(ethereum::new_expanse()),
+			SpecType::Mainnet => Ok(Spec::new_ethereum_frontier()),
+			SpecType::Testnet => Ok(Spec::new_ethereum_morden()),
+			SpecType::Olympic => Ok(Spec::new_ethereum_olympic()),
+			SpecType::Classic => Ok(Spec::new_ethereum_classic()),
+			SpecType::Expanse => Ok(Spec::new_expanse()),
 			SpecType::Custom(ref filename) => {
 				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
 				Spec::load(file)
