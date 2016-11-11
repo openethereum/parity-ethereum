@@ -15,9 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, env};
-use std::io::{Write, Read, BufReader, BufRead};
+use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
-use std::path::Path;
 use std::fs::File;
 use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
@@ -299,13 +298,11 @@ pub fn password_prompt() -> Result<String, String> {
 }
 
 /// Read a password from password file.
-pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
-	let mut file = try!(File::open(path).map_err(|_| "Unable to open password file."));
-	let mut file_content = String::new();
-	match file.read_to_string(&mut file_content) {
-		Ok(_) => Ok(file_content.trim().into()),
-		Err(_) => Err("Unable to read password file.".into()),
-	}
+pub fn password_from_file(path: String) -> Result<String, String> {
+	let passwords = try!(passwords_from_files(vec![path]));
+	// use only first password from the file
+	passwords.get(0).map(String::to_owned)
+		.ok_or_else(|| "Password file seems to be empty.".to_owned())
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
@@ -315,9 +312,10 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
 			.map(|l| l.unwrap())
+			.map(|pwd| pwd.trim().to_owned())
 			.collect::<Vec<String>>();
 		Ok(lines)
-		}).collect::<Result<Vec<Vec<String>>, String>>();
+	}).collect::<Result<Vec<Vec<String>>, String>>();
 	Ok(try!(passwords).into_iter().flat_map(|x| x).collect())
 }
 
@@ -418,7 +416,20 @@ mod tests {
 		let path = RandomTempPath::new();
 		let mut file = File::create(path.as_path()).unwrap();
 		file.write_all(b"a bc ").unwrap();
-		assert_eq!(password_from_file(path).unwrap().as_bytes(), b"a bc");
+		assert_eq!(password_from_file(path.as_str().into()).unwrap().as_bytes(), b"a bc");
+	}
+
+	#[test]
+	fn test_password_multiline() {
+		let path = RandomTempPath::new();
+		let mut file = File::create(path.as_path()).unwrap();
+		file.write_all(br#"    password with trailing whitespace
+those passwords should be
+ignored
+but the first password is trimmed
+
+"#).unwrap();
+		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitepsace");
 	}
 
 	#[test]
