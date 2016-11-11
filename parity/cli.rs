@@ -126,7 +126,6 @@ API and Console Options:
   --ipc-apis APIS          Specify custom API set available via JSON-RPC over
                            IPC [default: web3,eth,net,ethcore,personal,traces,rpc].
 
-  --no-dapps               Disable the Dapps server (e.g. status page).
   --dapps-port PORT        Specify the port portion of the Dapps server
                            [default: 8080].
   --dapps-interface IP     Specify the hostname portion of the Dapps
@@ -289,6 +288,7 @@ Legacy Options:
   --etherbase ADDRESS      Equivalent to --author ADDRESS.
   --extradata STRING       Equivalent to --extra-data STRING.
   --cache MB               Equivalent to --cache-size MB.
+  --no-dapps               Disable the Dapps server (e.g. status page).
 
 Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
