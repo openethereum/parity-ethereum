@@ -15,9 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.outer,
-.container {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+.source {
+  margin-top: 2em;
 }

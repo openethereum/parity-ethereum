@@ -15,9 +15,38 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.outer,
-.container {
-  min-height: 100vh;
+.loadContainer {
+  display: flex;
+  flex-direction: row;
+
+  > * {
+    flex: 50%;
+    width: 0;
+  }
+}
+
+.editor {
   display: flex;
   flex-direction: column;
+  padding-left: 1em;
+
+  p {
+    line-height: 48px;
+    height: 48px;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    margin: 0;
+    font-size: 1.2em;
+  }
+}
+
+.confirmRemoval {
+  text-align: center;
+
+  .editor {
+    text-align: left;
+    margin-top: 0.5em;
+  }
 }

@@ -14,16 +14,24 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Balances from './balances';
-export Personal from './personal';
-export Signer from './signer';
-export Status from './status';
+import CompilerWorker from 'worker-loader!./compilerWorker.js';
 
-export apiReducer from './apiReducer';
-export balancesReducer from './balancesReducer';
-export imagesReducer from './imagesReducer';
-export personalReducer from './personalReducer';
-export signerReducer from './signerReducer';
-export statusReducer from './statusReducer';
-export blockchainReducer from './blockchainReducer';
-export compilerReducer from './compilerReducer';
+export function setWorker (worker) {
+  return {
+    type: 'setWorker',
+    worker
+  };
+}
+
+export function setupWorker () {
+  return (dispatch, getState) => {
+    const state = getState();
+
+    if (state.compiler.worker) {
+      return;
+    }
+
+    const worker = new CompilerWorker();
+    dispatch(setWorker(worker));
+  };
+}

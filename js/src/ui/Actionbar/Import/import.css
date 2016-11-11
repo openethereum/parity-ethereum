@@ -15,9 +15,31 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.outer,
-.container {
-  min-height: 100vh;
+.importZone {
+  width: 100%;
+  height: 200px;
+  border-width: 2px;
+  border-color: #666;
+  border-style: dashed;
+  border-radius: 10px;
+
+  background-color: rgba(50, 50, 50, 0.2);
+
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2em;
+
+  transition: all 0.5s ease;
+
+  &:hover {
+    cursor: pointer;
+    border-radius: 0;
+    background-color: rgba(50, 50, 50, 0.5);
+  }
+}
+
+.desc {
+  margin-top: 0;
+  color: #ccc;
 }
