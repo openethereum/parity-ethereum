@@ -241,7 +241,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			},
 			OutputPolicy::InitContract(ref mut copy) => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
-				if return_cost > *gas {
+				if return_cost > *gas || data.len() > self.schedule.create_data_limit {
 					return match self.schedule.exceptional_failed_code_deposit {
 						true => Err(evm::Error::OutOfGas),
 						false => Ok(*gas)

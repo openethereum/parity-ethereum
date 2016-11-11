@@ -78,6 +78,10 @@ pub struct EthashParams {
 	/// See main EthashParams docs.
 	#[serde(rename="eip161dTransition")]
 	pub eip161d_transition: Option<Uint>,
+
+	/// See main EthashParams docs.
+	#[serde(rename="maxCodeSize")]
+	pub max_code_size: Option<Uint>,
 }
 
 /// Ethash engine deserialization.
