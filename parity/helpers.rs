@@ -279,17 +279,18 @@ pub fn execute_upgrades(
 /// Prompts user asking for password.
 pub fn password_prompt() -> Result<String, String> {
 	use rpassword::read_password;
+	const STDIN_ERROR: &'static str = "Unable to ask for password on non-interactive terminal.";
 
 	println!("Please note that password is NOT RECOVERABLE.");
 	print!("Type password: ");
 	flush_stdout();
 
-	let password = read_password().unwrap();
+	let password = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
 
 	print!("Repeat password: ");
 	flush_stdout();
 
-	let password_repeat = read_password().unwrap();
+	let password_repeat = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
 
 	if password != password_repeat {
 		return Err("Passwords do not match!".into());
@@ -314,7 +315,7 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
-			.map(|l| l.unwrap())
+			.filter_map(|l| l.ok())
 			.collect::<Vec<String>>();
 		Ok(lines)
 		}).collect::<Result<Vec<Vec<String>>, String>>();

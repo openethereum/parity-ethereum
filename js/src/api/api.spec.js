@@ -34,7 +34,7 @@ describe('api/Api', () => {
   });
 
   describe('interface', () => {
-    const api = new Api(new Api.Transport.Http(TEST_HTTP_URL));
+    const api = new Api(new Api.Transport.Http(TEST_HTTP_URL, -1));
 
     Object.keys(ethereumRpc).sort().forEach((endpoint) => {
       describe(endpoint, () => {

@@ -19,7 +19,7 @@ import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import Http from '../../transport/http';
 import Db from './db';
 
-const instance = new Db(new Http(TEST_HTTP_URL));
+const instance = new Db(new Http(TEST_HTTP_URL, -1));
 
 describe('api/rpc/Db', () => {
   let scope;

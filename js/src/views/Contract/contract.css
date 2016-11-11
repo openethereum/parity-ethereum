@@ -90,3 +90,12 @@
   margin-bottom: -10px;
   margin-right: 0.5em;
 }
+
+.details {
+  margin-top: -1.5em;
+
+  h4 {
+    text-transform: uppercase;
+    margin: 1.5em 0 1em;
+  }
+}
