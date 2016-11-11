@@ -23,7 +23,6 @@ use ethcore::ids::BlockID;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
-use ethcore::ethereum;
 use ethcore::miner::{MinerOptions, Banning, GasPricer, MinerService, ExternalMiner, Miner, PendingSet, PrioritizationStrategy, GasLimit};
 use ethcore::account_provider::AccountProvider;
 use devtools::RandomTempPath;
@@ -79,7 +78,7 @@ fn snapshot_service() -> Arc<TestSnapshotService> {
 
 fn make_spec(chain: &BlockChain) -> Spec {
 	let genesis = Genesis::from(chain.genesis());
-	let mut spec = ethereum::new_frontier_test();
+	let mut spec = Spec::new_ethereum_frontier_test();
 	let state = chain.pre_state.clone().into();
 	spec.set_genesis_state(state);
 	spec.overwrite_genesis_params(genesis);
