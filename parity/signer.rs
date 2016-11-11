@@ -86,7 +86,8 @@ pub fn execute(cmd: SignerCommand) -> Result<String, String> {
 		r#"
 Open: {}
 to authorize your browser.
-Or use the code: {}"#,
+Or use the code:
+{}"#,
 		Colour::White.bold().paint(auth_url),
 		code
 	))
