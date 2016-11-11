@@ -50,7 +50,7 @@ export default class Store {
     return instance;
   }
 
-  @computed get getNewId () {
+  @computed get newId () {
     return api.util.sha3(`${this._startTime}_${Date.now()}`);
   }
 

@@ -33,6 +33,10 @@
   input {
     padding-bottom: 1.5em;
 
+    &[error] {
+      background: #fdd;
+    }
+
     &[readonly] {
       background: #eee;
     }
@@ -47,6 +51,10 @@
 
   select {
     height: 52px;
+
+    &[disabled] {
+      background: #eee;
+    }
   }
 }
 

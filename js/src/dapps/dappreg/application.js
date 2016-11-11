@@ -26,6 +26,10 @@ import { api } from './parity';
 export default class Application extends Component {
   store = Store.instance();
 
+  state = {
+    editApp: null
+  }
+
   render () {
     return this.store.isLoading
       ? this.renderLoading()
@@ -56,7 +60,7 @@ export default class Application extends Component {
         <label>Application, the actual application details to show below</label>
         <select
           value={ this.store.currentApp.id }
-          readOnly={ this.store.isEditing }
+          disabled={ this.store.isEditing }
           onChange={ this.onSelectApp }>
           { this.renderAppsSelectOptions() }
         </select>
@@ -90,7 +94,7 @@ export default class Application extends Component {
     if (this.store.isEditing || this.store.isNew) {
       buttons = [
         <button onClick={ this.onCancelClick } key='edit'>Cancel</button>,
-        <button onClick={ this.onSaveClick } key='edit'>Save</button>
+        <button onClick={ this.onSaveClick } key='save'>Save</button>
       ];
     } else {
       buttons = [
@@ -107,26 +111,27 @@ export default class Application extends Component {
   }
 
   renderCurrentApp () {
-    const app = this.store.currentApp;
-    const label = <label>Owner, the application owner and editor</label>;
+    const app = this.store.isNew || this.store.isEditing
+      ? this.state
+      : this.store.currentApp;
+    const ownerLabel = <label>Owner, the application owner and editor</label>;
 
     let ownerInput;
     if (this.store.isNew) {
       ownerInput = (
         <div>
-          { label }
+          { ownerLabel }
           <select
             value={ this.store.currentAccount.address }
             onChange={ this.onSelectAccount }>
             { this.renderAccountOptions() }
           </select>
-          <div className={ styles.hint }>{ app.owner }</div>
         </div>
       );
     } else {
       ownerInput = (
         <div>
-          { label }
+          { ownerLabel }
           <input value={ app.ownerName } readOnly />
           <div className={ styles.hint }>{ app.owner }</div>
         </div>
@@ -188,6 +193,23 @@ export default class Application extends Component {
     );
   }
 
+  copyToState () {
+    const app = this.store.currentApp;
+
+    this.setState({
+      id: this.store.isNew ? this.store.newId : app.id,
+      contentHash: app.contentHash,
+      contentUrl: app.contentUrl,
+      imageHash: app.imageHash,
+      imageUrl: app.imageUrl,
+      manifestHash: app.manifestHash,
+      manifestUrl: app.manifestUrl
+    });
+  }
+
+  copyFromState () {
+  }
+
   onSelectAccount = (event) => {
     this.store.setCurrentAccount(event.target.value);
   }
@@ -197,16 +219,25 @@ export default class Application extends Component {
   }
 
   onCancelClick = () => {
-
+    if (this.store.isEditing) {
+      this.store.setEditing(false);
+    } else if (this.store.isNew) {
+      this.store.setNew(false);
+    }
   }
 
   onEditClick = () => {
     if (!this.store.currentApp.isOwner) {
       return;
     }
+
+    this.store.setEditing(true);
+    this.copyToState();
   }
 
   onNewClick = () => {
+    this.store.setNew(true);
+    this.copyToState();
   }
 
   onSaveClick = () => {
