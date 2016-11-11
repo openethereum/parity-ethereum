@@ -267,7 +267,7 @@ export default class DetailsStep extends Component {
       const label = `${input.name ? `${input.name}: ` : ''}${input.type}`;
       const value = params[index];
       const error = paramsError[index];
-      const param = parseAbiType(input.type)
+      const param = parseAbiType(input.type);
 
       return (
         <div key={ index } className={ styles.funcparams }>
