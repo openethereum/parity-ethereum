@@ -429,7 +429,7 @@ ignored
 but the first password is trimmed
 
 "#).unwrap();
-		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitepsace");
+		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitespace");
 	}
 
 	#[test]
