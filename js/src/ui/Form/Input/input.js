@@ -65,7 +65,9 @@ export default class Input extends Component {
     hideUnderline: PropTypes.bool,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
-    ])
+    ]),
+    min: PropTypes.any,
+    max: PropTypes.any
   };
 
   static defaultProps = {
@@ -98,7 +100,7 @@ export default class Input extends Component {
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type, min, max } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -142,6 +144,8 @@ export default class Input extends Component {
           onChange={ this.onChange }
           onKeyDown={ this.onKeyDown }
           inputStyle={ inputStyle }
+          min={ min }
+          max={ max }
         >
           { children }
         </TextField>

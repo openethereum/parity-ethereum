@@ -31,3 +31,17 @@
 .funcparams {
   padding-left: 3em;
 }
+
+.inputs {
+  padding-top: 18px;
+
+  label {
+    line-height: 22px;
+    pointer-events: none;
+    color: rgba(255, 255, 255, 0.498039);
+    -webkit-user-select: none;
+    font-size: 12px;
+    top: 8px;
+    position: relative;
+  }
+}

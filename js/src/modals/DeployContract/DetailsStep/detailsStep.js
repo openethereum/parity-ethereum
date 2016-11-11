@@ -28,7 +28,7 @@ class TypedInput extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
     accounts: PropTypes.object.isRequired,
-    type: PropTypes.string.isRequired,
+    param: PropTypes.object.isRequired,
 
     error: PropTypes.any,
     value: PropTypes.any,
@@ -36,32 +36,84 @@ class TypedInput extends Component {
   };
 
   render () {
-    const { type } = this.props;
+    const { param } = this.props;
+    const { type } = param;
 
-    const arrayRegex = /^(.+)\[(\d*)\]$/;
+    if (type === ARRAY_TYPE) {
+      const { accounts, label, value = param.default } = this.props;
+      const { subtype, length } = param;
 
-    if (arrayRegex.test(type)) {
-      const matches = arrayRegex.exec(type);
-      return this.renderArray(matches[1], matches[2] || Infinity);
+      if (length) {
+        const inputs = range(length).map((_, index) => {
+          const onChange = (inputValue) => {
+            const newValues = [].concat(this.props.value);
+            newValues[index] = inputValue;
+            this.props.onChange(newValues);
+          };
+
+          return (
+            <TypedInput
+              key={ `${subtype.type}_${index}` }
+              onChange={ onChange }
+              accounts={ accounts }
+              param={ subtype }
+              value={ value[index] }
+            />
+          );
+        });
+
+        return (
+          <div className={ styles.inputs }>
+            <label>{ label }</label>
+            { inputs }
+          </div>
+        );
+      }
     }
 
-    switch (type) {
-      case 'address':
-        return this.renderAddress();
-
-      case 'bool':
-        return this.renderBoolean();
-
-      default:
-        return this.renderDefault();
-    }
+    return this.renderType(type);
   }
 
-  renderArray (type, max) {
-    const { label, value, error } = this.props;
+  renderType (type) {
+    if (type === ADDRESS_TYPE) {
+      return this.renderAddress();
+    }
+
+    if (type === BOOL_TYPE) {
+      return this.renderBoolean();
+    }
+
+    if (type === STRING_TYPE) {
+      return this.renderDefault();
+    }
+
+    if (type === BYTES_TYPE) {
+      return this.renderDefault();
+    }
+
+    if (type === INT_TYPE) {
+      return this.renderNumber();
+    }
+
+    if (type === FIXED_TYPE) {
+      return this.renderNumber();
+    }
+
+    return this.renderDefault();
+  }
+
+  renderNumber () {
+    const { label, value, error, param } = this.props;
 
     return (
-      <
+      <Input
+        label={ label }
+        value={ value }
+        error={ error }
+        onSubmit={ this.onSubmit }
+        type='number'
+        min={ param.signed ? null : 0 }
+      />
     );
   }
 
@@ -215,6 +267,7 @@ export default class DetailsStep extends Component {
       const label = `${input.name ? `${input.name}: ` : ''}${input.type}`;
       const value = params[index];
       const error = paramsError[index];
+      const param = parseAbiType(input.type)
 
       return (
         <div key={ index } className={ styles.funcparams }>
@@ -224,7 +277,7 @@ export default class DetailsStep extends Component {
             error={ error }
             accounts={ accounts }
             onChange={ onChange }
-            type={ input.type }
+            param={ param }
           />
         </div>
       );
@@ -262,31 +315,8 @@ export default class DetailsStep extends Component {
       const params = [];
 
       inputs.forEach((input) => {
-        switch (input.type) {
-          case 'address':
-            params.push('0x');
-            break;
-
-          case 'bool':
-            params.push(false);
-            break;
-
-          case 'bytes':
-            params.push('0x');
-            break;
-
-          case 'uint':
-            params.push('0');
-            break;
-
-          case 'string':
-            params.push('');
-            break;
-
-          default:
-            params.push('0');
-            break;
-        }
+        const param = parseAbiType(input.type);
+        params.push(param.default);
       });
 
       onParamsChange(params);
@@ -311,10 +341,58 @@ const ADDRESS_TYPE = 'ADDRESS_TYPE';
 const STRING_TYPE = 'STRING_TYPE';
 const BOOL_TYPE = 'BOOL_TYPE';
 const BYTES_TYPE = 'BYTES_TYPE';
-const UINT_TYPE = 'UINT_TYPE';
 const INT_TYPE = 'INT_TYPE';
+const FIXED_TYPE = 'FIXED_TYPE';
 
 function parseAbiType (type) {
+  const arrayRegex = /^(.+)\[(\d*)\]$/;
+
+  if (arrayRegex.test(type)) {
+    const matches = arrayRegex.exec(type);
+
+    const subtype = parseAbiType(matches[1]);
+    const M = parseInt(matches[2]) || null;
+    const defaultValue = !M
+      ? []
+      : range(M).map(() => subtype.default);
+
+    return {
+      type: ARRAY_TYPE,
+      subtype: subtype,
+      length: M,
+      default: defaultValue
+    };
+  }
+
+  const lengthRegex = /^(u?int|bytes)(\d{1,3})$/;
+
+  if (lengthRegex.test(type)) {
+    const matches = lengthRegex.exec(type);
+
+    const subtype = parseAbiType(matches[1]);
+    const length = parseInt(matches[2]);
+
+    return {
+      ...subtype,
+      length
+    };
+  }
+
+  const fixedLengthRegex = /^(u?fixed)(\d{1,3})x(\d{1,3})$/;
+
+  if (fixedLengthRegex.test(type)) {
+    const matches = fixedLengthRegex.exec(type);
+
+    const subtype = parseAbiType(matches[1]);
+    const M = parseInt(matches[2]);
+    const N = parseInt(matches[3]);
+
+    return {
+      ...subtype,
+      M, N
+    };
+  }
+
   if (type === 'string') {
     return {
       type: STRING_TYPE,
@@ -336,37 +414,6 @@ function parseAbiType (type) {
     };
   }
 
-  const arrayRegex = /^(.+)\[(\d*)\]$/;
-
-  if (arrayRegex.test(type)) {
-    const matches = arrayRegex.exec(type);
-
-    const subtype = parseAbiType(matches[1]);
-    const M = parseInt(matches[2]) || Infinity;
-    const defaultValue = M === Infinity
-      ? []
-      : range(M).map(() => subtype.default);
-
-    return {
-      type: ARRAY_TYPE,
-      subtype: subtype,
-      length: M,
-      default: defaultValue
-    };
-  }
-
-  const lengthRegex = /^([a-z]+)(\d{1,3})$/;
-
-  if (lengthRegex.test(type)) {
-    const subtype = parseAbiType(matches[1]);
-    const length = parseInt(matches[2]) || Infinity;
-
-    return {
-      ...subtype,
-      length
-    };
-  }
-
   if (type === 'bytes') {
     return {
       type: BYTES_TYPE,
@@ -376,9 +423,10 @@ function parseAbiType (type) {
 
   if (type === 'uint') {
     return {
-      type: UINT_TYPE,
+      type: INT_TYPE,
       default: 0,
-      length: 256
+      length: 256,
+      signed: false
     };
   }
 
@@ -386,15 +434,17 @@ function parseAbiType (type) {
     return {
       type: INT_TYPE,
       default: 0,
-      length: 256
+      length: 256,
+      signed: true
     };
   }
 
   if (type === 'ufixed') {
     return {
-      type: UFIXED_TYPE,
+      type: FIXED_TYPE,
       default: 0,
-      length: 256
+      length: 256,
+      signed: false
     };
   }
 
@@ -402,7 +452,8 @@ function parseAbiType (type) {
     return {
       type: FIXED_TYPE,
       default: 0,
-      length: 256
+      length: 256,
+      signed: true
     };
   }
 }
