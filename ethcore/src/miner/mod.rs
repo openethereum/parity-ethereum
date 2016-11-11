@@ -27,12 +27,12 @@
 //! extern crate ethcore_util as util;
 //! extern crate ethcore;
 //! use std::env;
-//! use ethcore::ethereum;
+//! use spec::Spec;
 //! use ethcore::client::{Client, ClientConfig};
 //! use ethcore::miner::{Miner, MinerService};
 //!
 //! fn main() {
-//!		let miner: Miner = Miner::with_spec(&ethereum::new_frontier());
+//!		let miner: Miner = Miner::with_spec(&Spec::new_ethereum_frontier());
 //!		// get status
 //!		assert_eq!(miner.status().transactions_in_pending_queue, 0);
 //!

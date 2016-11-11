@@ -135,6 +135,12 @@ impl From<ethjson::spec::Spec> for Spec {
 	}
 }
 
+macro_rules! load_bundled {
+	($e:expr) => {
+		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect("Chain spec is invalid")
+	};
+}
+
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -267,19 +273,46 @@ impl Spec {
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Self {
-		Spec::load(include_bytes!("../../res/null_morden.json") as &[u8]).expect("null_morden.json is invalid")
-	}
+	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
-	pub fn new_null() -> Self {
-		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
-	}
+	pub fn new_null() -> Spec { load_bundled!("null") }
 
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
-	pub fn new_test_instant() -> Self {
-		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
-	}
+	pub fn new_test_instant() -> Spec { load_bundled!("instant_seal") }
+
+	/// Create a new Olympic chain spec.
+	pub fn new_ethereum_olympic() -> Spec { load_bundled!("ethereum/olympic") }
+
+	/// Create a new Frontier mainnet chain spec.
+	pub fn new_ethereum_frontier() -> Spec { load_bundled!("ethereum/frontier") }
+
+	/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+	pub fn new_ethereum_classic() -> Spec { load_bundled!("ethereum/classic") }
+
+	/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+	pub fn new_expanse() -> Spec { load_bundled!("expanse") }
+
+	/// Create a new Frontier chain spec as though it never changes to Homestead.
+	pub fn new_ethereum_frontier_test() -> Spec { load_bundled!("ethereum/frontier_test") }
+
+	/// Create a new Homestead chain spec as though it never changed from Frontier.
+	pub fn new_ethereum_homestead_test() -> Spec { load_bundled!("ethereum/homestead_test") }
+
+	/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+	pub fn new_ethereum_eip150_test() -> Spec { load_bundled!("ethereum/eip150_test") }
+
+	/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+	pub fn new_ethereum_eip161_test() -> Spec { load_bundled!("ethereum/eip161_test") }
+
+	/// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
+	pub fn new_ethereum_transition_test() -> Spec { load_bundled!("ethereum/transition_test") }
+
+	/// Create a new Frontier main net chain spec without genesis accounts.
+	pub fn new_ethereum_mainnet_like() -> Spec { load_bundled!("ethereum/frontier_like_test") }
+
+	/// Create a new Morden chain spec.
+	pub fn new_ethereum_morden() -> Spec { load_bundled!("ethereum/morden") }
 }
 
 #[cfg(test)]

@@ -17,7 +17,6 @@
 use io::IoChannel;
 use client::{BlockChainClient, MiningBlockChainClient, Client, ClientConfig, BlockID};
 use state::CleanupMode;
-use ethereum;
 use block::IsBlock;
 use tests::helpers::*;
 use types::filter::Filter;
@@ -50,7 +49,7 @@ fn imports_from_empty() {
 #[test]
 fn should_return_registrar() {
 	let dir = RandomTempPath::new();
-	let spec = ethereum::new_morden();
+	let spec = Spec::new_ethereum_morden();
 	let db_config = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
 
 	let client = Client::new(

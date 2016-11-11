@@ -27,56 +27,17 @@ pub mod denominations;
 pub use self::ethash::{Ethash};
 pub use self::denominations::*;
 
-use super::spec::*;
-
-fn load(b: &[u8]) -> Spec {
-	Spec::load(b).expect("chain spec is invalid")
-}
-
-/// Create a new Olympic chain spec.
-pub fn new_olympic() -> Spec { load(include_bytes!("../../res/ethereum/olympic.json")) }
-
-/// Create a new Frontier mainnet chain spec.
-pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier.json")) }
-
-/// Create a new Frontier mainnet chain spec without the DAO hardfork.
-pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
-
-/// Create a new Frontier mainnet chain spec without the DAO hardfork.
-pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
-
-/// Create a new Frontier chain spec as though it never changes to Homestead.
-pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
-
-/// Create a new Homestead chain spec as though it never changed from Frontier.
-pub fn new_homestead_test() -> Spec { load(include_bytes!("../../res/ethereum/homestead_test.json")) }
-
-/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
-pub fn new_eip150_test() -> Spec { load(include_bytes!("../../res/ethereum/eip150_test.json")) }
-
-/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
-pub fn new_eip161_test() -> Spec { load(include_bytes!("../../res/ethereum/eip161_test.json")) }
-
-/// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
-pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/transition_test.json")) }
-
-/// Create a new Frontier main net chain spec without genesis accounts.
-pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
-
-/// Create a new Morden chain spec.
-pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.json")) }
-
 #[cfg(test)]
 mod tests {
 	use util::*;
 	use state::*;
-	use super::*;
 	use tests::helpers::*;
+	use spec::Spec;
 	use views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {
-		let spec = new_morden();
+		let spec = Spec::new_ethereum_morden();
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
@@ -93,7 +54,7 @@ mod tests {
 
 	#[test]
 	fn morden() {
-		let morden = new_morden();
+		let morden = Spec::new_ethereum_morden();
 
 		assert_eq!(morden.state_root(), "f3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9".into());
 		let genesis = morden.genesis_block();
@@ -104,7 +65,7 @@ mod tests {
 
 	#[test]
 	fn frontier() {
-		let frontier = new_frontier();
+		let frontier = Spec::new_ethereum_frontier();
 
 		assert_eq!(frontier.state_root(), "d7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544".into());
 		let genesis = frontier.genesis_block();
