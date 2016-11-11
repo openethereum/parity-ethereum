@@ -17,7 +17,7 @@
 use super::test_common::*;
 use client::{BlockChainClient, Client, ClientConfig};
 use block::Block;
-use ethereum;
+use spec::Spec;
 use tests::helpers::*;
 use devtools::*;
 use spec::Genesis;
@@ -46,11 +46,11 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 				let genesis = Genesis::from(blockchain.genesis());
 				let state = From::from(blockchain.pre_state.clone());
 				let mut spec = match era {
-					ChainEra::Frontier => ethereum::new_frontier_test(),
-					ChainEra::Homestead => ethereum::new_homestead_test(),
-					ChainEra::Eip150 => ethereum::new_eip150_test(),
-					ChainEra::Eip161 => ethereum::new_eip161_test(),
-					ChainEra::TransitionTest => ethereum::new_transition_test(),
+					ChainEra::Frontier => Spec::new_ethereum_frontier_test(),
+					ChainEra::Homestead => Spec::new_ethereum_homestead_test(),
+					ChainEra::Eip150 => Spec::new_ethereum_eip150_test(),
+					ChainEra::Eip161 => Spec::new_ethereum_eip161_test(),
+					ChainEra::TransitionTest => Spec::new_ethereum_transition_test(),
 				};
 				spec.set_genesis_state(state);
 				spec.overwrite_genesis_params(genesis);
