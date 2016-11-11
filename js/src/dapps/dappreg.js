@@ -22,7 +22,7 @@ import { useStrict } from 'mobx';
 injectTapEventPlugin();
 useStrict(true);
 
-import Application from './dappreg/Application';
+import Application from './dappreg/application';
 
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';

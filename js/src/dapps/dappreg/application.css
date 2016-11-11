@@ -1,0 +1,121 @@
+/* Copyright 2015, 2016 Ethcore (UK) Ltd.
+/* This file is part of Parity.
+/*
+/* Parity is free software: you can redistribute it and/or modify
+/* it under the terms of the GNU General Public License as published by
+/* the Free Software Foundation, either version 3 of the License, or
+/* (at your option) any later version.
+/*
+/* Parity is distributed in the hope that it will be useful,
+/* but WITHOUT ANY WARRANTY; without even the implied warranty of
+/* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+/* GNU General Public License for more details.
+/*
+/* You should have received a copy of the GNU General Public License
+/* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+.body {
+  color: #333;
+
+  input, select {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 0.25em;
+    box-sizing: border-box;
+    color: #333;
+    font-size: 1em;
+    margin: 0.25em 0 0.25em 0;
+    padding: 0.5em 0.5em 1.5em 0.5em;
+    width: 100%;
+  }
+
+  input {
+    padding-bottom: 1.5em;
+
+    &[readonly] {
+      background: #eee;
+    }
+  }
+
+  label {
+    color: #888;
+    display: block;
+    font-size: 0.75em;
+    margin-top: 1.5em;
+  }
+
+  select {
+    height: 52px;
+  }
+}
+
+.box, .footer, .header, .warning {
+  border-radius: 0.25em;
+  margin: 1em;
+  padding: 1.5em;
+}
+
+.apps {
+  padding: 1em 3em;
+}
+
+.app {
+  padding: 0;
+}
+
+.buttonbar {
+  text-align: right;
+  margin: 1em 0 0 0;
+
+  button {
+    background: #08f;
+    border: 1px solid #fff;
+    border-radius: 0.25em;
+    color: #fff;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 1em 0 0 0.5em;
+    padding: 0.75em 2em;
+
+    &[disabled] {
+      opacity: 0.5;
+      cursor: default;
+    }
+  }
+}
+
+.footer, .header {
+  text-align: center;
+}
+
+.footer {
+  font-size: 0.75em;
+}
+
+.header {
+}
+
+.hint {
+  color: #888;
+  display: block;
+  font-size: 0.75em;
+  text-align: right;
+  margin: -1.85em 0.5em 0 0.5em;
+}
+
+.loading {
+  text-align: center;
+  padding-top: 5em;
+  font-size: 2em;
+  color: #999;
+}
+
+.section {
+}
+
+.warning {
+  background: #f80;
+  color: #fff;
+  opacity: 0.75;
+}

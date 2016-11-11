@@ -26,10 +26,15 @@ let instance = null;
 
 export default class Store {
   @observable accounts = [];
+  @observable addresses = [];
   @observable apps = [];
+  @observable currentAccount = null;
+  @observable currentApp = null;
   @observable count = 0;
   @observable fee = new BigNumber(0);
-  @observable loading = true;
+  @observable isEditing = false;
+  @observable isLoading = true;
+  @observable isNew = false;
 
   constructor () {
     this._startTime = Date.now();
@@ -49,23 +54,25 @@ export default class Store {
     return api.util.sha3(`${this._startTime}_${Date.now()}`);
   }
 
+  @computed get isCurrentEditable () {
+    return !!this.accounts.find((account) => account.address === this.currentApp.owner);
+  }
+
   @computed get ownedCount () {
     return (this.apps.filter((app) => app.isOwner) || []).length;
   }
 
-  @computed get sortedApps () {
-    return this.apps
+  @action setApps = (apps) => {
+    this.apps = apps
       .sort((a, b) => a.name.localeCompare(b.name))
       .sort((a, b) => {
         return a.isOwner === b.isOwner
           ? 0
           : (a.isOwner ? -1 : 1);
       });
-  }
 
-  @action setApps = (apps) => {
-    this.apps = apps;
-    return apps;
+    this.currentApp = this.apps[0];
+    return this.apps;
   }
 
   @action setAppInfo = (app, info) => {
@@ -75,14 +82,38 @@ export default class Store {
     return app;
   }
 
-  @action setAccounts = (accounts) => {
-    this.accounts = accounts;
-    return accounts;
+  @action setAccounts = (accountsInfo) => {
+    this.addresses = Object
+      .keys(accountsInfo)
+      .map((address) => {
+        const account = accountsInfo[address];
+        account.address = address;
+        return account;
+      });
+
+    this.accounts = this.addresses.filter((account) => account.uuid);
+    this.currentAccount = this.accounts[0];
+    return this.accounts;
+  }
+
+  @action setCurrentApp = (id) => {
+    this.currentApp = this.apps.find((app) => app.id === id);
+    return this.currentApp;
+  }
+
+  @action setCurrentAccount = (address) => {
+    this.currentAccount = this.accounts.find((account) => account.address === address);
+    return this.currentAccount;
   }
 
   @action setCount = (count) => {
     this.count = count;
     return count;
+  }
+
+  @action setEditing = (mode) => {
+    this.isEditing = mode;
+    return mode;
   }
 
   @action setFee = (fee) => {
@@ -91,12 +122,17 @@ export default class Store {
   }
 
   @action setLoading = (loading) => {
-    this.loading = loading;
+    this.isLoading = loading;
     return loading;
   }
 
+  @action setNew = (mode) => {
+    this.isNew = mode;
+    return mode;
+  }
+
   _getCount () {
-    return this._instance
+    return this._instanceDr
       .count.call()
       .then((count) => {
         this.setCount(count.toNumber());
@@ -107,7 +143,7 @@ export default class Store {
   }
 
   _getFee () {
-    return this._instance
+    return this._instanceDr
       .fee.call()
       .then(this.setFee)
       .catch((error) => {
@@ -118,7 +154,7 @@ export default class Store {
   _loadDapps () {
     return this._loadRegistry()
       .then(() => Promise.all([
-        this._attachContract(),
+        this._attachContracts(),
         this._loadAccounts()
       ]))
       .then(() => Promise.all([
@@ -129,7 +165,7 @@ export default class Store {
         const promises = [];
 
         for (let index = 0; index < this.count; index++) {
-          promises.push(this._instance.at.call({}, [index]));
+          promises.push(this._instanceDr.at.call({}, [index]));
         }
 
         return Promise.all(promises);
@@ -139,7 +175,15 @@ export default class Store {
           this
             .setApps(appsInfo.map(([appId, owner]) => {
               const isOwner = !!this.accounts.find((account) => account.address === owner);
-              return { owner, isOwner, name: '-', id: api.util.bytesToHex(appId) };
+              const account = this.addresses.find((account) => account.address === owner);
+
+              return {
+                owner,
+                ownerName: account ? account.name : owner,
+                isOwner,
+                name: '-',
+                id: api.util.bytesToHex(appId)
+              };
             }))
             .map(this._loadDapp)
         );
@@ -160,15 +204,29 @@ export default class Store {
         this._loadMeta(app.id, 'MANIFEST')
       ])
       .then(([contentHash, imageHash, manifestHash]) => {
-        return this
-          ._loadManifest(app.id, manifestHash)
-          .then((manifest) => {
-            this.setAppInfo(app, {
-              manifest, contentHash, imageHash, manifestHash,
-              name: manifest ? manifest.name : '-'
-            });
+        return Promise
+          .all([
+            this._retrieveUrl(contentHash),
+            this._retrieveUrl(imageHash),
+            this._retrieveUrl(manifestHash)
+          ])
+          .then(([contentUrl, imageUrl, manifestUrl]) => {
+            return this
+              ._loadManifest(app.id, manifestHash)
+              .then((manifest) => {
+                this.setAppInfo(app, {
+                  manifest,
+                  manifestHash,
+                  manifestUrl,
+                  contentHash,
+                  contentUrl,
+                  imageHash,
+                  imageUrl,
+                  name: manifest ? manifest.name : '-'
+                });
 
-            return app;
+                return app;
+              });
           });
       })
       .catch((error) => {
@@ -177,9 +235,16 @@ export default class Store {
   }
 
   _loadMeta (appId, key) {
-    return this._instance
+    return this._instanceDr
       .meta.call({}, [appId, key])
-      .then((meta) => api.util.bytesToHex(meta).substr(2))
+      .then((meta) => {
+        const hash = api.util.bytesToHex(meta);
+        const bnhash = new BigNumber(hash);
+
+        return bnhash.gt(0)
+          ? hash
+          : null;
+      })
       .catch((error) => {
         console.error('Store:loadMeta', error);
         return null;
@@ -191,9 +256,11 @@ export default class Store {
 
     if (builtin) {
       return Promise.resolve(builtin);
+    } else if (!manifestHash) {
+      return Promise.resolve(null);
     }
 
-    return fetch(`/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
+    return fetch(`/api/content/${manifestHash.substr(2)}/`, { redirect: 'follow', mode: 'cors' })
       .then((response) => {
         return response.ok
           ? response.json()
@@ -205,19 +272,38 @@ export default class Store {
       });
   }
 
+  _retrieveUrl (urlHash) {
+    if (!urlHash) {
+      return Promise.resolve(null);
+    }
+
+    return this._instanceGhh
+      .entries.call({}, [urlHash])
+      .then(([repo, _commit, owner]) => {
+        const bnowner = new BigNumber(owner);
+
+        if (bnowner.eq(0)) {
+          return null;
+        }
+
+        const commit = api.util.bytesToHex(_commit);
+        const bncommit = new BigNumber(commit);
+
+        if (bncommit.eq(0)) {
+          return repo;
+        } else {
+          return `https://codeload.github.com/${repo}/zip/${commit.substr(2)}`;
+        }
+      })
+      .catch((error) => {
+        console.error('Store:retriveUrl', error);
+        return null;
+      });
+  }
+
   _loadAccounts () {
     return api.parity
       .accounts()
-      .then((accountsInfo) => {
-        return Object
-          .keys(accountsInfo)
-          .filter((address) => accountsInfo[address].uuid)
-          .map((address) => {
-            const account = accountsInfo[address];
-            account.address = address;
-            return account;
-          });
-      })
       .then(this.setAccounts)
       .catch((error) => {
         console.error('Store:loadAccounts', error);
@@ -236,13 +322,19 @@ export default class Store {
       });
   }
 
-  _attachContract () {
-    return this._registry
-      .getAddress.call({}, [api.util.sha3('dappreg'), 'A'])
-      .then((dappregAddress) => {
+  _attachContracts () {
+    return Promise
+      .all([
+        this._registry.getAddress.call({}, [api.util.sha3('dappreg'), 'A']),
+        this._registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A'])
+      ])
+      .then(([dappregAddress, ghhAddress]) => {
         console.log(`dappreg was found at ${dappregAddress}`);
-        this._contract = api.newContract(abis.dappreg, dappregAddress);
-        this._instance = this._contract.instance;
+        this._contractDr = api.newContract(abis.dappreg, dappregAddress);
+        this._instanceDr = this._contractDr.instance;
+        console.log(`githubhint was found at ${ghhAddress}`);
+        this._contractGhh = api.newContract(abis.githubhint, ghhAddress);
+        this._instanceGhh = this._contractGhh.instance;
       })
       .catch((error) => {
         console.error('Store:attachContract', error);
