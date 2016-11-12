@@ -34,16 +34,16 @@
   input {
     padding-bottom: 1.5em;
 
-    &[error] {
+    &[data-dirty="true"] {
+      background: #ffffcc;
+    }
+
+    &[data-error="true"] {
       background: #fdd !important;
     }
 
     &[readonly] {
       background: #eee;
-    }
-
-    &[dirty] {
-      background: #ffffcc;
     }
   }
 
@@ -55,6 +55,9 @@
   }
 
   select {
+    -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
     height: 52px;
 
     &[disabled] {
@@ -93,6 +96,7 @@
     &[disabled] {
       opacity: 0.5;
       cursor: default;
+      background: #aaa;
     }
 
     &.cancel {
@@ -121,7 +125,7 @@
   display: block;
   font-size: 0.75em;
   text-align: right;
-  margin: -1.85em 0.5em 0 0.5em;
+  margin: -1.85em 52px 0 0.5em;
 }
 
 .loading {
@@ -129,6 +133,19 @@
   padding-top: 5em;
   font-size: 2em;
   color: #999;
+}
+
+.overlayContainer {
+  position: relative;
+
+  .overlayImage {
+    border-radius: 50%;
+    height: 32px;
+    right: 10px;
+    position: absolute;
+    top: 28px;
+    width: 32px;
+  }
 }
 
 .section {
@@ -142,5 +159,5 @@
   opacity: 0.75;
   padding: 1.5em;
   position: fixed;
-  right: 0;
+  right: 50%;
 }
