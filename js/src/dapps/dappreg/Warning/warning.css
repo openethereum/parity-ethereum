@@ -17,13 +17,19 @@
 
 .warning {
   background: #f44;
+  border-top-right-radius: 0.25em;
   bottom: 0;
   color: #fff;
+  font-size: 0.75em;
   left: 0;
+  line-height: 1.5em;
   opacity: 1;
   padding: 1.5em;
   position: fixed;
-  right: 50%;
-  border-top-right-radius: 0.25em;
+  max-width: 540px;
   z-index: 100;
+
+  div+div {
+    margin-top: 1.5em;
+  }
 }

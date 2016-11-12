@@ -20,27 +20,26 @@
   margin: 1em 0 0 0;
 
   button {
-    background: #08f;
-    border: 1px solid #fff;
+    background: #44e;
+    border: 4px solid #44e;
     border-radius: 0.25em;
     color: #fff;
     cursor: pointer;
     font-size: 1em;
-    margin: 1em 0 0 0.5em;
+    margin: 1em 0 0 0.75em;
+    opacity: 0.9;
     padding: 0.75em 2em;
 
     &[disabled] {
       opacity: 0.5;
       cursor: default;
       background: #aaa;
+      border-color: #aaa;
     }
 
-    &.cancel {
-      background: #888;
-    }
-
-    &.delete {
-      background: #f80;
+    &.cancel, &.delete {
+      background: #e44;
+      border-color: #e44;
     }
   }
 }

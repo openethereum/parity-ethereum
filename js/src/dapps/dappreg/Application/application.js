@@ -25,6 +25,16 @@ import Store from '../store';
 import Warning from '../Warning';
 import styles from './application.css';
 
+import background from '../../../../assets/images/dapps/puzzle.jpg';
+
+const bodyStyle = {
+  background: `url(${background}) no-repeat center center fixed`,
+  '-webkit-background-size': 'cover',
+  '-moz-background-size': 'cover',
+  '-o-background-size': 'cover',
+  'background-size': 'cover'
+};
+
 @observer
 export default class Application extends Component {
   store = Store.instance();
@@ -37,7 +47,9 @@ export default class Application extends Component {
     }
 
     return (
-      <div className={ styles.body }>
+      <div
+        className={ styles.body }
+        style={ bodyStyle }>
         <Dapps />
         <Footer />
         <Header />

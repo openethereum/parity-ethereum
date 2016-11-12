@@ -29,7 +29,12 @@ export default class Warning extends Component {
   render () {
     return (
       <div className={ styles.warning }>
-        WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries. A non-refundable fee of { api.util.fromWei(this.store.fee).toFormat(3) }<small>ETH</small> is required for any registration.
+        <div>
+          WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries.
+        </div>
+        <div>
+          A non-refundable fee of { api.util.fromWei(this.store.fee).toFormat(3) }<small>ETH</small> is required for any registration.
+        </div>
       </div>
     );
   }

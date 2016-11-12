@@ -19,8 +19,8 @@
   position: relative;
 
   input, select {
-    background: white;
-    border: 1px solid #ddd;
+    background: rgba(255, 255, 255, 0.9);
+    border: 4px solid rgba(223, 223, 223, 0.9);
     border-radius: 0.25em;
     box-sizing: border-box;
     color: #333;
@@ -34,15 +34,18 @@
     padding-bottom: 1.5em;
 
     &[data-dirty="true"] {
-      background: #ffffcc;
+      background: rgba(255, 255, 203, 0.9);
+      border-color: rgba(203, 203, 151, 0.9);
     }
 
     &[data-error="true"] {
-      background: #fdd !important;
+      background: rgba(255, 223, 223, 0.9) !important;
+      border-color: rgba(223, 191, 191, 0.9) !important;
     }
 
     &[readonly] {
-      background: #eee;
+      background: rgba(239, 239, 239, 0.9);
+      border-color: rgba(223, 223, 223, 0.9);
     }
   }
 
@@ -57,10 +60,11 @@
     -moz-appearance: none;
     -webkit-appearance: none;
     appearance: none;
-    height: 52px;
+    height: 58px;
 
     &[disabled] {
-      background: #eee;
+      background: rgba(239, 239, 239, 0.9);
+      border-color: rgba(223, 223, 223, 0.9);
     }
   }
 
@@ -77,7 +81,7 @@
   .overlay {
     right: 10px;
     position: absolute;
-    top: 28px;
+    top: 30px;
 
     img {
       border-radius: 50%;

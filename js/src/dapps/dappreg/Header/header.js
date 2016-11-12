@@ -22,7 +22,7 @@ export default class Header extends Component {
   render () {
     return (
       <div className={ styles.header }>
-        DAPP REGISTRY, a global view of distributed applications available on the network
+        DAPP REGISTRY, a global view of distributed applications available on the network. Putting the puzzle together.
       </div>
     );
   }
