@@ -205,7 +205,9 @@ export default class Application extends Component {
       manifestChanged: false,
       manifestError: null,
       manifestHash: this.store.isNew ? null : app.manifestHash,
-      manifestUrl: this.store.isNew ? null : app.manifestUrl
+      manifestUrl: this.store.isNew ? null : app.manifestUrl,
+      owner: this.store.isNew ? this.store.currentAccount.address : app.owner,
+      ownerName: this.store.isNew ? this.store.currentAccount.name : app.ownerName
     });
   }
 

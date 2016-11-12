@@ -17,6 +17,7 @@
 
 .body {
   color: #333;
+  padding: 0 5em 10em 5em;
 
   input, select {
     background: white;
@@ -62,14 +63,13 @@
   }
 }
 
-.box, .footer, .header, .warning {
+.box, .footer, .header {
   border-radius: 0.25em;
   margin: 1em;
   padding: 1.5em;
 }
 
 .apps {
-  padding: 1em 3em;
 }
 
 .app {
@@ -136,6 +136,11 @@
 
 .warning {
   background: #f80;
+  bottom: 0;
   color: #fff;
+  left: 0;
   opacity: 0.75;
+  padding: 1.5em;
+  position: fixed;
+  right: 0;
 }
