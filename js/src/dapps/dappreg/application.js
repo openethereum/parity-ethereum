@@ -41,8 +41,8 @@ export default class Application extends Component {
         { this.renderWarning() }
         <div className={ styles.apps }>
           { this.renderAppsSelect() }
-          { this.renderCurrentApp() }
           { this.renderButtons() }
+          { this.renderCurrentApp() }
         </div>
         { this.renderFooter() }
       </div>
@@ -217,8 +217,11 @@ export default class Application extends Component {
     this.store.setCurrentApp(event.target.value);
   }
 
-  onChangeHash (event, type) {
-    const hash = event.taget.value;
+  onChangeHash (hash, type) {
+    if (!this.store.isNew && !this.store.isEditing) {
+      return;
+    }
+
     let changed = false;
     let url = null;
 
@@ -254,15 +257,15 @@ export default class Application extends Component {
   }
 
   onChangeContent = (event) => {
-    this.onChangeHash(event, 'content');
+    this.onChangeHash(event.taget.value, 'content');
   }
 
   onChangeImage = (event) => {
-    this.onChangeHash(event, 'image');
+    this.onChangeHash(event.taget.value, 'image');
   }
 
   onChangeManifest = (event) => {
-    this.onChangeHash(event, 'manifest');
+    this.onChangeHash(event.taget.value, 'manifest');
   }
 
   onCancelClick = () => {
@@ -270,6 +273,12 @@ export default class Application extends Component {
       this.store.setEditing(false);
     } else if (this.store.isNew) {
       this.store.setNew(false);
+    }
+  }
+
+  onDeleteClick = () => {
+    if (!this.store.currentApp.isOwner && !this.store.isContractOwner) {
+      return;
     }
   }
 
