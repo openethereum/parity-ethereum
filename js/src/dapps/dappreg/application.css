@@ -152,12 +152,13 @@
 }
 
 .warning {
-  background: #f80;
+  background: #f44;
   bottom: 0;
   color: #fff;
   left: 0;
-  opacity: 0.75;
+  opacity: 1;
   padding: 1.5em;
   position: fixed;
   right: 50%;
+  border-top-right-radius: 0.25em;
 }

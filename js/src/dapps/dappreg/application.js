@@ -97,14 +97,39 @@ export default class Application extends Component {
 
     if (this.store.isEditing || this.store.isNew) {
       buttons = [
-        <button onClick={ this.onCancelClick } key='cancel' className={ styles.cancel }>Cancel</button>,
-        <button onClick={ this.onSaveClick } key='save' disabled={ this.cannotSave() }>Save</button>
+        <button
+          key='cancel'
+          className={ styles.cancel }
+          onClick={ this.onCancelClick }>
+          Cancel
+        </button>,
+        <button
+          key='save'
+          disabled={ this.cannotSave() }
+          onClick={ this.onSaveClick }>
+          { this.store.isNew ? 'Register' : 'Update' }
+        </button>
       ];
     } else {
       buttons = [
-        <button onClick={ this.onDeleteClick } key='delete' className={ styles.delete } disabled={ !this.store.currentApp.isOwner && !this.store.isContractOwner }>Delete</button>,
-        <button onClick={ this.onEditClick } key='edit' disabled={ !this.store.currentApp.isOwner }>Edit</button>,
-        <button onClick={ this.onNewClick } key='new'>New</button>
+        <button
+          key='delete'
+          className={ styles.delete }
+          disabled={ !this.store.currentApp.isOwner && !this.store.isContractOwner }
+          onClick={ this.onDeleteClick }>
+          Delete
+        </button>,
+        <button
+          key='edit'
+          disabled={ !this.store.currentApp.isOwner }
+          onClick={ this.onEditClick }>
+          Edit
+        </button>,
+        <button
+          key='new'
+          onClick={ this.onNewClick }>
+          New
+        </button>
       ];
     }
 
