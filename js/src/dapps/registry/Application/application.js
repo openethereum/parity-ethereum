@@ -53,6 +53,7 @@ export default class Application extends Component {
   };
 
   render () {
+    const { api } = window.parity;
     const {
       actions,
       accounts, contacts,
@@ -60,9 +61,11 @@ export default class Application extends Component {
       lookup,
       events
     } = this.props;
+    let warning = null;
 
     return (
       <div>
+        { warning }
         <div className={ styles.header }>
           <h1>RΞgistry</h1>
           <Accounts { ...accounts } actions={ actions.accounts } />
@@ -70,13 +73,11 @@ export default class Application extends Component {
         { contract && fee ? (
           <div>
             <Lookup { ...lookup } accounts={ accounts.all } contacts={ contacts } actions={ actions.lookup } />
-
             { this.renderActions() }
-
             <Events { ...events } accounts={ accounts.all } contacts={ contacts } actions={ actions.events } />
-            <p className={ styles.address }>
-              The Registry is provided by the contract at <code>{ contract.address }.</code>
-            </p>
+            <div className={ styles.warning }>
+              WARNING: The name registry is experimental. Please ensure that you understand the risks, benefits & consequences of registering a name before doing so. A non-refundable fee of { api.util.fromWei(fee).toFormat(3) }<small>ETH</small> is required for all registrations.
+            </div>
           </div>
         ) : (
           <CircularProgress size={ 60 } />
