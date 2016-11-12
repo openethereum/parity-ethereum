@@ -15,9 +15,8 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.body {
-  color: #333;
-  padding: 0 5em 10em 5em;
+.input {
+  position: relative;
 
   input, select {
     background: white;
@@ -64,101 +63,26 @@
       background: #eee;
     }
   }
-}
 
-.box, .footer, .header {
-  border-radius: 0.25em;
-  margin: 1em;
-  padding: 1.5em;
-}
-
-.apps {
-}
-
-.app {
-  padding: 0;
-}
-
-.buttonbar {
-  text-align: right;
-  margin: 1em 0 0 0;
-
-  button {
-    background: #08f;
-    border: 1px solid #fff;
-    border-radius: 0.25em;
-    color: #fff;
-    cursor: pointer;
-    font-size: 1em;
-    margin: 1em 0 0 0.5em;
-    padding: 0.75em 2em;
-
-    &[disabled] {
-      opacity: 0.5;
-      cursor: default;
-      background: #aaa;
-    }
-
-    &.cancel {
-      background: #888;
-    }
-
-    &.delete {
-      background: #f80;
-    }
+  .hint {
+    color: #888;
+    display: block;
+    font-size: 0.75em;
+    position: absolute;
+    right: 52px;
+    text-align: right;
+    top: 52px;
   }
-}
 
-.footer, .header {
-  text-align: center;
-}
-
-.footer {
-  font-size: 0.75em;
-}
-
-.header {
-}
-
-.hint {
-  color: #888;
-  display: block;
-  font-size: 0.75em;
-  text-align: right;
-  margin: -1.85em 52px 0 0.5em;
-}
-
-.loading {
-  text-align: center;
-  padding-top: 5em;
-  font-size: 2em;
-  color: #999;
-}
-
-.overlayContainer {
-  position: relative;
-
-  .overlayImage {
-    border-radius: 50%;
-    height: 32px;
+  .overlay {
     right: 10px;
     position: absolute;
     top: 28px;
-    width: 32px;
+
+    img {
+      border-radius: 50%;
+      height: 32px;
+      width: 32px;
+    }
   }
-}
-
-.section {
-}
-
-.warning {
-  background: #f44;
-  bottom: 0;
-  color: #fff;
-  left: 0;
-  opacity: 1;
-  padding: 1.5em;
-  position: fixed;
-  right: 50%;
-  border-top-right-radius: 0.25em;
 }

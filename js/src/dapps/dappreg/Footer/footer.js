@@ -14,22 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import { useStrict } from 'mobx';
+import React, { Component } from 'react';
+import { observer } from 'mobx-react';
 
-injectTapEventPlugin();
-useStrict(true);
+import Store from '../store';
+import styles from './footer.css';
 
-import Application from './dappreg/Application';
+@observer
+export default class Footer extends Component {
+  store = Store.instance();
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
-import './dappreg.html';
-
-ReactDOM.render(
-  <Application />,
-  document.querySelector('#container')
-);
+  render () {
+    return (
+      <div className={ styles.footer }>
+        { this.store.count } applications registered, { this.store.ownedCount } owned by user
+      </div>
+    );
+  }
+}

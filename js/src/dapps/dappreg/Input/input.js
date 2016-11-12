@@ -14,22 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import { useStrict } from 'mobx';
+import React, { Component, PropTypes } from 'react';
 
-injectTapEventPlugin();
-useStrict(true);
+import styles from './input.css';
 
-import Application from './dappreg/Application';
+export default class Input extends Component {
+  static propTypes = {
+    children: PropTypes.node.isRequired,
+    hint: PropTypes.string,
+    label: PropTypes.string.isRequired,
+    overlay: PropTypes.node
+  }
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
-import './dappreg.html';
+  render () {
+    const { children, hint, label, overlay } = this.props;
 
-ReactDOM.render(
-  <Application />,
-  document.querySelector('#container')
-);
+    return (
+      <div className={ styles.input }>
+        <label>
+          { label }
+        </label>
+        { children }
+        <div className={ styles.hint }>
+          { hint }
+        </div>
+        <div className={ styles.overlay }>
+          { overlay }
+        </div>
+      </div>
+    );
+  }
+}

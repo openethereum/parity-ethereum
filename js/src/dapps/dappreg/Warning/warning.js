@@ -14,22 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React from 'react';
-import ReactDOM from 'react-dom';
-import injectTapEventPlugin from 'react-tap-event-plugin';
-import { useStrict } from 'mobx';
+import React, { Component } from 'react';
+import { observer } from 'mobx-react';
 
-injectTapEventPlugin();
-useStrict(true);
+import { api } from '../parity';
 
-import Application from './dappreg/Application';
+import Store from '../store';
+import styles from './warning.css';
 
-import '../../assets/fonts/Roboto/font.css';
-import '../../assets/fonts/RobotoMono/font.css';
-import './style.css';
-import './dappreg.html';
+@observer
+export default class Warning extends Component {
+  store = Store.instance();
 
-ReactDOM.render(
-  <Application />,
-  document.querySelector('#container')
-);
+  render () {
+    return (
+      <div className={ styles.warning }>
+        WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries. A non-refundable fee of { api.util.fromWei(this.store.fee).toFormat(3) }<small>ETH</small> is required for any registration.
+      </div>
+    );
+  }
+}

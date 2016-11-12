@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { action, computed, observable } from 'mobx';
+import { action, computed, observable, transaction } from 'mobx';
 
 import * as abis from '../../contracts/abi';
 import builtins from '../../views/Dapps/builtin.json';
@@ -37,6 +37,7 @@ export default class Store {
   @observable isEditing = false;
   @observable isLoading = true;
   @observable isNew = false;
+  @observable wipApp = null;
 
   constructor () {
     this._startTime = Date.now();
@@ -52,8 +53,14 @@ export default class Store {
     return instance;
   }
 
-  @computed get newId () {
-    return api.util.sha3(`${this._startTime}_${Date.now()}`);
+  @computed get canSave () {
+    const app = this.wipApp;
+
+    const hasError = app.contentError || app.imageError || app.manifestError;
+    const isDirty = this.isNew || app.contentChanged || app.imageChanged || app.manifestChanged;
+    const isEditMode = this.isEditing || this.isNew;
+
+    return isEditMode && isDirty && !hasError;
   }
 
   @computed get isCurrentEditable () {
@@ -62,6 +69,59 @@ export default class Store {
 
   @computed get ownedCount () {
     return (this.apps.filter((app) => app.isOwner) || []).length;
+  }
+
+  @action copyToWip () {
+    let wipApp;
+
+    if (this.isNew) {
+      wipApp = {
+        id: api.util.sha3(`${this._startTime}_${Date.now()}`),
+        contentHash: null,
+        contentUrl: null,
+        imageHash: null,
+        imageUrl: null,
+        manifestHash: null,
+        manifestUrl: null
+      };
+    } else {
+      const app = this.currentApp;
+
+      wipApp = {
+        id: app.id,
+        contentHash: app.contentHash,
+        contentUrl: app.contentUrl,
+        imageHash: app.imageHash,
+        imageUrl: app.imageUrl,
+        manifestHash: app.manifestHash,
+        manifestUrl: app.manifestUrl,
+        owner: app.owner,
+        ownerName: app.ownerName
+      };
+    }
+
+    this.wipApp = Object.assign(wipApp, {
+      contentChanged: false,
+      contentError: null,
+      imageChanged: false,
+      imageError: null,
+      manifestChanged: false,
+      manifestError: null
+    });
+
+    return this.wipApp;
+  }
+
+  @action editWip (details) {
+    transaction(() => {
+      Object
+        .keys(details)
+        .forEach((key) => {
+          this.wipApp[key] = details[key];
+        });
+    });
+
+    return this.wipApp;
   }
 
   @action setApps = (apps) => {
@@ -121,6 +181,8 @@ export default class Store {
 
   @action setEditing = (mode) => {
     this.isEditing = mode;
+    this.copyToWip();
+
     return mode;
   }
 
@@ -136,6 +198,8 @@ export default class Store {
 
   @action setNew = (mode) => {
     this.isNew = mode;
+    this.copyToWip();
+
     return mode;
   }
 
