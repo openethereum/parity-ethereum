@@ -464,6 +464,7 @@ impl Database {
 				try!(db.write_opt(batch, &self.write_opts));
 				for column in self.flushing.write().iter_mut() {
 					column.clear();
+					column.shrink_to_fit();
 				}
 				Ok(())
 			},
