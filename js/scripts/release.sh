@@ -63,7 +63,7 @@ if [ "$BRANCH" == "master" ]; then
 
   echo "*** Publishing $PACKAGE to npmjs"
   cd .npmjs
-  npm publish --access public
+  npm publish --access public || true
   cd ../..
 fi
 

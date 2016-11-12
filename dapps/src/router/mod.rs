@@ -131,7 +131,7 @@ impl<A: Authorization + 'static> server::Handler<HttpStream> for Router<A> {
 						StatusCode::NotFound,
 						"404 Not Found",
 						"Your homepage is not available when Trusted Signer is disabled.",
-						Some("You can still access dapps by writing a correct address, though. Re-enabled Signer to get your homepage back."),
+						Some("You can still access dapps by writing a correct address, though. Re-enable Signer to get your homepage back."),
 						self.signer_address.clone(),
 					))
 				}

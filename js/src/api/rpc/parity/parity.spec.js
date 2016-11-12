@@ -20,7 +20,7 @@ import { isBigNumber } from '../../../../test/types';
 import Http from '../../transport/http';
 import Parity from './parity';
 
-const instance = new Parity(new Http(TEST_HTTP_URL));
+const instance = new Parity(new Http(TEST_HTTP_URL, -1));
 
 describe('api/rpc/parity', () => {
   describe('accountsInfo', () => {
