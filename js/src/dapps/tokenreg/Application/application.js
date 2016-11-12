@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 
+import { api } from '../parity';
+
 import Loading from '../Loading';
 import Status from '../Status';
 import Tokens from '../Tokens';
@@ -59,6 +61,9 @@ export default class Application extends Component {
         <Actions />
 
         <Tokens />
+        <div className={ styles.warning }>
+          WARNING: The token registry is experimental. Please ensure that you understand the steps, risks, benefits & consequences of registering a token before doing so. A non-refundable fee of { api.util.fromWei(contract.fee).toFormat(3) }<small>ETH</small> is required for all registrations.
+        </div>
       </div>
     );
   }
