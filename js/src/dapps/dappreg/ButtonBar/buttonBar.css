@@ -16,7 +16,7 @@
 */
 
 .buttonbar {
-  text-align: right;
+  text-align: center;
   margin: 1em 0 0 0;
 
   button {
@@ -26,8 +26,8 @@
     color: #fff;
     cursor: pointer;
     font-size: 1em;
-    margin: 1em 0 0 0.75em;
-    opacity: 0.9;
+    margin: 1em 0.375em;
+    opacity: 0.85;
     padding: 0.75em 2em;
 
     &[disabled] {

@@ -25,7 +25,7 @@ import Store from '../store';
 import Warning from '../Warning';
 import styles from './application.css';
 
-import background from '../../../../assets/images/dapps/puzzle.jpg';
+import background from '../../../../assets/images/dapps/puzzle-960.jpg';
 
 const bodyStyle = {
   background: `url(${background}) no-repeat center center fixed`,

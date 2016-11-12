@@ -262,13 +262,14 @@ export default class Store {
             .setApps(appsInfo.map(([appId, owner]) => {
               const isOwner = !!this.accounts.find((account) => account.address === owner);
               const account = this.addresses.find((account) => account.address === owner);
+              const id = api.util.bytesToHex(appId);
 
               return {
+                id,
                 owner,
                 ownerName: account ? account.name : owner,
                 isOwner,
-                name: '-',
-                id: api.util.bytesToHex(appId)
+                name: id
               };
             }))
             .map(this._loadDapp)
@@ -308,7 +309,7 @@ export default class Store {
                   contentUrl,
                   imageHash,
                   imageUrl,
-                  name: manifest ? manifest.name : '-'
+                  name: (manifest && manifest.name) || app.id
                 });
 
                 return app;
