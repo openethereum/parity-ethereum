@@ -34,11 +34,15 @@
     padding-bottom: 1.5em;
 
     &[error] {
-      background: #fdd;
+      background: #fdd !important;
     }
 
     &[readonly] {
       background: #eee;
+    }
+
+    &[dirty] {
+      background: #ffffcc;
     }
   }
 
@@ -89,6 +93,14 @@
     &[disabled] {
       opacity: 0.5;
       cursor: default;
+    }
+
+    &.cancel {
+      background: #888;
+    }
+
+    &.delete {
+      background: #f80;
     }
   }
 }

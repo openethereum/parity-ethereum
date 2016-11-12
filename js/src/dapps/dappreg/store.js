@@ -28,10 +28,12 @@ export default class Store {
   @observable accounts = [];
   @observable addresses = [];
   @observable apps = [];
+  @observable contractOwner = null;
   @observable currentAccount = null;
   @observable currentApp = null;
   @observable count = 0;
   @observable fee = new BigNumber(0);
+  @observable isContractOwner = false;
   @observable isEditing = false;
   @observable isLoading = true;
   @observable isNew = false;
@@ -96,6 +98,12 @@ export default class Store {
     return this.accounts;
   }
 
+  @action setContractOwner = (contractOwner) => {
+    this.contractOwner = contractOwner;
+    this.isContractOwner = !!this.accounts.find((account) => account.address === contractOwner);
+    return contractOwner;
+  }
+
   @action setCurrentApp = (id) => {
     this.currentApp = this.apps.find((app) => app.id === id);
     return this.currentApp;
@@ -131,8 +139,12 @@ export default class Store {
     return mode;
   }
 
+  lookupHash (hash) {
+    return this._retrieveUrl(hash);
+  }
+
   _getCount () {
-    return this._instanceDr
+    return this._instanceReg
       .count.call()
       .then((count) => {
         this.setCount(count.toNumber());
@@ -143,11 +155,20 @@ export default class Store {
   }
 
   _getFee () {
-    return this._instanceDr
+    return this._instanceReg
       .fee.call()
       .then(this.setFee)
       .catch((error) => {
         console.error('Store:getFee', error);
+      });
+  }
+
+  _getOwner () {
+    return this._instanceReg
+      .owner.call()
+      .then(this.setContractOwner)
+      .catch((error) => {
+        console.error('Store:getOwner', error);
       });
   }
 
@@ -159,13 +180,14 @@ export default class Store {
       ]))
       .then(() => Promise.all([
         this._getCount(),
-        this._getFee()
+        this._getFee(),
+        this._getOwner()
       ]))
       .then(() => {
         const promises = [];
 
         for (let index = 0; index < this.count; index++) {
-          promises.push(this._instanceDr.at.call({}, [index]));
+          promises.push(this._instanceReg.at.call({}, [index]));
         }
 
         return Promise.all(promises);
@@ -235,7 +257,7 @@ export default class Store {
   }
 
   _loadMeta (appId, key) {
-    return this._instanceDr
+    return this._instanceReg
       .meta.call({}, [appId, key])
       .then((meta) => {
         const hash = api.util.bytesToHex(meta);
@@ -330,8 +352,8 @@ export default class Store {
       ])
       .then(([dappregAddress, ghhAddress]) => {
         console.log(`dappreg was found at ${dappregAddress}`);
-        this._contractDr = api.newContract(abis.dappreg, dappregAddress);
-        this._instanceDr = this._contractDr.instance;
+        this._contractReg = api.newContract(abis.dappreg, dappregAddress);
+        this._instanceReg = this._contractReg.instance;
         console.log(`githubhint was found at ${ghhAddress}`);
         this._contractGhh = api.newContract(abis.githubhint, ghhAddress);
         this._instanceGhh = this._contractGhh.instance;
