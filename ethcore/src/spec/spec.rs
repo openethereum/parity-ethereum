@@ -162,7 +162,7 @@ impl Spec {
 	/// Get the configured Network ID.
 	pub fn network_id(&self) -> usize { self.params.network_id }
 
-	/// Get the configured Network ID.
+	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
 
 	/// Get the configured network fork block.
