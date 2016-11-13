@@ -21,7 +21,7 @@ import DappsStore from '../dappsStore';
 import ModalStore from '../modalStore';
 
 import Button from '../Button';
-import styles from './ButtonBar.css';
+import styles from './buttonBar.css';
 
 @observer
 export default class ButtonBar extends Component {
