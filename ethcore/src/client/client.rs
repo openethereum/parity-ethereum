@@ -27,6 +27,7 @@ use util::{journaldb, TrieFactory, Trie};
 use util::trie::TrieSpec;
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::kvdb::*;
+use util::misc::code_hash;
 
 // other
 use io::*;
@@ -42,7 +43,7 @@ use env_info::LastHashes;
 use verification;
 use verification::{PreverifiedBlock, Verifier};
 use block::*;
-use transaction::{LocalizedTransaction, SignedTransaction, Action};
+use transaction::{LocalizedTransaction, SignedTransaction, Transaction, Action};
 use blockchain::extras::TransactionAddress;
 use types::filter::Filter;
 use types::mode::Mode as IpcMode;
@@ -68,6 +69,7 @@ use factory::Factories;
 use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
+use ethabi::{Interface, Contract, Token};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -634,10 +636,18 @@ impl Client {
 	/// Tick the client.
 	// TODO: manage by real events.
 	pub fn tick(&self) {
+		self.check_garbage();
+		self.check_snooze();
+		self.check_updates();
+	}
+
+	fn check_garbage(&self) {
 		self.chain.read().collect_garbage();
 		self.block_queue.collect_garbage();
 		self.tracedb.read().collect_garbage();
+	}
 
+	fn check_snooze(&self) {
 		let mode = self.mode.lock().clone();
 		match mode {
 			Mode::Dark(timeout) => {
@@ -668,6 +678,56 @@ impl Client {
 				}
 			}
 			_ => {}
+		}
+	}
+
+	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		let from = Address::default();
+		let transaction = Transaction {
+			nonce: self.latest_nonce(&from),
+			action: Action::Call(address),
+			gas: U256::from(50_000_000),
+			gas_price: U256::default(),
+			value: U256::default(),
+			data: data,
+		}.fake_sign(from);
+
+		self.call(&transaction, BlockID::Latest, Default::default())
+			.map_err(|e| format!("{:?}", e))
+			.map(|executed| {
+				executed.output
+			})
+	}
+
+	fn check_updates(&self) {
+		let operations_json = Interface::load(include_bytes!("../../res/Operations.json")).expect("Operations.json is valid ABI");
+		let operations = Contract::new(operations_json);
+
+		fn as_string<T: fmt::Debug>(e: T) -> String {
+			format!("{:?}", e)
+		}
+
+		let res = || {
+			let is_latest = try!(operations.function("isLatest".into()).map_err(as_string));
+			let params = try!(is_latest.encode_call(
+				vec![Token::String("par".into()), Token::Address(code_hash().0)]
+			).map_err(as_string));
+			let output = try!(self.call_contract("0x4c1783B4FfB1A99eFC4cda632aA990F5138b26f1".into(), params));
+			let result = try!(is_latest.decode_output(output).map_err(as_string));
+
+			match result.get(0) {
+				Some(&Token::Bool(answer)) => Ok(answer),
+				e => Err(format!("Invalid result: {:?}", e)),
+			}
+		};
+
+		match res() {
+			Ok(res) => {
+				info!("isLatest returned {}", res);
+			},
+			Err(e) => {
+				warn!(target: "dapps", "Error while calling Operations.isLatest: {:?}", e);
+			}
 		}
 	}
 

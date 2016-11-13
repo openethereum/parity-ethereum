@@ -32,6 +32,11 @@ pub enum Filth {
 	Dirty,
 }
 
+/// Get the (SHA1?) 160-bit hash of this build's code base.
+pub fn code_hash() -> H160 {
+	sha().into()
+}
+
 /// Get the standard version string for this software.
 pub fn version() -> String {
 	let sha3 = short_sha();

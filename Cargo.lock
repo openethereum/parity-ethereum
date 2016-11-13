@@ -282,6 +282,7 @@ dependencies = [
  "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "crossbeam 0.2.9 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethash 1.4.0",
  "ethcore-bloom-journal 0.1.0",
  "ethcore-devtools 1.4.0",
