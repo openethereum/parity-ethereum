@@ -407,30 +407,28 @@ impl StateRebuilder {
 	}
 
 	/// Feed an uncompressed state chunk into the rebuilder.
-	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
+	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
 		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
-		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
-		let chunk_size = account_fat_rlps.len() / ::num_cpus::get() + 1;
+		let status = try!(rebuild_accounts(
+			self.db.as_hashdb_mut(),
+			rlp,
+			&mut pairs,
+			&self.code_map,
+			flag
+		));
 
-		// new code contained within this chunk.
-		let mut chunk_code = HashMap::new();
-
-		for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-			let code_map = &self.code_map;
-			let status = try!(rebuild_accounts(self.db.as_hashdb_mut(), account_chunk, out_pairs_chunk, code_map));
-			chunk_code.extend(status.new_code);
-			for (addr_hash, code_hash) in status.missing_code {
-				self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
-			}
+		for (addr_hash, code_hash) in status.missing_code {
+			self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
 		}
+
 		// patch up all missing code. must be done after collecting all new missing code entries.
-		for (code_hash, code) in chunk_code {
+		for (code_hash, code) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
 				db.emplace(code_hash, DBValue::from_slice(&code));
@@ -450,6 +448,8 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
+				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+
 				if &thin_rlp[..] != &empty_rlp[..] {
 					self.bloom.set(&*hash);
 				}
@@ -487,17 +487,18 @@ struct RebuiltStatus {
 }
 
 // rebuild a set of accounts and their storage.
-// returns
+// returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
 	db: &mut HashDB,
-	account_chunk: &[&[u8]],
+	account_fat_rlps: UntrustedRlp,
 	out_chunk: &mut [(H256, Bytes)],
-	code_map: &HashMap<H256, Bytes>
+	code_map: &HashMap<H256, Bytes>,
+	abort_flag: &AtomicBool
 ) -> Result<RebuiltStatus, ::error::Error>
 {
 	let mut status = RebuiltStatus::default();
-	for (account_pair, out) in account_chunk.into_iter().zip(out_chunk) {
-		let account_rlp = UntrustedRlp::new(account_pair);
+	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk) {
+		if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 		let hash: H256 = try!(account_rlp.val_at(0));
 		let fat_rlp = try!(account_rlp.at(1));
@@ -580,7 +581,7 @@ impl BlockRebuilder {
 
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, ::error::Error> {
+	pub fn feed(&mut self, chunk: &[u8], engine: &Engine, abort_flag: &AtomicBool) -> Result<u64, ::error::Error> {
 		use basic_types::Seal::With;
 		use util::U256;
 		use util::triehash::ordered_trie_root;
@@ -601,6 +602,8 @@ impl BlockRebuilder {
 		let parent_total_difficulty = try!(rlp.val_at::<U256>(2));
 
 		for idx in 3..item_count {
+			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+
 			let pair = try!(rlp.at(idx));
 			let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
