@@ -15,15 +15,46 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.header {
-  background: #44e;
-  border-radius: 0 0 0.25em 0.25em;
-  color: #fff;
-  font-size: 0.75em;
-  left: 0;
-  padding: 1em;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 25;
+.modal {
+  .body {
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    text-align: center;
+    z-index: 50;
+
+    .dialog {
+      background: #fff;
+      border-radius: 0.25em;
+      margin: 1em auto;
+      max-width: 700px;
+      text-align: left;
+
+      .content {
+        padding: 1.5em 3em;
+      }
+
+      .footer {
+        padding: 1em 3em;
+      }
+
+      .header {
+        color: #44e;
+        opacity: 0.85;
+        padding: 1em;
+      }
+    }
+  }
+
+  .overlay {
+    background: rgba(204, 204, 204, 0.7);
+    bottom: 0;
+    left: 0;
+    position: fixed;
+    right: 0;
+    top: 0;
+    z-index: 49;
+  }
 }

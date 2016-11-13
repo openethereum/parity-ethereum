@@ -21,6 +21,7 @@ import Dapps from '../Dapps';
 import Footer from '../Footer';
 import Header from '../Header';
 import Loading from '../Loading';
+import ModalDelete from '../ModalDelete';
 import Store from '../store';
 import Warning from '../Warning';
 import styles from './application.css';
@@ -54,6 +55,7 @@ export default class Application extends Component {
         <Footer />
         <Header />
         <Warning />
+        <ModalDelete visible />
       </div>
     );
   }

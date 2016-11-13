@@ -15,15 +15,21 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.header {
+.button {
   background: #44e;
-  border-radius: 0 0 0.25em 0.25em;
+  border: 4px solid #44e;
+  border-radius: 0.25em;
   color: #fff;
-  font-size: 0.75em;
-  left: 0;
-  padding: 1em;
-  position: fixed;
-  right: 0;
-  top: 0;
-  z-index: 25;
+  cursor: pointer;
+  font-size: 1em;
+  margin: 1em 0.375em;
+  opacity: 0.85;
+  padding: 0.75em 2em;
+
+  &[disabled] {
+    opacity: 0.5;
+    cursor: default;
+    background: #aaa;
+    border-color: #aaa;
+  }
 }

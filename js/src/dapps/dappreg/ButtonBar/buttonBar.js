@@ -17,8 +17,9 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
+import Button from '../Button';
 import Store from '../store';
-import styles from './buttonBar.css';
+import styles from './ButtonBar.css';
 
 @observer
 export default class ButtonBar extends Component {
@@ -29,39 +30,34 @@ export default class ButtonBar extends Component {
 
     if (this.store.isEditing || this.store.isNew) {
       buttons = [
-        <button
+        <Button
           key='cancel'
+          label='Cancel'
           className={ styles.cancel }
-          onClick={ this.onCancelClick }>
-          Cancel
-        </button>,
-        <button
+          onClick={ this.onCancelClick } />,
+        <Button
           key='save'
+          label={ this.store.isNew ? 'Register' : 'Update' }
           disabled={ !this.store.canSave }
-          onClick={ this.onSaveClick }>
-          { this.store.isNew ? 'Register' : 'Update' }
-        </button>
+          onClick={ this.onSaveClick } />
       ];
     } else {
       buttons = [
-        <button
+        <Button
           key='delete'
+          label='Delete'
           className={ styles.delete }
           disabled={ !this.store.currentApp.isOwner && !this.store.isContractOwner }
-          onClick={ this.onDeleteClick }>
-          Delete
-        </button>,
-        <button
+          onClick={ this.onDeleteClick } />,
+        <Button
           key='edit'
+          label='Edit'
           disabled={ !this.store.currentApp.isOwner }
-          onClick={ this.onEditClick }>
-          Edit
-        </button>,
-        <button
+          onClick={ this.onEditClick } />,
+        <Button
           key='new'
-          onClick={ this.onNewClick }>
-          New
-        </button>
+          label='New'
+          onClick={ this.onNewClick } />
       ];
     }
 
@@ -81,16 +77,9 @@ export default class ButtonBar extends Component {
   }
 
   onDeleteClick = () => {
-    if (!this.store.currentApp.isOwner && !this.store.isContractOwner) {
-      return;
-    }
   }
 
   onEditClick = () => {
-    if (!this.store.currentApp.isOwner) {
-      return;
-    }
-
     this.store.setEditing(true);
   }
 
@@ -99,8 +88,5 @@ export default class ButtonBar extends Component {
   }
 
   onSaveClick = () => {
-    if (!this.store.canSave) {
-      return;
-    }
   }
 }
