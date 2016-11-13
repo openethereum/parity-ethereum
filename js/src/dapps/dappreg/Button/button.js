@@ -23,16 +23,18 @@ export default class Button extends Component {
     className: PropTypes.string,
     disabled: PropTypes.bool,
     label: PropTypes.string.isRequired,
+    warning: PropTypes.bool,
     onClick: PropTypes.func.isRequired
   }
 
   render () {
-    const { className, label } = this.props;
+    const { className, label, warning } = this.props;
     const classes = `${styles.button} ${className}`;
 
     return (
       <button
         className={ classes }
+        data-warning={ warning }
         onClick={ this.onClick }>
         { label }
       </button>

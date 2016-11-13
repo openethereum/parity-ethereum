@@ -17,33 +17,34 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
+import DappsStore from '../dappsStore';
+
 import Input from '../Input';
-import Store from '../store';
 
 @observer
 export default class SelectDapp extends Component {
-  store = Store.instance();
+  dappsStore = DappsStore.instance();
 
   render () {
-    if (this.store.isNew) {
+    if (this.dappsStore.isNew) {
       return null;
     }
 
     let overlayImg = null;
-    if (this.store.currentApp.imageHash) {
+    if (this.dappsStore.currentApp.imageHash) {
       overlayImg = (
-        <img src={ `/api/content/${this.store.currentApp.imageHash.substr(2)}` } />
+        <img src={ `/api/content/${this.dappsStore.currentApp.imageHash.substr(2)}` } />
       );
     }
 
     return (
       <Input
-        hint={ this.store.currentApp.id }
+        hint={ this.dappsStore.currentApp.id }
         label='Application, the actual application details to show below'
         overlay={ overlayImg }>
         <select
-          disabled={ this.store.isEditing }
-          value={ this.store.currentApp.id }
+          disabled={ this.dappsStore.isEditing }
+          value={ this.dappsStore.currentApp.id }
           onChange={ this.onSelect }>
           { this.renderOptions() }
         </select>
@@ -52,7 +53,7 @@ export default class SelectDapp extends Component {
   }
 
   renderOptions () {
-    return this.store.apps.map((app) => {
+    return this.dappsStore.apps.map((app) => {
       return (
         <option
           value={ app.id }
@@ -64,6 +65,6 @@ export default class SelectDapp extends Component {
   }
 
   onSelect = (event) => {
-    this.store.setCurrentApp(event.target.value);
+    this.dappsStore.setCurrentApp(event.target.value);
   }
 }

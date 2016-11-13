@@ -14,22 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
-import { observer } from 'mobx-react';
-
-import DappsStore from '../dappsStore';
-
-import styles from './footer.css';
-
-@observer
-export default class Footer extends Component {
-  dappsStore = DappsStore.instance();
-
-  render () {
-    return (
-      <div className={ styles.footer }>
-        { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
-      </div>
-    );
-  }
-}
+export default from './modalUpdate';

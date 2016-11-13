@@ -22,16 +22,11 @@ export default class Modal extends Component {
   static propTypes = {
     buttons: PropTypes.node.isRequired,
     children: PropTypes.node.isRequired,
-    header: PropTypes.string.isRequired,
-    visible: PropTypes.bool.isRequired
+    header: PropTypes.string.isRequired
   }
 
   render () {
-    const { children, buttons, header, visible } = this.props;
-
-    if (!visible) {
-      return null;
-    }
+    const { children, buttons, header } = this.props;
 
     return (
       <div className={ styles.modal }>

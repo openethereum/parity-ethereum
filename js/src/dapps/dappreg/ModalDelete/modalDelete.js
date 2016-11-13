@@ -14,29 +14,51 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component, PropTypes } from 'react';
+import React, { Component } from 'react';
+import { observer } from 'mobx-react';
 
+import ModalStore from '../modalStore';
+
+import Button from '../Button';
 import Modal from '../Modal';
-import Store from '../store';
 
+@observer
 export default class ModalDelete extends Component {
-  static propTypes = {
-    visible: PropTypes.bool.isRequired
-  }
-
-  store = Store.instance();
+  modalStore = ModalStore.instance();
 
   render () {
-    const { visible } = this.props;
-    const buttons = [];
+    if (!this.modalStore.showingDelete) {
+      return null;
+    }
 
     return (
       <Modal
-        buttons={ buttons }
-        header='Confirm Application Deletion'
-        visible={ visible }>
+        buttons={ this.renderButtons() }
+        header='Confirm Application Deletion'>
         This is just some info
       </Modal>
     );
+  }
+
+  renderButtons () {
+    return [
+      <Button
+        key='cancel'
+        label='No, Cancel'
+        onClick={ this.onClickNo } />,
+      <Button
+        key='delete'
+        label='Yes, Delete'
+        warning
+        onClick={ this.onClickYes } />
+    ];
+  }
+
+  onClickNo = () => {
+    this.modalStore.hideDelete();
+  }
+
+  onClickYes = () => {
+    this.modalStore.hideDelete();
   }
 }

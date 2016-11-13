@@ -27,21 +27,23 @@
 
     .dialog {
       background: #fff;
-      border-radius: 0.25em;
-      margin: 1em auto;
-      max-width: 700px;
+      border-radius: 0 0 0.25em 0.25em;
+      margin: 0 auto;
+      max-width: 740px;
       text-align: left;
 
       .content {
-        padding: 1.5em 3em;
+        padding: 2em;
       }
 
       .footer {
-        padding: 1em 3em;
+        padding: 0.5em 1.625em;
+        text-align: right;
       }
 
       .header {
-        color: #44e;
+        background: #44e;
+        color: #fff;
         opacity: 0.85;
         padding: 1em;
       }

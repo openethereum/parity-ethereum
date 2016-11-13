@@ -24,7 +24,7 @@ import { api } from './parity';
 
 let instance = null;
 
-export default class Store {
+export default class DappsStore {
   @observable accounts = [];
   @observable addresses = [];
   @observable apps = [];
@@ -39,15 +39,15 @@ export default class Store {
   @observable isNew = false;
   @observable wipApp = null;
 
-  constructor () {
-    this._startTime = Date.now();
+  _startTime = Date.now();
 
+  constructor () {
     this._loadDapps();
   }
 
   static instance () {
     if (!instance) {
-      instance = new Store();
+      instance = new DappsStore();
     }
 
     return instance;

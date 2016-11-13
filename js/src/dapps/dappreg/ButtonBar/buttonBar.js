@@ -17,28 +17,31 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
+import DappsStore from '../dappsStore';
+import ModalStore from '../modalStore';
+
 import Button from '../Button';
-import Store from '../store';
 import styles from './ButtonBar.css';
 
 @observer
 export default class ButtonBar extends Component {
-  store = Store.instance();
+  dappsStore = DappsStore.instance();
+  modalStore = ModalStore.instance();
 
   render () {
     let buttons = [];
 
-    if (this.store.isEditing || this.store.isNew) {
+    if (this.dappsStore.isEditing || this.dappsStore.isNew) {
       buttons = [
         <Button
           key='cancel'
           label='Cancel'
-          className={ styles.cancel }
+          warning
           onClick={ this.onCancelClick } />,
         <Button
           key='save'
-          label={ this.store.isNew ? 'Register' : 'Update' }
-          disabled={ !this.store.canSave }
+          label={ this.dappsStore.isNew ? 'Register' : 'Update' }
+          disabled={ !this.dappsStore.canSave }
           onClick={ this.onSaveClick } />
       ];
     } else {
@@ -46,13 +49,13 @@ export default class ButtonBar extends Component {
         <Button
           key='delete'
           label='Delete'
-          className={ styles.delete }
-          disabled={ !this.store.currentApp.isOwner && !this.store.isContractOwner }
+          warning
+          disabled={ !this.dappsStore.currentApp.isOwner && !this.dappsStore.isContractOwner }
           onClick={ this.onDeleteClick } />,
         <Button
           key='edit'
           label='Edit'
-          disabled={ !this.store.currentApp.isOwner }
+          disabled={ !this.dappsStore.currentApp.isOwner }
           onClick={ this.onEditClick } />,
         <Button
           key='new'
@@ -69,22 +72,23 @@ export default class ButtonBar extends Component {
   }
 
   onCancelClick = () => {
-    if (this.store.isEditing) {
-      this.store.setEditing(false);
-    } else if (this.store.isNew) {
-      this.store.setNew(false);
+    if (this.dappsStore.isEditing) {
+      this.dappsStore.setEditing(false);
+    } else if (this.dappsStore.isNew) {
+      this.dappsStore.setNew(false);
     }
   }
 
   onDeleteClick = () => {
+    this.modalStore.showDelete();
   }
 
   onEditClick = () => {
-    this.store.setEditing(true);
+    this.dappsStore.setEditing(true);
   }
 
   onNewClick = () => {
-    this.store.setNew(true);
+    this.dappsStore.setNew(true);
   }
 
   onSaveClick = () => {

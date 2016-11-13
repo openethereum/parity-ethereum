@@ -17,12 +17,13 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
+import DappsStore from '../dappsStore';
+
 import Dapps from '../Dapps';
 import Footer from '../Footer';
 import Header from '../Header';
 import Loading from '../Loading';
 import ModalDelete from '../ModalDelete';
-import Store from '../store';
 import Warning from '../Warning';
 import styles from './application.css';
 
@@ -38,10 +39,10 @@ const bodyStyle = {
 
 @observer
 export default class Application extends Component {
-  store = Store.instance();
+  dappsStore = DappsStore.instance();
 
   render () {
-    if (this.store.isLoading) {
+    if (this.dappsStore.isLoading) {
       return (
         <Loading />
       );
@@ -55,7 +56,7 @@ export default class Application extends Component {
         <Footer />
         <Header />
         <Warning />
-        <ModalDelete visible />
+        <ModalDelete />
       </div>
     );
   }

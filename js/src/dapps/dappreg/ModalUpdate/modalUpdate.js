@@ -17,33 +17,39 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
-import DappsStore from '../dappsStore';
+import ModalStore from '../modalStore';
+
+import Button from '../Button';
+import Modal from '../Modal';
 
 @observer
-export default class SelectAccount extends Component {
-  dappsStore = DappsStore.instance();
+export default class ModalUpdate extends Component {
+  modalStore = ModalStore.instance();
 
   render () {
+    if (!this.modalStore.showingUpdate) {
+      return null;
+    }
+
     return (
-      <select
-        value={ this.dappsStore.currentAccount.address }
-        onChange={ this.onSelect }>
-        { this.renderOptions() }
-      </select>
+      <Modal
+        buttons={ this.renderButtons() }
+        header='Confirm Application Update'>
+        hello
+      </Modal>
     );
   }
 
-  renderOptions () {
-    return this.dappsStore.accounts.map((account) => {
-      return (
-        <option value={ account.address } key={ account.address }>
-          { account.name }
-        </option>
-      );
-    });
+  renderButtons () {
+    return [
+      <Button
+        key='cancel'
+        label='No, Cancel'
+        onClick={ this.onClickNo } />
+    ];
   }
 
-  onSelect = (event) => {
-    this.dappsStore.setCurrentAccount(event.target.value);
+  onClickNo = () => {
+    this.modalStore.hideUpdate();
   }
 }

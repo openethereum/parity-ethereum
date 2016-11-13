@@ -32,4 +32,9 @@
     background: #aaa;
     border-color: #aaa;
   }
+
+  &[data-warning="true"] {
+    background: #e44;
+    border-color: #e44;
+  }
 }
