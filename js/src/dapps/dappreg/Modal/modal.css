@@ -35,13 +35,18 @@
       .content {
         line-height: 1.5em;
         padding: 2em;
+        text-align: center;
 
-        p {
+        .section {
           margin: 0;
           padding: 0;
         }
 
-        p+p {
+        .section.error {
+          color: #f44;
+        }
+
+        .section+.section {
           margin-top: 1em;
         }
       }
@@ -56,6 +61,12 @@
         color: #fff;
         opacity: 0.85;
         padding: 1em;
+      }
+
+      &[data-error="true"] {
+        .header {
+          background: #e44;
+        }
       }
     }
   }

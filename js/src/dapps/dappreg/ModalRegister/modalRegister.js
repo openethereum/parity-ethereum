@@ -26,6 +26,12 @@ import Modal from '../Modal';
 
 import styles from '../Modal/modal.css';
 
+const HEADERS = [
+  'Error During Registration',
+  'Confirm Application Registration',
+  'Waiting for Signer Confirmation'
+];
+
 @observer
 export default class ModalRegister extends Component {
   dappsStore = DappsStore.instance();
@@ -39,11 +45,57 @@ export default class ModalRegister extends Component {
     return (
       <Modal
         buttons={ this.renderButtons() }
-        header='Confirm Application Registration'>
-        <p>
+        error={ this.modalStore.stepRegister === 0 }
+        header={ HEADERS[this.modalStore.stepRegister] }>
+        { this.renderStep() }
+      </Modal>
+    );
+  }
+
+  renderButtons () {
+    switch (this.modalStore.stepRegister) {
+      case 0:
+        return [
+          <Button
+            key='close'
+            label='Close'
+            onClick={ this.onClickClose } />
+        ];
+      case 1:
+        return [
+          <Button
+            key='cancel'
+            label='No, Cancel'
+            onClick={ this.onClickConfirmNo } />,
+          <Button
+            key='register'
+            label='Yes, Register'
+            warning
+            onClick={ this.onClickConfirmYes } />
+        ];
+      default:
+        return null;
+    }
+  }
+
+  renderStep () {
+    switch (this.modalStore.stepRegister) {
+      case 0:
+        return this.renderStepError();
+      case 1:
+        return this.renderStepConfirm();
+      default:
+        return null;
+    }
+  }
+
+  renderStepConfirm () {
+    return (
+      <div>
+        <div className={ styles.section }>
           You are about to register a new distributed application on the network, the details of this application is given below. This will require a non-refundable fee of { api.util.fromWei(this.dappsStore.fee).toFormat(3) }<small>ETH</small>.
-        </p>
-        <p className={ styles.center }>
+        </div>
+        <div className={ styles.section }>
           <div className={ styles.heading }>
             Selected owner account
           </div>
@@ -52,37 +104,41 @@ export default class ModalRegister extends Component {
             <div>{ this.dappsStore.currentAccount.name }</div>
             <div className={ styles.address }>{ this.dappsStore.currentAccount.address }</div>
           </div>
-        </p>
-        <p className={ styles.center }>
+        </div>
+        <div className={ styles.section }>
           <div className={ styles.heading }>
             Unique assigned application identifier
           </div>
           <div>
             { this.dappsStore.wipApp.id }
           </div>
-        </p>
-      </Modal>
+        </div>
+      </div>
     );
   }
 
-  renderButtons () {
-    return [
-      <Button
-        key='cancel'
-        label='No, Cancel'
-        onClick={ this.onClickNo } />,
-      <Button
-        key='register'
-        label='Yes, Register'
-        warning
-        onClick={ this.onClickYes } />
-    ];
+  renderStepError () {
+    return (
+      <div>
+        <div className={ styles.section }>
+          Your transaction failed to complete sucessfully. The following error was returned:
+        </div>
+        <div className={ `${styles.section} ${styles.error}` }>
+          { this.modalStore.errorRegister.toString() }
+        </div>
+      </div>
+    );
   }
 
-  onClickNo = () => {
+  onClickClose = () => {
     this.modalStore.hideRegister();
   }
 
-  onClickYes = () => {
+  onClickConfirmNo = () => {
+    this.onClickClose();
+  }
+
+  onClickConfirmYes = () => {
+    this.modalStore.doRegister();
   }
 }

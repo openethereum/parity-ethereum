@@ -22,17 +22,18 @@ export default class Modal extends Component {
   static propTypes = {
     buttons: PropTypes.node.isRequired,
     children: PropTypes.node.isRequired,
+    error: PropTypes.bool,
     header: PropTypes.string.isRequired
   }
 
   render () {
-    const { children, buttons, header } = this.props;
+    const { children, buttons, error, header } = this.props;
 
     return (
       <div className={ styles.modal }>
         <div className={ styles.overlay } />
         <div className={ styles.body }>
-          <div className={ styles.dialog }>
+          <div className={ styles.dialog } data-error={ error }>
             <div className={ styles.header }>
               { header }
             </div>
