@@ -21,9 +21,6 @@ import DappsStore from '../dappsStore';
 
 import ButtonBar from '../ButtonBar';
 import Dapp from '../Dapp';
-import Footer from '../Footer';
-import Header from '../Header';
-import Loading from '../Loading';
 import ModalDelete from '../ModalDelete';
 import ModalRegister from '../ModalRegister';
 import ModalUpdate from '../ModalUpdate';
@@ -38,19 +35,25 @@ export default class Application extends Component {
   render () {
     if (this.dappsStore.isLoading) {
       return (
-        <Loading />
+        <div className={ styles.loading }>
+          Loading application
+        </div>
       );
     }
 
     return (
       <div className={ styles.body }>
+        <div className={ styles.header }>
+          DAPP REGISTRY, a global view of distributed applications available on the network. Putting the puzzle together.
+        </div>
         <div className={ styles.apps }>
           <SelectDapp />
           <ButtonBar />
           <Dapp />
         </div>
-        <Footer />
-        <Header />
+        <div className={ styles.footer }>
+          { this.dappsStore.count } applications registered, { this.dappsStore.ownedCount } owned by user
+        </div>
         <Warning />
         <ModalDelete />
         <ModalRegister />
