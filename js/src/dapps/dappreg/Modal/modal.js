@@ -20,10 +20,10 @@ import styles from './modal.css';
 
 export default class Modal extends Component {
   static propTypes = {
-    buttons: PropTypes.node.isRequired,
-    children: PropTypes.node.isRequired,
-    error: PropTypes.bool,
-    header: PropTypes.string.isRequired
+    buttons: PropTypes.node,
+    children: PropTypes.node,
+    error: PropTypes.object,
+    header: PropTypes.string
   }
 
   render () {
@@ -33,17 +33,32 @@ export default class Modal extends Component {
       <div className={ styles.modal }>
         <div className={ styles.overlay } />
         <div className={ styles.body }>
-          <div className={ styles.dialog } data-error={ error }>
-            <div className={ styles.header }>
+          <div className={ styles.dialog }>
+            <div className={ `${styles.header} ${error ? styles.error : ''}` }>
               { header }
             </div>
             <div className={ styles.content }>
-              { children }
+              { error ? this.renderError() : children }
             </div>
             <div className={ styles.footer }>
               { buttons }
             </div>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  renderError () {
+    const { error } = this.props;
+
+    return (
+      <div>
+        <div className={ styles.section }>
+          Your operation failed to complete sucessfully. The following error was returned:
+        </div>
+        <div className={ `${styles.section} ${styles.error}` }>
+          { error.toString() }
         </div>
       </div>
     );

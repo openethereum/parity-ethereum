@@ -16,7 +16,7 @@
 
 import { action, observable, transaction } from 'mobx';
 
-import { api } from './parity';
+import { trackRequest } from './parity';
 import DappsStore from './dappsStore';
 
 let instance = null;
@@ -56,6 +56,7 @@ export default class ModalStore {
   @action showDelete () {
     transaction(() => {
       this.setDeleteStep(1);
+      this.errorDelete = null;
       this.showingDelete = true;
     });
   }
@@ -78,6 +79,7 @@ export default class ModalStore {
   @action showRegister () {
     transaction(() => {
       this.setRegisterStep(1);
+      this.errorRegister = null;
       this.showingRegister = true;
     });
   }
@@ -104,6 +106,7 @@ export default class ModalStore {
   @action showUpdate () {
     transaction(() => {
       this.setUpdateStep(1);
+      this.errorUpdate = null;
       this.showingUpdate = true;
     });
   }
@@ -135,11 +138,19 @@ export default class ModalStore {
         console.log('ModalStore:doRegister', `gas estimated as ${gas.toFormat(0)}, setting to ${newGas.toFormat(0)}`);
 
         options.gas = newGas.toFixed(0);
-        return this._dappsStore._instanceReg.register.postTransaction(options, values);
-      })
-      .then((requestId) => {
-        console.log('ModalStore:doRegister', `posted to signer with requestId ${requestId.toString()}`);
-        return api.pollMethod('parity_checkRequest', requestId);
+
+        const request = this._dappsStore._instanceReg.register.postTransaction(options, values);
+        const statusCallback = (error, status) => {
+          if (error) {
+          } else if (status.signerRequestId) {
+          } else if (status.transactionHash) {
+            this.setRegisterStep(3);
+          } else if (status.transactionReceipt) {
+            this.setRegisterStep(4);
+          }
+        };
+
+        return trackRequest(request, statusCallback);
       })
       .catch((error) => {
         console.error('ModalStore:doRegister', error);

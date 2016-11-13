@@ -16,6 +16,38 @@
 
 const { api } = window.parity;
 
+function trackRequest (requestPromise, statusCallback) {
+  return requestPromise
+    .then((signerRequestId) => {
+      console.log('trackRequest', `posted to signer with requestId ${signerRequestId.toString()}`);
+      statusCallback(null, { signerRequestId });
+
+      return api.pollMethod('parity_checkRequest', signerRequestId);
+    })
+    .then((transactionHash) => {
+      console.log('trackRequest', `received transaction hash ${transactionHash}`);
+      statusCallback(null, { transactionHash });
+
+      return api.pollMethod('eth_getTransactionReceipt', transactionHash, (receipt) => {
+        if (!receipt || !receipt.blockNumber || receipt.blockNumber.eq(0)) {
+          return false;
+        }
+
+        return true;
+      });
+    })
+    .then((transactionReceipt) => {
+      console.log('trackRequest', 'received transaction receipt', transactionReceipt);
+      statusCallback(null, { transactionReceipt });
+    })
+    .catch((error) => {
+      console.error('trackRequest', error);
+      statusCallback(error);
+      throw error;
+    });
+}
+
 export {
-  api
+  api,
+  trackRequest
 };

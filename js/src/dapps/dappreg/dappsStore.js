@@ -269,7 +269,7 @@ export default class DappsStore {
                 owner,
                 ownerName: account ? account.name : owner,
                 isOwner,
-                name: id
+                name: `- ${id}`
               };
             }))
             .map(this._loadDapp)
@@ -309,7 +309,7 @@ export default class DappsStore {
                   contentUrl,
                   imageHash,
                   imageUrl,
-                  name: (manifest && manifest.name) || app.id
+                  name: (manifest && manifest.name) || `- ${app.id}`
                 });
 
                 return app;

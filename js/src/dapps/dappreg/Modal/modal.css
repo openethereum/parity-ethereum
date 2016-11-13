@@ -40,10 +40,10 @@
         .section {
           margin: 0;
           padding: 0;
-        }
 
-        .section.error {
-          color: #f44;
+          &.error {
+            color: #f44;
+          }
         }
 
         .section+.section {
@@ -61,10 +61,8 @@
         color: #fff;
         opacity: 0.85;
         padding: 1em;
-      }
 
-      &[data-error="true"] {
-        .header {
+        &.error {
           background: #e44;
         }
       }

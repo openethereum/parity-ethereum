@@ -29,8 +29,15 @@ import styles from '../Modal/modal.css';
 const HEADERS = [
   'Error During Registration',
   'Confirm Application Registration',
-  'Waiting for Signer Confirmation'
+  'Waiting for Signer Confirmation',
+  'Waiting for Transaction Receipt',
+  'Registration Completed'
 ];
+const STEP_ERROR = 0;
+const STEP_CONFIRM = 1;
+const STEP_SIGNER = 2;
+const STEP_TXRECEIPT = 3;
+const STEP_DONE = 4;
 
 @observer
 export default class ModalRegister extends Component {
@@ -45,7 +52,7 @@ export default class ModalRegister extends Component {
     return (
       <Modal
         buttons={ this.renderButtons() }
-        error={ this.modalStore.stepRegister === 0 }
+        error={ this.modalStore.errorRegister }
         header={ HEADERS[this.modalStore.stepRegister] }>
         { this.renderStep() }
       </Modal>
@@ -54,19 +61,20 @@ export default class ModalRegister extends Component {
 
   renderButtons () {
     switch (this.modalStore.stepRegister) {
-      case 0:
+      case STEP_ERROR:
+      case STEP_DONE:
         return [
           <Button
             key='close'
             label='Close'
             onClick={ this.onClickClose } />
         ];
-      case 1:
+      case STEP_CONFIRM:
         return [
           <Button
             key='cancel'
             label='No, Cancel'
-            onClick={ this.onClickConfirmNo } />,
+            onClick={ this.onClickClose } />,
           <Button
             key='register'
             label='Yes, Register'
@@ -80,13 +88,27 @@ export default class ModalRegister extends Component {
 
   renderStep () {
     switch (this.modalStore.stepRegister) {
-      case 0:
-        return this.renderStepError();
-      case 1:
+      case STEP_CONFIRM:
         return this.renderStepConfirm();
+      case STEP_SIGNER:
+        return this.renderStepWaitSigner();
+      case STEP_TXRECEIPT:
+        return this.renderStepWaitTxReceipt();
+      case STEP_DONE:
+        return this.renderStepCompleted();
       default:
         return null;
     }
+  }
+
+  renderStepCompleted () {
+    return (
+      <div>
+        <div className={ styles.section }>
+          Your application has been registered in the registry.
+        </div>
+      </div>
+    );
   }
 
   renderStepConfirm () {
@@ -117,25 +139,34 @@ export default class ModalRegister extends Component {
     );
   }
 
-  renderStepError () {
+  renderStepWait (waitingFor) {
     return (
       <div>
         <div className={ styles.section }>
-          Your transaction failed to complete sucessfully. The following error was returned:
-        </div>
-        <div className={ `${styles.section} ${styles.error}` }>
-          { this.modalStore.errorRegister.toString() }
+          { waitingFor }
         </div>
       </div>
     );
   }
 
-  onClickClose = () => {
-    this.modalStore.hideRegister();
+  renderStepWaitSigner () {
+    return this.renderStepWait('Waiting for transaction confirmation in the Parity secure signer');
   }
 
-  onClickConfirmNo = () => {
-    this.onClickClose();
+  renderStepWaitTxReceipt () {
+    return this.renderStepWait('Waiting for the transaction receipt from the network');
+  }
+
+  onClickClose = () => {
+    this.modalStore.hideRegister();
+
+    if (this.modalStore.stepRegister === STEP_DONE) {
+      const app = this.dappsStore.wipApp;
+
+      if (app.contentHash || app.imageHash || app.contentHash) {
+        this.modalStore.showUpdate();
+      }
+    }
   }
 
   onClickConfirmYes = () => {
