@@ -27,7 +27,13 @@ export default class SelectDapp extends Component {
 
   render () {
     if (this.dappsStore.isNew) {
-      return null;
+      return (
+        <Input
+          hint='...'
+          label='Application Id, the unique assigned identifier'>
+          <input value={ this.dappsStore.wipApp.id } readOnly />
+        </Input>
+      );
     }
 
     let overlayImg = null;

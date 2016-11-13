@@ -74,7 +74,7 @@ export default class ButtonBar extends Component {
   onCancelClick = () => {
     if (this.dappsStore.isEditing) {
       this.dappsStore.setEditing(false);
-    } else if (this.dappsStore.isNew) {
+    } else {
       this.dappsStore.setNew(false);
     }
   }
@@ -92,5 +92,10 @@ export default class ButtonBar extends Component {
   }
 
   onSaveClick = () => {
+    if (this.dappsStore.isEditing) {
+      this.modalStore.showUpdate();
+    } else {
+      this.modalStore.showRegister();
+    }
   }
 }

@@ -24,6 +24,8 @@ import Footer from '../Footer';
 import Header from '../Header';
 import Loading from '../Loading';
 import ModalDelete from '../ModalDelete';
+import ModalRegister from '../ModalRegister';
+import ModalUpdate from '../ModalUpdate';
 import Warning from '../Warning';
 import styles from './application.css';
 
@@ -31,10 +33,10 @@ import background from '../../../../assets/images/dapps/puzzle-960.jpg';
 
 const bodyStyle = {
   background: `url(${background}) no-repeat center center fixed`,
-  '-webkit-background-size': 'cover',
-  '-moz-background-size': 'cover',
-  '-o-background-size': 'cover',
-  'background-size': 'cover'
+  WebkitBackgroundSize: 'cover',
+  MozBackgroundSize: 'cover',
+  OBackgroundSize: 'cover',
+  backgroundSize: 'cover'
 };
 
 @observer
@@ -57,6 +59,8 @@ export default class Application extends Component {
         <Header />
         <Warning />
         <ModalDelete />
+        <ModalRegister />
+        <ModalUpdate />
       </div>
     );
   }

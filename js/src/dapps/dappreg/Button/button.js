@@ -28,13 +28,14 @@ export default class Button extends Component {
   }
 
   render () {
-    const { className, label, warning } = this.props;
+    const { className, disabled, label, warning } = this.props;
     const classes = `${styles.button} ${className}`;
 
     return (
       <button
         className={ classes }
         data-warning={ warning }
+        disabled={ disabled }
         onClick={ this.onClick }>
         { label }
       </button>

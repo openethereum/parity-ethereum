@@ -17,13 +17,18 @@
 import React, { Component } from 'react';
 import { observer } from 'mobx-react';
 
+import { api } from '../parity';
+import DappsStore from '../dappsStore';
 import ModalStore from '../modalStore';
 
 import Button from '../Button';
 import Modal from '../Modal';
 
+import styles from '../Modal/modal.css';
+
 @observer
 export default class ModalRegister extends Component {
+  dappsStore = DappsStore.instance();
   modalStore = ModalStore.instance();
 
   render () {
@@ -35,7 +40,27 @@ export default class ModalRegister extends Component {
       <Modal
         buttons={ this.renderButtons() }
         header='Confirm Application Registration'>
-        hello
+        <p>
+          You are about to register a new distributed application on the network, the details of this application is given below. This will require a non-refundable fee of { api.util.fromWei(this.dappsStore.fee).toFormat(3) }<small>ETH</small>.
+        </p>
+        <p className={ styles.center }>
+          <div className={ styles.heading }>
+            Selected owner account
+          </div>
+          <div className={ styles.account }>
+            <img src={ api.util.createIdentityImg(this.dappsStore.currentAccount.address, 3) } />
+            <div>{ this.dappsStore.currentAccount.name }</div>
+            <div className={ styles.address }>{ this.dappsStore.currentAccount.address }</div>
+          </div>
+        </p>
+        <p className={ styles.center }>
+          <div className={ styles.heading }>
+            Unique assigned application identifier
+          </div>
+          <div>
+            { this.dappsStore.wipApp.id }
+          </div>
+        </p>
       </Modal>
     );
   }
@@ -45,11 +70,19 @@ export default class ModalRegister extends Component {
       <Button
         key='cancel'
         label='No, Cancel'
-        onClick={ this.onClickNo } />
+        onClick={ this.onClickNo } />,
+      <Button
+        key='register'
+        label='Yes, Register'
+        warning
+        onClick={ this.onClickYes } />
     ];
   }
 
   onClickNo = () => {
     this.modalStore.hideRegister();
+  }
+
+  onClickYes = () => {
   }
 }

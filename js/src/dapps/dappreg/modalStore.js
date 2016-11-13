@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { action, observable } from 'mobx';
+import { action, observable, transaction } from 'mobx';
 
 import DappsStore from './dappsStore';
 
@@ -48,7 +48,11 @@ export default class ModalStore {
   }
 
   @action hideRegister () {
-    this.showingRegister = false;
+    transaction(() => {
+      this._dappsStore.setEditing(false);
+      this._dappsStore.setNew(false);
+      this.showingRegister = false;
+    });
   }
 
   @action showUpdate () {
@@ -56,6 +60,10 @@ export default class ModalStore {
   }
 
   @action hideUpdate () {
-    this.showingUpdate = false;
+    transaction(() => {
+      this._dappsStore.setEditing(false);
+      this._dappsStore.setNew(false);
+      this.showingUpdate = false;
+    });
   }
 }
