@@ -31,6 +31,7 @@ export default class ModalStore {
   @observable showingDelete = false;
   @observable showingRegister = false;
   @observable showingUpdate = false;
+  @observable showingWarning = true;
 
   _dappsStore = DappsStore.instance();
 
@@ -119,6 +120,10 @@ export default class ModalStore {
     });
   }
 
+  @action hideWarning () {
+    this.showingWarning = false;
+  }
+
   doDelete () {
     this.setDeleteStep(2);
 
@@ -197,6 +202,65 @@ export default class ModalStore {
       .catch((error) => {
         console.error('ModalStore:doRegister', error);
         this.setRegisterError(error);
+      });
+  }
+
+  doUpdate () {
+    this.setUpdateStep(2);
+
+    const appId = this._dappsStore.wipApp.id;
+    const options = {
+      from: this._dappsStore.wipApp.owner
+    };
+    const types = {
+      'content': 'CONTENT',
+      'image': 'IMG',
+      'manifest': 'MANIFEST'
+    };
+    const values = Object
+      .keys(types)
+      .filter((type) => this._dappsStore.wipApp[`${type}Changed`])
+      .map((type) => {
+        return [appId, types[type], this._dappsStore.wipApp[`${type}Hash`] || '0x0'];
+      });
+
+    console.log('ModalStore:doUpdate', `performing updates for ${appId} from ${options.from}`);
+
+    Promise
+      .all(values.map((value) => this._dappsStore._instanceReg.setMeta.estimateGas(options, value)))
+      .then((gas) => {
+        const newGas = gas.map((gas) => gas.mul(1.2));
+
+        gas.forEach((gas, index) => {
+          console.log('ModalStore:doUpdate', `${values[index][1]} gas estimated as ${gas.toFormat(0)}, setting to ${newGas[index].toFormat(0)}`);
+        });
+
+        const statusCallback = (error, status) => {
+          if (error) {
+          } else if (status.signerRequestId) {
+          } else if (status.transactionHash) {
+            this.setUpdateStep(3);
+          } else if (status.transactionReceipt) {
+            this.setUpdateStep(4);
+          }
+        };
+
+        return Promise.all(
+          newGas.map((gas, index) => {
+            return trackRequest(
+              this._dappsStore._instanceReg.setMeta.postTransaction(
+                Object.assign(options, { gas: gas.toFixed(0) }), values[index]
+              ), statusCallback
+            );
+          })
+        );
+      })
+      .then(() => {
+        this._dappsStore.refreshApp(appId);
+      })
+      .catch((error) => {
+        console.error('ModalStore:doUpdate', error);
+        this.setUpdateError(error);
       });
   }
 }

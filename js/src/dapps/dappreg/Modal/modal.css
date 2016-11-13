@@ -29,7 +29,7 @@
       background: #fff;
       border-radius: 0 0 0.25em 0.25em;
       margin: 0 auto;
-      max-width: 780px;
+      max-width: 840px;
       text-align: left;
 
       .content {
@@ -90,13 +90,16 @@
     border-radius: 50%;
     margin-right: 0.5em;
   }
+}
 
-  .address {
-    display: block;
-    color: #888;
-    font-size: 0.75em;
-    margin-top: -0.5em;
-  }
+.hint {
+  display: block !important;
+  color: #888;
+  font-size: 0.75em;
+  margin-top: -0.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .center {

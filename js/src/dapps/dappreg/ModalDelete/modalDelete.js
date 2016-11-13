@@ -31,7 +31,7 @@ const HEADERS = [
   'Confirm Application Deletion',
   'Waiting for Signer Confirmation',
   'Waiting for Transaction Receipt',
-  'Registration Completed'
+  'Deletion Completed'
 ];
 const STEP_ERROR = 0;
 const STEP_CONFIRM = 1;
@@ -115,7 +115,7 @@ export default class ModalDelete extends Component {
     return (
       <div>
         <div className={ styles.section }>
-          You are about to remove a distributed application from the network, the details of this application is given below. Removal does not return any fees, however the application will not be available to users anymore.
+          You are about to remove a distributed application from the registry, the details of this application is given below. Removal does not return any fees, however the application will not be available to users anymore.
         </div>
         <div className={ styles.section }>
           <div className={ styles.heading }>

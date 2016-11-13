@@ -124,7 +124,7 @@ export default class ModalRegister extends Component {
           <div className={ styles.account }>
             <img src={ api.util.createIdentityImg(this.dappsStore.currentAccount.address, 3) } />
             <div>{ this.dappsStore.currentAccount.name }</div>
-            <div className={ styles.address }>{ this.dappsStore.currentAccount.address }</div>
+            <div className={ styles.hint }>{ this.dappsStore.currentAccount.address }</div>
           </div>
         </div>
         <div className={ styles.section }>
@@ -151,14 +151,6 @@ export default class ModalRegister extends Component {
 
   onClickClose = () => {
     this.modalStore.hideRegister();
-
-    if (this.modalStore.stepRegister === STEP_DONE) {
-      const app = this.dappsStore.wipApp;
-
-      if (app.contentChanged || app.imageChanged || app.contentChanged) {
-        this.modalStore.showUpdate();
-      }
-    }
   }
 
   onClickConfirmYes = () => {

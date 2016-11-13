@@ -19,16 +19,22 @@ import { observer } from 'mobx-react';
 
 import { api } from '../parity';
 import DappsStore from '../dappsStore';
+import ModalStore from '../modalStore';
 
 import styles from './warning.css';
 
 @observer
 export default class Warning extends Component {
   dappsStore = DappsStore.instance();
+  modalStore = ModalStore.instance();
 
   render () {
+    if (!this.modalStore.showingWarning) {
+      return null;
+    }
+
     return (
-      <div className={ styles.warning }>
+      <div className={ styles.warning } onClick={ this.onClose }>
         <div>
           WARNING: Registering a dapp is for developers only. Please ensure you understand the steps needed to develop and deploy applications, should you wish to use this dapp for anything apart from queries.
         </div>
@@ -37,5 +43,9 @@ export default class Warning extends Component {
         </div>
       </div>
     );
+  }
+
+  onClose = () => {
+    this.modalStore.hideWarning();
   }
 }

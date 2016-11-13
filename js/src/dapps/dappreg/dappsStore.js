@@ -113,13 +113,15 @@ export default class DappsStore {
   }
 
   @action editWip = (details) => {
-    transaction(() => {
-      Object
-        .keys(details)
-        .forEach((key) => {
-          this.wipApp[key] = details[key];
-        });
-    });
+    if (this.isNew || this.isEditing) {
+      transaction(() => {
+        Object
+          .keys(details)
+          .forEach((key) => {
+            this.wipApp[key] = details[key];
+          });
+      });
+    }
 
     return this.wipApp;
   }
@@ -164,6 +166,10 @@ export default class DappsStore {
         ownerName: account.name
       })
       .then(this._addApp);
+  }
+
+  @action refreshApp = (appId) => {
+    this._loadDapp(this.apps.find((app) => app.id === appId));
   }
 
   @action removeApp = (appId) => {
