@@ -17,6 +17,16 @@
 
 .body {
   color: #333;
-  padding: 4em 0 10em 0;
+  background: #eee;
+  padding: 4.5em 0;
   text-align: center;
+}
+
+.apps {
+  background: #fff;
+  border-radius: 0.5em;
+  margin: 0 auto;
+  max-width: 980px;
+  padding: 1.5em;
+  text-align: left;
 }
