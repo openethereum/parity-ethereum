@@ -91,9 +91,9 @@ export default class ModalRegister extends Component {
       case STEP_CONFIRM:
         return this.renderStepConfirm();
       case STEP_SIGNER:
-        return this.renderStepWaitSigner();
+        return this.renderStepWait('Waiting for transaction confirmation in the Parity secure signer');
       case STEP_TXRECEIPT:
-        return this.renderStepWaitTxReceipt();
+        return this.renderStepWait('Waiting for the transaction receipt from the network');
       case STEP_DONE:
         return this.renderStepCompleted();
       default:
@@ -149,21 +149,13 @@ export default class ModalRegister extends Component {
     );
   }
 
-  renderStepWaitSigner () {
-    return this.renderStepWait('Waiting for transaction confirmation in the Parity secure signer');
-  }
-
-  renderStepWaitTxReceipt () {
-    return this.renderStepWait('Waiting for the transaction receipt from the network');
-  }
-
   onClickClose = () => {
     this.modalStore.hideRegister();
 
     if (this.modalStore.stepRegister === STEP_DONE) {
       const app = this.dappsStore.wipApp;
 
-      if (app.contentHash || app.imageHash || app.contentHash) {
+      if (app.contentChanged || app.imageChanged || app.contentChanged) {
         this.modalStore.showUpdate();
       }
     }

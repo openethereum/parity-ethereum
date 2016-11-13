@@ -119,16 +119,57 @@ export default class ModalStore {
     });
   }
 
+  doDelete () {
+    this.setDeleteStep(2);
+
+    const appId = this._dappsStore.currentApp.id;
+    const values = [appId];
+    const options = {
+      from: this._dappsStore.currentApp.isOwner ? this._dappsStore.currentApp.owner : this._dappsStore.contractOwner
+    };
+
+    console.log('ModalStore:doDelete', `performing deletion for ${appId} from ${options.from}`);
+
+    this._dappsStore._instanceReg
+      .unregister.estimateGas(options, values)
+      .then((gas) => {
+        const newGas = gas.mul(1.2);
+
+        console.log('ModalStore:doDelete', `gas estimated as ${gas.toFormat(0)}, setting to ${newGas.toFormat(0)}`);
+
+        options.gas = newGas.toFixed(0);
+
+        const request = this._dappsStore._instanceReg.unregister.postTransaction(options, values);
+        const statusCallback = (error, status) => {
+          if (error) {
+          } else if (status.signerRequestId) {
+          } else if (status.transactionHash) {
+            this.setDeleteStep(3);
+          } else if (status.transactionReceipt) {
+            this.setDeleteStep(4);
+            this._dappsStore.removeApp(appId);
+          }
+        };
+
+        return trackRequest(request, statusCallback);
+      })
+      .catch((error) => {
+        console.error('ModalStore:doDelete', error);
+        this.setDeleteError(error);
+      });
+  }
+
   doRegister () {
     this.setRegisterStep(2);
 
-    const values = [this._dappsStore.wipApp.id];
+    const appId = this._dappsStore.wipApp.id;
+    const values = [appId];
     const options = {
       from: this._dappsStore.currentAccount.address,
       value: this._dappsStore.fee
     };
 
-    console.log('ModalStore:doRegister', `performing registration for ${this._dappsStore.wipApp.id} from ${this._dappsStore.currentAccount.address}`);
+    console.log('ModalStore:doRegister', `performing registration for ${appId} from ${this._dappsStore.currentAccount.address}`);
 
     this._dappsStore._instanceReg
       .register.estimateGas(options, values)
@@ -147,6 +188,7 @@ export default class ModalStore {
             this.setRegisterStep(3);
           } else if (status.transactionReceipt) {
             this.setRegisterStep(4);
+            this._dappsStore.addApp(appId, this._dappsStore.currentAccount);
           }
         };
 

@@ -71,7 +71,7 @@ export default class DappsStore {
     return (this.apps.filter((app) => app.isOwner) || []).length;
   }
 
-  @action copyToWip () {
+  @action copyToWip = () => {
     let wipApp;
 
     if (this.isNew) {
@@ -112,7 +112,7 @@ export default class DappsStore {
     return this.wipApp;
   }
 
-  @action editWip (details) {
+  @action editWip = (details) => {
     transaction(() => {
       Object
         .keys(details)
@@ -124,43 +124,84 @@ export default class DappsStore {
     return this.wipApp;
   }
 
-  @action setApps = (apps) => {
-    this.apps = apps
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .sort((a, b) => {
-        return a.isOwner === b.isOwner
-          ? 0
-          : (a.isOwner ? -1 : 1);
-      });
+  @action sortApps = (apps = this.apps) => {
+    transaction(() => {
+      const ownApps = apps
+        .filter((app) => app.isOwner)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      const otherApps = apps
+        .filter((app) => !app.isOwner)
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-    this.currentApp = this.apps[0];
+      this.apps = ownApps.concat(otherApps);
+      this.currentApp = this.apps[0];
+    });
+  }
+
+  @action setApps = (apps) => {
+    this.sortApps(apps.filter((app) => {
+      const bnid = new BigNumber(app.id);
+      return bnid.gt(0);
+    }));
+
     return this.apps;
   }
 
-  @action setAppInfo = (app, info) => {
-    Object.keys(info).forEach((key) => {
-      app[key] = info[key];
+  @action _addApp = (app) => {
+    transaction(() => {
+      this.setApps(this.apps.concat([app]));
+      this.setCurrentApp(app.id);
     });
+  }
+
+  @action addApp = (appId, account) => {
+    this
+      ._loadDapp({
+        id: appId,
+        isOwner: true,
+        name: `- ${appId}`,
+        owner: account.address,
+        ownerName: account.name
+      })
+      .then(this._addApp);
+  }
+
+  @action removeApp = (appId) => {
+    this.setApps(this.apps.filter((app) => app.id !== appId));
+  }
+
+  @action setAppInfo = (app, info) => {
+    transaction(() => {
+      Object.keys(info).forEach((key) => {
+        app[key] = info[key];
+      });
+    });
+
     return app;
   }
 
   @action setAccounts = (accountsInfo) => {
-    this.addresses = Object
-      .keys(accountsInfo)
-      .map((address) => {
-        const account = accountsInfo[address];
-        account.address = address;
-        return account;
-      });
+    transaction(() => {
+      this.addresses = Object
+        .keys(accountsInfo)
+        .map((address) => {
+          const account = accountsInfo[address];
+          account.address = address;
+          return account;
+        });
 
-    this.accounts = this.addresses.filter((account) => account.uuid);
-    this.currentAccount = this.accounts[0];
+      this.accounts = this.addresses.filter((account) => account.uuid);
+      this.currentAccount = this.accounts[0];
+    });
+
     return this.accounts;
   }
 
   @action setContractOwner = (contractOwner) => {
-    this.contractOwner = contractOwner;
-    this.isContractOwner = !!this.accounts.find((account) => account.address === contractOwner);
+    transaction(() => {
+      this.contractOwner = contractOwner;
+      this.isContractOwner = !!this.accounts.find((account) => account.address === contractOwner);
+    });
     return contractOwner;
   }
 
@@ -180,8 +221,10 @@ export default class DappsStore {
   }
 
   @action setEditing = (mode) => {
-    this.isEditing = mode;
-    this.copyToWip();
+    transaction(() => {
+      this.isEditing = mode;
+      this.copyToWip();
+    });
 
     return mode;
   }
@@ -197,8 +240,10 @@ export default class DappsStore {
   }
 
   @action setNew = (mode) => {
-    this.isNew = mode;
-    this.copyToWip();
+    transaction(() => {
+      this.isNew = mode;
+      this.copyToWip();
+    });
 
     return mode;
   }
@@ -276,6 +321,7 @@ export default class DappsStore {
         );
       })
       .then(() => {
+        this.sortApps();
         this.setLoading(this.count === 0);
       })
       .catch((error) => {
