@@ -89,7 +89,7 @@ impl From<ethjson::blockchain::Account> for PodAccount {
 				let key: U256 = key.into();
 				let value: U256 = value.into();
 				(H256::from(key), H256::from(value))
-			}).collect()
+			}).collect(),
 		}
 	}
 }
@@ -99,8 +99,12 @@ impl From<ethjson::spec::Account> for PodAccount {
 		PodAccount {
 			balance: a.balance.map_or_else(U256::zero, Into::into),
 			nonce: a.nonce.map_or_else(U256::zero, Into::into),
-			code: a.code.map(Into::into).or_else(|| Some(Vec::new())),
-			storage: BTreeMap::new()
+			code: Some(a.code.map_or_else(Vec::new, Into::into)),
+			storage: a.storage.map_or_else(BTreeMap::new, |s| s.into_iter().map(|(key, value)| {
+				let key: U256 = key.into();
+				let value: U256 = value.into();
+				(H256::from(key), H256::from(value))
+			}).collect()),
 		}
 	}
 }
@@ -112,7 +116,7 @@ impl fmt::Display for PodAccount {
 			self.nonce,
 			self.code.as_ref().map_or(0, |c| c.len()),
 			self.code.as_ref().map_or_else(H256::new, |c| c.sha3()),
-			self.storage.len()
+			self.storage.len(),
 		)
 	}
 }

@@ -17,10 +17,11 @@
 //! Block chunker and rebuilder tests.
 
 use devtools::RandomTempPath;
+use error::Error;
 
 use blockchain::generator::{ChainGenerator, ChainIterator, BlockFinalizer};
 use blockchain::BlockChain;
-use snapshot::{chunk_blocks, BlockRebuilder, Progress};
+use snapshot::{chunk_blocks, BlockRebuilder, Error as SnapshotError, Progress};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 
 use util::{Mutex, snappy};
@@ -28,6 +29,7 @@ use util::kvdb::{Database, DatabaseConfig};
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 fn chunk_and_restore(amount: u64) {
 	let mut canon_chain = ChainGenerator::default();
@@ -75,10 +77,11 @@ fn chunk_and_restore(amount: u64) {
 	let mut rebuilder = BlockRebuilder::new(new_chain, new_db.clone(), &manifest).unwrap();
 	let reader = PackedReader::new(&snapshot_path).unwrap().unwrap();
 	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
+	let flag = AtomicBool::new(true);
 	for chunk_hash in &reader.manifest().block_hashes {
 		let compressed = reader.chunk(*chunk_hash).unwrap();
 		let chunk = snappy::decompress(&compressed).unwrap();
-		rebuilder.feed(&chunk, &engine).unwrap();
+		rebuilder.feed(&chunk, &engine, &flag).unwrap();
 	}
 
 	rebuilder.finalize(HashMap::new()).unwrap();
@@ -93,3 +96,46 @@ fn chunk_and_restore_500() { chunk_and_restore(500) }
 
 #[test]
 fn chunk_and_restore_40k() { chunk_and_restore(40000) }
+
+#[test]
+fn checks_flag() {
+	use ::rlp::{RlpStream, Stream};
+	use util::H256;
+
+	let mut stream = RlpStream::new_list(5);
+
+	stream.append(&100u64)
+		.append(&H256::default())
+		.append(&(!0u64));
+
+	stream.append_empty_data().append_empty_data();
+
+	let genesis = {
+		let mut canon_chain = ChainGenerator::default();
+		let mut finalizer = BlockFinalizer::default();
+		canon_chain.generate(&mut finalizer).unwrap()
+	};
+
+	let chunk = stream.out();
+	let path = RandomTempPath::create_dir();
+
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let db = Arc::new(Database::open(&db_cfg, path.as_str()).unwrap());
+	let chain = BlockChain::new(Default::default(), &genesis, db.clone());
+	let engine = ::engines::NullEngine::new(Default::default(), Default::default());
+
+	let manifest = ::snapshot::ManifestData {
+		state_hashes: Vec::new(),
+		block_hashes: Vec::new(),
+		state_root: ::util::sha3::SHA3_NULL_RLP,
+		block_number: 102,
+		block_hash: H256::default(),
+	};
+
+	let mut rebuilder = BlockRebuilder::new(chain, db.clone(), &manifest).unwrap();
+
+	match rebuilder.feed(&chunk, &engine, &AtomicBool::new(false)) {
+		Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {}
+		_ => panic!("Wrong result on abort flag set")
+	}
+}
