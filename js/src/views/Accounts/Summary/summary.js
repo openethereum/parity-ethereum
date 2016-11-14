@@ -22,22 +22,28 @@ import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, I
 export default class Summary extends Component {
   static contextTypes = {
     api: React.PropTypes.object
-  }
+  };
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    balance: PropTypes.object.isRequired,
+    balance: PropTypes.object,
     link: PropTypes.string,
+    name: PropTypes.string,
+    noLink: PropTypes.bool,
     children: PropTypes.node,
     handleAddSearchToken: PropTypes.func
-  }
+  };
+
+  static defaultProps = {
+    noLink: false
+  };
 
   state = {
     name: 'Unnamed'
-  }
+  };
 
   render () {
-    const { account, balance, children, link, handleAddSearchToken } = this.props;
+    const { account, children, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -45,7 +51,6 @@ export default class Summary extends Component {
     }
 
     const { address } = account;
-    const viewLink = `/${link || 'account'}/${address}`;
 
     const addressComponent = (
       <Input
@@ -62,12 +67,45 @@ export default class Summary extends Component {
         <IdentityIcon
           address={ address } />
         <ContainerTitle
-          title={ <Link to={ viewLink }>{ <IdentityName address={ address } unknown /> }</Link> }
+          title={ this.renderLink() }
           byline={ addressComponent } />
-        <Balance
-          balance={ balance } />
+
+        { this.renderBalance() }
         { children }
       </Container>
+    );
+  }
+
+  renderLink () {
+    const { link, noLink, account, name } = this.props;
+
+    const { address } = account;
+    const viewLink = `/${link || 'account'}/${address}`;
+
+    const content = (
+      <IdentityName address={ address } name={ name } unknown />
+    );
+
+    if (noLink) {
+      return content;
+    }
+
+    return (
+      <Link to={ viewLink }>
+        { content }
+      </Link>
+    );
+  }
+
+  renderBalance () {
+    const { balance } = this.props;
+
+    if (!balance) {
+      return null;
+    }
+
+    return (
+      <Balance balance={ balance } />
     );
   }
 }
