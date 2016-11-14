@@ -16,7 +16,7 @@
 
 //! A blockchain engine that supports a non-instant BFT proof-of-authority.
 
-use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
+use std::sync::atomic::{AtomicUsize, AtomicBool, Ordering as AtomicOrdering};
 use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
@@ -68,7 +68,8 @@ pub struct AuthorityRound {
 	builtins: BTreeMap<Address, Builtin>,
 	transistion_service: IoService<BlockArrived>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
-	step: AtomicUsize
+	step: AtomicUsize,
+	proposed: AtomicBool,
 }
 
 impl Header {
@@ -104,6 +105,7 @@ impl AuthorityRound {
 				transistion_service: IoService::<BlockArrived>::start().expect("Error creating engine timeout service"),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
+				proposed: AtomicBool::new(false)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		engine.transistion_service.register_handler(Arc::new(handler)).expect("Error registering engine timeout service");
@@ -152,6 +154,7 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
+				engine.proposed.store(false, AtomicOrdering::SeqCst);
 				if let Some(ref channel) = *engine.message_channel.try_lock().expect("Could not acquire message channel work.") {
 					match channel.send(ClientIoMessage::UpdateSealing) {
 						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
@@ -207,6 +210,7 @@ impl Engine for AuthorityRound {
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
@@ -214,6 +218,7 @@ impl Engine for AuthorityRound {
 				// Account should be permanently unlocked, otherwise sealing will fail.
 				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
+					self.proposed.store(true, AtomicOrdering::SeqCst);
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
 					trace!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
@@ -261,8 +266,10 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
+		let step = try!(header.step());
 		// Check if parent is from a previous step.
-		if try!(header.step()) == try!(parent.step()) { 
+		if step == try!(parent.step()) { 
+			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
