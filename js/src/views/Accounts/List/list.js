@@ -145,6 +145,8 @@ export default class List extends Component {
       return tagsA.localeCompare(tagsB);
     }
 
+    const reverse = key === 'timestamp' ? -1 : 1;
+
     const metaA = accountA.meta[key];
     const metaB = accountB.meta[key];
 
@@ -152,12 +154,20 @@ export default class List extends Component {
       return 0;
     }
 
-    if ((metaA && !metaB) || (metaA < metaB)) {
+    if (metaA && !metaB) {
       return -1;
     }
 
-    if ((!metaA && metaB) || (metaA > metaB)) {
+    if (metaA < metaB) {
+      return -1 * reverse;
+    }
+
+    if (!metaA && metaB) {
       return 1;
+    }
+
+    if (metaA > metaB) {
+      return 1 * reverse;
     }
 
     return 0;
