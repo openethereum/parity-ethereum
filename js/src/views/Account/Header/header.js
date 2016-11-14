@@ -15,13 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import CopyToClipboard from 'react-copy-to-clipboard';
-import IconButton from 'material-ui/IconButton';
-import Snackbar from 'material-ui/Snackbar';
-import CopyIcon from 'material-ui/svg-icons/content/content-copy';
-import { lightWhite, fullWhite, darkBlack } from 'material-ui/styles/colors';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
+import CopyToClipboard from '../../../ui/CopyToClipboard';
 
 import styles from './header.css';
 
@@ -37,8 +33,7 @@ export default class Header extends Component {
   }
 
   state = {
-    name: null,
-    addressCopied: false
+    name: null
   }
 
   componentWillMount () {
@@ -51,7 +46,6 @@ export default class Header extends Component {
 
   render () {
     const { account, balance } = this.props;
-    const { addressCopied } = this.state;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -64,50 +58,14 @@ export default class Header extends Component {
 
     return (
       <div>
-
-        <Snackbar
-          open={ addressCopied }
-          message={
-            <span>
-              Address
-              <span className={ styles.address }> { address } </span>
-              copied to clipboard
-            </span>
-          }
-          autoHideDuration={ 4000 }
-          onRequestClose={ this.handleCopyAddressClose }
-          bodyStyle={ {
-            backgroundColor: darkBlack
-          } }
-        />
-
         <Container>
           <IdentityIcon
             address={ address } />
           <div className={ styles.floatleft }>
             <ContainerTitle title={ <IdentityName address={ address } unknown /> } />
             <div className={ styles.addressline }>
-              <CopyToClipboard
-                onCopy={ this.handleCopyAddress }
-                text={ address } >
-                <IconButton
-                  tooltip='Copy address to clipboard'
-                  tooltipPosition='top-center'
-                  style={ {
-                    width: 32,
-                    height: 16,
-                    padding: 0
-                  } }
-                  iconStyle={ {
-                    width: 16,
-                    height: 16
-                  } }>
-                  <CopyIcon
-                    color={ addressCopied ? lightWhite : fullWhite }
-                  />
-                </IconButton>
-              </CopyToClipboard>
-              <span>{ address } </span>
+              <CopyToClipboard data={ address } />
+              <div className={ styles.address }>{ address }</div>
             </div>
             { uuidText }
             <div className={ styles.infoline }>
@@ -155,14 +113,6 @@ export default class Header extends Component {
           console.error(error);
         });
     });
-  }
-
-  handleCopyAddress = () => {
-    this.setState({ addressCopied: true });
-  }
-
-  handleCopyAddressClose = () => {
-    this.setState({ addressCopied: false });
   }
 
   setName () {
