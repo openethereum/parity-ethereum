@@ -99,13 +99,13 @@ impl AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transistion_service: IoService::<BlockArrived>::start()?,
+				transistion_service: try!(IoService::<BlockArrived>::start()),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		engine.transistion_service.register_handler(Arc::new(handler))?;
+		try!(engine.transistion_service.register_handler(Arc::new(handler)));
 		Ok(engine)
 	}
 
