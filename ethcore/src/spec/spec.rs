@@ -137,7 +137,7 @@ impl From<ethjson::spec::Spec> for Spec {
 
 macro_rules! load_bundled {
 	($e:expr) => {
-		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect("Chain spec is invalid")
+		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect(concat!("Chain spec ", $e, " is invalid."))
 	};
 }
 
