@@ -423,13 +423,13 @@ mod tests {
 	use env_info::EnvInfo;
 	use error::{BlockError, Error};
 	use header::Header;
-	use spec::Spec;
+	use super::super::{new_morden, new_homestead_test};
 	use super::{Ethash, EthashParams};
 	use rlp;
 
 	#[test]
 	fn on_close_block() {
-		let spec = Spec::new_ethereum_morden();
+		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
@@ -443,7 +443,7 @@ mod tests {
 
 	#[test]
 	fn on_close_block_with_uncle() {
-		let spec = Spec::new_ethereum_morden();
+		let spec = new_morden();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
@@ -463,14 +463,14 @@ mod tests {
 
 	#[test]
 	fn has_valid_metadata() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		assert!(!engine.name().is_empty());
 		assert!(engine.version().major >= 1);
 	}
 
 	#[test]
 	fn can_return_schedule() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let schedule = engine.schedule(&EnvInfo {
 			number: 10000000,
 			author: 0.into(),
@@ -498,8 +498,8 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
-		//let engine = Ethash::new_test(Spec::new_ethereum_morden());
+		let engine = new_morden().engine;
+		//let engine = Ethash::new_test(new_morden());
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
@@ -513,7 +513,7 @@ mod tests {
 
 	#[test]
 	fn can_do_difficulty_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 
@@ -528,7 +528,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -544,7 +544,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal_unordered_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -558,7 +558,7 @@ mod tests {
 
 	#[test]
 	fn can_do_seal256_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::zero()).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		let verify_result = engine.verify_block_unordered(&header, None);
@@ -572,7 +572,7 @@ mod tests {
 
 	#[test]
 	fn can_do_proof_of_work_unordered_verification_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_seal(vec![rlp::encode(&H256::from("b251bd2e0283d0658f2cadfdc8ca619b5de94eca5742725e2e757dd13ed7503d")).to_vec(), rlp::encode(&H64::zero()).to_vec()]);
 		header.set_difficulty(U256::from_str("ffffffffffffffffffffffffffffffffffffffffffffaaaaaaaaaaaaaaaaaaaa").unwrap());
@@ -588,7 +588,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_genesis_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let header: Header = Header::default();
 		let parent_header: Header = Header::default();
 
@@ -603,7 +603,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_difficulty_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		let mut parent_header: Header = Header::default();
@@ -620,7 +620,7 @@ mod tests {
 
 	#[test]
 	fn can_verify_block_family_gas_fail() {
-		let engine = Spec::new_ethereum_morden().engine;
+		let engine = new_morden().engine;
 		let mut header: Header = Header::default();
 		header.set_number(2);
 		header.set_difficulty(U256::from_str("0000000000000000000000000000000000000000000000000000000000020000").unwrap());
@@ -648,7 +648,7 @@ mod tests {
 
 	#[test]
 	fn difficulty_frontier() {
-		let spec = Spec::new_ethereum_homestead_test();
+		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
 		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
 
@@ -666,7 +666,7 @@ mod tests {
 
 	#[test]
 	fn difficulty_homestead() {
-		let spec = Spec::new_ethereum_homestead_test();
+		let spec = new_homestead_test();
 		let ethparams = get_default_ethash_params();
 		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
 
@@ -684,7 +684,7 @@ mod tests {
 
 	#[test]
 	fn difficulty_classic_bomb_delay() {
-		let spec = Spec::new_ethereum_homestead_test();
+		let spec = new_homestead_test();
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
 			..get_default_ethash_params()
@@ -717,7 +717,7 @@ mod tests {
 
 	#[test]
 	fn test_difficulty_bomb_continue() {
-		let spec = Spec::new_ethereum_homestead_test();
+		let spec = new_homestead_test();
 		let ethparams = EthashParams {
 			ecip1010_pause_transition: 3000000,
 			ecip1010_continue_transition: 5000000,

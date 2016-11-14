@@ -18,7 +18,7 @@ use super::test_common::*;
 use tests::helpers::*;
 use pod_state::{self, PodState};
 use log_entry::LogEntry;
-use spec::Spec;
+use ethereum;
 use ethjson;
 
 pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
@@ -26,11 +26,11 @@ pub fn json_chain_test(json_data: &[u8], era: ChainEra) -> Vec<String> {
 	let tests = ethjson::state::Test::load(json_data).unwrap();
 	let mut failed = Vec::new();
 	let engine = match era {
-		ChainEra::Frontier => Spec::new_ethereum_mainnet_like().engine,
-		ChainEra::Homestead => Spec::new_ethereum_homestead_test().engine,
-		ChainEra::Eip150 => Spec::new_ethereum_eip150_test().engine,
-		ChainEra::Eip161 => Spec::new_ethereum_eip161_test().engine,
-		ChainEra::TransitionTest => Spec::new_ethereum_transition_test().engine,
+		ChainEra::Frontier => ethereum::new_mainnet_like().engine,
+		ChainEra::Homestead => ethereum::new_homestead_test().engine,
+		ChainEra::Eip150 => ethereum::new_eip150_test().engine,
+		ChainEra::Eip161 => ethereum::new_eip161_test().engine,
+		ChainEra::TransitionTest => ethereum::new_transition_test().engine,
 	};
 
 	for (name, test) in tests.into_iter() {

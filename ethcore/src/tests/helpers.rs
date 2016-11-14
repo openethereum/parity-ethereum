@@ -27,6 +27,7 @@ use state::*;
 use evm::Schedule;
 use engines::Engine;
 use env_info::EnvInfo;
+use ethereum;
 use ethereum::ethash::EthashParams;
 use devtools::*;
 use miner::Miner;
@@ -52,7 +53,7 @@ pub struct TestEngine {
 impl TestEngine {
 	pub fn new(max_depth: usize) -> TestEngine {
 		TestEngine {
-			engine: Spec::new_ethereum_frontier_test().engine,
+			engine: ethereum::new_frontier_test().engine,
 			max_depth: max_depth,
 		}
 	}
