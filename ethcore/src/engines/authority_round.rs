@@ -305,8 +305,7 @@ mod tests {
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
-	use std::thread::sleep;
-	use std::time::{Duration, UNIX_EPOCH};
+	use std::time::UNIX_EPOCH;
 
 	#[test]
 	fn has_valid_metadata() {
@@ -382,19 +381,16 @@ mod tests {
 
 		header.set_author(addr);
 
-		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		let timestamp = UNIX_EPOCH.elapsed().unwrap().as_secs();
-		let step = timestamp + timestamp % 2 + 1;
-		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-
 		let engine = Spec::new_test_round().engine;
 
-		// Too early.
-		assert!(engine.verify_block_seal(&header).is_err());
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
+		let mut step = UNIX_EPOCH.elapsed().unwrap().as_secs();
+		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		let first_ok = engine.verify_block_seal(&header).is_ok();
+		step = step + 1;
+		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
+		let second_ok = engine.verify_block_seal(&header).is_ok();
 
-		sleep(Duration::from_millis(2000));
-
-		// Right step.
-		assert!(engine.verify_block_seal(&header).is_ok());
+		assert!(first_ok ^ second_ok);
 	}
 }
