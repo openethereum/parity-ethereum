@@ -142,30 +142,35 @@ class Addresses extends Component {
   }
 
   renderValidation = (content) => {
-    let addresses;
+    const error = {
+      error: 'The provided file is invalid...'
+    };
 
     try {
-      addresses = JSON.parse(content);
-    } catch (e) {
-      return {
-        error: 'The provided file is invalid...'
-      };
-    }
+      const addresses = JSON.parse(content);
 
-    const body = Object.values(addresses).map((address, index) => (
-      <Summary
-        key={ index }
-        account={ address }
-        name={ address.name }
-        noLink
-      />
-    ));
+      if (!addresses || Object.keys(addresses).length === 0) {
+        return error;
+      }
 
-    return (
-      <div>
-        { body }
-      </div>
-    );
+      const body = Object
+        .values(addresses)
+        .filter((account) => account && account.address)
+        .map((account, index) => (
+          <Summary
+            key={ index }
+            account={ account }
+            name={ account.name }
+            noLink
+          />
+        ));
+
+      return (
+        <div>
+          { body }
+        </div>
+      );
+    } catch (e) { return error; }
   }
 
   onImport = (content) => {
