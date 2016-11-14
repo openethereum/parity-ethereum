@@ -72,12 +72,12 @@ pub struct AuthorityRound {
 	proposed: AtomicBool,
 }
 
-fn step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&self.seal()[0]).as_val()
+fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
+	UntrustedRlp::new(&header.seal()[0]).as_val()
 }
 
-fn signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-  UntrustedRlp::new(&self.seal()[1]).as_val::<H520>().map(Into::into)
+fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
+  UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
 }
 
 trait AsMillis {
@@ -92,21 +92,21 @@ impl AsMillis for Duration {
 
 impl AuthorityRound {
 	/// Create a new instance of AuthorityRound engine.
-	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+	pub fn new(params: CommonParams, our_params: AuthorityRoundParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
 		let initial_step = (unix_now().as_secs() / our_params.step_duration.as_secs()) as usize;
 		let engine = Arc::new(
 			AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transistion_service: IoService::<BlockArrived>::start().expect("Error creating engine timeout service"),
+				transistion_service: IoService::<BlockArrived>::start()?,
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		engine.transistion_service.register_handler(Arc::new(handler)).expect("Error registering engine timeout service");
-		engine
+		engine.transistion_service.register_handler(Arc::new(handler))?;
+		Ok(engine)
 	}
 
 	fn step(&self) -> usize {
@@ -149,7 +149,8 @@ const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 impl IoHandler<BlockArrived> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<BlockArrived>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis()).expect("Error registering engine timeout");
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
+				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
@@ -158,13 +159,14 @@ impl IoHandler<BlockArrived> for TransitionHandler {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
 				engine.proposed.store(false, AtomicOrdering::SeqCst);
-				if let Some(ref channel) = *engine.message_channel.try_lock().expect("Could not acquire message channel work.") {
+				if let Some(ref channel) = *engine.message_channel.lock() {
 					match channel.send(ClientIoMessage::UpdateSealing) {
 						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
 						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
 					}
 				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis()).expect("Failed to restart consensus step timer.")
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
+					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
 	}
@@ -247,10 +249,11 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-        let header_step = try!(step(header));
+        let header_step = try!(header_step(header));
         // Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step() + 1 {
-			let ok_sig = try!(verify_address(self.step_proposer(header_step), &try!(signature(header)), &header.bare_hash()));
+			let proposer_signature = try!(header_signature(header));
+			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
 			if ok_sig {
 				Ok(())
 			} else {
@@ -269,9 +272,9 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = try!(step(header));
+		let step = try!(header_step(header));
 		// Check if parent is from a previous step.
-		if step == try!(step(parent)) { 
+		if step == try!(header_step(parent)) { 
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
@@ -299,7 +302,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		let mut guard = self.message_channel.try_lock().unwrap();
+		let mut guard = self.message_channel.lock();
 		*guard = Some(message_channel);
 	}
 }

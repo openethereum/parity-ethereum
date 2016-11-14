@@ -144,7 +144,7 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
-			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Consensus engine could not be started."),
 		}
 	}
 
