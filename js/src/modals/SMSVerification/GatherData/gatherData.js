@@ -27,6 +27,7 @@ import { Form, Input } from '../../../ui';
 import checkIfVerified from '../check-if-verified';
 import checkIfRequested from '../check-if-requested';
 
+import terms from '../terms-of-service';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
@@ -85,10 +86,11 @@ export default class GatherData extends Component {
         />
         <Checkbox
           className={ styles.spacing }
-          label={ 'I agree that my number will be stored.' }
+          label={ 'I agree to the terms and conditions below.' }
           disabled={ isVerified }
           onCheck={ this.consentOnChange }
         />
+        <div className={ styles.terms }>{ terms }</div>
       </Form>
     );
   }
