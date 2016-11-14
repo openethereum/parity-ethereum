@@ -19,36 +19,24 @@ import Api from './api';
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
-  constructor (url, _token) {
-    super(new Api.Transport.Ws(url, SecureApi.sanitizeToken(_token || sysuiToken)));
-
-    const token = _token || sysuiToken;
+  constructor (url, nextToken) {
+    super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
-    this._connectState = token === 'initial' ? 1 : 0;
+    this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
+    this._nextToken = nextToken;
     this._dappsPort = 8080;
     this._dappsInterface = null;
     this._signerPort = 8180;
 
-    console.log('SecureApi:constructor', token);
+    console.log('SecureApi:constructor', sysuiToken);
 
-    this.storeToken(token);
     this._followConnection();
   }
 
-  static sanitizeToken (token) {
-    return token
-      ? token.replace(/[^a-zA-Z0-9]/g, '')
-      : null;
-  }
-
-  storeToken (token) {
-    window.localStorage.setItem('sysuiToken', SecureApi.sanitizeToken(token));
-  }
-
   setToken = () => {
-    this.storeToken(this._transport.token);
+    window.localStorage.setItem('sysuiToken', this._transport.token);
     console.log('SecureApi:setToken', this._transport.token);
   }
 
@@ -70,7 +58,11 @@ export default class SecureApi extends Api {
         if (isConnected) {
           return this.connectSuccess();
         } else if (lastError) {
-          this.updateToken('initial', 1);
+          const nextToken = this._nextToken || 'initial';
+          const nextState = this._nextToken ? 0 : 1;
+
+          this._nextToken = null;
+          this.updateToken(nextToken, nextState);
         }
         break;
 
@@ -128,7 +120,7 @@ export default class SecureApi extends Api {
 
   updateToken (token, connectState = 0) {
     this._connectState = connectState;
-    this._transport.updateToken(SecureApi.sanitizeToken(token));
+    this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
     console.log('SecureApi:updateToken', this._transport.token, connectState);
   }
