@@ -168,7 +168,7 @@ pub enum BlockError {
 	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
 	/// The same author issued different votes at the same step.
-	DoubleVote(H160)
+	DoubleVote(H160),
 }
 
 impl fmt::Display for BlockError {
@@ -202,7 +202,7 @@ impl fmt::Display for BlockError {
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
-			DoubleVote(ref address) => format!("Author {} issued to many blocks.", address),
+			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))

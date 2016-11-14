@@ -72,16 +72,13 @@ pub struct AuthorityRound {
 	proposed: AtomicBool,
 }
 
-impl Header {
-    fn step(&self) -> Result<usize, ::rlp::DecoderError> {
-        UntrustedRlp::new(&self.seal()[0]).as_val()
-    }
-
-    fn signature(&self) -> Result<Signature, ::rlp::DecoderError> {
-        UntrustedRlp::new(&self.seal()[1]).as_val::<H520>().map(Into::into)
-    }
+fn step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
+	UntrustedRlp::new(&self.seal()[0]).as_val()
 }
 
+fn signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
+  UntrustedRlp::new(&self.seal()[1]).as_val::<H520>().map(Into::into)
+}
 
 trait AsMillis {
 	fn as_millis(&self) -> u64;
@@ -128,7 +125,7 @@ impl AuthorityRound {
 
 	fn step_proposer(&self, step: usize) -> &Address {
 		let ref p = self.our_params;
-		p.authorities.get(step%p.authority_n).unwrap()
+		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
 	}
 
 	fn is_step_proposer(&self, step: usize, address: &Address) -> bool {
@@ -250,10 +247,10 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-        let header_step = try!(header.step());
+        let header_step = try!(step(header));
         // Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step() + 1 {
-			let ok_sig = try!(verify_address(self.step_proposer(header_step), &try!(header.signature()), &header.bare_hash()));
+			let ok_sig = try!(verify_address(self.step_proposer(header_step), &try!(signature(header)), &header.bare_hash()));
 			if ok_sig {
 				Ok(())
 			} else {
@@ -272,9 +269,9 @@ impl Engine for AuthorityRound {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
-		let step = try!(header.step());
+		let step = try!(step(header));
 		// Check if parent is from a previous step.
-		if step == try!(parent.step()) { 
+		if step == try!(step(parent)) { 
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
