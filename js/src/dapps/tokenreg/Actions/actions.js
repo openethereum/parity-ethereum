@@ -47,7 +47,8 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
   const contractInstance = state.status.contract.instance;
   const fee = state.status.contract.fee;
 
-  const { address, base, name, tla } = tokenData;
+  const { address, decimals, name, tla } = tokenData;
+  const base = Math.pow(10, decimals);
 
   dispatch(setRegisterSending(true));
 
