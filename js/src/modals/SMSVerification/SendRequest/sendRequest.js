@@ -19,23 +19,9 @@ import qs from 'querystring';
 
 import TxHash from '../../../ui/TxHash';
 import waitForConfirmations from '../wait-for-confirmations';
+import postToVerificationServer from '../post-to-verification-server';
 
 import styles from './sendRequest.css';
-
-const postToVerificationServer = (query) => {
-  query = qs.stringify(query);
-  return fetch('https://sms-verification.parity.io/?' + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
-  })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
-    });
-  });
-};
 
 export default class SendRequest extends Component {
   static contextTypes = {
