@@ -117,7 +117,13 @@ impl AuthorityRound {
 	}
 
 	fn remaining_step_duration(&self) -> Duration {
-		self.our_params.step_duration * (self.step() as u32 + 1) - unix_now()
+		let now = unix_now();
+		let step_end = self.our_params.step_duration * (self.step() as u32 + 1);
+		if step_end > now {
+			step_end - now
+		} else {
+			Duration::from_secs(0)
+		}
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
@@ -362,7 +368,7 @@ mod tests {
 	}
 
 	#[test]
-	fn can_generate_seal() {
+	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("1".sha3(), "1").unwrap();
 		tap.unlock_account_permanently(addr, "1".into()).unwrap();
@@ -377,7 +383,9 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
-		assert!(b.try_seal(engine, seal).is_ok());
+		assert!(b.clone().try_seal(engine, seal).is_ok());
+		// Second proposal is forbidden.
+		assert!(engine.generate_seal(b.block(), Some(&tap)).is_none());
 	}
 
 	#[test]
