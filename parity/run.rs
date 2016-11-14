@@ -48,7 +48,6 @@ use signer;
 use modules;
 use rpc_apis;
 use rpc;
-use url;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 10000;
@@ -93,13 +92,26 @@ pub struct RunCmd {
 	pub check_seal: bool,
 }
 
+pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
+	if !dapps_conf.enabled {
+		return Err("Cannot use UI command with Dapps turned off.".into())
+	}
+
+	if !signer_conf.enabled {
+		return Err("Cannot use UI command with UI turned off.".into())
+	}
+
+	let token = try!(signer::generate_token_and_open_ui(signer_conf));
+	println!("{}", token);
+	Ok(())
+}
+
 pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	if cmd.ui && cmd.dapps_conf.enabled {
 		// Check if Parity is already running
 		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
 		if !TcpListener::bind(&addr as &str).is_ok() {
-			url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
-			return Ok(());
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf);
 		}
 	}
 
@@ -309,7 +321,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	};
 
 	// start signer server
-	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
+	let signer_server = try!(signer::start(cmd.signer_conf.clone(), signer_deps));
 
 	let informant = Arc::new(Informant::new(
 		service.client(),
@@ -363,10 +375,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// start ui
 	if cmd.ui {
-		if !cmd.dapps_conf.enabled {
-			return Err("Cannot use UI command with Dapps turned off.".into())
-		}
-		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+		try!(open_ui(&cmd.dapps_conf, &cmd.signer_conf));
 	}
 
 	// Handle exit
