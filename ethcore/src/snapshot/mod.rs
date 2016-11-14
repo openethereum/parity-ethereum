@@ -26,6 +26,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
+use header::Header;
 use ids::BlockID;
 use views::BlockView;
 
@@ -202,7 +203,7 @@ impl<'a> BlockChunker<'a> {
 
 			// cut off the chunk if too large.
 
-			if new_loaded_size > PREFERRED_CHUNK_SIZE && self.rlps.len() > 0 {
+			if new_loaded_size > PREFERRED_CHUNK_SIZE && !self.rlps.is_empty() {
 				try!(self.write_chunk(last));
 				loaded_size = pair.len();
 			} else {
@@ -388,7 +389,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 pub struct StateRebuilder {
 	db: Box<JournalDB>,
 	state_root: H256,
-	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
+	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
 	bloom: Bloom,
 }
@@ -399,43 +400,41 @@ impl StateRebuilder {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
-			code_map: HashMap::new(),
+			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
 			bloom: StateDB::load_bloom(&*db),
 		}
 	}
 
 	/// Feed an uncompressed state chunk into the rebuilder.
-	pub fn feed(&mut self, chunk: &[u8]) -> Result<(), ::error::Error> {
+	pub fn feed(&mut self, chunk: &[u8], flag: &AtomicBool) -> Result<(), ::error::Error> {
 		let rlp = UntrustedRlp::new(chunk);
 		let empty_rlp = StateAccount::new_basic(U256::zero(), U256::zero()).rlp();
-		let account_fat_rlps: Vec<_> = rlp.iter().map(|r| r.as_raw()).collect();
 		let mut pairs = Vec::with_capacity(rlp.item_count());
 
 		// initialize the pairs vector with empty values so we have slots to write into.
 		pairs.resize(rlp.item_count(), (H256::new(), Vec::new()));
 
-		let chunk_size = account_fat_rlps.len() / ::num_cpus::get() + 1;
+		let status = try!(rebuild_accounts(
+			self.db.as_hashdb_mut(),
+			rlp,
+			&mut pairs,
+			&self.known_code,
+			flag
+		));
 
-		// new code contained within this chunk.
-		let mut chunk_code = HashMap::new();
-
-		for (account_chunk, out_pairs_chunk) in account_fat_rlps.chunks(chunk_size).zip(pairs.chunks_mut(chunk_size)) {
-			let code_map = &self.code_map;
-			let status = try!(rebuild_accounts(self.db.as_hashdb_mut(), account_chunk, out_pairs_chunk, code_map));
-			chunk_code.extend(status.new_code);
-			for (addr_hash, code_hash) in status.missing_code {
-				self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
-			}
+		for (addr_hash, code_hash) in status.missing_code {
+			self.missing_code.entry(code_hash).or_insert_with(Vec::new).push(addr_hash);
 		}
+
 		// patch up all missing code. must be done after collecting all new missing code entries.
-		for (code_hash, code) in chunk_code {
+		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
 				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
-			self.code_map.insert(code_hash, code);
+			self.known_code.insert(code_hash, first_with);
 		}
 
 		let backing = self.db.backing().clone();
@@ -449,6 +448,8 @@ impl StateRebuilder {
 			};
 
 			for (hash, thin_rlp) in pairs {
+				if !flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+
 				if &thin_rlp[..] != &empty_rlp[..] {
 					self.bloom.set(&*hash);
 				}
@@ -481,38 +482,55 @@ impl StateRebuilder {
 
 #[derive(Default)]
 struct RebuiltStatus {
-	new_code: Vec<(H256, Bytes)>, // new code that's become available.
+	// new code that's become available. (code_hash, code, addr_hash)
+	new_code: Vec<(H256, Bytes, H256)>,
 	missing_code: Vec<(H256, H256)>, // accounts that are missing code.
 }
 
 // rebuild a set of accounts and their storage.
-// returns
+// returns a status detailing newly-loaded code and accounts missing code.
 fn rebuild_accounts(
 	db: &mut HashDB,
-	account_chunk: &[&[u8]],
+	account_fat_rlps: UntrustedRlp,
 	out_chunk: &mut [(H256, Bytes)],
-	code_map: &HashMap<H256, Bytes>
-) -> Result<RebuiltStatus, ::error::Error>
-{
+	known_code: &HashMap<H256, H256>,
+	abort_flag: &AtomicBool,
+) -> Result<RebuiltStatus, ::error::Error> {
 	let mut status = RebuiltStatus::default();
-	for (account_pair, out) in account_chunk.into_iter().zip(out_chunk) {
-		let account_rlp = UntrustedRlp::new(account_pair);
+	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk) {
+		if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
 
 		let hash: H256 = try!(account_rlp.val_at(0));
 		let fat_rlp = try!(account_rlp.at(1));
 
 		let thin_rlp = {
-			let mut acct_db = AccountDBMut::from_hash(db, hash);
 
 			// fill out the storage trie and code while decoding.
-			let (acc, maybe_code) = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp, code_map));
+			let (acc, maybe_code) = {
+				let mut acct_db = AccountDBMut::from_hash(db, hash);
+				try!(Account::from_fat_rlp(&mut acct_db, fat_rlp))
+			};
 
 			let code_hash = acc.code_hash().clone();
 			match maybe_code {
-				Some(code) => status.new_code.push((code_hash, code)),
+				// new inline code
+				Some(code) => status.new_code.push((code_hash, code, hash)),
 				None => {
-					if code_hash != ::util::SHA3_EMPTY && !code_map.contains_key(&code_hash) {
-						status.missing_code.push((hash, code_hash));
+					if code_hash != ::util::SHA3_EMPTY {
+						// see if this code has already been included inline
+						match known_code.get(&code_hash) {
+							Some(&first_with) => {
+								// if so, load it from the database.
+								let code = try!(AccountDB::from_hash(db, first_with)
+									.get(&code_hash)
+									.ok_or_else(|| Error::MissingCode(vec![first_with])));
+
+								// and write it again under a different mangled key
+								AccountDBMut::from_hash(db, hash).emplace(code_hash, code);
+							}
+							// if not, queue it up to be filled later
+							None => status.missing_code.push((hash, code_hash)),
+						}
 					}
 				}
 			}
@@ -527,6 +545,20 @@ fn rebuild_accounts(
 
 /// Proportion of blocks which we will verify `PoW` for.
 const POW_VERIFY_RATE: f32 = 0.02;
+
+/// Verify an old block with the given header, engine, blockchain, body. If `always` is set, it will perform
+/// the fullest verification possible. If not, it will take a random sample to determine whether it will
+/// do heavy or light verification.
+pub fn verify_old_block(rng: &mut OsRng, header: &Header, engine: &Engine, chain: &BlockChain, body: Option<&[u8]>, always: bool) -> Result<(), ::error::Error> {
+	if always || rng.gen::<f32>() <= POW_VERIFY_RATE {
+		match chain.block_header(header.parent_hash()) {
+			Some(parent) => engine.verify_block_family(&header, &parent, body),
+			None => engine.verify_block_seal(&header),
+		}
+	} else {
+		engine.verify_block_basic(&header, body)
+	}
+}
 
 /// Rebuilds the blockchain from chunks.
 ///
@@ -543,31 +575,42 @@ pub struct BlockRebuilder {
 	rng: OsRng,
 	disconnected: Vec<(u64, H256)>,
 	best_number: u64,
+	best_hash: H256,
+	best_root: H256,
+	fed_blocks: u64,
 }
 
 impl BlockRebuilder {
 	/// Create a new BlockRebuilder.
-	pub fn new(chain: BlockChain, db: Arc<Database>, best_number: u64) -> Result<Self, ::error::Error> {
+	pub fn new(chain: BlockChain, db: Arc<Database>, manifest: &ManifestData) -> Result<Self, ::error::Error> {
 		Ok(BlockRebuilder {
 			chain: chain,
 			db: db,
 			rng: try!(OsRng::new()),
 			disconnected: Vec::new(),
-			best_number: best_number,
+			best_number: manifest.block_number,
+			best_hash: manifest.block_hash,
+			best_root: manifest.state_root,
+			fed_blocks: 0,
 		})
 	}
 
 	/// Feed the rebuilder an uncompressed block chunk.
 	/// Returns the number of blocks fed or any errors.
-	pub fn feed(&mut self, chunk: &[u8], engine: &Engine) -> Result<u64, ::error::Error> {
+	pub fn feed(&mut self, chunk: &[u8], engine: &Engine, abort_flag: &AtomicBool) -> Result<u64, ::error::Error> {
 		use basic_types::Seal::With;
 		use util::U256;
 		use util::triehash::ordered_trie_root;
 
 		let rlp = UntrustedRlp::new(chunk);
 		let item_count = rlp.item_count();
+		let num_blocks = (item_count - 3) as u64;
 
 		trace!(target: "snapshot", "restoring block chunk with {} blocks.", item_count - 3);
+
+		if self.fed_blocks + num_blocks > SNAPSHOT_BLOCKS {
+			return Err(Error::TooManyBlocks(SNAPSHOT_BLOCKS, self.fed_blocks).into())
+		}
 
 		// todo: assert here that these values are consistent with chunks being in order.
 		let mut cur_number = try!(rlp.val_at::<u64>(0)) + 1;
@@ -575,6 +618,8 @@ impl BlockRebuilder {
 		let parent_total_difficulty = try!(rlp.val_at::<U256>(2));
 
 		for idx in 3..item_count {
+			if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
+
 			let pair = try!(rlp.at(idx));
 			let abridged_rlp = try!(pair.at(0)).as_raw().to_owned();
 			let abridged_block = AbridgedBlock::from_raw(abridged_rlp);
@@ -585,14 +630,27 @@ impl BlockRebuilder {
 
 			let block = try!(abridged_block.to_block(parent_hash, cur_number, receipts_root));
 			let block_bytes = block.rlp_bytes(With);
+			let is_best = cur_number == self.best_number;
 
-			if self.rng.gen::<f32>() <= POW_VERIFY_RATE {
-				try!(engine.verify_block_seal(&block.header))
-			} else {
-				try!(engine.verify_block_basic(&block.header, Some(&block_bytes)));
+			if is_best {
+				if block.header.hash() != self.best_hash {
+					return Err(Error::WrongBlockHash(cur_number, self.best_hash, block.header.hash()).into())
+				}
+
+				if block.header.state_root() != &self.best_root {
+					return Err(Error::WrongStateRoot(self.best_root, *block.header.state_root()).into())
+				}
 			}
 
-			let is_best = cur_number == self.best_number;
+			try!(verify_old_block(
+				&mut self.rng,
+				&block.header,
+				engine,
+				&self.chain,
+				Some(&block_bytes),
+				is_best
+			));
+
 			let mut batch = self.db.transaction();
 
 			// special-case the first block in each chunk.
@@ -610,11 +668,15 @@ impl BlockRebuilder {
 			cur_number += 1;
 		}
 
-		Ok(item_count as u64 - 3)
+		self.fed_blocks += num_blocks;
+
+		Ok(num_blocks)
 	}
 
-	/// Glue together any disconnected chunks. To be called at the end.
-	pub fn glue_chunks(self) {
+	/// Glue together any disconnected chunks and check that the chain is complete.
+	pub fn finalize(self, canonical: HashMap<u64, H256>) -> Result<(), Error> {
+		let mut batch = self.db.transaction();
+
 		for (first_num, first_hash) in self.disconnected {
 			let parent_num = first_num - 1;
 
@@ -623,8 +685,23 @@ impl BlockRebuilder {
 			// the first block of the first chunks has nothing to connect to.
 			if let Some(parent_hash) = self.chain.block_hash(parent_num) {
 				// if so, add the child to it.
-				self.chain.add_child(parent_hash, first_hash);
+				self.chain.add_child(&mut batch, parent_hash, first_hash);
 			}
 		}
+		self.db.write_buffered(batch);
+
+		let best_number = self.best_number;
+		for num in (0..self.fed_blocks).map(|x| best_number - x) {
+
+			let hash = try!(self.chain.block_hash(num).ok_or(Error::IncompleteChain));
+
+			if let Some(canon_hash) = canonical.get(&num).cloned() {
+				if canon_hash != hash {
+					return Err(Error::WrongBlockHash(num, canon_hash, hash));
+				}
+			}
+		}
+
+		Ok(())
 	}
 }

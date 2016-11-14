@@ -57,6 +57,7 @@ export default class Token extends Component {
     isLoading: PropTypes.bool,
     isPending: PropTypes.bool,
     isTokenOwner: PropTypes.bool.isRequired,
+    isContractOwner: PropTypes.bool.isRequired,
 
     fullWidth: PropTypes.bool
   };
@@ -151,8 +152,8 @@ export default class Token extends Component {
     if (!base || base < 0) return null;
     return (
       <Chip
-        value={ base.toString() }
-        label='Base' />
+        value={ Math.log10(base).toString() }
+        label='Decimals' />
     );
   }
 
@@ -220,7 +221,7 @@ export default class Token extends Component {
   }
 
   renderUnregister () {
-    if (!this.props.isTokenOwner) {
+    if (!this.props.isContractOwner) {
       return null;
     }
 

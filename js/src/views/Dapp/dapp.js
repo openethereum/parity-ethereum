@@ -15,21 +15,48 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
+
+import DappsStore from '../Dapps/dappsStore';
 
 import styles from './dapp.css';
 
-const dapphost = process.env.NODE_ENV === 'production' ? 'http://127.0.0.1:8080/ui' : '';
-
+@observer
 export default class Dapp extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     params: PropTypes.object
   };
 
+  store = new DappsStore(this.context.api);
+
   render () {
-    const { name, type } = this.props.params;
-    const src = type === 'global'
-      ? `${dapphost}/${name}.html`
-      : `http://127.0.0.1:8080/${name}/`;
+    const { dappsUrl } = this.context.api;
+    const { id } = this.props.params;
+    const app = this.store.apps.find((app) => app.id === id);
+
+    if (!app) {
+      return null;
+    }
+
+    let src = null;
+    switch (app.type) {
+      case 'local':
+        src = `${dappsUrl}/${app.id}/`;
+        break;
+      case 'network':
+        src = `${dappsUrl}/${app.contentHash}/`;
+        break;
+      default:
+        const dapphost = process.env.NODE_ENV === 'production' && !app.secure
+          ? `${dappsUrl}/ui`
+          : '';
+        src = `${dapphost}/${app.url}.html`;
+        break;
+    }
 
     return (
       <iframe

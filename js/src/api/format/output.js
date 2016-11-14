@@ -70,6 +70,20 @@ export function outDate (date) {
   return new Date(outNumber(date).toNumber() * 1000);
 }
 
+export function outHistogram (histogram) {
+  if (histogram) {
+    Object.keys(histogram).forEach((key) => {
+      switch (key) {
+        case 'bucketBounds':
+        case 'counts':
+          histogram[key] = histogram[key].map(outNumber);
+      }
+    });
+  }
+
+  return histogram;
+}
+
 export function outLog (log) {
   Object.keys(log).forEach((key) => {
     switch (key) {
@@ -137,6 +151,28 @@ export function outSignerRequest (request) {
   }
 
   return request;
+}
+
+export function outSyncing (syncing) {
+  if (syncing && syncing !== 'false') {
+    Object.keys(syncing).forEach((key) => {
+      switch (key) {
+        case 'currentBlock':
+        case 'highestBlock':
+        case 'startingBlock':
+        case 'warpChunksAmount':
+        case 'warpChunksProcessed':
+          syncing[key] = outNumber(syncing[key]);
+          break;
+
+        case 'blockGap':
+          syncing[key] = syncing[key] ? syncing[key].map(outNumber) : syncing[key];
+          break;
+      }
+    });
+  }
+
+  return syncing;
 }
 
 export function outTransaction (tx) {

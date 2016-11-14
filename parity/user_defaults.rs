@@ -18,6 +18,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::Path;
 use std::collections::BTreeMap;
+use std::time::Duration;
 use serde::{Serialize, Serializer, Error, Deserialize, Deserializer};
 use serde::de::{Visitor, MapVisitor};
 use serde::de::impls::BTreeMapVisitor;
@@ -25,12 +26,14 @@ use serde_json::Value;
 use serde_json::de::from_reader;
 use serde_json::ser::to_string;
 use util::journaldb::Algorithm;
+use ethcore::client::Mode;
 
 pub struct UserDefaults {
 	pub is_first_launch: bool,
 	pub pruning: Algorithm,
 	pub tracing: bool,
 	pub fat_db: bool,
+	pub mode: Mode,
 }
 
 impl Serialize for UserDefaults {
@@ -40,6 +43,21 @@ impl Serialize for UserDefaults {
 		map.insert("pruning".into(), Value::String(self.pruning.as_str().into()));
 		map.insert("tracing".into(), Value::Bool(self.tracing));
 		map.insert("fat_db".into(), Value::Bool(self.fat_db));
+		let mode_str = match self.mode {
+			Mode::Off => "offline",
+			Mode::Dark(timeout) => {
+				map.insert("mode.timeout".into(), Value::U64(timeout.as_secs()));
+				"dark"
+			},
+			Mode::Passive(timeout, alarm) => {
+				map.insert("mode.timeout".into(), Value::U64(timeout.as_secs()));
+				map.insert("mode.alarm".into(), Value::U64(alarm.as_secs()));
+				"passive"
+			},
+			Mode::Active => "active",
+		};
+		map.insert("mode".into(), Value::String(mode_str.into()));
+
 		map.serialize(serializer)
 	}
 }
@@ -67,11 +85,28 @@ impl Visitor for UserDefaultsVisitor {
 		let fat_db: Value = map.remove("fat_db".into()).unwrap_or_else(|| Value::Bool(false));
 		let fat_db = try!(fat_db.as_bool().ok_or_else(|| Error::custom("invalid fat_db value")));
 
+		let mode: Value = map.remove("mode".into()).unwrap_or_else(|| Value::String("active".to_owned()));
+		let mode = match try!(mode.as_str().ok_or_else(|| Error::custom("invalid mode value"))) {
+			"offline" => Mode::Off,
+			"dark" => {
+				let timeout = try!(map.remove("mode.timeout".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
+				Mode::Dark(Duration::from_secs(timeout))
+			},
+			"passive" => {
+				let timeout = try!(map.remove("mode.timeout".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.timeout value")));
+				let alarm = try!(map.remove("mode.alarm".into()).and_then(|v| v.as_u64()).ok_or_else(|| Error::custom("invalid/missing mode.alarm value")));
+				Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))
+			},
+			"active" => Mode::Active,
+			_ => { return Err(Error::custom("invalid mode value")); },
+		};
+
 		let user_defaults = UserDefaults {
 			is_first_launch: false,
 			pruning: pruning,
 			tracing: tracing,
 			fat_db: fat_db,
+			mode: mode,
 		};
 
 		Ok(user_defaults)
@@ -85,6 +120,7 @@ impl Default for UserDefaults {
 			pruning: Algorithm::default(),
 			tracing: false,
 			fat_db: false,
+			mode: Mode::Active,
 		}
 	}
 }
@@ -97,7 +133,7 @@ impl UserDefaults {
 		}
 	}
 
-	pub fn save<P>(self, path: P) -> Result<(), String> where P: AsRef<Path> {
+	pub fn save<P>(&self, path: P) -> Result<(), String> where P: AsRef<Path> {
 		let mut file: File = try!(File::create(path).map_err(|_| "Cannot create user defaults file".to_owned()));
 		file.write_all(to_string(&self).unwrap().as_bytes()).map_err(|_| "Failed to save user defaults".to_owned())
 	}

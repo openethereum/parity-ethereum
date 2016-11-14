@@ -1,3 +1,4 @@
+
 // Copyright 2015, 2016 Ethcore (UK) Ltd.
 // This file is part of Parity.
 
@@ -17,6 +18,7 @@
 const HappyPack = require('happypack');
 const path = require('path');
 const postcssImport = require('postcss-import');
+const postcssNested = require('postcss-nested');
 const postcssVars = require('postcss-simple-vars');
 const rucksack = require('rucksack-css');
 const webpack = require('webpack');
@@ -35,15 +37,10 @@ module.exports = {
   entry: {
     // dapps
     'basiccoin': ['./dapps/basiccoin.js'],
-    'gavcoin': ['./dapps/gavcoin.js'],
     'githubhint': ['./dapps/githubhint.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
-    // library
-    'inject': ['./web3.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js'],
     // app
     'index': ['./index.js']
   },
@@ -69,7 +66,7 @@ module.exports = {
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[name].[ext]'
+        loader: 'file?name=[name].[ext]!extract-loader!html-loader'
       },
 
       {
@@ -83,8 +80,8 @@ module.exports = {
         loader: 'style!css'
       },
       {
-        test: /\.(png|jpg|)$/,
-        loader: 'file-loader'
+        test: /\.(png|jpg)$/,
+        loader: 'file-loader?name=[name].[hash].[ext]'
       },
       {
         test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
@@ -105,10 +102,17 @@ module.exports = {
     root: path.join(__dirname, 'node_modules'),
     fallback: path.join(__dirname, 'node_modules')
   },
+
+  htmlLoader: {
+    root: path.resolve(__dirname, 'assets/images'),
+    attrs: ['img:src', 'link:href']
+  },
+
   postcss: [
     postcssImport({
       addDependencyTo: webpack
     }),
+    postcssNested({}),
     postcssVars({
       unknown: function (node, name, result) {
         node.warn(result, `Unknown variable ${name}`);
@@ -194,7 +198,8 @@ module.exports = {
     proxy: {
       '/api/*': {
         target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        changeOrigin: true,
+        autoRewrite: true
       },
       '/app/*': {
         target: 'http://127.0.0.1:8080',

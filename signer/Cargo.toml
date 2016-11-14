@@ -3,7 +3,7 @@ description = "Ethcore Trusted Signer"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore-signer"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
@@ -23,7 +23,7 @@ ethcore-rpc = { path = "../rpc" }
 ethcore-devtools = { path = "../devtools" }
 parity-ui = { path = "../dapps/ui", version = "1.4", optional = true }
 
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 
 [features]
 dev = ["clippy"]

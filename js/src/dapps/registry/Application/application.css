@@ -37,3 +37,27 @@
   font-size: 80%;
   background-color: #f0f0f0;
 }
+
+.actions {
+  margin: 1em;
+
+  * {
+    font-size: 1.3rem !important;
+  }
+
+  > * {
+    padding-bottom: 0 !important;
+  }
+}
+
+.warning {
+  background: #f80;
+  bottom: 0;
+  color: #fff;
+  left: 0;
+  opacity: 1;
+  padding: 1.5em;
+  position: fixed;
+  right: 50%;
+  z-index: 100;
+}

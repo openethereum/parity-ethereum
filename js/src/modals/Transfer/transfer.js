@@ -62,6 +62,7 @@ export default class Transfer extends Component {
     gasEst: '0',
     gasError: null,
     gasPrice: DEFAULT_GASPRICE,
+    gasPriceHistogram: {},
     gasPriceError: null,
     recipient: '',
     recipientError: ERRORS.requireRecipient,
@@ -89,7 +90,9 @@ export default class Transfer extends Component {
         current={ stage }
         steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
         waiting={ extras ? [2] : [1] }
-        visible>
+        visible
+        scroll
+      >
         { this.renderPage() }
       </Modal>
     );
@@ -169,6 +172,10 @@ export default class Transfer extends Component {
   }
 
   renderExtrasPage () {
+    if (!this.state.gasPriceHistogram) {
+      return null;
+    }
+
     return (
       <Extras
         isEth={ this.state.isEth }
@@ -180,6 +187,7 @@ export default class Transfer extends Component {
         gasPrice={ this.state.gasPrice }
         gasPriceDefault={ this.state.gasPriceDefault }
         gasPriceError={ this.state.gasPriceError }
+        gasPriceHistogram={ this.state.gasPriceHistogram }
         total={ this.state.total }
         totalError={ this.state.totalError }
         onChange={ this.onUpdateDetails } />
@@ -403,6 +411,7 @@ export default class Transfer extends Component {
     const { api } = this.context;
     const { account } = this.props;
     const { data, gas, gasPrice, recipient, value } = this.state;
+
     const options = {
       from: account.address,
       to: recipient,
@@ -415,18 +424,20 @@ export default class Transfer extends Component {
       options.data = data;
     }
 
-    return api.eth.postTransaction(options);
+    return api.parity.postTransaction(options);
   }
 
   _sendToken () {
     const { account, balance } = this.props;
-    const { recipient, value, tag } = this.state;
+    const { gas, gasPrice, recipient, value, tag } = this.state;
     const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
 
     return token.contract.instance.transfer
       .postTransaction({
         from: account.address,
-        to: token.address
+        to: token.address,
+        gas,
+        gasPrice
       }, [
         recipient,
         new BigNumber(value).mul(token.format).toFixed(0)
@@ -444,7 +455,7 @@ export default class Transfer extends Component {
         : this._sendToken()
       ).then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('eth_checkRequest', requestId);
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .then((txhash) => {
         this.onNext();
@@ -483,7 +494,7 @@ export default class Transfer extends Component {
         to: token.address
       }, [
         recipient,
-        new BigNumber(value || 0).mul(token.format).toString()
+        new BigNumber(value || 0).mul(token.format).toFixed(0)
       ]);
   }
 
@@ -579,12 +590,16 @@ export default class Transfer extends Component {
   getDefaults = () => {
     const { api } = this.context;
 
-    api.eth
-      .gasPrice()
-      .then((gasPrice) => {
+    Promise
+      .all([
+        api.parity.gasPriceHistogram(),
+        api.eth.gasPrice()
+      ])
+      .then(([gasPriceHistogram, gasPrice]) => {
         this.setState({
           gasPrice: gasPrice.toString(),
-          gasPriceDefault: gasPrice.toFormat()
+          gasPriceDefault: gasPrice.toFormat(),
+          gasPriceHistogram
         }, this.recalculate);
       })
       .catch((error) => {

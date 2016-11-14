@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inBlockNumber, inData, inFilter, inHash, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAddress, outBlock, outLog, outNumber, outReceipt, outTransaction } from '../../format/output';
+import { outAddress, outBlock, outLog, outNumber, outReceipt, outSyncing, outTransaction } from '../../format/output';
 
 export default class Eth {
   constructor (transport) {
@@ -37,11 +37,6 @@ export default class Eth {
   call (options, blockNumber = 'latest') {
     return this._transport
       .execute('eth_call', inOptions(options), inBlockNumber(blockNumber));
-  }
-
-  checkRequest (requestId) {
-    return this._transport
-      .execute('eth_checkRequest', inNumber16(requestId));
   }
 
   coinbase () {
@@ -267,11 +262,6 @@ export default class Eth {
       .execute('eth_pendingTransactions');
   }
 
-  postTransaction (options) {
-    return this._transport
-      .execute('eth_postTransaction', inOptions(options));
-  }
-
   protocolVersion () {
     return this._transport
       .execute('eth_protocolVersion');
@@ -314,7 +304,8 @@ export default class Eth {
 
   syncing () {
     return this._transport
-      .execute('eth_syncing');
+      .execute('eth_syncing')
+      .then(outSyncing);
   }
 
   uninstallFilter (filterId) {

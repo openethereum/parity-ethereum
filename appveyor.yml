@@ -38,6 +38,8 @@ after_test:
   - cargo build --verbose --release
   - ps: if($env:cert) { Start-FileDownload $env:cert -FileName $env:keyfile }
   - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass target\release\parity.exe }
+  - msbuild windows\ptray\ptray.vcxproj /p:Platform=x64 /p:Configuration=Release
+  - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass windows\ptray\x64\release\ptray.exe }
   - makensis.exe nsis\installer.nsi
   - ps: if($env:cert) { signtool sign /f $env:keyfile /p $env:certpass nsis\installer.exe }
 

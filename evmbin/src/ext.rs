@@ -31,7 +31,7 @@ pub struct FakeExt {
 impl Default for FakeExt {
 	fn default() -> Self {
 		FakeExt {
-			schedule: Schedule::new_homestead(),
+			schedule: Schedule::new_homestead_gas_fix(),
 			store: HashMap::new(),
 			depth: 1,
 		}
@@ -48,6 +48,14 @@ impl Ext for FakeExt {
 	}
 
 	fn exists(&self, _address: &Address) -> bool {
+		unimplemented!();
+	}
+
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		unimplemented!(); 
+	}
+
+	fn origin_balance(&self) -> U256 {
 		unimplemented!();
 	}
 

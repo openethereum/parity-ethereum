@@ -18,7 +18,8 @@ use std::sync::Arc;
 use std::collections::VecDeque;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
-use mio::{Handler, Token, EventSet, EventLoop, PollOpt, TryRead, TryWrite};
+use mio::{Token, Ready, PollOpt};
+use mio::deprecated::{Handler, EventLoop, TryRead, TryWrite};
 use mio::tcp::*;
 use util::hash::*;
 use util::sha3::*;
@@ -34,6 +35,7 @@ use rcrypto::aessafe::*;
 use rcrypto::symmetriccipher::*;
 use rcrypto::buffer::*;
 use tiny_keccak::Keccak;
+use bytes::{Buf, MutBuf};
 use crypto;
 
 const ENCRYPTED_HEADER_LEN: usize = 32;
@@ -57,7 +59,7 @@ pub struct GenericConnection<Socket: GenericSocket> {
 	/// Send out packets FIFO
 	send_queue: VecDeque<Cursor<Bytes>>,
 	/// Event flags this connection expects
-	interest: EventSet,
+	interest: Ready,
 	/// Shared network statistics
 	stats: Arc<NetworkStats>,
 	/// Registered flag
@@ -81,8 +83,9 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 		let sock_ref = <Socket as Read>::by_ref(&mut self.socket);
 		loop {
 			let max = self.rec_size - self.rec_buf.len();
-			match sock_ref.take(max as u64).try_read_buf(&mut self.rec_buf) {
+			match sock_ref.take(max as u64).try_read(unsafe { self.rec_buf.mut_bytes() }) {
 				Ok(Some(size)) if size != 0  => {
+					unsafe { self.rec_buf.advance(size); }
 					self.stats.inc_recv(size);
 					trace!(target:"network", "{}: Read {} of {} bytes", self.token, self.rec_buf.len(), self.rec_size);
 					if self.rec_size != 0 && self.rec_buf.len() == self.rec_size {
@@ -109,7 +112,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 			trace!(target:"network", "{}: Sending {} bytes", self.token, data.len());
 			self.send_queue.push_back(Cursor::new(data));
 			if !self.interest.is_writable() {
-				self.interest.insert(EventSet::writable());
+				self.interest.insert(Ready::writable());
 			}
 			io.update_registration(self.token).ok();
 		}
@@ -122,22 +125,25 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 
 	/// Writable IO handler. Called when the socket is ready to send.
 	pub fn writable<Message>(&mut self, io: &IoContext<Message>) -> Result<WriteStatus, NetworkError> where Message: Send + Clone + Sync + 'static {
-		if self.send_queue.is_empty() {
-			return Ok(WriteStatus::Complete)
-		}
 		{
-			let buf = self.send_queue.front_mut().unwrap();
+			let buf = match self.send_queue.front_mut() {
+				Some(buf) => buf,
+				None => return Ok(WriteStatus::Complete),
+			};
 			let send_size = buf.get_ref().len();
-			if (buf.position() as usize) >= send_size {
+			let pos = buf.position() as usize;
+			if (pos as usize) >= send_size {
 				warn!(target:"net", "Unexpected connection data");
 				return Ok(WriteStatus::Complete)
 			}
-			match self.socket.try_write_buf(buf) {
-				Ok(Some(size)) if (buf.position() as usize) < send_size => {
+			let buf = buf as &mut Buf;
+			match self.socket.try_write(buf.bytes()) {
+				Ok(Some(size)) if (pos + size) < send_size => {
+					buf.advance(size);
 					self.stats.inc_send(size);
 					Ok(WriteStatus::Ongoing)
 				},
-				Ok(Some(size)) if (buf.position() as usize) == send_size => {
+				Ok(Some(size)) if (pos + size) == send_size => {
 					self.stats.inc_send(size);
 					trace!(target:"network", "{}: Wrote {} bytes", self.token, send_size);
 					Ok(WriteStatus::Complete)
@@ -151,7 +157,7 @@ impl<Socket: GenericSocket> GenericConnection<Socket> {
 				self.send_queue.pop_front();
 			}
 			if self.send_queue.is_empty() {
-				self.interest.remove(EventSet::writable());
+				self.interest.remove(Ready::writable());
 				try!(io.update_registration(self.token));
 			}
 			Ok(r)
@@ -171,7 +177,7 @@ impl Connection {
 			send_queue: VecDeque::new(),
 			rec_buf: Bytes::new(),
 			rec_size: 0,
-			interest: EventSet::hup() | EventSet::readable(),
+			interest: Ready::hup() | Ready::readable(),
 			stats: stats,
 			registered: AtomicBool::new(false),
 		}
@@ -205,7 +211,7 @@ impl Connection {
 			rec_buf: Vec::new(),
 			rec_size: 0,
 			send_queue: self.send_queue.clone(),
-			interest: EventSet::hup(),
+			interest: Ready::hup(),
 			stats: self.stats.clone(),
 			registered: AtomicBool::new(false),
 		})
@@ -433,7 +439,7 @@ impl EncryptedConnection {
 		let mut prev = H128::new();
 		mac.clone().finalize(&mut prev);
 		let mut enc = H128::new();
-		mac_encoder.encrypt(&mut RefReadBuffer::new(&prev), &mut RefWriteBuffer::new(&mut enc), true).unwrap();
+		mac_encoder.encrypt(&mut RefReadBuffer::new(&prev), &mut RefWriteBuffer::new(&mut enc), true).expect("Error updating MAC");
 		mac_encoder.reset();
 
 		enc = enc ^ if seed.is_empty() { prev } else { H128::from_slice(seed) };
@@ -499,7 +505,7 @@ mod tests {
 	use std::sync::atomic::AtomicBool;
 	use super::super::stats::*;
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
-	use mio::{EventSet};
+	use mio::{Ready};
 	use std::collections::VecDeque;
 	use util::bytes::*;
 	use devtools::*;
@@ -545,7 +551,7 @@ mod tests {
 				send_queue: VecDeque::new(),
 				rec_buf: Bytes::new(),
 				rec_size: 0,
-				interest: EventSet::hup() | EventSet::readable(),
+				interest: Ready::hup() | Ready::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
 				registered: AtomicBool::new(false),
 			}
@@ -568,7 +574,7 @@ mod tests {
 				send_queue: VecDeque::new(),
 				rec_buf: Bytes::new(),
 				rec_size: 0,
-				interest: EventSet::hup() | EventSet::readable(),
+				interest: Ready::hup() | Ready::readable(),
 				stats: Arc::<NetworkStats>::new(NetworkStats::new()),
 				registered: AtomicBool::new(false),
 			}

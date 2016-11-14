@@ -16,9 +16,10 @@
 
 //! Types used in Confirmations queue (Trusted Signer)
 
-use v1::types::{U256, TransactionRequest, H160, H256, Bytes};
+use std::fmt;
+use serde::{Serialize, Serializer};
+use v1::types::{U256, TransactionRequest, H160, H256, H520, Bytes};
 use v1::helpers;
-
 
 /// Confirmation waiting in a queue
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
@@ -47,6 +48,15 @@ pub struct SignRequest {
 	pub hash: H256,
 }
 
+impl From<(H160, H256)> for SignRequest {
+	fn from(tuple: (H160, H256)) -> Self {
+		SignRequest {
+			address: tuple.0,
+			hash: tuple.1,
+		}
+	}
+}
+
 /// Decrypt request
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub struct DecryptRequest {
@@ -56,15 +66,53 @@ pub struct DecryptRequest {
 	pub msg: Bytes,
 }
 
+impl From<(H160, Bytes)> for DecryptRequest {
+	fn from(tuple: (H160, Bytes)) -> Self {
+		DecryptRequest {
+			address: tuple.0,
+			msg: tuple.1,
+		}
+	}
+}
+
+/// Confirmation response for particular payload
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+pub enum ConfirmationResponse {
+	/// Transaction Hash
+	SendTransaction(H256),
+	/// Transaction RLP
+	SignTransaction(Bytes),
+	/// Signature
+	Signature(H520),
+	/// Decrypted data
+	Decrypt(Bytes),
+}
+
+impl Serialize for ConfirmationResponse {
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+		where S: Serializer
+	{
+		match *self {
+			ConfirmationResponse::SendTransaction(ref hash) => hash.serialize(serializer),
+			ConfirmationResponse::SignTransaction(ref rlp) => rlp.serialize(serializer),
+			ConfirmationResponse::Signature(ref signature) => signature.serialize(serializer),
+			ConfirmationResponse::Decrypt(ref data) => data.serialize(serializer),
+		}
+	}
+}
+
 /// Confirmation payload, i.e. the thing to be confirmed
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
-	/// Transaction
+	/// Send Transaction
 	#[serde(rename="transaction")]
-	Transaction(TransactionRequest),
+	SendTransaction(TransactionRequest),
+	/// Sign Transaction
+	#[serde(rename="transaction")]
+	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename="sign")]
-	Sign(SignRequest),
+	Signature(SignRequest),
 	/// Decryption
 	#[serde(rename="decrypt")]
 	Decrypt(DecryptRequest),
@@ -73,8 +121,9 @@ pub enum ConfirmationPayload {
 impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 	fn from(c: helpers::ConfirmationPayload) -> Self {
 		match c {
-			helpers::ConfirmationPayload::Transaction(t) => ConfirmationPayload::Transaction(t.into()),
-			helpers::ConfirmationPayload::Sign(address, hash) => ConfirmationPayload::Sign(SignRequest {
+			helpers::ConfirmationPayload::SendTransaction(t) => ConfirmationPayload::SendTransaction(t.into()),
+			helpers::ConfirmationPayload::SignTransaction(t) => ConfirmationPayload::SignTransaction(t.into()),
+			helpers::ConfirmationPayload::Signature(address, hash) => ConfirmationPayload::Signature(SignRequest {
 				address: address.into(),
 				hash: hash.into(),
 			}),
@@ -94,6 +143,41 @@ pub struct TransactionModification {
 	pub gas_price: Option<U256>,
 }
 
+/// Represents two possible return values.
+#[derive(Debug, Clone)]
+pub enum Either<A, B> where
+	A: fmt::Debug + Clone,
+	B: fmt::Debug + Clone,
+{
+	/// Primary value
+	Either(A),
+	/// Secondary value
+	Or(B),
+}
+
+impl<A, B> From<A> for Either<A, B> where
+	A: fmt::Debug + Clone,
+	B: fmt::Debug + Clone,
+{
+	fn from(a: A) -> Self {
+		Either::Either(a)
+	}
+}
+
+impl<A, B> Serialize for Either<A, B>  where
+	A: Serialize + fmt::Debug + Clone,
+	B: Serialize + fmt::Debug + Clone,
+{
+	fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error>
+		where S: Serializer
+	{
+		match *self {
+			Either::Either(ref a) => a.serialize(serializer),
+			Either::Or(ref b) => b.serialize(serializer),
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use std::str::FromStr;
@@ -107,7 +191,7 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Sign(1.into(), 5.into()),
+			payload: helpers::ConfirmationPayload::Signature(1.into(), 5.into()),
 		};
 
 		// when
@@ -123,7 +207,7 @@ mod tests {
 		// given
 		let request = helpers::ConfirmationRequest {
 			id: 15.into(),
-			payload: helpers::ConfirmationPayload::Transaction(helpers::FilledTransactionRequest {
+			payload: helpers::ConfirmationPayload::SendTransaction(helpers::FilledTransactionRequest {
 				from: 0.into(),
 				to: None,
 				gas: 15_000.into(),

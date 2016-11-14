@@ -29,14 +29,21 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 
 export default class Application extends Component {
   state = {
+    fromAddress: null,
     loading: true,
     url: '',
     urlError: null,
+    commit: '',
+    commitError: null,
     contentHash: '',
     contentHashError: null,
+    contentHashOwner: null,
     registerBusy: false,
     registerError: null,
-    registerState: ''
+    registerState: '',
+    registerType: 'file',
+    repo: '',
+    repoError: null
   }
 
   componentDidMount () {
@@ -63,25 +70,70 @@ export default class Application extends Component {
   }
 
   renderPage () {
-    const { registerBusy, url, urlError, contentHash, contentHashError } = this.state;
+    const { fromAddress, registerBusy, url, urlError, contentHash, contentHashError, contentHashOwner, commit, commitError, registerType, repo, repoError } = this.state;
+
+    let hashClass = null;
+    if (contentHashError) {
+      hashClass = contentHashOwner !== fromAddress ? styles.hashError : styles.hashWarning;
+    } else {
+      hashClass = styles.hashOk;
+    }
+
+    let valueInputs = null;
+    if (registerType === 'content') {
+      valueInputs = [
+        <div className={ styles.capture } key='repo'>
+          <input
+            type='text'
+            placeholder='owner/repo'
+            disabled={ registerBusy }
+            value={ repo }
+            className={ repoError ? styles.error : null }
+            onChange={ this.onChangeRepo } />
+        </div>,
+        <div className={ styles.capture } key='hash'>
+          <input
+            type='text'
+            placeholder='commit hash sha3'
+            disabled={ registerBusy }
+            value={ commit }
+            className={ commitError ? styles.error : null }
+            onChange={ this.onChangeCommit } />
+        </div>
+      ];
+    } else {
+      valueInputs = (
+        <div className={ styles.capture } key='url'>
+          <input
+            type='text'
+            placeholder='http://domain/filename'
+            disabled={ registerBusy }
+            value={ url }
+            className={ urlError ? styles.error : null }
+            onChange={ this.onChangeUrl } />
+        </div>
+      );
+    }
 
     return (
       <div className={ styles.container }>
         <div className={ styles.form }>
+          <div className={ styles.typeButtons }>
+            <Button
+              disabled={ registerBusy }
+              invert={ registerType !== 'file' }
+              onClick={ this.onClickTypeNormal }>File Link</Button>
+            <Button
+              disabled={ registerBusy }
+              invert={ registerType !== 'content' }
+              onClick={ this.onClickTypeContent }>Content Bundle</Button>
+          </div>
           <div className={ styles.box }>
             <div className={ styles.description }>
               Provide a valid URL to register. The content information can be used in other contracts that allows for reverse lookups, e.g. image registries, dapp registries, etc.
             </div>
-            <div className={ styles.capture }>
-              <input
-                type='text'
-                placeholder='http://domain/filename'
-                disabled={ registerBusy }
-                value={ url }
-                className={ urlError ? styles.error : null }
-                onChange={ this.onChangeUrl } />
-            </div>
-            <div className={ contentHashError ? styles.hashError : styles.hashOk }>
+            { valueInputs }
+            <div className={ hashClass }>
               { contentHashError || contentHash }
             </div>
             { registerBusy ? this.renderProgress() : this.renderButtons() }
@@ -92,7 +144,7 @@ export default class Application extends Component {
   }
 
   renderButtons () {
-    const { accounts, fromAddress, url, urlError, contentHashError } = this.state;
+    const { accounts, fromAddress, urlError, repoError, commitError, contentHashError, contentHashOwner } = this.state;
     const account = accounts[fromAddress];
 
     return (
@@ -105,7 +157,7 @@ export default class Application extends Component {
         </div>
         <Button
           onClick={ this.onClickRegister }
-          disabled={ !!contentHashError || !!urlError || url.length === 0 }>register url</Button>
+          disabled={ (contentHashError && contentHashOwner !== fromAddress) || urlError || repoError || commitError }>register url</Button>
       </div>
     );
   }
@@ -138,57 +190,107 @@ export default class Application extends Component {
     );
   }
 
-  onClickContentHash = () => {
-    this.setState({ fileHash: false, commit: '' });
+  onClickTypeNormal = () => {
+    const { url } = this.state;
+
+    this.setState({ registerType: 'file', commitError: null, repoError: null }, () => {
+      this.onChangeUrl({ target: { value: url } });
+    });
   }
 
-  onClickFileHash = () => {
-    this.setState({ fileHash: true, commit: 0 });
+  onClickTypeContent = () => {
+    const { repo, commit } = this.state;
+
+    this.setState({ registerType: 'content', urlError: null }, () => {
+      this.onChangeRepo({ target: { value: repo } });
+      this.onChangeCommit({ target: { value: commit } });
+    });
+  }
+
+  onChangeCommit = (event) => {
+    let commit = event.target.value;
+    const commitError = null;
+    let hasContent = false;
+
+    this.setState({ commit, commitError, contentHashError: null }, () => {
+      const { repo } = this.state || '';
+      const parts = repo.split('/');
+
+      hasContent = commit.length !== 0 && parts.length === 2 && parts[0].length !== 0 && parts[1].length !== 0;
+      if (!commitError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+      }
+    });
+  }
+
+  onChangeRepo = (event) => {
+    let repo = event.target.value;
+    const repoError = null;
+    let hasContent = false;
+
+    // TODO: field validation
+    if (!repoError) {
+      repo = repo.replace('https://github.com/', '');
+    }
+
+    this.setState({ repo, repoError, contentHashError: null }, () => {
+      const { commit } = this.state || '';
+      const parts = repo.split('/');
+
+      hasContent = commit.length !== 0 && parts.length === 2 && parts[0].length !== 0 && parts[1].length !== 0;
+      if (!repoError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(`https://codeload.github.com/${repo}/zip/${commit}`);
+      }
+    });
   }
 
   onChangeUrl = (event) => {
-    const url = event.target.value;
-    let urlError = null;
+    let url = event.target.value;
+    const urlError = null;
+    let hasContent = false;
 
-    if (url && url.length) {
-      var re = /^https?:\/\/(?:www\.|(?!www))[^\s\.]+\.[^\s]{2,}/g;
-      urlError = re.test(url)
-        ? null
-        : 'not matching rexex';
+    // TODO: field validation
+    if (!urlError) {
+      const parts = url.split('/');
+      hasContent = parts.length !== 0;
+
+      if (parts[2] === 'github.com' || parts[2] === 'raw.githubusercontent.com') {
+        url = `https://raw.githubusercontent.com/${parts.slice(3).join('/')}`.replace('/blob/', '/');
+      }
     }
 
-    this.setState({ url, urlError, contentHashError: 'hash lookup in progress' }, () => {
-      this.lookupHash();
+    this.setState({ url, urlError, contentHashError: null }, () => {
+      if (!urlError && hasContent) {
+        this.setState({ contentHashError: 'hash lookup in progress' });
+        this.lookupHash(url);
+      }
     });
   }
 
   onClickRegister = () => {
-    const { url, urlError, contentHash, contentHashError, fromAddress, instance } = this.state;
+    const { commit, commitError, contentHashError, contentHashOwner, fromAddress, url, urlError, registerType, repo, repoError } = this.state;
 
-    if (!!contentHashError || !!urlError || url.length === 0) {
+    // TODO: No errors are currently set, validation to be expanded and added for each
+    // field (query is fast to pick up the issues, so not burning atm)
+    if ((contentHashError && contentHashOwner !== fromAddress) || repoError || urlError || commitError) {
       return;
     }
 
-    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
+    if (registerType === 'file') {
+      this.registerUrl(url);
+    } else {
+      this.registerContent(repo, commit);
+    }
+  }
 
-    const values = [contentHash, url];
-    const options = { from: fromAddress };
-
-    instance
-      .hintURL.estimateGas(options, values)
-      .then((gas) => {
-        this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
-
-        const gasPassed = gas.mul(1.2);
-        options.gas = gasPassed.toFixed(0);
-        console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
-
-        return instance.hintURL.postTransaction(options, values);
-      })
+  trackRequest (promise) {
+    return promise
       .then((signerRequestId) => {
         this.setState({ signerRequestId, registerState: 'Transaction posted, Waiting for transaction authorization' });
 
-        return api.pollMethod('eth_checkRequest', signerRequestId);
+        return api.pollMethod('parity_checkRequest', signerRequestId);
       })
       .then((txHash) => {
         this.setState({ txHash, registerState: 'Transaction authorized, Waiting for network confirmations' });
@@ -202,12 +304,58 @@ export default class Application extends Component {
         });
       })
       .then((txReceipt) => {
-        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', contentHash: '' });
+        this.setState({ txReceipt, registerBusy: false, registerState: 'Network confirmed, Received transaction receipt', url: '', commit: '', repo: '', commitError: null, contentHash: '', contentHashOwner: null, contentHashError: null });
       })
       .catch((error) => {
         console.error('onSend', error);
         this.setState({ registerError: error.message });
       });
+  }
+
+  registerContent (repo, commit) {
+    const { contentHash, fromAddress, instance } = this.state;
+
+    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
+
+    const values = [contentHash, repo, commit.substr(0, 2) === '0x' ? commit : `0x${commit}`];
+    const options = { from: fromAddress };
+
+    this.trackRequest(
+      instance
+        .hint.estimateGas(options, values)
+        .then((gas) => {
+          this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
+
+          const gasPassed = gas.mul(1.2);
+          options.gas = gasPassed.toFixed(0);
+          console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
+
+          return instance.hint.postTransaction(options, values);
+        })
+    );
+  }
+
+  registerUrl (url) {
+    const { contentHash, fromAddress, instance } = this.state;
+
+    this.setState({ registerBusy: true, registerState: 'Estimating gas for the transaction' });
+
+    const values = [contentHash, url];
+    const options = { from: fromAddress };
+
+    this.trackRequest(
+      instance
+        .hintURL.estimateGas(options, values)
+        .then((gas) => {
+          this.setState({ registerState: 'Gas estimated, Posting transaction to the network' });
+
+          const gasPassed = gas.mul(1.2);
+          options.gas = gasPassed.toFixed(0);
+          console.log(`gas estimated at ${gas.toFormat(0)}, passing ${gasPassed.toFormat(0)}`);
+
+          return instance.hintURL.postTransaction(options, values);
+        })
+    );
   }
 
   onSelectFromAddress = () => {
@@ -229,10 +377,16 @@ export default class Application extends Component {
     this.setState({ fromAddress: addresses[index] });
   }
 
-  lookupHash () {
-    const { url, instance } = this.state;
+  lookupHash (url) {
+    const { instance } = this.state;
 
-    api.ethcore
+    if (!url || !url.length) {
+      return;
+    }
+
+    console.log(`lookupHash ${url}`);
+
+    api.parity
       .hashContent(url)
       .then((contentHash) => {
         console.log('lookupHash', contentHash);
@@ -243,13 +397,17 @@ export default class Application extends Component {
 
         instance.entries
           .call({}, [contentHash])
-          .then(([accountSlashRepo, commit, owner]) => {
-            console.log('lookupHash', accountSlashRepo, api.util.bytesToHex(commit), owner);
+          .then(([accountSlashRepo, commit, contentHashOwner]) => {
+            console.log('lookupHash', accountSlashRepo, api.util.bytesToHex(commit), contentHashOwner);
 
-            if (owner !== ZERO_ADDRESS) {
-              this.setState({ contentHashError: contentHash, contentHash: null });
+            if (contentHashOwner !== ZERO_ADDRESS) {
+              this.setState({
+                contentHashError: contentHash,
+                contentHashOwner,
+                contentHash
+              });
             } else {
-              this.setState({ contentHashError: null, contentHash });
+              this.setState({ contentHashError: null, contentHashOwner, contentHash });
             }
           });
       })

@@ -181,33 +181,37 @@ export default class PasswordManager extends Component {
                 disabled={ disabled }
                 onSubmit={ this.handleChangePassword }
                 onChange={ this.onEditCurrent } />
-
               <Input
-                label='new password'
-                hint='the new password for this account'
-                type='password'
-                submitOnBlur={ false }
-                disabled={ disabled }
-                onSubmit={ this.handleChangePassword }
-                onChange={ this.onEditNew } />
-              <Input
-                label='repeat new password'
-                hint='repeat the new password for this account'
-                type='password'
-                submitOnBlur={ false }
-                error={ repeatError }
-                disabled={ disabled }
-                onSubmit={ this.handleChangePassword }
-                onChange={ this.onEditRepeatNew } />
-
-              <Input
-                label='new password hint'
+                label='(optional) new password hint'
                 hint='hint for the new password'
                 submitOnBlur={ false }
                 value={ passwordHint }
                 disabled={ disabled }
                 onSubmit={ this.handleChangePassword }
                 onChange={ this.onEditHint } />
+              <div className={ styles.passwords }>
+                <div className={ styles.password }>
+                  <Input
+                    label='new password'
+                    hint='the new password for this account'
+                    type='password'
+                    submitOnBlur={ false }
+                    disabled={ disabled }
+                    onSubmit={ this.handleChangePassword }
+                    onChange={ this.onEditNew } />
+                </div>
+                <div className={ styles.password }>
+                  <Input
+                    label='repeat new password'
+                    hint='repeat the new password for this account'
+                    type='password'
+                    submitOnBlur={ false }
+                    error={ repeatError }
+                    disabled={ disabled }
+                    onSubmit={ this.handleChangePassword }
+                    onChange={ this.onEditRepeatNew } />
+                </div>
+              </div>
             </div>
           </Form>
         </Tab>
@@ -313,7 +317,7 @@ export default class PasswordManager extends Component {
     this.setState({ waiting: true, showMessage: false });
 
     this.context
-      .api.personal
+      .api.parity
       .testPassword(account.address, currentPass)
       .then(correct => {
         const message = correct
@@ -339,7 +343,7 @@ export default class PasswordManager extends Component {
     this.setState({ waiting: true, showMessage: false });
 
     this.context
-      .api.personal
+      .api.parity
       .testPassword(account.address, currentPass)
       .then(correct => {
         if (!correct) {
@@ -359,11 +363,11 @@ export default class PasswordManager extends Component {
 
         return Promise.all([
           this.context
-            .api.personal
+            .api.parity
             .setAccountMeta(account.address, meta),
 
           this.context
-            .api.personal
+            .api.parity
             .changePassword(account.address, currentPass, newPass)
         ])
           .then(() => {

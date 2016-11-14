@@ -247,21 +247,32 @@ impl Account {
 	}
 
 	/// Provide a database to get `code_hash`. Should not be called if it is a contract without code.
-	pub fn cache_code(&mut self, db: &HashDB) -> bool {
+	pub fn cache_code(&mut self, db: &HashDB) -> Option<Arc<Bytes>> {
 		// TODO: fill out self.code_cache;
 		trace!("Account::cache_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
-		self.is_cached() ||
+
+		if self.is_cached() { return Some(self.code_cache.clone()) }
+
 		match db.get(&self.code_hash) {
 			Some(x) => {
 				self.code_size = Some(x.len());
 				self.code_cache = Arc::new(x.to_vec());
-				true
+				Some(self.code_cache.clone())
 			},
 			_ => {
 				warn!("Failed reverse get of {}", self.code_hash);
-				false
+				None
 			},
 		}
+	}
+
+	/// Provide code to cache. For correctness, should be the correct code for the
+	/// account.
+	pub fn cache_given_code(&mut self, code: Arc<Bytes>) {
+		trace!("Account::cache_given_code: ic={}; self.code_hash={:?}, self.code_cache={}", self.is_cached(), self.code_hash, self.code_cache.pretty());
+
+		self.code_size = Some(code.len());
+		self.code_cache = code;
 	}
 
 	/// Provide a database to get `code_size`. Should not be called if it is a contract without code.
@@ -289,11 +300,17 @@ impl Account {
 	pub fn storage_is_clean(&self) -> bool { self.storage_changes.is_empty() }
 
 	/// Check if account has zero nonce, balance, no code and no storage.
+	///
+	/// NOTE: Will panic if `!self.storage_is_clean()`
 	pub fn is_empty(&self) -> bool {
-		self.storage_changes.is_empty() &&
+		assert!(self.storage_is_clean(), "Account::is_empty() may only legally be called when storage is clean.");
+		self.is_null() && self.storage_root == SHA3_NULL_RLP
+	}
+
+	/// Check if account has zero nonce, balance, no code.
+	pub fn is_null(&self) -> bool {
 		self.balance.is_zero() &&
 		self.nonce.is_zero() &&
-		self.storage_root == SHA3_NULL_RLP &&
 		self.code_hash == SHA3_EMPTY
 	}
 
@@ -413,7 +430,7 @@ impl Account {
 		self.code_size = other.code_size;
 		self.address_hash = other.address_hash;
 		let mut cache = self.storage_cache.borrow_mut();
-		for (k, v) in other.storage_cache.into_inner().into_iter() {
+		for (k, v) in other.storage_cache.into_inner() {
 			cache.insert(k.clone() , v.clone()); //TODO: cloning should not be required here
 		}
 		self.storage_changes = other.storage_changes;
@@ -476,7 +493,7 @@ mod tests {
 		};
 
 		let mut a = Account::from_rlp(&rlp);
-		assert!(a.cache_code(&db.immutable()));
+		assert!(a.cache_code(&db.immutable()).is_some());
 
 		let mut a = Account::from_rlp(&rlp);
 		assert_eq!(a.note_code(vec![0x55, 0x44, 0xffu8]), Ok(()));

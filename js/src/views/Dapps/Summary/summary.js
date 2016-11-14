@@ -32,16 +32,19 @@ export default class Summary extends Component {
   }
 
   render () {
+    const { dappsUrl } = this.context.api;
     const { app } = this.props;
 
     if (!app) {
       return null;
     }
 
-    const url = `/app/${app.builtin ? 'global' : 'local'}/${app.url || app.id}`;
-    const image = app.image || app.iconUrl
-      ? <img src={ app.image || `http://127.0.0.1:8080/${app.id}/${app.iconUrl}` } className={ styles.image } />
-      : <div className={ styles.image }>&nbsp;</div>;
+    let image = <div className={ styles.image }>&nbsp;</div>;
+    if (app.type === 'local') {
+      image = <img src={ `${dappsUrl}/${app.id}/${app.iconUrl}` } className={ styles.image } />;
+    } else {
+      image = <img src={ `${dappsUrl}${app.image}` } className={ styles.image } />;
+    }
 
     return (
       <Container className={ styles.container }>
@@ -49,9 +52,16 @@ export default class Summary extends Component {
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }
-            title={ <Link to={ url }>{ app.name }</Link> }
-            byline={ app.description } />
-          <div className={ styles.author }>{ app.author }, v{ app.version }</div>
+            title={
+              <Link to={ `/app/${app.id}` }>
+                { app.name }
+              </Link>
+            }
+            byline={ app.description }
+          />
+          <div className={ styles.author }>
+            { app.author }, v{ app.version }
+          </div>
           { this.props.children }
         </div>
       </Container>

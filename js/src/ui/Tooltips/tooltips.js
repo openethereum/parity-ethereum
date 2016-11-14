@@ -23,6 +23,10 @@ import { nextTooltip } from './actions';
 import styles from './tooltips.css';
 
 class Tooltips extends Component {
+  static contextTypes = {
+    router: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     currentId: PropTypes.number,
     closed: PropTypes.bool,
@@ -33,6 +37,22 @@ class Tooltips extends Component {
     const { onNextTooltip } = this.props;
 
     onNextTooltip();
+    this.redirect();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    if (nextProps.currentId !== this.props.currentId) {
+      this.redirect(nextProps);
+    }
+  }
+
+  redirect (props = this.props) {
+    const { currentId } = props;
+
+    if (currentId !== undefined && currentId !== -1) {
+      const viewLink = '/accounts/';
+      this.context.router.push(viewLink);
+    }
   }
 
   render () {

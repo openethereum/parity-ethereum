@@ -19,6 +19,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { validateAddress, validateUint } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
@@ -40,6 +41,7 @@ export default class ExecuteContract extends Component {
   state = {
     amount: '0',
     amountError: null,
+    fromAddressError: null,
     func: null,
     funcError: null,
     values: [],
@@ -76,7 +78,8 @@ export default class ExecuteContract extends Component {
 
   renderDialogActions () {
     const { onClose, fromAddress } = this.props;
-    const { sending, step } = this.state;
+    const { sending, step, fromAddressError, valuesError } = this.state;
+    const hasError = fromAddressError || valuesError.find((error) => error);
     const cancelBtn = (
       <Button
         key='cancel'
@@ -91,7 +94,7 @@ export default class ExecuteContract extends Component {
         <Button
           key='postTransaction'
           label='post transaction'
-          disabled={ sending }
+          disabled={ sending || hasError }
           icon={ <IdentityIcon address={ fromAddress } button /> }
           onClick={ this.postTransaction } />
       ];
@@ -149,6 +152,9 @@ export default class ExecuteContract extends Component {
         case 'address':
           return '0x';
 
+        case 'bool':
+          return false;
+
         case 'bytes':
           return '0x';
 
@@ -169,13 +175,20 @@ export default class ExecuteContract extends Component {
   onValueChange = (event, index, _value) => {
     const { func, values, valuesError } = this.state;
     const input = func.inputs.find((input, _index) => index === _index);
-    let value;
-    let valueError;
+    let value = _value;
+    let valueError = null;
 
     switch (input.kind.type) {
-      default:
-        value = _value;
-        valueError = null;
+      case 'address':
+        valueError = validateAddress(_value).addressError;
+        break;
+
+      case 'bool':
+        value = _value === 'true';
+        break;
+
+      case 'uint':
+        valueError = validateUint(_value).valueError;
         break;
     }
 
@@ -183,8 +196,8 @@ export default class ExecuteContract extends Component {
     valuesError[index] = valueError;
 
     this.setState({
-      values,
-      valuesError
+      values: [].concat(values),
+      valuesError: [].concat(valuesError)
     });
   }
 
@@ -208,7 +221,7 @@ export default class ExecuteContract extends Component {
       })
       .then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('eth_checkRequest', requestId);
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .then((txhash) => {
         this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });

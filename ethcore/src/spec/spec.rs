@@ -38,7 +38,7 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Main subprotocol name.
 	pub subprotocol_name: String,
 	/// Minimum gas limit.
@@ -135,6 +135,12 @@ impl From<ethjson::spec::Spec> for Spec {
 	}
 }
 
+macro_rules! load_bundled {
+	($e:expr) => {
+		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect(concat!("Chain spec ", $e, " is invalid."))
+	};
+}
+
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -160,9 +166,9 @@ impl Spec {
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.params.network_id }
+	pub fn network_id(&self) -> usize { self.params.network_id }
 
-	/// Get the configured Network ID.
+	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
 
 	/// Get the configured network fork block.
@@ -250,7 +256,7 @@ impl Spec {
 			}
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
-				db.note_account_bloom(address);
+				db.note_non_null_account(address);
 				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));
@@ -267,19 +273,13 @@ impl Spec {
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Self {
-		Spec::load(include_bytes!("../../res/null_morden.json") as &[u8]).expect("null_morden.json is invalid")
-	}
+	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
-	pub fn new_null() -> Self {
-		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
-	}
+	pub fn new_null() -> Spec { load_bundled!("null") }
 
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
-	pub fn new_test_instant() -> Self {
-		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
-	}
+	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
 }
 
 #[cfg(test)]

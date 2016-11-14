@@ -29,12 +29,19 @@ import styles from './names.css';
 const useSignerText = (<p>Use the <a href='/#/signer' className={ styles.link } target='_blank'>Signer</a> to authenticate the following changes.</p>);
 
 const renderNames = (names) => {
-  const out = [];
-  for (let name of names) {
-    out.push((<code>{ name }</code>), ', ');
-  }
-  out.pop();
-  return out;
+  const values = Object.values(names);
+
+  return values
+    .map((name, index) => (
+      <span key={ index }>
+        <code>{ name }</code>
+        {
+          index < values.length - 1
+          ? (<span>, </span>)
+          : null
+        }
+      </span>
+    ));
 };
 
 const renderQueue = (queue) => {
@@ -70,7 +77,6 @@ export default class Names extends Component {
   static propTypes = {
     actions: PropTypes.object.isRequired,
     fee: PropTypes.object.isRequired,
-    hasAccount: PropTypes.bool.isRequired,
     pending: PropTypes.bool.isRequired,
     queue: PropTypes.array.isRequired
   }
@@ -82,20 +88,18 @@ export default class Names extends Component {
 
   render () {
     const { action, name } = this.state;
-    const { fee, hasAccount, pending, queue } = this.props;
+    const { fee, pending, queue } = this.props;
 
     return (
       <Card className={ styles.names }>
         <CardHeader title={ 'Manage Names' } />
         <CardText>
-          { !hasAccount
-            ? (<p className={ styles.noSpacing }>Please select an account first.</p>)
-            : (action === 'reserve'
-                ? (<p className={ styles.noSpacing }>
-                  The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ETH.
-                </p>)
-                : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
-              )
+          { (action === 'reserve'
+              ? (<p className={ styles.noSpacing }>
+                The fee to reserve a name is <code>{ fromWei(fee).toFixed(3) }</code>ETH.
+              </p>)
+              : (<p className={ styles.noSpacing }>To drop a name, you have to be the owner.</p>)
+            )
           }
           <TextField
             hintText='name'
@@ -103,7 +107,7 @@ export default class Names extends Component {
             onChange={ this.onNameChange }
           />
           <DropDownMenu
-            disabled={ !hasAccount || pending }
+            disabled={ pending }
             value={ action }
             onChange={ this.onActionChange }
           >
@@ -111,7 +115,7 @@ export default class Names extends Component {
             <MenuItem value='drop' primaryText='drop this name' />
           </DropDownMenu>
           <RaisedButton
-            disabled={ !hasAccount || pending }
+            disabled={ pending }
             className={ styles.spacing }
             label={ action === 'reserve' ? 'Reserve' : 'Drop' }
             primary

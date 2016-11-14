@@ -5,3 +5,5 @@ build
 .coverage
 .dist
 .happypack
+.npmjs
+.eslintcache

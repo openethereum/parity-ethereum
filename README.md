@@ -1,7 +1,12 @@
 # [Parity](https://ethcore.io/parity.html)
 ### Fast, light, and robust Ethereum implementation
 
-[![Build Status][travis-image]][travis-url] [![Coverage Status][coveralls-image]][coveralls-url] [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] [![GPLv3][license-image]][license-url]
+[![Build Status][travis-image]][travis-url] [![build status](https://gitlab.ethcore.io/Mirrors/ethcore-parity/badges/master/build.svg)](https://gitlab.ethcore.io/Mirrors/ethcore-parity/commits/master) [![Coverage Status][coveralls-image]][coveralls-url]  [![GPLv3][license-image]][license-url]
+
+### Join the chat!
+
+Parity [![Join the chat at https://gitter.im/ethcore/parity][gitter-image]][gitter-url] and
+parity.js [![Join the chat at https://gitter.im/ethcore/parity.js](https://badges.gitter.im/ethcore/parity.js.svg)](https://gitter.im/ethcore/parity.js?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 [Internal Documentation][doc-url]
 
@@ -19,7 +24,7 @@ Be sure to check out [our wiki][wiki-url] for more information.
 [doc-url]: https://ethcore.github.io/parity/ethcore/index.html
 [wiki-url]: https://github.com/ethcore/parity/wiki
 
-**Requires Rust version 1.12.0 to build**
+**Parity requires Rust version 1.12.0 to build**
 
 ----
 
@@ -29,12 +34,15 @@ Be sure to check out [our wiki][wiki-url] for more information.
 Parity's goal is to be the fastest, lightest, and most secure Ethereum client. We are developing Parity using the sophisticated and
 cutting-edge Rust programming language. Parity is licensed under the GPLv3, and can be used for all your Ethereum needs.
 
-By default, Parity will run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
-of RPC APIs.
+Parity comes with a built-in wallet. To access [Parity Wallet](http://127.0.0.1:8080/) this simply go to http://127.0.0.1:8080/. It
+includes various functionality allowing you to:
+- create and manage your Ethereum accounts;
+- manage your Ether and any Ethereum tokens;
+- create and register your own tokens;
+- and much more.    
 
-Parity also runs a server for running decentralized apps, or "Dapps", on `http://127.0.0.1:8080`.
-This includes a few useful Dapps, including Ethereum Wallet, Maker OTC, and a node status page.
-In a near-future release, it will be easy to install Dapps and use them through this web interface.
+By default, Parity will also run a JSONRPC server on `127.0.0.1:8545`. This is fully configurable and supports a number
+of RPC APIs.
 
 If you run into an issue while using parity, feel free to file one in this repository
 or hop on our [gitter chat room][gitter-url] to ask a question. We are glad to help!
@@ -54,7 +62,14 @@ We recommend installing Rust through [rustup](https://www.rustup.rs/). If you do
 	```bash
 	$ curl https://sh.rustup.rs -sSf | sh
 	```
+	
+	Parity also requires `gcc`, `g++` and `make` packages to be installed.
+- OSX:
+	```bash
+	$ curl https://sh.rustup.rs -sSf | sh
+	```
 
+	`clang` and `make` are required. These come with Xcode command line tools or can be installed with homebrew.
 - Windows
 
     Make sure you have Visual Studio 2015 with C++ support installed. Next, download and run the rustup installer from

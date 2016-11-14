@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Block and transaction verification functions
-///
-/// Block verification is done in 3 steps
-/// 1. Quick verification upon adding to the block queue
-/// 2. Signatures verification done in the queue.
-/// 3. Final verification against the blockchain done before enactment.
+//! Block and transaction verification functions
+//!
+//! Block verification is done in 3 steps
+//! 1. Quick verification upon adding to the block queue
+//! 2. Signatures verification done in the queue.
+//! 3. Final verification against the blockchain done before enactment.
 
 use util::*;
 use engines::Engine;
@@ -395,7 +395,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::one()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 
 		let tr2 = Transaction {
 			action: Action::Create,
@@ -404,7 +404,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::from(2)
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 
 		let good_transactions = [ tr1.clone(), tr2.clone() ];
 

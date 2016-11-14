@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::mem;
 use std::thread::{JoinHandle, self};
 use std::sync::atomic::{AtomicBool, Ordering as AtomicOrdering};
 use crossbeam::sync::chase_lev;
@@ -81,7 +80,7 @@ impl Worker {
 				LOCAL_STACK_SIZE.with(|val| val.set(STACK_SIZE));
 				panic_handler.catch_panic(move || {
 					Worker::work_loop(stealer, channel.clone(), wait, wait_mutex.clone(), deleting)
-				}).unwrap()
+				}).expect("Error starting panic handler")
 			})
 			.expect("Error creating worker thread"));
 		worker
@@ -94,7 +93,7 @@ impl Worker {
 						where Message: Send + Sync + Clone + 'static {
 		loop {
 			{
-				let lock = wait_mutex.lock().unwrap();
+				let lock = wait_mutex.lock().expect("Poisoned work_loop mutex");
 				if deleting.load(AtomicOrdering::Acquire) {
 					return;
 				}
@@ -134,11 +133,12 @@ impl Worker {
 impl Drop for Worker {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[IoWorker] Closing...");
-		let _ = self.wait_mutex.lock().unwrap();
+		let _ = self.wait_mutex.lock().expect("Poisoned work_loop mutex");
 		self.deleting.store(true, AtomicOrdering::Release);
 		self.wait.notify_all();
-		let thread = mem::replace(&mut self.thread, None).unwrap();
-		thread.join().ok();
+		if let Some(thread) = self.thread.take() {
+			thread.join().ok();
+		}
 		trace!(target: "shutdown", "[IoWorker] Closed");
 	}
 }

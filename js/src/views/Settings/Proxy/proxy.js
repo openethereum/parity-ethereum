@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import React, { Component } from 'react';
+import React, { Component, PropTypes } from 'react';
 
 import { Container, ContainerTitle } from '../../../ui';
 
@@ -22,15 +22,20 @@ import layout from '../layout.css';
 import styles from './proxy.css';
 
 export default class Proxy extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   render () {
-    const proxyurl = 'http://127.0.0.1:8080/proxy/proxy.pac';
+    const { dappsUrl } = this.context.api;
+    const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
 
     return (
       <Container>
         <ContainerTitle title='Proxy' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memororable addresses.</div>
+            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.</div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.details }>

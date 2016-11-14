@@ -81,11 +81,18 @@ class Account extends Component {
   }
 
   renderActionbar () {
+    const { address } = this.props.params;
+    const { balances } = this.props;
+    const balance = balances[address];
+
+    const showTransferButton = !!(balance && balance.tokens);
+
     const buttons = [
       <Button
         key='transferFunds'
         icon={ <ContentSend /> }
         label='transfer'
+        disabled={ !showTransferButton }
         onClick={ this.onTransferClick } />,
       <Button
         key='shapeshift'

@@ -123,7 +123,13 @@ export default class Details extends Component {
       .map((balance, index) => {
         const token = balance.token;
         const isEth = index === 0;
-        const imagesrc = token.image || images[token.address] || imageUnknown;
+        let imagesrc = token.image;
+        if (!imagesrc) {
+          imagesrc =
+            images[token.address]
+              ? `${api.dappsUrl}${images[token.address]}`
+              : imageUnknown;
+        }
         let value = 0;
 
         if (isEth) {
@@ -158,6 +164,7 @@ export default class Details extends Component {
 
     return (
       <Select
+        className={ styles.tokenSelect }
         label='type of token transfer'
         hint='type of token to transfer'
         value={ tag }

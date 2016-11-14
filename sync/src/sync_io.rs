@@ -22,7 +22,7 @@ use ethcore::header::BlockNumber;
 use ethcore::snapshot::SnapshotService;
 use parking_lot::RwLock;
 
-/// IO interface for the syning handler.
+/// IO interface for the syncing handler.
 /// Provides peer connection management and an interface to the blockchain client.
 // TODO: ratings
 pub trait SyncIo {
@@ -70,7 +70,7 @@ pub struct NetSyncIo<'s, 'h> where 'h: 's {
 
 impl<'s, 'h> NetSyncIo<'s, 'h> {
 	/// Creates a new instance from the `NetworkContext` and the blockchain client reference.
-	pub fn new(network: &'s NetworkContext<'h>, 
+	pub fn new(network: &'s NetworkContext<'h>,
 		chain: &'s BlockChainClient,
 		snapshot_service: &'s SnapshotService,
 		chain_overlay: &'s RwLock<HashMap<BlockNumber, Bytes>>) -> NetSyncIo<'s, 'h> {

@@ -25,7 +25,7 @@ import Api from '../api';
 import Contract from './contract';
 import { isInstanceOf, isFunction } from '../util/types';
 
-const transport = new Api.Transport.Http(TEST_HTTP_URL);
+const transport = new Api.Transport.Http(TEST_HTTP_URL, -1);
 const eth = new Api(transport);
 
 describe('api/contract/Contract', () => {
@@ -119,19 +119,6 @@ describe('api/contract/Contract', () => {
   });
 
   describe('parseTransactionEvents', () => {
-    it('checks for unmatched signatures', () => {
-      const contract = new Contract(eth, [{ anonymous: false, name: 'Message', type: 'event' }]);
-      expect(() => contract.parseTransactionEvents({
-        logs: [{
-          data: '0x000000000000000000000000000000000000000000000000000000000000000000000000000000000000000063cf90d3f0410092fc0fca41846f5962239791950000000000000000000000000000000000000000000000000000000056e6c85f0000000000000000000000000000000000000000000000000001000000004fcd00000000000000000000000000000000000000000000000000000000000000a0000000000000000000000000000000000000000000000000000000000000000d706f7374286d6573736167652900000000000000000000000000000000000000',
-          topics: [
-            '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5',
-            '0x0000000000000000000000000000000000000000000000000001000000004fe0'
-          ]
-        }]
-      })).to.throw(/event matching signature/);
-    });
-
     it('parses a transaction log into the data', () => {
       const contract = new Contract(eth, [
         {
@@ -249,9 +236,9 @@ describe('api/contract/Contract', () => {
       before(() => {
         scope = mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: null } },
-          { method: 'eth_checkRequest', reply: { result: '0x890' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: null } },
+          { method: 'parity_checkRequest', reply: { result: '0x890' } },
           { method: 'eth_getTransactionReceipt', reply: { result: null } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_PEND } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
@@ -266,7 +253,7 @@ describe('api/contract/Contract', () => {
       });
 
       it('passes the options through to postTransaction (incl. gas calculation)', () => {
-        expect(scope.body.eth_postTransaction.params).to.deep.equal([
+        expect(scope.body.parity_postTransaction.params).to.deep.equal([
           { data: '0x123', gas: '0x4b0' }
         ]);
       });
@@ -280,8 +267,8 @@ describe('api/contract/Contract', () => {
       it('fails when gasUsed == gas', () => {
         mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: '0x789' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: '0x789' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_EXCP } }
         ]);
 
@@ -295,8 +282,8 @@ describe('api/contract/Contract', () => {
       it('fails when no code was deployed', () => {
         mockHttp([
           { method: 'eth_estimateGas', reply: { result: 1000 } },
-          { method: 'eth_postTransaction', reply: { result: '0x678' } },
-          { method: 'eth_checkRequest', reply: { result: '0x789' } },
+          { method: 'parity_postTransaction', reply: { result: '0x678' } },
+          { method: 'parity_checkRequest', reply: { result: '0x789' } },
           { method: 'eth_getTransactionReceipt', reply: { result: RECEIPT_DONE } },
           { method: 'eth_getCode', reply: { result: '0x' } }
         ]);
@@ -360,15 +347,15 @@ describe('api/contract/Contract', () => {
 
     describe('postTransaction', () => {
       beforeEach(() => {
-        scope = mockHttp([{ method: 'eth_postTransaction', reply: { result: ['hashId'] } }]);
+        scope = mockHttp([{ method: 'parity_postTransaction', reply: { result: ['hashId'] } }]);
       });
 
-      it('encodes options and mades an eth_postTransaction call', () => {
+      it('encodes options and mades an parity_postTransaction call', () => {
         return func
           .postTransaction({ someExtras: 'foo' }, VALUES)
           .then(() => {
             expect(scope.isDone()).to.be.true;
-            expect(scope.body.eth_postTransaction.params[0]).to.deep.equal({
+            expect(scope.body.parity_postTransaction.params[0]).to.deep.equal({
               someExtras: 'foo',
               to: ADDR,
               data: ENCODED

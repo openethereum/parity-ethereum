@@ -25,6 +25,7 @@ const initialState = {
   clientVersion: '',
   coinbase: '',
   defaultExtraData: '',
+  enode: '',
   extraData: '',
   gasFloorTarget: new BigNumber(0),
   hashrate: new BigNumber(0),

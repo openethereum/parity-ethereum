@@ -19,15 +19,17 @@ import { api } from '../parity';
 export const set = (addresses) => ({ type: 'addresses set', addresses });
 
 export const fetch = () => (dispatch) => {
-  return Promise
-    .all([
-      api.eth.accounts(),
-      null // api.personal.accountsInfo()
-    ])
-    .then(([ accounts, data ]) => {
-      const addresses = accounts.map((address) => {
-        return { address, isAccount: true };
-      });
+  return api.parity
+    .accounts()
+    .then((accountsInfo) => {
+      const addresses = Object
+        .keys(accountsInfo)
+        .filter((address) => accountsInfo[address] && !accountsInfo[address].meta.deleted)
+        .map((address) => ({
+          ...accountsInfo[address],
+          address,
+          isAccount: !!accountsInfo[address].uuid
+        }));
       dispatch(set(addresses));
     })
     .catch((error) => {

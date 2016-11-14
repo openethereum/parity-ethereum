@@ -21,3 +21,7 @@
 .iconMenu option {
   padding-left: 30px;
 }
+
+.menu {
+  display: none;
+}

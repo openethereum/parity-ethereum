@@ -17,6 +17,7 @@
 import settingsReducer from './reducers';
 import { toggleView, updateBackground } from './actions';
 import SettingsBackground from './Background';
+import SettingsParity from './Parity';
 import SettingsProxy from './Proxy';
 import SettingsViews, { defaultViews } from './Views';
 
@@ -24,6 +25,7 @@ export default from './settings';
 
 export {
   SettingsBackground,
+  SettingsParity,
   SettingsProxy,
   SettingsViews,
   defaultViews,

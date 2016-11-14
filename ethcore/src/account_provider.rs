@@ -36,7 +36,7 @@ enum Unlock {
 	/// Use with caution.
 	Perm,
 	/// Account unlocked with a timeout
-	Timed((Instant, u32)),
+	Timed(Instant),
 }
 
 /// Data associated with account.
@@ -95,6 +95,7 @@ impl KeyDirectory for NullDir {
 struct AddressBook {
 	path: PathBuf,
 	cache: HashMap<Address, AccountMeta>,
+	transient: bool,
 }
 
 impl AddressBook {
@@ -106,9 +107,16 @@ impl AddressBook {
 		let mut r = AddressBook {
 			path: path,
 			cache: HashMap::new(),
+			transient: false,
 		};
 		r.revert();
 		r
+	}
+
+	pub fn transient() -> Self {
+		let mut book = AddressBook::new(Default::default());
+		book.transient = true;
+		book
 	}
 
 	pub fn get(&self) -> HashMap<Address, AccountMeta> {
@@ -134,6 +142,7 @@ impl AddressBook {
 	}
 
 	fn revert(&mut self) {
+		if self.transient { return; }
 		trace!(target: "addressbook", "revert");
 		let _ = fs::File::open(self.path.clone())
 			.map_err(|e| trace!(target: "addressbook", "Couldn't open address book: {}", e))
@@ -144,6 +153,7 @@ impl AddressBook {
 	}
 
 	fn save(&mut self) {
+		if self.transient { return; }
 		trace!(target: "addressbook", "save");
 		let _ = fs::File::create(self.path.clone())
 			.map_err(|e| warn!(target: "addressbook", "Couldn't open address book for writing: {}", e))
@@ -175,7 +185,7 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
-			address_book: Mutex::new(AddressBook::new(Default::default())),
+			address_book: Mutex::new(AddressBook::transient()),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
 				.expect("NullDir load always succeeds; qed"))
 		}
@@ -267,17 +277,17 @@ impl AccountProvider {
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
 	pub fn test_password(&self, account: &Address, password: String) -> Result<bool, Error> {
-		match self.sstore.sign(&account, &password, &Default::default()) {
+		match self.sstore.sign(account, &password, &Default::default()) {
 			Ok(_) => Ok(true),
 			Err(SSError::InvalidPassword) => Ok(false),
 			Err(e) => Err(Error::SStore(e)),
 		}
-	} 
+	}
 
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.
 	pub fn change_password(&self, account: &Address, password: String, new_password: String) -> Result<(), Error> {
-		self.sstore.change_password(&account, &password, &new_password).map_err(Error::SStore)
-	} 
+		self.sstore.change_password(account, &password, &new_password).map_err(Error::SStore)
+	}
 
 	/// Helper method used for unlocking accounts.
 	fn unlock_account(&self, account: Address, password: String, unlock: Unlock) -> Result<(), Error> {
@@ -308,8 +318,8 @@ impl AccountProvider {
 		if let Unlock::Temp = data.unlock {
 			unlocked.remove(account).expect("data exists: so key must exist: qed");
 		}
-		if let Unlock::Timed((ref start, ref duration)) = data.unlock {
-			if start.elapsed() > Duration::from_millis(*duration as u64) {
+		if let Unlock::Timed(ref end) = data.unlock {
+			if Instant::now() > *end {
 				unlocked.remove(account).expect("data exists: so key must exist: qed");
 				return Err(Error::NotUnlocked);
 			}
@@ -329,7 +339,7 @@ impl AccountProvider {
 
 	/// Unlocks account temporarily with a timeout.
 	pub fn unlock_account_timed(&self, account: Address, password: String, duration_ms: u32) -> Result<(), Error> {
-		self.unlock_account(account, password, Unlock::Timed((Instant::now(), duration_ms)))
+		self.unlock_account(account, password, Unlock::Timed(Instant::now() + Duration::from_millis(duration_ms as u64)))
 	}
 
 	/// Checks if given account is unlocked
@@ -363,11 +373,11 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::{AccountProvider, AddressBook};
+	use super::{AccountProvider, AddressBook, Unlock};
 	use std::collections::HashMap;
+	use std::time::Instant;
 	use ethjson::misc::AccountMeta;
 	use ethstore::ethkey::{Generator, Random};
-	use std::time::Duration;
 	use devtools::RandomTempPath;
 
 	#[test]
@@ -411,10 +421,10 @@ mod tests {
 		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
-		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 2000).is_err());
-		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 2000).is_ok());
+		assert!(ap.unlock_account_timed(kp.address(), "test1".into(), 60000).is_err());
+		assert!(ap.unlock_account_timed(kp.address(), "test".into(), 60000).is_ok());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
-		::std::thread::sleep(Duration::from_millis(2000));
+		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
 	}
 }

@@ -38,9 +38,7 @@ class Transactions extends Component {
     contracts: PropTypes.object,
     tokens: PropTypes.object,
     isTest: PropTypes.bool,
-    traceMode: PropTypes.bool,
-    blocks: PropTypes.object,
-    transactionsInfo: PropTypes.object
+    traceMode: PropTypes.bool
   }
 
   state = {
@@ -50,9 +48,7 @@ class Transactions extends Component {
   }
 
   componentDidMount () {
-    if (this.props.traceMode !== undefined) {
-      this.getTransactions(this.props);
-    }
+    this.getTransactions(this.props);
   }
 
   componentWillReceiveProps (newProps) {
@@ -121,7 +117,7 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest, blocks, transactionsInfo } = this.props;
+    const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
     const { transactions } = this.state;
 
     return (transactions || [])
@@ -130,16 +126,9 @@ class Transactions extends Component {
       })
       .slice(0, 25)
       .map((transaction, index) => {
-        const { blockNumber, hash } = transaction;
-
-        const block = blocks[blockNumber.toString()];
-        const transactionInfo = transactionsInfo[hash];
-
         return (
           <Transaction
             key={ index }
-            block={ block }
-            transactionInfo={ transactionInfo }
             transaction={ transaction }
             address={ address }
             accounts={ accounts }
@@ -165,9 +154,9 @@ class Transactions extends Component {
   }
 
   fetchTransactions = (isTest, address, traceMode) => {
-    if (traceMode) {
-      return this.fetchTraceTransactions(address);
-    }
+    // if (traceMode) {
+    //   return this.fetchTraceTransactions(address);
+    // }
 
     return this.fetchEtherscanTransactions(isTest, address);
   }
@@ -211,7 +200,6 @@ function mapStateToProps (state) {
   const { isTest, traceMode } = state.nodeStatus;
   const { accounts, contacts, contracts } = state.personal;
   const { tokens } = state.balances;
-  const { blocks, transactions } = state.blockchain;
 
   return {
     isTest,
@@ -219,9 +207,7 @@ function mapStateToProps (state) {
     accounts,
     contacts,
     contracts,
-    tokens,
-    blocks,
-    transactionsInfo: transactions
+    tokens
   };
 }
 

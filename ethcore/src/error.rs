@@ -47,6 +47,13 @@ pub enum TransactionError {
 		/// Transaction gas price
 		got: U256,
 	},
+	/// Transaction's gas is below currently set minimal gas requirement.
+	InsufficientGas {
+		/// Minimal expected gas
+		minimal: U256,
+		/// Transaction gas
+		got: U256,
+	},
 	/// Sender doesn't have enough funds to pay for this transaction
 	InsufficientBalance {
 		/// Senders balance
@@ -63,6 +70,14 @@ pub enum TransactionError {
 	},
 	/// Transaction's gas limit (aka gas) is invalid.
 	InvalidGasLimit(OutOfBounds<U256>),
+	/// Transaction sender is banned.
+	SenderBanned,
+	/// Transaction receipient is banned.
+	RecipientBanned,
+	/// Contract creation code is banned.
+	CodeBanned,
+	/// Invalid network ID given.
+	InvalidNetworkId,
 }
 
 impl fmt::Display for TransactionError {
@@ -75,12 +90,18 @@ impl fmt::Display for TransactionError {
 			LimitReached => "Transaction limit reached".into(),
 			InsufficientGasPrice { minimal, got } =>
 				format!("Insufficient gas price. Min={}, Given={}", minimal, got),
+			InsufficientGas { minimal, got } =>
+				format!("Insufficient gas. Min={}, Given={}", minimal, got),
 			InsufficientBalance { balance, cost } =>
 				format!("Insufficient balance for transaction. Balance={}, Cost={}",
 					balance, cost),
 			GasLimitExceeded { limit, got } =>
 				format!("Gas limit exceeded. Limit={}, Given={}", limit, got),
 			InvalidGasLimit(ref err) => format!("Invalid gas limit. {}", err),
+			SenderBanned => "Sender is temporarily banned.".into(),
+			RecipientBanned => "Recipient is temporarily banned.".into(),
+			CodeBanned => "Contract code is temporarily banned.".into(),
+			InvalidNetworkId => "Transaction of this network ID is not allowed on this chain.".into(),
 		};
 
 		f.write_fmt(format_args!("Transaction error ({})", msg))

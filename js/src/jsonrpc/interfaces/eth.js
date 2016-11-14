@@ -86,20 +86,6 @@ export default {
     }
   },
 
-  checkRequest: {
-    desc: 'Returns the transactionhash of the requestId (received from eth_postTransaction) if the request was confirmed',
-    params: [
-      {
-        type: Quantity,
-        desc: 'The requestId to check for'
-      }
-    ],
-    returns: {
-      type: Hash,
-      desc: '32 Bytes - the transaction hash, or the zero hash if the transaction is not yet available'
-    }
-  },
-
   coinbase: {
     desc: 'Returns the client coinbase address.',
     params: [],
@@ -823,22 +809,6 @@ export default {
     }
   },
 
-  postTransaction: {
-    desc: 'Posts a transaction to the Signer.',
-    params: [
-      {
-        type: Object,
-        desc: 'see [eth_sendTransaction](#eth_sendTransaction)',
-        format: 'inputCallFormatter'
-      }
-    ],
-    returns: {
-      type: Quantity,
-      desc: 'The id of the actual transaction',
-      format: 'utils.toDecimal'
-    }
-  },
-
   protocolVersion: {
     desc: 'Returns the current ethereum protocol version.',
     params: [],
@@ -1003,7 +973,7 @@ export default {
       details: {
         startingBlock: {
           type: Quantity,
-          desc: 'The block at which the import started (will only be reset, after the sync reached his head)'
+          desc: 'The block at which the import started (will only be reset, after the sync reached this head)'
         },
         currentBlock: {
           type: Quantity,
@@ -1012,6 +982,18 @@ export default {
         highestBlock: {
           type: Quantity,
           desc: 'The estimated highest block'
+        },
+        blockGap: {
+          type: Array,
+          desc: 'Array of "first", "last", such that [first, last) are all missing from the chain'
+        },
+        warpChunksAmount: {
+          type: Quantity,
+          desc: 'Total amount of snapshot chunks'
+        },
+        warpChunksProcessed: {
+          type: Quantity,
+          desc: 'Total amount of snapshot chunks processed'
         }
       }
     }

@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import keycode from 'keycode';
 import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 
 export default class AutoComplete extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
+    onUpdateInput: PropTypes.func,
     disabled: PropTypes.bool,
     label: PropTypes.string,
     hint: PropTypes.string,
@@ -39,11 +41,12 @@ export default class AutoComplete extends Component {
   state = {
     lastChangedValue: undefined,
     entry: null,
-    open: false
+    open: false,
+    fakeBlur: false
   }
 
   render () {
-    const { disabled, error, hint, label, value, className, filter } = this.props;
+    const { disabled, error, hint, label, value, className, filter, onUpdateInput } = this.props;
     const { open } = this.state;
 
     return (
@@ -54,11 +57,11 @@ export default class AutoComplete extends Component {
         hintText={ hint }
         errorText={ error }
         onNewRequest={ this.onChange }
+        onUpdateInput={ onUpdateInput }
         searchText={ value }
         onFocus={ this.onFocus }
         onBlur={ this.onBlur }
         animation={ PopoverAnimationVertical }
-
         filter={ filter }
         popoverProps={ { open } }
         openOnFocus
@@ -66,6 +69,9 @@ export default class AutoComplete extends Component {
         fullWidth
         floatingLabelFixed
         dataSource={ this.getDataSource() }
+        menuProps={ { maxHeight: 400 } }
+        ref='muiAutocomplete'
+        onKeyDown={ this.onKeyDown }
       />
     );
   }
@@ -90,6 +96,30 @@ export default class AutoComplete extends Component {
     }));
   }
 
+  onKeyDown = (event) => {
+    const { muiAutocomplete } = this.refs;
+
+    switch (keycode(event)) {
+      case 'down':
+        const { menu } = muiAutocomplete.refs;
+        menu.handleKeyDown(event);
+        this.setState({ fakeBlur: true });
+        break;
+
+      case 'enter':
+      case 'tab':
+        event.preventDefault();
+        event.stopPropagation();
+        event.which = 'useless';
+
+        const e = new CustomEvent('down');
+        e.which = 40;
+
+        muiAutocomplete.handleKeyDown(e);
+        break;
+    }
+  }
+
   onChange = (item, idx) => {
     if (idx === -1) {
       return;
@@ -107,12 +137,23 @@ export default class AutoComplete extends Component {
     this.setState({ entry, open: false });
   }
 
-  onBlur = () => {
-    window.setTimeout(() => {
-      const { entry } = this.state;
+  onBlur = (event) => {
+    const { onUpdateInput } = this.props;
 
-      this.handleOnChange(entry);
-    }, 100);
+    // TODO: Handle blur gracefully where we use onUpdateInput (currently replaces
+    // input where text is allowed with the last selected value from the dropdown)
+    if (!onUpdateInput) {
+      window.setTimeout(() => {
+        const { entry, fakeBlur } = this.state;
+
+        if (fakeBlur) {
+          this.setState({ fakeBlur: false });
+          return;
+        }
+
+        this.handleOnChange(entry);
+      }, 200);
+    }
   }
 
   onFocus = () => {
@@ -131,5 +172,4 @@ export default class AutoComplete extends Component {
       this.props.onChange(value, empty);
     }
   }
-
 }

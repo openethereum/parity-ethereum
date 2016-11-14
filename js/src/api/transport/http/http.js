@@ -19,11 +19,14 @@ import JsonRpcBase from '../jsonRpcBase';
 
 /* global fetch */
 export default class Http extends JsonRpcBase {
-  constructor (url) {
+  constructor (url, connectTimeout = 1000) {
     super();
 
     this._connected = true;
     this._url = url;
+    this._connectTimeout = connectTimeout;
+
+    this._pollConnection();
   }
 
   _encodeOptions (method, params) {
@@ -56,6 +59,8 @@ export default class Http extends JsonRpcBase {
         if (response.status !== 200) {
           this._connected = false;
           this.error(JSON.stringify({ status: response.status, statusText: response.statusText }));
+          console.error(`${method}(${JSON.stringify(params)}): ${response.status}: ${response.statusText}`);
+
           throw new Error(`${response.status}: ${response.statusText}`);
         }
 
@@ -66,11 +71,26 @@ export default class Http extends JsonRpcBase {
 
         if (response.error) {
           this.error(JSON.stringify(response));
-          throw new Error(`${response.error.code}: ${response.error.message}`);
+          console.error(`${method}(${JSON.stringify(params)}): ${response.error.code}: ${response.error.message}`);
+
+          throw new Error(`${method}: ${response.error.code}: ${response.error.message}`);
         }
 
         this.log(JSON.stringify(response));
         return response.result;
       });
+  }
+
+  _pollConnection = () => {
+    if (this._connectTimeout <= 0) {
+      return;
+    }
+
+    const nextTimeout = () => setTimeout(this._pollConnection, this._connectTimeout);
+
+    this
+      .execute('net_listening')
+      .then(nextTimeout)
+      .catch(nextTimeout);
   }
 }

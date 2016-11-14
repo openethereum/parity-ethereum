@@ -16,15 +16,12 @@
 
 import React from 'react';
 import ActionAccountBalanceWallet from 'material-ui/svg-icons/action/account-balance-wallet';
+import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ActionTrackChanges from 'material-ui/svg-icons/action/track-changes';
 import ActionSettings from 'material-ui/svg-icons/action/settings';
 import CommunicationContacts from 'material-ui/svg-icons/communication/contacts';
 import ImageGridOn from 'material-ui/svg-icons/image/grid-on';
 import NavigationApps from 'material-ui/svg-icons/navigation/apps';
-
-import { SignerIcon } from '../../../ui';
-
-import styles from './views.css';
 
 const defaultViews = {
   accounts: {
@@ -52,7 +49,7 @@ const defaultViews = {
     label: 'Applications',
     route: '/apps',
     value: 'app',
-    description: 'Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the newtork.'
+    description: 'Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
   },
 
   contracts: {
@@ -61,7 +58,7 @@ const defaultViews = {
     label: 'Contracts',
     route: '/contracts',
     value: 'contract',
-    description: 'Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focussed environment, specifically for advanced users that understand the inner working of certain contracts.'
+    description: 'Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
   },
 
   status: {
@@ -76,11 +73,11 @@ const defaultViews = {
   signer: {
     active: true,
     fixed: true,
-    icon: <SignerIcon className={ styles.signerIcon } />,
+    icon: <ActionFingerprint />,
     label: 'Signer',
     route: '/signer',
     value: 'signer',
-    description: 'The security focussed area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
+    description: 'The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
   },
 
   settings: {

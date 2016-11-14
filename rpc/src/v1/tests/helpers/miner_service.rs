@@ -209,6 +209,8 @@ impl MinerService for TestMinerService {
 				gas_used: r.gas_used.clone(),
 				contract_address: None,
 				logs: r.logs.clone(),
+				log_bloom: r.log_bloom,
+				state_root: r.state_root,
 			}
 		)
 	}
@@ -253,4 +255,7 @@ impl MinerService for TestMinerService {
 		self.latest_closed_block.lock().as_ref().map_or(None, |b| b.block().fields().state.code(address).map(|c| (*c).clone()))
 	}
 
+	fn sensible_gas_price(&self) -> U256 {
+		20000000000u64.into()
+	}
 }

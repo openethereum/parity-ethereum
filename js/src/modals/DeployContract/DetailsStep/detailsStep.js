@@ -15,8 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect } from '../../../ui';
+import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
 
 import styles from '../deployContract.css';
@@ -24,7 +25,7 @@ import styles from '../deployContract.css';
 export default class DetailsStep extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
@@ -45,16 +46,33 @@ export default class DetailsStep extends Component {
     onFromAddressChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
-    onParamsChange: PropTypes.func.isRequired
-  }
+    onParamsChange: PropTypes.func.isRequired,
+    readOnly: PropTypes.bool
+  };
+
+  static defaultProps = {
+    readOnly: false
+  };
 
   state = {
     inputs: []
   }
 
+  componentDidMount () {
+    const { abi, code } = this.props;
+
+    if (abi) {
+      this.onAbiChange(abi);
+    }
+
+    if (code) {
+      this.onCodeChange(code);
+    }
+  }
+
   render () {
     const { accounts } = this.props;
-    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError } = this.props;
+    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError, readOnly } = this.props;
 
     return (
       <Form>
@@ -76,13 +94,15 @@ export default class DetailsStep extends Component {
           hint='the abi of the contract to deploy'
           error={ abiError }
           value={ abi }
-          onSubmit={ this.onAbiChange } />
+          onSubmit={ this.onAbiChange }
+          readOnly={ readOnly } />
         <Input
           label='code'
           hint='the compiled code of the contract to deploy'
           error={ codeError }
           value={ code }
-          onSubmit={ this.onCodeChange } />
+          onSubmit={ this.onCodeChange }
+          readOnly={ readOnly } />
         { this.renderConstructorInputs() }
       </Form>
     );
@@ -98,6 +118,7 @@ export default class DetailsStep extends Component {
 
     return inputs.map((input, index) => {
       const onChange = (event, value) => this.onParamChange(index, value);
+      const onChangeBool = (event, _index, value) => this.onParamChange(index, value === 'true');
       const onSubmit = (value) => this.onParamChange(index, value);
       const label = `${input.name}: ${input.type}`;
       let inputBox = null;
@@ -112,6 +133,26 @@ export default class DetailsStep extends Component {
               value={ params[index] }
               error={ paramsError[index] }
               onChange={ onChange } />
+          );
+          break;
+
+        case 'bool':
+          const boolitems = ['false', 'true'].map((bool) => {
+            return (
+              <MenuItem
+                key={ bool }
+                value={ bool }
+                label={ bool }>{ bool }</MenuItem>
+            );
+          });
+          inputBox = (
+            <Select
+              label={ label }
+              value={ params[index] ? 'true' : 'false' }
+              error={ paramsError[index] }
+              onChange={ onChangeBool }>
+              { boolitems }
+            </Select>
           );
           break;
 
@@ -164,12 +205,28 @@ export default class DetailsStep extends Component {
 
       inputs.forEach((input) => {
         switch (input.type) {
+          case 'address':
+            params.push('0x');
+            break;
+
+          case 'bool':
+            params.push(false);
+            break;
+
+          case 'bytes':
+            params.push('0x');
+            break;
+
+          case 'uint':
+            params.push('0');
+            break;
+
           case 'string':
             params.push('');
             break;
 
           default:
-            params.push('0x');
+            params.push('0');
             break;
         }
       });

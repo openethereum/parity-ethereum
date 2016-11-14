@@ -15,14 +15,25 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .status {
-  clear: both;
-  padding: 1.5em;
-  text-align: right;
-  color: #ddd;
+  padding: 0.5em;
+  font-size: x-small;
+  color: #ccc;
+  background-color: rgba(0, 0, 0, 0.2)
 }
 
 .title {
   margin: 0 0.5em 0 2em;
+}
+
+.enode {
+  word-wrap: break-word;
+  float: right;
+}
+
+.enode > * {
+  display: inline-block;
+  margin: 0.25em 0.5em;
+  vertical-align: top;
 }
 
 .block {
@@ -30,12 +41,11 @@
 
 .netinfo {
   display: flex;
-  flex-direction: row;
-  justify-content: flex-end;
-  margin-top: 0.25em;
+  align-items: center;
+  color: #ddd;  
 }
 
-.netinfo>div {
+.netinfo > * {
   display: inline-block;
   margin-left: 1em;
 }
@@ -44,10 +54,8 @@
   padding: 0.25em 0.5em;
   display: inline-block;
   border-radius: 4px;
+  line-height: 1.2;
   text-transform: uppercase;
-  height: 1.25em;
-  margin-top: 0.25em;
-  box-sizing: content-box;
 }
 
 .networklive {
@@ -62,4 +70,9 @@
 }
 
 .version {
+  padding: 0.25em 0.5em;
+  float: left;
+}
+
+.syncing {
 }

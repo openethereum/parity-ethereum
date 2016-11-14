@@ -15,70 +15,46 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
 
-import Contracts from '../../contracts';
-import { hashToImageUrl } from '../../redux/util';
 import { Actionbar, Page } from '../../ui';
 import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 
-import fetchAvailable from './available';
-import { readHiddenApps, writeHiddenApps } from './hidden';
+import DappsStore from './dappsStore';
 
 import AddDapps from './AddDapps';
 import Summary from './Summary';
 
 import styles from './dapps.css';
 
+@observer
 export default class Dapps extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
-  state = {
-    available: [],
-    hidden: [],
-    modalOpen: false
-  }
-
-  componentDidMount () {
-    fetchAvailable()
-    .then((available) => {
-      this.setState({
-        available,
-        hidden: readHiddenApps()
-      });
-      this.loadImages();
-    })
-    .catch((err) => {
-      console.error('error fetching available apps', err);
-    });
-  }
+  store = new DappsStore(this.context.api);
 
   render () {
-    const { available, hidden, modalOpen } = this.state;
-    const apps = available.filter((app) => !hidden.includes(app.id));
-
     return (
       <div>
-        <AddDapps
-          available={ available }
-          hidden={ hidden }
-          open={ modalOpen }
-          onHideApp={ this.onHideApp }
-          onShowApp={ this.onShowApp }
-          onClose={ this.closeModal }
-        />
+        <AddDapps store={ this.store } />
         <Actionbar
           className={ styles.toolbar }
           title='Decentralized Applications'
           buttons={ [
-            <FlatButton label='edit' key='edit' icon={ <EyeIcon /> } onClick={ this.openModal } />
+            <FlatButton
+              label='edit'
+              key='edit'
+              icon={ <EyeIcon /> }
+              onClick={ this.store.openModal }
+            />
           ] }
         />
         <Page>
           <div className={ styles.list }>
-            { apps.map(this.renderApp) }
+            { this.store.visible.map(this.renderApp) }
           </div>
         </Page>
       </div>
@@ -94,46 +70,4 @@ export default class Dapps extends Component {
       </div>
     );
   }
-
-  loadImages () {
-    const { available } = this.state;
-    const { dappReg } = Contracts.get();
-
-    return Promise
-      .all(available.map((app) => dappReg.getImage(app.id)))
-      .then((images) => {
-        this.setState({
-          available: images
-            .map(hashToImageUrl)
-            .map((image, i) => Object.assign({}, available[i], { image }))
-        });
-      })
-      .catch((error) => {
-        console.warn('loadImages', error);
-      });
-  }
-
-  onHideApp = (id) => {
-    const { hidden } = this.state;
-    const newHidden = hidden.concat(id);
-
-    this.setState({ hidden: newHidden });
-    writeHiddenApps(newHidden);
-  }
-
-  onShowApp = (id) => {
-    const { hidden } = this.state;
-    const newHidden = hidden.filter((_id) => _id !== id);
-
-    this.setState({ hidden: newHidden });
-    writeHiddenApps(newHidden);
-  }
-
-  openModal = () => {
-    this.setState({ modalOpen: true });
-  };
-
-  closeModal = () => {
-    this.setState({ modalOpen: false });
-  };
 }

@@ -21,6 +21,7 @@
 .confirmButton {
   display: block !important;
   margin-bottom: 10px;
+  white-space: nowrap;
 }
 
 .signerIcon {
@@ -38,4 +39,8 @@
 
 .passwordHint span {
   opacity: 0.85;
+}
+
+.fileInput input {
+  top: 22px;
 }

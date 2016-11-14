@@ -16,11 +16,10 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
-import Chip from 'material-ui/Chip';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
-import { Button, Input } from '../../../ui';
+import { Button, Input, InputAddressSelect } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -79,7 +78,7 @@ export default class InputQuery extends Component {
         </CardText>
         <CardActions>
           <Button
-            label='Execute'
+            label='Query'
             disabled={ !isValid }
             onClick={ this.onClick } />
         </CardActions>
@@ -104,21 +103,29 @@ export default class InputQuery extends Component {
         display: this.renderValue(results[index])
       }))
       .sort((outA, outB) => outA.display.length - outB.display.length)
-      .map((out, index) => (<div key={ index }>
-        <div className={ styles.queryResultName }>{ out.name }</div>
-        <Chip className={ styles.queryValue }>
-          { out.display }
-        </Chip>
-        <br />
-      </div>));
+      .map((out, index) => (
+        <div key={ index }>
+          <div className={ styles.queryResultName }>
+            { out.name }
+          </div>
+
+          <Input
+            className={ styles.queryValue }
+            readOnly
+            allowCopy
+            value={ out.display }
+          />
+          <br />
+        </div>
+      ));
   }
 
   renderInput (input) {
     const { name, type } = input;
-    const label = `${name}: ${type}`;
+    const label = `${name ? `${name}: ` : ''}${type}`;
 
-    const onChange = (event) => {
-      const value = event.target.value;
+    const onChange = (event, input) => {
+      const value = event && event.target.value || input;
       const { values } = this.state;
 
       this.setState({
@@ -128,6 +135,19 @@ export default class InputQuery extends Component {
         }
       });
     };
+
+    if (type === 'address') {
+      return (
+        <div key={ name }>
+          <InputAddressSelect
+            hint={ type }
+            label={ label }
+            required
+            onChange={ onChange }
+          />
+        </div>
+      );
+    }
 
     return (
       <div key={ name }>

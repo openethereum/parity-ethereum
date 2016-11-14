@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
+import { isEqual } from 'lodash';
 
 import AutoComplete from '../AutoComplete';
 import IdentityIcon from '../../IdentityIcon';
@@ -24,57 +25,82 @@ import IdentityName from '../../IdentityName';
 import styles from './addressSelect.css';
 
 export default class AddressSelect extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     disabled: PropTypes.bool,
     accounts: PropTypes.object,
     contacts: PropTypes.object,
+    contracts: PropTypes.object,
     label: PropTypes.string,
     hint: PropTypes.string,
     error: PropTypes.string,
     value: PropTypes.string,
     tokens: PropTypes.object,
-    onChange: PropTypes.func.isRequired
+    onChange: PropTypes.func.isRequired,
+    allowInput: PropTypes.bool
   }
 
   state = {
     entries: {},
+    addresses: [],
     value: ''
   }
 
+  entriesFromProps (props = this.props) {
+    const { accounts, contacts, contracts } = props;
+    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
+    return entries;
+  }
+
   componentWillMount () {
-    const { accounts, contacts, value } = this.props;
-    const entries = Object.assign({}, accounts || {}, contacts || {});
-    this.setState({ entries, value });
+    const { value } = this.props;
+    const entries = this.entriesFromProps();
+    const addresses = Object.keys(entries).sort();
+
+    this.setState({ entries, addresses, value });
   }
 
   componentWillReceiveProps (newProps) {
-    const { accounts, contacts } = newProps;
-    const entries = Object.assign({}, accounts || {}, contacts || {});
-    this.setState({ entries });
+    const entries = this.entriesFromProps();
+    const addresses = Object.keys(entries).sort();
+
+    if (!isEqual(addresses, this.state.addresses)) {
+      this.setState({ entries, addresses });
+    }
+
+    if (newProps.value !== this.props.value) {
+      this.setState({ value: newProps.value });
+    }
   }
 
   render () {
-    const { disabled, error, hint, label } = this.props;
-    const { entries } = this.state;
-    const value = this.getSearchText();
+    const { allowInput, disabled, error, hint, label } = this.props;
+    const { entries, value } = this.state;
+
+    const searchText = this.getSearchText();
+    const icon = this.renderIdentityIcon(value);
 
     return (
       <div className={ styles.container }>
         <AutoComplete
-          className={ (error || !value) ? '' : styles.paddedInput }
+          className={ !icon ? '' : styles.paddedInput }
           disabled={ disabled }
           label={ label }
           hint={ hint ? `search for ${hint}` : 'search for an address' }
           error={ error }
           onChange={ this.onChange }
-          value={ value }
+          onBlur={ this.onBlur }
+          onUpdateInput={ allowInput && this.onUpdateInput }
+          value={ searchText }
           filter={ this.handleFilter }
           entries={ entries }
           entry={ this.getEntry() || {} }
           renderItem={ this.renderItem }
         />
-
-        { this.renderIdentityIcon(value) }
+        { icon }
       </div>
     );
   }
@@ -82,7 +108,7 @@ export default class AddressSelect extends Component {
   renderIdentityIcon (inputValue) {
     const { error, value } = this.props;
 
-    if (error || !inputValue) {
+    if (error || !inputValue || value.length !== 42) {
       return null;
     }
 
@@ -96,29 +122,28 @@ export default class AddressSelect extends Component {
 
   renderItem = (entry) => {
     return {
-      text: entry.address,
-      value: this.renderSelectEntry(entry)
+      text: entry.name && entry.name.toUpperCase() || entry.address,
+      value: this.renderSelectEntry(entry),
+      address: entry.address
     };
   }
 
   renderSelectEntry = (entry) => {
     const item = (
       <div className={ styles.account }>
-        <div className={ styles.image }>
-          <IdentityIcon
-            inline center
-            address={ entry.address } />
-        </div>
-        <div className={ styles.details }>
-          <div className={ styles.name }>
-            <IdentityName address={ entry.address } />
-          </div>
-        </div>
+        <IdentityIcon
+          className={ styles.image }
+          inline center
+          address={ entry.address } />
+        <IdentityName
+          className={ styles.name }
+          address={ entry.address } />
       </div>
     );
 
     return (
       <MenuItem
+        className={ styles.menuItem }
         key={ entry.address }
         value={ entry.address }
         label={ item }>
@@ -129,32 +154,48 @@ export default class AddressSelect extends Component {
 
   getSearchText () {
     const entry = this.getEntry();
-    if (!entry) return '';
+    const { value } = this.state;
 
-    return entry.name ? entry.name.toUpperCase() : '';
+    return entry && entry.name
+      ? entry.name.toUpperCase()
+      : value;
   }
 
   getEntry () {
-    const { value } = this.props;
-    if (!value) return '';
-
-    const { entries } = this.state;
-    return entries[value];
+    const { entries, value } = this.state;
+    return value ? entries[value] : null;
   }
 
-  handleFilter = (searchText, address) => {
+  handleFilter = (searchText, name, item) => {
+    const { address } = item;
     const entry = this.state.entries[address];
     const lowCaseSearch = searchText.toLowerCase();
 
-    return [ entry.name, entry.address ]
+    return [entry.name, entry.address]
       .some(text => text.toLowerCase().indexOf(lowCaseSearch) !== -1);
   }
 
   onChange = (entry, empty) => {
+    const { allowInput } = this.props;
+    const { value } = this.state;
+
     const address = entry && entry.address
       ? entry.address
-      : (empty ? '' : this.state.value);
+      : ((empty && !allowInput) ? '' : value);
 
     this.props.onChange(null, address);
   }
+
+  onUpdateInput = (query, choices) => {
+    const { api } = this.context;
+
+    const address = query.trim();
+
+    if (!/^0x/.test(address) && api.util.isAddressValid(`0x${address}`)) {
+      const checksumed = api.util.toChecksumAddress(`0x${address}`);
+      return this.props.onChange(null, checksumed);
+    }
+
+    this.props.onChange(null, address);
+  };
 }

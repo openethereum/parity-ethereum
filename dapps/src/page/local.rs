@@ -18,7 +18,7 @@ use mime_guess;
 use std::io::{Seek, Read, SeekFrom};
 use std::fs;
 use std::path::{Path, PathBuf};
-use page::handler;
+use page::handler::{self, PageCache};
 use endpoint::{Endpoint, EndpointInfo, EndpointPath, Handler};
 
 #[derive(Debug, Clone)]
@@ -26,25 +26,28 @@ pub struct LocalPageEndpoint {
 	path: PathBuf,
 	mime: Option<String>,
 	info: Option<EndpointInfo>,
-	embeddable_at: Option<u16>,
+	cache: PageCache,
+	embeddable_on: Option<(String, u16)>,
 }
 
 impl LocalPageEndpoint {
-	pub fn new(path: PathBuf, info: EndpointInfo, embeddable_at: Option<u16>) -> Self {
+	pub fn new(path: PathBuf, info: EndpointInfo, cache: PageCache, embeddable_on: Option<(String, u16)>) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: None,
 			info: Some(info),
-			embeddable_at: embeddable_at,
+			cache: cache,
+			embeddable_on: embeddable_on,
 		}
 	}
 
-	pub fn single_file(path: PathBuf, mime: String) -> Self {
+	pub fn single_file(path: PathBuf, mime: String, cache: PageCache) -> Self {
 		LocalPageEndpoint {
 			path: path,
 			mime: Some(mime),
 			info: None,
-			embeddable_at: None,
+			cache: cache,
+			embeddable_on: None,
 		}
 	}
 
@@ -65,7 +68,8 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: handler::ServedFile::new(None),
-				safe_to_embed_at_port: self.embeddable_at,
+				safe_to_embed_on: self.embeddable_on.clone(),
+				cache: self.cache,
 			})
 		} else {
 			Box::new(handler::PageHandler {
@@ -73,7 +77,8 @@ impl Endpoint for LocalPageEndpoint {
 				prefix: None,
 				path: path,
 				file: handler::ServedFile::new(None),
-				safe_to_embed_at_port: self.embeddable_at,
+				safe_to_embed_on: self.embeddable_on.clone(),
+				cache: self.cache,
 			})
 		}
 	}

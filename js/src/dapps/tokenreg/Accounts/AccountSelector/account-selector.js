@@ -70,7 +70,8 @@ export default class AccountSelector extends Component {
   static propTypes = {
     list: PropTypes.array.isRequired,
     selected: PropTypes.object.isRequired,
-    handleSetSelected: PropTypes.func.isRequired
+    handleSetSelected: PropTypes.func.isRequired,
+    onAccountChange: PropTypes.func
   };
 
   state = {
@@ -85,7 +86,8 @@ export default class AccountSelector extends Component {
         nestedItems={ nestedAccounts }
         open={ this.state.open }
         onSelectAccount={ this.onToggleOpen }
-        autoGenerateNestedIndicator={ false } />
+        autoGenerateNestedIndicator={ false }
+        nestedListStyle={ { maxHeight: '14em', overflow: 'auto' } } />
     );
 
     return (
@@ -110,6 +112,10 @@ export default class AccountSelector extends Component {
 
   onToggleOpen = () => {
     this.setState({ open: !this.state.open });
+
+    if (typeof this.props.onAccountChange === 'function') {
+      this.props.onAccountChange();
+    }
   }
 
   onSelectAccount = (address) => {

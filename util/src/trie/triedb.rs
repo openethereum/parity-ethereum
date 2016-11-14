@@ -87,7 +87,7 @@ impl<'db> TrieDB<'db> {
 	/// Convert a vector of hashes to a hashmap of hash to occurrences.
 	pub fn to_map(hashes: Vec<H256>) -> HashMap<H256, u32> {
 		let mut r: HashMap<H256, u32> = HashMap::new();
-		for h in hashes.into_iter() {
+		for h in hashes {
 			*r.entry(h).or_insert(0) += 1;
 		}
 		r
@@ -97,7 +97,7 @@ impl<'db> TrieDB<'db> {
 	/// trie.
 	pub fn db_items_remaining(&self) -> super::Result<HashMap<H256, i32>> {
 		let mut ret = self.db.keys();
-		for (k, v) in Self::to_map(try!(self.keys())).into_iter() {
+		for (k, v) in Self::to_map(try!(self.keys())) {
 			let keycount = *ret.get(&k).unwrap_or(&0);
 			match keycount <= v as i32 {
 				true => ret.remove(&k),
@@ -133,7 +133,7 @@ impl<'db> TrieDB<'db> {
 	}
 
 	/// Get the data of the root node.
-	fn root_data<'a, R: 'a + Recorder>(&self, r: &'a mut R) -> super::Result<DBValue> {
+	fn root_data<R: Recorder>(&self, r: &mut R) -> super::Result<DBValue> {
 		self.db.get(self.root).ok_or_else(|| Box::new(TrieError::InvalidStateRoot(*self.root)))
 			.map(|node| { r.record(self.root, &*node, 0); node })
 	}

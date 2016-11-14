@@ -64,7 +64,7 @@ export default class TransactionPending extends Component {
     const gasToDisplay = tUtil.getGasDisplay(gas);
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
 
-    this.context.api.ethcore.netChain()
+    this.context.api.parity.netChain()
       .then((chain) => {
         this.setState({ chain });
       })
@@ -116,9 +116,11 @@ export default class TransactionPending extends Component {
     );
   }
 
-  onConfirm = password => {
+  onConfirm = data => {
     const { id, gasPrice } = this.props;
-    this.props.onConfirm({ id, password, gasPrice });
+    const { password, wallet } = data;
+
+    this.props.onConfirm({ id, password, wallet, gasPrice });
   }
 
   onReject = () => {

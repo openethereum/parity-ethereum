@@ -42,7 +42,8 @@ class Application extends Component {
     children: PropTypes.node,
     netChain: PropTypes.string,
     isTest: PropTypes.bool,
-    pending: PropTypes.array
+    pending: PropTypes.array,
+    blockNumber: PropTypes.object
   }
 
   state = {
@@ -73,7 +74,7 @@ class Application extends Component {
   }
 
   renderApp () {
-    const { children, pending, netChain, isTest } = this.props;
+    const { children, pending, netChain, isTest, blockNumber } = this.props;
     const { showFirstRun } = this.state;
 
     return (
@@ -85,7 +86,7 @@ class Application extends Component {
           isTest={ isTest }
           pending={ pending } />
         { children }
-        <Status />
+        { blockNumber ? (<Status />) : null }
       </Container>
     );
   }
@@ -103,8 +104,8 @@ class Application extends Component {
   checkAccounts () {
     const { api } = this.context;
 
-    api.personal
-      .listAccounts()
+    api.eth
+      .accounts()
       .then((accounts) => {
         this.setState({
           showFirstRun: showFirstRun || accounts.length === 0
@@ -124,7 +125,7 @@ class Application extends Component {
 }
 
 function mapStateToProps (state) {
-  const { netChain, isTest } = state.nodeStatus;
+  const { netChain, isTest, blockNumber } = state.nodeStatus;
   const { hasAccounts } = state.personal;
   const { pending } = state.signer;
 
@@ -132,7 +133,8 @@ function mapStateToProps (state) {
     hasAccounts,
     netChain,
     isTest,
-    pending
+    pending,
+    blockNumber
   };
 }
 

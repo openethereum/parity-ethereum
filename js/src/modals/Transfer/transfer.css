@@ -25,6 +25,13 @@
   position: relative;
 }
 
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  position: relative;
+  flex-direction: column;
+}
+
 .columns>div {
   flex: 0 1 50%;
   width: 50%;
@@ -42,9 +49,16 @@
   margin-right: 0.5em;
 }
 
+.tokenSelect {
+}
+
 .token {
   height: 32px;
-  margin-top: 14px;
+  padding: 4px 0;
+}
+
+.tokenSelect .token {
+  margin-top: 10px;
 }
 
 .token img {
@@ -123,4 +137,17 @@
 
 .inputoverride {
   padding-top: 24px !important;
+}
+
+.contentTitle {
+  font-size: 1.2rem;
+}
+
+.chart {
+  position: absolute;
+  width: 100%;
+}
+
+.gasPriceDesc {
+  font-size: 0.9em;
 }
