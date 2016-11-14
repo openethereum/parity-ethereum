@@ -16,7 +16,7 @@ git:
 matrix:
   include:
   - rust: stable
-    env: RUN_TESTS="true" TEST_OPTIONS="--no-release"
+    env: RUN_TESTS="true" TEST_OPTIONS=""
   - rust: stable
     env: RUN_COVERAGE="true"
   - rust: stable
