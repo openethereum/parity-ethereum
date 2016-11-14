@@ -146,7 +146,7 @@ export default class Import extends Component {
   }
 
   sortFunctions = (a, b) => {
-    return a.name.localeCompare(b.name);
+    return (a.name || '').localeCompare(b.name || '');
   }
 
   countFunctions () {

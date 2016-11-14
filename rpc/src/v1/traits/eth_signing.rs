@@ -15,26 +15,27 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Eth rpc interface.
-use std::sync::Arc;
-use jsonrpc_core::*;
 
-/// Signing methods implementation relying on unlocked accounts.
-pub trait EthSigning: Sized + Send + Sync + 'static {
-	/// Signs the data with given address signature.
-	fn sign(&self, _: Params, _: Ready);
+use v1::helpers::auto_args::{WrapAsync, Ready};
+use v1::types::{H160, H256, H520, TransactionRequest, Bytes};
 
-	/// Sends transaction; will block for 20s to try to return the
-	/// transaction hash.
-	/// If it cannot yet be signed, it will return a transaction ID for
-	/// later use with check_transaction.
-	fn send_transaction(&self, _: Params, _: Ready);
+build_rpc_trait! {
+	/// Signing methods implementation relying on unlocked accounts.
+	pub trait EthSigning {
+		/// Signs the data with given address signature.
+		#[rpc(async, name = "eth_sign")]
+		fn sign(&self, Ready<H520>, H160, H256);
 
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		delegate.add_async_method("eth_sign", EthSigning::sign);
-		delegate.add_async_method("eth_sendTransaction", EthSigning::send_transaction);
+		/// Sends transaction; will block waiting for signer to return the
+		/// transaction hash.
+		/// If Signer is disable it will require the account to be unlocked.
+		#[rpc(async, name = "eth_sendTransaction")]
+		fn send_transaction(&self, Ready<H256>, TransactionRequest);
 
-		delegate
+		/// Signs transactions without dispatching it to the network.
+		/// Returns signed transaction RLP representation.
+		/// It can be later submitted using `eth_sendRawTransaction`.
+		#[rpc(async, name = "eth_signTransaction")]
+		fn sign_transaction(&self, Ready<Bytes>, TransactionRequest);
 	}
 }

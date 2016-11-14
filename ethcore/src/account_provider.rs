@@ -95,6 +95,7 @@ impl KeyDirectory for NullDir {
 struct AddressBook {
 	path: PathBuf,
 	cache: HashMap<Address, AccountMeta>,
+	transient: bool,
 }
 
 impl AddressBook {
@@ -106,9 +107,16 @@ impl AddressBook {
 		let mut r = AddressBook {
 			path: path,
 			cache: HashMap::new(),
+			transient: false,
 		};
 		r.revert();
 		r
+	}
+
+	pub fn transient() -> Self {
+		let mut book = AddressBook::new(Default::default());
+		book.transient = true;
+		book
 	}
 
 	pub fn get(&self) -> HashMap<Address, AccountMeta> {
@@ -134,6 +142,7 @@ impl AddressBook {
 	}
 
 	fn revert(&mut self) {
+		if self.transient { return; }
 		trace!(target: "addressbook", "revert");
 		let _ = fs::File::open(self.path.clone())
 			.map_err(|e| trace!(target: "addressbook", "Couldn't open address book: {}", e))
@@ -144,6 +153,7 @@ impl AddressBook {
 	}
 
 	fn save(&mut self) {
+		if self.transient { return; }
 		trace!(target: "addressbook", "save");
 		let _ = fs::File::create(self.path.clone())
 			.map_err(|e| warn!(target: "addressbook", "Couldn't open address book for writing: {}", e))
@@ -175,7 +185,7 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
-			address_book: Mutex::new(AddressBook::new(Default::default())),
+			address_book: Mutex::new(AddressBook::transient()),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
 				.expect("NullDir load always succeeds; qed"))
 		}

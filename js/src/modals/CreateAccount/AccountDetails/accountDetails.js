@@ -58,7 +58,7 @@ export default class AccountDetails extends Component {
         readOnly
         allowCopy
         hint='the account recovery phrase'
-        label='account recovery phrase (keep safe)'
+        label='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
         value={ phrase } />
     );
   }

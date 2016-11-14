@@ -85,11 +85,6 @@ export default class Status {
       setTimeout(this._pollStatus, timeout);
     };
 
-    const wasConnected = this._store.getState().nodeStatus.isConnected;
-    if (isConnected !== wasConnected) {
-      this._fetchEnode();
-    }
-
     this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
 
     if (!isConnected) {
@@ -111,8 +106,7 @@ export default class Status {
         this._api.parity.netPort(),
         this._api.parity.nodeName(),
         this._api.parity.rpcSettings(),
-        this._api.eth.syncing(),
-        this._pollTraceMode()
+        this._api.eth.syncing()
       ])
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
@@ -134,12 +128,12 @@ export default class Status {
           isTest,
           traceMode
         }));
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
-        nextTimeout();
       });
+
+    nextTimeout();
   }
 
   _pollLogs = () => {

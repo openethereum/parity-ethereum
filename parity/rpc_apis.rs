@@ -37,7 +37,7 @@ pub enum Api {
 	Net,
 	/// Eth (Safe)
 	Eth,
-	/// Geth-compatible "personal" API (DEPRECATED; only used in `--geth` mode.) 
+	/// Geth-compatible "personal" API (DEPRECATED; only used in `--geth` mode.)
 	Personal,
 	/// Signer - Confirm transactions in Signer (UNSAFE: Passwords, List of transactions)
 	Signer,
@@ -119,6 +119,7 @@ pub struct Dependencies {
 	pub settings: Arc<NetworkSettings>,
 	pub net_service: Arc<ManageNetwork>,
 	pub geth_compatibility: bool,
+	pub dapps_interface: Option<String>,
 	pub dapps_port: Option<u16>,
 }
 
@@ -228,6 +229,7 @@ pub fn setup_rpc<T: Extendable>(server: T, deps: Arc<Dependencies>, apis: ApiSet
 					deps.logger.clone(),
 					deps.settings.clone(),
 					signer,
+					deps.dapps_interface.clone(),
 					deps.dapps_port,
 				).to_delegate());
 

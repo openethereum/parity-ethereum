@@ -31,7 +31,7 @@ echo -n '{"fat_db":false,"mode":"passive","mode.alarm":3600,"mode.timeout":300,"
 chown -R $USER $HOME/.parity $HOME/Library/LaunchAgents $HOME/Library/LaunchAgents/io.parity.ethereum.plist
 
 su $USER -c "launchctl load $HOME/Library/LaunchAgents/io.parity.ethereum.plist"
-sleep 1
+sleep 5
 
-open http://127.0.0.1:8080/
+su $USER -c "open http://127.0.0.1:8080/"
 

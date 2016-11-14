@@ -29,7 +29,8 @@ const TABMAP = {
   accounts: 'account',
   addresses: 'address',
   apps: 'app',
-  contracts: 'contract'
+  contracts: 'contract',
+  deploy: 'contract'
 };
 
 class TabBar extends Component {

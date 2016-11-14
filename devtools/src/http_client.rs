@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::thread;
 use std::time::Duration;
 use std::io::{Read, Write};
 use std::str::{self, Lines};
@@ -42,8 +43,28 @@ pub fn read_block(lines: &mut Lines, all: bool) -> String {
 	block
 }
 
+fn connect(address: &SocketAddr) -> TcpStream {
+	let mut retries = 0;
+	let mut last_error = None;
+	while retries < 10 {
+		retries += 1;
+
+		let res = TcpStream::connect(address);
+		match res {
+			Ok(stream) => {
+				return stream;
+			},
+			Err(e) => {
+				last_error = Some(e);
+				thread::sleep(Duration::from_millis(retries * 10));
+			}
+		}
+	}
+	panic!("Unable to connect to the server. Last error: {:?}", last_error);
+}
+
 pub fn request(address: &SocketAddr, request: &str) -> Response {
-	let mut req = TcpStream::connect(address).unwrap();
+	let mut req = connect(address);
 	req.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 

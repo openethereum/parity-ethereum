@@ -22,18 +22,18 @@ use v1::helpers::signing_queue::{ConfirmationsQueue};
 pub struct SignerService {
 	queue: Arc<ConfirmationsQueue>,
 	generate_new_token: Box<Fn() -> Result<String, String> + Send + Sync + 'static>,
-	port: Option<u16>,
+	address: Option<(String, u16)>,
 }
 
 impl SignerService {
 
 	/// Creates new Signer Service given function to generate new tokens.
-	pub fn new<F>(new_token: F, port: Option<u16>) -> Self
+	pub fn new<F>(new_token: F, address: Option<(String, u16)>) -> Self
 		where F: Fn() -> Result<String, String> + Send + Sync + 'static {
 		SignerService {
 			queue: Arc::new(ConfirmationsQueue::default()),
 			generate_new_token: Box::new(new_token),
-			port: port,
+			address: address,
 		}
 	}
 
@@ -47,20 +47,20 @@ impl SignerService {
 		self.queue.clone()
 	}
 
-	/// Returns signer port (if signer enabled) or `None` otherwise
-	pub fn port(&self) -> Option<u16> {
-		self.port
+	/// Returns signer address (if signer enabled) or `None` otherwise
+	pub fn address(&self) -> Option<(String, u16)> {
+		self.address.clone()
 	}
 
 	/// Returns true if Signer is enabled.
 	pub fn is_enabled(&self) -> bool {
-		self.port.is_some()
+		self.address.is_some()
 	}
 
 	#[cfg(test)]
 	/// Creates new Signer Service for tests.
-	pub fn new_test(port: Option<u16>) -> Self {
-		SignerService::new(|| Ok("new_token".into()), port)
+	pub fn new_test(address: Option<(String, u16)>) -> Self {
+		SignerService::new(|| Ok("new_token".into()), address)
 	}
 }
 

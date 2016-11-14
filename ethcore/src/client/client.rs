@@ -1232,8 +1232,7 @@ impl BlockChainClient for Client {
 
 	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
-			.map(|block| BlockView::new(&block).header())
-			.map(|header| self.engine.extra_info(&header))
+			.map(|header| self.engine.extra_info(&decode(&header)))
 	}
 }
 

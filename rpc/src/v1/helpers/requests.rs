@@ -100,9 +100,22 @@ pub struct ConfirmationRequest {
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub enum ConfirmationPayload {
 	/// Transaction
-	Transaction(FilledTransactionRequest),
+	SendTransaction(FilledTransactionRequest),
+	/// Sign Transaction
+	SignTransaction(FilledTransactionRequest),
 	/// Sign request
-	Sign(Address, H256),
+	Signature(Address, H256),
 	/// Decrypt request
 	Decrypt(Address, Bytes),
+}
+
+impl ConfirmationPayload {
+	pub fn sender(&self) -> Address {
+		match *self {
+			ConfirmationPayload::SendTransaction(ref request) => request.from,
+			ConfirmationPayload::SignTransaction(ref request) => request.from,
+			ConfirmationPayload::Signature(ref address, _) => *address,
+			ConfirmationPayload::Decrypt(ref address, _) => *address,
+		}
+	}
 }

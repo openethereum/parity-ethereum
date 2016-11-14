@@ -109,6 +109,15 @@ export default {
     }
   },
 
+  dappsInterface: {
+    desc: 'Returns the interface the dapps are running on, error if not enabled',
+    params: [],
+    returns: {
+      type: String,
+      desc: 'The interface'
+    }
+  },
+
   defaultExtraData: {
     desc: 'Returns the default extra data',
     params: [],
@@ -344,6 +353,20 @@ export default {
     returns: {
       type: Address,
       desc: 'The created address'
+    }
+  },
+
+  nextNonce: {
+    desc: 'Returns next available nonce for transaction from given account. Includes pending block and transaction queue.',
+    params: [
+      {
+        type: Address,
+        desc: 'Account'
+      }
+    ],
+    returns: {
+      type: Quantity,
+      desc: 'Next valid nonce'
     }
   },
 

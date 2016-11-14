@@ -20,6 +20,7 @@ extern crate ethash;
 
 use std::io::{Write};
 use std::process::{Command, Stdio};
+use std::collections::BTreeSet;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -49,7 +50,7 @@ use v1::types::{
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
-use v1::helpers::dispatch::{default_gas_price, dispatch_transaction};
+use v1::helpers::dispatch::{dispatch_transaction, default_gas_price};
 use v1::helpers::block_import::is_major_importing;
 use v1::helpers::auto_args::Trailing;
 
@@ -339,7 +340,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let store = take_weak!(self.accounts);
 		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
-		Ok(accounts.into_iter().map(Into::into).collect())
+		let addresses = try!(store.addresses_info().map_err(|e| errors::internal("Could not fetch accounts.", e)));
+
+		let set: BTreeSet<Address> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
+		Ok(set.into_iter().map(Into::into).collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {
@@ -610,7 +614,7 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 
 		let raw_transaction = raw.to_vec();
 		match UntrustedRlp::new(&raw_transaction).as_val() {
-			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction),
+			Ok(signed_transaction) => dispatch_transaction(&*take_weak!(self.client), &*take_weak!(self.miner), signed_transaction).map(Into::into),
 			Err(e) => Err(errors::from_rlp_error(e)),
 		}
 	}

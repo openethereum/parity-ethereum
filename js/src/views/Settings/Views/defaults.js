@@ -58,7 +58,7 @@ const defaultViews = {
     label: 'Contracts',
     route: '/contracts',
     value: 'contract',
-    description: 'Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focussed environment, specifically for advanced users that understand the inner working of certain contracts.'
+    description: 'Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
   },
 
   status: {
@@ -77,7 +77,7 @@ const defaultViews = {
     label: 'Signer',
     route: '/signer',
     value: 'signer',
-    description: 'The security focussed area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
+    description: 'The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
   },
 
   settings: {

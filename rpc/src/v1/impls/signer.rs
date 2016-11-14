@@ -17,14 +17,18 @@
 //! Transactions Confirmations rpc implementation
 
 use std::sync::{Arc, Weak};
-use jsonrpc_core::*;
+
+use rlp::{UntrustedRlp, View};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
+use ethcore::transaction::SignedTransaction;
 use ethcore::miner::MinerService;
+
+use jsonrpc_core::Error;
 use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, U256};
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{sign_and_dispatch, sign, decrypt};
+use v1::helpers::dispatch::{self, dispatch_transaction};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -65,15 +69,15 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		let signer = take_weak!(self.signer);
 
 		Ok(signer.requests()
-		   .into_iter()
-		   .map(Into::into)
-		   .collect()
+			.into_iter()
+			.map(Into::into)
+			.collect()
 		)
 	}
 
 	// TODO [ToDr] TransactionModification is redundant for some calls
 	// might be better to replace it in future
-	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<Value, Error> {
+	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
 		try!(self.active());
 
 		let id = id.into();
@@ -83,20 +87,69 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 		let miner = take_weak!(self.miner);
 
 		signer.peek(&id).map(|confirmation| {
+			let mut payload = confirmation.payload.clone();
+			// Modify payload
+			match (&mut payload, modification.gas_price) {
+				(&mut ConfirmationPayload::SendTransaction(ref mut request), Some(gas_price)) => {
+					request.gas_price = gas_price.into();
+				},
+				_ => {},
+			}
+			// Execute
+			let result = dispatch::execute(&*client, &*miner, &*accounts, payload, Some(pass));
+			if let Ok(ref response) = result {
+				signer.request_confirmed(id, Ok(response.clone()));
+			}
+			result
+		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+	}
+
+	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {
+		try!(self.active());
+
+		let id = id.into();
+		let signer = take_weak!(self.signer);
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+
+		signer.peek(&id).map(|confirmation| {
 			let result = match confirmation.payload {
-				ConfirmationPayload::Transaction(mut request) => {
-					// apply modification
-					if let Some(gas_price) = modification.gas_price {
-						request.gas_price = gas_price.into();
+				ConfirmationPayload::SendTransaction(request) => {
+					let signed_transaction: SignedTransaction = try!(
+						UntrustedRlp::new(&bytes.0).as_val().map_err(errors::from_rlp_error)
+					);
+					let sender = try!(
+						signed_transaction.sender().map_err(|e| errors::invalid_params("Invalid signature.", e))
+					);
+
+					// Verification
+					let sender_matches = sender == request.from;
+					let data_matches = signed_transaction.data == request.data;
+					let value_matches = signed_transaction.value == request.value;
+					let nonce_matches = match request.nonce {
+						Some(nonce) => signed_transaction.nonce == nonce,
+						None => true,
+					};
+
+					// Dispatch if everything is ok
+					if sender_matches && data_matches && value_matches && nonce_matches {
+						dispatch_transaction(&*client, &*miner, signed_transaction)
+							.map(Into::into)
+							.map(ConfirmationResponse::SendTransaction)
+					} else {
+						let mut error = Vec::new();
+						if !sender_matches { error.push("from") }
+						if !data_matches { error.push("data") }
+						if !value_matches { error.push("value") }
+						if !nonce_matches { error.push("nonce") }
+
+						Err(errors::invalid_params("Sent transaction does not match the request.", error))
 					}
-					sign_and_dispatch(&*client, &*miner, &*accounts, request.into(), Some(pass)).map(to_value)
 				},
-				ConfirmationPayload::Sign(address, hash) => {
-					sign(&*accounts, address, Some(pass), hash)
-				},
-				ConfirmationPayload::Decrypt(address, msg) => {
-					decrypt(&*accounts, address, Some(pass), msg)
-				},
+				// TODO [ToDr]:
+				// 1. Sign - verify signature
+				// 2. Decrypt - pass through?
+				_ => Err(errors::unimplemented(Some("Non-transaction requests does not support RAW signing yet.".into()))),
 			};
 			if let Ok(ref response) = result {
 				signer.request_confirmed(id, Ok(response.clone()));

@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.21",
+  "version": "0.2.37",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -39,9 +39,11 @@
     "clean": "rm -rf ./build ./coverage",
     "coveralls": "npm run testCoverage && coveralls < coverage/lcov.info",
     "lint": "eslint --ignore-path .gitignore ./src/",
+    "lint:cached": "eslint --cache --ignore-path .gitignore ./src/",
     "test": "mocha 'src/**/*.spec.js'",
     "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
-    "test:e2e": "mocha 'src/**/*.e2e.js'"
+    "test:e2e": "mocha 'src/**/*.e2e.js'",
+    "prepush": "npm run lint:cached"
   },
   "devDependencies": {
     "babel-cli": "^6.10.1",
@@ -84,6 +86,7 @@
     "happypack": "^2.2.1",
     "history": "^2.0.0",
     "html-loader": "^0.4.4",
+    "husky": "^0.11.9",
     "ignore-styles": "2.0.0",
     "image-webpack-loader": "^1.8.0",
     "istanbul": "^1.0.0-alpha.2",
@@ -97,6 +100,7 @@
     "postcss-loader": "^0.8.1",
     "postcss-nested": "^1.0.0",
     "postcss-simple-vars": "^3.0.0",
+    "raw-loader": "^0.5.1",
     "react-addons-test-utils": "^15.3.0",
     "react-copy-to-clipboard": "^4.2.3",
     "react-hot-loader": "^1.3.0",
@@ -115,9 +119,11 @@
   "dependencies": {
     "bignumber.js": "^2.3.0",
     "blockies": "0.0.2",
+    "brace": "^0.9.0",
     "bytes": "^2.4.0",
     "chart.js": "^2.3.0",
     "es6-promise": "^3.2.1",
+    "ethereumjs-tx": "^1.1.2",
     "file-saver": "^1.3.3",
     "format-json": "^1.0.3",
     "format-number": "^2.0.1",
@@ -134,9 +140,11 @@
     "moment": "^2.14.1",
     "qs": "^6.3.0",
     "react": "^15.2.1",
+    "react-ace": "^4.0.0",
     "react-addons-css-transition-group": "^15.2.1",
     "react-chartjs-2": "^1.5.0",
     "react-dom": "^15.2.1",
+    "react-dropzone": "^3.7.3",
     "react-redux": "^4.4.5",
     "react-router": "^2.6.1",
     "react-router-redux": "^4.0.5",
@@ -147,10 +155,14 @@
     "redux-actions": "^0.10.1",
     "redux-thunk": "^2.1.0",
     "rlp": "^2.0.0",
+    "scryptsy": "^2.0.0",
+    "solc": "ngotchac/solc-js",
     "store": "^1.3.20",
     "utf8": "^2.1.1",
+    "valid-url": "^1.0.9",
     "validator": "^5.7.0",
     "web3": "^0.17.0-beta",
-    "whatwg-fetch": "^1.0.0"
+    "whatwg-fetch": "^1.0.0",
+    "worker-loader": "^0.7.1"
   }
 }
