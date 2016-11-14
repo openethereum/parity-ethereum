@@ -21,7 +21,7 @@ import { Dialog, FlatButton } from 'material-ui';
 import AccountSelector from '../../Accounts/AccountSelector';
 import InputText from '../../Inputs/Text';
 
-import { TOKEN_ADDRESS_TYPE, TLA_TYPE, UINT_TYPE, STRING_TYPE } from '../../Inputs/validation';
+import { TOKEN_ADDRESS_TYPE, TLA_TYPE, DECIMAL_TYPE, STRING_TYPE } from '../../Inputs/validation';
 
 import styles from '../actions.css';
 
@@ -41,11 +41,11 @@ const initState = {
       floatingLabelText: 'Token TLA',
       hintText: 'The token short name (3 characters)'
     },
-    base: {
+    decimals: {
       ...defaultField,
-      type: UINT_TYPE,
-      floatingLabelText: 'Token Base',
-      hintText: 'The token precision'
+      type: DECIMAL_TYPE,
+      floatingLabelText: 'Token Decimals',
+      hintText: 'The number of decimals (0-18)'
     },
     name: {
       ...defaultField,
