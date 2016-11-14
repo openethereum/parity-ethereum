@@ -326,7 +326,7 @@ windows:
     - set INCLUDE=C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Include;C:\vs2015\VC\include;C:\Program Files (x86)\Windows Kits\10\Include\10.0.10240.0\ucrt
     - set LIB=C:\vs2015\VC\lib;C:\Program Files (x86)\Windows Kits\10\Lib\10.0.10240.0\ucrt\x64
     - set RUST_BACKTRACE=1
-    - set RUSTFLAGS=%RUSTFLAGS% -Zorbit=off
+    - set RUSTFLAGS=%RUSTFLAGS% 
     - rustup default stable-x86_64-pc-windows-msvc
     - cargo build --release %CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
