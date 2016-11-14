@@ -16,9 +16,11 @@
 
 //! State snapshotting tests.
 
-use snapshot::{chunk_state, Progress, StateRebuilder};
+use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
+
+use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
 use util::hash::H256;
@@ -29,6 +31,7 @@ use util::Mutex;
 use devtools::RandomTempPath;
 
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[test]
 fn snap_and_restore() {
@@ -65,11 +68,13 @@ fn snap_and_restore() {
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
+		let flag = AtomicBool::new(true);
+
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
 			let chunk = ::util::snappy::decompress(&raw).unwrap();
 
-			rebuilder.feed(&chunk).unwrap();
+			rebuilder.feed(&chunk, &flag).unwrap();
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
@@ -81,4 +86,53 @@ fn snap_and_restore() {
 	let new_db = journaldb::new(db, Algorithm::Archive, ::db::COL_STATE);
 
 	compare_dbs(&old_db, new_db.as_hashdb());
+}
+
+#[test]
+fn checks_flag() {
+	let mut producer = StateProducer::new();
+	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
+	let mut old_db = MemoryDB::new();
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	for _ in 0..10 {
+		producer.tick(&mut rng, &mut old_db);
+	}
+
+	let snap_dir = RandomTempPath::create_dir();
+	let mut snap_file = snap_dir.as_path().to_owned();
+	snap_file.push("SNAP");
+
+	let state_root = producer.state_root();
+	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
+
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
+
+	writer.into_inner().finish(::snapshot::ManifestData {
+		state_hashes: state_hashes,
+		block_hashes: Vec::new(),
+		state_root: state_root,
+		block_number: 0,
+		block_hash: H256::default(),
+	}).unwrap();
+
+	let mut db_path = snap_dir.as_path().to_owned();
+	db_path.push("db");
+	{
+		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
+		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
+
+		let flag = AtomicBool::new(false);
+
+		for chunk_hash in &reader.manifest().state_hashes {
+			let raw = reader.chunk(*chunk_hash).unwrap();
+			let chunk = ::util::snappy::decompress(&raw).unwrap();
+
+			match rebuilder.feed(&chunk, &flag) {
+				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},
+				_ => panic!("unexpected result when feeding with flag off"),
+			}
+		}
+	}
 }

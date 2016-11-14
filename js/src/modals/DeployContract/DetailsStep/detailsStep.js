@@ -25,7 +25,7 @@ import styles from '../deployContract.css';
 export default class DetailsStep extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
@@ -46,16 +46,33 @@ export default class DetailsStep extends Component {
     onFromAddressChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
-    onParamsChange: PropTypes.func.isRequired
-  }
+    onParamsChange: PropTypes.func.isRequired,
+    readOnly: PropTypes.bool
+  };
+
+  static defaultProps = {
+    readOnly: false
+  };
 
   state = {
     inputs: []
   }
 
+  componentDidMount () {
+    const { abi, code } = this.props;
+
+    if (abi) {
+      this.onAbiChange(abi);
+    }
+
+    if (code) {
+      this.onCodeChange(code);
+    }
+  }
+
   render () {
     const { accounts } = this.props;
-    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError } = this.props;
+    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError, readOnly } = this.props;
 
     return (
       <Form>
@@ -77,13 +94,15 @@ export default class DetailsStep extends Component {
           hint='the abi of the contract to deploy'
           error={ abiError }
           value={ abi }
-          onSubmit={ this.onAbiChange } />
+          onSubmit={ this.onAbiChange }
+          readOnly={ readOnly } />
         <Input
           label='code'
           hint='the compiled code of the contract to deploy'
           error={ codeError }
           value={ code }
-          onSubmit={ this.onCodeChange } />
+          onSubmit={ this.onCodeChange }
+          readOnly={ readOnly } />
         { this.renderConstructorInputs() }
       </Form>
     );

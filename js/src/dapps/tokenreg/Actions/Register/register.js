@@ -81,6 +81,7 @@ export default class RegisterAction extends Component {
         className={ styles.dialog }
         onRequestClose={ this.onClose }
         actions={ this.renderActions() }
+        ref='dialog'
         autoScrollBodyContent
       >
         { this.renderContent() }
@@ -149,7 +150,9 @@ export default class RegisterAction extends Component {
   renderForm () {
     return (
       <div>
-        <AccountSelector />
+        <AccountSelector
+          onAccountChange={ this.onAccountChange }
+        />
         { this.renderInputs() }
       </div>
     );
@@ -173,6 +176,11 @@ export default class RegisterAction extends Component {
           onChange={ onChange } />
       );
     });
+  }
+
+  onAccountChange = () => {
+    const { dialog } = this.refs;
+    dialog.forceUpdate();
   }
 
   onChange (fieldKey, valid, value) {

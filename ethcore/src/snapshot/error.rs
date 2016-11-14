@@ -45,6 +45,8 @@ pub enum Error {
 	MissingCode(Vec<H256>),
 	/// Unrecognized code encoding.
 	UnrecognizedCodeState(u8),
+	/// Restoration aborted.
+	RestorationAborted,
 	/// Trie error.
 	Trie(TrieError),
 	/// Decoder error.
@@ -67,6 +69,7 @@ impl fmt::Display for Error {
 				a pruned database. Please re-run with the --pruning archive flag."),
 			Error::MissingCode(ref missing) => write!(f, "Incomplete snapshot: {} contract codes not found.", missing.len()),
 			Error::UnrecognizedCodeState(state) => write!(f, "Unrecognized code encoding ({})", state),
+			Error::RestorationAborted => write!(f, "Snapshot restoration aborted."),
 			Error::Io(ref err) => err.fmt(f),
 			Error::Decoder(ref err) => err.fmt(f),
 			Error::Trie(ref err) => err.fmt(f),
