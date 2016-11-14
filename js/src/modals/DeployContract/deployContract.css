@@ -33,7 +33,7 @@
 }
 
 .inputs {
-  padding-top: 18px;
+  padding-top: 2px;
 
   label {
     line-height: 22px;
@@ -41,7 +41,7 @@
     color: rgba(255, 255, 255, 0.498039);
     -webkit-user-select: none;
     font-size: 12px;
-    top: 8px;
+    top: 11px;
     position: relative;
   }
 }

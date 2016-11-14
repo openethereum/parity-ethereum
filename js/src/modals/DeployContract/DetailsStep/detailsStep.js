@@ -18,6 +18,10 @@ import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 import { range } from 'lodash';
 
+import IconButton from 'material-ui/IconButton';
+import AddIcon from 'material-ui/svg-icons/content/add';
+import RemoveIcon from 'material-ui/svg-icons/content/remove';
+
 import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
 
@@ -43,35 +47,63 @@ class TypedInput extends Component {
       const { accounts, label, value = param.default } = this.props;
       const { subtype, length } = param;
 
-      if (length) {
-        const inputs = range(length).map((_, index) => {
-          const onChange = (inputValue) => {
-            const newValues = [].concat(this.props.value);
-            newValues[index] = inputValue;
-            this.props.onChange(newValues);
-          };
+      const fixedLength = !!length;
 
-          return (
-            <TypedInput
-              key={ `${subtype.type}_${index}` }
-              onChange={ onChange }
-              accounts={ accounts }
-              param={ subtype }
-              value={ value[index] }
-            />
-          );
-        });
+      const inputs = range(length || value.length).map((_, index) => {
+        const onChange = (inputValue) => {
+          const newValues = [].concat(this.props.value);
+          newValues[index] = inputValue;
+          this.props.onChange(newValues);
+        };
 
         return (
-          <div className={ styles.inputs }>
-            <label>{ label }</label>
-            { inputs }
-          </div>
+          <TypedInput
+            key={ `${subtype.type}_${index}` }
+            onChange={ onChange }
+            accounts={ accounts }
+            param={ subtype }
+            value={ value[index] }
+          />
         );
-      }
+      });
+
+      return (
+        <div className={ styles.inputs }>
+          <label>{ label }</label>
+          { fixedLength ? null : this.renderLength() }
+          { inputs }
+        </div>
+      );
     }
 
     return this.renderType(type);
+  }
+
+  renderLength () {
+    const style = {
+      width: 16,
+      height: 16
+    };
+
+    return (
+      <div>
+        <IconButton
+          iconStyle={ style }
+          style={ style }
+          onClick={ this.onAddField }
+        >
+          <AddIcon />
+        </IconButton>
+
+        <IconButton
+          iconStyle={ style }
+          style={ style }
+          onClick={ this.onRemoveField }
+        >
+          <RemoveIcon />
+        </IconButton>
+      </div>
+    );
   }
 
   renderType (type) {
@@ -182,6 +214,20 @@ class TypedInput extends Component {
 
   onSubmit = (value) => {
     this.props.onChange(value);
+  }
+
+  onAddField = () => {
+    const { value, onChange, param } = this.props;
+    const newValues = [].concat(value, param.subtype.default);
+
+    onChange(newValues);
+  }
+
+  onRemoveField = () => {
+    const { value, onChange } = this.props;
+    const newValues = value.slice(0, -1);
+
+    onChange(newValues);
   }
 
 }
