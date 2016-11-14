@@ -18,3 +18,22 @@
 .description {
   margin-top: .5em !important;
 }
+
+.list {
+  .background {
+    background: rgba(255, 255, 255, 0.2);
+    margin: 0 -1.5em;
+    padding: 0.5em 1.5em;
+  }
+
+  .header {
+    text-transform: uppercase;
+  }
+
+  .byline {
+    font-size: 0.75em;
+    padding-top: 0.5em;
+    line-height: 1.5em;
+    opacity: 0.75;
+  }
+}

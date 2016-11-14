@@ -33,7 +33,7 @@ export default class DappsStore {
   constructor (api) {
     this._api = api;
 
-    this._readDisplayApps();
+    this.readDisplayApps();
 
     Promise
       .all([
@@ -41,15 +41,23 @@ export default class DappsStore {
         this._fetchLocalApps(),
         this._fetchRegistryApps()
       ])
-      .then(this._writeDisplayApps);
+      .then(this.writeDisplayApps);
   }
 
-  @computed get sortedApps () {
-    return this.apps.sort((a, b) => a.name.localeCompare(b.name));
+  @computed get sortedBuiltin () {
+    return this.apps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get sortedLocal () {
+    return this.apps.filter((app) => app.type === 'local');
+  }
+
+  @computed get sortedNetwork () {
+    return this.apps.filter((app) => app.type === 'network');
   }
 
   @computed get visibleApps () {
-    return this.sortedApps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
+    return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
   }
 
   @action openModal = () => {
@@ -61,32 +69,37 @@ export default class DappsStore {
   }
 
   @action hideApp = (id) => {
-    const app = this.displayApps[id] || {};
-    app.visible = false;
-
-    this.displayApps[id] = app;
-    this._writeDisplayApps();
+    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: false } });
+    this.writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    const app = this.displayApps[id] || {};
-    app.visible = true;
-
-    this.displayApps[id] = app;
-    this._writeDisplayApps();
+    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: true } });
+    this.writeDisplayApps();
   }
 
-  @action setDisplayApps = (apps) => {
-    this.displayApps = apps;
+  @action readDisplayApps = () => {
+    this.displayApps = store.get(LS_KEY_DISPLAY) || {};
   }
 
-  @action addApp = (app, visible) => {
+  @action writeDisplayApps = () => {
+    store.set(LS_KEY_DISPLAY, this.displayApps);
+  }
+
+  @action addApps = (apps) => {
     transaction(() => {
-      this.apps.push(app);
+      this.apps = this.apps
+        .concat(apps || [])
+        .sort((a, b) => a.name.localeCompare(b.name));
 
-      if (!this.displayApps[app.id]) {
-        this.displayApps[app.id] = { visible };
-      }
+      const visibility = {};
+      apps.forEach((app) => {
+        if (!this.displayApps[app.id]) {
+          visibility[app.id] = { visible: app.visible };
+        }
+      });
+
+      this.displayApps = Object.assign({}, this.displayApps, visibility);
     });
   }
 
@@ -102,13 +115,13 @@ export default class DappsStore {
     return Promise
       .all(builtinApps.map((app) => dappReg.getImage(app.id)))
       .then((imageIds) => {
-        transaction(() => {
-          builtinApps.forEach((app, index) => {
+        this.addApps(
+          builtinApps.map((app, index) => {
             app.type = 'builtin';
             app.image = hashToImageUrl(imageIds[index]);
-            this.addApp(app, app.visible);
-          });
-        });
+            return app;
+          })
+        );
       })
       .catch((error) => {
         console.warn('DappsStore:fetchBuiltinApps', error);
@@ -126,15 +139,12 @@ export default class DappsStore {
         return apps
           .map((app) => {
             app.type = 'local';
+            app.visible = true;
             return app;
           })
           .filter((app) => app.id && !['ui'].includes(app.id));
       })
-      .then((apps) => {
-        transaction(() => {
-          (apps || []).forEach((app) => this.addApp(app, true));
-        });
-      })
+      .then(this.addApps)
       .catch((error) => {
         console.warn('DappsStore:fetchLocal', error);
       });
@@ -175,7 +185,8 @@ export default class DappsStore {
                 image: hashToImageUrl(imageIds[index]),
                 contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
                 manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
-                type: 'network'
+                type: 'network',
+                visible: false
               };
 
               return app;
@@ -207,11 +218,7 @@ export default class DappsStore {
             });
           });
       })
-      .then((apps) => {
-        transaction(() => {
-          (apps || []).forEach((app) => this.addApp(app, false));
-        });
-      })
+      .then(this.addApps)
       .catch((error) => {
         console.warn('DappsStore:fetchRegistry', error);
       });
@@ -228,13 +235,5 @@ export default class DappsStore {
         console.warn('DappsStore:fetchManifest', error);
         return null;
       });
-  }
-
-  _readDisplayApps = () => {
-    this.setDisplayApps(store.get(LS_KEY_DISPLAY) || {});
-  }
-
-  _writeDisplayApps = () => {
-    store.set(LS_KEY_DISPLAY, this.displayApps);
   }
 }

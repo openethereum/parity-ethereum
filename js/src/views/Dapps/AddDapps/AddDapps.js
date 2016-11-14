@@ -51,10 +51,30 @@ export default class AddDapps extends Component {
         ] }
         visible
         scroll>
-        <List>
-          { store.sortedApps.map(this.renderApp) }
-        </List>
+        <div className={ styles.warning }>
+        </div>
+        { this.renderList(store.sortedLocal, 'Applications locally available', 'All applications installed locally on the machine by the user for access by the Parity client.') }
+        { this.renderList(store.sortedBuiltin, 'Applications bundled with Parity', 'Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.') }
+        { this.renderList(store.sortedNetwork, 'Applications on the global network', 'These applications are not affiliated with Parity nor are they published by Partity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.') }
       </Modal>
+    );
+  }
+
+  renderList (items, header, byline) {
+    if (!items || !items.length) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.list }>
+        <div className={ styles.background }>
+          <div className={ styles.header }>{ header }</div>
+          <div className={ styles.byline }>{ byline }</div>
+        </div>
+        <List>
+          { items.map(this.renderApp) }
+        </List>
+      </div>
     );
   }
 
