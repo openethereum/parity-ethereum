@@ -23,6 +23,7 @@ use state_db::StateDB;
 use block::{OpenBlock, Drain};
 use blockchain::{BlockChain, Config as BlockChainConfig};
 use builtin::Builtin;
+use state::*;
 use evm::Schedule;
 use engines::Engine;
 use env_info::EnvInfo;
@@ -339,7 +340,6 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	}
 }
 
-#[cfg(test)]
 pub fn get_temp_state() -> GuardedTempResult<State> {
 	let temp = RandomTempPath::new();
 	let journal_db = get_temp_state_db_in(temp.as_path());
@@ -356,7 +356,6 @@ pub fn get_temp_state_db_in(path: &Path) -> StateDB {
 	StateDB::new(journal_db, 5 * 1024 * 1024)
 }
 
-#[cfg(test)]
 pub fn get_temp_state_in(path: &Path) -> State {
 	let journal_db = get_temp_state_db_in(path);
 	State::new(journal_db, U256::from(0), Default::default())

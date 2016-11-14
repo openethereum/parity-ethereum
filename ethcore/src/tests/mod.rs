@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod helpers;
-#[cfg(test)]
 mod client;
 #[cfg(feature="ipc")]
 mod rpc;

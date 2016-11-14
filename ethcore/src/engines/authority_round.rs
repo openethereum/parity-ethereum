@@ -296,7 +296,10 @@ impl Engine for AuthorityRound {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
+	use env_info::EnvInfo;
+	use header::Header;
+	use error::{Error, BlockError};
 	use rlp::encode;
 	use block::*;
 	use tests::helpers::*;
@@ -379,7 +382,7 @@ mod tests {
 
 		header.set_author(addr);
 
-		let signature = tap.sign_with_password(addr, "0".into(), header.bare_hash()).unwrap();
+		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
 		let timestamp = UNIX_EPOCH.elapsed().unwrap().as_secs();
 		let step = timestamp + timestamp % 2 + 1;
 		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
