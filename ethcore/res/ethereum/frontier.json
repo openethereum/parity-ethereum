@@ -135,7 +135,7 @@
 				"eip160Transition": "0x28d138",
 				"eip161abcTransition": "0x28d138",
 				"eip161dTransition": "0x28d138",
-				"maxCodeSize": 23999
+				"maxCodeSize": 24576
 			}
 		}
 	},
