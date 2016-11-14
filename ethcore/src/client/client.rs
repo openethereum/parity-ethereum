@@ -22,7 +22,7 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
+use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, ToPretty};
 use util::{journaldb, TrieFactory, Trie};
 use util::trie::TrieSpec;
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
@@ -710,8 +710,9 @@ impl Client {
 		let res = || {
 			let is_latest = try!(operations.function("isLatest".into()).map_err(as_string));
 			let params = try!(is_latest.encode_call(
-				vec![Token::String("par".into()), Token::Address(code_hash().0)]
+				vec![Token::FixedBytes(b"par"[..].to_owned()), Token::Address(code_hash().0)]
 			).map_err(as_string));
+			println!("params: {}", params.pretty());
 			let output = try!(self.call_contract("0x4c1783B4FfB1A99eFC4cda632aA990F5138b26f1".into(), params));
 			let result = try!(is_latest.decode_output(output).map_err(as_string));
 
