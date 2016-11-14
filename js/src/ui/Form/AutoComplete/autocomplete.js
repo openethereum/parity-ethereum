@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import keycode from 'keycode';
 import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 
@@ -67,6 +68,9 @@ export default class AutoComplete extends Component {
         fullWidth
         floatingLabelFixed
         dataSource={ this.getDataSource() }
+        menuProps={ { maxHeight: 400 } }
+        ref='muiAutocomplete'
+        onKeyDown={ this.onKeyDown }
       />
     );
   }
@@ -89,6 +93,29 @@ export default class AutoComplete extends Component {
         />
       )
     }));
+  }
+
+  onKeyDown = (event) => {
+    const { muiAutocomplete } = this.refs;
+
+    switch (keycode(event)) {
+      case 'down':
+        const { menu } = muiAutocomplete.refs;
+        menu.handleKeyDown(event);
+        break;
+
+      case 'enter':
+      case 'tab':
+        event.preventDefault();
+        event.stopPropagation();
+        event.which = 'useless';
+
+        const e = new CustomEvent('down');
+        e.which = 40;
+
+        muiAutocomplete.handleKeyDown(e);
+        break;
+    }
   }
 
   onChange = (item, idx) => {
