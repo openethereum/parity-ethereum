@@ -278,8 +278,6 @@ export default class DeployContract extends Component {
       return;
     }
 
-    console.log('onDeploymentState', data);
-
     switch (data.state) {
       case 'estimateGas':
       case 'postTransaction':
