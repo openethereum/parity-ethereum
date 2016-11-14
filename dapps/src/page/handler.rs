@@ -60,13 +60,13 @@ pub enum ServedFile<T: Dapp> {
 }
 
 impl<T: Dapp> ServedFile<T> {
-	pub fn new(embeddable_at: Option<u16>) -> Self {
+	pub fn new(embeddable_on: Option<(String, u16)>) -> Self {
 		ServedFile::Error(ContentHandler::error(
 			StatusCode::NotFound,
 			"404 Not Found",
 			"Requested dapp resource was not found.",
 			None,
-			embeddable_at,
+			embeddable_on,
 		))
 	}
 }
@@ -97,7 +97,7 @@ pub struct PageHandler<T: Dapp> {
 	/// Requested path.
 	pub path: EndpointPath,
 	/// Flag indicating if the file can be safely embeded (put in iframe).
-	pub safe_to_embed_at_port: Option<u16>,
+	pub safe_to_embed_on: Option<(String, u16)>,
 	/// Cache settings for this page.
 	pub cache: PageCache,
 }
@@ -133,7 +133,7 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 				self.app.file(&self.extract_path(url.path()))
 			},
 			_ => None,
-		}.map_or_else(|| ServedFile::new(self.safe_to_embed_at_port.clone()), |f| ServedFile::File(f));
+		}.map_or_else(|| ServedFile::new(self.safe_to_embed_on.clone()), |f| ServedFile::File(f));
 		Next::write()
 	}
 
@@ -162,7 +162,7 @@ impl<T: Dapp> server::Handler<HttpStream> for PageHandler<T> {
 				}
 
 				// Security headers:
-				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_at_port);
+				add_security_headers(&mut res.headers_mut(), self.safe_to_embed_on.clone());
 				Next::write()
 			},
 			ServedFile::Error(ref mut handler) => {
@@ -246,7 +246,7 @@ fn should_extract_path_with_appid() {
 		},
 		file: ServedFile::new(None),
 		cache: Default::default(),
-		safe_to_embed_at_port: None,
+		safe_to_embed_on: None,
 	};
 
 	// when

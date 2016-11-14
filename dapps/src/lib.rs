@@ -112,7 +112,7 @@ pub struct ServerBuilder {
 	handler: Arc<IoHandler>,
 	registrar: Arc<ContractClient>,
 	sync_status: Arc<SyncStatus>,
-	signer_port: Option<u16>,
+	signer_address: Option<(String, u16)>,
 }
 
 impl Extendable for ServerBuilder {
@@ -129,7 +129,7 @@ impl ServerBuilder {
 			handler: Arc::new(IoHandler::new()),
 			registrar: registrar,
 			sync_status: Arc::new(|| false),
-			signer_port: None,
+			signer_address: None,
 		}
 	}
 
@@ -139,8 +139,8 @@ impl ServerBuilder {
 	}
 
 	/// Change default signer port.
-	pub fn with_signer_port(&mut self, signer_port: Option<u16>) {
-		self.signer_port = signer_port;
+	pub fn with_signer_address(&mut self, signer_address: Option<(String, u16)>) {
+		self.signer_address = signer_address;
 	}
 
 	/// Asynchronously start server with no authentication,
@@ -152,7 +152,7 @@ impl ServerBuilder {
 			NoAuth,
 			self.handler.clone(),
 			self.dapps_path.clone(),
-			self.signer_port.clone(),
+			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -167,7 +167,7 @@ impl ServerBuilder {
 			HttpBasicAuth::single_user(username, password),
 			self.handler.clone(),
 			self.dapps_path.clone(),
-			self.signer_port.clone(),
+			self.signer_address.clone(),
 			self.registrar.clone(),
 			self.sync_status.clone(),
 		)
@@ -197,11 +197,11 @@ impl Server {
 	}
 
 	/// Returns a list of CORS domains for API endpoint.
-	fn cors_domains(signer_port: Option<u16>) -> Vec<String> {
-		match signer_port {
-			Some(port) => vec![
+	fn cors_domains(signer_address: Option<(String, u16)>) -> Vec<String> {
+		match signer_address {
+			Some(signer_address) => vec![
 				format!("http://{}{}", HOME_PAGE, DAPPS_DOMAIN),
-				format!("http://{}", signer_address(port)),
+				format!("http://{}", address(signer_address)),
 			],
 			None => vec![],
 		}
@@ -213,15 +213,15 @@ impl Server {
 		authorization: A,
 		handler: Arc<IoHandler>,
 		dapps_path: String,
-		signer_port: Option<u16>,
+		signer_address: Option<(String, u16)>,
 		registrar: Arc<ContractClient>,
 		sync_status: Arc<SyncStatus>,
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_port));
-		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_port.clone()));
-		let cors_domains = Self::cors_domains(signer_port);
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
+		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone()));
+		let cors_domains = Self::cors_domains(signer_address.clone());
 
 		let special = Arc::new({
 			let mut special = HashMap::new();
@@ -238,7 +238,7 @@ impl Server {
 		try!(hyper::Server::http(addr))
 			.handle(move |ctrl| router::Router::new(
 				ctrl,
-				signer_port.clone(),
+				signer_address.clone(),
 				content_fetcher.clone(),
 				endpoints.clone(),
 				special.clone(),
@@ -302,8 +302,8 @@ pub fn random_filename() -> String {
 	rng.gen_ascii_chars().take(12).collect()
 }
 
-fn signer_address(port: u16) -> String {
-	format!("127.0.0.1:{}", port)
+fn address(address: (String, u16)) -> String {
+	format!("{}:{}", address.0, address.1)
 }
 
 #[cfg(test)]
@@ -332,7 +332,7 @@ mod util_tests {
 
 		// when
 		let none = Server::cors_domains(None);
-		let some = Server::cors_domains(Some(18180));
+		let some = Server::cors_domains(Some(("127.0.0.1".into(), 18180)));
 
 		// then
 		assert_eq!(none, Vec::<String>::new());

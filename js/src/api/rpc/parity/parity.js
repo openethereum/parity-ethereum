@@ -60,6 +60,11 @@ export default class Parity {
       .then(outNumber);
   }
 
+  dappsInterface () {
+    return this._transport
+      .execute('parity_dappsInterface');
+  }
+
   defaultExtraData () {
     return this._transport
       .execute('parity_defaultExtraData');
@@ -174,6 +179,12 @@ export default class Parity {
     return this._transport
       .execute('parity_newAccountFromWallet', json, password)
       .then(outAddress);
+  }
+
+  nextNonce (account) {
+    return this._transport
+      .execute('parity_nextNonce', inAddress(account))
+      .then(outNumber);
   }
 
   nodeName () {

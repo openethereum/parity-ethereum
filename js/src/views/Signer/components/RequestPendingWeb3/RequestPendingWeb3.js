@@ -33,15 +33,22 @@ export default class RequestPendingWeb3 extends Component {
     className: PropTypes.string
   };
 
+  onConfirm = data => {
+    const { onConfirm, payload } = this.props;
+
+    data.payload = payload;
+    onConfirm(data);
+  };
+
   render () {
-    const { payload, id, className, isSending, date, onConfirm, onReject } = this.props;
+    const { payload, id, className, isSending, date, onReject } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
       return (
         <SignRequest
           className={ className }
-          onConfirm={ onConfirm }
+          onConfirm={ this.onConfirm }
           onReject={ onReject }
           isSending={ isSending }
           isFinished={ false }
@@ -57,7 +64,7 @@ export default class RequestPendingWeb3 extends Component {
       return (
         <TransactionPending
           className={ className }
-          onConfirm={ onConfirm }
+          onConfirm={ this.onConfirm }
           onReject={ onReject }
           isSending={ isSending }
           id={ id }
