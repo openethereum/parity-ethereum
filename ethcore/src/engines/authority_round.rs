@@ -370,22 +370,35 @@ mod tests {
 	#[test]
 	fn generates_seal_and_does_not_double_propose() {
 		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("1".sha3(), "1").unwrap();
-		tap.unlock_account_permanently(addr, "1".into()).unwrap();
+		let addr1 = tap.insert_account("1".sha3(), "1").unwrap();
+		tap.unlock_account_permanently(addr1, "1".into()).unwrap();
+		let addr2 = tap.insert_account("2".sha3(), "2").unwrap();
+		tap.unlock_account_permanently(addr2, "2".into()).unwrap();
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		let mut db1 = get_temp_state_db().take();
+		spec.ensure_db_good(&mut db1).unwrap();
+		let mut db2 = get_temp_state_db().take();
+		spec.ensure_db_good(&mut db2).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
-		let b = b.close_and_lock();
-		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
-		assert!(b.clone().try_seal(engine, seal).is_ok());
-		// Second proposal is forbidden.
-		assert!(engine.generate_seal(b.block(), Some(&tap)).is_none());
+		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b1 = b1.close_and_lock();
+		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b2 = b2.close_and_lock();
+
+		if let Some(seal) = engine.generate_seal(b1.block(), Some(&tap)) {
+			assert!(b1.clone().try_seal(engine, seal).is_ok());
+			// Second proposal is forbidden.
+			assert!(engine.generate_seal(b1.block(), Some(&tap)).is_none());
+		}
+
+		if let Some(seal) = engine.generate_seal(b2.block(), Some(&tap)) {
+			assert!(b2.clone().try_seal(engine, seal).is_ok());
+			// Second proposal is forbidden.
+			assert!(engine.generate_seal(b2.block(), Some(&tap)).is_none());
+		}
 	}
 
 	#[test]
