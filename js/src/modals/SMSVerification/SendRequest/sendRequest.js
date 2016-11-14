@@ -79,7 +79,7 @@ export default class SendRequest extends Component {
     if (step === 'posted') {
       return (
         <div className={ styles.centered }>
-          <TxHash hash={ this.props.data.txHash } maxConfirmations={ 3 } />
+          <TxHash hash={ this.props.data.txHash } maxConfirmations={ 1 } />
           <p>Please keep this window open.</p>
         </div>);
     }
@@ -116,7 +116,7 @@ export default class SendRequest extends Component {
         .then((txHash) => {
           onData({ txHash: txHash });
           this.setState({ step: 'posted' });
-          return waitForConfirmations(api, txHash, 3);
+          return waitForConfirmations(api, txHash, 1);
         });
     }
 
