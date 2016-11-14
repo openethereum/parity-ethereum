@@ -32,7 +32,7 @@ export const ABI_TYPES = {
 };
 
 export function parseAbiType (type) {
-  const arrayRegex = /^(.+)\[(\d*)\]$/;
+  const arrayRegex = /^(.+)\[(\d*)]$/;
 
   if (arrayRegex.test(type)) {
     const matches = arrayRegex.exec(type);
