@@ -28,7 +28,6 @@ import styles from './copyToClipboard.css';
 export default class CopyToClipboard extends Component {
   static propTypes = {
     data: PropTypes.string.isRequired,
-    label: PropTypes.string,
     onCopy: PropTypes.func,
     size: PropTypes.number, // in px
     cooldown: PropTypes.number // in ms
@@ -36,7 +35,6 @@ export default class CopyToClipboard extends Component {
 
   static defaultProps = {
     className: '',
-    label: 'copy to clipboard',
     onCopy: () => {},
     size: 16,
     cooldown: 1000
@@ -55,12 +53,12 @@ export default class CopyToClipboard extends Component {
   }
 
   render () {
-    const { data, label, size } = this.props;
+    const { data, size } = this.props;
     const { copied } = this.state;
 
     return (
       <Clipboard onCopy={ this.onCopy } text={ data }>
-        <div>
+        <div className={ styles.wrapper }>
           <Snackbar
             open={ copied }
             message={
@@ -70,10 +68,7 @@ export default class CopyToClipboard extends Component {
             bodyStyle={ { backgroundColor: darkBlack } }
           />
           <IconButton
-            tooltip={ copied ? 'done!' : label }
             disableTouchRipple
-            tooltipPosition={ 'top-right' }
-            tooltipStyles={ { marginTop: `-${size / 4}px` } }
             style={ { width: size, height: size, padding: '0' } }
             iconStyle={ { width: size, height: size } }
           >
