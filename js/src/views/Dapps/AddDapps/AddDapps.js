@@ -52,7 +52,7 @@ export default class AddDapps extends Component {
         visible
         scroll>
         <List>
-          { store.apps.map(this.renderApp) }
+          { store.sortedApps.map(this.renderApp) }
         </List>
       </Modal>
     );
@@ -60,7 +60,8 @@ export default class AddDapps extends Component {
 
   renderApp = (app) => {
     const { store } = this.props;
-    const isHidden = store.hidden.includes(app.id);
+    const isHidden = !store.displayApps[app.id].visible;
+
     const onCheck = () => {
       if (isHidden) {
         store.showApp(app.id);

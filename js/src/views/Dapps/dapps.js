@@ -54,7 +54,7 @@ export default class Dapps extends Component {
         />
         <Page>
           <div className={ styles.list }>
-            { this.store.visible.map(this.renderApp) }
+            { this.store.visibleApps.map(this.renderApp) }
           </div>
         </Page>
       </div>

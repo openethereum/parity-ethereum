@@ -14,39 +14,42 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
+import store from 'store';
 
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 
 import builtinApps from './builtin.json';
 
-const LS_KEY_HIDDEN = 'hiddenApps';
-const LS_KEY_EXTERNAL = 'externalApps';
+const LS_KEY_DISPLAY = 'displayApps';
 
 export default class DappsStore {
   @observable apps = [];
-  @observable externalApps = [];
-  @observable hiddenApps = [];
+  @observable displayApps = {};
   @observable modalOpen = false;
 
   constructor (api) {
     this._api = api;
 
-    this._readHiddenApps();
-    this._readExternalApps();
+    this._readDisplayApps();
 
-    this._fetchBuiltinApps();
-    this._fetchLocalApps();
-    this._fetchRegistryApps();
+    Promise
+      .all([
+        this._fetchBuiltinApps(),
+        this._fetchLocalApps(),
+        this._fetchRegistryApps()
+      ])
+      .then(this._writeDisplayApps);
   }
 
-  @computed get visible () {
-    return this.apps
-      .filter((app) => {
-        return this.externalApps.includes(app.id) || !this.hiddenApps.includes(app.id);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+  @computed get sortedApps () {
+    return this.apps.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  @computed get visibleApps () {
+    return this.sortedApps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
   }
 
   @action openModal = () => {
@@ -58,13 +61,33 @@ export default class DappsStore {
   }
 
   @action hideApp = (id) => {
-    this.hiddenApps = this.hiddenApps.concat(id);
-    this._writeHiddenApps();
+    const app = this.displayApps[id] || {};
+    app.visible = false;
+
+    this.displayApps[id] = app;
+    this._writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    this.hiddenApps = this.hiddenApps.filter((_id) => _id !== id);
-    this._writeHiddenApps();
+    const app = this.displayApps[id] || {};
+    app.visible = true;
+
+    this.displayApps[id] = app;
+    this._writeDisplayApps();
+  }
+
+  @action setDisplayApps = (apps) => {
+    this.displayApps = apps;
+  }
+
+  @action addApp = (app, visible) => {
+    transaction(() => {
+      this.apps.push(app);
+
+      if (!this.displayApps[app.id]) {
+        this.displayApps[app.id] = { visible };
+      }
+    });
   }
 
   _getHost (api) {
@@ -83,9 +106,12 @@ export default class DappsStore {
           builtinApps.forEach((app, index) => {
             app.type = 'builtin';
             app.image = hashToImageUrl(imageIds[index]);
-            this.apps.push(app);
+            this.addApp(app, app.visible);
           });
         });
+      })
+      .catch((error) => {
+        console.warn('DappsStore:fetchBuiltinApps', error);
       });
   }
 
@@ -106,7 +132,7 @@ export default class DappsStore {
       })
       .then((apps) => {
         transaction(() => {
-          (apps || []).forEach((app) => this.apps.push(app));
+          (apps || []).forEach((app) => this.addApp(app, true));
         });
       })
       .catch((error) => {
@@ -132,7 +158,9 @@ export default class DappsStore {
       .then((appsInfo) => {
         const appIds = appsInfo
           .map(([appId, owner]) => this._api.util.bytesToHex(appId))
-          .filter((appId) => !builtinApps.find((app) => app.id === appId));
+          .filter((appId) => {
+            return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
+          });
 
         return Promise
           .all([
@@ -181,7 +209,7 @@ export default class DappsStore {
       })
       .then((apps) => {
         transaction(() => {
-          (apps || []).forEach((app) => this.apps.push(app));
+          (apps || []).forEach((app) => this.addApp(app, false));
         });
       })
       .catch((error) => {
@@ -202,43 +230,11 @@ export default class DappsStore {
       });
   }
 
-  _readHiddenApps () {
-    const stored = localStorage.getItem(LS_KEY_HIDDEN);
-
-    if (stored) {
-      try {
-        this.hiddenApps = JSON.parse(stored);
-      } catch (error) {
-        console.warn('DappsStore:readHiddenApps', error);
-      }
-    }
+  _readDisplayApps = () => {
+    this.setDisplayApps(store.get(LS_KEY_DISPLAY) || {});
   }
 
-  _readExternalApps () {
-    const stored = localStorage.getItem(LS_KEY_EXTERNAL);
-
-    if (stored) {
-      try {
-        this.externalApps = JSON.parse(stored);
-      } catch (error) {
-        console.warn('DappsStore:readExternalApps', error);
-      }
-    }
-  }
-
-  _writeExternalApps () {
-    try {
-      localStorage.setItem(LS_KEY_EXTERNAL, JSON.stringify(this.externalApps));
-    } catch (error) {
-      console.error('DappsStore:writeExternalApps', error);
-    }
-  }
-
-  _writeHiddenApps () {
-    try {
-      localStorage.setItem(LS_KEY_HIDDEN, JSON.stringify(this.hiddenApps));
-    } catch (error) {
-      console.error('DappsStore:writeHiddenApps', error);
-    }
+  _writeDisplayApps = () => {
+    store.set(LS_KEY_DISPLAY, this.displayApps);
   }
 }
