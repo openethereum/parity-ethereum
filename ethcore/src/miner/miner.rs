@@ -435,7 +435,7 @@ impl Miner {
 			let last_request = *self.sealing_block_last_request.lock();
 			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
-                && !self.seals_internally
+				&& !self.seals_internally
 				&& best_block > last_request
 				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
@@ -479,7 +479,7 @@ impl Miner {
 
 	/// Uses Engine to seal the block internally and then imports it to chain.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
-		if !block.transactions().is_empty() {
+		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_block(sealed.rlp_bytes()).is_ok() {
 					trace!(target: "miner", "import_block_internally: imported internally sealed block");
