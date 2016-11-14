@@ -26,3 +26,4 @@ export personalReducer from './personalReducer';
 export signerReducer from './signerReducer';
 export statusReducer from './statusReducer';
 export blockchainReducer from './blockchainReducer';
+export compilerReducer from './compilerReducer';

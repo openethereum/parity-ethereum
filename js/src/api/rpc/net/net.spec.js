@@ -20,7 +20,7 @@ import { isBigNumber } from '../../../../test/types';
 import Http from '../../transport/http';
 import Net from './net';
 
-const instance = new Net(new Http(TEST_HTTP_URL));
+const instance = new Net(new Http(TEST_HTTP_URL, -1));
 
 describe('api/rpc/Net', () => {
   describe('peerCount', () => {

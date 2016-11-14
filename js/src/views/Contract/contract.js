@@ -20,10 +20,12 @@ import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import AvPlayArrow from 'material-ui/svg-icons/av/play-arrow';
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
+import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { newError } from '../../redux/actions';
 import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';
@@ -52,6 +54,7 @@ class Contract extends Component {
     showDeleteDialog: false,
     showEditDialog: false,
     showExecuteDialog: false,
+    showDetailsDialog: false,
     subscriptionId: -1,
     blockSubscriptionId: -1,
     allEvents: [],
@@ -118,7 +121,65 @@ class Contract extends Component {
           <Events
             isTest={ isTest }
             events={ allEvents } />
+
+          { this.renderDetails(account) }
         </Page>
+      </div>
+    );
+  }
+
+  renderDetails (contract) {
+    const { showDetailsDialog } = this.state;
+
+    if (!showDetailsDialog) {
+      return null;
+    }
+
+    const cancelBtn = (
+      <Button
+        icon={ <ContentClear /> }
+        label='Close'
+        onClick={ this.closeDetailsDialog } />
+    );
+
+    return (
+      <Modal
+        actions={ [ cancelBtn ] }
+        title={ 'contract details' }
+        visible
+        scroll
+      >
+        <div className={ styles.details }>
+          { this.renderSource(contract) }
+
+          <div>
+            <h4>Contract ABI</h4>
+            <Editor
+              value={ JSON.stringify(contract.meta.abi, null, 2) }
+              mode='json'
+              maxLines={ 20 }
+              readOnly
+            />
+          </div>
+        </div>
+      </Modal>
+    );
+  }
+
+  renderSource (contract) {
+    const { source } = contract.meta;
+
+    if (!source) {
+      return null;
+    }
+
+    return (
+      <div>
+        <h4>Contract source code</h4>
+        <Editor
+          value={ source }
+          readOnly
+        />
       </div>
     );
   }
@@ -139,7 +200,12 @@ class Contract extends Component {
         key='delete'
         icon={ <ActionDelete /> }
         label='delete contract'
-        onClick={ this.showDeleteDialog } />
+        onClick={ this.showDeleteDialog } />,
+      <Button
+        key='viewDetails'
+        icon={ <EyeIcon /> }
+        label='view details'
+        onClick={ this.showDetailsDialog } />
     ];
 
     return (
@@ -233,6 +299,14 @@ class Contract extends Component {
 
   showDeleteDialog = () => {
     this.setState({ showDeleteDialog: true });
+  }
+
+  showDetailsDialog = () => {
+    this.setState({ showDetailsDialog: true });
+  }
+
+  closeDetailsDialog = () => {
+    this.setState({ showDetailsDialog: false });
   }
 
   closeExecuteDialog = () => {

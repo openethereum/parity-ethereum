@@ -29,17 +29,12 @@ export default class Status extends Component {
   };
 
   render () {
-    const { address, fee } = this.props;
+    const { fee } = this.props;
 
     return (
       <div className={ styles.status }>
         <h1 className={ styles.title }>Token Registry</h1>
-
-        <Chip
-          isAddress
-          value={ address }
-          label='Address' />
-
+        <h3 className={ styles.byline }>A global registry of all recognised tokens on the network</h3>
         <Chip
           isAddress={ false }
           value={ api.util.fromWei(fee).toFixed(3) + 'ETH' }

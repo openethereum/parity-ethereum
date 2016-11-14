@@ -45,7 +45,7 @@ export default class Tokens extends Component {
   }
 
   renderTokens (tokens) {
-    const { accounts } = this.props;
+    const { accounts, isOwner } = this.props;
 
     return tokens.map((token, index) => {
       if (!token || !token.tla) {
@@ -61,7 +61,8 @@ export default class Tokens extends Component {
           handleMetaLookup={ this.props.handleMetaLookup }
           handleAddMeta={ this.props.handleAddMeta }
           key={ index }
-          isTokenOwner={ isTokenOwner } />
+          isTokenOwner={ isTokenOwner }
+          isContractOwner={ isOwner } />
       );
     });
   }
