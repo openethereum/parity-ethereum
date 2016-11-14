@@ -25,6 +25,8 @@ import Shapeshift from './Shapeshift';
 import SMSVerification from './SMSVerification';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
+import SaveContract from './SaveContract';
+import LoadContract from './LoadContract';
 
 export {
   AddAddress,
@@ -37,5 +39,7 @@ export {
   Shapeshift,
   SMSVerification,
   Transfer,
-  PasswordManager
+  PasswordManager,
+  LoadContract,
+  SaveContract
 };

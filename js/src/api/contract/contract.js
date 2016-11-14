@@ -309,7 +309,6 @@ export default class Contract {
           try {
             subscriptions[idx].callback(null, this.parseEventLogs(logs));
           } catch (error) {
-            this.unsubscribe(idx);
             console.error('_sendSubscriptionChanges', error);
           }
         });

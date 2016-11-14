@@ -31,6 +31,12 @@
 .title {
   font-size: 3rem;
   font-weight: 300;
-  margin-top: 0;
+  margin: 0;
   text-transform: uppercase;
+}
+
+.byline {
+  font-size: 1.25em;
+  opacity: 0.75;
+  margin: 0 0 1.75em 0;
 }
