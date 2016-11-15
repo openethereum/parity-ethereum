@@ -70,7 +70,7 @@ export default class Queries extends Component {
   }
 
   renderInputQuery (fn) {
-    const { abi, name } = fn;
+    const { abi, name, signature } = fn;
     const { contract } = this.props;
 
     return (
@@ -80,6 +80,7 @@ export default class Queries extends Component {
           inputs={ abi.inputs }
           outputs={ abi.outputs }
           name={ name }
+          signature={ signature }
           contract={ contract }
         />
       </div>
