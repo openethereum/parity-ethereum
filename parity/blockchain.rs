@@ -117,7 +117,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(false, false));
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -263,7 +263,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(false, false));
 
 	let format = cmd.format.unwrap_or_default();
 
