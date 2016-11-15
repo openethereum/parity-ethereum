@@ -119,6 +119,13 @@ export default class DeployContract extends Component {
         onClick={ this.onClose } />
     );
 
+    const closeBtn = (
+      <Button
+        icon={ <ActionDoneAll /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
     if (deployError) {
       return cancelBtn;
     }
@@ -135,17 +142,10 @@ export default class DeployContract extends Component {
         ];
 
       case 1:
-        return [
-          cancelBtn
-        ];
+        return [ closeBtn ];
 
       case 2:
-        return [
-          <Button
-            icon={ <ActionDoneAll /> }
-            label='Close'
-            onClick={ this.onClose } />
-        ];
+        return [ closeBtn ];
     }
   }
 

@@ -46,7 +46,8 @@ function stringToBytes (input) {
   if (isArray(input)) {
     return input;
   } else if (input.substr(0, 2) === '0x') {
-    return input.substr(2).toLowerCase().match(/.{1,2}/g).map((value) => parseInt(value, 16));
+    const matches = input.substr(2).toLowerCase().match(/.{1,2}/g) || [];
+    return matches.map((value) => parseInt(value, 16));
   } else {
     return input.split('').map((char) => char.charCodeAt(0));
   }
