@@ -1850,7 +1850,7 @@ impl ChainSync {
 
 	/// propagates new transactions to all peers
 	pub fn propagate_new_transactions(&mut self, io: &mut SyncIo) -> usize {
-		// Early out of nobody to send to.
+		// Early out if nobody to send to.
 		if self.peers.is_empty() {
 			return 0;
 		}
@@ -1947,9 +1947,6 @@ impl ChainSync {
 		if !invalid.is_empty() {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart(io);
-		}
-		for peer_info in self.peers.values_mut() {
-			peer_info.last_sent_transactions.clear();
 		}
 	}
 }
