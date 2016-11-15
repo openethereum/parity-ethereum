@@ -66,7 +66,7 @@ pub struct AuthorityRound {
 	params: CommonParams,
 	our_params: AuthorityRoundParams,
 	builtins: BTreeMap<Address, Builtin>,
-	transistion_service: IoService<BlockArrived>,
+	transition_service: IoService<BlockArrived>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
@@ -77,7 +77,7 @@ fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
 }
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-  UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
+	UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
 }
 
 trait AsMillis {
@@ -99,13 +99,13 @@ impl AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transistion_service: try!(IoService::<BlockArrived>::start()),
+				transition_service: try!(IoService::<BlockArrived>::start()),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
-		try!(engine.transistion_service.register_handler(Arc::new(handler)));
+		try!(engine.transition_service.register_handler(Arc::new(handler)));
 		Ok(engine)
 	}
 
@@ -231,10 +231,10 @@ impl Engine for AuthorityRound {
 					self.proposed.store(true, AtomicOrdering::SeqCst);
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
 				} else {
-					trace!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
+					warn!(target: "poa", "generate_seal: FAIL: Accounts secret key unavailable.");
 				}
 			} else {
-				trace!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
+				warn!(target: "poa", "generate_seal: FAIL: Accounts not provided.");
 			}
 		}
 		None
