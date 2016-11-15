@@ -213,6 +213,14 @@ fn block_hash(header: &Header) -> H256 {
 	header.rlp(Seal::WithSome(1)).sha3()
 }
 
+fn proposer_signature(header: &Header) -> H520 {
+	try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val())
+}
+
+fn consensus_round(header: &Header) -> Round {
+	try!(UntrustedRlp::new(header.seal()[0].as_slice()).as_val())
+}
+
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
@@ -223,7 +231,14 @@ impl Engine for Tendermint {
 	fn builtins(&self) -> &BTreeMap<Address, Builtin> { &self.builtins }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { hash_map!["signature".to_owned() => "TODO".to_owned()] }
+	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		map![
+			"signature".into() => proposer_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
+			"height".into() => header.number().to_string(),
+			"round".into() => consensus_round(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
+			"block_hash".into() => block_hash(header).as_ref().map(ToString::to_string).unwrap_or("".into())
+		]
+	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
 		Schedule::new_homestead()
@@ -253,7 +268,7 @@ impl Engine for Tendermint {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let round = self.round.load(AtomicOrdering::SeqCst);
-		vec![::rlp::encode(&round).to_vec()]
+		block.header.set_seal(vec![::rlp::encode(&round).to_vec(), Vec::new(), Vec::new()]);
 	}
 
 	/// Round proposer switching.
@@ -272,7 +287,7 @@ impl Engine for Tendermint {
 				Step::Commit => {
 					// Commit the block using a complete signature set.
 					let round = self.round.load(AtomicOrdering::SeqCst);
-					if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, block_hash(header)).split_first() {
+					if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, Some(block_hash(header))).split_first() {
 						if votes.len() + 1 > self.threshold() {
 							return Some(vec![
 								::rlp::encode(&round).to_vec(),
@@ -337,15 +352,14 @@ impl Engine for Tendermint {
 
 	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposal_signature: H520 = try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val());
-		let proposer = public_to_address(&try!(recover(&proposal_signature.into(), &block_hash(header))));
+		let proposer = public_to_address(&try!(recover(&proposal_signature(header).into(), &block_hash(header))));
 		if !self.is_proposer(&proposer) {
 			try!(Err(BlockError::InvalidSeal))
 		}
 		let proposal = ConsensusMessage {
 			signature: proposal_signature,
-			height: header.number() as usize,
-			round: try!(UntrustedRlp::new(header.seal()[0].as_slice()).as_val()),
+			height: header.number() as Height,
+			round: consensus_round(header),
 			step: Step::Propose,
 			block_hash: Some(block_hash(header))
 		};
