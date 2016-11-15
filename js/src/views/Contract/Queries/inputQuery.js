@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
-import { Button, Input, InputAddressSelect } from '../../../ui';
+import { Button, Input, InputAddress, InputAddressSelect } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -96,32 +96,48 @@ export default class InputQuery extends Component {
     }
 
     if (!results || results.length < 1) return null;
-
     return outputs
       .map((out, index) => ({
         name: out.name,
+        type: out.type,
         value: results[index],
         display: this.renderValue(results[index])
       }))
       .sort((outA, outB) => outA.display.length - outB.display.length)
-      .map((out, index) => (
-        <div key={ index }>
-          <div className={ styles.queryResultName }>
-            { out.name }
-          </div>
+      .map((out, index) => {
+        let input = null;
+        if (out.type === 'address') {
+          input = (
+            <InputAddress
+              className={ styles.queryValue }
+              disabled
+              value={ out.display }
+            />
+          );
+        } else {
+          input = (
+            <Input
+              className={ styles.queryValue }
+              readOnly
+              allowCopy
+              value={ out.display }
+            />
+          );
+        }
 
-          <Input
-            className={ styles.queryValue }
-            readOnly
-            allowCopy
-            value={ out.display }
-          />
-          <br />
-        </div>
-      ));
+        return (
+          <div key={ index }>
+            <div className={ styles.queryResultName }>
+              { out.name }
+            </div>
+            { input }
+          </div>
+        );
+      });
   }
 
   renderInput (input) {
+    const { values } = this.state;
     const { name, type } = input;
     const label = `${name ? `${name}: ` : ''}${type}`;
 
@@ -143,6 +159,7 @@ export default class InputQuery extends Component {
           <InputAddressSelect
             hint={ type }
             label={ label }
+            value={ values[name] }
             required
             onChange={ onChange }
           />
@@ -155,6 +172,7 @@ export default class InputQuery extends Component {
         <Input
           hint={ type }
           label={ label }
+          value={ values[name] }
           required
           onChange={ onChange }
         />
