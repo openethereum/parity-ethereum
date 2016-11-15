@@ -20,7 +20,8 @@ use std::sync::atomic::{Ordering as AtomicOrdering};
 use std::sync::Weak;
 use io::{IoContext, IoHandler, TimerToken};
 use super::{Tendermint, Step};
-use time::get_time;
+use time::{get_time, Duration};
+use service::ClientIoMessage;
 
 pub struct TimerHandler {
 	engine: Weak<Tendermint>,
@@ -28,41 +29,50 @@ pub struct TimerHandler {
 
 /// Base timeout of each step in ms.
 #[derive(Debug, Clone)]
-pub struct DefaultTimeouts {
-	pub propose: Ms,
-	pub prevote: Ms,
-	pub precommit: Ms,
-	pub commit: Ms
+pub struct TendermintTimeouts {
+	propose: Duration,
+	prevote: Duartion,
+	precommit: Duration,
+	commit: Duration
 }
 
-impl Default for DefaultTimeouts {
-	fn default() -> Self {
-		DefaultTimeouts {
-			propose: 1000,
-			prevote: 1000,
-			precommit: 1000,
-			commit: 1000
+impl TendermintTimeouts {
+	pub fn for_step(step: Step) -> Duration {
+		match step {
+			Step::Propose => self.propose,
+			Step::Prevote => self.prevote,
+			Step::Precommit => self.precommit,
+			Step::Commit => self.commit,
 		}
 	}
 }
 
-pub type Ms = usize;
+impl Default for TendermintTimeouts {
+	fn default() -> Self {
+		DefaultTimeouts {
+			propose: Duration::milliseconds(1000),
+			prevote: Duration::milliseconds(1000),
+			precommit: Duration::milliseconds(1000),
+			commit: Duration::milliseconds(1000)
+		}
+	}
+}
 
 #[derive(Clone)]
 pub struct NextStep;
 
 /// Timer token representing the consensus step timeouts.
-pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 0;
+pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
 impl IoHandler<NextStep> for TimerHandler {
-	fn initialize(&self, io: &IoContext<BlockArrived>) {
+	fn initialize(&self, io: &IoContext<NextStep>) {
 		if let Some(engine) = self.engine.upgrade() {
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<NextStep>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
@@ -77,14 +87,17 @@ impl IoHandler<NextStep> for TimerHandler {
 					},
 				};
 
+
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout().as_millis())
+					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
+
 				if let Some(ref channel) = *engine.message_channel.lock() {
 					match channel.send(ClientIoMessage::UpdateSealing) {
-						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
+						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.),
 						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
 					}
 				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout().as_millis())
-					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
+
 			}
 		}
 	}

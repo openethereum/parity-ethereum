@@ -27,6 +27,18 @@ pub struct TendermintParams {
 	pub gas_limit_bound_divisor: Uint,
 	/// Valid authorities
 	pub authorities: Vec<Address>,
+	/// Propose step timeout in milliseconds.
+	#[serde(rename="timeoutPropose")]
+	pub timeout_propose: Option<Uint>,
+	/// Prevote step timeout in milliseconds.
+	#[serde(rename="timeoutPrevote")]
+	pub timeout_prevote: Option<Uint>,
+	/// Precommit step timeout in milliseconds.
+	#[serde(rename="timeoutPrecommit")]
+	pub timeout_precommit: Option<Uint>,
+	/// Commit step timeout in milliseconds.
+	#[serde(rename="timeoutCommit")]
+	pub timeout_commit: Option<Uint>,
 }
 
 /// Tendermint engine deserialization.

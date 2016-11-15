@@ -17,7 +17,7 @@
 //! Tendermint specific parameters.
 
 use ethjson;
-use super::timeout::DefaultTimeouts;
+use super::timeout::TendermintTimeouts;
 use util::{Address, U256};
 
 /// `Tendermint` params.
@@ -30,7 +30,7 @@ pub struct TendermintParams {
 	/// Number of authorities.
 	pub authority_n: usize,
 	/// Timeout durations for different steps.
-	pub timeouts: DefaultTimeouts,
+	pub timeouts: TendermintTimeouts,
 }
 
 impl Default for TendermintParams {
@@ -54,7 +54,13 @@ impl From<ethjson::spec::TendermintParams> for TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			authorities: val,
 			authority_n: val_n,
-			timeouts: DefaultTimeouts::default()
+			let dt = TendermintTimeouts::default();
+			timeouts: TendermintTimeouts {
+				propose: p.timeout_propose.unwrap_or(dt.propose),
+				prevote: p.timeout_prevote.unwrap_or(dt.prevote),
+				precommit: p.timeout_precommit.unwrap_or(dt.precommit),
+				commit: p.timeout_commit.unwrap_or(dt.commit)
+			}
 		}
 	}
 }
