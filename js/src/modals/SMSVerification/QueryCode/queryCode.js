@@ -18,18 +18,15 @@ import React, { Component, PropTypes } from 'react';
 
 import { Form, Input } from '../../../ui';
 
-const isValidCode = /^[A-Z0-9_-]{7,14}$/i;
-
 export default class QueryCode extends Component {
   static propTypes = {
-    data: PropTypes.object.isRequired,
-    onData: PropTypes.func.isRequired,
-    onDataIsValid: PropTypes.func.isRequired,
-    onDataIsInvalid: PropTypes.func.isRequired
+    number: PropTypes.string.isRequired,
+    isCodeValid: PropTypes.bool.isRequired,
+    setCode: PropTypes.func.isRequired
   }
 
   render () {
-    const { number, code } = this.props.data;
+    const { number, isCodeValid } = this.props;
 
     return (
       <Form>
@@ -37,7 +34,7 @@ export default class QueryCode extends Component {
         <Input
           label={ 'verification code' }
           hint={ 'Enter the code you received via SMS.' }
-          error={ isValidCode.test(code) ? null : 'invalid code' }
+          error={ isCodeValid ? null : 'invalid code' }
           onChange={ this.onChange }
           onSubmit={ this.onSubmit }
         />
@@ -46,16 +43,9 @@ export default class QueryCode extends Component {
   }
 
   onChange = (_, code) => {
-    code = code.trim();
-    this.props.onData({ code });
-
-    if (isValidCode.test(code)) {
-      this.props.onDataIsValid();
-    } else {
-      this.props.onDataIsInvalid();
-    }
+    this.props.setCode(code.trim());
   }
   onSubmit = (code) => {
-    this.onChange(null, code);
+    this.props.setCode(code.trim());
   }
 }
