@@ -27,7 +27,7 @@ import checkIfRequested from './check-if-requested';
 import waitForConfirmations from './wait-for-confirmations';
 import postToVerificationServer from './post-to-verification-server';
 
-const validCode = /^[A-Z0-9_-]{7,14}$/i;
+const validCode = /^[A-Z\s]+$/i;
 
 export const GATHERING_DATA = 'gathering-data';
 export const GATHERED_DATA = 'gathered-data';
@@ -126,8 +126,11 @@ export default class VerificationStore {
       });
 
     const hasRequested = checkIfRequested(contract, account)
-      .then((hasRequested) => {
-        this.hasRequested = hasRequested;
+      .then((txHash) => {
+        this.hasRequested = !!txHash;
+        if (txHash) {
+          this.requestTx = txHash;
+        }
       })
       .catch((err) => {
         this.error = 'Failed to check if requested: ' + err.message;

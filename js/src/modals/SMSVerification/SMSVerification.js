@@ -43,7 +43,7 @@ export default class SMSVerification extends Component {
     onClose: PropTypes.func.isRequired
   }
 
-  static uiSteps = { // mapping (store steps -> steps)
+  static phases = { // mapping (store steps -> steps)
     [GATHERING_DATA]: 0, [GATHERED_DATA]: 0,
     [POSTING_REQUEST]: 1, [POSTED_REQUEST]: 1, [REQUESTING_SMS]: 1,
     [REQUESTED_SMS]: 2,
@@ -56,24 +56,24 @@ export default class SMSVerification extends Component {
   }
 
   render () {
-    const step = SMSVerification.uiSteps[this.props.store.step];
+    const phase = SMSVerification.phases[this.props.store.step];
     const { error, isStepValid } = this.props.store;
 
     return (
       <Modal
-        actions={ this.renderDialogActions(step, error, isStepValid) }
+        actions={ this.renderDialogActions(phase, error, isStepValid) }
         title='verify your account via SMS'
         visible scroll
-        current={ step }
+        current={ phase }
         steps={ ['Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
         waiting={ [ 1, 3 ] }
       >
-        { this.renderStep(step, error) }
+        { this.renderStep(phase, error) }
       </Modal>
     );
   }
 
-  renderDialogActions (step, error, isStepValid) {
+  renderDialogActions (phase, error, isStepValid) {
     const { store, account, onClose } = this.props;
 
     const cancel = (
@@ -85,7 +85,7 @@ export default class SMSVerification extends Component {
     );
     if (error) return (<div>{ cancel }</div>);
 
-    if (step === 4) {
+    if (phase === 4) {
       return (
         <div>
           { cancel }
@@ -100,13 +100,13 @@ export default class SMSVerification extends Component {
     }
 
     let action;
-    if (step === 3) {
+    if (phase === 3) {
       action = store.done;
-    } else if (step === 2) {
+    } else if (phase === 2) {
       action = store.sendConfirmation;
-    } else if (step === 1) {
+    } else if (phase === 1) {
       action = store.queryCode;
-    } else if (step === 0) {
+    } else if (phase === 0) {
       action = store.sendRequest;
     }
 
@@ -123,28 +123,34 @@ export default class SMSVerification extends Component {
     );
   }
 
-  renderStep (step, error) {
+  renderStep (phase, error) {
     if (error) return (<p>{ error }</p>);
 
     const {
-      fee, isNumberValid, isVerified, hasRequested,
+      step,
+      fee, number, isNumberValid, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setNumber, setConsentGiven, setCode
     } = this.props.store;
 
-    if (step === 4) {
+    if (phase === 4) {
       return (<Done />);
     }
-    if (step === 3) {
+    if (phase === 3) {
       return (<SendConfirmation step={ step } tx={ confirmationTx } />);
     }
-    if (step === 2) {
-      return (<QueryCode fee={ fee } isCodeValid={ isCodeValid } setCode={ setCode } />);
+    if (phase === 2) {
+      return (
+        <QueryCode
+          number={ number } fee={ fee } isCodeValid={ isCodeValid }
+          setCode={ setCode }
+        />
+      );
     }
-    if (step === 1) {
+    if (phase === 1) {
       return (<SendRequest step={ step } tx={ requestTx } />);
     }
-    if (step === 0) {
+    if (phase === 0) {
       const { setNumber, setConsentGiven } = this.props.store;
       return (
         <GatherData

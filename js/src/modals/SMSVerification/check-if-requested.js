@@ -22,9 +22,10 @@ const checkIfRequested = (contract, account) => {
       if (err) {
         return reject(err);
       }
-      resolve(logs.some((l) => {
+      const e = logs.find((l) => {
         return l.type === 'mined' && l.params.who && l.params.who.value === account;
-      }));
+      });
+      resolve(e ? e.transactionHash : false);
     });
   });
 };

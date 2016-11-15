@@ -27,7 +27,9 @@ const waitForConfirmations = (api, tx, confirmations) => {
         if (err) {
           reject(err);
         } else if (block.minus(confirmations - 1).gte(receipt.blockNumber)) {
-          api.unsubscribe(subscription);
+          if (subscription) {
+            api.unsubscribe(subscription);
+          }
           resolve();
         }
       })

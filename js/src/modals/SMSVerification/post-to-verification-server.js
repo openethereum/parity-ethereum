@@ -28,10 +28,6 @@ const postToVerificationServer = (query) => {
       }
       throw new Error(data.message || 'unknown error');
     });
-  })
-  .catch((err) => {
-    console.error('foooo', err.stack);
-    throw err;
   });
 };
 

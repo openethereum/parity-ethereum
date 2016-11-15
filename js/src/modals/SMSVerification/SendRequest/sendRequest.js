@@ -17,10 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 
 import TxHash from '../../../ui/TxHash';
-import VerificationStore from '../store';
-const {
+import {
   POSTING_REQUEST, POSTED_REQUEST, REQUESTING_SMS
-} = VerificationStore;
+} from '../store';
 
 import styles from './sendRequest.css';
 
