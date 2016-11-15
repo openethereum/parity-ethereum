@@ -26,12 +26,6 @@ pub struct TimerHandler {
 	engine: Weak<Tendermint>,
 }
 
-impl TimerHandler {
-	pub fn new(engine: Weak<Tendermint>) -> Self {
-		TimerHandler { engine: engine }
-	}
-}
-
 /// Base timeout of each step in ms.
 #[derive(Debug, Clone)]
 pub struct DefaultTimeouts {
@@ -61,31 +55,36 @@ pub struct NextStep;
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 0;
 
 impl IoHandler<NextStep> for TimerHandler {
-	fn initialize(&self, io: &IoContext<NextStep>) {
+	fn initialize(&self, io: &IoContext<BlockArrived>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Error registering engine timeout");
+			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
+				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<NextStep>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				println!("Timeout: {:?}", get_time());
-				// Can you release entering a clause?
-				let next_step = match *engine.s.try_read().unwrap() {
-					Step::Propose => Step::Propose,
-					Step::Prevote(_) => Step::Propose,
-					Step::Precommit(_, _) => Step::Propose,
-					Step::Commit(_, _) => {
-						engine.r.fetch_add(1, AtomicOrdering::Relaxed);
+				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
+				engine.proposed.store(false, AtomicOrdering::SeqCst);
+				let next_step = match *engine.step.try_read().unwrap() {
+					Step::Propose => Step::Prevote,
+					Step::Prevote => Step::Precommit,
+					Step::Precommit => Step::Propose,
+					Step::Commit => {
+						engine.round.fetch_add(1, AtomicOrdering::Relaxed);
 						Step::Propose
 					},
 				};
-				match next_step {
-					Step::Propose => engine.to_propose(),
-					_ => (),
+
+				if let Some(ref channel) = *engine.message_channel.lock() {
+					match channel.send(ClientIoMessage::UpdateSealing) {
+						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.load(AtomicOrdering::Relaxed)),
+						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
+					}
 				}
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Failed to restart consensus step timer.")
+				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout().as_millis())
+					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
 			}
 		}
 	}
