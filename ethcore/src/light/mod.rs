@@ -35,4 +35,5 @@ pub mod client;
 pub mod net;
 pub mod provider;
 
+pub use self::provider::Provider;
 pub use types::les_request as request;

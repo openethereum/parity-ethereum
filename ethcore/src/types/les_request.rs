@@ -29,7 +29,7 @@ pub struct Headers {
 	/// The maximum amount of headers which can be returned.
 	pub max: usize,
 	/// The amount of headers to skip between each response entry.
-	pub skip: usize,
+	pub skip: u64,
 	/// Whether the headers should proceed in falling number from the initial block.
 	pub reverse: bool,
 }
