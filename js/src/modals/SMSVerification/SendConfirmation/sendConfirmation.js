@@ -15,103 +15,40 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import TxHash from '../../../ui/TxHash';
 
-import { sha3 } from '../../../api/util/sha3';
-import waitForConfirmations from '../wait-for-confirmations';
+import TxHash from '../../../ui/TxHash';
+import VerificationStore from '../store';
+const {
+  POSTING_CONFIRMATION, POSTED_CONFIRMATION
+} = VerificationStore;
 
 import styles from './sendConfirmation.css';
 
+// TODO: move this to a better place
+const nullable = (type) => PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
+
 export default class SendConfirmation extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
-    account: PropTypes.string.isRequired,
-    contract: PropTypes.object.isRequired,
-    data: PropTypes.object.isRequired,
-    onData: PropTypes.func.isRequired,
-    onSuccess: PropTypes.func.isRequired,
-    onError: PropTypes.func.isRequired,
-    nextStep: PropTypes.func.isRequired
-  }
-
-  state = {
-    init: true,
-    step: 'init'
-  };
-
-  componentWillMount () {
-    const { init } = this.state;
-    if (init) {
-      this.send();
-      this.setState({ init: false });
-    }
+    step: PropTypes.any.isRequired,
+    tx: nullable(PropTypes.any.isRequired)
   }
 
   render () {
-    const { step } = this.state;
+    const { step, tx } = this.props;
 
-    if (step === 'error') {
-      return (<p>{ this.state.error }</p>);
-    }
-
-    if (step === 'pending') {
+    if (step === POSTING_CONFIRMATION) {
       return (<p>The verification code will be sent to the contract. Please authorize this using the Parity Signer.</p>);
     }
 
-    if (step === 'posted') {
+    if (step === POSTED_CONFIRMATION) {
       return (
         <div className={ styles.centered }>
-          <TxHash hash={ this.props.data.txHash } maxConfirmations={ 2 } />
+          <TxHash hash={ tx } maxConfirmations={ 2 } />
           <p>Please keep this window open.</p>
-        </div>);
+        </div>
+      );
     }
 
     return null;
-  }
-
-  send = () => {
-    const { api } = this.context;
-    const { account, contract, onData, onError, onSuccess, nextStep } = this.props;
-
-    const { code } = this.props.data;
-    const token = sha3(code);
-
-    const confirm = contract.functions.find((fn) => fn.name === 'confirm');
-    const options = { from: account };
-    const values = [ token ];
-
-    confirm.estimateGas(options, values)
-      .then((gas) => {
-        options.gas = gas.mul(1.2).toFixed(0);
-        // TODO: show message
-        this.setState({ step: 'pending' });
-        return confirm.postTransaction(options, values);
-      })
-      .then((handle) => {
-        // TODO: The "request rejected" error doesn't have any property to
-        // distinguish it from other errors, so we can't give a meaningful error here.
-        return api.pollMethod('parity_checkRequest', handle);
-      })
-      .then((txHash) => {
-        onData({ txHash: txHash });
-        this.setState({ step: 'posted' });
-        return waitForConfirmations(api, txHash, 2);
-      })
-      .then(() => {
-        onSuccess();
-        nextStep();
-      })
-      .catch((err) => {
-        console.error('failed to confirm sms verification', err);
-        onError(err);
-        this.setState({
-          step: 'error',
-          error: 'Failed to send the verification code: ' + err.message
-        });
-        // TODO: show message in SnackBar
-      });
   }
 }
