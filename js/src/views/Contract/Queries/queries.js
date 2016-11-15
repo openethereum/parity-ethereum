@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
-import { Container, ContainerTitle, Input } from '../../../ui';
+import { Container, ContainerTitle, Input, InputAddress } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -100,14 +100,14 @@ export default class Queries extends Component {
           <CardText
             className={ styles.methodContent }
           >
-            { this.renderValue(values[fn.name]) }
+            { this.renderValue(values[fn.name], fn.outputs[0].kind.type) }
           </CardText>
         </Card>
       </div>
     );
   }
 
-  renderValue (value) {
+  renderValue (value, type) {
     if (typeof value === 'undefined') {
       return null;
     }
@@ -123,6 +123,16 @@ export default class Queries extends Component {
       valueToDisplay = value ? 'true' : 'false';
     } else {
       valueToDisplay = value.toString();
+    }
+
+    if (type === 'address') {
+      return (
+        <InputAddress
+          className={ styles.queryValue }
+          value={ valueToDisplay }
+          disabled
+        />
+      );
     }
 
     return (

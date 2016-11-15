@@ -56,18 +56,10 @@
 }
 
 .methodResults {
-  display: flex;
-  flex-wrap: wrap;
-  max-width: 24rem;
-  justify-content: space-around;
 }
 
 .methodResults > div {
   padding: 0.25rem 0.5rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  flex: 1 1 50%;
   box-sizing: border-box;
 
   & > div {
