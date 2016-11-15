@@ -239,22 +239,22 @@ export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
 export const unregisterToken = (index) => (dispatch, getState) => {
   console.log('unregistering token', index);
 
-  const state = getState();
-  const contractInstance = state.status.contract.instance;
+  const { contract } = getState().status;
+  const { instance, owner } = contract;
 
   const values = [ index ];
   const options = {
-    from: state.accounts.selected.address
+    from: owner
   };
 
-  contractInstance
+  instance
     .unregister
     .estimateGas(options, values)
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
       console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
 
-      return contractInstance.unregister.postTransaction(options, values);
+      return instance.unregister.postTransaction(options, values);
     })
     .catch((e) => {
       console.error(`unregisterToken #${index} error`, e);
