@@ -19,11 +19,11 @@
 mod message;
 mod timeout;
 mod params;
-mod vote;
 mod vote_collector;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
+use basic_types::Seal;
 use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
@@ -42,16 +42,14 @@ use io::IoService;
 use self::message::ConsensusMessage;
 use self::timeout::{TimerHandler, NextStep};
 use self::params::TendermintParams;
-use self::vote::Vote;
+use self::vote_collector::VoteCollector;
 
-#[derive(Debug)]
-enum Step {
+#[derive(Debug, PartialEq, Eq)]
+pub enum Step {
 	Propose,
-	Prevote(ProposeCollect),
-	/// Precommit step storing the precommit vote and accumulating seal.
-	Precommit(ProposeCollect, Signatures),
-	/// Commit step storing a complete valid seal.
-	Commit(BlockHash, Signatures)
+	Prevote,
+	Precommit,
+	Commit
 }
 
 pub type Height = usize;
@@ -69,43 +67,45 @@ pub struct Tendermint {
 	timeout_service: IoService<NextStep>,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
+	/// Blockchain height.
+	height: AtomicUsize,
 	/// Consensus round.
-	r: AtomicUsize,
+	round: AtomicUsize,
 	/// Consensus step.
-	s: RwLock<Step>,
+	step: RwLock<Step>,
 	/// Current step timeout in ms.
 	timeout: AtomicMs,
 	/// Used to swith proposer.
 	proposer_nonce: AtomicUsize,
+	/// Vote accumulator.
+	votes: VoteCollector
 }
 
 impl Tendermint {
 	/// Create a new instance of Tendermint engine
-	pub fn new(params: CommonParams, our_params: TendermintParams, builtins: BTreeMap<Address, Builtin>) -> Arc<Self> {
+	pub fn new(params: CommonParams, our_params: TendermintParams, builtins: BTreeMap<Address, Builtin>) -> Result<Arc<Self>, Error> {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
 				timeout: AtomicUsize::new(our_params.timeouts.propose),
 				our_params: our_params,
 				builtins: builtins,
-				timeout_service: IoService::<NextStep>::start().expect("Error creating engine timeout service"),
+				timeout_service: try!(IoService::<NextStep>::start()),
 				authority: RwLock::new(Address::default()),
-				r: AtomicUsize::new(0),
-				s: RwLock::new(Step::Propose),
-				proposer_nonce: AtomicUsize::new(0)
+				height: AtomicUsize::new(0),
+				round: AtomicUsize::new(0),
+				step: RwLock::new(Step::Propose),
+				proposer_nonce: AtomicUsize::new(0),
+				votes: VoteCollector::new()
 			});
-		let handler = TimerHandler::new(Arc::downgrade(&engine));
-		engine.timeout_service.register_handler(Arc::new(handler)).expect("Error creating engine timeout service");
-		engine
-	}
-
-	fn is_proposer(&self, address: &Address) -> bool {
-		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
+		let handler = TimerHandler { engine: Arc::downgrade(&engine) };
+		try!(engine.timeout_service.register_handler(Arc::new(handler)));
+		Ok(engine)
 	}
 
 	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
 		let ref p = self.our_params;
-		p.authorities.get(proposer_nonce%p.authority_n).unwrap()
+		p.authorities.get(proposer_nonce % p.authority_n).unwrap()
 	}
 
 	fn is_nonce_proposer(&self, proposer_nonce: usize, address: &Address) -> bool {
@@ -123,12 +123,12 @@ impl Tendermint {
 	}
 
 	fn to_step(&self, step: Step) {
-		let mut guard = self.s.try_write().unwrap();
+		let mut guard = self.step.try_write().unwrap();
 		*guard = step;
 	}
 
 	fn to_propose(&self) {
-		trace!(target: "tendermint", "step: entering propose");
+		trace!(target: "poa", "step: entering propose");
 		println!("step: entering propose");
 		self.proposer_nonce.fetch_add(1, AtomicOrdering::Relaxed);
 		self.to_step(Step::Propose);
@@ -136,7 +136,7 @@ impl Tendermint {
 
 	fn propose_message(&self, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if message is for correct step.
-		match *self.s.try_read().unwrap() {
+		match *self.step.try_read().unwrap() {
 			Step::Propose => (),
 			_ => try!(Err(EngineError::WrongStep)),
 		}
@@ -146,7 +146,7 @@ impl Tendermint {
 	}
 
 	fn to_prevote(&self, proposal: BlockHash) {
-		trace!(target: "tendermint", "step: entering prevote");
+		trace!(target: "poa", "step: entering prevote");
 		println!("step: entering prevote");
 		// Proceed to the prevote step.
 		self.to_step(Step::Prevote(self.new_vote(proposal)));
@@ -154,8 +154,8 @@ impl Tendermint {
 
 	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
 		// Check if message is for correct step.
-		let hash = match *self.s.try_write().unwrap() {
-			Step::Prevote(ref mut vote) => {
+		let hash = match *self.step.try_write().unwrap() {
+			Step::Prevote => {
 				// Vote if message is about the right block.
 				if vote.hash == try!(message.as_val()) {
 					vote.vote(sender);
@@ -178,43 +178,39 @@ impl Tendermint {
 	}
 
 	fn to_precommit(&self, proposal: BlockHash) {
-		trace!(target: "tendermint", "step: entering precommit");
+		trace!(target: "poa", "step: entering precommit");
 		println!("step: entering precommit");
 		self.to_step(Step::Precommit(self.new_vote(proposal), Vec::new()));
 	}
 
-	fn precommit_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
-		// Check if message is for correct step.
-		match *self.s.try_write().unwrap() {
-			Step::Precommit(ref mut vote, ref mut seal) => {
-				// Vote and accumulate seal if message is about the right block.
-				if vote.hash == try!(message.as_val()) {
-					if vote.vote(sender) { seal.push(encode(&signature).to_vec()); }
-					// Commit if precommit is won.
-					if vote.is_won() { self.to_commit(vote.hash.clone(), seal.clone()); }
-					Ok(message.as_raw().to_vec())
-				} else {
-					try!(Err(EngineError::WrongVote))
-				}
-			},
-			_ => try!(Err(EngineError::WrongStep)),
-		}
-	}
-
 	/// Move to commit step, when valid block is known and being distributed.
 	pub fn to_commit(&self, block_hash: H256, seal: Vec<Bytes>) {
-		trace!(target: "tendermint", "step: entering commit");
+		trace!(target: "poa", "step: entering commit");
 		println!("step: entering commit");
 		self.to_step(Step::Commit(block_hash, seal));
 	}
 
 	fn threshold(&self) -> usize {
-		self.our_params.authority_n*2/3
+		self.our_params.authority_n * 2/3
 	}
 
 	fn next_timeout(&self) -> u64 {
 		self.timeout.load(AtomicOrdering::Relaxed) as u64
 	}
+
+	/// Round proposer switching.
+	fn is_proposer(&self, address: &Address) -> bool {
+		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
+	}
+
+	fn is_current(&self, message: &ConsensusMessage) -> bool {
+		message.is_step(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), self.step.load(AtomicOrdering::SeqCst)) 
+	}
+}
+
+/// Block hash including the consensus round.
+fn block_hash(header: &Header) -> H256 {
+	header.rlp(Seal::WithSome(1)).sha3()
 }
 
 impl Engine for Tendermint {
@@ -253,60 +249,79 @@ impl Engine for Tendermint {
 		}
 	}
 
-	/// Set author to proposer and set the correct round in the seal.
+	/// Set the correct round in the seal.
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {
-		
+	fn on_close_block(&self, block: &mut ExecutedBlock) {
+		let round = self.round.load(AtomicOrdering::SeqCst);
+		vec![::rlp::encode(&round).to_vec()]
+	}
+
+	/// Round proposer switching.
+	fn is_sealer(&self, address: &Address) -> Option<bool> {
+		Some(self.is_proposer(address))
 	}
 
 	/// Attempt to seal the block internally using all available signatures.
 	///
 	/// None is returned if not enough signatures can be collected.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if let (Some(ap), Some(step)) = (accounts, self.s.try_read()) {
+		if let (Some(ap), Some(step)) = (accounts, self.step.try_read()) {
 			let header = block.header();
 			let author = header.author();
 			match *step {
-				Step::Commit(hash, ref seal) if hash == header.bare_hash() =>
+				Step::Commit => {
 					// Commit the block using a complete signature set.
-					return Some(seal.clone()),
-				Step::Propose if self.is_proposer(header.author()) =>
+					let round = self.round.load(AtomicOrdering::SeqCst);
+					if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, block_hash(header)).split_first() {
+						if votes.len() + 1 > self.threshold() {
+							return Some(vec![
+								::rlp::encode(&round).to_vec(),
+								::rlp::encode(proposer).to_vec(),
+								::rlp::encode(&votes).to_vec()
+							]);
+						}
+					}
+				},
+				Step::Propose if self.is_proposer(author) =>
 					// Seal block with propose signature.
-					if let Some(proposal) = Vote::propose(header, &ap) {
-						return Some(vec![::rlp::encode(&proposal).to_vec(), Vec::new()])
+					
+					if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
+						return Some(vec![
+							::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
+							::rlp::encode(&signature.into()).to_vec(),
+							Vec::new()
+						])
 					} else {
-						trace!(target: "basicauthority", "generate_seal: FAIL: accounts secret key unavailable");
+						trace!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
 					},
 				_ => {},
 			}
 		} else {
-			trace!(target: "basicauthority", "generate_seal: FAIL: accounts not provided");
+			trace!(target: "poa", "generate_seal: FAIL: accounts not provided");
 		}
 		None
 	}
 
-	fn handle_message(&self, sender: Address, signature: H520, message: UntrustedRlp) -> Result<Bytes, Error> {
-		let message: ConsensusMessage = try!(message.as_val());
-
-		if self.is_authority(&sender) {
-			//match message {
-			//		ConsensusMessage::Prevote 
-			//}
+	fn handle_message(&self, rlp: UntrustedRlp) -> Result<Bytes, Error> {
+		let message: ConsensusMessage = try!(rlp.as_val());
+		let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
+		// TODO: Do not admit old messages.
+		if !self.is_authority(&sender) {
+			try!(Err(BlockError::InvalidSeal));
 		}
 
-		try!(Err(EngineError::UnknownStep))
-
-		// Check if correct round.
-		//if self.r.load(AtomicOrdering::Relaxed) != try!(message.val_at(0)) {
-		//	try!(Err(EngineError::WrongRound))
-		//}
-		// Handle according to step.
-//		match try!(message.val_at(1)) {
-//			0u8 if self.is_proposer(&sender) => self.propose_message(try!(message.at(2))),
-//			1 if self.is_authority(&sender) => self.prevote_message(sender, try!(message.at(2))),
-//			2 if self.is_authority(&sender) => self.precommit_message(sender, signature, try!(message.at(2))),
-//			_ => try!(Err(EngineError::UnknownStep)),
-//		}
+		// Check if the message affects the current step.
+		if self.is_current(message) {
+				match self.step.load(AtomicOrdering::SeqCst) {
+					Step::Prevote => {
+						let votes = aligned_signatures(message);
+						if votes.len() > self.threshold() {
+						}
+					},
+					Step::Precommit => ,
+				}
+		}
+		self.votes.vote(message, sender);
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -322,21 +337,28 @@ impl Engine for Tendermint {
 
 	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let to_address = |b: &Vec<u8>| {
-			let sig: H520 = try!(UntrustedRlp::new(b.as_slice()).as_val());
-			Ok(public_to_address(&try!(recover(&sig.into(), &header.bare_hash()))))
-		};
-		let authority_set = self.our_params.authorities.iter().cloned().collect();
-		let seal_set = try!(header
-							.seal()
-							.iter()
-							.map(to_address)
-							.collect::<Result<HashSet<_>, Error>>());
-		if seal_set.intersection(&authority_set).count() <= self.threshold() {
+		let proposal_signature: H520 = try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val());
+		let proposer = public_to_address(&try!(recover(&proposal_signature.into(), &block_hash(header))));
+		if !self.is_proposer(&proposer) {
 			try!(Err(BlockError::InvalidSeal))
-		} else {
-			Ok(())
 		}
+		let proposal = ConsensusMessage {
+			signature: proposal_signature,
+			height: header.number() as usize,
+			round: try!(UntrustedRlp::new(header.seal()[0].as_slice()).as_val()),
+			step: Step::Propose,
+			block_hash: Some(block_hash(header))
+		};
+		self.votes.vote(proposal, proposer);
+		let votes_rlp = UntrustedRlp::new(&header.seal()[2]);
+		for rlp in votes_rlp.iter() {
+			let sig: H520 = try!(rlp.as_val());
+			let address = public_to_address(&try!(recover(&sig.into(), &block_hash(header))));
+			if !self.our_params.authorities.contains(a) {
+				try!(Err(BlockError::InvalidSeal))
+			}
+		}
+		Ok(())
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -368,7 +390,9 @@ impl Engine for Tendermint {
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		new_header.seal().get(1).expect("Tendermint seal should have two elements.").len() > best_header.seal().get(1).expect("Tendermint seal should have two elements.").len()
+		let new_signatures = new_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
+		let best_signatures = best_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
+		new_signatures > best_signatures
 	}
 }
 
@@ -377,7 +401,7 @@ mod tests {
 	use std::thread::sleep;
 	use std::time::{Duration};
 	use util::*;
-	use rlp::{UntrustedRlp, RlpStream, Stream, View, encode};
+	use rlp::{UntrustedRlp, RlpStream, Stream, View};
 	use block::*;
 	use error::{Error, BlockError};
 	use header::Header;
@@ -416,11 +440,11 @@ mod tests {
 
 		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
 		let sig0 = tap.sign(v0, Some("0".into()), header.bare_hash()).unwrap();
-		seal.push(encode(&(&*sig0 as &[u8])).to_vec());
+		seal.push(::rlp::encode(&(&*sig0 as &[u8])).to_vec());
 
 		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
 		let sig1 = tap.sign(v1, Some("1".into()), header.bare_hash()).unwrap();
-		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
+		seal.push(::rlp::encode(&(&*sig1 as &[u8])).to_vec());
 		seal
 	}
 
@@ -475,7 +499,7 @@ mod tests {
 
 		let v1 = tap.insert_account("0".sha3(), "0").unwrap();
 		let sig1 = tap.sign(v1, Some("0".into()), header.bare_hash()).unwrap();
-		seal.push(encode(&(&*sig1 as &[u8])).to_vec());
+		seal.push(::rlp::encode(&(&*sig1 as &[u8])).to_vec());
 
 		header.set_seal(seal.clone());
 
@@ -484,7 +508,7 @@ mod tests {
 
 		let v2 = tap.insert_account("101".sha3(), "101").unwrap();
 		let sig2 = tap.sign(v2, Some("101".into()), header.bare_hash()).unwrap();
-		seal.push(encode(&(&*sig2 as &[u8])).to_vec());
+		seal.push(::rlp::encode(&(&*sig2 as &[u8])).to_vec());
 
 		header.set_seal(seal);
 
