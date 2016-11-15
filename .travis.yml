@@ -72,7 +72,7 @@ script:
   - if [ "$RUN_TESTS" = "true" ]; then
       ./js/scripts/lint.sh &&
       ./js/scripts/test.sh &&
-      ./test.sh $TEST_OPTIONS --verbose;
+      ./test.sh $TEST_OPTIONS;
     fi
   - if [ "$RUN_COVERAGE" = "true" ]; then ./scripts/cov.sh "$KCOV_CMD"; fi
 
