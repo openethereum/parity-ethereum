@@ -1251,7 +1251,7 @@ mod tests {
 
 	#[test]
 	fn internal_seals_without_work() {
-		let miner = Miner::with_spec(&Spec::new_test_instant());
+		let miner = Miner::with_spec(&Spec::new_instant());
 
 		let c = generate_dummy_client(2);
 		let client = c.reference().as_ref();

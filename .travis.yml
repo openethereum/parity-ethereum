@@ -17,7 +17,7 @@ matrix:
   include:
   - rust: stable
     env: RUN_TESTS="true" TEST_OPTIONS="--no-release"
-  - rust: beta
+  - rust: stable
     env: RUN_COVERAGE="true"
   - rust: stable
     env: RUN_DOCS="true"

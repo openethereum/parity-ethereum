@@ -28,11 +28,12 @@ class IdentityName extends Component {
     tokens: PropTypes.object,
     empty: PropTypes.bool,
     shorten: PropTypes.bool,
-    unknown: PropTypes.bool
+    unknown: PropTypes.bool,
+    name: PropTypes.string
   }
 
   render () {
-    const { address, accountsInfo, tokens, empty, shorten, unknown, className } = this.props;
+    const { address, accountsInfo, tokens, empty, name, shorten, unknown, className } = this.props;
     const account = accountsInfo[address] || tokens[address];
     const hasAccount = account && (!account.meta || !account.meta.deleted);
 
@@ -43,13 +44,14 @@ class IdentityName extends Component {
     const addressFallback = shorten ? this.formatHash(address) : address;
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = hasAccount && account.name === account.uuid;
-    const name = hasAccount && !isUuid
+    const displayName = (name && name.toUpperCase().trim()) ||
+      (hasAccount && !isUuid
       ? account.name.toUpperCase().trim()
-      : fallback;
+      : fallback);
 
     return (
       <span className={ className }>
-        { name && name.length ? name : fallback }
+        { displayName && displayName.length ? displayName : fallback }
       </span>
     );
   }
