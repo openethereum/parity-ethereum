@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { BusyStep, CompletedStep, CopyToClipboard, Button, IdentityIcon, Modal, TxHash } from '../../ui';
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
@@ -36,8 +36,17 @@ export default class DeployContract extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    onClose: PropTypes.func.isRequired
-  }
+    onClose: PropTypes.func.isRequired,
+    abi: PropTypes.string,
+    code: PropTypes.string,
+    readOnly: PropTypes.bool,
+    source: PropTypes.string
+  };
+
+  static defaultProps = {
+    readOnly: false,
+    source: ''
+  };
 
   state = {
     abi: '',
@@ -55,6 +64,31 @@ export default class DeployContract extends Component {
     paramsError: [],
     step: 0,
     deployError: null
+  }
+
+  componentWillMount () {
+    const { abi, code } = this.props;
+
+    if (abi && code) {
+      this.setState({ abi, code });
+    }
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const { abi, code } = nextProps;
+    const newState = {};
+
+    if (abi !== this.props.abi) {
+      newState.abi = abi;
+    }
+
+    if (code !== this.props.code) {
+      newState.code = code;
+    }
+
+    if (Object.keys(newState).length) {
+      this.setState(newState);
+    }
   }
 
   render () {
@@ -115,7 +149,7 @@ export default class DeployContract extends Component {
   }
 
   renderStep () {
-    const { accounts } = this.props;
+    const { accounts, readOnly } = this.props;
     const { address, deployError, step, deployState, txhash } = this.state;
 
     if (deployError) {
@@ -129,6 +163,7 @@ export default class DeployContract extends Component {
         return (
           <DetailsStep
             { ...this.state }
+            readOnly={ readOnly }
             accounts={ accounts }
             onAbiChange={ this.onAbiChange }
             onCodeChange={ this.onCodeChange }
@@ -155,6 +190,7 @@ export default class DeployContract extends Component {
           <CompletedStep>
             <div>Your contract has been deployed at</div>
             <div>
+              <CopyToClipboard data={ address } label='copy address to clipboard' />
               <IdentityIcon address={ address } inline center className={ styles.identityicon } />
               <div className={ styles.address }>{ address }</div>
             </div>
@@ -199,6 +235,7 @@ export default class DeployContract extends Component {
 
   onDeployStart = () => {
     const { api, store } = this.context;
+    const { source } = this.props;
     const { abiParsed, code, description, name, params, fromAddress } = this.state;
     const options = {
       data: code,
@@ -212,11 +249,13 @@ export default class DeployContract extends Component {
       .deploy(options, params, this.onDeploymentState)
       .then((address) => {
         return Promise.all([
-          api.personal.setAccountName(address, name),
-          api.personal.setAccountMeta(address, {
+          api.parity.setAccountName(address, name),
+          api.parity.setAccountMeta(address, {
             abi: abiParsed,
             contract: true,
+            timestamp: Date.now(),
             deleted: false,
+            source,
             description
           })
         ])

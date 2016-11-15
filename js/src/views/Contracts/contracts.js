@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Link } from 'react-router';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
+import FileIcon from 'material-ui/svg-icons/action/description';
 import { uniq } from 'lodash';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
@@ -42,7 +44,7 @@ class Contracts extends Component {
   state = {
     addContract: false,
     deployContract: false,
-    sortOrder: '',
+    sortOrder: 'timestamp',
     searchValues: [],
     searchTokens: []
   }
@@ -65,6 +67,7 @@ class Contracts extends Component {
             balances={ balances }
             empty={ !hasContracts }
             order={ sortOrder }
+            orderFallback='name'
             handleAddSearchToken={ this.onAddSearchToken } />
         </Page>
       </div>
@@ -80,6 +83,10 @@ class Contracts extends Component {
       <ActionbarSort
         key='sortAccounts'
         order={ this.state.sortOrder }
+        metas={ [
+          { key: 'timestamp', label: 'date' }
+        ] }
+        showDefault={ false }
         onChange={ onChange } />
     );
   }
@@ -109,6 +116,15 @@ class Contracts extends Component {
         icon={ <ContentAdd /> }
         label='deploy contract'
         onClick={ this.onDeployContract } />,
+      <Link
+        to='/contracts/write'
+        key='writeContract'
+      >
+        <Button
+          icon={ <FileIcon /> }
+          label='write contract'
+        />
+      </Link>,
 
       this.renderSearchButton(),
       this.renderSortButton()

@@ -188,7 +188,7 @@ pub struct SyncStatus {
 	/// Syncing protocol version. That's the maximum protocol version we connect to.
 	pub protocol_version: u8,
 	/// The underlying p2p network version.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// `BlockChain` height for the moment the sync started.
 	pub start_block_number: BlockNumber,
 	/// Last fully downloaded and imported block number (if any).
@@ -269,7 +269,7 @@ struct PeerInfo {
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
-	network_id: U256,
+	network_id: usize,
 	/// Peer best block hash
 	latest_hash: H256,
 	/// Peer total difficulty if known
@@ -328,7 +328,7 @@ pub struct ChainSync {
 	/// Last propagated block number
 	last_sent_block_number: BlockNumber,
 	/// Network ID
-	network_id: U256,
+	network_id: usize,
 	/// Optional fork block to check
 	fork_block: Option<(BlockNumber, H256)>,
 	/// Snapshot downloader.
@@ -457,12 +457,19 @@ impl ChainSync {
 		if self.state != SyncState::WaitingPeers {
 			return;
 		}
-		let best_block = io.chain().chain_info().best_block_number;
+		// Make sure the snapshot block is not too far away from best block and network best block and
+		// that it is higher than fork detection block
+		let our_best_block = io.chain().chain_info().best_block_number;
+		let fork_block = self.fork_block.as_ref().map(|&(n, _)| n).unwrap_or(0);
 
 		let (best_hash, max_peers, snapshot_peers) = {
 			//collect snapshot infos from peers
 			let snapshots = self.peers.iter()
-				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn| best_block < sn && (sn - best_block) > SNAPSHOT_RESTORE_THRESHOLD))
+				.filter(|&(_, p)| p.is_allowed() && p.snapshot_number.map_or(false, |sn|
+					our_best_block < sn && (sn - our_best_block) > SNAPSHOT_RESTORE_THRESHOLD &&
+					sn > fork_block &&
+					self.highest_block.map_or(true, |highest| highest >= sn && (highest - sn) <= SNAPSHOT_RESTORE_THRESHOLD)
+				))
 				.filter_map(|(p, peer)| peer.snapshot_hash.map(|hash| (p, hash.clone())));
 
 			let mut snapshot_peers = HashMap::new();
@@ -2147,7 +2154,7 @@ mod tests {
 			PeerInfo {
 				protocol_version: 0,
 				genesis: H256::zero(),
-				network_id: U256::zero(),
+				network_id: 0,
 				latest_hash: peer_latest_hash,
 				difficulty: None,
 				asking: PeerAsking::Nothing,

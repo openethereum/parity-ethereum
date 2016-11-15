@@ -24,6 +24,7 @@ import owned from './owned.json';
 import registry from './registry.json';
 import signaturereg from './signaturereg.json';
 import tokenreg from './tokenreg.json';
+import wallet from './wallet.json';
 
 export {
   basiccoin,
@@ -35,5 +36,6 @@ export {
   owned,
   registry,
   signaturereg,
-  tokenreg
+  tokenreg,
+  wallet
 };

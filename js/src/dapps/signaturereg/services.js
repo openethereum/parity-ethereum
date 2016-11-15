@@ -39,7 +39,7 @@ const logToEvent = (log) => {
 };
 
 export function attachInterface (callback) {
-  return api.ethcore
+  return api.parity
     .registryAddress()
     .then((registryAddress) => {
       console.log(`the registry was found at ${registryAddress}`);
@@ -49,26 +49,26 @@ export function attachInterface (callback) {
       return Promise
         .all([
           registry.getAddress.call({}, [api.util.sha3('signaturereg'), 'A']),
-          api.eth.accounts(),
-          api.personal.accountsInfo()
+          api.parity.accounts()
         ]);
     })
-    .then(([address, addresses, accountsInfo]) => {
-      accountsInfo = accountsInfo || {};
+    .then(([address, accountsInfo]) => {
       console.log(`signaturereg was found at ${address}`);
 
       const contract = api.newContract(abis.signaturereg, address);
-      const accounts = addresses.reduce((obj, address) => {
-        const info = accountsInfo[address] || {};
+      const accounts = Object
+        .keys(accountsInfo)
+        .filter((address) => accountsInfo[address].uuid)
+        .reduce((obj, address) => {
+          const info = accountsInfo[address] || {};
 
-        return Object.assign(obj, {
-          [address]: {
-            address,
-            name: info.name || 'Unnamed',
-            uuid: info.uuid
-          }
-        });
-      }, {});
+          return Object.assign(obj, {
+            [address]: {
+              address,
+              name: info.name || 'Unnamed'
+            }
+          });
+        }, {});
       const fromAddress = Object.keys(accounts)[0];
 
       return {

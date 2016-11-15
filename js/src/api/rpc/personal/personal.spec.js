@@ -19,34 +19,12 @@ import { TEST_HTTP_URL, mockHttp } from '../../../../test/mockRpc';
 import Http from '../../transport/http';
 import Personal from './personal';
 
-const instance = new Personal(new Http(TEST_HTTP_URL));
+const instance = new Personal(new Http(TEST_HTTP_URL, -1));
 
 describe('rpc/Personal', () => {
   const account = '0x63cf90d3f0410092fc0fca41846f596223979195';
   const checksum = '0x63Cf90D3f0410092FC0fca41846f596223979195';
   let scope;
-
-  describe('accountsInfo', () => {
-    it('retrieves the available account info', () => {
-      scope = mockHttp([{ method: 'personal_accountsInfo', reply: {
-        result: {
-          '0x63cf90d3f0410092fc0fca41846f596223979195': {
-            name: 'name', uuid: 'uuid', meta: '{"data":"data"}'
-          }
-        }
-      } }]);
-
-      return instance.accountsInfo().then((result) => {
-        expect(result).to.deep.equal({
-          '0x63Cf90D3f0410092FC0fca41846f596223979195': {
-            name: 'name', uuid: 'uuid', meta: {
-              data: 'data'
-            }
-          }
-        });
-      });
-    });
-  });
 
   describe('listAccounts', () => {
     it('retrieves a list of available accounts', () => {

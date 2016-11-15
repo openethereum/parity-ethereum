@@ -51,6 +51,14 @@ impl Ext for FakeExt {
 		unimplemented!();
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		unimplemented!(); 
+	}
+
+	fn origin_balance(&self) -> U256 {
+		unimplemented!();
+	}
+
 	fn balance(&self, _address: &Address) -> U256 {
 		unimplemented!();
 	}

@@ -23,7 +23,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::client::{VMType, Mode};
+use ethcore::client::VMType;
 use ethcore::miner::{MinerOptions, Banning};
 
 use rpc::{IpcConfiguration, HttpConfiguration};
@@ -35,7 +35,7 @@ use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
-use signer::Configuration as SignerConfiguration;
+use signer::{Configuration as SignerConfiguration, SignerCommand};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
@@ -49,9 +49,14 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(String),
+	SignerToken(SignerCommand),
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
+}
+
+pub struct Execute {
+	pub logger: LogConfig,
+	pub cmd: Cmd,
 }
 
 #[derive(Debug, PartialEq)]
@@ -70,28 +75,27 @@ impl Configuration {
 		Ok(config)
 	}
 
-	pub fn into_command(self) -> Result<Cmd, String> {
+	pub fn into_command(self) -> Result<Execute, String> {
 		let dirs = self.directories();
 		let pruning = try!(self.args.flag_pruning.parse());
 		let pruning_history = self.args.flag_pruning_history;
 		let vm_type = try!(self.vm_type());
-		let mode = try!(to_mode(&self.args.flag_mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm));
+		let mode = match self.args.flag_mode.as_ref() { "last" => None, mode => Some(try!(to_mode(&mode, self.args.flag_mode_timeout, self.args.flag_mode_alarm))), };
 		let miner_options = try!(self.miner_options());
 		let logger_config = self.logger_config();
 		let http_conf = try!(self.http_config());
 		let ipc_conf = try!(self.ipc_config());
 		let net_conf = try!(self.net_config());
-		let network_id = try!(self.network_id());
+		let network_id = self.network_id();
 		let cache_config = self.cache_config();
 		let spec = try!(self.chain().parse());
 		let tracing = try!(self.args.flag_tracing.parse());
 		let fat_db = try!(self.args.flag_fat_db.parse());
 		let compaction = try!(self.args.flag_db_compaction.parse());
 		let wal = !self.args.flag_fast_and_loose;
-		let enable_network = self.enable_network(&mode);
 		let warp_sync = self.args.flag_warp;
 		let geth_compatibility = self.args.flag_geth;
-		let signer_port = self.signer_port();
+		let ui_address = self.ui_port().map(|port| (self.ui_interface(), port));
 		let dapps_conf = self.dapps_config();
 		let signer_conf = self.signer_config();
 		let format = try!(self.format());
@@ -99,7 +103,9 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(dirs.signer)
+			Cmd::SignerToken(SignerCommand {
+				path: dirs.signer
+			})
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {
@@ -141,7 +147,6 @@ impl Configuration {
 		} else if self.args.cmd_import {
 			let import_cmd = ImportBlockchain {
 				spec: spec,
-				logger_config: logger_config,
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
@@ -150,17 +155,16 @@ impl Configuration {
 				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
+				with_color: logger_config.color,
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
 			let export_cmd = ExportBlockchain {
 				spec: spec,
-				logger_config: logger_config,
 				cache_config: cache_config,
 				dirs: dirs,
 				file_path: self.args.arg_file.clone(),
@@ -169,7 +173,6 @@ impl Configuration {
 				pruning_history: pruning_history,
 				compaction: compaction,
 				wal: wal,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				from_block: try!(to_block_id(&self.args.flag_from)),
@@ -184,8 +187,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				logger_config: logger_config,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -202,8 +203,6 @@ impl Configuration {
 				spec: spec,
 				pruning: pruning,
 				pruning_history: pruning_history,
-				logger_config: logger_config,
-				mode: mode,
 				tracing: tracing,
 				fat_db: fat_db,
 				compaction: compaction,
@@ -227,7 +226,7 @@ impl Configuration {
 				pruning: pruning,
 				pruning_history: pruning_history,
 				daemon: daemon,
-				logger_config: logger_config,
+				logger_config: logger_config.clone(),
 				miner_options: miner_options,
 				http_conf: http_conf,
 				ipc_conf: ipc_conf,
@@ -242,10 +241,9 @@ impl Configuration {
 				compaction: compaction,
 				wal: wal,
 				vm_type: vm_type,
-				enable_network: enable_network,
 				warp_sync: warp_sync,
 				geth_compatibility: geth_compatibility,
-				signer_port: signer_port,
+				ui_address: ui_address,
 				net_settings: self.network_settings(),
 				dapps_conf: dapps_conf,
 				signer_conf: signer_conf,
@@ -258,14 +256,10 @@ impl Configuration {
 			Cmd::Run(run_cmd)
 		};
 
-		Ok(cmd)
-	}
-
-	fn enable_network(&self, mode: &Mode) -> bool {
-		match *mode {
-			Mode::Dark(_) => false,
-			_ => !self.args.flag_no_network,
-		}
+		Ok(Execute {
+			logger: logger_config,
+			cmd: cmd,
+		})
 	}
 
 	fn vm_type(&self) -> Result<VMType, String> {
@@ -402,11 +396,11 @@ impl Configuration {
 
 	fn signer_config(&self) -> SignerConfiguration {
 		SignerConfiguration {
-			enabled: self.signer_enabled(),
-			port: self.args.flag_signer_port,
-			interface: self.signer_interface(),
+			enabled: self.ui_enabled(),
+			port: self.args.flag_ui_port,
+			interface: self.ui_interface(),
 			signer_path: self.directories().signer,
-			skip_origin_validation: self.args.flag_signer_no_validation,
+			skip_origin_validation: self.args.flag_ui_no_validation,
 		}
 	}
 
@@ -510,16 +504,19 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	fn network_id(&self) -> Result<Option<U256>, String> {
-		let net_id = self.args.flag_network_id.as_ref().or(self.args.flag_networkid.as_ref());
-		match net_id {
-			Some(id) => Ok(Some(try!(to_u256(id)))),
-			None => Ok(None),
-		}
+	fn network_id(&self) -> Option<usize> {
+		self.args.flag_network_id.or(self.args.flag_networkid)
 	}
 
 	fn rpc_apis(&self) -> String {
-		self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone())
+		let mut apis = self.args.flag_rpcapi.clone().unwrap_or(self.args.flag_jsonrpc_apis.clone());
+		if self.args.flag_geth {
+			if !apis.is_empty() {
+				apis.push_str(",");
+			}
+			apis.push_str("personal");
+		}
+		apis
 	}
 
 	fn rpc_cors(&self) -> Option<Vec<String>> {
@@ -551,7 +548,16 @@ impl Configuration {
 		let conf = IpcConfiguration {
 			enabled: !(self.args.flag_ipcdisable || self.args.flag_ipc_off || self.args.flag_no_ipc),
 			socket_addr: self.ipc_path(),
-			apis: try!(self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone()).parse()),
+			apis: {
+				let mut apis = self.args.flag_ipcapi.clone().unwrap_or(self.args.flag_ipc_apis.clone());
+				if self.args.flag_geth {
+					if !apis.is_empty() {
+ 						apis.push_str(",");
+ 					}
+					apis.push_str("personal");
+				}
+				try!(apis.parse())
+			},
 		};
 
 		Ok(conf)
@@ -595,7 +601,7 @@ impl Configuration {
 		);
 
 		let dapps_path = replace_home(&self.args.flag_dapps_path);
-		let signer_path = replace_home(&self.args.flag_signer_path);
+		let ui_path = replace_home(&self.args.flag_ui_path);
 
 		if self.args.flag_geth  && !cfg!(windows) {
 			let geth_root  = if self.args.flag_testnet { path::ethereum::test() } else {  path::ethereum::default() };
@@ -616,7 +622,7 @@ impl Configuration {
 			keys: keys_path,
 			db: db_path,
 			dapps: dapps_path,
-			signer: signer_path,
+			signer: ui_path,
 		}
 	}
 
@@ -628,16 +634,16 @@ impl Configuration {
 		}
 	}
 
-	fn signer_port(&self) -> Option<u16> {
-		if !self.signer_enabled() {
+	fn ui_port(&self) -> Option<u16> {
+		if !self.ui_enabled() {
 			None
 		} else {
-			Some(self.args.flag_signer_port)
+			Some(self.args.flag_ui_port)
 		}
 	}
 
-	fn signer_interface(&self) -> String {
-		match self.args.flag_signer_interface.as_str() {
+	fn ui_interface(&self) -> String {
+		match self.args.flag_ui_interface.as_str() {
 			"local" => "127.0.0.1",
 			x => x,
 		}.into()
@@ -662,16 +668,16 @@ impl Configuration {
 		!self.args.flag_dapps_off && !self.args.flag_no_dapps && cfg!(feature = "dapps")
 	}
 
-	fn signer_enabled(&self) -> bool {
-		if self.args.flag_force_signer {
+	fn ui_enabled(&self) -> bool {
+		if self.args.flag_force_ui {
 			return true;
 		}
 
-		let signer_disabled = self.args.flag_unlock.is_some() ||
+		let ui_disabled = self.args.flag_unlock.is_some() ||
 			self.args.flag_geth ||
-			self.args.flag_no_signer;
+			self.args.flag_no_ui;
 
-		!signer_disabled
+		!ui_disabled
 	}
 }
 
@@ -684,7 +690,7 @@ mod tests {
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
-	use signer::Configuration as SignerConfiguration;
+	use signer::{Configuration as SignerConfiguration, SignerCommand};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
@@ -705,14 +711,14 @@ mod tests {
 	fn test_command_version() {
 		let args = vec!["parity", "--version"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Version);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Version);
 	}
 
 	#[test]
 	fn test_command_account_new() {
 		let args = vec!["parity", "account", "new"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::New(NewAccount {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::New(NewAccount {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
 			password_file: None,
@@ -723,16 +729,16 @@ mod tests {
 	fn test_command_account_list() {
 		let args = vec!["parity", "account", "list"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(
-			AccountCmd::List(replace_home("$HOME/.parity/keys")))
-		);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(
+			AccountCmd::List(replace_home("$HOME/.parity/keys")),
+		));
 	}
 
 	#[test]
 	fn test_command_account_import() {
 		let args = vec!["parity", "account", "import", "my_dir", "another_dir"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Account(AccountCmd::Import(ImportAccounts {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Account(AccountCmd::Import(ImportAccounts {
 			from: vec!["my_dir".into(), "another_dir".into()],
 			to: replace_home("$HOME/.parity/keys"),
 		})));
@@ -742,7 +748,7 @@ mod tests {
 	fn test_command_wallet_import() {
 		let args = vec!["parity", "wallet", "import", "my_wallet.json", "--password", "pwd"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::ImportPresaleWallet(ImportWallet {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::ImportPresaleWallet(ImportWallet {
 			iterations: 10240,
 			path: replace_home("$HOME/.parity/keys"),
 			wallet_path: "my_wallet.json".into(),
@@ -754,9 +760,8 @@ mod tests {
 	fn test_command_blockchain_import() {
 		let args = vec!["parity", "import", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Import(ImportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -765,11 +770,11 @@ mod tests {
 			pruning_history: 64,
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			vm_type: VMType::Interpreter,
 			check_seal: true,
+			with_color: !cfg!(windows),
 		})));
 	}
 
@@ -777,9 +782,8 @@ mod tests {
 	fn test_command_blockchain_export() {
 		let args = vec!["parity", "export", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -788,7 +792,6 @@ mod tests {
 			format: Default::default(),
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
@@ -801,9 +804,8 @@ mod tests {
 	fn test_command_blockchain_export_with_custom_format() {
 		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
-			logger_config: Default::default(),
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			file_path: Some("blockchain.json".into()),
@@ -812,7 +814,6 @@ mod tests {
 			format: Some(DataFormat::Hex),
 			compaction: Default::default(),
 			wal: true,
-			mode: Default::default(),
 			tracing: Default::default(),
 			fat_db: Default::default(),
 			from_block: BlockID::Number(1),
@@ -826,14 +827,16 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = replace_home("$HOME/.parity/signer");
-		assert_eq!(conf.into_command().unwrap(), Cmd::SignerToken(expected));
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerCommand {
+			path: expected,
+		}));
 	}
 
 	#[test]
 	fn test_run_cmd() {
 		let args = vec!["parity"];
 		let conf = parse(&args);
-		assert_eq!(conf.into_command().unwrap(), Cmd::Run(RunCmd {
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Run(RunCmd {
 			cache_config: Default::default(),
 			dirs: Default::default(),
 			spec: Default::default(),
@@ -855,9 +858,8 @@ mod tests {
 			compaction: Default::default(),
 			wal: true,
 			vm_type: Default::default(),
-			enable_network: true,
 			geth_compatibility: false,
-			signer_port: Some(8180),
+			ui_address: Some(("127.0.0.1".into(), 8180)),
 			net_settings: Default::default(),
 			dapps_conf: Default::default(),
 			signer_conf: Default::default(),
@@ -980,11 +982,11 @@ mod tests {
 
 		// when
 		let conf0 = parse(&["parity", "--geth"]);
-		let conf1 = parse(&["parity", "--geth", "--force-signer"]);
+		let conf1 = parse(&["parity", "--geth", "--force-ui"]);
 
 		// then
-		assert_eq!(conf0.signer_enabled(), false);
-		assert_eq!(conf1.signer_enabled(), true);
+		assert_eq!(conf0.ui_enabled(), false);
+		assert_eq!(conf1.ui_enabled(), true);
 	}
 
 	#[test]
@@ -995,7 +997,7 @@ mod tests {
 		let conf0 = parse(&["parity", "--unlock", "0x0"]);
 
 		// then
-		assert_eq!(conf0.signer_enabled(), false);
+		assert_eq!(conf0.ui_enabled(), false);
 	}
 
 	#[test]
@@ -1003,10 +1005,10 @@ mod tests {
 		// given
 
 		// when
-		let conf0 = parse(&["parity", "--signer-path", "signer"]);
-		let conf1 = parse(&["parity", "--signer-path", "signer", "--signer-no-validation"]);
-		let conf2 = parse(&["parity", "--signer-path", "signer", "--signer-port", "3123"]);
-		let conf3 = parse(&["parity", "--signer-path", "signer", "--signer-interface", "test"]);
+		let conf0 = parse(&["parity", "--ui-path", "signer"]);
+		let conf1 = parse(&["parity", "--ui-path", "signer", "--ui-no-validation"]);
+		let conf2 = parse(&["parity", "--ui-path", "signer", "--ui-port", "3123"]);
+		let conf3 = parse(&["parity", "--ui-path", "signer", "--ui-interface", "test"]);
 
 		// then
 		assert_eq!(conf0.signer_config(), SignerConfiguration {

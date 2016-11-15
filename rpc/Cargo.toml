@@ -1,7 +1,7 @@
 [package]
 description = "Ethcore jsonrpc"
 name = "ethcore-rpc"
-version = "1.4.0"
+version = "1.5.0"
 license = "GPL-3.0"
 authors = ["Ethcore <admin@ethcore.io"]
 build = "build.rs"

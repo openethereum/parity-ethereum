@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+
 import util from '../api/util';
 
 export const ERRORS = {
@@ -22,7 +24,10 @@ export const ERRORS = {
   invalidChecksum: 'address has failed the checksum formatting',
   invalidName: 'name should not be blank and longer than 2',
   invalidAbi: 'abi should be a valid JSON array',
-  invalidCode: 'code should be the compiled hex string'
+  invalidCode: 'code should be the compiled hex string',
+  invalidNumber: 'invalid number format',
+  negativeNumber: 'input number should be positive',
+  decimalNumber: 'input number should not contain decimals'
 };
 
 export function validateAbi (abi, api) {
@@ -33,10 +38,22 @@ export function validateAbi (abi, api) {
     abiParsed = JSON.parse(abi);
 
     if (!api.util.isArray(abiParsed) || !abiParsed.length) {
-      abiError = ERRORS.inavlidAbi;
-    } else {
-      abi = JSON.stringify(abiParsed);
+      abiError = ERRORS.invalidAbi;
+      return { abi, abiError, abiParsed };
     }
+
+    // Validate each elements of the Array
+    const invalidIndex = abiParsed
+      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api))
+      .findIndex((valid) => !valid);
+
+    if (invalidIndex !== -1) {
+      const invalid = abiParsed[invalidIndex];
+      abiError = `${ERRORS.invalidAbi} (#${invalidIndex}: ${invalid.name || invalid.type})`;
+      return { abi, abiError, abiParsed };
+    }
+
+    abi = JSON.stringify(abiParsed);
   } catch (error) {
     abiError = ERRORS.invalidAbi;
   }
@@ -46,6 +63,25 @@ export function validateAbi (abi, api) {
     abiError,
     abiParsed
   };
+}
+
+function isValidAbiFunction (object, api) {
+  if (!object) {
+    return false;
+  }
+
+  return ((object.type === 'function' && object.name) || object.type === 'constructor') &&
+    (object.inputs && api.util.isArray(object.inputs));
+}
+
+function isValidAbiEvent (object, api) {
+  if (!object) {
+    return false;
+  }
+
+  return (object.type === 'event') &&
+    (object.name) &&
+    (object.inputs && api.util.isArray(object.inputs));
 }
 
 export function validateAddress (address) {
@@ -86,5 +122,25 @@ export function validateName (name) {
   return {
     name,
     nameError
+  };
+}
+
+export function validateUint (value) {
+  let valueError = null;
+
+  try {
+    const bn = new BigNumber(value);
+    if (bn.lt(0)) {
+      valueError = ERRORS.negativeNumber;
+    } else if (bn.toString().indexOf('.') !== -1) {
+      valueError = ERRORS.decimalNumber;
+    }
+  } catch (e) {
+    valueError = ERRORS.invalidNumber;
+  }
+
+  return {
+    value,
+    valueError
   };
 }

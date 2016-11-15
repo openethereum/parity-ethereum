@@ -17,9 +17,37 @@
 import React, { Component, PropTypes } from 'react';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
+import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
+
+import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 
 import { Button, Modal, Form, Input, InputAddress } from '../../ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
+
+import { eip20, wallet } from '../../contracts/abi';
+import styles from './addContract.css';
+
+const ABI_TYPES = [
+  {
+    label: 'Token', readOnly: true, value: JSON.stringify(eip20),
+    type: 'token',
+    description: (<span>A standard <a href='https://github.com/ethereum/EIPs/issues/20' target='_blank'>ERC 20</a> token</span>)
+  },
+  {
+    label: 'Multisig Wallet', readOnly: true,
+    type: 'multisig',
+    value: JSON.stringify(wallet),
+    description: (<span>Official Multisig contract: <a href='https://github.com/ethereum/dapp-bin/blob/master/wallet/wallet.sol' target='_blank'>see contract code</a></span>)
+  },
+  {
+    label: 'Custom Contract', value: '',
+    type: 'custom',
+    description: 'Contract created from custom ABI'
+  }
+];
+
+const STEPS = [ 'choose a contract type', 'enter contract details' ];
 
 export default class AddContract extends Component {
   static contextTypes = {
@@ -34,44 +62,101 @@ export default class AddContract extends Component {
   state = {
     abi: '',
     abiError: ERRORS.invalidAbi,
+    abiType: ABI_TYPES[2],
+    abiTypeIndex: 2,
     abiParsed: null,
     address: '',
     addressError: ERRORS.invalidAddress,
     name: '',
     nameError: ERRORS.invalidName,
-    description: ''
+    description: '',
+    step: 0
   };
 
+  componentDidMount () {
+    this.onChangeABIType(null, this.state.abiTypeIndex);
+  }
+
   render () {
+    const { step } = this.state;
+
     return (
       <Modal
         visible
         actions={ this.renderDialogActions() }
-        title='watch contract'>
-        { this.renderFields() }
+        steps={ STEPS }
+        current={ step }
+      >
+        { this.renderStep(step) }
       </Modal>
     );
   }
 
+  renderStep (step) {
+    switch (step) {
+      case 0:
+        return this.renderContractTypeSelector();
+      default:
+        return this.renderFields();
+    }
+  }
+
+  renderContractTypeSelector () {
+    const { abiTypeIndex } = this.state;
+
+    return (
+      <RadioButtonGroup
+        valueSelected={ abiTypeIndex }
+        name='contractType'
+        onChange={ this.onChangeABIType }
+      >
+        { this.renderAbiTypes() }
+      </RadioButtonGroup>
+    );
+  }
+
   renderDialogActions () {
-    const { addressError, nameError } = this.state;
+    const { addressError, nameError, step } = this.state;
     const hasError = !!(addressError || nameError);
 
-    return ([
+    const cancelBtn = (
       <Button
         icon={ <ContentClear /> }
         label='Cancel'
-        onClick={ this.onClose } />,
+        onClick={ this.onClose } />
+    );
+
+    if (step === 0) {
+      const nextBtn = (
+        <Button
+          icon={ <NavigationArrowForward /> }
+          label='Next'
+          onClick={ this.onNext } />
+      );
+
+      return [ cancelBtn, nextBtn ];
+    }
+
+    const prevBtn = (
+      <Button
+        icon={ <NavigationArrowBack /> }
+        label='Back'
+        onClick={ this.onPrev } />
+    );
+
+    const addBtn = (
       <Button
         icon={ <ContentAdd /> }
         label='Add Contract'
         disabled={ hasError }
         onClick={ this.onAdd } />
-    ]);
+    );
+
+    return [ cancelBtn, prevBtn, addBtn ];
   }
 
   renderFields () {
-    const { abi, abiError, address, addressError, description, name, nameError } = this.state;
+    const { abi, abiError, address, addressError, description, name, nameError, abiType } = this.state;
 
     return (
       <Form>
@@ -80,7 +165,9 @@ export default class AddContract extends Component {
           hint='the network address for the contract'
           error={ addressError }
           value={ address }
-          onSubmit={ this.onEditAddress } />
+          onSubmit={ this.onEditAddress }
+          onChange={ this.onChangeAddress }
+        />
         <Input
           label='contract name'
           hint='a descriptive name for the contract'
@@ -94,20 +181,57 @@ export default class AddContract extends Component {
           hint='an expanded description for the entry'
           value={ description }
           onSubmit={ this.onEditDescription } />
+
         <Input
           label='contract abi'
           hint='the abi for the contract'
           error={ abiError }
           value={ abi }
-          onSubmit={ this.onEditAbi } />
+          readOnly={ abiType.readOnly }
+          onSubmit={ this.onEditAbi }
+        />
       </Form>
     );
   }
 
-  onEditAbi = (abi) => {
-    const { api } = this.context;
+  renderAbiTypes () {
+    return ABI_TYPES.map((type, index) => (
+      <RadioButton
+        className={ styles.spaced }
+        value={ index }
+        label={ (
+          <div className={ styles.typeContainer }>
+            <span>{ type.label }</span>
+            <span className={ styles.desc }>{ type.description }</span>
+          </div>
+        ) }
+        key={ index }
+      />
+    ));
+  }
 
-    this.setState(validateAbi(abi, api));
+  onNext = () => {
+    this.setState({ step: this.state.step + 1 });
+  }
+
+  onPrev = () => {
+    this.setState({ step: this.state.step - 1 });
+  }
+
+  onChangeABIType = (event, index) => {
+    const abiType = ABI_TYPES[index];
+    this.setState({ abiTypeIndex: index, abiType });
+    this.onEditAbi(abiType.value);
+  }
+
+  onEditAbi = (abiIn) => {
+    const { api } = this.context;
+    const { abi, abiError, abiParsed } = validateAbi(abiIn, api);
+    this.setState({ abi, abiError, abiParsed });
+  }
+
+  onChangeAddress = (event, value) => {
+    this.onEditAddress(value);
   }
 
   onEditAddress = (_address) => {
@@ -138,14 +262,16 @@ export default class AddContract extends Component {
 
   onAdd = () => {
     const { api } = this.context;
-    const { abiParsed, address, name, description } = this.state;
+    const { abiParsed, address, name, description, abiType } = this.state;
 
     Promise.all([
-      api.personal.setAccountName(address, name),
-      api.personal.setAccountMeta(address, {
+      api.parity.setAccountName(address, name),
+      api.parity.setAccountMeta(address, {
         contract: true,
         deleted: false,
+        timestamp: Date.now(),
         abi: abiParsed,
+        type: abiType.type,
         description
       })
     ]).catch((error) => {

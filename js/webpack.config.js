@@ -41,10 +41,6 @@ module.exports = {
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],
     'tokenreg': ['./dapps/tokenreg.js'],
-    // library
-    'inject': ['./web3.js'],
-    'web3': ['./web3.js'],
-    'parity': ['./parity.js'],
     // app
     'index': ['./index.js']
   },
@@ -202,7 +198,8 @@ module.exports = {
     proxy: {
       '/api/*': {
         target: 'http://127.0.0.1:8080',
-        changeOrigin: true
+        changeOrigin: true,
+        autoRewrite: true
       },
       '/app/*': {
         target: 'http://127.0.0.1:8080',

@@ -13,7 +13,7 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
-
+// test only
 /**
  * Run `PARITY_URL="127.0.0.1:8180" NODE_ENV="production" npm run build`
  * to build the project ; use this server to test that the minifed

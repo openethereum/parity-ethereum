@@ -17,10 +17,11 @@
 //! RPC Error codes and error objects
 
 macro_rules! rpc_unimplemented {
-	() => (Err(::v1::helpers::errors::unimplemented()))
+	() => (Err(::v1::helpers::errors::unimplemented(None)))
 }
 
 use std::fmt;
+use rlp::DecoderError;
 use ethcore::error::{Error as EthcoreError, CallError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
@@ -41,6 +42,7 @@ mod codes {
 	pub const ACCOUNT_ERROR: i64 = -32023;
 	pub const SIGNER_DISABLED: i64 = -32030;
 	pub const DAPPS_DISABLED: i64 = -32031;
+	pub const NETWORK_DISABLED: i64 = -32035;
 	pub const REQUEST_REJECTED: i64 = -32040;
 	pub const REQUEST_REJECTED_LIMIT: i64 = -32041;
 	pub const REQUEST_NOT_FOUND: i64 = -32042;
@@ -49,11 +51,11 @@ mod codes {
 	pub const FETCH_ERROR: i64 = -32060;
 }
 
-pub fn unimplemented() -> Error {
+pub fn unimplemented(details: Option<String>) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::UNSUPPORTED_REQUEST),
 		message: "This request is not implemented yet. Please create an issue on Github repo.".into(),
-		data: None
+		data: details.map(Value::String),
 	}
 }
 
@@ -185,6 +187,14 @@ pub fn dapps_disabled() -> Error {
 	}
 }
 
+pub fn network_disabled() -> Error {
+	Error {
+		code: ErrorCode::ServerError(codes::NETWORK_DISABLED),
+		message: "Network is disabled or not yet up.".into(),
+		data: None
+	}
+}
+
 pub fn encryption_error<T: fmt::Debug>(error: T) -> Error {
 	Error {
 		code: ErrorCode::ServerError(codes::ENCRYPTION_ERROR),
@@ -246,6 +256,7 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			SenderBanned => "Sender is banned in local queue.".into(),
 			RecipientBanned => "Recipient is banned in local queue.".into(),
 			CodeBanned => "Code is banned in local queue.".into(),
+			e => format!("{}", e).into(),
 		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
@@ -258,6 +269,14 @@ pub fn from_transaction_error(error: EthcoreError) -> Error {
 			message: "Unknown error when sending transaction.".into(),
 			data: Some(Value::String(format!("{:?}", error))),
 		}
+	}
+}
+
+pub fn from_rlp_error(error: DecoderError) -> Error {
+	Error {
+		code: ErrorCode::InvalidParams,
+		message: "Invalid RLP.".into(),
+		data: Some(Value::String(format!("{:?}", error))),
 	}
 }
 

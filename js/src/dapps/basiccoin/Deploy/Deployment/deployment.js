@@ -148,7 +148,7 @@ export default class Deployment extends Component {
               addresses={ addresses }
               onChange={ this.onChangeFrom } />
             <div className={ styles.hint }>
-              the owner account to eploy from
+              the owner account to deploy from
             </div>
           </div>
           <div className={ nameError ? error : styles.input }>
@@ -296,7 +296,7 @@ export default class Deployment extends Component {
       .then((signerRequestId) => {
         this.setState({ signerRequestId, deployState: 'Transaction posted, Waiting for transaction authorization' });
 
-        return api.pollMethod('eth_checkRequest', signerRequestId);
+        return api.pollMethod('parity_checkRequest', signerRequestId);
       })
       .then((txHash) => {
         this.setState({ txHash, deployState: 'Transaction authorized, Waiting for network confirmations' });

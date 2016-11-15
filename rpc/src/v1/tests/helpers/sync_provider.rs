@@ -16,13 +16,13 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{RwLock, U256};
+use util::{RwLock};
 use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo};
 
 /// TestSyncProvider config.
 pub struct Config {
 	/// Protocol version.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Number of peers.
 	pub num_peers: usize,
 }
@@ -92,6 +92,10 @@ impl SyncProvider for TestSyncProvider {
 				eth_head: 60.into()
 			}
 		]
+	}
+
+	fn enode(&self) -> Option<String> {
+		None
 	}
 }
 

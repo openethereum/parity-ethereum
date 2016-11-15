@@ -20,6 +20,7 @@ use util::{Address, U256, version_data};
 use util::journaldb::Algorithm;
 use ethcore::spec::Spec;
 use ethcore::ethereum;
+use ethcore::client::Mode;
 use ethcore::miner::{GasPricer, GasPriceCalibratorOptions};
 use user_defaults::UserDefaults;
 
@@ -30,6 +31,7 @@ pub enum SpecType {
 	Olympic,
 	Classic,
 	Expanse,
+	Dev,
 	Custom(String),
 }
 
@@ -49,6 +51,7 @@ impl str::FromStr for SpecType {
 			"morden" | "testnet" => SpecType::Testnet,
 			"olympic" => SpecType::Olympic,
 			"expanse" => SpecType::Expanse,
+			"dev" => SpecType::Dev,
 			other => SpecType::Custom(other.into()),
 		};
 		Ok(spec)
@@ -63,6 +66,7 @@ impl SpecType {
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Expanse => Ok(ethereum::new_expanse()),
+			SpecType::Dev => Ok(Spec::new_instant()),
 			SpecType::Custom(ref filename) => {
 				let file = try!(fs::File::open(filename).map_err(|_| "Could not load specification file."));
 				Spec::load(file)
@@ -262,6 +266,10 @@ pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, algori
 		return Err("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`".into());
 	}
 	result
+}
+
+pub fn mode_switch_to_bool(switch: Option<Mode>, user_defaults: &UserDefaults) -> Result<Mode, String> {
+	Ok(switch.unwrap_or(user_defaults.mode.clone()))
 }
 
 #[cfg(test)]

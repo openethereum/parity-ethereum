@@ -102,7 +102,7 @@ export default class Contract {
         options.gas = gas.toFixed(0);
 
         setState({ state: 'postTransaction', gas });
-        return this._api.eth.postTransaction(this._encodeOptions(this.constructors[0], options, values));
+        return this._api.parity.postTransaction(this._encodeOptions(this.constructors[0], options, values));
       })
       .then((requestId) => {
         setState({ state: 'checkRequest', requestId });
@@ -136,27 +136,30 @@ export default class Contract {
   }
 
   parseEventLogs (logs) {
-    return logs.map((log) => {
-      const signature = log.topics[0].substr(2);
-      const event = this.events.find((evt) => evt.signature === signature);
+    return logs
+      .map((log) => {
+        const signature = log.topics[0].substr(2);
+        const event = this.events.find((evt) => evt.signature === signature);
 
-      if (!event) {
-        throw new Error(`Unable to find event matching signature ${signature}`);
-      }
+        if (!event) {
+          console.warn(`Unable to find event matching signature ${signature}`);
+          return null;
+        }
 
-      const decoded = event.decodeLog(log.topics, log.data);
+        const decoded = event.decodeLog(log.topics, log.data);
 
-      log.params = {};
-      log.event = event.name;
+        log.params = {};
+        log.event = event.name;
 
-      decoded.params.forEach((param) => {
-        const { type, value } = param.token;
+        decoded.params.forEach((param) => {
+          const { type, value } = param.token;
 
-        log.params[param.name] = { type, value };
-      });
+          log.params[param.name] = { type, value };
+        });
 
-      return log;
-    });
+        return log;
+      })
+      .filter((log) => log);
   }
 
   parseTransactionEvents (receipt) {
@@ -166,7 +169,7 @@ export default class Contract {
   }
 
   _pollCheckRequest = (requestId) => {
-    return this._api.pollMethod('eth_checkRequest', requestId);
+    return this._api.pollMethod('parity_checkRequest', requestId);
   }
 
   _pollTransactionReceipt = (txhash, gas) => {
@@ -208,7 +211,7 @@ export default class Contract {
 
     if (!func.constant) {
       func.postTransaction = (options, values = []) => {
-        return this._api.eth
+        return this._api.parity
           .postTransaction(this._encodeOptions(func, this._addOptionsTo(options), values));
       };
 
@@ -306,7 +309,6 @@ export default class Contract {
           try {
             subscriptions[idx].callback(null, this.parseEventLogs(logs));
           } catch (error) {
-            this.unsubscribe(idx);
             console.error('_sendSubscriptionChanges', error);
           }
         });

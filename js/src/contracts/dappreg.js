@@ -57,4 +57,8 @@ export default class DappReg {
   getContent (id) {
     return this.meta(id, 'CONTENT');
   }
+
+  getManifest (id) {
+    return this.meta(id, 'MANIFEST');
+  }
 }

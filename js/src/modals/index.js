@@ -24,6 +24,8 @@ import FirstRun from './FirstRun';
 import Shapeshift from './Shapeshift';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
+import SaveContract from './SaveContract';
+import LoadContract from './LoadContract';
 
 export {
   AddAddress,
@@ -35,5 +37,7 @@ export {
   FirstRun,
   Shapeshift,
   Transfer,
-  PasswordManager
+  PasswordManager,
+  LoadContract,
+  SaveContract
 };

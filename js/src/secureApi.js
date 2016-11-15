@@ -23,22 +23,28 @@ export default class SecureApi extends Api {
     super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
-    this._connectState = 0;
+    this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
+    this._dappsPort = 8080;
+    this._dappsInterface = null;
+    this._signerPort = 8180;
+
+    console.log('SecureApi:constructor', sysuiToken);
 
     this._followConnection();
   }
 
   setToken = () => {
     window.localStorage.setItem('sysuiToken', this._transport.token);
+    console.log('SecureApi:setToken', this._transport.token);
   }
 
   _followConnection = () => {
     const nextTick = () => {
-      setTimeout(this._followConnection, 250);
+      setTimeout(() => this._followConnection(), 250);
     };
     const setManual = () => {
-      this._connectedState = 100;
+      this._connectState = 100;
       this._needsToken = true;
       this._isConnecting = false;
     };
@@ -49,8 +55,7 @@ export default class SecureApi extends Api {
       // token = <passed via constructor>
       case 0:
         if (isConnected) {
-          this._isConnecting = false;
-          return this.setToken();
+          return this.connectSuccess();
         } else if (lastError) {
           this.updateToken('initial', 1);
         }
@@ -59,14 +64,13 @@ export default class SecureApi extends Api {
       // token = 'initial'
       case 1:
         if (isConnected) {
-          this._connectState = 2;
-          this.personal
+          this.signer
             .generateAuthorizationToken()
             .then((token) => {
               this.updateToken(token, 2);
             })
             .catch((error) => {
-              console.error('_followConnection', error);
+              console.error('SecureApi:generateAuthorizationToken', error);
               setManual();
             });
           return;
@@ -78,8 +82,7 @@ export default class SecureApi extends Api {
       // token = <personal_generateAuthorizationToken>
       case 2:
         if (isConnected) {
-          this._isConnecting = false;
-          return this.setToken();
+          return this.connectSuccess();
         } else if (lastError) {
           return setManual();
         }
@@ -89,10 +92,54 @@ export default class SecureApi extends Api {
     nextTick();
   }
 
-  updateToken (token, connectedState = 0) {
-    this._connectState = connectedState;
+  connectSuccess () {
+    this._isConnecting = false;
+    this._needsToken = false;
+
+    this.setToken();
+
+    Promise
+      .all([
+        this.parity.dappsPort(),
+        this.parity.dappsInterface(),
+        this.parity.signerPort()
+      ])
+      .then(([dappsPort, dappsInterface, signerPort]) => {
+        this._dappsPort = dappsPort.toNumber();
+        this._dappsInterface = dappsInterface;
+        this._signerPort = signerPort.toNumber();
+      });
+
+    console.log('SecureApi:connectSuccess', this._transport.token);
+  }
+
+  updateToken (token, connectState = 0) {
+    this._connectState = connectState;
     this._transport.updateToken(token.replace(/[^a-zA-Z0-9]/g, ''));
     this._followConnection();
+    console.log('SecureApi:updateToken', this._transport.token, connectState);
+  }
+
+  get dappsPort () {
+    return this._dappsPort;
+  }
+
+  get dappsUrl () {
+    let hostname;
+
+    if (window.location.hostname === 'home.parity') {
+      hostname = 'dapps.parity';
+    } else if (!this._dappsInterface || this._dappsInterface === '0.0.0.0') {
+      hostname = window.location.hostname;
+    } else {
+      hostname = this._dappsInterface;
+    }
+
+    return `http://${hostname}:${this._dappsPort}`;
+  }
+
+  get signerPort () {
+    return this._signerPort;
   }
 
   get isConnecting () {

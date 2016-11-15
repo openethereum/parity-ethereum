@@ -411,6 +411,7 @@ export default class Transfer extends Component {
     const { api } = this.context;
     const { account } = this.props;
     const { data, gas, gasPrice, recipient, value } = this.state;
+
     const options = {
       from: account.address,
       to: recipient,
@@ -423,7 +424,7 @@ export default class Transfer extends Component {
       options.data = data;
     }
 
-    return api.eth.postTransaction(options);
+    return api.parity.postTransaction(options);
   }
 
   _sendToken () {
@@ -454,7 +455,7 @@ export default class Transfer extends Component {
         : this._sendToken()
       ).then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('eth_checkRequest', requestId);
+        return api.pollMethod('parity_checkRequest', requestId);
       })
       .then((txhash) => {
         this.onNext();
@@ -591,7 +592,7 @@ export default class Transfer extends Component {
 
     Promise
       .all([
-        api.ethcore.gasPriceHistogram(),
+        api.parity.gasPriceHistogram(),
         api.eth.gasPrice()
       ])
       .then(([gasPriceHistogram, gasPrice]) => {

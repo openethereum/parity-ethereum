@@ -137,6 +137,7 @@ pub mod miner;
 pub mod snapshot;
 pub mod action_params;
 pub mod db;
+pub mod verification;
 #[macro_use] pub mod evm;
 
 mod cache_manager;
@@ -150,7 +151,6 @@ mod account_db;
 mod builtin;
 mod executive;
 mod externalities;
-mod verification;
 mod blockchain;
 mod types;
 mod factory;

@@ -87,7 +87,7 @@ export default class MiningSettings extends Component {
   onMinGasPriceChange = (newVal) => {
     const { api } = this.context;
 
-    api.ethcore.setMinGasPrice(numberFromString(newVal));
+    api.parity.setMinGasPrice(numberFromString(newVal));
   };
 
   onExtraDataChange = (newVal, isResetToDefault) => {
@@ -97,18 +97,18 @@ export default class MiningSettings extends Component {
     // In case of resetting to default we are just using raw bytes from defaultExtraData
     // When user sets new value we can safely send a string that will be converted to hex by formatter.
     const val = isResetToDefault ? nodeStatus.defaultExtraData : newVal;
-    api.ethcore.setExtraData(val);
+    api.parity.setExtraData(val);
   };
 
   onAuthorChange = (newVal) => {
     const { api } = this.context;
 
-    api.ethcore.setAuthor(newVal);
+    api.parity.setAuthor(newVal);
   };
 
   onGasFloorTargetChange = (newVal) => {
     const { api } = this.context;
 
-    api.ethcore.setGasFloorTarget(numberFromString(newVal));
+    api.parity.setGasFloorTarget(numberFromString(newVal));
   };
 }

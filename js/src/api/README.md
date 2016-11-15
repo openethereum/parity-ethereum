@@ -135,10 +135,11 @@ APIs implement the calls as exposed in the [Ethcore JSON Ethereum RPC](https://g
 
 - [ethapi.db](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#db)
 - [ethapi.eth](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#eth)
-- [ethapi.ethcore](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#ethcore)
+- [ethapi.parity](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#parity)
 - [ethapi.net](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#net)
 - [ethapi.personal](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#personal)
 - [ethapi.shh](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#shh)
+- [ethapi.signer](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#signer)
 - [ethapi.trace](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#trace)
 - [ethapi.web3](https://github.com/ethcore/ethereum-rpc-json/blob/master/interfaces.md#web3)
 

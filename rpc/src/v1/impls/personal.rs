@@ -16,26 +16,34 @@
 
 //! Account management (personal) rpc implementation
 use std::sync::{Arc, Weak};
-use std::collections::{BTreeMap};
-use jsonrpc_core::*;
-use v1::traits::Personal;
-use v1::types::{H160 as RpcH160};
-use v1::helpers::errors;
+
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
+use ethcore::miner::MinerService;
+use util::Address;
+
+use jsonrpc_core::Error;
+use v1::traits::Personal;
+use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
+use v1::helpers::errors;
+use v1::helpers::dispatch::{self, sign_and_dispatch};
 
 /// Account management (personal) rpc implementation.
-pub struct PersonalClient<C> where C: MiningBlockChainClient {
+pub struct PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	accounts: Weak<AccountProvider>,
 	client: Weak<C>,
+	miner: Weak<M>,
+	allow_perm_unlock: bool,
 }
 
-impl<C> PersonalClient<C> where C: MiningBlockChainClient {
+impl<C, M> PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	/// Creates new PersonalClient
-	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>) -> Self {
+	pub fn new(store: &Arc<AccountProvider>, client: &Arc<C>, miner: &Arc<M>, allow_perm_unlock: bool) -> Self {
 		PersonalClient {
 			accounts: Arc::downgrade(store),
 			client: Arc::downgrade(client),
+			miner: Arc::downgrade(miner),
+			allow_perm_unlock: allow_perm_unlock,
 		}
 	}
 
@@ -46,8 +54,7 @@ impl<C> PersonalClient<C> where C: MiningBlockChainClient {
 	}
 }
 
-impl<C: 'static> Personal for PersonalClient<C> where C: MiningBlockChainClient {
-
+impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBlockChainClient, M: MinerService {
 	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
 		try!(self.active());
 
@@ -56,23 +63,46 @@ impl<C: 'static> Personal for PersonalClient<C> where C: MiningBlockChainClient 
 		Ok(accounts.into_iter().map(Into::into).collect::<Vec<RpcH160>>())
 	}
 
-	fn accounts_info(&self) -> Result<BTreeMap<String, Value>, Error> {
+	fn new_account(&self, pass: String) -> Result<RpcH160, Error> {
 		try!(self.active());
 		let store = take_weak!(self.accounts);
-		let info = try!(store.accounts_info().map_err(|e| errors::account("Could not fetch account info.", e)));
-		let other = store.addresses_info().expect("addresses_info always returns Ok; qed");
 
-		Ok(info.into_iter().chain(other.into_iter()).map(|(a, v)| {
-			let m = map![
-				"name".to_owned() => to_value(&v.name),
-				"meta".to_owned() => to_value(&v.meta),
-				"uuid".to_owned() => if let &Some(ref uuid) = &v.uuid {
-					to_value(uuid)
-				} else {
-					Value::Null
-				}
-			];
-			(format!("0x{}", a.hex()), Value::Object(m))
-		}).collect())
+		store.new_account(&pass)
+			.map(Into::into)
+			.map_err(|e| errors::account("Could not create account.", e))
+	}
+
+	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<u64>) -> Result<bool, Error> {
+		try!(self.active());
+		let account: Address = account.into();
+		let store = take_weak!(self.accounts);
+
+		let r = match (self.allow_perm_unlock, duration) {
+			(false, _) => store.unlock_account_temporarily(account, account_pass),
+			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
+			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d as u32 * 1000),
+			(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
+		};
+		match r {
+			Ok(_) => Ok(true),
+			// TODO [ToDr] Proper error here?
+			Err(_) => Ok(false),
+		}
+	}
+
+	fn sign_and_send_transaction(&self, request: TransactionRequest, password: String) -> Result<RpcH256, Error> {
+		try!(self.active());
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+		let accounts = take_weak!(self.accounts);
+
+		let request = dispatch::fill_optional_fields(request.into(), &*client, &*miner);
+		sign_and_dispatch(
+			&*client,
+			&*miner,
+			&*accounts,
+			request,
+			Some(password)
+		).map(Into::into)
 	}
 }

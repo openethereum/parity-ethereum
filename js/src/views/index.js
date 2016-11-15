@@ -21,10 +21,11 @@ import Addresses from './Addresses';
 import Application from './Application';
 import Contract from './Contract';
 import Contracts from './Contracts';
+import WriteContract from './WriteContract';
 import Dapp from './Dapp';
 import Dapps from './Dapps';
 import ParityBar from './ParityBar';
-import Settings, { SettingsBackground, SettingsProxy, SettingsViews } from './Settings';
+import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
 
@@ -36,11 +37,13 @@ export {
   Application,
   Contract,
   Contracts,
+  WriteContract,
   Dapp,
   Dapps,
   ParityBar,
   Settings,
   SettingsBackground,
+  SettingsParity,
   SettingsProxy,
   SettingsViews,
   Signer,
