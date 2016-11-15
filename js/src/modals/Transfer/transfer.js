@@ -517,6 +517,9 @@ export default class Transfer extends Component {
 
   recalculateGas = () => {
     if (!this.isValid()) {
+      this.setState({
+        gas: '0'
+      }, this.recalculate);
       return;
     }
 
