@@ -33,6 +33,7 @@ export default class InputQuery extends Component {
     inputs: PropTypes.array.isRequired,
     outputs: PropTypes.array.isRequired,
     name: PropTypes.string.isRequired,
+    signature: PropTypes.string.isRequired,
     className: PropTypes.string
   }
 
@@ -177,7 +178,7 @@ export default class InputQuery extends Component {
 
   onClick = () => {
     const { values } = this.state;
-    const { inputs, contract, name, outputs } = this.props;
+    const { inputs, contract, name, outputs, signature } = this.props;
 
     this.setState({
       isLoading: true,
@@ -187,7 +188,7 @@ export default class InputQuery extends Component {
     const inputValues = inputs.map(input => values[input.name]);
 
     contract
-      .instance[name]
+      .instance[signature]
       .call({}, inputValues)
       .then(results => {
         if (outputs.length === 1) {

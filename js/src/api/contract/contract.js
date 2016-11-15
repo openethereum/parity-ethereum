@@ -40,9 +40,12 @@ export default class Contract {
 
     this._events.forEach((evt) => {
       this._instance[evt.name] = evt;
+      this._instance[evt.signature] = evt;
     });
+
     this._functions.forEach((fn) => {
       this._instance[fn.name] = fn;
+      this._instance[fn.signature] = fn;
     });
 
     this._sendSubscriptionChanges();
