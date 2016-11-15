@@ -60,6 +60,39 @@ export default class VerificationStore {
     return phone.isValidNumber(this.number);
   }
 
+  @computed get isStepValid () {
+    if (this.step === VerificationStore.DONE) {
+      return true;
+    }
+    if (this.error) {
+      return false;
+    }
+
+    if (this.step === VerificationStore.GATHERED_DATA) {
+      return this.fee && this.isVerified === false && this.isNumberValid && this.consentGiven;
+    }
+    if (this.step === VerificationStore.REQUESTED_SMS) {
+      return this.requestTx;
+    }
+    if (this.step === VerificationStore.QUERY_CODE) {
+      return this.isCodeValid;
+    }
+    if (this.step === VerificationStore.POSTED_CONFIRMATION) {
+      return this.confirmationTx;
+    }
+    return false;
+  }
+
+  @action setNumber = (number) => {
+    this.number = number;
+  }
+  @action setConsentGiven = (consentGiven) => {
+    this.consentGiven = consentGiven;
+  }
+  @action setCode = (code) => {
+    this.code = code;
+  }
+
   constructor (api, account) {
     this.api = api;
     this.account = account;
@@ -106,14 +139,6 @@ export default class VerificationStore {
     });
   }
 
-  @action setNumber = (number) => {
-    this.number = number;
-  }
-
-  @action setConsentGiven = (consentGiven) => {
-    this.consentGiven = consentGiven;
-  }
-
   @action sendRequest = () => {
     const { api, account, contract, fee, number, hasRequested } = this;
 
@@ -153,8 +178,8 @@ export default class VerificationStore {
       });
   }
 
-  @action setCode = (code) => {
-    this.code = code;
+  @action queryCode = () => {
+    this.step = VerificationStore.QUERY_CODE;
   }
 
   @action sendConfirmation = () => {
@@ -187,5 +212,9 @@ export default class VerificationStore {
       .catch((err) => {
         this.error = 'Failed to send the verification code: ' + err.message;
       });
+  }
+
+  @action done = () => {
+    this.step = VerificationStore.DONE;
   }
 }
