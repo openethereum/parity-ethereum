@@ -121,13 +121,20 @@ export default class DeployContract extends Component {
 
     const closeBtn = (
       <Button
+        icon={ <ContentClear /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
+    const closeBtnOk = (
+      <Button
         icon={ <ActionDoneAll /> }
         label='Close'
         onClick={ this.onClose } />
     );
 
     if (deployError) {
-      return cancelBtn;
+      return closeBtn;
     }
 
     switch (step) {
@@ -145,7 +152,7 @@ export default class DeployContract extends Component {
         return [ closeBtn ];
 
       case 2:
-        return [ closeBtn ];
+        return [ closeBtnOk ];
     }
   }
 
