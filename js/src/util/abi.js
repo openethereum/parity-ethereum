@@ -97,7 +97,7 @@ export function parseAbiType (type) {
   if (type === 'address') {
     return {
       type: ADDRESS_TYPE,
-      default: '0x'
+      default: ''
     };
   }
 
