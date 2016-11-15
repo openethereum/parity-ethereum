@@ -20,8 +20,6 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import Contracts from '../../contracts';
-import IdentityIcon from '../IdentityIcon';
-import IdentityName from '../IdentityName';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
@@ -82,7 +80,12 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.gasDetails }>
-        { historic ? 'Provided' : 'Provides' } <span className={ styles.highlight }>{ gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)</span> for a total transaction value of <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
+        <span>{ historic ? 'Provided' : 'Provides' } </span>
+        <span className={ styles.highlight }>
+          { gas.toFormat(0) } gas ({ gasPrice.div(1000000).toFormat(0) }M/<small>ETH</small>)
+        </span>
+        <span> for a total transaction value of </span>
+        <span className={ styles.highlight }>{ this.renderEtherValue(gasValue) }</span>
       </div>
     );
   }
@@ -120,7 +123,14 @@ class MethodDecoding extends Component {
       default:
         return (
           <div className={ styles.details }>
-            { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderTokenValue(value.value) }</span> to <span className={ styles.highlight }>{ this.renderAddressName(address) }</span>.
+            <span>{ historic ? 'Transferred' : 'Will transfer' } </span>
+            <span className={ styles.highlight }>
+              { this.renderTokenValue(value.value) }
+            </span>
+            <span> to </span>
+            <span className={ styles.highlight }>
+              { this.renderAddressName(address) }
+            </span>
           </div>
         );
     }
@@ -139,7 +149,10 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.details }>
-        Deployed a contract at address <span className={ styles.highlight }>{ this.renderAddressName(transaction.creates, false) }</span>
+        <span>Deployed a contract at address </span>
+        <span className={ styles.highlight }>
+          { this.renderAddressName(transaction.creates, false) }
+        </span>
       </div>
     );
   }
@@ -150,7 +163,14 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Received' : 'Will receive' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> from { isContract ? 'the contract' : '' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.from) }</span>
+        <span>{ historic ? 'Received' : 'Will receive' } </span>
+        <span className={ styles.highlight }>
+          { this.renderEtherValue(transaction.value) }
+        </span>
+        <span> from { isContract ? 'the contract' : '' } </span>
+        <span className={ styles.highlight }>
+          { this.renderAddressName(transaction.from) }
+        </span>
       </div>
     );
   }
@@ -161,19 +181,38 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Transferred' : 'Will transfer' } <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span> to { isContract ? 'the contract' : '' } <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>
+        <span>{ historic ? 'Transferred' : 'Will transfer' } </span>
+        <span className={ styles.highlight }>
+          { this.renderEtherValue(transaction.value) }
+        </span>
+        <span> to { isContract ? 'the contract' : '' } </span>
+        <span className={ styles.highlight }>
+          { this.renderAddressName(transaction.to) }
+        </span>
       </div>
     );
   }
 
   renderSignatureMethod () {
     const { historic, transaction } = this.props;
-    const { methodName } = this.state;
+    const { methodName, methodInputs } = this.state;
 
     return (
       <div className={ styles.details }>
         <div className={ styles.description }>
-          { historic ? 'Executed' : 'Will execute' } the <span className={ styles.name }>{ methodName }</span> function on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>, passing the following parameters:
+          <span>{ historic ? 'Executed' : 'Will execute' } the </span>
+          <span className={ styles.name }>{ methodName }</span>
+          <span> function on the contract </span>
+          <span className={ styles.highlight }>
+            { this.renderAddressName(transaction.to) }
+          </span>
+          <span>transferring </span>
+          <span className={ styles.highlight }>
+            { this.renderEtherValue(transaction.value) }
+          </span>
+          <span>
+            { methodInputs.length ? ', passing the following parameters:' : '.' }
+          </span>
         </div>
         <div className={ styles.inputs }>
           { this.renderInputs() }
@@ -187,7 +226,16 @@ class MethodDecoding extends Component {
 
     return (
       <div className={ styles.details }>
-        { historic ? 'Executed' : 'Will execute' } <span className={ styles.name }>an unknown/unregistered</span> method on the contract <span className={ styles.highlight }>{ this.renderAddressName(transaction.to) }</span>, transferring <span className={ styles.highlight }>{ this.renderEtherValue(transaction.value) }</span>.
+        <span>{ historic ? 'Executed' : 'Will execute' } </span>
+        <span className={ styles.name }>an unknown/unregistered</span>
+        <span> method on the contract </span>
+        <span className={ styles.highlight }>
+          { this.renderAddressName(transaction.to) }
+        </span>
+        <span>transferring </span>
+        <span className={ styles.highlight }>
+          { this.renderEtherValue(transaction.value) }
+        </span>.
       </div>
     );
   }
@@ -257,10 +305,12 @@ class MethodDecoding extends Component {
 
   renderAddressName (address, withName = true) {
     return (
-      <span className={ styles.address }>
-        <IdentityIcon center inline address={ address } className={ styles.identityicon } />
-        { withName ? <IdentityName address={ address } /> : address }
-      </span>
+      <InputAddress
+        disabled
+        className={ styles.address }
+        value={ address }
+        text={ withName }
+      />
     );
   }
 
