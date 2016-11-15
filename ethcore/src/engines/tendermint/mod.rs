@@ -233,10 +233,10 @@ impl Engine for Tendermint {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		map![
-			"signature".into() => proposer_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
+			"signature".into() => proposer_signature(header).to_string(),
 			"height".into() => header.number().to_string(),
-			"round".into() => consensus_round(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
-			"block_hash".into() => block_hash(header).as_ref().map(ToString::to_string).unwrap_or("".into())
+			"round".into() => consensus_round(header).to_string(),
+			"block_hash".into() => block_hash(header).to_string().unwrap_or("".into())
 		]
 	}
 
@@ -268,7 +268,7 @@ impl Engine for Tendermint {
 	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let round = self.round.load(AtomicOrdering::SeqCst);
-		block.header.set_seal(vec![::rlp::encode(&round).to_vec(), Vec::new(), Vec::new()]);
+		block.fields_mut().header.set_seal(vec![::rlp::encode(&round).to_vec(), Vec::new(), Vec::new()]);
 	}
 
 	/// Round proposer switching.
