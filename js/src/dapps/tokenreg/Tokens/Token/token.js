@@ -152,8 +152,8 @@ export default class Token extends Component {
     if (!base || base < 0) return null;
     return (
       <Chip
-        value={ base.toString() }
-        label='Base' />
+        value={ Math.log10(base).toString() }
+        label='Decimals' />
     );
   }
 

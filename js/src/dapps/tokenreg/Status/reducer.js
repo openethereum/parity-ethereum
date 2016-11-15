@@ -25,7 +25,7 @@ const initialState = {
   isLoading: true,
   subscriptionId: null,
   contract: {
-    addres: null,
+    address: null,
     instance: null,
     raw: null,
     owner: null,

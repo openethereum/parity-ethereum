@@ -14,46 +14,11 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.account {
-  padding: 4px 0 0 0;
-}
 
-.name {
-  height: 32px;
-  line-height: 32px;
+.wrapper {
   display: inline-block;
-  vertical-align: top;
-  text-transform: uppercase;
-  padding: 0 0 0 1em;
 }
 
-.image {
-  display: inline-block;
-  height: 32px;
-  width: 32px;
-  margin: 0;
-  z-index: 10;
-}
-
-.icon {
-  position: absolute;
-  left: 0;
-  top: 35px;
-
-  &.noLabel {
-    top: 11px;
-  }
-}
-
-.paddedInput input {
-  padding-left: 46px !important;
-}
-
-.container {
-  position: relative;
-}
-
-.menuItem {
-  min-height: 0 !important;
-  line-height: inherit !important;
+.data {
+  font-family: monospace;
 }
