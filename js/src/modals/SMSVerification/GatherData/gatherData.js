@@ -15,56 +15,33 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
 import InfoIcon from 'material-ui/svg-icons/action/info-outline';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
 import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
-import phone from 'phoneformat.js';
-
 import { fromWei } from '../../../api/util/wei';
 import { Form, Input } from '../../../ui';
-import checkIfVerified from '../check-if-verified';
-import checkIfRequested from '../check-if-requested';
 
 import terms from '../terms-of-service';
 import styles from './gatherData.css';
 
+const nullable = (type) => PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
+
 export default class GatherData extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
-    account: PropTypes.string.isRequired,
-    contract: PropTypes.object.isRequired,
-    data: PropTypes.object.isRequired,
-    onData: PropTypes.func.isRequired,
-    onDataIsValid: PropTypes.func.isRequired,
-    onDataIsInvalid: PropTypes.func.isRequired
-  }
-
-  state = {
-    init: true,
-    numberIsValid: null,
-    consentGiven: false
-  };
-
-  componentWillMount () {
-    const { init } = this.state;
-    if (init) {
-      this.setState({ init: false });
-      this.queryFee();
-      this.checkIfCertified();
-      this.checkIfRequested();
-    }
+    fee: React.PropTypes.instanceOf(BigNumber),
+    isNumberValid: PropTypes.bool.isRequired,
+    isVerified: nullable(PropTypes.bool.isRequired),
+    hasRequested: nullable(PropTypes.bool.isRequired),
+    setNumber: PropTypes.func.isRequired,
+    setConsentGiven: PropTypes.func.isRequired
   }
 
   render () {
-    const { numberIsValid } = this.state;
-    const { isVerified } = this.props.data;
+    const { isNumberValid, isVerified } = this.props;
 
-    // TODO: proper legal text
     return (
       <Form>
         <p>The following steps will let you prove that you control both an account and a phone number.</p>
@@ -79,7 +56,7 @@ export default class GatherData extends Component {
         <Input
           label={ 'phone number' }
           hint={ 'the SMS will be sent to this number' }
-          error={ numberIsValid ? null : 'invalid number' }
+          error={ isNumberValid ? null : 'invalid number' }
           disabled={ isVerified }
           onChange={ this.numberOnChange }
           onSubmit={ this.numberOnSubmit }
@@ -96,7 +73,7 @@ export default class GatherData extends Component {
   }
 
   renderFee () {
-    const { fee } = this.props.data;
+    const { fee } = this.props;
 
     if (!fee) {
       return (<p>Fetching the fee…</p>);
@@ -110,7 +87,7 @@ export default class GatherData extends Component {
   }
 
   renderCertified () {
-    const { isVerified } = this.props.data;
+    const { isVerified } = this.props;
 
     if (isVerified) {
       return (
@@ -132,7 +109,7 @@ export default class GatherData extends Component {
   }
 
   renderRequested () {
-    const { isVerified, hasRequested } = this.props.data;
+    const { isVerified, hasRequested } = this.props;
 
     // If the account is verified, don't show that it has requested verification.
     if (isVerified) {
@@ -158,72 +135,15 @@ export default class GatherData extends Component {
     return (<p className={ styles.message }>Checking if you requested verification…</p>);
   }
 
-  queryFee = () => {
-    const { contract, onData } = this.props;
-
-    contract.instance.fee.call()
-    .then((fee) => {
-      onData({ fee });
-      this.onChange();
-    })
-    .catch((err) => {
-      console.error('error fetching fee', err);
-      this.onChange();
-    });
-  }
-
-  checkIfCertified = () => {
-    const { account, contract, onData } = this.props;
-
-    checkIfVerified(contract, account)
-    .then((isVerified) => {
-      onData({ isVerified });
-      this.onChange();
-    })
-    .catch((err) => {
-      console.error('error checking if certified', err);
-    });
-  }
-
-  checkIfRequested = () => {
-    const { account, contract, onData } = this.props;
-
-    checkIfRequested(contract, account)
-    .then((hasRequested) => {
-      onData({ hasRequested });
-      this.onChange();
-    })
-    .catch((err) => {
-      console.error('error checking if requested', err);
-    });
-  }
-
   numberOnSubmit = (value) => {
-    this.numberOnChange(null, value);
-    this.props.onData({ number: value });
+    this.props.setNumber(value);
   }
 
   numberOnChange = (_, value) => {
-    this.setState({
-      numberIsValid: phone.isValidNumber(value)
-    }, this.onChange);
+    this.props.setNumber(value);
   }
 
   consentOnChange = (_, consentGiven) => {
-    this.setState({
-      consentGiven: !!consentGiven
-    }, this.onChange);
-    this.props.onData({ consent: consentGiven });
-  }
-
-  onChange = () => {
-    const { fee, isVerified } = this.props.data;
-    const { numberIsValid, consentGiven } = this.state;
-
-    if (fee && numberIsValid && consentGiven && isVerified === false) {
-      this.props.onDataIsValid();
-    } else {
-      this.props.onDataIsInvalid();
-    }
+    this.props.setConsentGiven(consentGiven);
   }
 }
