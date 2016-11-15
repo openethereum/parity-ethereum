@@ -21,8 +21,9 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq } from 'lodash';
 
 import List from '../Accounts/List';
+import Summary from '../Accounts/Summary';
 import { AddAddress } from '../../modals';
-import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 
 import styles from './addresses.css';
 
@@ -107,6 +108,12 @@ class Addresses extends Component {
         content={ contacts }
         filename='addressbook.json' />,
 
+      <ActionbarImport
+        key='importAddressbook'
+        onConfirm={ this.onImport }
+        renderValidation={ this.renderValidation }
+      />,
+
       this.renderSearchButton(),
       this.renderSortButton()
     ];
@@ -132,6 +139,66 @@ class Addresses extends Component {
         contacts={ contacts }
         onClose={ this.onCloseAdd } />
     );
+  }
+
+  renderValidation = (content) => {
+    const error = {
+      error: 'The provided file is invalid...'
+    };
+
+    try {
+      const addresses = JSON.parse(content);
+
+      if (!addresses || Object.keys(addresses).length === 0) {
+        return error;
+      }
+
+      const body = Object
+        .values(addresses)
+        .filter((account) => account && account.address)
+        .map((account, index) => (
+          <Summary
+            key={ index }
+            account={ account }
+            name={ account.name }
+            noLink
+          />
+        ));
+
+      return (
+        <div>
+          { body }
+        </div>
+      );
+    } catch (e) { return error; }
+  }
+
+  onImport = (content) => {
+    try {
+      const addresses = JSON.parse(content);
+
+      Object.values(addresses).forEach((account) => {
+        this.onAddAccount(account);
+      });
+    } catch (e) {
+      console.error('onImport', content, e);
+    }
+  }
+
+  onAddAccount = (account) => {
+    const { api } = this.context;
+    const { address, name, meta } = account;
+
+    Promise.all([
+      api.parity.setAccountName(address, name),
+      api.parity.setAccountMeta(address, {
+        ...meta,
+        timestamp: Date.now(),
+        deleted: false
+      })
+    ]).catch((error) => {
+      console.error('onAddAccount', error);
+    });
   }
 
   onAddSearchToken = (token) => {
