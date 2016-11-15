@@ -315,7 +315,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
-		Schedule::new_post_eip150(23999, true, true, true)
+		Schedule::new_post_eip150(24576, true, true, true)
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
