@@ -90,6 +90,7 @@ class Accounts extends Component {
     return (
       <ActionbarSort
         key='sortAccounts'
+        id='sortAccounts'
         order={ this.state.sortOrder }
         onChange={ onChange } />
     );
