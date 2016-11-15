@@ -1349,8 +1349,8 @@ impl light::Provider for Client {
 			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num < *x })
 			.map(|x| if req.reverse { start_num - x } else { start_num + x })
 			.map(|x| self.block_header(BlockID::Number(x)))
+			.take_while(|x| x.is_some())
 			.flat_map(|x| x)
-			.fuse() // collect no more beyond the first `None`
 			.collect()
 	}
 
