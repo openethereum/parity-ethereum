@@ -29,18 +29,18 @@ import postToVerificationServer from './post-to-verification-server';
 
 const validCode = /^[A-Z0-9_-]{7,14}$/i;
 
-export default class VerificationStore {
-  static GATHERING_DATA = 'gathering-data';
-  static GATHERED_DATA = 'gathered-data';
-  static POSTING_REQUEST = 'posting-request';
-  static POSTED_REQUEST = 'posted-request';
-  static REQUESTING_SMS = 'requesting-sms';
-  static REQUESTED_SMS = 'requested-sms';
-  static QUERY_CODE = 'query-code';
-  static POSTING_CONFIRMATION = 'posting-confirmation';
-  static POSTED_CONFIRMATION = 'posted-confirmation';
-  static DONE = 'done';
+export const GATHERING_DATA = 'gathering-data';
+export const GATHERED_DATA = 'gathered-data';
+export const POSTING_REQUEST = 'posting-request';
+export const POSTED_REQUEST = 'posted-request';
+export const REQUESTING_SMS = 'requesting-sms';
+export const REQUESTED_SMS = 'requested-sms';
+export const QUERY_CODE = 'query-code';
+export const POSTING_CONFIRMATION = 'posting-confirmation';
+export const POSTED_CONFIRMATION = 'posted-confirmation';
+export const DONE = 'done';
 
+export default class VerificationStore {
   @observable step = null;
   @observable error = null;
 
@@ -61,23 +61,23 @@ export default class VerificationStore {
   }
 
   @computed get isStepValid () {
-    if (this.step === VerificationStore.DONE) {
+    if (this.step === DONE) {
       return true;
     }
     if (this.error) {
       return false;
     }
 
-    if (this.step === VerificationStore.GATHERED_DATA) {
+    if (this.step === GATHERED_DATA) {
       return this.fee && this.isVerified === false && this.isNumberValid && this.consentGiven;
     }
-    if (this.step === VerificationStore.REQUESTED_SMS) {
+    if (this.step === REQUESTED_SMS) {
       return this.requestTx;
     }
-    if (this.step === VerificationStore.QUERY_CODE) {
+    if (this.step === QUERY_CODE) {
       return this.isCodeValid;
     }
-    if (this.step === VerificationStore.POSTED_CONFIRMATION) {
+    if (this.step === POSTED_CONFIRMATION) {
       return this.confirmationTx;
     }
     return false;
@@ -107,7 +107,7 @@ export default class VerificationStore {
 
   @action gatherData = () => {
     const { contract, account } = this;
-    this.step = VerificationStore.GATHERING_DATA;
+    this.step = GATHERING_DATA;
 
     const fee = contract.instance.fee.call()
       .then((fee) => {
@@ -135,7 +135,7 @@ export default class VerificationStore {
 
     Promise.all([ fee, isVerified, hasRequested ])
     .then(() => {
-      this.step = VerificationStore.GATHERED_DATA;
+      this.step = GATHERED_DATA;
     });
   }
 
@@ -147,7 +147,7 @@ export default class VerificationStore {
 
     let chain = Promise.resolve();
     if (!hasRequested) {
-      this.step = VerificationStore.POSTING_REQUEST;
+      this.step = POSTING_REQUEST;
       chain = request.estimateGas(options, [])
         .then((gas) => {
           options.gas = gas.mul(1.2).toFixed(0);
@@ -160,18 +160,18 @@ export default class VerificationStore {
         })
         .then((txHash) => {
           this.requestTx = txHash;
-          this.step = VerificationStore.POSTED_REQUEST;
+          this.step = POSTED_REQUEST;
           return waitForConfirmations(api, txHash, 1);
         });
     }
 
     chain
       .then(() => {
-        this.step = VerificationStore.REQUESTING_SMS;
+        this.step = REQUESTING_SMS;
         return postToVerificationServer({ number, address: account });
       })
       .then(() => {
-        this.step = VerificationStore.REQUESTED_SMS;
+        this.step = REQUESTED_SMS;
       })
       .catch((err) => {
         this.error = 'Failed to request a confirmation SMS: ' + err.message;
@@ -179,7 +179,7 @@ export default class VerificationStore {
   }
 
   @action queryCode = () => {
-    this.step = VerificationStore.QUERY_CODE;
+    this.step = QUERY_CODE;
   }
 
   @action sendConfirmation = () => {
@@ -190,7 +190,7 @@ export default class VerificationStore {
     const options = { from: account };
     const values = [ token ];
 
-    this.step = VerificationStore.POSTING_CONFIRMATION;
+    this.step = POSTING_CONFIRMATION;
     confirm.estimateGas(options, values)
       .then((gas) => {
         options.gas = gas.mul(1.2).toFixed(0);
@@ -203,11 +203,11 @@ export default class VerificationStore {
       })
       .then((txHash) => {
         this.confirmationTx = txHash;
-        this.step = VerificationStore.POSTED_CONFIRMATION;
+        this.step = POSTED_CONFIRMATION;
         return waitForConfirmations(api, txHash, 2);
       })
       .then(() => {
-        this.step = VerificationStore.DONE;
+        this.step = DONE;
       })
       .catch((err) => {
         this.error = 'Failed to send the verification code: ' + err.message;
@@ -215,6 +215,6 @@ export default class VerificationStore {
   }
 
   @action done = () => {
-    this.step = VerificationStore.DONE;
+    this.step = DONE;
   }
 }

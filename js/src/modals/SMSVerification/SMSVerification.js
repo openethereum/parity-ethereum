@@ -21,14 +21,13 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '../../ui';
 
-import VerificationStore from './store';
-const {
+import {
   GATHERING_DATA, GATHERED_DATA,
   POSTING_REQUEST, POSTED_REQUEST,
   REQUESTING_SMS, REQUESTED_SMS,
   POSTING_CONFIRMATION, POSTED_CONFIRMATION,
   DONE
-} = VerificationStore;
+} from './store';
 
 import GatherData from './GatherData';
 import SendRequest from './SendRequest';
@@ -38,12 +37,9 @@ import Done from './Done';
 
 @observer
 export default class SMSVerification extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  }
-
   static propTypes = {
-    account: PropTypes.string,
+    store: PropTypes.any.isRequired,
+    account: PropTypes.string.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
@@ -55,25 +51,13 @@ export default class SMSVerification extends Component {
     [DONE]: 4
   }
 
-  state = {
-    store: null
-  }
-
   componentDidMount () {
-    const { api } = this.context;
-    const { account } = this.props;
-
-    const store = new VerificationStore(api, account);
-    this.setState({ store }, () => {
-      store.gatherData();
-    });
+    this.props.store.gatherData();
   }
 
   render () {
-    const { store } = this.state;
-    if (!store) return null;
-    const step = SMSVerification.uiSteps[store.step];
-    const { error, isStepValid } = store;
+    const step = SMSVerification.uiSteps[this.props.store.step];
+    const { error, isStepValid } = this.props.store;
 
     return (
       <Modal
@@ -90,8 +74,7 @@ export default class SMSVerification extends Component {
   }
 
   renderDialogActions (step, error, isStepValid) {
-    const { onClose, account } = this.props;
-    const { store } = this.state;
+    const { store, account, onClose } = this.props;
 
     const cancel = (
       <Button
@@ -147,7 +130,7 @@ export default class SMSVerification extends Component {
       fee, isNumberValid, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
       setNumber, setConsentGiven, setCode
-    } = this.state.store;
+    } = this.props.store;
 
     if (step === 4) {
       return (<Done />);
@@ -162,7 +145,7 @@ export default class SMSVerification extends Component {
       return (<SendRequest step={ step } tx={ requestTx } />);
     }
     if (step === 0) {
-      const { setNumber, setConsentGiven } = this.state.store;
+      const { setNumber, setConsentGiven } = this.props.store;
       return (
         <GatherData
           fee={ fee } isNumberValid={ isNumberValid }

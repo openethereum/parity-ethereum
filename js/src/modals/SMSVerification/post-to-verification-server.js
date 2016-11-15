@@ -31,7 +31,7 @@ const postToVerificationServer = (query) => {
   })
   .catch((err) => {
     console.error('foooo', err.stack);
-    throw err
+    throw err;
   });
 };
 

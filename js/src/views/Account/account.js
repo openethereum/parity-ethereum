@@ -30,9 +30,15 @@ import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 import Header from './Header';
 import Transactions from './Transactions';
 
+import VerificationStore from '../../modals/SMSVerification/store';
+
 import styles from './account.css';
 
 class Account extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     params: PropTypes.object,
     accounts: PropTypes.object,
@@ -47,8 +53,17 @@ class Account extends Component {
     showEditDialog: false,
     showFundDialog: false,
     showVerificationDialog: false,
+    verificationStore: null,
     showTransferDialog: false,
     showPasswordDialog: false
+  }
+
+  componentDidMount () {
+    const { api } = this.context;
+    const { address } = this.props.params;
+
+    const store = new VerificationStore(api, address);
+    this.setState({ verificationStore: store });
   }
 
   render () {
@@ -162,12 +177,12 @@ class Account extends Component {
       return null;
     }
 
+    const store = this.state.verificationStore;
     const { address } = this.props.params;
 
-    // TODO: pass props
     return (
       <SMSVerification
-        account={ address }
+        store={ store } account={ address }
         onClose={ this.onVerificationClose }
       />
     );
