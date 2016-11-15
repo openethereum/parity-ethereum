@@ -142,7 +142,7 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { allowCopy, hideUnderline, label, hint, floatCopy } = this.props;
+    const { allowCopy, label, hint, floatCopy } = this.props;
     const { value } = this.state;
 
     if (!allowCopy) {
@@ -157,7 +157,7 @@ export default class Input extends Component {
       ? allowCopy
       : value;
 
-    if (hideUnderline && !label) {
+    if (!label) {
       style.marginBottom = 2;
     } else if (label && !hint) {
       style.marginBottom = 4;
