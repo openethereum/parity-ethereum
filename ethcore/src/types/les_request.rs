@@ -103,7 +103,7 @@ pub struct HeaderProof {
 #[derive(Debug, Clone, PartialEq, Eq, Binary)]
 pub struct HeaderProofs {
 	/// All the proof requests.
-	pub requests: Vec<HeaderProofs>,
+	pub requests: Vec<HeaderProof>,
 }
 
 /// Kinds of requests.

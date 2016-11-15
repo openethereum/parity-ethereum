@@ -27,7 +27,8 @@ use light::request;
 /// Defines the operations that a provider for `LES` must fulfill.
 ///
 /// These are defined at [1], but may be subject to change.
-/// Requests which can't be fulfilled should return an empty RLP list.
+/// Requests which can't be fulfilled should return either an empty RLP list
+/// or empty vector where appropriate.
 ///
 /// [1]: https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 pub trait Provider: Send + Sync {
@@ -35,6 +36,8 @@ pub trait Provider: Send + Sync {
 	fn chain_info(&self) -> BlockChainInfo;
 
 	/// Find the depth of a common ancestor between two blocks.
+	/// If either block is unknown or an ancestor can't be found
+	/// then return `None`.
 	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64>;
 
 	/// Earliest block where state queries are available.
@@ -59,10 +62,11 @@ pub trait Provider: Send + Sync {
 	/// Provide a set of merkle proofs, as requested. Each request is a
 	/// block hash and request parameters.
 	///
-	/// Returns a vector to RLP-encoded lists satisfying the requests.
+	/// Returns a vector of RLP-encoded lists satisfying the requests.
 	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes>;
 
 	/// Provide contract code for the specified (block_hash, account_hash) pairs.
+	/// Each item in the resulting vector is either the raw bytecode or empty.
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes>;
 
 	/// Provide header proofs from the Canonical Hash Tries.

@@ -228,6 +228,16 @@ impl FlowParams {
 
 		buf.estimate = ::std::cmp::min(self.limit, buf.estimate + (elapsed * self.recharge));
 	}
+
+	/// Refund some buffer which was previously deducted.
+	/// Does not update the recharge timestamp.
+	pub fn refund(&self, buf: &mut Buffer, refund_amount: U256) {
+		buf.estimate = buf.estimate + refund_amount;
+
+		if buf.estimate > self.limit {
+			buf.estimate = self.limit
+		}
+	}
 }
 
 #[cfg(test)]
