@@ -1172,16 +1172,8 @@ impl BlockChainClient for Client {
 
 	// TODO: Make it an actual queue, return errors.
 	fn queue_infinity_message(&self, message: Bytes) {
-		let full_rlp = UntrustedRlp::new(&message);
-		if let Ok(signature) = full_rlp.val_at::<H520>(0) {
-			if let Ok(message) = full_rlp.at(1) {
-				if let Ok(pub_key) = recover(&signature.into(), &message.as_raw().sha3()) {
-					if let Ok(new_message) = self.engine.handle_message(pub_key.sha3().into(), signature, message)
-					{
-						self.notify(|notify| notify.broadcast(new_message.clone()));
-					}
-				}
-			}
+		if let Ok(new_message) =  self.engine.handle_message(UntrustedRlp::new(&message)) {
+			self.notify(|notify| notify.broadcast(new_message.clone()));
 		}
 	}
 }

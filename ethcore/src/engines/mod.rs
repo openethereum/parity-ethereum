@@ -151,7 +151,7 @@ pub trait Engine : Sync + Send {
 
 	/// Handle any potential consensus messages;
 	/// updating consensus state and potentially issuing a new one.
-	fn handle_message(&self, _sender: Address, _signature: H520, _message: UntrustedRlp) -> Result<Bytes, Error> { Err(EngineError::UnexpectedMessage.into()) }
+	fn handle_message(&self, _message: UntrustedRlp) -> Result<Bytes, Error> { Err(EngineError::UnexpectedMessage.into()) }
 
 	// TODO: builtin contract routing - to do this properly, it will require removing the built-in configuration-reading logic
 	// from Spec into here and removing the Spec::builtins field.

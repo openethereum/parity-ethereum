@@ -16,28 +16,47 @@
 
 //! Tendermint message handling.
 
-use std::cmp::Ordering;
+use util::*;
 use super::{Height, Round, BlockHash, Step};
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum Step {
-	Prevote,
-	Precommit
-}
-
-#[derive(Debug, PartialEq, Eq)]
 pub struct ConsensusMessage {
-	signature: H520,
+	pub signature: H520,
 	height: Height,
 	round: Round,
-	step: Step,
-	block_hash: BlockHash
+	pub step: Step,
+	block_hash: Option<BlockHash>
+}
+
+impl ConsensusMessage {
+	fn is_round(&self, height: Height, round: Round) -> bool {
+		self.height == height && self.round == round
+	}
+
+	fn is_step(&self, height: Height, round: Round, step: Step) -> bool {
+		self.height == height && self.round == round && self.step == step
+	}
+
+	pub fn is_aligned(&self, height: Height, round: Round, block_hash: Option<H256>) -> bool {
+		self.height == height && self.round == round && self.block_hash == block_hash
+	}
 }
 
 impl PartialOrd for ConsensusMessage {
 	fn partial_cmp(&self, m: &ConsensusMessage) -> Option<Ordering> {
 		Some(self.cmp(m))
+	}
+}
+
+impl Step {
+	fn number(&self) -> i8 {
+		match *self {
+			Step::Propose => -1,
+			Step::Prevote => 0,
+			Step::Precommit => 1,
+			Step::Commit => 2,
+		}
 	}
 }
 
@@ -48,10 +67,7 @@ impl Ord for ConsensusMessage {
 		} else if self.round != m.round {
 			self.round.cmp(&m.round)
 		} else if self.step != m.step {
-			match self.step {
-				Step::Prevote => Ordering::Less,
-				Step::Precommit => Ordering::Greater,
-			}
+			self.step.number().cmp(&m.step.number())
 		} else {
 			self.block_hash.cmp(&m.block_hash)
 		}
@@ -71,11 +87,7 @@ impl Decodable for Step {
 
 impl Encodable for Step {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		match *self {
-			Step::Prevote => s.append(&0u8),
-			Step::Precommit => s.append(&1u8),
-			_ => panic!("No encoding needed for other steps"),
-		};
+		s.append(&(self.number() as u8));
 	}
 }
 
@@ -86,13 +98,17 @@ impl Decodable for ConsensusMessage {
 		if decoder.as_raw().len() != try!(rlp.payload_info()).total() {
 			return Err(DecoderError::RlpIsTooBig);
 		}
-		let m = rlp.at(1);
+		let m = try!(rlp.at(1));
+		let block_message: H256 = try!(m.val_at(3));
 		Ok(ConsensusMessage {
 			signature: try!(rlp.val_at(0)),
 			height: try!(m.val_at(0)),
 			round: try!(m.val_at(1)),
 			step: try!(m.val_at(2)),
-			block_hash: try!(m.val_at(3))
+			block_hash: match block_message.is_zero() {
+				true => None,
+				false => Some(block_message),
+			}
 		})
     }
 }
@@ -105,6 +121,6 @@ impl Encodable for ConsensusMessage {
 		s.append(&self.height);
 		s.append(&self.round);
 		s.append(&self.step);
-		s.append(&self.block_hash);
+		s.append(&self.block_hash.unwrap_or(H256::zero()));
 	}
 }
