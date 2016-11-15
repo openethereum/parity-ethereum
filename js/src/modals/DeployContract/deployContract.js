@@ -101,7 +101,8 @@ export default class DeployContract extends Component {
         steps={ deployError ? null : steps }
         title={ deployError ? 'deployment failed' : null }
         waiting={ [1] }
-        visible>
+        visible
+        scroll>
         { this.renderStep() }
       </Modal>
     );
@@ -118,8 +119,22 @@ export default class DeployContract extends Component {
         onClick={ this.onClose } />
     );
 
+    const closeBtn = (
+      <Button
+        icon={ <ContentClear /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
+    const closeBtnOk = (
+      <Button
+        icon={ <ActionDoneAll /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
     if (deployError) {
-      return cancelBtn;
+      return closeBtn;
     }
 
     switch (step) {
@@ -134,17 +149,10 @@ export default class DeployContract extends Component {
         ];
 
       case 1:
-        return [
-          cancelBtn
-        ];
+        return [ closeBtn ];
 
       case 2:
-        return [
-          <Button
-            icon={ <ActionDoneAll /> }
-            label='Close'
-            onClick={ this.onClose } />
-        ];
+        return [ closeBtnOk ];
     }
   }
 
@@ -276,8 +284,6 @@ export default class DeployContract extends Component {
       console.error('onDeploymentState', error);
       return;
     }
-
-    console.log('onDeploymentState', data);
 
     switch (data.state) {
       case 'estimateGas':
