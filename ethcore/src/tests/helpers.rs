@@ -393,28 +393,3 @@ pub fn get_bad_state_dummy_block() -> Bytes {
 
 	create_test_block(&block_header)
 }
-
-pub fn get_default_ethash_params() -> EthashParams{
-	EthashParams {
-		gas_limit_bound_divisor: U256::from(1024),
-		minimum_difficulty: U256::from(131072),
-		difficulty_bound_divisor: U256::from(2048),
-		difficulty_increment_divisor: 10,
-		duration_limit: 13,
-		block_reward: U256::from(0),
-		registrar: "0000000000000000000000000000000000000001".into(),
-		homestead_transition: 1150000,
-		dao_hardfork_transition: u64::max_value(),
-		dao_hardfork_beneficiary: "0000000000000000000000000000000000000001".into(),
-		dao_hardfork_accounts: vec![],
-		difficulty_hardfork_transition: u64::max_value(),
-		difficulty_hardfork_bound_divisor: U256::from(0),
-		bomb_defuse_transition: u64::max_value(),
-		eip150_transition: u64::max_value(),
-		eip155_transition: u64::max_value(),
-		eip160_transition: u64::max_value(),
-		eip161abc_transition: u64::max_value(),
-		eip161d_transition: u64::max_value(),
-		max_code_size: u64::max_value(),
-	}
-}
