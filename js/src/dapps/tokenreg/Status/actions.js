@@ -16,9 +16,10 @@
 
 import {
   registry as registryAbi,
-  tokenreg as tokenregAbi,
   githubhint as githubhintAbi
 } from '../../../contracts/abi';
+
+import Contracts from '../../../contracts';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
@@ -34,6 +35,8 @@ export const FIND_CONTRACT = 'FIND_CONTRACT';
 export const loadContract = () => (dispatch) => {
   dispatch(setLoading(true));
 
+  const { tokenReg } = new Contracts(api);
+
   api.parity
     .registryAddress()
     .then((registryAddress) => {
@@ -41,36 +44,29 @@ export const loadContract = () => (dispatch) => {
       const registry = api.newContract(registryAbi, registryAddress).instance;
 
       return Promise.all([
-        registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
+        tokenReg.getInstance(),
         registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A'])
       ]);
     })
-    .then(([ tokenregAddress, githubhintAddress ]) => {
-      console.log(`tokenreg was found at ${tokenregAddress}`);
-
-      const tokenregContract = api
-        .newContract(tokenregAbi, tokenregAddress);
-
+    .then(([ tokenRegInstance, githubhintAddress ]) => {
       const githubhintContract = api
         .newContract(githubhintAbi, githubhintAddress);
 
       dispatch(setContractDetails({
-        address: tokenregAddress,
-        instance: tokenregContract.instance,
-        raw: tokenregContract
+        address: tokenRegInstance.address,
+        instance: tokenRegInstance
       }));
 
       dispatch(setGithubhintDetails({
         address: githubhintAddress,
-        instance: githubhintContract.instance,
-        raw: githubhintContract
+        instance: githubhintContract.instance
       }));
 
       dispatch(loadContractDetails());
       dispatch(subscribeEvents());
     })
     .catch((error) => {
-      console.error('loadContract error', error);
+      throw error;
     });
 };
 
@@ -78,7 +74,7 @@ export const LOAD_CONTRACT_DETAILS = 'LOAD_CONTRACT_DETAILS';
 export const loadContractDetails = () => (dispatch, getState) => {
   const state = getState();
 
-  const instance = state.status.contract.instance;
+  const { instance } = state.status.contract;
 
   Promise
     .all([
@@ -119,14 +115,14 @@ export const setGithubhintDetails = (details) => ({
 export const subscribeEvents = () => (dispatch, getState) => {
   const state = getState();
 
-  const contract = state.status.contract.raw;
+  const { instance } = state.status.contract;
   const previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
-    contract.unsubscribe(previousSubscriptionId);
+    instance.unsubscribe(previousSubscriptionId);
   }
 
-  contract
+  instance
     .subscribe(null, {
       fromBlock: 'latest',
       toBlock: 'pending',
