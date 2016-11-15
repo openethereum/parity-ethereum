@@ -165,6 +165,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
+	// free up the spec in memory.
+	drop(spec);
+
 	panic_handler.forward_from(&service);
 	let client = service.client();
 
@@ -311,6 +314,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	drop(spec);
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
