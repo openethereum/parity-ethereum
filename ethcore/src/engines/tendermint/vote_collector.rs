@@ -16,22 +16,49 @@
 
 //! Collects votes on hashes at each height and round.
 
-use super::vote::Vote;
-use super::{Height, Round};
+use util::*;
+use super::message::ConsensusMessage;
+use super::{Height, Round, Step};
 use ethkey::recover;
-use util::{RwLock, HashMap, HashSet};
 
-/// Signed voting on hashes.
 #[derive(Debug)]
 pub struct VoteCollector {
-	/// Structure for storing all votes.
-	votes: RwLock<HashMap<(Height, Round), HashSet<Vote>>>,
+	/// Storing all Proposals, Prevotes and Precommits.
+	votes: RwLock<BTreeMap<ConsensusMessage, Address>>
 }
 
 impl VoteCollector {
 	pub fn new() -> VoteCollector {
-		VoteCollector { votes: RwLock::new(HashMap::new()) }
+		VoteCollector { votes: RwLock::new(BTreeMap::new()) }
 	}
 
-	pub fn vote() {}
+	pub fn vote(&self, message: ConsensusMessage, voter: Address) {
+		if let Some(mut guard) = self.votes.write() {
+			*guard.insert(message, voter);
+		}
+	}
+
+	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Vec<H520> {
+		self.votes
+			.read()
+			.keys()
+			// Get only Propose and Precommits.
+			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
+			.map(|m| m.signature)
+			.collect()
+	}
+
+	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> Vec<H520> {
+		self.seal_signatures(message.height, message.round, message.block_hash)
+	}
+
+	pub fn count_signatures(&self, height: Height, round: Round) -> usize {
+		self.votes
+			.read()
+			.keys()
+			// Get only Propose and Precommits.
+			.filter(|m| m.is_round(height, round) && m.step != Step::Prevote)
+			.map(|m| m.signature)
+			.collect()	
+	}
 }
