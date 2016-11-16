@@ -55,7 +55,7 @@ impl Engine for InstantSeal {
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_homestead()
+		Schedule::new_post_eip150(usize::max_value(), false, false, false)
 	}
 
 	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
