@@ -66,7 +66,7 @@ export default class SMSVerification extends Component {
         visible scroll
         current={ phase }
         steps={ ['Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        waiting={ [ 1, 3 ] }
+        waiting={ error ? [] : [ 1, 3 ] }
       >
         { this.renderStep(phase, error) }
       </Modal>

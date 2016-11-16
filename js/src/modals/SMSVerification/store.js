@@ -24,6 +24,7 @@ const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
 
 import checkIfVerified from './check-if-verified';
 import checkIfRequested from './check-if-requested';
+import checkIfTxFailed from './check-if-tx-failed';
 import waitForConfirmations from './wait-for-confirmations';
 import postToVerificationServer from './post-to-verification-server';
 
@@ -163,8 +164,14 @@ export default class VerificationStore {
         })
         .then((txHash) => {
           this.requestTx = txHash;
-          this.step = POSTED_REQUEST;
-          return waitForConfirmations(api, txHash, 1);
+          return checkIfTxFailed(api, txHash, options.gas)
+          .then((hasFailed) => {
+            if (hasFailed) {
+              throw new Error('Transaction failed, all gas used up.');
+            }
+            this.step = POSTED_REQUEST;
+            return waitForConfirmations(api, txHash, 1);
+          });
         });
     }
 
@@ -206,8 +213,14 @@ export default class VerificationStore {
       })
       .then((txHash) => {
         this.confirmationTx = txHash;
-        this.step = POSTED_CONFIRMATION;
-        return waitForConfirmations(api, txHash, 2);
+        return checkIfTxFailed(api, txHash, options.gas)
+        .then((hasFailed) => {
+          if (hasFailed) {
+            throw new Error('Transaction failed, all gas used up.');
+          }
+          this.step = POSTED_CONFIRMATION;
+          return waitForConfirmations(api, txHash, 1);
+        });
       })
       .then(() => {
         this.step = DONE;
