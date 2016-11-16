@@ -60,6 +60,18 @@ export default class DappsStore {
     return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
   }
 
+  @computed get visibleBuiltin () {
+    return this.visibleApps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get visibleLocal () {
+    return this.visibleApps.filter((app) => app.type === 'local');
+  }
+
+  @computed get visibleNetwork () {
+    return this.visibleApps.filter((app) => app.type === 'network');
+  }
+
   @action openModal = () => {
     this.modalOpen = true;
   }
