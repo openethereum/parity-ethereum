@@ -179,32 +179,3 @@ export const queryToken = (key, query) => (dispatch, getState) => {
       dispatch(setQueryLoading(false));
     });
 };
-
-export const queryTokenMeta = (id, query) => (dispatch, getState) => {
-  const state = getState();
-  const contractInstance = state.status.contract.instance;
-
-  const key = sha3(query);
-
-  const startDate = Date.now();
-  dispatch(setQueryMetaLoading(true));
-
-  contractInstance
-    .meta
-    .call({}, [ id, key ])
-    .then((value) => {
-      const meta = {
-        key, query,
-        value: value.find(v => v !== 0) ? bytesToHex(value) : null
-      };
-
-      dispatch(setQueryMeta(meta));
-
-      setTimeout(() => {
-        dispatch(setQueryMetaLoading(false));
-      }, 500 - (Date.now() - startDate));
-    })
-    .catch((e) => {
-      console.error('load meta query error', e);
-    });
-};
