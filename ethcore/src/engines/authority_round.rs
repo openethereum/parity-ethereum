@@ -190,7 +190,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_post_eip150(true, true, true)
+		Schedule::new_post_eip150(usize::max_value(), true, true, true)
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
