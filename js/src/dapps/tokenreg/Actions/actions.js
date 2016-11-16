@@ -16,8 +16,6 @@
 
 import { getTokenTotalSupply } from '../utils';
 
-const { sha3, bytesToHex } = window.parity.api.util;
-
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
