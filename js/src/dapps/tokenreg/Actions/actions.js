@@ -41,8 +41,6 @@ export const registerCompleted = () => ({
 });
 
 export const registerToken = (tokenData) => (dispatch, getState) => {
-  console.log('registering token', tokenData);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
   const fee = state.status.contract.fee;
@@ -83,8 +81,6 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     })
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
-
       return contractInstance.register.postTransaction(options, values);
     })
     .then((result) => {
@@ -185,8 +181,6 @@ export const queryToken = (key, query) => (dispatch, getState) => {
 };
 
 export const queryTokenMeta = (id, query) => (dispatch, getState) => {
-  console.log('loading token meta', query);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
 

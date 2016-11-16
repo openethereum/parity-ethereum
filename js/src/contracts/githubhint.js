@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default class TokenReg {
+export default class GithubHint {
   constructor (api, registry) {
     this._api = api;
     this._registry = registry;
@@ -23,22 +23,10 @@ export default class TokenReg {
   }
 
   getContract () {
-    return this._registry.getContract('tokenreg');
+    return this._registry.getContract('githubhint');
   }
 
   getInstance () {
     return this.getContract().instance;
-  }
-
-  tokenCount () {
-    return this.getInstance().then((instance) => {
-      return instance.tokenCount.call();
-    });
-  }
-
-  token (index) {
-    return this.getInstance().then((instance) => {
-      return instance.token.call({}, [index]);
-    });
   }
 }

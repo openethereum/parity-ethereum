@@ -36,7 +36,6 @@ class TokensContainer extends Component {
   }
 
   render () {
-    console.log(this.props);
     return (
       <Tokens
         { ...this.props }
