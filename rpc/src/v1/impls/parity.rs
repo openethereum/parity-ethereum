@@ -34,7 +34,7 @@ use ethcore::account_provider::AccountProvider;
 
 use jsonrpc_core::Error;
 use v1::traits::Parity;
-use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram};
+use v1::types::{Bytes, U256, H160, H256, H512, Peers, Transaction, RpcSettings, Histogram, TransactionStats};
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
 
@@ -257,6 +257,16 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		try!(self.active());
 
 		Ok(take_weak!(self.miner).all_transactions().into_iter().map(Into::into).collect::<Vec<_>>())
+	}
+
+	fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error> {
+		try!(self.active());
+
+		let stats = take_weak!(self.sync).transactions_stats();
+		Ok(stats.into_iter()
+		   .map(|(hash, stats)| (hash.into(), stats.into()))
+		   .collect()
+		)
 	}
 
 	fn signer_port(&self) -> Result<u16, Error> {

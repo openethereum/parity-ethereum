@@ -102,7 +102,7 @@ use block_sync::{BlockDownloader, BlockRequest, BlockDownloaderImportError as Do
 use snapshot::{Snapshot, ChunkType};
 use rand::{thread_rng, Rng};
 use api::{PeerInfo as PeerInfoDigest, WARP_SYNC_PROTOCOL_ID};
-use transactions_stats::TransactionsStats;
+use transactions_stats::{TransactionsStats, Stats as TransactionStats};
 
 known_heap_size!(0, PeerInfo);
 
@@ -410,6 +410,11 @@ impl ChainSync {
 				})
 			)
 			.collect()
+	}
+
+	/// Returns transactions propagation statistics
+	pub fn transactions_stats(&self) -> &H256FastMap<TransactionStats> {
+		self.transactions_stats.stats()
 	}
 
 	/// Abort all sync activity
@@ -1877,6 +1882,7 @@ impl ChainSync {
 		// sqrt(x)/x scaled to max u32
 		let fraction = (self.peers.len() as f64).powf(-0.5).mul(u32::max_value() as f64).round() as u32;
 		let small = self.peers.len() < MIN_PEERS_PROPAGATION;
+		let block_number = io.chain().chain_info().best_block_number;
 
 		let lucky_peers = {
 			let stats = &mut self.transactions_stats;
@@ -1889,7 +1895,7 @@ impl ChainSync {
 						// update stats
 						for hash in &all_transactions_hashes {
 							let id = io.peer_session_info(*peer_id).and_then(|info| info.id);
-							stats.propagated(*hash, id);
+							stats.propagated(*hash, id, block_number);
 						}
 						peer_info.last_sent_transactions = all_transactions_hashes.clone();
 						return Some((*peer_id, all_transactions_rlp.clone()));
@@ -1907,8 +1913,8 @@ impl ChainSync {
 						if to_send.contains(&tx.hash()) {
 							packet.append(tx);
 							// update stats
-							let peer_id = io.peer_session_info(*peer_id).and_then(|info| info.id);
-							stats.propagated(tx.hash(), peer_id);
+							let id = io.peer_session_info(*peer_id).and_then(|info| info.id);
+							stats.propagated(tx.hash(), id, block_number);
 						}
 					}
 
@@ -2360,6 +2366,21 @@ mod tests {
 		// TRANSACTIONS_PACKET
 		assert_eq!(0x02, io.queue[0].packet_id);
 		assert_eq!(0x02, io.queue[1].packet_id);
+	}
+
+	#[test]
+	fn should_maintain_transations_propagation_stats() {
+		let mut client = TestBlockChainClient::new();
+		client.add_blocks(100, EachBlockWith::Uncle);
+		client.insert_transaction_to_queue();
+		let mut sync = dummy_sync_with_peer(client.block_hash_delta_minus(1), &client);
+		let mut queue = VecDeque::new();
+		let ss = TestSnapshotService::new();
+		let mut io = TestIo::new(&mut client, &ss, &mut queue, None);
+		sync.propagate_new_transactions(&mut io);
+
+		let stats = sync.transactions_stats();
+		assert_eq!(stats.len(), 1, "Should maintain stats for single transaction.")
 	}
 
 	#[test]
