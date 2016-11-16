@@ -138,7 +138,6 @@
     "mobx-react": "^3.5.8",
     "mobx-react-devtools": "^4.2.9",
     "moment": "^2.14.1",
-    "node-fetch": "^1.6.3",
     "qs": "^6.3.0",
     "react": "^15.2.1",
     "react-ace": "^4.0.0",

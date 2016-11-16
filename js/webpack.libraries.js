@@ -39,7 +39,14 @@ module.exports = {
     library: '[name].js',
     libraryTarget: 'umd'
   },
+  externals: {
+    'node-fetch': 'node-fetch',
+    'vertx': 'vertx'
+  },
   module: {
+    noParse: [
+      /babel-polyfill/
+    ],
     loaders: [
       {
         test: /\.js$/,

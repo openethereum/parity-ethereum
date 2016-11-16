@@ -18,17 +18,16 @@ import 'babel-polyfill/dist/polyfill.js';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-try {
-  if (typeof self.window !== 'undefined') {
-    self.window.fetch = require('isomorphic-fetch');
-  }
-} catch (e) {}
+const isNode = typeof global !== 'undefined' && typeof global !== 'undefined';
+const isBrowser = typeof self !== 'undefined' && typeof self.window !== 'undefined';
 
-try {
-  if (typeof global !== 'undefined') {
-    global.fetch = require('node-fetch');
-  }
-} catch (e) {}
+if (isBrowser) {
+  require('whatwg-fetch');
+}
+
+if (isNode) {
+  global.fetch = require('node-fetch');
+}
 
 import Api from './api';
 import './dev.parity.html';
@@ -38,7 +37,7 @@ module.exports = { Api };
 // es6 default export compatibility
 module.exports.default = module.exports;
 
-if (typeof self !== 'undefined' && typeof self.window !== 'undefined') {
+if (isBrowser) {
   const api = new Api(new Api.Transport.Http('/rpc/'));
 
   self.window.parity = {
