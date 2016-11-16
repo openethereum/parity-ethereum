@@ -92,6 +92,8 @@ class MethodDecoding extends Component {
   }
 
   renderAction () {
+    const { api } = this.context;
+    const { transaction } = this.props;
     const { methodName, methodInputs, methodSignature, token, isDeploy, isReceived } = this.state;
 
     if (isDeploy) {
@@ -103,9 +105,19 @@ class MethodDecoding extends Component {
         return this.renderTokenAction();
       }
 
-      return methodName
-        ? this.renderSignatureMethod()
-        : this.renderUnknownMethod();
+      if (methodName) {
+        return this.renderSignatureMethod();
+      }
+
+      const text = api.util.hex2Ascii(transaction.input);
+
+      if (text && ASCII_INPUT.test(text)) {
+        return isReceived
+          ? this.renderValueReceipt()
+          : this.renderValueTransfer();
+      }
+
+      return this.renderUnknownMethod();
     }
 
     return isReceived
@@ -119,13 +131,13 @@ class MethodDecoding extends Component {
 
     const text = api.util.hex2Ascii(transaction.input);
 
-    if (!text) {
+    if (!text || !ASCII_INPUT.test(text)) {
       return null;
     }
 
     return (
       <div>
-        <span>with the input </span>
+        <span>with the input &nbsp;</span>
         <code>{ text }</code>
       </div>
     );
@@ -151,7 +163,6 @@ class MethodDecoding extends Component {
             </div>
 
             { this.renderAddressName(address) }
-            { this.renderInputValue() }
           </div>
         );
     }
@@ -340,12 +351,14 @@ class MethodDecoding extends Component {
 
   renderAddressName (address, withName = true) {
     return (
-      <InputAddress
-        disabled
-        className={ styles.address }
-        value={ address }
-        text={ withName }
-      />
+      <div className={ styles.addressContainer }>
+        <InputAddress
+          disabled
+          className={ styles.address }
+          value={ address }
+          text={ withName }
+        />
+      </div>
     );
   }
 
@@ -366,12 +379,6 @@ class MethodDecoding extends Component {
     this.setState({ token, isReceived, contractAddress });
 
     if (!transaction.input || transaction.input === '0x') {
-      return;
-    }
-
-    const ascii = api.util.hex2Ascii(transaction.input);
-
-    if (ASCII_INPUT.test(ascii)) {
       return;
     }
 

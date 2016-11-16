@@ -46,7 +46,7 @@
 .highlight {
 }
 
-.inputs {
+.inputs, .addressContainer {
   padding-left: 2em;
 }
 
