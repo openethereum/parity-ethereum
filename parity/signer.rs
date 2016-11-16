@@ -27,7 +27,7 @@ pub use ethcore_signer::Server as SignerServer;
 
 const CODES_FILENAME: &'static str = "authcodes";
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Configuration {
 	pub enabled: bool,
 	pub port: u16,
@@ -53,6 +53,12 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
+pub struct NewToken {
+	pub token: String,
+	pub url: String,
+	pub message: String,
+}
+
 pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
 	if !conf.enabled {
 		Ok(None)
@@ -68,20 +74,33 @@ fn codes_path(path: String) -> PathBuf {
 	p
 }
 
-#[derive(Debug, PartialEq)]
-pub struct SignerCommand {
-	pub path: String,
+pub fn execute(cmd: Configuration) -> Result<String, String> {
+	Ok(try!(generate_token_and_url(&cmd)).message)
 }
 
-pub fn execute(cmd: SignerCommand) -> Result<String, String> {
-	generate_new_token(cmd.path)
-		.map(|code| format!("This key code will authorise your System Signer UI: {}", Colour::White.bold().paint(code)))
-		.map_err(|err| format!("Error generating token: {:?}", err))
+pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
+	let code = try!(generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err)));
+	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
+	// And print in to the console
+	Ok(NewToken {
+		token: code.clone(),
+		url: auth_url.clone(),
+		message: format!(
+			r#"
+Open: {}
+to authorize your browser.
+Or use the generated token:
+{}"#,
+			Colour::White.bold().paint(auth_url),
+			code
+		)
+	})
 }
 
 pub fn generate_new_token(path: String) -> io::Result<String> {
 	let path = codes_path(path);
 	let mut codes = try!(signer::AuthCodes::from_file(&path));
+	codes.clear_garbage();
 	let code = try!(codes.generate_new());
 	try!(codes.to_file(&path));
 	trace!("New key code created: {}", Colour::White.bold().paint(&code[..]));

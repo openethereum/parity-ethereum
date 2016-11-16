@@ -19,12 +19,13 @@ import Api from './api';
 const sysuiToken = window.localStorage.getItem('sysuiToken');
 
 export default class SecureApi extends Api {
-  constructor (url) {
+  constructor (url, nextToken) {
     super(new Api.Transport.Ws(url, sysuiToken));
 
     this._isConnecting = true;
     this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
+    this._nextToken = nextToken;
     this._dappsPort = 8080;
     this._dappsInterface = null;
     this._signerPort = 8180;
@@ -57,7 +58,11 @@ export default class SecureApi extends Api {
         if (isConnected) {
           return this.connectSuccess();
         } else if (lastError) {
-          this.updateToken('initial', 1);
+          const nextToken = this._nextToken || 'initial';
+          const nextState = this._nextToken ? 0 : 1;
+
+          this._nextToken = null;
+          this.updateToken(nextToken, nextState);
         }
         break;
 
