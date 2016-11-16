@@ -314,7 +314,7 @@ export default class Transfer extends Component {
     }
 
     const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-    const s = new BigNumber(num).mul(token.format || 1).toString();
+    const s = new BigNumber(num).mul(token.format || 1).toFixed();
 
     if (s.indexOf('.') !== -1) {
       return ERRORS.invalidDecimals;
@@ -516,6 +516,13 @@ export default class Transfer extends Component {
   }
 
   recalculateGas = () => {
+    if (!this.isValid()) {
+      this.setState({
+        gas: '0'
+      }, this.recalculate);
+      return;
+    }
+
     (this.state.isEth
       ? this._estimateGasEth()
       : this._estimateGasToken()

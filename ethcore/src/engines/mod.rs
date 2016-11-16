@@ -19,10 +19,12 @@
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
+mod authority_round;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
+pub use self::authority_round::AuthorityRound;
 
 use util::*;
 use account_provider::AccountProvider;
@@ -32,6 +34,8 @@ use env_info::EnvInfo;
 use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
+use io::IoChannel;
+use service::ClientIoMessage;
 use header::Header;
 use transaction::SignedTransaction;
 
@@ -140,5 +144,7 @@ pub trait Engine : Sync + Send {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
 
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
 	// TODO: sealing stuff - though might want to leave this for later.
 }
