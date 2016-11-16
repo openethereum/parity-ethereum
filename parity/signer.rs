@@ -20,7 +20,6 @@ use std::path::PathBuf;
 use ansi_term::Colour;
 use io::{ForwardPanic, PanicHandler};
 use util::path::restrict_permissions_owner;
-use url;
 use rpc_apis;
 use ethcore_signer as signer;
 use helpers::replace_home;
@@ -54,6 +53,12 @@ pub struct Dependencies {
 	pub apis: Arc<rpc_apis::Dependencies>,
 }
 
+pub struct NewToken {
+	pub token: String,
+	pub url: String,
+	pub message: String,
+}
+
 pub fn start(conf: Configuration, deps: Dependencies) -> Result<Option<SignerServer>, String> {
 	if !conf.enabled {
 		Ok(None)
@@ -70,24 +75,26 @@ fn codes_path(path: String) -> PathBuf {
 }
 
 pub fn execute(cmd: Configuration) -> Result<String, String> {
-	generate_token_and_open_ui(&cmd)
+	Ok(try!(generate_token_and_url(&cmd)).message)
 }
 
-pub fn generate_token_and_open_ui(conf: &Configuration) -> Result<String, String> {
+pub fn generate_token_and_url(conf: &Configuration) -> Result<NewToken, String> {
 	let code = try!(generate_new_token(conf.signer_path.clone()).map_err(|err| format!("Error generating token: {:?}", err)));
 	let auth_url = format!("http://{}:{}/#/auth?token={}", conf.interface, conf.port, code);
-	// Open a browser
-	url::open(&auth_url);
 	// And print in to the console
-	Ok(format!(
-		r#"
+	Ok(NewToken {
+		token: code.clone(),
+		url: auth_url.clone(),
+		message: format!(
+			r#"
 Open: {}
 to authorize your browser.
-Or use the code:
+Or use the generated token:
 {}"#,
-		Colour::White.bold().paint(auth_url),
-		code
-	))
+			Colour::White.bold().paint(auth_url),
+			code
+		)
+	})
 }
 
 pub fn generate_new_token(path: String) -> io::Result<String> {

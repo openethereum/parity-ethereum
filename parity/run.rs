@@ -48,6 +48,7 @@ use signer;
 use modules;
 use rpc_apis;
 use rpc;
+use url;
 
 // how often to take periodic snapshots.
 const SNAPSHOT_PERIOD: u64 = 10000;
@@ -101,8 +102,11 @@ pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configur
 		return Err("Cannot use UI command with UI turned off.".into())
 	}
 
-	let token = try!(signer::generate_token_and_open_ui(signer_conf));
-	println!("{}", token);
+	let token = try!(signer::generate_token_and_url(signer_conf));
+	// Open a browser
+	url::open(&token.url);
+	// Print a message
+	println!("{}", token.message);
 	Ok(())
 }
 
