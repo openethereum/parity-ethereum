@@ -55,7 +55,7 @@ export default class AddDapps extends Component {
         </div>
         { this.renderList(store.sortedLocal, 'Applications locally available', 'All applications installed locally on the machine by the user for access by the Parity client.') }
         { this.renderList(store.sortedBuiltin, 'Applications bundled with Parity', 'Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.') }
-        { this.renderList(store.sortedNetwork, 'Applications on the global network', 'These applications are not affiliated with Parity nor are they published by Partity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.') }
+        { this.renderList(store.sortedNetwork, 'Applications on the global network', 'These applications are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each application before interacting.') }
       </Modal>
     );
   }
