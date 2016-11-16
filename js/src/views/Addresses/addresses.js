@@ -75,6 +75,7 @@ class Addresses extends Component {
     return (
       <ActionbarSort
         key='sortAccounts'
+        id='sortAddresses'
         order={ this.state.sortOrder }
         onChange={ onChange } />
     );
