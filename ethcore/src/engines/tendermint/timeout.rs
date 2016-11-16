@@ -16,16 +16,14 @@
 
 //! Tendermint timeout handling.
 
-use util::Mutex;
 use std::sync::atomic::{Ordering as AtomicOrdering};
 use std::sync::Weak;
-use io::{IoContext, IoHandler, TimerToken, IoChannel};
+use io::{IoContext, IoHandler, TimerToken};
 use super::{Tendermint, Step};
-use time::{get_time, Duration};
-use service::ClientIoMessage;
+use time::Duration;
 
-pub struct TimerHandler {
-	engine: Weak<Tendermint>,
+pub struct TransitionHandler {
+	pub engine: Weak<Tendermint>,
 }
 
 /// Base timeout of each step in ms.
@@ -70,7 +68,7 @@ fn set_timeout(io: &IoContext<NextStep>, timeout: Duration) {
 		.unwrap_or_else(|e| warn!(target: "poa", "Failed to set consensus step timeout: {}.", e))
 }
 
-impl IoHandler<NextStep> for TimerHandler {
+impl IoHandler<NextStep> for TransitionHandler {
 	fn initialize(&self, io: &IoContext<NextStep>) {
 		if let Some(engine) = self.engine.upgrade() {
 			set_timeout(io, engine.our_params.timeouts.propose)
@@ -104,7 +102,7 @@ impl IoHandler<NextStep> for TimerHandler {
 				};
 
 				if let Some(step) = next_step {
-					*engine.step.write() = step;
+					*engine.step.write() = step.clone();
 					if step == Step::Propose {
 						engine.update_sealing();
 					}
@@ -115,9 +113,12 @@ impl IoHandler<NextStep> for TimerHandler {
 
 	fn message(&self, io: &IoContext<NextStep>, message: &NextStep) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.clear_timer(ENGINE_TIMEOUT_TOKEN);
-			let NextStep(next_step) = *message;
-			*engine.step.write() = next_step;
+			match io.clear_timer(ENGINE_TIMEOUT_TOKEN) {
+				Ok(_) => {},
+				Err(io_err) => warn!(target: "poa", "Could not remove consensus timer {}.", io_err),
+			};
+			let NextStep(next_step) = message.clone();
+			*engine.step.write() = next_step.clone();
 			match next_step {
 				Step::Propose => {
 					engine.update_sealing();

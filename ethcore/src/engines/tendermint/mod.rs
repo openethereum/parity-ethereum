@@ -41,7 +41,7 @@ use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
 use self::message::ConsensusMessage;
-use self::timeout::{TimerHandler, NextStep};
+use self::timeout::{TransitionHandler, NextStep};
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
 
@@ -102,7 +102,7 @@ impl Tendermint {
 				proposed_block: Mutex::new(None),
 				message_channel: Mutex::new(None)
 			});
-		let handler = TimerHandler { engine: Arc::downgrade(&engine) };
+		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.step_service.register_handler(Arc::new(handler)));
 		Ok(engine)
 	}
@@ -241,7 +241,7 @@ impl Engine for Tendermint {
 					if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
 						return Some(vec![
 							::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
-							::rlp::encode(&signature.into()).to_vec(),
+							::rlp::encode(&H520::from(signature)).to_vec(),
 							Vec::new()
 						])
 					} else {
@@ -271,10 +271,12 @@ impl Engine for Tendermint {
 						if votes.len() > self.threshold() {
 						}
 					},
-					Step::Precommit => ,
+					Step::Precommit => {},
+					_ => {},
 				}
 		}
 		self.votes.vote(message, sender);
+		Err(BlockError::InvalidSeal.into())
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {

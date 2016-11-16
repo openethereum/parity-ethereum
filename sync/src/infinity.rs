@@ -37,7 +37,7 @@ const GENERIC_PACKET: u8 = 0x01;
 pub struct NetworkStatus {
 	pub protocol_version: u8,
 	/// The underlying p2p network version.
-	pub network_id: U256,
+	pub network_id: usize,
 	/// Total number of connected peers
 	pub num_peers: usize,
 	/// Total number of active peers
@@ -52,7 +52,7 @@ struct PeerInfo {
 	/// Peer chain genesis hash
 	genesis: H256,
 	/// Peer network id
-	network_id: U256,
+	network_id: usize,
 }
 
 /// Infinity protocol handler.
@@ -61,7 +61,7 @@ pub struct InfinitySync {
 	/// All connected peers
 	peers: HashMap<PeerId, PeerInfo>,
 	/// Network ID
-	network_id: U256,
+	network_id: usize,
 }
 
 impl InfinitySync {

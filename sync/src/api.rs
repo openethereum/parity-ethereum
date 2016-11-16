@@ -280,7 +280,7 @@ impl ChainNotify for EthSync {
 	}
 
 	fn stop(&self) {
-		self.handler.snapshot_service.abort_restore();
+		self.eth_handler.snapshot_service.abort_restore();
 		self.network.stop().unwrap_or_else(|e| warn!("Error stopping network: {:?}", e));
 	}
 
