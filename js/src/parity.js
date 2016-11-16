@@ -14,19 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import 'babel-polyfill';
-import 'whatwg-fetch';
-
+import 'babel-polyfill/dist/polyfill.js';
 import es6Promise from 'es6-promise';
 es6Promise.polyfill();
 
-import Api from './api';
+try {
+  if (typeof self.window !== 'undefined') {
+    self.window.fetch = require('isomorphic-fetch');
+  }
+} catch (e) {}
 
+try {
+  if (typeof global !== 'undefined') {
+    global.fetch = require('node-fetch');
+  }
+} catch (e) {}
+
+import Api from './api';
 import './dev.parity.html';
 
-const api = new Api(new Api.Transport.Http('/rpc/'));
+// commonjs
+module.exports = { Api };
+// es6 default export compatibility
+module.exports.default = module.exports;
 
-window.parity = {
-  Api,
-  api
-};
+if (typeof self !== 'undefined' && typeof self.window !== 'undefined') {
+  const api = new Api(new Api.Transport.Http('/rpc/'));
+
+  self.window.parity = {
+    Api,
+    api
+  };
+}
