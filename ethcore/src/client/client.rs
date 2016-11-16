@@ -554,11 +554,17 @@ impl Client {
 
 	/// Import transactions from the IO queue
 	pub fn import_queued_transactions(&self, transactions: &[Bytes]) -> usize {
+		trace!(target: "external_tx", "Importing queued");
 		let _timer = PerfTimer::new("import_queued_transactions");
 		self.queue_transactions.fetch_sub(transactions.len(), AtomicOrdering::SeqCst);
 		let txs = transactions.iter().filter_map(|bytes| UntrustedRlp::new(bytes).as_val().ok()).collect();
 		let results = self.miner.import_external_transactions(self, txs);
 		results.len()
+	}
+
+	/// Used by PoA to try sealing on period change.
+	pub fn update_sealing(&self) {
+		self.miner.update_sealing(self)
 	}
 
 	/// Attempt to get a copy of a specific block's final state.
@@ -1193,7 +1199,9 @@ impl BlockChainClient for Client {
 	}
 
 	fn queue_transactions(&self, transactions: Vec<Bytes>) {
-		if self.queue_transactions.load(AtomicOrdering::Relaxed) > MAX_TX_QUEUE_SIZE {
+		let queue_size = self.queue_transactions.load(AtomicOrdering::Relaxed);
+		trace!(target: "external_tx", "Queue size: {}", queue_size);
+		if queue_size > MAX_TX_QUEUE_SIZE {
 			debug!("Ignoring {} transactions: queue is full", transactions.len());
 		} else {
 			let len = transactions.len();
