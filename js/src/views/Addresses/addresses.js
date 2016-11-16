@@ -107,7 +107,7 @@ class Addresses extends Component {
       <ActionbarExport
         key='exportAddressbook'
         content={ contacts }
-        filename='addressbook.json' />,
+        filename='addressbook' />,
 
       <ActionbarImport
         key='importAddressbook'
