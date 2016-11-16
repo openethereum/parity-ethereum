@@ -183,7 +183,6 @@ impl SnapshotCommand {
 
 		Ok((service, panic_handler))
 	}
-
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
 		let file = self.file_path.clone();
