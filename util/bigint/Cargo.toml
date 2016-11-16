@@ -4,7 +4,7 @@ homepage = "http://ethcore.io"
 repository = "https://github.com/ethcore/parity"
 license = "GPL-3.0"
 name = "ethcore-bigint"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
