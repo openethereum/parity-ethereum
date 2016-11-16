@@ -23,19 +23,19 @@ use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 #[derive(Debug, PartialEq, Eq)]
 pub struct ConsensusMessage {
 	pub signature: H520,
-	height: Height,
-	round: Round,
+	pub height: Height,
+	pub round: Round,
 	pub step: Step,
-	block_hash: Option<BlockHash>
+	pub block_hash: Option<BlockHash>
 }
 
 impl ConsensusMessage {
-	fn is_round(&self, height: Height, round: Round) -> bool {
+	pub fn is_round(&self, height: Height, round: Round) -> bool {
 		self.height == height && self.round == round
 	}
 
-	fn is_step(&self, height: Height, round: Round, step: Step) -> bool {
-		self.height == height && self.round == round && self.step == step
+	pub fn is_step(&self, height: Height, round: Round, step: &Step) -> bool {
+		self.height == height && self.round == round && &self.step == step
 	}
 
 	pub fn is_aligned(&self, height: Height, round: Round, block_hash: Option<H256>) -> bool {

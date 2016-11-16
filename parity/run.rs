@@ -110,7 +110,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	raise_fd_limit();
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
@@ -234,6 +234,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	// drop the spec to free up genesis state.
+	drop(spec);
 
 	// forward panics from service
 	panic_handler.forward_from(&service);

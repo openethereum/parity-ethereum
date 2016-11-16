@@ -33,9 +33,7 @@ impl VoteCollector {
 	}
 
 	pub fn vote(&self, message: ConsensusMessage, voter: Address) {
-		if let Some(mut guard) = self.votes.write() {
-			*guard.insert(message, voter);
-		}
+		self.votes.write().insert(message, voter);
 	}
 
 	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Vec<H520> {
@@ -52,13 +50,11 @@ impl VoteCollector {
 		self.seal_signatures(message.height, message.round, message.block_hash)
 	}
 
-	pub fn count_signatures(&self, height: Height, round: Round) -> usize {
+	pub fn count_step_votes(&self, height: Height, round: Round, step: &Step) -> usize {
 		self.votes
 			.read()
 			.keys()
-			// Get only Propose and Precommits.
-			.filter(|m| m.is_round(height, round) && m.step != Step::Prevote)
-			.map(|m| m.signature)
-			.collect()	
+			.filter(|m| m.is_step(height, round, step))
+			.count()	
 	}
 }

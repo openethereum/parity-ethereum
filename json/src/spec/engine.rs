@@ -18,6 +18,7 @@
 
 use spec::Ethash;
 use spec::BasicAuthority;
+use spec::AuthorityRound;
 use spec::Tendermint;
 
 /// Engine deserialization.
@@ -31,7 +32,9 @@ pub enum Engine {
 	Ethash(Ethash),
 	/// BasicAuthority engine.
 	BasicAuthority(BasicAuthority),
-	/// Byzantine Fault Tolerant engine.
+	/// AuthorityRound engine.
+	AuthorityRound(AuthorityRound),
+	/// Tendermint engine.
 	Tendermint(Tendermint)
 }
 

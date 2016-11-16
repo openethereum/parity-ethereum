@@ -30,14 +30,14 @@ pub struct TimerHandler {
 /// Base timeout of each step in ms.
 #[derive(Debug, Clone)]
 pub struct TendermintTimeouts {
-	propose: Duration,
-	prevote: Duartion,
-	precommit: Duration,
-	commit: Duration
+	pub propose: Duration,
+	pub prevote: Duration,
+	pub precommit: Duration,
+	pub commit: Duration
 }
 
 impl TendermintTimeouts {
-	pub fn for_step(step: Step) -> Duration {
+	pub fn for_step(&self, step: Step) -> Duration {
 		match step {
 			Step::Propose => self.propose,
 			Step::Prevote => self.prevote,
@@ -49,7 +49,7 @@ impl TendermintTimeouts {
 
 impl Default for TendermintTimeouts {
 	fn default() -> Self {
-		DefaultTimeouts {
+		TendermintTimeouts {
 			propose: Duration::milliseconds(1000),
 			prevote: Duration::milliseconds(1000),
 			precommit: Duration::milliseconds(1000),
@@ -64,38 +64,55 @@ pub struct NextStep;
 /// Timer token representing the consensus step timeouts.
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
+fn set_timeout(io: &IoContext<NextStep>, timeout: Duration) {
+	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, timeout.num_milliseconds() as u64)
+		.unwrap_or_else(|e| warn!(target: "poa", "Failed to set consensus step timeout: {}.", e))
+}
+
+fn update_sealing(io_channel: Mutex<Option<IoChannel<ClientIoMessage>>>) {
+	if let Some(ref channel) = *io_channel.lock() {
+		match channel.send(ClientIoMessage::UpdateSealing) {
+			Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for round {}.", engine.round.load(AtomicOrdering::SeqCst)),
+			Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for round {}.", err, engine.round.load(AtomicOrdering::SeqCst)),
+		}
+	}
+}
+
 impl IoHandler<NextStep> for TimerHandler {
 	fn initialize(&self, io: &IoContext<NextStep>) {
 		if let Some(engine) = self.engine.upgrade() {
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
-				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
+			set_timeout(io, engine.our_params.timeouts.propose)
 		}
 	}
 
 	fn timeout(&self, io: &IoContext<NextStep>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
-				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
-				engine.proposed.store(false, AtomicOrdering::SeqCst);
-				let next_step = match *engine.step.try_read().unwrap() {
-					Step::Propose => Step::Prevote,
-					Step::Prevote => Step::Precommit,
-					Step::Precommit => Step::Propose,
-					Step::Commit => {
-						engine.round.fetch_add(1, AtomicOrdering::Relaxed);
-						Step::Propose
+				let next_step = match *engine.step.read() {
+					Step::Propose => {
+						set_timeout(io, engine.our_params.timeouts.prevote);
+						Some(Step::Prevote)
 					},
+					Step::Prevote if engine.has_enough_any_votes() => {
+						set_timeout(io, engine.our_params.timeouts.precommit);
+						Some(Step::Precommit)
+					},
+					Step::Precommit if engine.has_enough_any_votes() => {
+						set_timeout(io, engine.our_params.timeouts.propose);
+						engine.round.fetch_add(1, AtomicOrdering::SeqCst);
+						Some(Step::Propose)
+					},
+					Step::Commit => {
+						set_timeout(io, engine.our_params.timeouts.propose);
+						engine.round.store(0, AtomicOrdering::SeqCst);
+						engine.height.fetch_add(1, AtomicOrdering::SeqCst);
+						Some(Step::Propose)
+					},
+					_ => None,
 				};
 
-
-				io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout().as_millis())
-					.unwrap_or_else(|e| warn!(target: "poa", "Failed to restart consensus step timer: {}.", e))
-
-				if let Some(ref channel) = *engine.message_channel.lock() {
-					match channel.send(ClientIoMessage::UpdateSealing) {
-						Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for step {}.", engine.step.),
-						Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for step {}.", err, engine.step.load(AtomicOrdering::Relaxed)),
-					}
+				if let Some(step) = next_step {
+					*engine.step.write() = step
 				}
 
 			}

@@ -19,6 +19,7 @@
 use ethjson;
 use super::timeout::TendermintTimeouts;
 use util::{Address, U256};
+use time::Duration;
 
 /// `Tendermint` params.
 #[derive(Debug, Clone)]
@@ -41,25 +42,30 @@ impl Default for TendermintParams {
 			gas_limit_bound_divisor: 0x0400.into(),
 			authorities: authorities,
 			authority_n: val_n,
-			timeouts:  DefaultTimeouts::default()
+			timeouts: TendermintTimeouts::default()
 		}
 	}
+}
+
+fn to_duration(ms: ethjson::uint::Uint) -> Duration {
+	let ms: usize = ms.into();
+	Duration::milliseconds(ms as i64)
 }
 
 impl From<ethjson::spec::TendermintParams> for TendermintParams {
 	fn from(p: ethjson::spec::TendermintParams) -> Self {
 		let val: Vec<_> = p.authorities.into_iter().map(Into::into).collect();
 		let val_n = val.len();
+		let dt = TendermintTimeouts::default();
 		TendermintParams {
 			gas_limit_bound_divisor: p.gas_limit_bound_divisor.into(),
 			authorities: val,
 			authority_n: val_n,
-			let dt = TendermintTimeouts::default();
 			timeouts: TendermintTimeouts {
-				propose: p.timeout_propose.unwrap_or(dt.propose),
-				prevote: p.timeout_prevote.unwrap_or(dt.prevote),
-				precommit: p.timeout_precommit.unwrap_or(dt.precommit),
-				commit: p.timeout_commit.unwrap_or(dt.commit)
+				propose: p.timeout_propose.map_or(dt.propose, to_duration),
+				prevote: p.timeout_prevote.map_or(dt.prevote, to_duration),
+				precommit: p.timeout_precommit.map_or(dt.precommit, to_duration),
+				commit: p.timeout_commit.map_or(dt.commit, to_duration)
 			}
 		}
 	}

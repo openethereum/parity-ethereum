@@ -19,13 +19,16 @@
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
+mod authority_round;
 mod tendermint;
 mod signed_vote;
 mod propose_collect;
 
+
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
+pub use self::authority_round::AuthorityRound;
 pub use self::tendermint::Tendermint;
 pub use self::signed_vote::SignedVote;
 pub use self::propose_collect::ProposeCollect;
@@ -39,6 +42,8 @@ use env_info::EnvInfo;
 use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
+use io::IoChannel;
+use service::ClientIoMessage;
 use header::Header;
 use transaction::SignedTransaction;
 use ethereum::ethash;
@@ -170,6 +175,9 @@ pub trait Engine : Sync + Send {
 	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
+
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
 
 	/// Check if new block should be chosen as the one  in chain.
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {

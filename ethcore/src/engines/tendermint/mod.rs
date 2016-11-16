@@ -73,12 +73,12 @@ pub struct Tendermint {
 	round: AtomicUsize,
 	/// Consensus step.
 	step: RwLock<Step>,
-	/// Current step timeout in ms.
-	timeout: AtomicMs,
 	/// Used to swith proposer.
 	proposer_nonce: AtomicUsize,
 	/// Vote accumulator.
-	votes: VoteCollector
+	votes: VoteCollector,
+	/// Channel for updating the sealing.
+	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>
 }
 
 impl Tendermint {
@@ -87,7 +87,6 @@ impl Tendermint {
 		let engine = Arc::new(
 			Tendermint {
 				params: params,
-				timeout: AtomicUsize::new(our_params.timeouts.propose),
 				our_params: our_params,
 				builtins: builtins,
 				timeout_service: try!(IoService::<NextStep>::start()),
@@ -96,7 +95,8 @@ impl Tendermint {
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0),
-				votes: VoteCollector::new()
+				votes: VoteCollector::new(),
+				message_channel: Mutex::new(None)
 			});
 		let handler = TimerHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.timeout_service.register_handler(Arc::new(handler)));
@@ -116,86 +116,8 @@ impl Tendermint {
 		self.our_params.authorities.contains(address)
 	}
 
-	fn new_vote(&self, proposal: BlockHash) -> ProposeCollect {
-		ProposeCollect::new(proposal,
-							self.our_params.authorities.iter().cloned().collect(),
-							self.threshold())
-	}
-
-	fn to_step(&self, step: Step) {
-		let mut guard = self.step.try_write().unwrap();
-		*guard = step;
-	}
-
-	fn to_propose(&self) {
-		trace!(target: "poa", "step: entering propose");
-		println!("step: entering propose");
-		self.proposer_nonce.fetch_add(1, AtomicOrdering::Relaxed);
-		self.to_step(Step::Propose);
-	}
-
-	fn propose_message(&self, message: UntrustedRlp) -> Result<Bytes, Error> {
-		// Check if message is for correct step.
-		match *self.step.try_read().unwrap() {
-			Step::Propose => (),
-			_ => try!(Err(EngineError::WrongStep)),
-		}
-		let proposal = try!(message.as_val());
-		self.to_prevote(proposal);
-		Ok(message.as_raw().to_vec())
-	}
-
-	fn to_prevote(&self, proposal: BlockHash) {
-		trace!(target: "poa", "step: entering prevote");
-		println!("step: entering prevote");
-		// Proceed to the prevote step.
-		self.to_step(Step::Prevote(self.new_vote(proposal)));
-	}
-
-	fn prevote_message(&self, sender: Address, message: UntrustedRlp) -> Result<Bytes, Error> {
-		// Check if message is for correct step.
-		let hash = match *self.step.try_write().unwrap() {
-			Step::Prevote => {
-				// Vote if message is about the right block.
-				if vote.hash == try!(message.as_val()) {
-					vote.vote(sender);
-					// Move to next step is prevote is won.
-					if vote.is_won() {
-						// If won assign a hash used for precommit.
-						vote.hash.clone()
-					} else {
-						// Just propoagate the message if not won yet.
-						return Ok(message.as_raw().to_vec());
-					}
-				} else {
-					try!(Err(EngineError::WrongVote))
-				}
-			},
-			_ => try!(Err(EngineError::WrongStep)),
-		};
-		self.to_precommit(hash);
-		Ok(message.as_raw().to_vec())
-	}
-
-	fn to_precommit(&self, proposal: BlockHash) {
-		trace!(target: "poa", "step: entering precommit");
-		println!("step: entering precommit");
-		self.to_step(Step::Precommit(self.new_vote(proposal), Vec::new()));
-	}
-
-	/// Move to commit step, when valid block is known and being distributed.
-	pub fn to_commit(&self, block_hash: H256, seal: Vec<Bytes>) {
-		trace!(target: "poa", "step: entering commit");
-		println!("step: entering commit");
-		self.to_step(Step::Commit(block_hash, seal));
-	}
-
 	fn threshold(&self) -> usize {
 		self.our_params.authority_n * 2/3
-	}
-
-	fn next_timeout(&self) -> u64 {
-		self.timeout.load(AtomicOrdering::Relaxed) as u64
 	}
 
 	/// Round proposer switching.
@@ -204,7 +126,11 @@ impl Tendermint {
 	}
 
 	fn is_current(&self, message: &ConsensusMessage) -> bool {
-		message.is_step(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), self.step.load(AtomicOrdering::SeqCst)) 
+		message.is_step(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), &self.step.read()) 
+	}
+
+	fn has_enough_any_votes(&self) -> bool {
+		self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), &self.step.read()) > self.threshold()	
 	}
 }
 
@@ -213,12 +139,12 @@ fn block_hash(header: &Header) -> H256 {
 	header.rlp(Seal::WithSome(1)).sha3()
 }
 
-fn proposer_signature(header: &Header) -> H520 {
-	try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val())
+fn proposer_signature(header: &Header) -> Result<H520, ::rlp::DecoderError> {
+	UntrustedRlp::new(header.seal()[1].as_slice()).as_val()
 }
 
-fn consensus_round(header: &Header) -> Round {
-	try!(UntrustedRlp::new(header.seal()[0].as_slice()).as_val())
+fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
+	UntrustedRlp::new(header.seal()[0].as_slice()).as_val()
 }
 
 impl Engine for Tendermint {
@@ -233,10 +159,10 @@ impl Engine for Tendermint {
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
 		map![
-			"signature".into() => proposer_signature(header).to_string(),
+			"signature".into() => proposer_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
 			"height".into() => header.number().to_string(),
-			"round".into() => consensus_round(header).to_string(),
-			"block_hash".into() => block_hash(header).to_string().unwrap_or("".into())
+			"round".into() => consensus_round(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
+			"block_hash".into() => block_hash(header).to_string()
 		]
 	}
 
@@ -326,10 +252,10 @@ impl Engine for Tendermint {
 		}
 
 		// Check if the message affects the current step.
-		if self.is_current(message) {
-				match self.step.load(AtomicOrdering::SeqCst) {
+		if self.is_current(&message) {
+				match *self.step.read() {
 					Step::Prevote => {
-						let votes = aligned_signatures(message);
+						let votes = self.votes.aligned_signatures(&message);
 						if votes.len() > self.threshold() {
 						}
 					},
@@ -352,14 +278,15 @@ impl Engine for Tendermint {
 
 	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let proposer = public_to_address(&try!(recover(&proposal_signature(header).into(), &block_hash(header))));
+		let signature = try!(proposer_signature(header));
+		let proposer = public_to_address(&try!(recover(&signature.into(), &block_hash(header))));
 		if !self.is_proposer(&proposer) {
 			try!(Err(BlockError::InvalidSeal))
 		}
 		let proposal = ConsensusMessage {
-			signature: proposal_signature,
+			signature: signature,
 			height: header.number() as Height,
-			round: consensus_round(header),
+			round: try!(consensus_round(header)),
 			step: Step::Propose,
 			block_hash: Some(block_hash(header))
 		};
@@ -368,7 +295,7 @@ impl Engine for Tendermint {
 		for rlp in votes_rlp.iter() {
 			let sig: H520 = try!(rlp.as_val());
 			let address = public_to_address(&try!(recover(&sig.into(), &block_hash(header))));
-			if !self.our_params.authorities.contains(a) {
+			if !self.our_params.authorities.contains(&address) {
 				try!(Err(BlockError::InvalidSeal))
 			}
 		}
@@ -407,6 +334,11 @@ impl Engine for Tendermint {
 		let new_signatures = new_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
 		let best_signatures = best_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
 		new_signatures > best_signatures
+	}
+
+	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
+		let mut guard = self.message_channel.lock();
+		*guard = Some(message_channel);
 	}
 }
 

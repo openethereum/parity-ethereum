@@ -44,7 +44,7 @@ export function validateAbi (abi, api) {
 
     // Validate each elements of the Array
     const invalidIndex = abiParsed
-      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api))
+      .map((o) => isValidAbiEvent(o, api) || isValidAbiFunction(o, api) || isAbiFallback(o))
       .findIndex((valid) => !valid);
 
     if (invalidIndex !== -1) {
@@ -72,6 +72,14 @@ function isValidAbiFunction (object, api) {
 
   return ((object.type === 'function' && object.name) || object.type === 'constructor') &&
     (object.inputs && api.util.isArray(object.inputs));
+}
+
+function isAbiFallback (object) {
+  if (!object) {
+    return false;
+  }
+
+  return object.type === 'fallback';
 }
 
 function isValidAbiEvent (object, api) {
