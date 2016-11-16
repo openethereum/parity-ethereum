@@ -20,6 +20,7 @@ import SettingsMiddleware from '../views/Settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
 import statusMiddleware from '../views/Status/middleware';
+import certificationsMiddleware from './providers/certifications/middleware';
 
 export default function (api) {
   const errors = new ErrorsMiddleware();
@@ -30,7 +31,8 @@ export default function (api) {
   const middleware = [
     settings.toMiddleware(),
     signer.toMiddleware(),
-    errors.toMiddleware()
+    errors.toMiddleware(),
+    certificationsMiddleware(api)
   ];
 
   return middleware.concat(status, thunk);
