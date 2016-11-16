@@ -50,6 +50,8 @@ pub enum ClientIoMessage {
 	TakeSnapshot(u64),
 	/// Trigger sealing update (useful for internal sealing).
 	UpdateSealing,
+	/// Submit seal (useful for internal sealing).
+	SubmitSeal(H256, Vec<Bytes>),
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -219,8 +221,12 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 				}
 			},
 			ClientIoMessage::UpdateSealing => {
-				trace!(target: "authorityround", "message: UpdateSealing");
+				trace!(target: "poa", "message: UpdateSealing");
 				self.client.update_sealing()
+			},
+			ClientIoMessage::SubmitSeal(ref hash, ref seal) => {
+				trace!(target: "poa", "message: SubmitSeal");
+				self.client.submit_seal(*hash, seal.clone())
 			},
 			_ => {} // ignore other messages
 		}

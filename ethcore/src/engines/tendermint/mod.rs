@@ -116,6 +116,15 @@ impl Tendermint {
 		}
 	}
 
+	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if let Some(ref channel) = *self.message_channel.lock() {
+			match channel.send(ClientIoMessage::SubmitSeal(block_hash, seal)) {
+				Ok(_) => trace!(target: "poa", "timeout: SubmitSeal message sent."),
+				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+			}
+		}
+	}
+
 	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
 		let ref p = self.our_params;
 		p.authorities.get(proposer_nonce % p.authority_n).unwrap()

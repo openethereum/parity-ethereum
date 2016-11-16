@@ -1008,7 +1008,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
 			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
@@ -1016,9 +1016,9 @@ impl MinerService for Miner {
 				} else {
 					GetAction::Take
 				},
-				|b| &b.hash() == &pow_hash
+				|b| &b.hash() == &block_hash
 			) {
-				trace!(target: "miner", "Sealing block {}={}={} with seal {:?}", pow_hash, b.hash(), b.header().bare_hash(), seal);
+				trace!(target: "miner", "Sealing block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
 					Err(Error::PowInvalid)

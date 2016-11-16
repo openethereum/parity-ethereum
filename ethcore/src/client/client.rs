@@ -569,6 +569,13 @@ impl Client {
 		self.miner.update_sealing(self)
 	}
 
+	/// Used by PoA to submit gathered signatures.
+	pub fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
+		if self.miner.submit_seal(self, block_hash, seal).is_err() {
+			warn!(target: "poa", "Wrong internal seal submission!")
+		}
+	}
+
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
