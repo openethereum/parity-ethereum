@@ -46,8 +46,6 @@ export const loadAccounts = () => (dispatch) => {
           address
         }));
 
-      console.log('accounts', accountsList);
-
       dispatch(setAccounts(accountsList));
       dispatch(setAccountsInfo(accountsInfo));
       dispatch(setSelectedAccount(accountsList[0].address));

@@ -18,6 +18,7 @@ import DappReg from './dappreg';
 import Registry from './registry';
 import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
+import GithubHint from './githubhint';
 
 let instance = null;
 
@@ -30,6 +31,7 @@ export default class Contracts {
     this._dappreg = new DappReg(api, this._registry);
     this._signaturereg = new SignatureReg(api, this._registry);
     this._tokenreg = new TokenReg(api, this._registry);
+    this._githubhint = new GithubHint(api, this._registry);
   }
 
   get registry () {
@@ -46,6 +48,10 @@ export default class Contracts {
 
   get tokenReg () {
     return this._tokenreg;
+  }
+
+  get githubHint () {
+    return this._githubhint;
   }
 
   static create (api) {
