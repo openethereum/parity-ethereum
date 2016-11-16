@@ -21,7 +21,7 @@ import { Dialog, FlatButton } from 'material-ui';
 import AccountSelector from '../../Accounts/AccountSelector';
 import InputText from '../../Inputs/Text';
 
-import { TOKEN_ADDRESS_TYPE, TLA_TYPE, UINT_TYPE, STRING_TYPE } from '../../Inputs/validation';
+import { TOKEN_ADDRESS_TYPE, TLA_TYPE, DECIMAL_TYPE, STRING_TYPE } from '../../Inputs/validation';
 
 import styles from '../actions.css';
 
@@ -41,11 +41,11 @@ const initState = {
       floatingLabelText: 'Token TLA',
       hintText: 'The token short name (3 characters)'
     },
-    base: {
+    decimals: {
       ...defaultField,
-      type: UINT_TYPE,
-      floatingLabelText: 'Token Base',
-      hintText: 'The token precision'
+      type: DECIMAL_TYPE,
+      floatingLabelText: 'Token Decimals',
+      hintText: 'The number of decimals (0-18)'
     },
     name: {
       ...defaultField,
@@ -81,6 +81,7 @@ export default class RegisterAction extends Component {
         className={ styles.dialog }
         onRequestClose={ this.onClose }
         actions={ this.renderActions() }
+        ref='dialog'
         autoScrollBodyContent
       >
         { this.renderContent() }
@@ -149,7 +150,9 @@ export default class RegisterAction extends Component {
   renderForm () {
     return (
       <div>
-        <AccountSelector />
+        <AccountSelector
+          onAccountChange={ this.onAccountChange }
+        />
         { this.renderInputs() }
       </div>
     );
@@ -173,6 +176,11 @@ export default class RegisterAction extends Component {
           onChange={ onChange } />
       );
     });
+  }
+
+  onAccountChange = () => {
+    const { dialog } = this.refs;
+    dialog.forceUpdate();
   }
 
   onChange (fieldKey, valid, value) {

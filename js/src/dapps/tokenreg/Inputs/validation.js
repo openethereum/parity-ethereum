@@ -32,6 +32,7 @@ export const SIMPLE_TOKEN_ADDRESS_TYPE = 'SIMPLE_TOKEN_ADDRESS_TYPE';
 export const TLA_TYPE = 'TLA_TYPE';
 export const SIMPLE_TLA_TYPE = 'SIMPLE_TLA_TYPE';
 export const UINT_TYPE = 'UINT_TYPE';
+export const DECIMAL_TYPE = 'DECIMAL_TYPE';
 export const STRING_TYPE = 'STRING_TYPE';
 export const HEX_TYPE = 'HEX_TYPE';
 export const URL_TYPE = 'URL_TYPE';
@@ -39,6 +40,7 @@ export const URL_TYPE = 'URL_TYPE';
 export const ERRORS = {
   invalidTLA: 'The TLA should be 3 characters long',
   invalidUint: 'Please enter a non-negative integer',
+  invalidDecimal: 'Please enter a value between 0 and 18',
   invalidString: 'Please enter at least a character',
   invalidAccount: 'Please select an account to transact with',
   invalidRecipient: 'Please select an account to send to',
@@ -75,7 +77,7 @@ const validateTokenAddress = (address, contract, simple) => {
 
   return getTokenTotalSupply(address)
     .then(balance => {
-      if (balance === null) {
+      if (balance === null || balance.equals(0)) {
         return {
           error: ERRORS.invalidTokenAddress,
           valid: false
@@ -152,6 +154,21 @@ const validateUint = (uint) => {
   };
 };
 
+const validateDecimal = (decimal) => {
+  if (!/^\d+$/.test(decimal) || parseInt(decimal) < 0 || parseInt(decimal) > 18) {
+    return {
+      error: ERRORS.invalidDecimal,
+      valid: false
+    };
+  }
+
+  return {
+    value: parseInt(decimal),
+    error: null,
+    valid: true
+  };
+};
+
 const validateString = (string) => {
   if (string.toString().length === 0) {
     return {
@@ -204,6 +221,7 @@ export const validate = (value, type, contract) => {
   if (type === TLA_TYPE) return validateTLA(value, contract);
   if (type === SIMPLE_TLA_TYPE) return validateTLA(value, contract, true);
   if (type === UINT_TYPE) return validateUint(value);
+  if (type === DECIMAL_TYPE) return validateDecimal(value);
   if (type === STRING_TYPE) return validateString(value);
   if (type === HEX_TYPE) return validateHex(value);
   if (type === URL_TYPE) return validateURL(value);

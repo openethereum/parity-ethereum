@@ -16,7 +16,7 @@
 
 use std::ops::{Deref, DerefMut};
 use std::thread;
-use std::time::{self, Duration};
+use std::time;
 use std::sync::Arc;
 use devtools::{http_client, RandomTempPath};
 use rpc::ConfirmationsQueue;
@@ -50,7 +50,6 @@ pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 	let builder = ServerBuilder::new(queue, path.to_path_buf());
 	let port = 35000 + rand::random::<usize>() % 10000;
 	let res = builder.start(format!("127.0.0.1:{}", port).parse().unwrap()).unwrap();
-	thread::sleep(Duration::from_millis(25));
 
 	(res, port, GuardedAuthCodes {
 		authcodes: AuthCodes::from_file(&path).unwrap(),
