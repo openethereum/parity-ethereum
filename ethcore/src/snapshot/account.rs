@@ -19,11 +19,11 @@
 use account_db::{AccountDB, AccountDBMut};
 use snapshot::Error;
 
-use util::{U256, FixedHash, H256, Bytes, HashDB, DBValue, SHA3_EMPTY, SHA3_NULL_RLP};
+use util::{U256, FixedHash, H256, Bytes, HashDB, SHA3_EMPTY, SHA3_NULL_RLP};
 use util::trie::{TrieDB, Trie};
 use rlp::{Rlp, RlpStream, Stream, UntrustedRlp, View};
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 // An empty account -- these are replaced with RLP null data for a space optimization.
 const ACC_EMPTY: Account = Account {
@@ -150,7 +150,6 @@ impl Account {
 	pub fn from_fat_rlp(
 		acct_db: &mut AccountDBMut,
 		rlp: UntrustedRlp,
-		code_map: &HashMap<H256, Bytes>,
 	) -> Result<(Self, Option<Bytes>), Error> {
 		use util::{TrieDBMut, TrieMut};
 
@@ -177,9 +176,6 @@ impl Account {
 			}
 			CodeState::Hash => {
 				let code_hash = try!(rlp.val_at(3));
-				if let Some(code) = code_map.get(&code_hash) {
-					acct_db.emplace(code_hash.clone(), DBValue::from_slice(code));
-				}
 
 				(code_hash, None)
 			}
@@ -229,7 +225,7 @@ mod tests {
 	use util::{Address, FixedHash, H256, HashDB, DBValue};
 	use rlp::{UntrustedRlp, View};
 
-	use std::collections::{HashSet, HashMap};
+	use std::collections::HashSet;
 
 	use super::{ACC_EMPTY, Account};
 
@@ -250,7 +246,7 @@ mod tests {
 
 		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr), &mut Default::default()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlp);
-		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, &Default::default()).unwrap().0, account);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap().0, account);
 	}
 
 	#[test]
@@ -275,7 +271,7 @@ mod tests {
 
 		let fat_rlp = account.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &addr), &mut Default::default()).unwrap();
 		let fat_rlp = UntrustedRlp::new(&fat_rlp);
-		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp, &Default::default()).unwrap().0, account);
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr), fat_rlp).unwrap().0, account);
 	}
 
 	#[test]
@@ -318,12 +314,11 @@ mod tests {
 		let fat_rlp1 = UntrustedRlp::new(&fat_rlp1);
 		let fat_rlp2 = UntrustedRlp::new(&fat_rlp2);
 
-		let code_map = HashMap::new();
-		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr2), fat_rlp2, &code_map).unwrap();
+		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr2), fat_rlp2).unwrap();
 		assert!(maybe_code.is_none());
 		assert_eq!(acc, account2);
 
-		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1, &code_map).unwrap();
+		let (acc, maybe_code) = Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &addr1), fat_rlp1).unwrap();
 		assert_eq!(maybe_code, Some(b"this is definitely code".to_vec()));
 		assert_eq!(acc, account1);
 	}
@@ -332,9 +327,8 @@ mod tests {
 	fn encoding_empty_acc() {
 		let mut db = get_temp_state_db();
 		let mut used_code = HashSet::new();
-		let code_map = HashMap::new();
 
 		assert_eq!(ACC_EMPTY.to_fat_rlp(&AccountDB::new(db.as_hashdb(), &Address::default()), &mut used_code).unwrap(), ::rlp::NULL_RLP.to_vec());
-		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &Address::default()), UntrustedRlp::new(&::rlp::NULL_RLP), &code_map).unwrap(), (ACC_EMPTY, None));
+		assert_eq!(Account::from_fat_rlp(&mut AccountDBMut::new(db.as_hashdb_mut(), &Address::default()), UntrustedRlp::new(&::rlp::NULL_RLP)).unwrap(), (ACC_EMPTY, None));
 	}
 }
