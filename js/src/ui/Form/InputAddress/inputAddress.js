@@ -76,6 +76,7 @@ class InputAddress extends Component {
     }
 
     const classes = [disabled ? styles.iconDisabled : styles.icon];
+
     if (!label) {
       classes.push(styles.noLabel);
     }
