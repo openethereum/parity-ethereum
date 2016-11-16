@@ -93,6 +93,10 @@ pub struct RichReceipt {
 	pub contract_address: Option<Address>,
 	/// Logs
 	pub logs: Vec<LogEntry>,
+	/// Logs bloom
+	pub log_bloom: LogBloom,
+	/// State root
+	pub state_root: H256,
 }
 
 /// Receipt with additional info.
@@ -114,6 +118,10 @@ pub struct LocalizedReceipt {
 	pub contract_address: Option<Address>,
 	/// Logs
 	pub logs: Vec<LocalizedLogEntry>,
+	/// Logs bloom
+	pub log_bloom: LogBloom,
+	/// State root
+	pub state_root: H256,
 }
 
 #[test]
