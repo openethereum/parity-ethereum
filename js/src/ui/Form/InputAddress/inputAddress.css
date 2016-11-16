@@ -20,6 +20,7 @@
 
 .input input {
   padding-left: 48px !important;
+  box-sizing: border-box;
 }
 
 .inputEmpty input {
@@ -30,6 +31,10 @@
 .iconDisabled {
   position: absolute;
   top: 35px;
+
+  &.noLabel {
+    top: 10px;
+  }
 }
 
 .icon {

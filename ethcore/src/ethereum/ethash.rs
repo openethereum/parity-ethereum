@@ -73,7 +73,9 @@ pub struct EthashParams {
 	/// Number of first block where ECIP-1010 begins.
 	pub ecip1010_pause_transition: u64,
 	/// Number of first block where ECIP-1010 ends.
-	pub ecip1010_continue_transition: u64
+	pub ecip1010_continue_transition: u64,
+	/// Maximum amount of code that can be deploying into a contract.
+	pub max_code_size: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -87,19 +89,20 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
 			homestead_transition: p.homestead_transition.map_or(0, Into::into),
-			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
-			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(u64::max_value(), Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
-			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
+			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
 			eip150_transition: p.eip150_transition.map_or(0, Into::into),
 			eip155_transition: p.eip155_transition.map_or(0, Into::into),
 			eip160_transition: p.eip160_transition.map_or(0, Into::into),
 			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
-			eip161d_transition: p.eip161d_transition.map_or(0x7fffffffffffffff, Into::into),
-			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(0x7fffffffffffffff, Into::into),
-			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(0x7fffffffffffffff, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
+			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
+			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
+			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 		}
 	}
 }
@@ -152,6 +155,7 @@ impl Engine for Ethash {
 			Schedule::new_homestead()
 		} else {
 			Schedule::new_post_eip150(
+				self.ethash_params.max_code_size as usize,
 				env_info.number >= self.ethash_params.eip160_transition,
 				env_info.number >= self.ethash_params.eip161abc_transition,
 				env_info.number >= self.ethash_params.eip161d_transition

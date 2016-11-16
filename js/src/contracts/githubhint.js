@@ -14,18 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export function bytesToHex (bytes) {
-  return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
-}
+export default class GithubHint {
+  constructor (api, registry) {
+    this._api = api;
+    this._registry = registry;
 
-export function hex2Ascii (_hex) {
-  const hex = /^(?:0x)?(.*)$/.exec(_hex.toString())[1];
-
-  let str = '';
-
-  for (let i = 0; i < hex.length; i += 2) {
-    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    this.getInstance();
   }
 
-  return str;
+  getContract () {
+    return this._registry.getContract('githubhint');
+  }
+
+  getInstance () {
+    return this.getContract().instance;
+  }
 }

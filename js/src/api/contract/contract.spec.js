@@ -20,6 +20,7 @@ import sinon from 'sinon';
 import { TEST_HTTP_URL, mockHttp } from '../../../test/mockRpc';
 
 import Abi from '../../abi';
+import { sha3 } from '../util/sha3';
 
 import Api from '../api';
 import Contract from './contract';
@@ -113,7 +114,13 @@ describe('api/contract/Contract', () => {
       ]);
       contract.at('6789');
 
-      expect(Object.keys(contract.instance)).to.deep.equal(['Drained', 'balanceOf', 'address']);
+      expect(Object.keys(contract.instance)).to.deep.equal([
+        'Drained',
+        /^(?:0x)(.+)$/.exec(sha3('Drained(uint256)'))[1],
+        'balanceOf',
+        /^(?:0x)(.+)$/.exec(sha3('balanceOf(address)'))[1].substr(0, 8),
+        'address'
+      ]);
       expect(contract.address).to.equal('6789');
     });
   });

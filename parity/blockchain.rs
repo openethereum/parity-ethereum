@@ -117,7 +117,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(false, false));
 
 	// load spec file
 	let spec = try!(cmd.spec.spec());
@@ -164,6 +164,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	// free up the spec in memory.
+	drop(spec);
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -263,7 +266,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let panic_handler = PanicHandler::new_in_arc();
 
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(false, false));
 
 	let format = cmd.format.unwrap_or_default();
 
@@ -311,6 +314,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	drop(spec);
 
 	panic_handler.forward_from(&service);
 	let client = service.client();

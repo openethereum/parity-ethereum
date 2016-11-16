@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { TextField } from 'material-ui';
+import { noop } from 'lodash';
 
 import CopyToClipboard from '../../CopyToClipboard';
 
@@ -63,7 +64,9 @@ export default class Input extends Component {
     hideUnderline: PropTypes.bool,
     value: PropTypes.oneOfType([
       PropTypes.number, PropTypes.string
-    ])
+    ]),
+    min: PropTypes.any,
+    max: PropTypes.any
   };
 
   static defaultProps = {
@@ -79,14 +82,14 @@ export default class Input extends Component {
   }
 
   componentWillReceiveProps (newProps) {
-    if (newProps.value !== this.props.value) {
+    if ((newProps.value !== this.props.value) && (newProps.value !== this.state.value)) {
       this.setValue(newProps.value);
     }
   }
 
   render () {
     const { value } = this.state;
-    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type } = this.props;
+    const { children, className, hideUnderline, disabled, error, label, hint, multiLine, rows, type, min, max } = this.props;
 
     const readOnly = this.props.readOnly || disabled;
 
@@ -129,7 +132,10 @@ export default class Input extends Component {
           onBlur={ this.onBlur }
           onChange={ this.onChange }
           onKeyDown={ this.onKeyDown }
+          onPaste={ this.onPaste }
           inputStyle={ inputStyle }
+          min={ min }
+          max={ max }
         >
           { children }
         </TextField>
@@ -138,7 +144,7 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { allowCopy, hideUnderline, label, hint, floatCopy } = this.props;
+    const { allowCopy, label, hint, floatCopy } = this.props;
     const { value } = this.state;
 
     if (!allowCopy) {
@@ -153,7 +159,7 @@ export default class Input extends Component {
       ? allowCopy
       : value;
 
-    if (hideUnderline && !label) {
+    if (!label) {
       style.marginBottom = 2;
     } else if (label && !hint) {
       style.marginBottom = 4;
@@ -176,9 +182,10 @@ export default class Input extends Component {
   }
 
   onChange = (event, value) => {
-    this.setValue(value);
-
-    this.props.onChange && this.props.onChange(event, value);
+    event.persist();
+    this.setValue(value, () => {
+      this.props.onChange && this.props.onChange(event, value);
+    });
   }
 
   onBlur = (event) => {
@@ -190,6 +197,14 @@ export default class Input extends Component {
     }
 
     this.props.onBlur && this.props.onBlur(event);
+  }
+
+  onPaste = (event) => {
+    const value = event.clipboardData.getData('Text');
+
+    window.setTimeout(() => {
+      this.onSubmit(value);
+    }, 0);
   }
 
   onKeyDown = (event) => {
@@ -205,12 +220,12 @@ export default class Input extends Component {
   }
 
   onSubmit = (value) => {
-    this.setValue(value);
-
-    this.props.onSubmit && this.props.onSubmit(value);
+    this.setValue(value, () => {
+      this.props.onSubmit && this.props.onSubmit(value);
+    });
   }
 
-  setValue (value) {
-    this.setState({ value });
+  setValue (value, cb = noop) {
+    this.setState({ value }, cb);
   }
 }

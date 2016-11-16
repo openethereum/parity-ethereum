@@ -38,7 +38,9 @@
 }
 
 .transactionDetails {
-  margin-right: 321px;
+  padding-right: 321px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .isConfirmed {
