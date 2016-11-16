@@ -41,11 +41,11 @@ use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
 use self::message::ConsensusMessage;
-use self::timeout::{TransitionHandler, NextStep};
+use self::timeout::TransitionHandler;
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum Step {
 	Propose,
 	Prevote,
@@ -65,7 +65,7 @@ pub struct Tendermint {
 	params: CommonParams,
 	our_params: TendermintParams,
 	builtins: BTreeMap<Address, Builtin>,
-	step_service: IoService<NextStep>,
+	step_service: IoService<Step>,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
 	/// Blockchain height.
@@ -92,7 +92,7 @@ impl Tendermint {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				step_service: try!(IoService::<NextStep>::start()),
+				step_service: try!(IoService::<Step>::start()),
 				authority: RwLock::new(Address::default()),
 				height: AtomicUsize::new(0),
 				round: AtomicUsize::new(0),
@@ -125,6 +125,14 @@ impl Tendermint {
 		}
 	}
 
+	fn to_step(&self, step: Step) {
+		*self.step.write() = step;
+		match step {
+			Step::Propose => self.update_sealing(),
+			_ => {},
+		}
+	}
+
 	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
 		let ref p = self.our_params;
 		p.authorities.get(proposer_nonce % p.authority_n).unwrap()
@@ -148,11 +156,19 @@ impl Tendermint {
 	}
 
 	fn is_current(&self, message: &ConsensusMessage) -> bool {
-		message.is_step(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), &self.step.read()) 
+		message.is_height(self.height.load(AtomicOrdering::SeqCst)) 
 	}
 
 	fn has_enough_any_votes(&self) -> bool {
-		self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), &self.step.read()) > self.threshold()	
+		self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), *self.step.read()) > self.threshold()	
+	}
+
+	fn has_enough_step_votes(&self, message: &ConsensusMessage) -> bool {
+		self.votes.count_step_votes(message.height, message.round, message.step) > self.threshold()	
+	}
+
+	fn has_enough_aligned_votes(&self, message: &ConsensusMessage) -> bool {
+		self.votes.aligned_signatures(&message).len() > self.threshold()
 	}
 }
 
@@ -272,19 +288,38 @@ impl Engine for Tendermint {
 			try!(Err(BlockError::InvalidSeal));
 		}
 
-		// Check if the message affects the current step.
+		self.votes.vote(message.clone(), sender);
+
+		// Check if the message should be handled right now.
 		if self.is_current(&message) {
-				match *self.step.read() {
-					Step::Prevote => {
-						let votes = self.votes.aligned_signatures(&message);
-						if votes.len() > self.threshold() {
-						}
-					},
-					Step::Precommit => {},
-					_ => {},
+			let next_step = match *self.step.read() {
+				Step::Precommit if self.has_enough_aligned_votes(&message) => {
+					if message.block_hash.is_none() {
+						self.round.fetch_add(1, AtomicOrdering::SeqCst);
+						Some(Step::Propose)
+					} else {
+						Some(Step::Commit)
+					}
+				},
+				Step::Precommit if self.has_enough_step_votes(&message) => {
+					self.round.store(message.round, AtomicOrdering::SeqCst);
+					Some(Step::Precommit)
+				},
+				Step::Prevote if self.has_enough_aligned_votes(&message) => Some(Step::Precommit),
+				Step::Prevote if self.has_enough_step_votes(&message) => {
+					self.round.store(message.round, AtomicOrdering::SeqCst);
+					Some(Step::Prevote)
+				},
+				_ => None,
+			};
+
+			if let Some(step) = next_step {
+				if let Err(io_err) = self.step_service.send_message(step) {
+					warn!(target: "poa", "Could not proceed to next step {}.", io_err)
 				}
+			}
 		}
-		self.votes.vote(message, sender);
+		
 		Err(BlockError::InvalidSeal.into())
 	}
 

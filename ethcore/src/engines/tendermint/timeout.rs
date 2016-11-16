@@ -57,25 +57,22 @@ impl Default for TendermintTimeouts {
 	}
 }
 
-#[derive(Clone)]
-pub struct NextStep(Step);
-
 /// Timer token representing the consensus step timeouts.
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
-fn set_timeout(io: &IoContext<NextStep>, timeout: Duration) {
+fn set_timeout(io: &IoContext<Step>, timeout: Duration) {
 	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, timeout.num_milliseconds() as u64)
 		.unwrap_or_else(|e| warn!(target: "poa", "Failed to set consensus step timeout: {}.", e))
 }
 
-impl IoHandler<NextStep> for TransitionHandler {
-	fn initialize(&self, io: &IoContext<NextStep>) {
+impl IoHandler<Step> for TransitionHandler {
+	fn initialize(&self, io: &IoContext<Step>) {
 		if let Some(engine) = self.engine.upgrade() {
 			set_timeout(io, engine.our_params.timeouts.propose)
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<NextStep>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<Step>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				let next_step = match *engine.step.read() {
@@ -102,32 +99,24 @@ impl IoHandler<NextStep> for TransitionHandler {
 				};
 
 				if let Some(step) = next_step {
-					*engine.step.write() = step.clone();
-					if step == Step::Propose {
-						engine.update_sealing();
-					}
+					engine.to_step(step)
 				}
 			}
 		}
 	}
 
-	fn message(&self, io: &IoContext<NextStep>, message: &NextStep) {
+	fn message(&self, io: &IoContext<Step>, next_step: &Step) {
 		if let Some(engine) = self.engine.upgrade() {
-			match io.clear_timer(ENGINE_TIMEOUT_TOKEN) {
-				Ok(_) => {},
-				Err(io_err) => warn!(target: "poa", "Could not remove consensus timer {}.", io_err),
-			};
-			let NextStep(next_step) = message.clone();
-			*engine.step.write() = next_step.clone();
-			match next_step {
-				Step::Propose => {
-					engine.update_sealing();
-					set_timeout(io, engine.our_params.timeouts.propose)
-				},
+			if let Err(io_err) = io.clear_timer(ENGINE_TIMEOUT_TOKEN) {
+				warn!(target: "poa", "Could not remove consensus timer {}.", io_err)
+			}
+			match *next_step {
+				Step::Propose => set_timeout(io, engine.our_params.timeouts.propose),
 				Step::Prevote => set_timeout(io, engine.our_params.timeouts.prevote),
 				Step::Precommit => set_timeout(io, engine.our_params.timeouts.precommit),
 				Step::Commit => set_timeout(io, engine.our_params.timeouts.commit),
 			};
+			engine.to_step(*next_step);
 		}
 	}
 }

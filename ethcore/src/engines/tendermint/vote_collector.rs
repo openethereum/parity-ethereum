@@ -50,7 +50,7 @@ impl VoteCollector {
 		self.seal_signatures(message.height, message.round, message.block_hash)
 	}
 
-	pub fn count_step_votes(&self, height: Height, round: Round, step: &Step) -> usize {
+	pub fn count_step_votes(&self, height: Height, round: Round, step: Step) -> usize {
 		self.votes
 			.read()
 			.keys()

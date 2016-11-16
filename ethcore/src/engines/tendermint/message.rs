@@ -20,7 +20,7 @@ use util::*;
 use super::{Height, Round, BlockHash, Step};
 use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConsensusMessage {
 	pub signature: H520,
 	pub height: Height,
@@ -30,12 +30,16 @@ pub struct ConsensusMessage {
 }
 
 impl ConsensusMessage {
+	pub fn is_height(&self, height: Height) -> bool {
+		self.height == height
+	}
+
 	pub fn is_round(&self, height: Height, round: Round) -> bool {
 		self.height == height && self.round == round
 	}
 
-	pub fn is_step(&self, height: Height, round: Round, step: &Step) -> bool {
-		self.height == height && self.round == round && &self.step == step
+	pub fn is_step(&self, height: Height, round: Round, step: Step) -> bool {
+		self.height == height && self.round == round && self.step == step
 	}
 
 	pub fn is_aligned(&self, height: Height, round: Round, block_hash: Option<H256>) -> bool {
@@ -79,7 +83,7 @@ impl Decodable for Step {
 		match try!(decoder.as_rlp().as_val()) {
 			0u8 => Ok(Step::Prevote),
 			1 => Ok(Step::Precommit),
-			_ => Err(DecoderError::Custom("Unknown step.")),
+			_ => Err(DecoderError::Custom("Invalid step.")),
 		}
 	}
 }
