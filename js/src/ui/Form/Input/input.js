@@ -182,6 +182,7 @@ export default class Input extends Component {
   }
 
   onChange = (event, value) => {
+    event.persist();
     this.setValue(value, () => {
       this.props.onChange && this.props.onChange(event, value);
     });
