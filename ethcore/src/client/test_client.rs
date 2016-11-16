@@ -119,6 +119,16 @@ impl TestBlockChainClient {
 	/// Creates new test client with specified extra data for each block
 	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
 		let spec = Spec::new_test();
+		TestBlockChainClient::new_with_spec_and_extra(spec, extra_data)
+	}
+
+	/// Create test client with custom spec.
+	pub fn new_with_spec(spec: Spec) -> Self {
+		TestBlockChainClient::new_with_spec_and_extra(spec, Bytes::new())
+	}
+
+	/// Create test client with custom spec and extra data.
+	pub fn new_with_spec_and_extra(spec: Spec, extra_data: Bytes) -> Self {
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
