@@ -43,6 +43,7 @@
 
 mod banning_queue;
 mod external;
+mod local_transactions;
 mod miner;
 mod price_info;
 mod transaction_queue;
