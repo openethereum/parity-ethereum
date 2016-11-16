@@ -39,8 +39,5 @@ pub use self::engine::Engine;
 pub use self::state::State;
 pub use self::ethash::{Ethash, EthashParams};
 pub use self::basic_authority::{BasicAuthority, BasicAuthorityParams};
-<<<<<<< HEAD
-pub use self::tendermint::{Tendermint, TendermintParams};
-=======
 pub use self::authority_round::{AuthorityRound, AuthorityRoundParams};
->>>>>>> parity/master
+pub use self::tendermint::{Tendermint, TendermintParams};

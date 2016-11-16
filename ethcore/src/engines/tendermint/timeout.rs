@@ -16,9 +16,10 @@
 
 //! Tendermint timeout handling.
 
+use util::Mutex;
 use std::sync::atomic::{Ordering as AtomicOrdering};
 use std::sync::Weak;
-use io::{IoContext, IoHandler, TimerToken};
+use io::{IoContext, IoHandler, TimerToken, IoChannel};
 use super::{Tendermint, Step};
 use time::{get_time, Duration};
 use service::ClientIoMessage;
@@ -59,7 +60,7 @@ impl Default for TendermintTimeouts {
 }
 
 #[derive(Clone)]
-pub struct NextStep;
+pub struct NextStep(Step);
 
 /// Timer token representing the consensus step timeouts.
 pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
@@ -67,15 +68,6 @@ pub const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 fn set_timeout(io: &IoContext<NextStep>, timeout: Duration) {
 	io.register_timer_once(ENGINE_TIMEOUT_TOKEN, timeout.num_milliseconds() as u64)
 		.unwrap_or_else(|e| warn!(target: "poa", "Failed to set consensus step timeout: {}.", e))
-}
-
-fn update_sealing(io_channel: Mutex<Option<IoChannel<ClientIoMessage>>>) {
-	if let Some(ref channel) = *io_channel.lock() {
-		match channel.send(ClientIoMessage::UpdateSealing) {
-			Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent for round {}.", engine.round.load(AtomicOrdering::SeqCst)),
-			Err(err) => trace!(target: "poa", "timeout: Could not send a sealing message {} for round {}.", err, engine.round.load(AtomicOrdering::SeqCst)),
-		}
-	}
 }
 
 impl IoHandler<NextStep> for TimerHandler {
@@ -112,18 +104,29 @@ impl IoHandler<NextStep> for TimerHandler {
 				};
 
 				if let Some(step) = next_step {
-					*engine.step.write() = step
+					*engine.step.write() = step;
+					if step == Step::Propose {
+						engine.update_sealing();
+					}
 				}
-
 			}
 		}
 	}
 
-	fn message(&self, io: &IoContext<NextStep>, _net_message: &NextStep) {
+	fn message(&self, io: &IoContext<NextStep>, message: &NextStep) {
 		if let Some(engine) = self.engine.upgrade() {
-			println!("Message: {:?}", get_time().sec);
-			io.clear_timer(ENGINE_TIMEOUT_TOKEN).expect("Failed to restart consensus step timer.");
-			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.next_timeout()).expect("Failed to restart consensus step timer.")
+			io.clear_timer(ENGINE_TIMEOUT_TOKEN);
+			let NextStep(next_step) = *message;
+			*engine.step.write() = next_step;
+			match next_step {
+				Step::Propose => {
+					engine.update_sealing();
+					set_timeout(io, engine.our_params.timeouts.propose)
+				},
+				Step::Prevote => set_timeout(io, engine.our_params.timeouts.prevote),
+				Step::Precommit => set_timeout(io, engine.our_params.timeouts.precommit),
+				Step::Commit => set_timeout(io, engine.our_params.timeouts.commit),
+			};
 		}
 	}
 }

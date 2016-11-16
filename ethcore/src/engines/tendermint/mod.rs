@@ -38,13 +38,14 @@ use engines::{Engine, EngineError, ProposeCollect};
 use blockchain::extras::BlockDetails;
 use views::HeaderView;
 use evm::Schedule;
-use io::IoService;
+use io::{IoService, IoChannel};
+use service::ClientIoMessage;
 use self::message::ConsensusMessage;
 use self::timeout::{TimerHandler, NextStep};
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Step {
 	Propose,
 	Prevote,
@@ -64,7 +65,7 @@ pub struct Tendermint {
 	params: CommonParams,
 	our_params: TendermintParams,
 	builtins: BTreeMap<Address, Builtin>,
-	timeout_service: IoService<NextStep>,
+	step_service: IoService<NextStep>,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
 	/// Blockchain height.
@@ -77,6 +78,8 @@ pub struct Tendermint {
 	proposer_nonce: AtomicUsize,
 	/// Vote accumulator.
 	votes: VoteCollector,
+	/// Proposed block held until seal is gathered.
+	proposed_block: Mutex<Option<ExecutedBlock>>,
 	/// Channel for updating the sealing.
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>
 }
@@ -89,18 +92,28 @@ impl Tendermint {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				timeout_service: try!(IoService::<NextStep>::start()),
+				step_service: try!(IoService::<NextStep>::start()),
 				authority: RwLock::new(Address::default()),
 				height: AtomicUsize::new(0),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0),
 				votes: VoteCollector::new(),
+				proposed_block: Mutex::new(None),
 				message_channel: Mutex::new(None)
 			});
 		let handler = TimerHandler { engine: Arc::downgrade(&engine) };
-		try!(engine.timeout_service.register_handler(Arc::new(handler)));
+		try!(engine.step_service.register_handler(Arc::new(handler)));
 		Ok(engine)
+	}
+
+	fn update_sealing(&self) {
+		if let Some(ref channel) = *self.message_channel.lock() {
+			match channel.send(ClientIoMessage::UpdateSealing) {
+				Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent."),
+				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+			}
+		}
 	}
 
 	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
@@ -191,7 +204,6 @@ impl Engine for Tendermint {
 	}
 
 	/// Set the correct round in the seal.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
 	fn on_close_block(&self, block: &mut ExecutedBlock) {
 		let round = self.round.load(AtomicOrdering::SeqCst);
 		block.fields_mut().header.set_seal(vec![::rlp::encode(&round).to_vec(), Vec::new(), Vec::new()]);
