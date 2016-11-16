@@ -27,15 +27,13 @@ const initialState = {
   contract: {
     address: null,
     instance: null,
-    raw: null,
     owner: null,
     isOwner: false,
     fee: null
   },
   githubhint: {
     address: null,
-    instance: null,
-    raw: null
+    instance: null
   }
 };
 
