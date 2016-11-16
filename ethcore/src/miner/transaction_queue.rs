@@ -86,12 +86,13 @@ use std::ops::Deref;
 use std::cmp::Ordering;
 use std::cmp;
 use std::collections::{HashSet, HashMap, BTreeSet, BTreeMap};
+use linked_hash_map::LinkedHashMap;
 use util::{Address, H256, Uint, U256};
 use util::table::Table;
 use transaction::*;
 use error::{Error, TransactionError};
 use client::TransactionImportResult;
-use miner::local_transactions::LocalTransactionsList;
+use miner::local_transactions::{LocalTransactionsList, Status as LocalTransactionStatus};
 
 /// Transaction origin
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -899,6 +900,11 @@ impl TransactionQueue {
 			.map(|t| self.by_hash.get(&t.hash).expect("All transactions in `current` and `future` are always included in `by_hash`"))
 			.map(|t| t.transaction.clone())
 			.collect()
+	}
+
+	/// Returns local transactions (some of them might not be part of the queue anymore).
+	pub fn local_transactions(&self) -> &LinkedHashMap<H256, LocalTransactionStatus> {
+		self.local_transactions.all_transactions()
 	}
 
 	#[cfg(test)]

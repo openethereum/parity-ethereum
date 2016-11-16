@@ -52,6 +52,7 @@ mod work_notify;
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+pub use self::local_transactions::{Status as LocalTransactionStatus};
 pub use client::TransactionImportResult;
 
 use std::collections::BTreeMap;
@@ -145,6 +146,9 @@ pub trait MinerService : Send + Sync {
 
 	/// Get a list of all pending transactions.
 	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction>;
+
+	/// Get a list of local transactions with statuses.
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus>;
 
 	/// Get a list of all pending receipts.
 	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt>;

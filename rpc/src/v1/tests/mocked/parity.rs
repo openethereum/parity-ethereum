@@ -18,8 +18,9 @@ use std::sync::Arc;
 use util::log::RotatingLogger;
 use util::Address;
 use ethsync::ManageNetwork;
-use ethcore::client::{TestBlockChainClient};
 use ethcore::account_provider::AccountProvider;
+use ethcore::client::{TestBlockChainClient};
+use ethcore::miner::LocalTransactionStatus;
 use ethstore::ethkey::{Generator, Random};
 
 use jsonrpc_core::IoHandler;
@@ -363,6 +364,19 @@ fn rpc_parity_transactions_stats() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_pendingTransactionsStats", "params":[], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"0x0000000000000000000000000000000000000000000000000000000000000001":{"firstSeen":10,"propagatedTo":{"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000080":16}},"0x0000000000000000000000000000000000000000000000000000000000000005":{"firstSeen":16,"propagatedTo":{"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000010":1}}},"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+}
+
+#[test]
+fn rpc_parity_local_transactions() {
+	let deps = Dependencies::new();
+	let io = deps.default_client();
+	deps.miner.local_transactions.lock().insert(10.into(), LocalTransactionStatus::Pending);
+	deps.miner.local_transactions.lock().insert(15.into(), LocalTransactionStatus::Future);
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_localTransactions", "params":[], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"0x000000000000000000000000000000000000000000000000000000000000000a":{"status":"pending"},"0x000000000000000000000000000000000000000000000000000000000000000f":{"status":"future"}},"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
 }

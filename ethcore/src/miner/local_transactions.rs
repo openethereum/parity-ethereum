@@ -21,6 +21,9 @@ use transaction::SignedTransaction;
 use error::TransactionError;
 use util::{U256, H256};
 
+/// Status of local transaction.
+/// Can indicate that the transaction is currently part of the queue (`Pending/Future`)
+/// or gives a reason why the transaction was removed.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Status {
 	/// The transaction is currently in the transaction queue.

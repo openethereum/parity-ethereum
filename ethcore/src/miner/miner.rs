@@ -23,6 +23,7 @@ use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
 use error::*;
@@ -33,9 +34,10 @@ use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
-use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
+use miner::local_transactions::{Status as LocalTransactionStatus};
 use header::BlockNumber;
+
 
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
@@ -843,6 +845,14 @@ impl MinerService for Miner {
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
 		queue.top_transactions()
+	}
+
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		let queue = self.transaction_queue.lock();
+		queue.local_transactions()
+			.iter()
+			.map(|(hash, status)| (*hash, status.clone()))
+			.collect()
 	}
 
 	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {
