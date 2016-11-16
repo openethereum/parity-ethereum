@@ -41,16 +41,16 @@
 //! }
 //! ```
 
-mod miner;
-mod external;
-mod transaction_queue;
 mod banning_queue;
-mod work_notify;
+mod external;
+mod miner;
 mod price_info;
+mod transaction_queue;
+mod work_notify;
 
-pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::external::{ExternalMiner, ExternalMinerService};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
+pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 pub use client::TransactionImportResult;
 
 use std::collections::BTreeMap;

@@ -262,7 +262,7 @@ impl Client {
 		}
 	}
 
-	/// Register an action to be done if a mode change happens. 
+	/// Register an action to be done if a mode change happens.
 	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
 		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
@@ -890,7 +890,7 @@ impl BlockChainClient for Client {
 					trace!(target: "mode", "Making callback...");
 					f(&*mode)
 				},
-				_ => {} 
+				_ => {}
 			}
 		}
 		match new_mode {

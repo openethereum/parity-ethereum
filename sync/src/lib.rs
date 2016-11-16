@@ -51,6 +51,7 @@ mod blocks;
 mod block_sync;
 mod sync_io;
 mod snapshot;
+mod transactions_stats;
 
 #[cfg(test)]
 mod tests;
