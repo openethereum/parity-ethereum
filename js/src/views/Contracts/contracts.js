@@ -82,6 +82,7 @@ class Contracts extends Component {
     return (
       <ActionbarSort
         key='sortAccounts'
+        id='sortContracts'
         order={ this.state.sortOrder }
         metas={ [
           { key: 'timestamp', label: 'date' }

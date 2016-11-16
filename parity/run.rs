@@ -235,6 +235,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
 
+	// drop the spec to free up genesis state.
+	drop(spec);
+
 	// forward panics from service
 	panic_handler.forward_from(&service);
 

@@ -46,3 +46,9 @@
 .icon {
   margin: 0 0 -4px 1em;
 }
+
+.byline {
+  opacity: 0.75;
+  font-size: 0.75em;
+  padding-top: 0.25em;
+}

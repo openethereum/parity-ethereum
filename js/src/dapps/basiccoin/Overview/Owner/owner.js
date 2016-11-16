@@ -68,6 +68,9 @@ export default class Owner extends Component {
         <Token
           address={ token.address }
           tokenreg={ token.tokenreg } />
+        <div className={ styles.byline }>
+          { token.address }
+        </div>
       </div>
     ));
   }

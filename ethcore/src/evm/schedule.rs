@@ -70,6 +70,8 @@ pub struct Schedule {
 	pub quad_coeff_div: usize,
 	/// Cost for contract length when executing `CREATE`
 	pub create_data_gas: usize,
+	/// Maximum code size when creating a contract.
+	pub create_data_limit: usize,
 	/// Transaction cost
 	pub tx_gas: usize,
 	/// `CREATE` transaction cost
@@ -111,7 +113,7 @@ impl Schedule {
 	}
 
 	/// Schedule for the post-EIP-150-era of the Ethereum main net.
-	pub fn new_post_eip150(fix_exp: bool, no_empty: bool, kill_empty: bool) -> Schedule {
+	pub fn new_post_eip150(max_code_size: usize, fix_exp: bool, no_empty: bool, kill_empty: bool) -> Schedule {
 		Schedule {
 			exceptional_failed_code_deposit: true,
 			have_delegate_call: true,
@@ -139,6 +141,7 @@ impl Schedule {
 			memory_gas: 3,
 			quad_coeff_div: 512,
 			create_data_gas: 200,
+			create_data_limit: max_code_size,
 			tx_gas: 21000,
 			tx_create_gas: 53000,
 			tx_data_zero_gas: 4,
@@ -183,6 +186,7 @@ impl Schedule {
 			memory_gas: 3,
 			quad_coeff_div: 512,
 			create_data_gas: 200,
+			create_data_limit: usize::max_value(),
 			tx_gas: 21000,
 			tx_create_gas: tcg,
 			tx_data_zero_gas: 4,

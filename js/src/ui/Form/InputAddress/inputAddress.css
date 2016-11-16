@@ -30,6 +30,10 @@
 .iconDisabled {
   position: absolute;
   top: 35px;
+
+  &.noLabel {
+    top: 10px;
+  }
 }
 
 .icon {
