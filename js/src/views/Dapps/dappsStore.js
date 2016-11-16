@@ -186,7 +186,7 @@ export default class DappsStore {
                 contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
                 manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
                 type: 'network',
-                visible: false
+                visible: true
               };
 
               return app;

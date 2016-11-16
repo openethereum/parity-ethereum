@@ -37,6 +37,12 @@ export default class Dapps extends Component {
   store = new DappsStore(this.context.api);
 
   render () {
+    const externalOverlay = (
+      <div className={ styles.overlay }>
+        dismiss me
+      </div>
+    );
+
     return (
       <div>
         <AddDapps store={ this.store } />
@@ -53,10 +59,23 @@ export default class Dapps extends Component {
           ] }
         />
         <Page>
-          <div className={ styles.list }>
-            { this.store.visibleApps.map(this.renderApp) }
-          </div>
+          { this.renderList(this.store.sortedLocal) }
+          { this.renderList(this.store.sortedBuiltin) }
+          { this.renderList(this.store.sortedNetwork, externalOverlay) }
         </Page>
+      </div>
+    );
+  }
+
+  renderList (items, overlay) {
+    if (!items || !items.length) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.list }>
+        { overlay }
+        { items.map(this.renderApp) }
       </div>
     );
   }
