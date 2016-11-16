@@ -32,7 +32,7 @@
 }
 
 .overlay {
-  background: rgba(50, 50, 50, 0.85);
+  background: rgba(0, 0, 0, 0.85);
   bottom: 0.5em;
   left: -0.25em;
   position: absolute;
@@ -40,4 +40,15 @@
   top: -0.25em;
   z-index: 100;
   padding: 1em;
+
+  .body {
+    line-height: 1.5em;
+    margin: 0 auto;
+    text-align: left;
+    max-width: 980px;
+
+    &>div:first-child {
+      padding-bottom: 1em;
+    }
+  }
 }

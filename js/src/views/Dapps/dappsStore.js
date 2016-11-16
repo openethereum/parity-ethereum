@@ -24,15 +24,18 @@ import { hashToImageUrl } from '../../redux/util';
 import builtinApps from './builtin.json';
 
 const LS_KEY_DISPLAY = 'displayApps';
+const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';
 
 export default class DappsStore {
   @observable apps = [];
   @observable displayApps = {};
   @observable modalOpen = false;
+  @observable externalOverlayVisible = true;
 
   constructor (api) {
     this._api = api;
 
+    this.loadExternalOverlay();
     this.readDisplayApps();
 
     Promise
@@ -78,6 +81,15 @@ export default class DappsStore {
 
   @action closeModal = () => {
     this.modalOpen = false;
+  }
+
+  @action closeExternalOverlay = () => {
+    this.externalOverlayVisible = false;
+    store.set(LS_KEY_EXTERNAL_ACCEPT, true);
+  }
+
+  @action loadExternalOverlay () {
+    this.externalOverlayVisible = !(store.get(LS_KEY_EXTERNAL_ACCEPT) || false);
   }
 
   @action hideApp = (id) => {
