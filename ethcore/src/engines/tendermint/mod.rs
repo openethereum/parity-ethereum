@@ -81,7 +81,11 @@ pub struct Tendermint {
 	/// Proposed block held until seal is gathered.
 	proposed_block: Mutex<Option<ExecutedBlock>>,
 	/// Channel for updating the sealing.
-	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>
+	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
+	/// Last round when PoLC was seen.
+	last_lock_round: RwLock<ConsensusMessage>,
+	/// Proposed block.
+	proposal: RwLock<Option<H256>>
 }
 
 impl Tendermint {
@@ -100,7 +104,9 @@ impl Tendermint {
 				proposer_nonce: AtomicUsize::new(0),
 				votes: VoteCollector::new(),
 				proposed_block: Mutex::new(None),
-				message_channel: Mutex::new(None)
+				message_channel: Mutex::new(None),
+				last_lock_round: AtomicUsize::new(0),
+				proposal: RwLock::new(None)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.step_service.register_handler(Arc::new(handler)));
@@ -137,7 +143,10 @@ impl Tendermint {
 	fn to_step(&self, step: Step) {
 		*self.step.write() = step;
 		match step {
-			Step::Propose => self.update_sealing(),
+			Step::Propose => {
+				self.proposal.write() = None;
+				self.update_sealing()
+			},
 			Step::Prevote => {
 				self.broadcast_message()
 			},
@@ -153,7 +162,7 @@ impl Tendermint {
 						::rlp::encode(proposer).to_vec(),
 						::rlp::encode(&votes).to_vec()
 					];
-					self.submit_seal(seal)
+					self.submit_seal(self.proposal.read(), seal)
 				}
 			},
 		}
@@ -198,7 +207,7 @@ impl Tendermint {
 	}
 }
 
-/// Block hash including the consensus round.
+/// Block hash including the consensus round, gets signed and included in the seal.
 fn block_hash(header: &Header) -> H256 {
 	header.rlp(Seal::WithSome(1)).sha3()
 }
@@ -271,6 +280,7 @@ impl Engine for Tendermint {
 			let header = block.header();
 			let author = header.author();
 			if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
+				self.proposal.write() = Some(block.hash());
 				Some(vec![
 					::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
 					::rlp::encode(&H520::from(signature)).to_vec(),
