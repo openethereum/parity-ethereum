@@ -518,7 +518,7 @@ impl<K: Kind> VerificationQueue<K> {
 	pub fn collect_garbage(&self) {
 		// number of ticks to average queue stats over
 		// when deciding whether to change the number of verifiers.
-		const READJUSTMENT_PERIOD: usize = 5;
+		const READJUSTMENT_PERIOD: usize = 12;
 
 		{
 			self.verification.unverified.lock().shrink_to_fit();
