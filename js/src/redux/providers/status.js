@@ -25,31 +25,19 @@ export default class Status {
     this._pingable = false;
     this._apiStatus = {};
     this._status = {};
+    this._longStatus = {};
+    this._minerSettings = {};
 
     this._pollPingTimeoutId = null;
+    this._longStatusTimeoutId = null;
   }
 
   start () {
     this._subscribeBlockNumber();
     this._pollPing();
     this._pollStatus();
+    this._pollLongStatus();
     this._pollLogs();
-    this._fetchEnode();
-  }
-
-  _fetchEnode () {
-    this._api.parity
-      .enode()
-      .then((enode) => {
-        if (this._store.state.nodeStatus.enode !== enode) {
-          this._store.dispatch(statusCollection({ enode }));
-        }
-      })
-      .catch(() => {
-        window.setTimeout(() => {
-          this._fetchEnode();
-        }, 1000);
-      });
   }
 
   _subscribeBlockNumber () {
@@ -121,11 +109,11 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
-
     const nextTimeout = (timeout = 1000) => {
       setTimeout(this._pollStatus, timeout);
     };
+
+    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
 
     const apiStatus = {
       isConnected,
@@ -133,6 +121,12 @@ export default class Status {
       needsToken,
       secureToken
     };
+
+    const gotReconnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+
+    if (gotReconnected) {
+      this._pollLongStatus();
+    }
 
     if (!isEqual(apiStatus, this._apiStatus)) {
       this._store.dispatch(statusCollection(apiStatus));
@@ -147,57 +141,130 @@ export default class Status {
     }
 
     if (!isConnected) {
-      nextTimeout(250);
-      return;
+      return nextTimeout(250);
+    }
+
+    const { refreshStatus } = this._store.getState().nodeStatus;
+
+    const statusPromises = [ this._api.eth.syncing() ];
+
+    if (refreshStatus) {
+      statusPromises.push(this._api.eth.hashrate());
+      statusPromises.push(this._api.parity.netPeers());
     }
 
     Promise
-      .all([
-        this._api.web3.clientVersion(),
-        this._api.eth.coinbase(),
-        this._api.parity.defaultExtraData(),
-        this._api.parity.extraData(),
-        this._api.parity.gasFloorTarget(),
-        this._api.eth.hashrate(),
-        this._api.parity.minGasPrice(),
-        this._api.parity.netChain(),
-        this._api.parity.netPeers(),
-        this._api.parity.netPort(),
-        this._api.parity.nodeName(),
-        this._api.parity.rpcSettings(),
-        this._api.eth.syncing()
-      ])
-      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
-        const isTest = netChain === 'morden' || netChain === 'testnet';
-
-        const status = {
-          clientVersion,
-          coinbase,
-          defaultExtraData,
-          extraData,
-          gasFloorTarget,
-          hashrate,
-          minGasPrice,
-          netChain,
-          netPeers,
-          netPort,
-          nodeName,
-          rpcSettings,
-          syncing,
-          isTest,
-          traceMode
-        };
+      .all(statusPromises)
+      .then((statusResults) => {
+        const status = statusResults.length === 1
+          ? {
+            syncing: statusResults[0]
+          }
+          : {
+            syncing: statusResults[0],
+            hashrate: statusResults[1],
+            netPeers: statusResults[2]
+          };
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
           this._status = status;
         }
+
+        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
+        nextTimeout(250);
       });
+  }
 
-    nextTimeout();
+  /**
+   * Miner settings should never changes unless
+   * Parity is restarted, or if the values are changed
+   * from the UI
+   */
+  _pollMinerSettings = () => {
+    Promise
+      .all([
+        this._api.eth.coinbase(),
+        this._api.parity.extraData(),
+        this._api.parity.minGasPrice(),
+        this._api.parity.gasFloorTarget()
+      ])
+      .then(([
+        coinbase, extraData, minGasPrice, gasFloorTarget
+      ]) => {
+        const minerSettings = {
+          coinbase,
+          extraData,
+          minGasPrice,
+          gasFloorTarget
+        };
+
+        if (!isEqual(minerSettings, this._minerSettings)) {
+          this._store.dispatch(statusCollection(minerSettings));
+          this._minerSettings = minerSettings;
+        }
+      })
+      .catch((error) => {
+        console.error('_pollMinerSettings', error);
+      });
+  }
+
+  /**
+   * The data fetched here should not change
+   * unless Parity is restarted. They are thus
+   * fetched every 30s just in case, and whenever
+   * the client got reconnected.
+   */
+  _pollLongStatus = () => {
+    const nextTimeout = (timeout = 30000) => {
+      if (this._longStatusTimeoutId) {
+        clearTimeout(this._longStatusTimeoutId);
+      }
+
+      this._longStatusTimeoutId = setTimeout(this._pollLongStatus, timeout);
+    };
+
+    // Poll Miner settings just in case
+    this._pollMinerSettings();
+
+    Promise
+      .all([
+        this._api.web3.clientVersion(),
+        this._api.parity.defaultExtraData(),
+        this._api.parity.netChain(),
+        this._api.parity.netPort(),
+        this._api.parity.rpcSettings(),
+        this._api.parity.enode()
+      ])
+      .then(([
+        clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+      ]) => {
+        const isTest = netChain === 'morden' || netChain === 'testnet';
+
+        const longStatus = {
+          clientVersion,
+          defaultExtraData,
+          netChain,
+          netPort,
+          rpcSettings,
+          enode,
+          isTest
+        };
+
+        if (!isEqual(longStatus, this._longStatus)) {
+          this._store.dispatch(statusCollection(longStatus));
+          this._longStatus = longStatus;
+        }
+
+        nextTimeout();
+      })
+      .catch((error) => {
+        console.error('_pollLongStatus', error);
+        nextTimeout(250);
+      });
   }
 
   _pollLogs = () => {
