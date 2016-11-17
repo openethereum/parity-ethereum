@@ -126,6 +126,8 @@ export default class ParametersStep extends Component {
 
     return (
       <div>
+        <p>To get <code>solc</code> output, you can use this command:</p>
+        <code>solc --combined-json abi,bin Contract.sol | xclip -selection c</code>
         <Input
           label='solc output'
           hint='the output of solc'
@@ -232,6 +234,8 @@ export default class ParametersStep extends Component {
       });
     } catch (e) {
       this.setState({ contracts: null });
+      this.onAbiChange('');
+      this.onCodeChange('');
     }
 
     this.setState({ solcOutput: value });
