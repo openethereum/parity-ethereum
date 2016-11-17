@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import nullable from '../../../util/nullable-proptype';
 import BigNumber from 'bignumber.js';
 import { Checkbox } from 'material-ui';
 import InfoIcon from 'material-ui/svg-icons/action/info-outline';
@@ -26,8 +27,6 @@ import { Form, Input } from '../../../ui';
 
 import terms from '../terms-of-service';
 import styles from './gatherData.css';
-
-const nullable = (type) => PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
 
 export default class GatherData extends Component {
   static propTypes = {

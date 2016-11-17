@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import nullable from '../../../util/nullable-proptype';
 
 import TxHash from '../../../ui/TxHash';
 import {
@@ -22,9 +23,6 @@ import {
 } from '../store';
 
 import styles from './sendRequest.css';
-
-// TODO: move this to a better place
-const nullable = (type) => PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
 
 export default class SendRequest extends Component {
   static propTypes = {
