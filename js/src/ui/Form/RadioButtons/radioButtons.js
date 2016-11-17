@@ -39,7 +39,7 @@ export default class RadioButtons extends Component {
 
     const index = parseInt(value);
     const selectedValue = typeof value !== 'object' ? values[index] : value;
-    const key = (typeof selectedValue !== 'string' && selectedValue.key) || index;
+    const key = this.getKey(selectedValue, index);
 
     return (
       <RadioButtonGroup
@@ -58,7 +58,7 @@ export default class RadioButtons extends Component {
     return values.map((value, index) => {
       const label = typeof value === 'string' ? value : value.label || '';
       const description = (typeof value !== 'string' && value.description) || null;
-      const key = (typeof value !== 'string' && value.key) || index;
+      const key = this.getKey(value, index);
 
       return (
         <RadioButton
@@ -83,10 +83,18 @@ export default class RadioButtons extends Component {
     });
   }
 
+  getKey (value, index) {
+    if (typeof value !== 'string') {
+      return typeof value.key === 'undefined' ? index : value.key;
+    }
+
+    return index;
+  }
+
   onChange = (event, index) => {
     const { onChange, values } = this.props;
 
-    const value = values[index];
+    const value = values[index] || values.find((v) => v.key === index);
     onChange(value, index);
   }
 }

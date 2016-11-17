@@ -16,11 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { AddressSelect, Form, Input, TypedInput } from '../../../ui';
-import { validateAbi } from '../../../util/validation';
-import { parseAbiType } from '../../../util/abi';
-
-import styles from '../deployContract.css';
+import { AddressSelect, Form, Input, RadioButtons } from '../../../ui';
 
 export default class DetailsStep extends Component {
   static contextTypes = {
@@ -29,24 +25,17 @@ export default class DetailsStep extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    abi: PropTypes.string,
-    abiError: PropTypes.string,
-    code: PropTypes.string,
-    codeError: PropTypes.string,
-    description: PropTypes.string,
-    descriptionError: PropTypes.string,
+    inputTypeValues: PropTypes.array.isRequired,
+
+    onFromAddressChange: PropTypes.func.isRequired,
+    onNameChange: PropTypes.func.isRequired,
+    onInputTypeChange: PropTypes.func.isRequired,
+
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
-    params: PropTypes.array,
-    paramsError: PropTypes.array,
-    onAbiChange: PropTypes.func.isRequired,
-    onCodeChange: PropTypes.func.isRequired,
-    onFromAddressChange: PropTypes.func.isRequired,
-    onDescriptionChange: PropTypes.func.isRequired,
-    onNameChange: PropTypes.func.isRequired,
-    onParamsChange: PropTypes.func.isRequired,
+    inputType: PropTypes.object,
     readOnly: PropTypes.bool
   };
 
@@ -54,25 +43,9 @@ export default class DetailsStep extends Component {
     readOnly: false
   };
 
-  state = {
-    inputs: []
-  }
-
-  componentDidMount () {
-    const { abi, code } = this.props;
-
-    if (abi) {
-      this.onAbiChange(abi);
-    }
-
-    if (code) {
-      this.onCodeChange(code);
-    }
-  }
-
   render () {
     const { accounts } = this.props;
-    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError, readOnly } = this.props;
+    const { fromAddress, fromAddressError, name, nameError } = this.props;
 
     return (
       <Form>
@@ -83,61 +56,40 @@ export default class DetailsStep extends Component {
           error={ fromAddressError }
           accounts={ accounts }
           onChange={ this.onFromAddressChange } />
+
         <Input
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
           value={ name }
           onSubmit={ this.onNameChange } />
-        <Input
-          label='abi'
-          hint='the abi of the contract to deploy'
-          error={ abiError }
-          value={ abi }
-          onSubmit={ this.onAbiChange }
-          readOnly={ readOnly } />
-        <Input
-          label='code'
-          hint='the compiled code of the contract to deploy'
-          error={ codeError }
-          value={ code }
-          onSubmit={ this.onCodeChange }
-          readOnly={ readOnly } />
 
-        { this.renderConstructorInputs() }
+        { this.renderChooseInputType() }
       </Form>
     );
   }
 
-  renderConstructorInputs () {
-    const { accounts, params, paramsError } = this.props;
-    const { inputs } = this.state;
+  renderChooseInputType () {
+    const { readOnly } = this.props;
 
-    if (!inputs || !inputs.length) {
+    if (readOnly) {
       return null;
     }
 
-    return inputs.map((input, index) => {
-      const onChange = (value) => this.onParamChange(index, value);
+    const { inputTypeValues, inputType } = this.props;
 
-      const label = `${input.name ? `${input.name}: ` : ''}${input.type}`;
-      const value = params[index];
-      const error = paramsError[index];
-      const param = parseAbiType(input.type);
-
-      return (
-        <div key={ index } className={ styles.funcparams }>
-          <TypedInput
-            label={ label }
-            value={ value }
-            error={ error }
-            accounts={ accounts }
-            onChange={ onChange }
-            param={ param }
-          />
-        </div>
-      );
-    });
+    return (
+      <div>
+        <br />
+        <p>Choose how ABI and Bytecode will be entered</p>
+        <RadioButtons
+          name='contractInputType'
+          value={ inputType }
+          values={ inputTypeValues }
+          onChange={ this.onInputTypeChange }
+        />
+      </div>
+    );
   }
 
   onFromAddressChange = (event, fromAddress) => {
@@ -152,42 +104,8 @@ export default class DetailsStep extends Component {
     onNameChange(name);
   }
 
-  onParamChange = (index, value) => {
-    const { params, onParamsChange } = this.props;
-
-    params[index] = value;
-    onParamsChange(params);
-  }
-
-  onAbiChange = (abi) => {
-    const { api } = this.context;
-    const { onAbiChange, onParamsChange } = this.props;
-    const { abiError, abiParsed } = validateAbi(abi, api);
-
-    if (!abiError) {
-      const { inputs } = abiParsed
-        .find((method) => method.type === 'constructor') || { inputs: [] };
-
-      const params = [];
-
-      inputs.forEach((input) => {
-        const param = parseAbiType(input.type);
-        params.push(param.default);
-      });
-
-      onParamsChange(params);
-      this.setState({ inputs });
-    } else {
-      onParamsChange([]);
-      this.setState({ inputs: [] });
-    }
-
-    onAbiChange(abi);
-  }
-
-  onCodeChange = (code) => {
-    const { onCodeChange } = this.props;
-
-    onCodeChange(code);
+  onInputTypeChange = (inputType, index) => {
+    const { onInputTypeChange } = this.props;
+    onInputTypeChange(inputType, index);
   }
 }
