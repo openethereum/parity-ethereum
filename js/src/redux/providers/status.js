@@ -25,6 +25,8 @@ export default class Status {
     this._pingable = false;
     this._apiStatus = {};
     this._status = {};
+
+    this._pollPingTimeoutId = null;
   }
 
   start () {
@@ -64,14 +66,43 @@ export default class Status {
       });
   }
 
+  /**
+   * Pinging should be smart. It should only
+   * be used when the UI is connecting or the
+   * Node is deconnected.
+   *
+   * @see src/views/Connection/connection.js
+   */
+  _shouldPing = () => {
+    const { isConnected, isConnecting } = this._apiStatus;
+    return isConnecting || !isConnected;
+  }
+
+  _stopPollPing = () => {
+    if (!this._pollPingTimeoutId) {
+      return;
+    }
+
+    clearTimeout(this._pollPingTimeoutId);
+    this._pollPingTimeoutId = null;
+  }
+
   _pollPing = () => {
-    const dispatch = (pingable, timeout = 500) => {
+    // Already pinging, don't try again
+    if (this._pollPingTimeoutId) {
+      return;
+    }
+
+    const dispatch = (pingable, timeout = 1000) => {
       if (pingable !== this._pingable) {
         this._pingable = pingable;
         this._store.dispatch(statusCollection({ isPingable: pingable }));
       }
 
-      setTimeout(this._pollPing, timeout);
+      this._pollPingTimeoutId = setTimeout(() => {
+        this._stopPollPing();
+        this._pollPing();
+      }, timeout);
     };
 
     fetch('/', { method: 'HEAD' })
@@ -106,6 +137,13 @@ export default class Status {
     if (!isEqual(apiStatus, this._apiStatus)) {
       this._store.dispatch(statusCollection(apiStatus));
       this._apiStatus = apiStatus;
+    }
+
+    // Ping if necessary, otherwise stop pinging
+    if (this._shouldPing()) {
+      this._pollPing();
+    } else {
+      this._stopPollPing();
     }
 
     if (!isConnected) {
