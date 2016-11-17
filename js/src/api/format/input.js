@@ -162,3 +162,11 @@ export function inTraceFilter (filterObject) {
 
   return filterObject;
 }
+
+export function inTraceType (whatTrace) {
+  if (isString(whatTrace)) {
+    return [whatTrace];
+  }
+
+  return whatTrace;
+}
