@@ -301,9 +301,14 @@ impl BlockCollection {
 		self.heads.len() == 0 || (self.heads.len() == 1 && self.head.map_or(false, |h| h == self.heads[0]))
 	}
 
-	/// Chech is collection contains a block header.
+	/// Check if collection contains a block header.
 	pub fn contains(&self, hash: &H256) -> bool {
 		self.blocks.contains_key(hash)
+	}
+
+	/// Check if collection contains a block header.
+	pub fn contains_head(&self, hash: &H256) -> bool {
+		self.heads.contains(hash)
 	}
 
 	/// Return used heap size.
