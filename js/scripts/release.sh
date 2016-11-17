@@ -73,6 +73,7 @@ cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"
+git add js
 git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
