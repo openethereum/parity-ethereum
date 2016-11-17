@@ -37,7 +37,7 @@
 /// Workflow for `ChainHead` state.
 /// In this state we try to get subchain headers with a single `GetBlockHeaders` request.
 /// On `NewPeer` / On `Restart`:
-/// 	If peer's total difficulty is higher, request N/M headers with interval M+1 starting from l
+/// 	If peer's total difficulty is higher and there are less than 5 peers downloading, request N/M headers with interval M+1 starting from l
 /// On `BlockHeaders(R)`:
 /// 	If R is empty:
 /// If l is equal to genesis block hash or l is more than 1000 blocks behind our best hash:
@@ -49,8 +49,8 @@
 /// Else
 /// 	Set S to R, set s to `Blocks`.
 ///
-///
 /// All other messages are ignored.
+///
 /// Workflow for `Blocks` state.
 /// In this state we download block headers and bodies from multiple peers.
 /// On `NewPeer` / On `Restart`:
@@ -62,7 +62,9 @@
 ///
 /// On `BlockHeaders(R)`:
 /// If R is empty remove current peer from P and restart.
-/// 	Validate received headers. For each header find a parent in H or R or the blockchain. Restart if there is a block with unknown parent.
+/// 	Validate received headers:
+/// 		For each header find a parent in H or R or the blockchain. Restart if there is a block with unknown parent.
+/// 		Find at least one header from the received list in S. Restart if there is none.
 /// Go to `CollectBlocks`.
 ///
 /// On `BlockBodies(R)`:
