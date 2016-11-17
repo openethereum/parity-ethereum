@@ -83,7 +83,9 @@ export default class SMSVerification extends Component {
         onClick={ onClose }
       />
     );
-    if (error) return (<div>{ cancel }</div>);
+    if (error) {
+      return (<div>{ cancel }</div>);
+    }
 
     if (phase === 4) {
       return (
@@ -100,14 +102,19 @@ export default class SMSVerification extends Component {
     }
 
     let action;
-    if (phase === 3) {
-      action = store.done;
-    } else if (phase === 2) {
-      action = store.sendConfirmation;
-    } else if (phase === 1) {
-      action = store.queryCode;
-    } else if (phase === 0) {
-      action = store.sendRequest;
+    switch (phase) {
+      case 0:
+        action = store.sendRequest;
+        break;
+      case 1:
+        action = store.queryCode;
+        break;
+      case 2:
+        action = store.sendConfirmation;
+        break;
+      case 3:
+        action = store.done;
+        break;
     }
 
     return (
@@ -124,7 +131,9 @@ export default class SMSVerification extends Component {
   }
 
   renderStep (phase, error) {
-    if (error) return (<p>{ error }</p>);
+    if (error) {
+      return (<p>{ error }</p>);
+    }
 
     const {
       step,

@@ -35,23 +35,25 @@ export default class SendRequest extends Component {
   render () {
     const { step, tx } = this.props;
 
-    if (step === POSTING_REQUEST) {
-      return (<p>A verification request will be sent to the contract. Please authorize this using the Parity Signer.</p>);
-    }
+    switch (step) {
+      case POSTING_REQUEST:
+        return (<p>A verification request will be sent to the contract. Please authorize this using the Parity Signer.</p>);
 
-    if (step === POSTED_REQUEST) {
-      return (
-        <div className={ styles.centered }>
-          <TxHash hash={ tx } maxConfirmations={ 1 } />
-          <p>Please keep this window open.</p>
-        </div>
-      );
-    }
+      case POSTED_REQUEST:
+        return (
+          <div className={ styles.centered }>
+            <TxHash hash={ tx } maxConfirmations={ 1 } />
+            <p>Please keep this window open.</p>
+          </div>
+        );
 
-    if (step === REQUESTING_SMS) {
-      return (<p>Requesting an SMS from the Parity server.</p>);
-    }
+      case REQUESTING_SMS:
+        return (
+          <p>Requesting an SMS from the Parity server.</p>
+        );
 
-    return null;
+      default:
+        return null;
+    }
   }
 }

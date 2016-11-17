@@ -96,8 +96,7 @@ export default class GatherData extends Component {
           <p className={ styles.message }>Your account is already verified.</p>
         </div>
       );
-    }
-    if (isVerified === false) {
+    } else if (isVerified === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
@@ -105,7 +104,9 @@ export default class GatherData extends Component {
         </div>
       );
     }
-    return (<p className={ styles.message }>Checking if your account is verified…</p>);
+    return (
+      <p className={ styles.message }>Checking if your account is verified…</p>
+    );
   }
 
   renderRequested () {
@@ -132,7 +133,9 @@ export default class GatherData extends Component {
         </div>
       );
     }
-    return (<p className={ styles.message }>Checking if you requested verification…</p>);
+    return (
+      <p className={ styles.message }>Checking if you requested verification…</p>
+    );
   }
 
   numberOnSubmit = (value) => {

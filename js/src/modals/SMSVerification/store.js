@@ -69,29 +69,18 @@ export default class VerificationStore {
       return false;
     }
 
-    if (this.step === GATHERED_DATA) {
-      return this.fee && this.isVerified === false && this.isNumberValid && this.consentGiven;
+    switch (this.step) {
+      case GATHERED_DATA:
+        return this.fee && this.isVerified === false && this.isNumberValid && this.consentGiven;
+      case REQUESTED_SMS:
+        return this.requestTx;
+      case QUERY_CODE:
+        return this.isCodeValid;
+      case POSTED_CONFIRMATION:
+        return this.confirmationTx;
+      default:
+        return false;
     }
-    if (this.step === REQUESTED_SMS) {
-      return this.requestTx;
-    }
-    if (this.step === QUERY_CODE) {
-      return this.isCodeValid;
-    }
-    if (this.step === POSTED_CONFIRMATION) {
-      return this.confirmationTx;
-    }
-    return false;
-  }
-
-  @action setNumber = (number) => {
-    this.number = number;
-  }
-  @action setConsentGiven = (consentGiven) => {
-    this.consentGiven = consentGiven;
-  }
-  @action setCode = (code) => {
-    this.code = code;
   }
 
   constructor (api, account) {
@@ -104,6 +93,18 @@ export default class VerificationStore {
         console.error('sms verification: ' + this.error);
       }
     });
+  }
+
+  @action setNumber = (number) => {
+    this.number = number;
+  }
+
+  @action setConsentGiven = (consentGiven) => {
+    this.consentGiven = consentGiven;
+  }
+
+  @action setCode = (code) => {
+    this.code = code;
   }
 
   @action gatherData = () => {
@@ -137,10 +138,11 @@ export default class VerificationStore {
         this.error = 'Failed to check if requested: ' + err.message;
       });
 
-    Promise.all([ fee, isVerified, hasRequested ])
-    .then(() => {
-      this.step = GATHERED_DATA;
-    });
+    Promise
+      .all([ fee, isVerified, hasRequested ])
+      .then(() => {
+        this.step = GATHERED_DATA;
+      });
   }
 
   @action sendRequest = () => {
@@ -165,13 +167,13 @@ export default class VerificationStore {
         .then((txHash) => {
           this.requestTx = txHash;
           return checkIfTxFailed(api, txHash, options.gas)
-          .then((hasFailed) => {
-            if (hasFailed) {
-              throw new Error('Transaction failed, all gas used up.');
-            }
-            this.step = POSTED_REQUEST;
-            return waitForConfirmations(api, txHash, 1);
-          });
+            .then((hasFailed) => {
+              if (hasFailed) {
+                throw new Error('Transaction failed, all gas used up.');
+              }
+              this.step = POSTED_REQUEST;
+              return waitForConfirmations(api, txHash, 1);
+            });
         });
     }
 
@@ -214,13 +216,13 @@ export default class VerificationStore {
       .then((txHash) => {
         this.confirmationTx = txHash;
         return checkIfTxFailed(api, txHash, options.gas)
-        .then((hasFailed) => {
-          if (hasFailed) {
-            throw new Error('Transaction failed, all gas used up.');
-          }
-          this.step = POSTED_CONFIRMATION;
-          return waitForConfirmations(api, txHash, 1);
-        });
+          .then((hasFailed) => {
+            if (hasFailed) {
+              throw new Error('Transaction failed, all gas used up.');
+            }
+            this.step = POSTED_CONFIRMATION;
+            return waitForConfirmations(api, txHash, 1);
+          });
       })
       .then(() => {
         this.step = DONE;

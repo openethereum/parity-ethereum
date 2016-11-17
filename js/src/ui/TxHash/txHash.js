@@ -102,7 +102,9 @@ class TxHash extends Component {
       <div className={ styles.confirm }>
         <LinearProgress
           className={ styles.progressbar }
-          min={ 0 } max={ maxConfirmations } value={ value }
+          min={ 0 }
+          max={ maxConfirmations }
+          value={ value }
           color='white'
           mode='determinate' />
         <div className={ styles.progressinfo }>

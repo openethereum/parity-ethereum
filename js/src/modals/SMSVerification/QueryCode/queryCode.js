@@ -45,6 +45,7 @@ export default class QueryCode extends Component {
   onChange = (_, code) => {
     this.props.setCode(code.trim());
   }
+
   onSubmit = (code) => {
     this.props.setCode(code.trim());
   }
