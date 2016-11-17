@@ -22,7 +22,8 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { Button, IdentityIcon, Modal } from '../../ui';
 
 import {
-  GATHERING_DATA, GATHERED_DATA,
+  LOADING,
+  QUERY_DATA,
   POSTING_REQUEST, POSTED_REQUEST,
   REQUESTING_SMS, REQUESTED_SMS,
   POSTING_CONFIRMATION, POSTED_CONFIRMATION,
@@ -44,15 +45,12 @@ export default class SMSVerification extends Component {
   }
 
   static phases = { // mapping (store steps -> steps)
-    [GATHERING_DATA]: 0, [GATHERED_DATA]: 0,
-    [POSTING_REQUEST]: 1, [POSTED_REQUEST]: 1, [REQUESTING_SMS]: 1,
-    [REQUESTED_SMS]: 2,
-    [POSTING_CONFIRMATION]: 3, [POSTED_CONFIRMATION]: 3,
-    [DONE]: 4
-  }
-
-  componentDidMount () {
-    this.props.store.gatherData();
+    [LOADING]: 0,
+    [QUERY_DATA]: 1,
+    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_SMS]: 2,
+    [REQUESTED_SMS]: 3,
+    [POSTING_CONFIRMATION]: 4, [POSTED_CONFIRMATION]: 4,
+    [DONE]: 5
   }
 
   render () {
@@ -65,8 +63,8 @@ export default class SMSVerification extends Component {
         title='verify your account via SMS'
         visible scroll
         current={ phase }
-        steps={ ['Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        waiting={ error ? [] : [ 1, 3 ] }
+        steps={ ['Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
+        waiting={ error ? [] : [ 0, 2, 4 ] }
       >
         { this.renderStep(phase, error) }
       </Modal>
@@ -87,7 +85,7 @@ export default class SMSVerification extends Component {
       return (<div>{ cancel }</div>);
     }
 
-    if (phase === 4) {
+    if (phase === 5) {
       return (
         <div>
           { cancel }
@@ -101,18 +99,18 @@ export default class SMSVerification extends Component {
       );
     }
 
-    let action;
+    let action = () => {};
     switch (phase) {
-      case 0:
+      case 1:
         action = store.sendRequest;
         break;
-      case 1:
+      case 2:
         action = store.queryCode;
         break;
-      case 2:
+      case 3:
         action = store.sendConfirmation;
         break;
-      case 3:
+      case 4:
         action = store.done;
         break;
     }
@@ -142,13 +140,13 @@ export default class SMSVerification extends Component {
       setNumber, setConsentGiven, setCode
     } = this.props.store;
 
-    if (phase === 4) {
+    if (phase === 5) {
       return (<Done />);
     }
-    if (phase === 3) {
+    if (phase === 4) {
       return (<SendConfirmation step={ step } tx={ confirmationTx } />);
     }
-    if (phase === 2) {
+    if (phase === 3) {
       return (
         <QueryCode
           number={ number } fee={ fee } isCodeValid={ isCodeValid }
@@ -156,10 +154,10 @@ export default class SMSVerification extends Component {
         />
       );
     }
-    if (phase === 1) {
+    if (phase === 2) {
       return (<SendRequest step={ step } tx={ requestTx } />);
     }
-    if (phase === 0) {
+    if (phase === 1) {
       const { setNumber, setConsentGiven } = this.props.store;
       return (
         <GatherData
@@ -168,6 +166,9 @@ export default class SMSVerification extends Component {
           setNumber={ setNumber } setConsentGiven={ setConsentGiven }
         />
       );
+    }
+    if (phase === 0) {
+      return (<p>Preparing awesomeness!</p>);
     }
 
     return null;
