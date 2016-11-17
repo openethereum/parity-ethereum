@@ -29,12 +29,15 @@ export default class DetailsStep extends Component {
 
     onFromAddressChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
+    onDescriptionChange: PropTypes.func.isRequired,
     onInputTypeChange: PropTypes.func.isRequired,
 
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
+    description: PropTypes.string,
+    descriptionError: PropTypes.string,
     inputType: PropTypes.object,
     readOnly: PropTypes.bool
   };
@@ -45,7 +48,7 @@ export default class DetailsStep extends Component {
 
   render () {
     const { accounts } = this.props;
-    const { fromAddress, fromAddressError, name, nameError } = this.props;
+    const { fromAddress, fromAddressError, name, nameError, description, descriptionError } = this.props;
 
     return (
       <Form>
@@ -62,7 +65,14 @@ export default class DetailsStep extends Component {
           hint='a name for the deployed contract'
           error={ nameError }
           value={ name }
-          onSubmit={ this.onNameChange } />
+          onChange={ this.onNameChange } />
+
+        <Input
+          label='contract description (optional)'
+          hint='a description for the contract'
+          error={ descriptionError }
+          value={ description }
+          onChange={ this.onDescriptionChange } />
 
         { this.renderChooseInputType() }
       </Form>
@@ -98,10 +108,16 @@ export default class DetailsStep extends Component {
     onFromAddressChange(fromAddress);
   }
 
-  onNameChange = (name) => {
+  onNameChange = (event, name) => {
     const { onNameChange } = this.props;
 
     onNameChange(name);
+  }
+
+  onDescriptionChange = (event, description) => {
+    const { onDescriptionChange } = this.props;
+
+    onDescriptionChange(description);
   }
 
   onInputTypeChange = (inputType, index) => {
