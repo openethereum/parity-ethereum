@@ -564,7 +564,7 @@ impl Miner {
 		prepare_new
 	}
 
-	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, default_origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
 		Vec<Result<TransactionImportResult, Error>> {
 
 		let fetch_account = |a: &Address| AccountDetails {
@@ -572,15 +572,28 @@ impl Miner {
 			balance: chain.latest_balance(a),
 		};
 
+		let accounts = self.accounts.as_ref()
+			.and_then(|provider| provider.accounts().ok())
+			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
+
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		transactions.into_iter()
-			.map(|tx| match origin {
-				TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-					transaction_queue.add(tx, origin, &fetch_account, &gas_required)
-				},
-				TransactionOrigin::External => {
-					transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+			.map(|tx| {
+				let origin = accounts.as_ref().and_then(|accounts| {
+					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
+						true => Some(TransactionOrigin::Local),
+						false => None,
+					})
+				}).unwrap_or(default_origin);
+
+				match origin {
+					TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+						transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+					},
+					TransactionOrigin::External => {
+						transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+					}
 				}
 			})
 			.collect()

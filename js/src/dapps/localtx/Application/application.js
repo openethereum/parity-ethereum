@@ -19,17 +19,20 @@ import React, { Component } from 'react';
 
 import { api } from '../parity';
 
+import styles from './application.css';
+
 import { Transaction, LocalTransaction } from '../Transaction';
 
 export default class Application extends Component {
   state = {
     loading: true,
     transactions: [],
-    localTransactions: {}
+    localTransactions: {},
+    blockNumber: 0
   }
 
   componentDidMount () {
-    const poll = () => this.fetchTransactionData().then(poll);
+    const poll = () => this.fetchTransactionData().then(poll).catch(poll);
     this._timeout = setTimeout(poll, 2000);
   }
 
@@ -42,7 +45,8 @@ export default class Application extends Component {
       api.parity.pendingTransactions(),
       api.parity.pendingTransactionsStats(),
       api.parity.localTransactions(),
-    ]).then(([pending, stats, local]) => {
+      api.eth.blockNumber()
+    ]).then(([pending, stats, local, blockNumber]) => {
       // Combine results together
       const transactions = pending.map(tx => {
         return {
@@ -87,7 +91,8 @@ export default class Application extends Component {
       this.setState({
         loading: false,
         transactions,
-        localTransactions
+        localTransactions,
+        blockNumber
       });
     });
   }
@@ -97,13 +102,13 @@ export default class Application extends Component {
 
     if (loading) {
       return (
-        <div>Loading...</div>
+        <div className={ styles.container }>Loading...</div>
       );
     }
 
     return (
-      <div style={ { padding: '1rem 2rem'}}>
-        <h1>Your past local transactions</h1>
+      <div className={ styles.container }>
+        <h1>Your local transactions</h1>
         { this.renderLocals() }
         <h1>Transactions in the queue</h1>
         { this.renderQueueSummary() }
@@ -135,7 +140,7 @@ export default class Application extends Component {
   }
 
   renderQueue () {
-    const { transactions } = this.state;
+    const { blockNumber, transactions } = this.state;
     if (!transactions.length) {
       return (
         <h3>The queue seems is empty.</h3>
@@ -156,6 +161,7 @@ export default class Application extends Component {
               isLocal={ tx.isLocal }
               transaction={ tx.transaction }
               stats={ tx.stats }
+              blockNumber={ blockNumber }
               />
           ))
         }

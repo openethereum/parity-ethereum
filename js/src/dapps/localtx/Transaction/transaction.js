@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import classnames from 'classnames';
 
@@ -26,7 +27,7 @@ import IdentityIcon from '../../githubhint/IdentityIcon';
 class BaseTransaction extends Component {
 
   shortHash (hash) {
-    return `${hash.substr(0, 6)}..${hash.substr(hash.length - 4)}`;
+    return `${hash.substr(0, 5)}..${hash.substr(hash.length - 3)}`;
   }
 
   renderHash (hash) {
@@ -93,6 +94,7 @@ export class Transaction extends BaseTransaction {
   static propTypes = {
     idx: PropTypes.number.isRequired,
     transaction: PropTypes.object.isRequired,
+    blockNumber: PropTypes.object.isRequired,
     isLocal: PropTypes.bool,
     stats: PropTypes.object
   };
@@ -122,7 +124,7 @@ export class Transaction extends BaseTransaction {
           Gas
         </th>
         <th>
-          First seen
+          First propagation
         </th>
         <th>
           # Propagated
@@ -141,6 +143,7 @@ export class Transaction extends BaseTransaction {
     });
     const noOfPeers = Object.keys(stats.propagatedTo).length;
     const noOfPropagations = Object.values(stats.propagatedTo).reduce((sum, val) => sum + val, 0);
+    const blockNo = new BigNumber(stats.firstSeen);
 
     return (
       <tr className={ clazz }>
@@ -159,14 +162,24 @@ export class Transaction extends BaseTransaction {
         <td>
           { this.renderGas(transaction) }
         </td>
-        <td>
-          { stats.firstSeen }
+        <td title={ blockNo.toFormat(0) }>
+          { this.renderTime(stats.firstSeen) }
         </td>
         <td>
           { this.renderPropagation(stats) }
         </td>
       </tr>
     );
+  }
+
+  renderTime (firstSeen) {
+    const { blockNumber } = this.props;
+    if (!firstSeen) {
+      return 'never';
+    }
+
+    const timeInMinutes = blockNumber.sub(firstSeen).mul(14).div(60).toFormat(1);
+    return `${timeInMinutes} minutes ago`;
   }
 }
 
@@ -199,9 +212,6 @@ export class LocalTransaction extends BaseTransaction {
         </th>
         <th>
           Gas Price / Gas
-        </th>
-        <th>
-          Propagated
         </th>
         <th>
           Status
@@ -252,7 +262,9 @@ export class LocalTransaction extends BaseTransaction {
     });
 
     const closeSending = () => this.setState({
-      isSending: false
+      isSending: false,
+      gasPrice: null,
+      gas: null
     });
 
     api.eth.sendTransaction(newTransaction)
@@ -293,10 +305,9 @@ export class LocalTransaction extends BaseTransaction {
           { this.renderGas(transaction) }
         </td>
         <td>
-          { status === 'pending' ? this.renderPropagation(stats) : '-' }
-        </td>
-        <td>
           { this.renderStatus() }
+          <br />
+          { status === 'pending' ? this.renderPropagation(stats) : null }
         </td>
       </tr>
     );
