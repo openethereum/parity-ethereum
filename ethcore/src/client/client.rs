@@ -576,6 +576,11 @@ impl Client {
 		}
 	}
 
+	/// Used by PoA to communicate with peers.
+	pub fn broadcast_message(&self, message: Bytes) {
+		self.notify(|notify| notify.broadcast(message.clone()));
+	}
+
 	/// Attempt to get a copy of a specific block's final state.
 	///
 	/// This will not fail if given BlockID::Latest.
@@ -1231,9 +1236,7 @@ impl BlockChainClient for Client {
 
 	// TODO: Make it an actual queue, return errors.
 	fn queue_infinity_message(&self, message: Bytes) {
-		if let Ok(new_message) =  self.engine.handle_message(UntrustedRlp::new(&message)) {
-			self.notify(|notify| notify.broadcast(new_message.clone()));
-		}
+		self.engine.handle_message(UntrustedRlp::new(&message));
 	}
 
 	fn signing_network_id(&self) -> Option<u8> {
