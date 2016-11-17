@@ -36,19 +36,29 @@ impl VoteCollector {
 		self.votes.write().insert(message, voter)
 	}
 
-	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> (H520, Vec<H520>) {
+	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Option<(&H520, &[H520])> {
+		self.votes
+			.read()
+			.keys()
+			.cloned()
+			// Get only Propose and Precommits.
+			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
+			.map(|m| m.signature)
+			.collect::<Vec<H520>>()
+			.split_first()
+	}
+
+	pub fn aligned_votes(&self, message: &ConsensusMessage) -> Vec<&ConsensusMessage> {
 		self.votes
 			.read()
 			.keys()
 			// Get only Propose and Precommits.
-			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
-			.map(|m| m.signature)
+			.filter(|m| m.is_aligned(message.height, message.round, message.block_hash) && m.step == message.step)
 			.collect()
-			.split_first()
 	}
 
-	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> Vec<H520> {
-		self.seal_signatures(message.height, message.round, message.block_hash)
+	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> &[H520] {
+		self.seal_signatures(message.height, message.round, message.block_hash).map_or(&[], |s| s.1)
 	}
 
 	pub fn count_step_votes(&self, height: Height, round: Round, step: Step) -> usize {

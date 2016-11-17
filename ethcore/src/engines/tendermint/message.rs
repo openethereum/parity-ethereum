@@ -114,7 +114,7 @@ impl Decodable for ConsensusMessage {
 				false => Some(block_message),
 			}
 		})
-    }
+  }
 }
 
 impl Encodable for ConsensusMessage {
