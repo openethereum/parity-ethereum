@@ -18,9 +18,7 @@ import { observable, computed, autorun, action } from 'mobx';
 import phone from 'phoneformat.js';
 import { sha3 } from '../../api/util/sha3';
 
-import ABI from '../../contracts/abi/sms-verification.json';
-// TODO: move this to a better place
-const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
+import Contracts from '../../contracts';
 
 import { checkIfVerified, checkIfRequested, postToServer } from '../../contracts/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
@@ -28,8 +26,8 @@ import waitForConfirmations from '../../util/wait-for-block-confirmations';
 
 const validCode = /^[A-Z\s]+$/i;
 
-export const GATHERING_DATA = 'gathering-data';
-export const GATHERED_DATA = 'gathered-data';
+export const LOADING = 'fetching-contract';
+export const QUERY_DATA = 'query-data';
 export const POSTING_REQUEST = 'posting-request';
 export const POSTED_REQUEST = 'posted-request';
 export const REQUESTING_SMS = 'requesting-sms';
@@ -43,6 +41,7 @@ export default class VerificationStore {
   @observable step = null;
   @observable error = null;
 
+  @observable contract = null;
   @observable fee = null;
   @observable isVerified = null;
   @observable hasRequested = null;
@@ -68,8 +67,10 @@ export default class VerificationStore {
     }
 
     switch (this.step) {
-      case GATHERED_DATA:
-        return this.fee && this.isVerified === false && this.isNumberValid && this.consentGiven;
+      case LOADING:
+        return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
+      case QUERY_DATA:
+        return this.isNumberValid && this.consentGiven;
       case REQUESTED_SMS:
         return this.requestTx;
       case QUERY_CODE:
@@ -84,7 +85,16 @@ export default class VerificationStore {
   constructor (api, account) {
     this.api = api;
     this.account = account;
-    this.contract = api.newContract(ABI, contract);
+
+    this.step = LOADING;
+    Contracts.create(api).registry.getContract('smsVerification')
+      .then((contract) => {
+        this.contract = contract;
+        this.load();
+      })
+      .catch((err) => {
+        this.error = 'Failed to fetch the contract: ' + err.message;
+      });
 
     autorun(() => {
       if (this.error) {
@@ -93,21 +103,9 @@ export default class VerificationStore {
     });
   }
 
-  @action setNumber = (number) => {
-    this.number = number;
-  }
-
-  @action setConsentGiven = (consentGiven) => {
-    this.consentGiven = consentGiven;
-  }
-
-  @action setCode = (code) => {
-    this.code = code;
-  }
-
-  @action gatherData = () => {
+  @action load = () => {
     const { contract, account } = this;
-    this.step = GATHERING_DATA;
+    this.step = LOADING;
 
     const fee = contract.instance.fee.call()
       .then((fee) => {
@@ -139,8 +137,20 @@ export default class VerificationStore {
     Promise
       .all([ fee, isVerified, hasRequested ])
       .then(() => {
-        this.step = GATHERED_DATA;
+        this.step = QUERY_DATA;
       });
+  }
+
+  @action setNumber = (number) => {
+    this.number = number;
+  }
+
+  @action setConsentGiven = (consentGiven) => {
+    this.consentGiven = consentGiven;
+  }
+
+  @action setCode = (code) => {
+    this.code = code;
   }
 
   @action sendRequest = () => {
