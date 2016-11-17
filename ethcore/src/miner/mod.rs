@@ -44,11 +44,12 @@
 mod miner;
 mod external;
 mod transaction_queue;
+mod banning_queue;
 mod work_notify;
 mod price_info;
 
-pub use self::transaction_queue::{TransactionQueue, AccountDetails, TransactionOrigin};
-pub use self::miner::{Miner, MinerOptions, PendingSet, GasPricer, GasPriceCalibratorOptions};
+pub use self::transaction_queue::{TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
+pub use self::miner::{Miner, MinerOptions, Banning, PendingSet, GasPricer, GasPriceCalibratorOptions, GasLimit};
 pub use self::external::{ExternalMiner, ExternalMinerService};
 pub use client::TransactionImportResult;
 
@@ -56,6 +57,7 @@ use std::collections::BTreeMap;
 use util::{H256, U256, Address, Bytes};
 use client::{MiningBlockChainClient, Executed, CallAnalytics};
 use block::ClosedBlock;
+use header::BlockNumber;
 use receipt::{RichReceipt, Receipt};
 use error::{Error, CallError};
 use transaction::SignedTransaction;
@@ -115,7 +117,7 @@ pub trait MinerService : Send + Sync {
 		Result<TransactionImportResult, Error>;
 
 	/// Returns hashes of transactions currently in pending
-	fn pending_transactions_hashes(&self) -> Vec<H256>;
+	fn pending_transactions_hashes(&self, best_block: BlockNumber) -> Vec<H256>;
 
 	/// Removes all transactions from the queue and restart mining operation.
 	fn clear_and_reset(&self, chain: &MiningBlockChainClient);
@@ -135,19 +137,19 @@ pub trait MinerService : Send + Sync {
 		where F: FnOnce(&ClosedBlock) -> T, Self: Sized;
 
 	/// Query pending transactions for hash.
-	fn transaction(&self, hash: &H256) -> Option<SignedTransaction>;
+	fn transaction(&self, best_block: BlockNumber, hash: &H256) -> Option<SignedTransaction>;
 
 	/// Get a list of all transactions.
 	fn all_transactions(&self) -> Vec<SignedTransaction>;
 
 	/// Get a list of all pending transactions.
-	fn pending_transactions(&self) -> Vec<SignedTransaction>;
+	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction>;
 
 	/// Get a list of all pending receipts.
-	fn pending_receipts(&self) -> BTreeMap<H256, Receipt>;
+	fn pending_receipts(&self, best_block: BlockNumber) -> BTreeMap<H256, Receipt>;
 
 	/// Get a particular reciept.
-	fn pending_receipt(&self, hash: &H256) -> Option<RichReceipt>;
+	fn pending_receipt(&self, best_block: BlockNumber, hash: &H256) -> Option<RichReceipt>;
 
 	/// Returns highest transaction nonce for given address.
 	fn last_nonce(&self, address: &Address) -> Option<U256>;
@@ -156,7 +158,7 @@ pub trait MinerService : Send + Sync {
 	fn is_sealing(&self) -> bool;
 
 	/// Suggested gas price.
-	fn sensible_gas_price(&self) -> U256 { 20000000000u64.into() }
+	fn sensible_gas_price(&self) -> U256;
 
 	/// Suggested gas limit.
 	fn sensible_gas_limit(&self) -> U256 { 21000.into() }

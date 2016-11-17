@@ -18,6 +18,7 @@ use util::*;
 use ethcore::client::{TestBlockChainClient, BlockChainClient, BlockID, EachBlockWith};
 use chain::{SyncState};
 use super::helpers::*;
+use SyncConfig;
 
 #[test]
 fn two_peers() {
@@ -96,6 +97,27 @@ fn forked() {
 }
 
 #[test]
+fn forked_with_misbehaving_peer() {
+	::env_logger::init().ok();
+	let mut net = TestNet::new(3);
+	// peer 0 is on a totally different chain with higher total difficulty
+	net.peer_mut(0).chain = TestBlockChainClient::new_with_extra_data(b"fork".to_vec());
+	net.peer_mut(0).chain.add_blocks(500, EachBlockWith::Nothing);
+	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Nothing);
+	net.peer_mut(2).chain.add_blocks(100, EachBlockWith::Nothing);
+
+	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Nothing);
+	net.peer_mut(2).chain.add_blocks(200, EachBlockWith::Uncle);
+	// peer 1 should sync to peer 2, others should not change
+	let peer0_chain = net.peer(0).chain.numbers.read().clone();
+	let peer2_chain = net.peer(2).chain.numbers.read().clone();
+	net.sync();
+	assert_eq!(&*net.peer(0).chain.numbers.read(), &peer0_chain);
+	assert_eq!(&*net.peer(1).chain.numbers.read(), &peer2_chain);
+	assert_eq!(&*net.peer(2).chain.numbers.read(), &peer2_chain);
+}
+
+#[test]
 fn net_hard_fork() {
 	::env_logger::init().ok();
 	let ref_client = TestBlockChainClient::new();
@@ -116,11 +138,12 @@ fn net_hard_fork() {
 
 #[test]
 fn restart() {
+	::env_logger::init().ok();
 	let mut net = TestNet::new(3);
 	net.peer_mut(1).chain.add_blocks(1000, EachBlockWith::Uncle);
 	net.peer_mut(2).chain.add_blocks(1000, EachBlockWith::Uncle);
 
-	net.sync_steps(8);
+	net.sync();
 
 	// make sure that sync has actually happened
 	assert!(net.peer(0).chain.chain_info().best_block_number > 100);
@@ -134,6 +157,10 @@ fn restart() {
 fn status_empty() {
 	let net = TestNet::new(2);
 	assert_eq!(net.peer(0).sync.read().status().state, SyncState::Idle);
+	let mut config = SyncConfig::default();
+	config.warp_sync = true;
+	let net = TestNet::new_with_config(2, config);
+	assert_eq!(net.peer(0).sync.read().status().state, SyncState::WaitingPeers);
 }
 
 #[test]

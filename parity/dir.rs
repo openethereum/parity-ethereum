@@ -44,11 +44,15 @@ impl Default for Directories {
 }
 
 impl Directories {
-	pub fn create_dirs(&self) -> Result<(), String> {
+	pub fn create_dirs(&self, dapps_enabled: bool, signer_enabled: bool) -> Result<(), String> {
 		try!(fs::create_dir_all(&self.db).map_err(|e| e.to_string()));
 		try!(fs::create_dir_all(&self.keys).map_err(|e| e.to_string()));
-		try!(fs::create_dir_all(&self.signer).map_err(|e| e.to_string()));
-		try!(fs::create_dir_all(&self.dapps).map_err(|e| e.to_string()));
+		if signer_enabled {
+			try!(fs::create_dir_all(&self.signer).map_err(|e| e.to_string()));
+		}
+		if dapps_enabled {
+			try!(fs::create_dir_all(&self.dapps).map_err(|e| e.to_string()));
+		}
 		Ok(())
 	}
 
@@ -77,7 +81,8 @@ pub struct DatabaseDirectories {
 }
 
 impl DatabaseDirectories {
-	fn fork_path(&self) -> PathBuf {
+	/// Base DB directory for the given fork.
+	pub fn fork_path(&self) -> PathBuf {
 		let mut dir = Path::new(&self.path).to_path_buf();
 		dir.push(format!("{:?}{}", H64::from(self.genesis_hash), self.fork_name.as_ref().map(|f| format!("-{}", f)).unwrap_or_default()));
 		dir
@@ -108,6 +113,13 @@ impl DatabaseDirectories {
 	pub fn snapshot_path(&self) -> PathBuf {
 		let mut dir = self.fork_path();
 		dir.push("snapshot");
+		dir
+	}
+
+	/// Get the path for the network directory.
+	pub fn network_path(&self) -> PathBuf {
+		let mut dir = self.fork_path();
+		dir.push("network");
 		dir
 	}
 }

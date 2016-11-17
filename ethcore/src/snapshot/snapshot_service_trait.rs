@@ -22,7 +22,6 @@ use ipc::IpcConfig;
 /// This handles:
 ///    - restoration of snapshots to temporary databases.
 ///    - responding to queries for snapshot manifests and chunks
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteSnapshotService")]
 pub trait SnapshotService : Sync + Send {
 	/// Query the most recent manifest data.
@@ -49,6 +48,10 @@ pub trait SnapshotService : Sync + Send {
 	/// Feed a raw block chunk to the service to be processed asynchronously.
 	/// no-op if currently restoring.
 	fn restore_block_chunk(&self, hash: H256, chunk: Bytes);
+
+	/// Give the restoration in-progress some canonical block hashes for
+	/// extra verification (performed at the end)
+	fn provide_canon_hashes(&self, canonical: &[(u64, H256)]);
 }
 
 impl IpcConfig for SnapshotService { }

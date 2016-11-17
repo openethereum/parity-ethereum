@@ -1,0 +1,18 @@
+[package]
+description = "Ethcore Parity UI"
+homepage = "http://ethcore.io"
+license = "GPL-3.0"
+name = "parity-ui"
+version = "1.4.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[build-dependencies]
+rustc_version = "0.1"
+
+[dependencies]
+parity-ui-dev = { path = "../../js", optional = true }
+parity-ui-precompiled = { git = "https://github.com/ethcore/js-precompiled.git", optional = true }
+
+[features]
+no-precompiled-js = ["parity-ui-dev"]
+use-precompiled-js = ["parity-ui-precompiled"]

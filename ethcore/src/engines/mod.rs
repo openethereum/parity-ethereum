@@ -19,16 +19,25 @@
 mod null_engine;
 mod instant_seal;
 mod basic_authority;
+mod authority_round;
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
+pub use self::authority_round::AuthorityRound;
 
-use common::*;
+use util::*;
 use account_provider::AccountProvider;
 use block::ExecutedBlock;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::Error;
 use spec::CommonParams;
 use evm::Schedule;
+use io::IoChannel;
+use service::ClientIoMessage;
+use header::Header;
+use transaction::SignedTransaction;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -42,7 +51,7 @@ pub trait Engine : Sync + Send {
 	fn seal_fields(&self) -> usize { 0 }
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, _header: &Header) -> HashMap<String, String> { HashMap::new() }
+	fn extra_info(&self, _header: &Header) -> BTreeMap<String, String> { BTreeMap::new() }
 
 	/// Additional information.
 	fn additional_params(&self) -> HashMap<String, String> { HashMap::new() }
@@ -103,6 +112,9 @@ pub trait Engine : Sync + Send {
 	/// Verify a particular transaction is valid.
 	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
+	/// The network ID that transactions should be signed with.
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u8> { None }
+
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
 	/// methods are needed for an Engine, this may be overridden.
@@ -123,10 +135,16 @@ pub trait Engine : Sync + Send {
 	fn is_builtin(&self, a: &Address) -> bool { self.builtins().contains_key(a) }
 	/// Determine the code execution cost of the builtin contract with address `a`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 { self.builtins().get(a).unwrap().cost(input.len()) }
+	fn cost_of_builtin(&self, a: &Address, input: &[u8]) -> U256 {
+		self.builtins().get(a).expect("queried cost of nonexistent builtin").cost(input.len())
+	}
 	/// Execution the builtin contract `a` on `input` and return `output`.
 	/// Panics if `is_builtin(a)` is not true.
-	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) { self.builtins().get(a).unwrap().execute(input, output); }
+	fn execute_builtin(&self, a: &Address, input: &[u8], output: &mut BytesRef) {
+		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
+	}
 
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
 	// TODO: sealing stuff - though might want to leave this for later.
 }

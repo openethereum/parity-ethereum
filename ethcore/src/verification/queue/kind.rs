@@ -57,7 +57,7 @@ pub trait Kind: 'static + Sized + Send + Sync {
 	fn create(input: Self::Input, engine: &Engine) -> Result<Self::Unverified, Error>;
 
 	/// Attempt to verify the `Unverified` item using the given engine.
-	fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error>;
+	fn verify(unverified: Self::Unverified, engine: &Engine, check_seal: bool) -> Result<Self::Verified, Error>;
 }
 
 /// The blocks verification module.
@@ -89,9 +89,9 @@ pub mod blocks {
 			}
 		}
 
-		fn verify(un: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
+		fn verify(un: Self::Unverified, engine: &Engine, check_seal: bool) -> Result<Self::Verified, Error> {
 			let hash = un.hash();
-			match verify_block_unordered(un.header, un.bytes, engine) {
+			match verify_block_unordered(un.header, un.bytes, engine, check_seal) {
 				Ok(verified) => Ok(verified),
 				Err(e) => {
 					warn!(target: "client", "Stage 2 block verification failed for {}: {:?}", hash, e);
@@ -176,8 +176,11 @@ pub mod headers {
 			verify_header_params(&input, engine).map(|_| input)
 		}
 
-		fn verify(unverified: Self::Unverified, engine: &Engine) -> Result<Self::Verified, Error> {
-			engine.verify_block_unordered(&unverified, None).map(|_| unverified)
+		fn verify(unverified: Self::Unverified, engine: &Engine, check_seal: bool) -> Result<Self::Verified, Error> {
+			match check_seal {
+				true => engine.verify_block_unordered(&unverified, None).map(|_| unverified),
+				false => Ok(unverified),
+			}
 		}
 	}
 }

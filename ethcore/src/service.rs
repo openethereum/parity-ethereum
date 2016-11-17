@@ -48,6 +48,8 @@ pub enum ClientIoMessage {
 	FeedBlockChunk(H256, Bytes),
 	/// Take a snapshot for the block with given number.
 	TakeSnapshot(u64),
+	/// Trigger sealing update (useful for internal sealing).
+	UpdateSealing,
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -87,7 +89,7 @@ impl ClientService {
 			db_config.set_cache(::db::COL_STATE, size);
 		}
 
-		db_config.compaction = config.db_compaction.compaction_profile();
+		db_config.compaction = config.db_compaction.compaction_profile(client_path);
 		db_config.wal = config.db_wal;
 
 		let pruning = config.pruning;
@@ -110,6 +112,8 @@ impl ClientService {
 			snapshot: snapshot.clone(),
 		});
 		try!(io_service.register_handler(client_io));
+
+		spec.engine.register_message_channel(io_service.channel());
 
 		let stop_guard = ::devtools::StopGuard::new();
 		run_ipc(ipc_path, client.clone(), snapshot.clone(), stop_guard.share());
@@ -188,6 +192,8 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 
 	#[cfg_attr(feature="dev", allow(single_match))]
 	fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+		use std::thread;
+
 		match *net_message {
 			ClientIoMessage::BlockVerified => { self.client.import_verified_blocks(); }
 			ClientIoMessage::NewTransactions(ref transactions) => { self.client.import_queued_transactions(transactions); }
@@ -199,10 +205,23 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::FeedStateChunk(ref hash, ref chunk) => self.snapshot.feed_state_chunk(*hash, chunk),
 			ClientIoMessage::FeedBlockChunk(ref hash, ref chunk) => self.snapshot.feed_block_chunk(*hash, chunk),
 			ClientIoMessage::TakeSnapshot(num) => {
-				if let Err(e) = self.snapshot.take_snapshot(&*self.client, num) {
-					warn!("Failed to take snapshot at block #{}: {}", num, e);
+				let client = self.client.clone();
+				let snapshot = self.snapshot.clone();
+
+				let res = thread::Builder::new().name("Periodic Snapshot".into()).spawn(move || {
+					if let Err(e) = snapshot.take_snapshot(&*client, num) {
+						warn!("Failed to take snapshot at block #{}: {}", num, e);
+					}
+				});
+
+				if let Err(e) = res {
+					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
-			}
+			},
+			ClientIoMessage::UpdateSealing => {
+				trace!(target: "authorityround", "message: UpdateSealing");
+				self.client.update_sealing()
+			},
 			_ => {} // ignore other messages
 		}
 	}

@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::thread;
 use std::time::Duration;
 use std::io::{Read, Write};
 use std::str::{self, Lines};
@@ -42,8 +43,28 @@ pub fn read_block(lines: &mut Lines, all: bool) -> String {
 	block
 }
 
+fn connect(address: &SocketAddr) -> TcpStream {
+	let mut retries = 0;
+	let mut last_error = None;
+	while retries < 10 {
+		retries += 1;
+
+		let res = TcpStream::connect(address);
+		match res {
+			Ok(stream) => {
+				return stream;
+			},
+			Err(e) => {
+				last_error = Some(e);
+				thread::sleep(Duration::from_millis(retries * 10));
+			}
+		}
+	}
+	panic!("Unable to connect to the server. Last error: {:?}", last_error);
+}
+
 pub fn request(address: &SocketAddr, request: &str) -> Response {
-	let mut req = TcpStream::connect(address).unwrap();
+	let mut req = connect(address);
 	req.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
 	req.write_all(request.as_bytes()).unwrap();
 
@@ -64,3 +85,25 @@ pub fn request(address: &SocketAddr, request: &str) -> Response {
 	}
 }
 
+/// Check if all required security headers are present
+pub fn assert_security_headers_present(headers: &[String], port: Option<u16>) {
+	if let Some(port) = port {
+		assert!(
+			headers.iter().find(|header| header.as_str() == &format!("X-Frame-Options: ALLOW-FROM http://127.0.0.1:{}", port)).is_some(),
+			"X-Frame-Options: ALLOW-FROM missing: {:?}", headers
+		);
+	} else {
+		assert!(
+			headers.iter().find(|header| header.as_str() == "X-Frame-Options: SAMEORIGIN").is_some(),
+			"X-Frame-Options: SAMEORIGIN missing: {:?}", headers
+		);
+	}
+	assert!(
+		headers.iter().find(|header| header.as_str() == "X-XSS-Protection: 1; mode=block").is_some(),
+		"X-XSS-Protection missing: {:?}", headers
+	);
+	assert!(
+		headers.iter().find(|header|  header.as_str() == "X-Content-Type-Options: nosniff").is_some(),
+		"X-Content-Type-Options missing: {:?}", headers
+	);
+}

@@ -95,8 +95,8 @@ macro_rules! flushln {
 
 #[doc(hidden)]
 pub fn flush(s: String) {
-	::std::io::stdout().write(s.as_bytes()).unwrap();
-	::std::io::stdout().flush().unwrap();
+	let _ = ::std::io::stdout().write(s.as_bytes());
+	let _ = ::std::io::stdout().flush();
 }
 
 #[test]

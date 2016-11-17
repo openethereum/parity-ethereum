@@ -19,8 +19,9 @@
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use hypervisor::{SYNC_MODULE_ID, HYPERVISOR_IPC_URL, ControlService};
-use ethcore::client::{RemoteClient, ChainNotify};
-use ethcore::snapshot::{RemoteSnapshotService};
+use ethcore::client::ChainNotify;
+use ethcore::client::remote::RemoteClient;
+use ethcore::snapshot::remote::RemoteSnapshotService;
 use ethsync::{SyncProvider, EthSync, ManageNetwork, ServiceConfiguration};
 use modules::service_urls;
 use boot;

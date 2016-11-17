@@ -34,9 +34,11 @@ use log_entry::LocalizedLogEntry;
 use receipt::{Receipt, LocalizedReceipt};
 use blockchain::extras::BlockReceipts;
 use error::{ImportResult};
-use evm::{Factory as EvmFactory, VMType};
+use evm::{Factory as EvmFactory, VMType, Schedule};
 use miner::{Miner, MinerService, TransactionImportResult};
 use spec::Spec;
+use types::mode::Mode;
+use views::BlockView;
 
 use verification::queue::QueueInfo;
 use block::{OpenBlock, SealedBlock};
@@ -55,6 +57,8 @@ pub struct TestBlockChainClient {
 	pub genesis_hash: H256,
 	/// Last block hash.
 	pub last_hash: RwLock<H256>,
+	/// Extra data do set for each block
+	pub extra_data: Bytes,
 	/// Difficulty.
 	pub difficulty: RwLock<U256>,
 	/// Balances.
@@ -81,6 +85,10 @@ pub struct TestBlockChainClient {
 	pub vm_factory: EvmFactory,
 	/// Timestamp assigned to latest sealed block
 	pub latest_block_timestamp: RwLock<u64>,
+	/// Ancient block info.
+	pub ancient_block: RwLock<Option<(H256, u64)>>,
+	/// First block info.
+	pub first_block: RwLock<Option<(H256, u64)>>,
 }
 
 #[derive(Clone)]
@@ -105,11 +113,27 @@ impl Default for TestBlockChainClient {
 impl TestBlockChainClient {
 	/// Creates new test client.
 	pub fn new() -> Self {
+		Self::new_with_extra_data(Bytes::new())
+	}
+
+	/// Creates new test client with specified extra data for each block
+	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
 		let spec = Spec::new_test();
+		TestBlockChainClient::new_with_spec_and_extra(spec, extra_data)
+	}
+
+	/// Create test client with custom spec.
+	pub fn new_with_spec(spec: Spec) -> Self {
+		TestBlockChainClient::new_with_spec_and_extra(spec, Bytes::new())
+	}
+
+	/// Create test client with custom spec and extra data.
+	pub fn new_with_spec_and_extra(spec: Spec, extra_data: Bytes) -> Self {
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
 			genesis_hash: H256::new(),
+			extra_data: extra_data,
 			last_hash: RwLock::new(H256::new()),
 			difficulty: RwLock::new(From::from(0)),
 			balances: RwLock::new(HashMap::new()),
@@ -122,8 +146,10 @@ impl TestBlockChainClient {
 			queue_size: AtomicUsize::new(0),
 			miner: Arc::new(Miner::with_spec(&spec)),
 			spec: spec,
-			vm_factory: EvmFactory::new(VMType::Interpreter),
+			vm_factory: EvmFactory::new(VMType::Interpreter, 1024 * 1024),
 			latest_block_timestamp: RwLock::new(10_000_000),
+			ancient_block: RwLock::new(None),
+			first_block: RwLock::new(None),
 		};
 		client.add_blocks(1, EachBlockWith::Nothing); // add genesis block
 		client.genesis_hash = client.last_hash.read().clone();
@@ -184,6 +210,7 @@ impl TestBlockChainClient {
 			header.set_parent_hash(self.last_hash.read().clone());
 			header.set_number(n as BlockNumber);
 			header.set_gas_limit(U256::from(1_000_000));
+			header.set_extra_data(self.extra_data.clone());
 			let uncles = match with {
 				EachBlockWith::Uncle | EachBlockWith::UncleAndTransaction => {
 					let mut uncles = RlpStream::new_list(1);
@@ -211,7 +238,7 @@ impl TestBlockChainClient {
 						gas_price: U256::one(),
 						nonce: U256::zero()
 					};
-					let signed_tx = tx.sign(keypair.secret());
+					let signed_tx = tx.sign(keypair.secret(), None);
 					txs.append(&signed_tx);
 					txs.out()
 				},
@@ -277,7 +304,7 @@ impl TestBlockChainClient {
 			gas_price: U256::one(),
 			nonce: U256::zero()
 		};
-		let signed_tx = tx.sign(keypair.secret());
+		let signed_tx = tx.sign(keypair.secret(), None);
 		self.set_balance(signed_tx.sender().unwrap(), 10_000_000.into());
 		let res = self.miner.import_external_transactions(self, vec![signed_tx]);
 		let res = res.into_iter().next().unwrap().expect("Successful import");
@@ -289,7 +316,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 	let temp = RandomTempPath::new();
 	let db = Database::open(&DatabaseConfig::with_columns(NUM_COLUMNS), temp.as_str()).unwrap();
 	let journal_db = journaldb::new(Arc::new(db), journaldb::Algorithm::EarlyMerge, COL_STATE);
-	let state_db = StateDB::new(journal_db);
+	let state_db = StateDB::new(journal_db, 1024 * 1024);
 	GuardedTempResult {
 		_temp: temp,
 		result: Some(state_db)
@@ -297,6 +324,10 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 }
 
 impl MiningBlockChainClient for TestBlockChainClient {
+	fn latest_schedule(&self) -> Schedule {
+		Schedule::new_post_eip150(24576, true, true, true)
+	}
+
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {
 		let engine = &*self.spec.engine;
 		let genesis_header = self.spec.genesis_header();
@@ -397,6 +428,10 @@ impl BlockChainClient for TestBlockChainClient {
 		None	// Simple default.
 	}
 
+	fn uncle_extra_info(&self, _id: UncleID) -> Option<BTreeMap<String, String>> {
+		None
+	}
+
 	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
 	}
@@ -438,6 +473,13 @@ impl BlockChainClient for TestBlockChainClient {
 	fn block(&self, id: BlockID) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).cloned())
 	}
+
+	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>> {
+		self.block(id)
+			.map(|block| BlockView::new(&block).header())
+			.map(|header| self.spec.engine.extra_info(&header))
+	}
+
 
 	fn block_status(&self, id: BlockID) -> BlockStatus {
 		match id {
@@ -551,6 +593,10 @@ impl BlockChainClient for TestBlockChainClient {
 		Ok(h)
 	}
 
+	fn import_block_with_receipts(&self, b: Bytes, _r: Bytes) -> Result<H256, BlockImportError> {
+		self.import_block(b)
+	}
+
 	fn queue_info(&self) -> QueueInfo {
 		QueueInfo {
 			verified_queue_size: self.queue_size.load(AtomicOrder::Relaxed),
@@ -576,6 +622,10 @@ impl BlockChainClient for TestBlockChainClient {
 			genesis_hash: self.genesis_hash.clone(),
 			best_block_hash: self.last_hash.read().clone(),
 			best_block_number: self.blocks.read().len() as BlockNumber - 1,
+			first_block_hash: self.first_block.read().as_ref().map(|x| x.0),
+			first_block_number: self.first_block.read().as_ref().map(|x| x.1),
+			ancient_block_hash: self.ancient_block.read().as_ref().map(|x| x.0),
+			ancient_block_number: self.ancient_block.read().as_ref().map(|x| x.1)
 		}
 	}
 
@@ -602,6 +652,12 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		self.miner.pending_transactions()
+		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
+
+	fn signing_network_id(&self) -> Option<u8> { None }
+
+	fn mode(&self) -> Mode { Mode::Active }
+
+	fn set_mode(&self, _: Mode) { unimplemented!(); }
 }

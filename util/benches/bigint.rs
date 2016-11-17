@@ -24,7 +24,7 @@
 #![feature(asm)]
 
 extern crate test;
-extern crate bigint;
+extern crate ethcore_bigint as bigint;
 
 use test::{Bencher, black_box};
 use bigint::uint::{U256, U512, Uint, U128};

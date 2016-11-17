@@ -18,6 +18,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use rlp;
 use jsonrpc_core::IoHandler;
 use util::{Uint, U256, Address, H256, FixedHash, Mutex};
 use ethcore::account_provider::AccountProvider;
@@ -27,8 +28,8 @@ use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
-use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, EthSigningUnsafeClient};
-use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};
+use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
+use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 use rustc_serialize::hex::ToHex;
 use time::get_time;
 
@@ -43,7 +44,7 @@ fn accounts_provider() -> Arc<AccountProvider> {
 
 fn sync_provider() -> Arc<TestSyncProvider> {
 	Arc::new(TestSyncProvider::new(Config {
-		network_id: U256::from(3),
+		network_id: 3,
 		num_peers: 120,
 	}))
 }
@@ -52,11 +53,16 @@ fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
 
+fn snapshot_service() -> Arc<TestSnapshotService> {
+	Arc::new(TestSnapshotService::new())
+}
+
 struct EthTester {
 	pub client: Arc<TestBlockChainClient>,
 	pub sync: Arc<TestSyncProvider>,
 	pub accounts_provider: Arc<AccountProvider>,
 	pub miner: Arc<TestMinerService>,
+	pub snapshot: Arc<TestSnapshotService>,
 	hashrates: Arc<Mutex<HashMap<H256, (Instant, U256)>>>,
 	pub io: IoHandler,
 }
@@ -73,11 +79,12 @@ impl EthTester {
 		let sync = sync_provider();
 		let ap = accounts_provider();
 		let miner = miner_service();
+		let snapshot = snapshot_service();
 		let hashrates = Arc::new(Mutex::new(HashMap::new()));
 		let external_miner = Arc::new(ExternalMiner::new(hashrates.clone()));
-		let eth = EthClient::new(&client, &sync, &ap, &miner, &external_miner, options).to_delegate();
+		let eth = EthClient::new(&client, &snapshot, &sync, &ap, &miner, &external_miner, options).to_delegate();
 		let filter = EthFilterClient::new(&client, &miner).to_delegate();
-		let sign = EthSigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
+		let sign = SigningUnsafeClient::new(&client, &ap, &miner).to_delegate();
 		let io = IoHandler::new();
 		io.add_delegate(eth);
 		io.add_delegate(sign);
@@ -88,9 +95,15 @@ impl EthTester {
 			sync: sync,
 			accounts_provider: ap,
 			miner: miner,
+			snapshot: snapshot,
 			io: io,
 			hashrates: hashrates,
 		}
+	}
+
+	pub fn add_blocks(&self, count: usize, with: EachBlockWith) {
+		self.client.add_blocks(count, with);
+		self.sync.increase_imported_block_number(count as u64);
 	}
 }
 
@@ -104,6 +117,8 @@ fn rpc_eth_protocol_version() {
 
 #[test]
 fn rpc_eth_syncing() {
+	use ethcore::snapshot::RestorationStatus;
+
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_syncing", "params": [], "id": 1}"#;
 
 	let tester = EthTester::default();
@@ -115,24 +130,38 @@ fn rpc_eth_syncing() {
 		let mut status = tester.sync.status.write();
 		status.state = SyncState::Blocks;
 		status.highest_block_number = Some(2500);
-
-		// "sync" to 1000 blocks.
-		// causes TestBlockChainClient to return 1000 for its best block number.
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1000 {
-			blocks.insert(H256::from(i), Vec::new());
-		}
 	}
 
-	let true_res = r#"{"jsonrpc":"2.0","result":{"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0"},"id":1}"#;
+	// "sync" to 1000 blocks.
+	// causes TestBlockChainClient to return 1000 for its best block number.
+	tester.add_blocks(1000, EachBlockWith::Nothing);
+	*tester.client.ancient_block.write() = Some((H256::new(), 5));
+	*tester.client.first_block.write() = Some((H256::from(U256::from(1234)), 3333));
+
+	let true_res = r#"{"jsonrpc":"2.0","result":{"blockGap":["0x6","0xd05"],"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null},"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(true_res.to_owned()));
 
+	*tester.client.ancient_block.write() = None;
+	*tester.client.first_block.write() = None;
+
+	let snap_res = r#"{"jsonrpc":"2.0","result":{"blockGap":null,"currentBlock":"0x3e8","highestBlock":"0x9c4","startingBlock":"0x0","warpChunksAmount":"0x32","warpChunksProcessed":"0x18"},"id":1}"#;
+	tester.snapshot.set_status(RestorationStatus::Ongoing {
+		state_chunks: 40,
+		block_chunks: 10,
+		state_chunks_done: 18,
+		block_chunks_done: 6,
+	});
+
+	assert_eq!(tester.io.handle_request_sync(request), Some(snap_res.to_owned()));
+
+	tester.snapshot.set_status(RestorationStatus::Inactive);
+
+	// finish "syncing"
+	tester.add_blocks(1500, EachBlockWith::Nothing);
+
 	{
-		// finish "syncing"
-		let mut blocks = tester.client.blocks.write();
-		for i in 0..1500 {
-			blocks.insert(H256::from(i + 1000), Vec::new());
-		}
+		let mut status = tester.sync.status.write();
+		status.state = SyncState::Idle;
 	}
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(false_res.to_owned()));
@@ -264,7 +293,7 @@ fn rpc_eth_sign() {
 	let account = tester.accounts_provider.new_account("abcd").unwrap();
 	tester.accounts_provider.unlock_account_permanently(account, "abcd".into()).unwrap();
 	let message = H256::from("0x0cc175b9c0f1b6a831c399e26977266192eb5ffee6ae2fec3ad71c777531578f");
-	let signed = tester.accounts_provider.sign(account, message).unwrap();
+	let signed = tester.accounts_provider.sign(account, None, message).unwrap();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -324,9 +353,16 @@ fn rpc_eth_gas_price() {
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("").unwrap();
+	let address2 = Address::default();
+
+	tester.accounts_provider.set_address_name(address2, "Test Account".into()).unwrap();
 
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned()
+		+ &format!("0x{:?}", address2)
+		+ r#"",""#
+		+ &format!("0x{:?}", address)
+		+ r#""],"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
@@ -457,7 +493,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"value":"0xa"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":0,"value":"0xa"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -709,8 +745,8 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -726,13 +762,51 @@ fn rpc_eth_send_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
 }
+
+#[test]
+fn rpc_eth_sign_transaction() {
+	let tester = EthTester::default();
+	let address = tester.accounts_provider.new_account("").unwrap();
+	tester.accounts_provider.unlock_account_permanently(address, "".into()).unwrap();
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_signTransaction",
+		"params": [{
+			"from": ""#.to_owned() + format!("0x{:?}", address).as_ref() + r#"",
+			"to": "0xd46e8dd67c5d32be8058bb8eb970870f07244567",
+			"gas": "0x76c0",
+			"gasPrice": "0x9184e72a000",
+			"value": "0x9184e72a"
+		}],
+		"id": 1
+	}"#;
+
+	let t = Transaction {
+		nonce: U256::one(),
+		gas_price: U256::from(0x9184e72a000u64),
+		gas: U256::from(0x76c0),
+		action: Action::Call(Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap()),
+		value: U256::from(0x9184e72au64),
+		data: vec![]
+	};
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
+	let rlp = rlp::encode(&t);
+
+	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+
+	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
+
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response));
+}
+
 #[test]
 fn rpc_eth_send_transaction_with_bad_to() {
 	let tester = EthTester::default();
@@ -778,6 +852,23 @@ fn rpc_eth_send_transaction_error() {
 }
 
 #[test]
+fn rpc_eth_send_raw_transaction_error() {
+	let tester = EthTester::default();
+
+	let req = r#"{
+		"jsonrpc": "2.0",
+		"method": "eth_sendRawTransaction",
+		"params": [
+			"0x0123"
+		],
+		"id": 1
+	}"#;
+	let res = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid RLP.","data":"RlpIncorrectListLen"},"id":1}"#.into();
+
+	assert_eq!(tester.io.handle_request_sync(&req), Some(res));
+}
+
+#[test]
 fn rpc_eth_send_raw_transaction() {
 	let tester = EthTester::default();
 	let address = tester.accounts_provider.new_account("abcd").unwrap();
@@ -791,10 +882,10 @@ fn rpc_eth_send_raw_transaction() {
 		value: U256::from(0x9184e72au64),
 		data: vec![]
 	};
-	let signature = tester.accounts_provider.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
-	let rlp = ::rlp::encode(&t).to_vec().to_hex();
+	let rlp = rlp::encode(&t).to_vec().to_hex();
 
 	let req = r#"{
 		"jsonrpc": "2.0",
@@ -834,7 +925,9 @@ fn rpc_eth_transaction_receipt() {
 			transaction_hash: H256::new(),
 			transaction_index: 0,
 			log_index: 1,
-		}]
+		}],
+		log_bloom: 0.into(),
+		state_root: 0.into(),
 	};
 
 	let hash = H256::from_str("b903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238").unwrap();
@@ -847,7 +940,7 @@ fn rpc_eth_transaction_receipt() {
 		"params": ["0xb903239f8543d04b5dc1ba6579132b143087c68db1b2168786408fcbce568238"],
 		"id": 1
 	}"#;
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","data":"0x","logIndex":"0x1","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"}],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","contractAddress":null,"cumulativeGasUsed":"0x20","gasUsed":"0x10","logs":[{"address":"0x33990122638b9132ca29c723bdf037f1a891a70c","blockHash":"0xed76641c68a1c641aee09a94b3b471f4dc0316efe5ac19cf488e2674cf8d05b5","blockNumber":"0x4510c","data":"0x","logIndex":"0x1","topics":["0xa6697e974e6a320f454390be03f74955e8978f1a6971ea6730542e37b66179bc","0x4861736852656700000000000000000000000000000000000000000000000000"],"transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0","type":"mined"}],"logsBloom":"0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","root":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionHash":"0x0000000000000000000000000000000000000000000000000000000000000000","transactionIndex":"0x0"},"id":1}"#;
 
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }

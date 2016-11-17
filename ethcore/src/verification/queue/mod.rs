@@ -101,6 +101,13 @@ pub enum Status {
 	Unknown,
 }
 
+// the internal queue sizes.
+struct Sizes {
+	unverified: AtomicUsize,
+	verifying: AtomicUsize,
+	verified: AtomicUsize,
+}
+
 /// A queue of items to be verified. Sits between network or other I/O and the `BlockChain`.
 /// Keeps them in the same order as inserted, minus invalid items.
 pub struct VerificationQueue<K: Kind> {
@@ -121,19 +128,35 @@ pub struct VerificationQueue<K: Kind> {
 struct QueueSignal {
 	deleting: Arc<AtomicBool>,
 	signalled: AtomicBool,
-	message_channel: IoChannel<ClientIoMessage>,
+	message_channel: Mutex<IoChannel<ClientIoMessage>>,
 }
 
 impl QueueSignal {
 	#[cfg_attr(feature="dev", allow(bool_comparison))]
-	fn set(&self) {
+	fn set_sync(&self) {
 		// Do not signal when we are about to close
 		if self.deleting.load(AtomicOrdering::Relaxed) {
 			return;
 		}
 
 		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
-			if let Err(e) = self.message_channel.send(ClientIoMessage::BlockVerified) {
+			let channel = self.message_channel.lock().clone();
+			if let Err(e) = channel.send_sync(ClientIoMessage::BlockVerified) {
+				debug!("Error sending BlockVerified message: {:?}", e);
+			}
+		}
+	}
+
+	#[cfg_attr(feature="dev", allow(bool_comparison))]
+	fn set_async(&self) {
+		// Do not signal when we are about to close
+		if self.deleting.load(AtomicOrdering::Relaxed) {
+			return;
+		}
+
+		if self.signalled.compare_and_swap(false, true, AtomicOrdering::Relaxed) == false {
+			let channel = self.message_channel.lock().clone();
+			if let Err(e) = channel.send(ClientIoMessage::BlockVerified) {
 				debug!("Error sending BlockVerified message: {:?}", e);
 			}
 		}
@@ -147,36 +170,44 @@ impl QueueSignal {
 struct Verification<K: Kind> {
 	// All locks must be captured in the order declared here.
 	unverified: Mutex<VecDeque<K::Unverified>>,
-	verified: Mutex<VecDeque<K::Verified>>,
 	verifying: Mutex<VecDeque<Verifying<K>>>,
+	verified: Mutex<VecDeque<K::Verified>>,
 	bad: Mutex<HashSet<H256>>,
 	more_to_verify: SMutex<()>,
 	empty: SMutex<()>,
 	verified_count: AtomicUsize,
 	drained: AtomicUsize,
 	imported: AtomicUsize,
+	sizes: Sizes,
+	check_seal: bool,
 }
 
 impl<K: Kind> VerificationQueue<K> {
 	/// Creates a new queue instance.
-	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>) -> Self {
+	pub fn new(config: Config, engine: Arc<Engine>, message_channel: IoChannel<ClientIoMessage>, check_seal: bool) -> Self {
 		let verification = Arc::new(Verification {
 			unverified: Mutex::new(VecDeque::new()),
-			verified: Mutex::new(VecDeque::new()),
 			verifying: Mutex::new(VecDeque::new()),
+			verified: Mutex::new(VecDeque::new()),
 			bad: Mutex::new(HashSet::new()),
 			more_to_verify: SMutex::new(()),
 			empty: SMutex::new(()),
 			verified_count: AtomicUsize::new(0),
 			drained: AtomicUsize::new(0),
 			imported: AtomicUsize::new(0),
+			sizes: Sizes {
+				unverified: AtomicUsize::new(0),
+				verifying: AtomicUsize::new(0),
+				verified: AtomicUsize::new(0),
+			},
+			check_seal: check_seal,
 		});
 		let more_to_verify = Arc::new(SCondvar::new());
 		let deleting = Arc::new(AtomicBool::new(false));
 		let ready_signal = Arc::new(QueueSignal {
 			deleting: deleting.clone(),
 			signalled: AtomicBool::new(false),
-			message_channel: message_channel
+			message_channel: Mutex::new(message_channel),
 		});
 		let empty = Arc::new(SCondvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
@@ -232,18 +263,21 @@ impl<K: Kind> VerificationQueue<K> {
 					None => continue,
 				};
 
+				verification.sizes.unverified.fetch_sub(item.heap_size_of_children(), AtomicOrdering::SeqCst);
 				verifying.push_back(Verifying { hash: item.hash(), output: None });
 				item
 			};
 
 			let hash = item.hash();
-			match K::verify(item, &*engine) {
+			let is_ready = match K::verify(item, &*engine, verification.check_seal) {
 				Ok(verified) => {
 					let mut verifying = verification.verifying.lock();
 					let mut idx = None;
 					for (i, e) in verifying.iter_mut().enumerate() {
 						if e.hash == hash {
 							idx = Some(i);
+
+							verification.sizes.verifying.fetch_add(verified.heap_size_of_children(), AtomicOrdering::SeqCst);
 							e.output = Some(verified);
 							break;
 						}
@@ -253,8 +287,10 @@ impl<K: Kind> VerificationQueue<K> {
 						// we're next!
 						let mut verified = verification.verified.lock();
 						let mut bad = verification.bad.lock();
-						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.verified_count);
-						ready.set();
+						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.verified_count, &verification.sizes);
+						true
+					} else {
+						false
 					}
 				},
 				Err(_) => {
@@ -266,10 +302,16 @@ impl<K: Kind> VerificationQueue<K> {
 					verifying.retain(|e| e.hash != hash);
 
 					if verifying.front().map_or(false, |x| x.output.is_some()) {
-						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.verified_count);
-						ready.set();
+						VerificationQueue::drain_verifying(&mut verifying, &mut verified, &mut bad, &verification.verified_count, &verification.sizes);
+						true
+					} else {
+						false
 					}
 				}
+			};
+			if is_ready {
+				// Import the block immediately
+				ready.set_sync();
 			}
 		}
 	}
@@ -278,20 +320,29 @@ impl<K: Kind> VerificationQueue<K> {
 		verifying: &mut VecDeque<Verifying<K>>,
 		verified: &mut VecDeque<K::Verified>,
 		bad: &mut HashSet<H256>,
-		v_count: &AtomicUsize
+		v_count: &AtomicUsize,
+		sizes: &Sizes,
 	) {
 		let start_len = verified.len();
+		let mut removed_size = 0;
+		let mut inserted_size = 0;
+
 		while let Some(output) = verifying.front_mut().and_then(|x| x.output.take()) {
 			assert!(verifying.pop_front().is_some());
+			let size = output.heap_size_of_children();
+			removed_size += size;
 
 			if bad.contains(&output.parent_hash()) {
 				bad.insert(output.hash());
 			} else {
+				inserted_size += size;
 				verified.push_back(output);
 			}
 		}
 
 		v_count.fetch_add(verified.len() - start_len, AtomicOrdering::AcqRel);
+		sizes.verifying.fetch_sub(removed_size, AtomicOrdering::SeqCst);
+		sizes.verified.fetch_add(inserted_size, AtomicOrdering::SeqCst);
 	}
 
 	/// Clear the queue and stop verification activity.
@@ -302,6 +353,12 @@ impl<K: Kind> VerificationQueue<K> {
 		unverified.clear();
 		verifying.clear();
 		verified.clear();
+
+		let sizes = &self.verification.sizes;
+		sizes.unverified.store(0, AtomicOrdering::Release);
+		sizes.verifying.store(0, AtomicOrdering::Release);
+		sizes.verified.store(0, AtomicOrdering::Release);
+
 		self.processing.write().clear();
 	}
 
@@ -345,6 +402,8 @@ impl<K: Kind> VerificationQueue<K> {
 
 		match K::create(input, &*self.engine) {
 			Ok(item) => {
+				self.verification.sizes.unverified.fetch_add(item.heap_size_of_children(), AtomicOrdering::SeqCst);
+
 				self.processing.write().insert(h.clone());
 				self.verification.unverified.lock().push_back(item);
 				self.verification.imported.fetch_add(1, AtomicOrdering::AcqRel);
@@ -375,26 +434,32 @@ impl<K: Kind> VerificationQueue<K> {
 		}
 
 		let mut new_verified = VecDeque::new();
+		let mut removed_size = 0;
 		for output in verified.drain(..) {
 			if bad.contains(&output.parent_hash()) {
+				removed_size += output.heap_size_of_children();
 				bad.insert(output.hash());
 				processing.remove(&output.hash());
 			} else {
 				new_verified.push_back(output);
 			}
 		}
+
+		self.verification.sizes.verified.fetch_sub(removed_size, AtomicOrdering::SeqCst);
 		*verified = new_verified;
 	}
 
-	/// Mark given item as processed
-	pub fn mark_as_good(&self, hashes: &[H256]) {
+	/// Mark given item as processed.
+	/// Returns true if the queue becomes empty.
+	pub fn mark_as_good(&self, hashes: &[H256]) -> bool {
 		if hashes.is_empty() {
-			return;
+			return self.processing.read().is_empty();
 		}
 		let mut processing = self.processing.write();
 		for hash in hashes {
 			processing.remove(hash);
 		}
+		processing.is_empty()
 	}
 
 	/// Removes up to `max` verified items from the queue
@@ -403,28 +468,37 @@ impl<K: Kind> VerificationQueue<K> {
 		let count = min(max, verified.len());
 		let result = verified.drain(..count).collect::<Vec<_>>();
 
-		self.verification.drained.fetch_add(count, AtomicOrdering::AcqRel);
+		self.verification.drained.fetch_add(result.len(), AtomicOrdering::AcqRel);
+
+		let drained_size = result.iter().map(HeapSizeOf::heap_size_of_children).fold(0, |a, c| a + c);
+		self.verification.sizes.verified.fetch_sub(drained_size, AtomicOrdering::SeqCst);
 
 		self.ready_signal.reset();
 		if !verified.is_empty() {
-			self.ready_signal.set();
+			self.ready_signal.set_async();
 		}
 		result
 	}
 
 	/// Get queue status.
 	pub fn queue_info(&self) -> QueueInfo {
+		use std::mem::size_of;
+
 		let (unverified_len, unverified_bytes) = {
-			let v = self.verification.unverified.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.unverified.lock().len();
+			let size = self.verification.sizes.unverified.load(AtomicOrdering::Acquire);
+
+			(len, size + len * size_of::<K::Unverified>())
 		};
 		let (verifying_len, verifying_bytes) = {
-			let v = self.verification.verifying.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.verifying.lock().len();
+			let size = self.verification.sizes.verifying.load(AtomicOrdering::Acquire);
+			(len, size + len * size_of::<Verifying<K>>())
 		};
 		let (verified_len, verified_bytes) = {
-			let v = self.verification.verified.lock();
-			(v.len(), v.heap_size_of_children())
+			let len = self.verification.verified.lock().len();
+			let size = self.verification.sizes.verified.load(AtomicOrdering::Acquire);
+			(len, size + len * size_of::<K::Verified>())
 		};
 
 		QueueInfo {
@@ -433,12 +507,9 @@ impl<K: Kind> VerificationQueue<K> {
 			verified_queue_size: verified_len,
 			max_queue_size: self.max_queue_size,
 			max_mem_use: self.max_mem_use,
-			mem_used:
-				unverified_bytes
-				+ verifying_bytes
-				+ verified_bytes
-				// TODO: https://github.com/servo/heapsize/pull/50
-				//+ self.processing.read().heap_size_of_children(),
+			mem_used: unverified_bytes
+					   + verifying_bytes
+					   + verified_bytes
 		}
 	}
 
@@ -593,7 +664,7 @@ mod tests {
 	fn get_test_queue() -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		BlockQueue::new(Config::default(), engine, IoChannel::disconnected())
+		BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true)
 	}
 
 	#[test]
@@ -601,7 +672,7 @@ mod tests {
 		// TODO better test
 		let spec = Spec::new_test();
 		let engine = spec.engine;
-		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected());
+		let _ = BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true);
 	}
 
 	#[test]
@@ -665,7 +736,7 @@ mod tests {
 		let engine = spec.engine;
 		let mut config = Config::default();
 		config.max_mem_use = super::MIN_MEM_LIMIT;  // empty queue uses about 15000
-		let queue = BlockQueue::new(config, engine, IoChannel::disconnected());
+		let queue = BlockQueue::new(config, engine, IoChannel::disconnected(), true);
 		assert!(!queue.queue_info().is_full());
 		let mut blocks = get_good_dummy_block_seq(50);
 		for b in blocks.drain(..) {

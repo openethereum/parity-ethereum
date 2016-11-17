@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
+use std::path::Path;
+use std::fmt::{Display, Formatter, Error as FmtError};
 pub use std::time::Duration;
 pub use blockchain::Config as BlockChainConfig;
 pub use trace::Config as TraceConfig;
@@ -26,23 +28,26 @@ use util::{journaldb, CompactionProfile};
 /// Client state db compaction profile
 #[derive(Debug, PartialEq)]
 pub enum DatabaseCompactionProfile {
-	/// Default compaction profile
-	Default,
+	/// Try to determine compaction profile automatically
+	Auto,
+	/// SSD compaction profile
+	SSD,
 	/// HDD or other slow storage io compaction profile
 	HDD,
 }
 
 impl Default for DatabaseCompactionProfile {
 	fn default() -> Self {
-		DatabaseCompactionProfile::Default
+		DatabaseCompactionProfile::Auto
 	}
 }
 
 impl DatabaseCompactionProfile {
 	/// Returns corresponding compaction profile.
-	pub fn compaction_profile(&self) -> CompactionProfile {
+	pub fn compaction_profile(&self, db_path: &Path) -> CompactionProfile {
 		match *self {
-			DatabaseCompactionProfile::Default => Default::default(),
+			DatabaseCompactionProfile::Auto => CompactionProfile::auto(db_path),
+			DatabaseCompactionProfile::SSD => CompactionProfile::ssd(),
 			DatabaseCompactionProfile::HDD => CompactionProfile::hdd(),
 		}
 	}
@@ -53,9 +58,10 @@ impl FromStr for DatabaseCompactionProfile {
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		match s {
-			"ssd" | "default" => Ok(DatabaseCompactionProfile::Default),
+			"auto" => Ok(DatabaseCompactionProfile::Auto),
+			"ssd" => Ok(DatabaseCompactionProfile::SSD),
 			"hdd" => Ok(DatabaseCompactionProfile::HDD),
-			_ => Err("Invalid compaction profile given. Expected hdd/ssd (default).".into()),
+			_ => Err("Invalid compaction profile given. Expected default/hdd/ssd.".into()),
 		}
 	}
 }
@@ -71,11 +77,24 @@ pub enum Mode {
 	/// Goes offline after RLP is inactive for some (given) time and
 	/// stays inactive.
 	Dark(Duration),
+	/// Always off.
+	Off,
 }
 
 impl Default for Mode {
 	fn default() -> Self {
 		Mode::Active
+	}
+}
+
+impl Display for Mode {
+	fn fmt(&self, f: &mut Formatter) -> Result<(), FmtError> {
+		match *self {
+			Mode::Active => write!(f, "active"),
+			Mode::Passive(..) => write!(f, "passive"),
+			Mode::Dark(..) => write!(f, "dark"),
+			Mode::Off => write!(f, "offline"),
+		}
 	}
 }
 
@@ -96,7 +115,7 @@ pub struct ClientConfig {
 	pub pruning: journaldb::Algorithm,
 	/// The name of the client instance.
 	pub name: String,
-	/// State db cache-size if not default
+	/// RocksDB state column cache-size if not default
 	pub db_cache_size: Option<usize>,
 	/// State db compaction profile
 	pub db_compaction: DatabaseCompactionProfile,
@@ -106,6 +125,14 @@ pub struct ClientConfig {
 	pub mode: Mode,
 	/// Type of block verifier used by client.
 	pub verifier_type: VerifierType,
+	/// State db cache-size.
+	pub state_cache_size: usize,
+	/// EVM jump-tables cache size.
+	pub jump_table_size: usize,
+	/// State pruning history size.
+	pub history: u64,
+	/// Check seal valididity on block import
+	pub check_seal: bool,
 }
 
 #[cfg(test)]
@@ -114,13 +141,13 @@ mod test {
 
 	#[test]
 	fn test_default_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Default);
+		assert_eq!(DatabaseCompactionProfile::default(), DatabaseCompactionProfile::Auto);
 	}
 
 	#[test]
 	fn test_parsing_compaction_profile() {
-		assert_eq!(DatabaseCompactionProfile::Default, "ssd".parse().unwrap());
-		assert_eq!(DatabaseCompactionProfile::Default, "default".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::Auto, "auto".parse().unwrap());
+		assert_eq!(DatabaseCompactionProfile::SSD, "ssd".parse().unwrap());
 		assert_eq!(DatabaseCompactionProfile::HDD, "hdd".parse().unwrap());
 	}
 

@@ -17,7 +17,7 @@
 //! Block header.
 
 use util::*;
-use basic_types::*;
+use basic_types::{LogBloom, Seal, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
@@ -199,8 +199,9 @@ impl Header {
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3(Seal::With));
- 				hash.as_ref().unwrap().clone()
+				let h = self.rlp_sha3(Seal::With);
+ 				*hash = Some(h.clone());
+ 				h
  			}
 		}
 	}
@@ -211,8 +212,9 @@ impl Header {
 		match &mut *hash {
 			&mut Some(ref h) => h.clone(),
 			hash @ &mut None => {
-				*hash = Some(self.rlp_sha3(Seal::Without));
-				hash.as_ref().unwrap().clone()
+				let h = self.rlp_sha3(Seal::Without);
+				*hash = Some(h.clone());
+				h
 			}
 		}
 	}

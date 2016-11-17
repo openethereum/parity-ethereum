@@ -18,6 +18,7 @@
 
 use spec::Ethash;
 use spec::BasicAuthority;
+use spec::AuthorityRound;
 
 /// Engine deserialization.
 #[derive(Debug, PartialEq, Deserialize)]
@@ -30,6 +31,8 @@ pub enum Engine {
 	Ethash(Ethash),
 	/// BasicAuthority engine.
 	BasicAuthority(BasicAuthority),
+	/// AuthorityRound engine.
+	AuthorityRound(AuthorityRound),
 }
 
 #[cfg(test)]
@@ -63,7 +66,7 @@ mod tests {
 					"durationLimit": "0x0d",
 					"blockReward": "0x4563918244F40000",
 					"registrar" : "0xc6d9d2cd449a754c494264e1809c50e34d64562b",
-					"frontierCompatibilityModeLimit" : "0x",
+					"homesteadTransition" : "0x",
 					"daoHardforkTransition": "0xffffffffffffffff",
 					"daoHardforkBeneficiary": "0x0000000000000000000000000000000000000000",
 					"daoHardforkAccounts": []

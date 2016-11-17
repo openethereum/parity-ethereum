@@ -33,3 +33,4 @@ pub mod transaction_import;
 pub mod block_import_error;
 pub mod restoration_status;
 pub mod snapshot_manifest;
+pub mod mode;

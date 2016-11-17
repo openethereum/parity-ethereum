@@ -19,7 +19,8 @@
 use nanoipc;
 use std::sync::Arc;
 use std::sync::atomic::{Ordering, AtomicBool};
-use client::{Client, BlockChainClient, ClientConfig, RemoteClient, BlockID};
+use client::{Client, BlockChainClient, ClientConfig, BlockID};
+use client::remote::RemoteClient;
 use tests::helpers::*;
 use devtools::*;
 use miner::Miner;

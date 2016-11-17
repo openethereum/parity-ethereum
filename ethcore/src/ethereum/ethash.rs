@@ -15,9 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use ethash::{quick_get_difficulty, slow_get_seedhash, EthashManager};
-use common::*;
+use util::*;
 use block::*;
+use builtin::Builtin;
+use env_info::EnvInfo;
+use error::{BlockError, TransactionError, Error};
+use header::Header;
+use state::CleanupMode;
 use spec::CommonParams;
+use transaction::SignedTransaction;
 use engines::Engine;
 use evm::Schedule;
 use ethjson;
@@ -41,7 +47,7 @@ pub struct EthashParams {
 	/// Namereg contract address.
 	pub registrar: Address,
 	/// Homestead transition block number.
-	pub frontier_compatibility_mode_limit: u64,
+	pub homestead_transition: u64,
 	/// DAO hard-fork transition block (X).
 	pub dao_hardfork_transition: u64,
 	/// DAO hard-fork refund contract address (C).
@@ -54,6 +60,22 @@ pub struct EthashParams {
 	pub difficulty_hardfork_bound_divisor: U256,
 	/// Block on which there is no additional difficulty from the exponential bomb.
 	pub bomb_defuse_transition: u64,
+	/// Number of first block where EIP-150 rules begin.
+	pub eip150_transition: u64,
+	/// Number of first block where EIP-155 rules begin.
+	pub eip155_transition: u64,
+	/// Number of first block where EIP-160 rules begin.
+	pub eip160_transition: u64,
+	/// Number of first block where EIP-161.abc begin.
+	pub eip161abc_transition: u64,
+	/// Number of first block where EIP-161.d begins.
+	pub eip161d_transition: u64,
+	/// Number of first block where ECIP-1010 begins.
+	pub ecip1010_pause_transition: u64,
+	/// Number of first block where ECIP-1010 ends.
+	pub ecip1010_continue_transition: u64,
+	/// Maximum amount of code that can be deploying into a contract.
+	pub max_code_size: u64,
 }
 
 impl From<ethjson::spec::EthashParams> for EthashParams {
@@ -66,13 +88,21 @@ impl From<ethjson::spec::EthashParams> for EthashParams {
 			duration_limit: p.duration_limit.into(),
 			block_reward: p.block_reward.into(),
 			registrar: p.registrar.map_or_else(Address::new, Into::into),
-			frontier_compatibility_mode_limit: p.frontier_compatibility_mode_limit.map_or(0, Into::into),
-			dao_hardfork_transition: p.dao_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			homestead_transition: p.homestead_transition.map_or(0, Into::into),
+			dao_hardfork_transition: p.dao_hardfork_transition.map_or(u64::max_value(), Into::into),
 			dao_hardfork_beneficiary: p.dao_hardfork_beneficiary.map_or_else(Address::new, Into::into),
 			dao_hardfork_accounts: p.dao_hardfork_accounts.unwrap_or_else(Vec::new).into_iter().map(Into::into).collect(),
-			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(0x7fffffffffffffff, Into::into),
+			difficulty_hardfork_transition: p.difficulty_hardfork_transition.map_or(u64::max_value(), Into::into),
 			difficulty_hardfork_bound_divisor: p.difficulty_hardfork_bound_divisor.map_or(p.difficulty_bound_divisor.into(), Into::into),
-			bomb_defuse_transition: p.bomb_defuse_transition.map_or(0x7fffffffffffffff, Into::into),
+			bomb_defuse_transition: p.bomb_defuse_transition.map_or(u64::max_value(), Into::into),
+			eip150_transition: p.eip150_transition.map_or(0, Into::into),
+			eip155_transition: p.eip155_transition.map_or(0, Into::into),
+			eip160_transition: p.eip160_transition.map_or(0, Into::into),
+			eip161abc_transition: p.eip161abc_transition.map_or(0, Into::into),
+			eip161d_transition: p.eip161d_transition.map_or(u64::max_value(), Into::into),
+			ecip1010_pause_transition: p.ecip1010_pause_transition.map_or(u64::max_value(), Into::into),
+			ecip1010_continue_transition: p.ecip1010_continue_transition.map_or(u64::max_value(), Into::into),
+			max_code_size: p.max_code_size.map_or(u64::max_value(), Into::into),
 		}
 	}
 }
@@ -112,17 +142,32 @@ impl Engine for Ethash {
 	}
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
-	fn extra_info(&self, header: &Header) -> HashMap<String, String> {
-		hash_map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
+	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		map!["nonce".to_owned() => format!("0x{}", header.nonce().hex()), "mixHash".to_owned() => format!("0x{}", header.mix_hash().hex())]
 	}
 
 	fn schedule(&self, env_info: &EnvInfo) -> Schedule {
-		trace!(target: "client", "Creating schedule. fCML={}", self.ethash_params.frontier_compatibility_mode_limit);
+		trace!(target: "client", "Creating schedule. fCML={}, bGCML={}", self.ethash_params.homestead_transition, self.ethash_params.eip150_transition);
 
-		if env_info.number < self.ethash_params.frontier_compatibility_mode_limit {
+		if env_info.number < self.ethash_params.homestead_transition {
 			Schedule::new_frontier()
-		} else {
+		} else if env_info.number < self.ethash_params.eip150_transition {
 			Schedule::new_homestead()
+		} else {
+			Schedule::new_post_eip150(
+				self.ethash_params.max_code_size as usize,
+				env_info.number >= self.ethash_params.eip160_transition,
+				env_info.number >= self.ethash_params.eip161abc_transition,
+				env_info.number >= self.ethash_params.eip161d_transition
+			)
+		}
+	}
+
+	fn signing_network_id(&self, env_info: &EnvInfo) -> Option<u8> {
+		if env_info.number >= self.ethash_params.eip155_transition && self.params().network_id < 127 {
+			Some(self.params().network_id as u8)
+		} else {
+			None
 		}
 	}
 
@@ -159,7 +204,7 @@ impl Engine for Ethash {
 				let mut state = block.fields_mut().state;
 				for child in &self.ethash_params.dao_hardfork_accounts {
 					let b = state.balance(child);
-					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b);
+					state.transfer_balance(child, &self.ethash_params.dao_hardfork_beneficiary, &b, CleanupMode::NoEmpty);
 				}
 //			}
 		}
@@ -172,12 +217,12 @@ impl Engine for Ethash {
 		let fields = block.fields_mut();
 
 		// Bestow block reward
-		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())));
+		fields.state.add_balance(fields.header.author(), &(reward + reward / U256::from(32) * U256::from(fields.uncles.len())), CleanupMode::NoEmpty);
 
 		// Bestow uncle rewards
 		let current_number = fields.header.number();
 		for u in fields.uncles.iter() {
-			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)));
+			fields.state.add_balance(u.author(), &(reward * U256::from(8 + u.number() - current_number) / U256::from(8)), CleanupMode::NoEmpty);
 		}
 
 		// Commit state so that we can actually figure out the state root.
@@ -264,9 +309,16 @@ impl Engine for Ethash {
 	}
 
 	fn verify_transaction_basic(&self, t: &SignedTransaction, header: &Header) -> result::Result<(), Error> {
-		if header.number() >= self.ethash_params.frontier_compatibility_mode_limit {
+		if header.number() >= self.ethash_params.homestead_transition {
 			try!(t.check_low_s());
 		}
+
+		if let Some(n) = t.network_id() {
+			if header.number() < self.ethash_params.eip155_transition || n as usize != self.params().network_id {
+				return Err(TransactionError::InvalidNetworkId.into())
+			}
+		}
+
 		Ok(())
 	}
 
@@ -290,7 +342,7 @@ impl Ethash {
 			false => self.ethash_params.difficulty_bound_divisor,
 		};
 		let duration_limit = self.ethash_params.duration_limit;
-		let frontier_limit = self.ethash_params.frontier_compatibility_mode_limit;
+		let frontier_limit = self.ethash_params.homestead_transition;
 
 		let mut target = if header.number() < frontier_limit {
 			if header.timestamp() >= parent.timestamp() + duration_limit {
@@ -311,9 +363,20 @@ impl Ethash {
 		};
 		target = max(min_difficulty, target);
 		if header.number() < self.ethash_params.bomb_defuse_transition {
-			let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
-			if period > 1 {
-				target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+			if header.number() < self.ethash_params.ecip1010_pause_transition {
+				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				if period > 1 {
+					target = max(min_difficulty, target + (U256::from(1) << (period - 2)));
+				}
+			}
+			else if header.number() < self.ethash_params.ecip1010_continue_transition {
+				let fixed_difficulty = ((self.ethash_params.ecip1010_pause_transition / EXP_DIFF_PERIOD) - 2) as usize;
+				target = max(min_difficulty, target + (U256::from(1) << fixed_difficulty));
+			}
+			else {
+				let period = ((parent.number() + 1) / EXP_DIFF_PERIOD) as usize;
+				let delay = ((self.ethash_params.ecip1010_continue_transition - self.ethash_params.ecip1010_pause_transition) / EXP_DIFF_PERIOD) as usize;
+				target = max(min_difficulty, target + (U256::from(1) << (period - delay - 2)));
 			}
 		}
 		target
@@ -358,11 +421,14 @@ impl Header {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use block::*;
 	use tests::helpers::*;
-	use super::super::new_morden;
-	use super::Ethash;
+	use env_info::EnvInfo;
+	use error::{BlockError, Error};
+	use header::Header;
+	use super::super::{new_morden, new_homestead_test};
+	use super::{Ethash, EthashParams};
 	use rlp;
 
 	#[test]
@@ -584,5 +650,122 @@ mod tests {
 		assert_eq!(Ethash::difficulty_to_boundary(&U256::from(32)), H256::from_str("0800000000000000000000000000000000000000000000000000000000000000").unwrap());
 	}
 
-	// TODO: difficulty test
+	#[test]
+	fn difficulty_frontier() {
+		let spec = new_homestead_test();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1000000);
+		parent_header.set_difficulty(U256::from_str("b69de81a22b").unwrap());
+		parent_header.set_timestamp(1455404053);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(1455404058);
+
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		assert_eq!(U256::from_str("b6b4bbd735f").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn difficulty_homestead() {
+		let spec = new_homestead_test();
+		let ethparams = get_default_ethash_params();
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(1500000);
+		parent_header.set_difficulty(U256::from_str("1fd0fd70792b").unwrap());
+		parent_header.set_timestamp(1463003133);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(1463003177);
+
+		let difficulty = ethash.calculate_difficulty(&header, &parent_header);
+		assert_eq!(U256::from_str("1fc50f118efe").unwrap(), difficulty);
+	}
+
+	#[test]
+	fn difficulty_classic_bomb_delay() {
+		let spec = new_homestead_test();
+		let ethparams = EthashParams {
+			ecip1010_pause_transition: 3000000,
+			..get_default_ethash_params()
+		};
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(3500000);
+		parent_header.set_difficulty(U256::from_str("6F62EAF8D3C").unwrap());
+		parent_header.set_timestamp(1452838500);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+
+		header.set_timestamp(parent_header.timestamp() + 20);
+		assert_eq!(
+			U256::from_str("6F55FE9B74B").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		header.set_timestamp(parent_header.timestamp() + 5);
+		assert_eq!(
+			U256::from_str("6F71D75632D").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		header.set_timestamp(parent_header.timestamp() + 80);
+		assert_eq!(
+			U256::from_str("6F02746B3A5").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+	}
+
+	#[test]
+	fn test_difficulty_bomb_continue() {
+		let spec = new_homestead_test();
+		let ethparams = EthashParams {
+			ecip1010_pause_transition: 3000000,
+			ecip1010_continue_transition: 5000000,
+			..get_default_ethash_params()
+		};
+		let ethash = Ethash::new(spec.params, ethparams, BTreeMap::new());
+
+		let mut parent_header = Header::default();
+		parent_header.set_number(5000102);
+		parent_header.set_difficulty(U256::from_str("14944397EE8B").unwrap());
+		parent_header.set_timestamp(1513175023);
+		let mut header = Header::default();
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 6);
+		assert_eq!(
+			U256::from_str("1496E6206188").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(5100123);
+		parent_header.set_difficulty(U256::from_str("14D24B39C7CF").unwrap());
+		parent_header.set_timestamp(1514609324);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 41);
+		assert_eq!(
+			U256::from_str("14CA9C5D9227").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(6150001);
+		parent_header.set_difficulty(U256::from_str("305367B57227").unwrap());
+		parent_header.set_timestamp(1529664575);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 105);
+		assert_eq!(
+			U256::from_str("309D09E0C609").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+		parent_header.set_number(8000000);
+		parent_header.set_difficulty(U256::from_str("1180B36D4CE5B6A").unwrap());
+		parent_header.set_timestamp(1535431724);
+		header.set_number(parent_header.number() + 1);
+		header.set_timestamp(parent_header.timestamp() + 420);
+		assert_eq!(
+			U256::from_str("5126FFD5BCBB9E7").unwrap(),
+			ethash.calculate_difficulty(&header, &parent_header)
+		);
+	}
 }

@@ -14,7 +14,9 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use common::*;
+use util::*;
+use action_params::{ActionParams, ActionValue};
+use env_info::EnvInfo;
 use types::executed::CallType;
 use evm::{self, Ext, Schedule, Factory, GasLeft, VMType, ContractCreateResult, MessageCallResult};
 use std::fmt::Debug;
@@ -90,6 +92,14 @@ impl Ext for FakeExt {
 
 	fn exists(&self, address: &Address) -> bool {
 		self.balances.contains_key(address)
+	}
+
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.balances.get(address).map_or(false, |b| !b.is_zero()) 
+	}
+
+	fn origin_balance(&self) -> U256 {
+		unimplemented!()
 	}
 
 	fn balance(&self, address: &Address) -> U256 {
@@ -817,7 +827,7 @@ fn test_signextend(factory: super::Factory) {
 
 #[test] // JIT just returns out of gas
 fn test_badinstruction_int() {
-	let factory = super::Factory::new(VMType::Interpreter);
+	let factory = super::Factory::new(VMType::Interpreter, 1024 * 32);
 	let code = "af".from_hex().unwrap();
 
 	let mut params = ActionParams::default();

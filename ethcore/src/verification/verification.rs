@@ -14,17 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Block and transaction verification functions
-///
-/// Block verification is done in 3 steps
-/// 1. Quick verification upon adding to the block queue
-/// 2. Signatures verification done in the queue.
-/// 3. Final verification against the blockchain done before enactment.
+//! Block and transaction verification functions
+//!
+//! Block verification is done in 3 steps
+//! 1. Quick verification upon adding to the block queue
+//! 2. Signatures verification done in the queue.
+//! 3. Final verification against the blockchain done before enactment.
 
-use common::*;
+use util::*;
 use engines::Engine;
+use error::{BlockError, Error};
 use blockchain::*;
+use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
+use transaction::SignedTransaction;
+use views::BlockView;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -66,10 +70,12 @@ pub fn verify_block_basic(header: &Header, bytes: &[u8], engine: &Engine) -> Res
 /// Phase 2 verification. Perform costly checks such as transaction signatures and block nonce for ethash.
 /// Still operates on a individual block
 /// Returns a `PreverifiedBlock` structure populated with transactions
-pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine) -> Result<PreverifiedBlock, Error> {
-	try!(engine.verify_block_unordered(&header, Some(&bytes)));
-	for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
-		try!(engine.verify_block_unordered(&try!(u), None));
+pub fn verify_block_unordered(header: Header, bytes: Bytes, engine: &Engine, check_seal: bool) -> Result<PreverifiedBlock, Error> {
+	if check_seal {
+		try!(engine.verify_block_unordered(&header, Some(&bytes)));
+		for u in try!(UntrustedRlp::new(&bytes).at(2)).iter().map(|rlp| rlp.as_val::<Header>()) {
+			try!(engine.verify_block_unordered(&try!(u), None));
+		}
 	}
 	// Verify transactions.
 	let mut transactions = Vec::new();
@@ -108,7 +114,8 @@ pub fn verify_block_family(header: &Header, bytes: &[u8], engine: &Engine, bc: &
 			match bc.block_details(&hash) {
 				Some(details) => {
 					excluded.insert(details.parent.clone());
-					let b = bc.block(&hash).unwrap();
+					let b = bc.block(&hash)
+						.expect("parent already known to be stored; qed");
 					excluded.extend(BlockView::new(&b).uncle_hashes());
 					hash = details.parent;
 				}
@@ -296,7 +303,7 @@ mod tests {
 			self.blocks.contains_key(hash)
 		}
 
-		fn first_block(&self) -> H256 {
+		fn first_block(&self) -> Option<H256> {
 			unimplemented!()
 		}
 
@@ -311,6 +318,10 @@ mod tests {
 
 		fn block_body(&self, hash: &H256) -> Option<Bytes> {
 			self.block(hash).map(|b| BlockChain::block_to_body(&b))
+		}
+
+		fn best_ancient_block(&self) -> Option<H256> {
+			None
 		}
 
 		/// Get the familial details concerning a block.
@@ -384,7 +395,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::one()
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 
 		let tr2 = Transaction {
 			action: Action::Create,
@@ -393,7 +404,7 @@ mod tests {
 			gas: U256::from(30_000),
 			gas_price: U256::from(40_000),
 			nonce: U256::from(2)
-		}.sign(keypair.secret());
+		}.sign(keypair.secret(), None);
 
 		let good_transactions = [ tr1.clone(), tr2.clone() ];
 

@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::test_common::*;
+use action_params::ActionParams;
 use state::{State, Substate};
 use executive::*;
 use engines::Engine;
+use env_info::EnvInfo;
 use evm;
 use evm::{Schedule, Ext, Factory, Finalize, VMType, ContractCreateResult, MessageCallResult};
 use externalities::*;
@@ -90,8 +92,16 @@ impl<'a, T, V> Ext for TestExt<'a, T, V> where T: Tracer, V: VMTracer {
 		self.ext.exists(address)
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.ext.exists_and_not_null(address)
+	}
+
 	fn balance(&self, address: &Address) -> U256 {
 		self.ext.balance(address)
+	}
+
+	fn origin_balance(&self) -> U256 {
+		self.ext.origin_balance()
 	}
 
 	fn blockhash(&self, number: &U256) -> H256 {
@@ -191,7 +201,7 @@ fn do_json_test_for(vm_type: &VMType, json_data: &[u8]) -> Vec<String> {
 		state.populate_from(From::from(vm.pre_state.clone()));
 		let info = From::from(vm.env);
 		let engine = TestEngine::new(1);
-		let vm_factory = Factory::new(vm_type.clone());
+		let vm_factory = Factory::new(vm_type.clone(), 1024 * 32);
 		let params = ActionParams::from(vm.transaction);
 
 		let mut substate = Substate::new();

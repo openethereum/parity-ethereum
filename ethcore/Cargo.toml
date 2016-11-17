@@ -3,7 +3,7 @@ description = "Ethcore library"
 homepage = "http://ethcore.io"
 license = "GPL-3.0"
 name = "ethcore"
-version = "1.4.0"
+version = "1.5.0"
 authors = ["Ethcore <admin@ethcore.io>"]
 build = "build.rs"
 
@@ -24,8 +24,11 @@ rayon = "0.4.2"
 semver = "0.2"
 bit-set = "0.4"
 time = "0.1"
+rand = "0.3"
+byteorder = "0.5"
+transient-hashmap = "0.1"
 evmjit = { path = "../evmjit", optional = true }
-clippy = { version = "0.0.90", optional = true}
+clippy = { version = "0.0.96", optional = true}
 ethash = { path = "../ethash" }
 ethcore-util = { path = "../util" }
 ethcore-io = { path = "../util/io" }
@@ -36,10 +39,8 @@ ethstore = { path = "../ethstore" }
 ethkey = { path = "../ethkey" }
 ethcore-ipc-nano = { path = "../ipc/nano" }
 rlp = { path = "../util/rlp" }
-rand = "0.3"
-lru-cache = "0.0.7"
+lru-cache = "0.1.0"
 ethcore-bloom-journal = { path = "../util/bloom" }
-byteorder = "0.5"
 
 [dependencies.hyper]
 git = "https://github.com/ethcore/hyper"
@@ -47,7 +48,9 @@ default-features = false
 
 [features]
 jit = ["evmjit"]
-evm-debug = []
+evm-debug = ["slow-blocks"]
+evm-debug-tests = ["evm-debug"]
+slow-blocks = [] # Use SLOW_TX_DURATION="50" (compile time!) to track transactions over 50ms
 json-tests = []
 test-heavy = []
 dev = ["clippy"]

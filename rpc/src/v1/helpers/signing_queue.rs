@@ -21,9 +21,10 @@ use std::collections::BTreeMap;
 use jsonrpc_core;
 use util::{Mutex, RwLock, U256};
 use v1::helpers::{ConfirmationRequest, ConfirmationPayload};
+use v1::types::ConfirmationResponse;
 
 /// Result that can be returned from JSON RPC.
-pub type RpcResult = Result<jsonrpc_core::Value, jsonrpc_core::Error>;
+pub type RpcResult = Result<ConfirmationResponse, jsonrpc_core::Error>;
 
 /// Possible events happening in the queue that can be listened to.
 #[derive(Debug, PartialEq)]
@@ -314,13 +315,12 @@ mod test {
 	use std::time::Duration;
 	use std::thread;
 	use std::sync::{mpsc, Arc};
-	use util::{Address, U256, H256, Mutex};
+	use util::{Address, U256, Mutex};
 	use v1::helpers::{SigningQueue, ConfirmationsQueue, QueueEvent, FilledTransactionRequest, ConfirmationPayload};
-	use v1::types::H256 as NH256;
-	use jsonrpc_core::to_value;
+	use v1::types::ConfirmationResponse;
 
 	fn request() -> ConfirmationPayload {
-		ConfirmationPayload::Transaction(FilledTransactionRequest {
+		ConfirmationPayload::SendTransaction(FilledTransactionRequest {
 			from: Address::from(1),
 			to: Some(Address::from(2)),
 			gas_price: 0.into(),
@@ -353,10 +353,10 @@ mod test {
 			// Just wait for the other thread to start
 			thread::sleep(Duration::from_millis(100));
 		}
-		queue.request_confirmed(id, Ok(to_value(&NH256::from(H256::from(1)))));
+		queue.request_confirmed(id, Ok(ConfirmationResponse::SendTransaction(1.into())));
 
 		// then
-		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(to_value(&NH256::from(H256::from(1)))));
+		assert_eq!(handle.join().expect("Thread should finish nicely"), Ok(ConfirmationResponse::SendTransaction(1.into())));
 	}
 
 	#[test]
