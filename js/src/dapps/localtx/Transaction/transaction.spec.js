@@ -18,6 +18,13 @@ import React from 'react';
 import { shallow } from 'enzyme';
 
 import '../../../environment/tests';
+import EthApi from '../../../api';
+
+// Mock API for tests
+import * as Api from '../parity';
+Api.api = {
+  util: EthApi.prototype.util
+};
 
 import BigNumber from 'bignumber.js';
 import { Transaction, LocalTransaction } from './transaction';
