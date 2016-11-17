@@ -68,16 +68,12 @@ impl Engine for InstantSeal {
 mod tests {
 	use util::*;
 	use tests::helpers::*;
-	use account_provider::AccountProvider;
 	use spec::Spec;
 	use header::Header;
 	use block::*;
 
 	#[test]
 	fn instant_can_seal() {
-		let tap = AccountProvider::transient_provider();
-		let addr = tap.insert_account("".sha3(), "").unwrap();
-
 		let spec = Spec::new_instant();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
@@ -85,10 +81,9 @@ mod tests {
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		// Seal with empty AccountProvider.
-		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
+		let seal = engine.generate_seal(b.block()).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
 	}
 

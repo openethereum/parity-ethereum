@@ -388,6 +388,7 @@ mod tests {
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db1 = get_temp_state_db().take();
 		spec.ensure_db_good(&mut db1).unwrap();
@@ -399,16 +400,16 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		if let Some(seal) = engine.generate_seal(b1.block(), Some(&tap)) {
+		if let Some(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b1.block()).is_none());
 		}
 
-		if let Some(seal) = engine.generate_seal(b2.block(), Some(&tap)) {
+		if let Some(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b2.block()).is_none());
 		}
 	}
 
