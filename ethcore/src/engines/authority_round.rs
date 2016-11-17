@@ -312,7 +312,6 @@ impl Engine for AuthorityRound {
 		*self.message_channel.lock() = Some(message_channel);
 	}
 
-
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
 		*self.account_provider.lock() = Some(account_provider);
 	}
