@@ -18,7 +18,8 @@
 
 use util::*;
 use super::{Height, Round, BlockHash, Step};
-use rlp::{View, DecoderError, Decodable, Decoder, Encodable, RlpStream, Stream};
+use rlp::*;
+use error::Error;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConsensusMessage {
@@ -30,6 +31,15 @@ pub struct ConsensusMessage {
 }
 
 impl ConsensusMessage {
+	pub fn new_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Option<Bytes> where F: FnOnce(H256) -> Option<H520> {
+		let mut s = RlpStream::new_list(4);
+		s.append(&height);
+		s.append(&round);
+		s.append(&step);
+		s.append(&block_hash.unwrap_or(H256::zero()));
+		Some(s.out())
+	}
+
 	pub fn is_height(&self, height: Height) -> bool {
 		self.height == height
 	}

@@ -82,6 +82,8 @@ pub struct Tendermint {
 	proposed_block: Mutex<Option<ExecutedBlock>>,
 	/// Channel for updating the sealing.
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
+	/// Used to sign messages and proposals.
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 	/// Message for the last PoLC.
 	last_lock: RwLock<Option<ConsensusMessage>>,
 	/// Bare hash of the proposed block, used for seal submission.
@@ -105,6 +107,7 @@ impl Tendermint {
 				votes: VoteCollector::new(),
 				proposed_block: Mutex::new(None),
 				message_channel: Mutex::new(None),
+				account_provider: Mutex::new(None),
 				last_lock: RwLock::new(None),
 				proposal: RwLock::new(None)
 			});
@@ -131,19 +134,31 @@ impl Tendermint {
 		}
 	}
 
-	fn broadcast_message(&self, message: Bytes) {
-		if let Some(ref channel) = *self.message_channel.lock() {
-			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
-				Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
-				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+	fn broadcast_message(&self, block_hash: Option<BlockHash>) {
+		if let Some(message) = self.generate_message(block_hash) {
+			if let Some(ref channel) = *self.message_channel.lock() {
+				match channel.send(ClientIoMessage::BroadcastMessage(message)) {
+					Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
+					Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+				}
 			}
+		} else {
+			warn!(target: "poa", "broadcast_message: Message could not be generated.");
 		}
 	}
 
-	fn generate_message(&self, block_hash: Option<BlockHash>) -> ConsensusMessage {
-		Ok(signature) = ap.sign(*author, None, block_hash(header))
-		ConsensusMessage { signatue
-
+	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
+		if let Some(ref ap) = *self.account_provider.lock() {
+			ConsensusMessage::new_rlp(
+				|mh| ap.sign(*self.authority.read(), None, mh).ok().map(H520::from),
+				self.height.load(AtomicOrdering::SeqCst),
+				self.round.load(AtomicOrdering::SeqCst),
+				*self.step.read(),
+				block_hash
+			)
+		} else {
+			None
+		}
 	}
 
 	fn to_step(&self, step: Step) {
@@ -154,19 +169,19 @@ impl Tendermint {
 				self.update_sealing()
 			},
 			Step::Prevote => {
-				self.broadcast_message()
+				self.broadcast_message(None)
 			},
 			Step::Precommit => {
-				let message = match self.last_lock.read() {
-					Some(m) => 
-					None => ConsensusMessage { signature: signature, height
-				}
-				self.broadcast_message(::rlp::encode(message))
+				let block_hash = match *self.last_lock.read() {
+					Some(ref m) => None,
+					None => None,
+				};
+				self.broadcast_message(block_hash);
 			},
 			Step::Commit => {
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
-				if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, Some(block_hash(header))) {
+				if let Some((proposer, votes)) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, *self.proposal.read()) {
 					let seal = vec![
 						::rlp::encode(&round).to_vec(),
 						::rlp::encode(proposer).to_vec(),
@@ -286,8 +301,8 @@ impl Engine for Tendermint {
 	}
 
 	/// Attempt to seal the block internally using all available signatures.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if let Some(ap) = accounts {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
+		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
 			if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
@@ -317,11 +332,14 @@ impl Engine for Tendermint {
 
 		// Check if the message is known.
 		if self.votes.vote(message.clone(), sender).is_none() {
-			let is_newer_than_lock = self.last_lock.read().map_or(true, |lock| message > lock);
+			let is_newer_than_lock = match *self.last_lock.read() {
+				Some(ref lock) => &message > lock,
+				None => true,
+			};
 			if is_newer_than_lock
 				&& message.step == Step::Prevote
 				&& self.has_enough_aligned_votes(&message) {
-				*self.last_lock.write()	= Some(message);
+				*self.last_lock.write()	= Some(message.clone());
 			}
 			// Check if it can affect step transition.
 			if self.is_current(&message) {
@@ -428,8 +446,11 @@ impl Engine for Tendermint {
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		let mut guard = self.message_channel.lock();
-		*guard = Some(message_channel);
+		*self.message_channel.lock() = Some(message_channel);
+	}
+
+	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
+		*self.account_provider.lock() = Some(account_provider);
 	}
 }
 
