@@ -123,8 +123,7 @@ export default class GatherData extends Component {
           <p className={ styles.message }>You already requested verification.</p>
         </div>
       );
-    }
-    if (hasRequested === false) {
+    } else if (hasRequested === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />
