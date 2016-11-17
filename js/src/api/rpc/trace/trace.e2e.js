@@ -16,7 +16,7 @@
 
 import { createHttpApi } from '../../../../test/e2e/ethapi';
 
-describe.only('ethapi.trace', () => {
+describe('ethapi.trace', () => {
   const ethapi = createHttpApi();
 
   describe('block', () => {
