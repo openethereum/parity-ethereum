@@ -32,6 +32,7 @@ echo "*** Checking out $BRANCH branch"
 git remote add origin $GIT_JS_PRECOMPILED
 git fetch origin 2>$GITLOG
 git checkout -b $BRANCH
+git submodule update
 
 echo "*** Committing compiled files for $UTCDATE"
 git add .
