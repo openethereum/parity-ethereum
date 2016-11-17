@@ -1,0 +1,359 @@
+// Copyright 2015, 2016 Ethcore (UK) Ltd.
+// This file is part of Parity.
+
+// Parity is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// Parity is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
+import React, { Component, PropTypes } from 'react';
+import classnames from 'classnames';
+
+import { api } from '../parity';
+
+import styles from './transaction.css';
+
+import IdentityIcon from '../../githubhint/IdentityIcon';
+
+class BaseTransaction extends Component {
+
+  shortHash (hash) {
+    return `${hash.substr(0, 6)}..${hash.substr(hash.length - 4)}`;
+  }
+
+  renderHash (hash) {
+    return (
+      <code title={ hash }>
+        { this.shortHash(hash) }
+      </code>
+    );
+  }
+
+  renderFrom (transaction) {
+    if (!transaction) {
+      return '-';
+    }
+
+    return (
+      <div title={ transaction.from } className={ styles.from }>
+        <IdentityIcon
+          address={ transaction.from }
+          />
+        0x{ transaction.nonce.toString(16) }
+      </div>
+    );
+  }
+
+  renderGasPrice (transaction) {
+    if (!transaction) {
+      return '-';
+    }
+
+    return (
+      <span title={ `${transaction.gasPrice.toFormat(0) } wei`}>
+        { api.util.fromWei(transaction.gasPrice, 'shannon').toFormat(2) }&nbsp;shannon
+      </span>
+    );
+  }
+
+  renderGas (transaction) {
+    if (!transaction) {
+      return '-';
+    }
+
+    return (
+      <span title={ `${transaction.gas.toFormat(0)} Gas` }>
+        { transaction.gas.div(10**6).toFormat(3) }&nbsp;MGas
+      </span>
+    );
+  }
+
+  renderPropagation (stats) {
+    const noOfPeers = Object.keys(stats.propagatedTo).length;
+    const noOfPropagations = Object.values(stats.propagatedTo).reduce((sum, val) => sum + val, 0);
+
+    return (
+      <span className={ styles.nowrap }>
+       { noOfPropagations } ({ noOfPeers } peers)
+      </span>
+    );
+  }
+}
+
+export class Transaction extends BaseTransaction {
+
+  static propTypes = {
+    idx: PropTypes.number.isRequired,
+    transaction: PropTypes.object.isRequired,
+    isLocal: PropTypes.bool,
+    stats: PropTypes.object
+  };
+
+  static defaultProps = {
+    isLocal: false,
+    stats: {
+      firstSeen: 0,
+      propagatedTo: {}
+    }
+  };
+
+  static renderHeader () {
+    return (
+      <tr className={ styles.header }>
+        <th></th>
+        <th>
+          Transaction
+        </th>
+        <th>
+          From
+        </th>
+        <th>
+          Gas Price
+        </th>
+        <th>
+          Gas
+        </th>
+        <th>
+          First seen
+        </th>
+        <th>
+          # Propagated
+        </th>
+        <th>
+        </th>
+      </tr>
+    );
+  }
+
+  render () {
+    const { isLocal, stats, transaction, idx } = this.props;
+
+    const clazz = classnames(styles.transaction, {
+      [styles.local]: isLocal
+    });
+    const noOfPeers = Object.keys(stats.propagatedTo).length;
+    const noOfPropagations = Object.values(stats.propagatedTo).reduce((sum, val) => sum + val, 0);
+
+    return (
+      <tr className={ clazz }>
+        <td>
+          { idx }.
+        </td>
+        <td>
+          { this.renderHash(transaction.hash) }
+        </td>
+        <td>
+          { this.renderFrom(transaction) }
+        </td>
+        <td>
+          { this.renderGasPrice(transaction) }
+        </td>
+        <td>
+          { this.renderGas(transaction) }
+        </td>
+        <td>
+          { stats.firstSeen }
+        </td>
+        <td>
+          { this.renderPropagation(stats) }
+        </td>
+      </tr>
+    );
+  }
+}
+
+export class LocalTransaction extends BaseTransaction {
+
+  static propTypes = {
+    hash: PropTypes.string.isRequired,
+    status: PropTypes.string.isRequired,
+    transaction: PropTypes.object,
+    isLocal: PropTypes.bool,
+    stats: PropTypes.object,
+    details: PropTypes.object
+  };
+
+  static defaultProps = {
+    stats: {
+      propagatedTo: {}
+    }
+  };
+
+  static renderHeader () {
+    return (
+      <tr className={ styles.header }>
+        <th></th>
+        <th>
+          Transaction
+        </th>
+        <th>
+          From
+        </th>
+        <th>
+          Gas Price / Gas
+        </th>
+        <th>
+          Propagated
+        </th>
+        <th>
+          Status
+        </th>
+      </tr>
+    );
+  }
+
+  state = {
+    isSending: false,
+    isResubmitting: false,
+    gasPrice: null,
+    gas: null
+  };
+
+  toggleResubmit = () => {
+    const { transaction } = this.props;
+    const { isResubmitting, gasPrice } = this.state;
+
+    this.setState({
+      isResubmitting: !isResubmitting,
+    });
+
+    if (gasPrice === null) {
+      this.setState({
+        gasPrice: `0x${ transaction.gasPrice.toString(16) }`,
+        gas: `0x${ transaction.gas.toString(16) }`
+      });
+    }
+  };
+
+  sendTransaction = () => {
+    const { transaction } = this.props;
+    const { gasPrice, gas } = this.state;
+
+    const newTransaction = {
+      from: transaction.from,
+      to: transaction.to,
+      nonce: transaction.nonce,
+      value: transaction.value,
+      data: transaction.data,
+      gasPrice, gas
+    };
+
+    this.setState({
+      isResubmitting: false,
+      isSending: true
+    });
+
+    const closeSending = () => this.setState({
+      isSending: false
+    });
+
+    api.eth.sendTransaction(newTransaction)
+      .then(closeSending)
+      .catch(closeSending);
+  };
+
+  render () {
+    if (this.state.isResubmitting) {
+      return this.renderResubmit();
+    }
+
+    const { stats, transaction, hash, status } = this.props;
+    const { isSending } = this.state;
+
+    const resubmit = isSending ? (
+      'sending...'
+    ) : (
+      <a href='javascript:void' onClick={ this.toggleResubmit }>
+        resubmit
+      </a>
+    );
+
+    return (
+      <tr className={ styles.transaction }>
+        <td>
+          { !transaction ? null : resubmit }
+        </td>
+        <td>
+          { this.renderHash(hash) }
+        </td>
+        <td>
+          { this.renderFrom(transaction) }
+        </td>
+        <td>
+          { this.renderGasPrice(transaction) }
+          <br />
+          { this.renderGas(transaction) }
+        </td>
+        <td>
+          { status === 'pending' ? this.renderPropagation(stats) : '-' }
+        </td>
+        <td>
+          { this.renderStatus() }
+        </td>
+      </tr>
+    );
+  }
+
+  renderStatus () {
+    const { details } = this.props;
+
+    let state = {
+      'pending': () => `In queue: Pending`,
+      'future': () => `In queue: Future`,
+      'mined': () => `Mined`,
+      'dropped': () => `Dropped because of queue limit`,
+      'invalid': () => `Transaction is invalid`,
+      'rejected': () => `Rejected: ${ details.error }`,
+      'replaced': () => `Replaced by ${ this.shortHash(details.hash) }`,
+    }[this.props.status];
+
+    return state ? state() : 'unknown';
+  }
+
+  renderResubmit () {
+    const { transaction } = this.props;
+    const { gasPrice, gas } = this.state;
+
+    return (
+      <tr className={ styles.transaction }>
+        <td>
+          <a href='javascript:void' onClick={ this.toggleResubmit }>
+            cancel
+          </a>
+        </td>
+        <td>
+          { this.renderHash(transaction.hash) }
+        </td>
+        <td>
+          { this.renderFrom(transaction) }
+        </td>
+        <td className={ styles.edit }>
+          <input
+            type='text'
+            value={ gasPrice }
+            onChange={ el => this.setState({ gasPrice: el.target.value }) }
+            />
+          <input
+            type='text'
+            value={ gas }
+            onChange={ el => this.setState({ gas: el.target.value }) }
+            />
+        </td>
+        <td colSpan='2'>
+          <a href='javascript:void' onClick={ this.sendTransaction }>
+            Send
+          </a>
+        </td>
+      </tr>
+    );
+  }
+
+}

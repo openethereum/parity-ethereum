@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { inAddress, inData, inHex, inNumber16, inOptions } from '../../format/input';
-import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers } from '../../format/output';
+import { outAccountInfo, outAddress, outHistogram, outNumber, outPeers, outTransaction } from '../../format/output';
 
 export default class Parity {
   constructor (transport) {
@@ -117,16 +117,27 @@ export default class Parity {
       .execute('parity_hashContent', url);
   }
 
+  importGethAccounts (accounts) {
+    return this._transport
+      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
+      .then((accounts) => (accounts || []).map(outAddress));
+  }
+
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')
       .then((accounts) => (accounts || []).map(outAddress));
   }
 
-  importGethAccounts (accounts) {
+  localTransactions () {
     return this._transport
-      .execute('parity_importGethAccounts', (accounts || []).map(inAddress))
-      .then((accounts) => (accounts || []).map(outAddress));
+      .execute('parity_localTransactions')
+      .then(transactions => {
+        Object.values(transactions)
+          .filter(tx => tx.transaction)
+          .map(tx => tx.transaction = outTransaction(tx.transaction));
+        return transactions;
+      });
   }
 
   minGasPrice () {
@@ -190,6 +201,17 @@ export default class Parity {
   nodeName () {
     return this._transport
       .execute('parity_nodeName');
+  }
+
+  pendingTransactions () {
+    return this._transport
+      .execute('parity_pendingTransactions')
+      .then(data => data.map(outTransaction));
+  }
+
+  pendingTransactionsStats () {
+    return this._transport
+      .execute('parity_pendingTransactionsStats');
   }
 
   phraseToAddress (phrase) {
