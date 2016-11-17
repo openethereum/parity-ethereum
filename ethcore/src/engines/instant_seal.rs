@@ -23,7 +23,6 @@ use spec::CommonParams;
 use evm::Schedule;
 use block::ExecutedBlock;
 use util::Bytes;
-use account_provider::AccountProvider;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
 pub struct InstantSeal {
@@ -60,7 +59,7 @@ impl Engine for InstantSeal {
 
 	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
 
-	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> {
 		Some(Vec::new())
 	}
 }
