@@ -209,15 +209,14 @@ impl Ord for TransactionOrder {
 			return self.penalties.cmp(&b.penalties);
 		}
 
-		// First check nonce_height
-		if self.nonce_height != b.nonce_height {
-			return self.nonce_height.cmp(&b.nonce_height);
-		}
-
 		// Local transactions should always have priority
-		// NOTE nonce has to be checked first, cause otherwise the order might be wrong.
 		if self.origin != b.origin {
 			return self.origin.cmp(&b.origin);
+		}
+
+		// Check nonce_height
+		if self.nonce_height != b.nonce_height {
+			return self.nonce_height.cmp(&b.nonce_height);
 		}
 
 		match self.strategy {
@@ -1790,8 +1789,8 @@ mod test {
 		// then
 		// the order should be updated
 		assert_eq!(txq.top_transactions()[0], tx1);
-		assert_eq!(txq.top_transactions()[1], tx0);
-		assert_eq!(txq.top_transactions()[2], tx2);
+		assert_eq!(txq.top_transactions()[1], tx2);
+		assert_eq!(txq.top_transactions()[2], tx0);
 	}
 
 	#[test]
@@ -2141,8 +2140,8 @@ mod test {
 		let (tx5, tx6) = new_tx_pair_default(U256::from(1), U256::from(2));
 		txq.add(tx1.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx2.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
-		txq.add(tx5.clone(), TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap();
 		// Not accepted because of limit
+		txq.add(tx5.clone(), TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap_err();
 		txq.add(tx6.clone(), TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap_err();
 		txq.add(tx3.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx4.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
