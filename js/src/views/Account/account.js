@@ -20,8 +20,9 @@ import { bindActionCreators } from 'redux';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
+import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, Shapeshift, Transfer, PasswordManager } from '../../modals';
+import { EditMeta, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
@@ -29,9 +30,15 @@ import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 import Header from './Header';
 import Transactions from './Transactions';
 
+import VerificationStore from '../../modals/SMSVerification/store';
+
 import styles from './account.css';
 
 class Account extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
   static propTypes = {
     params: PropTypes.object,
     accounts: PropTypes.object,
@@ -45,8 +52,18 @@ class Account extends Component {
   state = {
     showEditDialog: false,
     showFundDialog: false,
+    showVerificationDialog: false,
+    verificationStore: null,
     showTransferDialog: false,
     showPasswordDialog: false
+  }
+
+  componentDidMount () {
+    const { api } = this.context;
+    const { address } = this.props.params;
+
+    const store = new VerificationStore(api, address);
+    this.setState({ verificationStore: store });
   }
 
   render () {
@@ -64,6 +81,7 @@ class Account extends Component {
       <div className={ styles.account }>
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
+        { this.renderVerificationDialog() }
         { this.renderTransferDialog() }
         { this.renderPasswordDialog() }
         { this.renderActionbar() }
@@ -99,6 +117,11 @@ class Account extends Component {
         icon={ <img src={ shapeshiftBtn } className={ styles.btnicon } /> }
         label='shapeshift'
         onClick={ this.onShapeshiftAccountClick } />,
+      <Button
+        key='sms-verification'
+        icon={ <VerifyIcon /> }
+        label='Verify'
+        onClick={ this.openVerification } />,
       <Button
         key='editmeta'
         icon={ <ContentCreate /> }
@@ -146,6 +169,22 @@ class Account extends Component {
       <Shapeshift
         address={ address }
         onClose={ this.onShapeshiftAccountClose } />
+    );
+  }
+
+  renderVerificationDialog () {
+    if (!this.state.showVerificationDialog) {
+      return null;
+    }
+
+    const store = this.state.verificationStore;
+    const { address } = this.props.params;
+
+    return (
+      <SMSVerification
+        store={ store } account={ address }
+        onClose={ this.onVerificationClose }
+      />
     );
   }
 
@@ -203,6 +242,14 @@ class Account extends Component {
 
   onShapeshiftAccountClose = () => {
     this.onShapeshiftAccountClick();
+  }
+
+  openVerification = () => {
+    this.setState({ showVerificationDialog: true });
+  }
+
+  onVerificationClose = () => {
+    this.setState({ showVerificationDialog: false });
   }
 
   onTransferClick = () => {

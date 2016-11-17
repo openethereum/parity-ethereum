@@ -33,6 +33,7 @@ const MAX_BODIES_TO_REQUEST: usize = 64;
 const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 32;
+const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Downloader state
@@ -60,6 +61,14 @@ pub enum BlockRequest {
 	Receipts {
 		hashes: Vec<H256>,
 	},
+}
+
+/// Indicates sync action
+pub enum DownloadAction {
+	/// Do nothing
+	None,
+	/// Reset downloads for all peers
+	Reset
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -175,11 +184,11 @@ impl BlockDownloader {
 	}
 
 	/// Add new block headers.
-	pub fn import_headers(&mut self, io: &mut SyncIo, r: &UntrustedRlp, expected_hash: Option<H256>) -> Result<(), BlockDownloaderImportError> {
+	pub fn import_headers(&mut self, io: &mut SyncIo, r: &UntrustedRlp, expected_hash: Option<H256>) -> Result<DownloadAction, BlockDownloaderImportError> {
 		let item_count = r.item_count();
 		if self.state == State::Idle {
 			trace!(target: "sync", "Ignored unexpected block headers");
-			return Ok(())
+			return Ok(DownloadAction::None)
 		}
 		if item_count == 0 && (self.state == State::Blocks) {
 			return Err(BlockDownloaderImportError::Invalid);
@@ -188,6 +197,7 @@ impl BlockDownloader {
 		let mut headers = Vec::new();
 		let mut hashes = Vec::new();
 		let mut valid_response = item_count == 0; //empty response is valid
+		let mut any_known = false;
 		for i in 0..item_count {
 			let info: BlockHeader = try!(r.val_at(i).map_err(|e| {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
@@ -200,6 +210,7 @@ impl BlockDownloader {
 					valid_response = expected == info.hash()
 				}
 			}
+			any_known = any_known || self.blocks.contains_head(&info.hash());
 			if self.blocks.contains(&info.hash()) {
 				trace!(target: "sync", "Skipping existing block header {} ({:?})", number, info.hash());
 				continue;
@@ -245,17 +256,22 @@ impl BlockDownloader {
 					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
+					return Ok(DownloadAction::Reset);
 				}
 			},
 			State::Blocks => {
 				let count = headers.len();
+				// At least one of the heades must advance the subchain. Otherwise they are all useless.
+				if !any_known {
+					return Err(BlockDownloaderImportError::Useless);
+				}
 				self.blocks.insert_headers(headers);
 				trace!(target: "sync", "Inserted {} headers", count);
 			},
 			_ => trace!(target: "sync", "Unexpected headers({})", headers.len()),
 		}
 
-		Ok(())
+		Ok(DownloadAction::None)
 	}
 
 	/// Called by peer once it has new block bodies
@@ -342,22 +358,24 @@ impl BlockDownloader {
 	}
 
 	/// Find some headers or blocks to download for a peer.
-	pub fn request_blocks(&mut self, io: &mut SyncIo) -> Option<BlockRequest> {
+	pub fn request_blocks(&mut self, io: &mut SyncIo, num_active_peers: usize) -> Option<BlockRequest> {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
-				return self.request_blocks(io);
+				return self.request_blocks(io, num_active_peers);
 			},
 			State::ChainHead => {
-				// Request subchain headers
-				trace!(target: "sync", "Starting sync with better chain");
-				// Request MAX_HEADERS_TO_REQUEST - 2 headers apart so that
-				// MAX_HEADERS_TO_REQUEST would include headers for neighbouring subchains
-				return Some(BlockRequest::Headers {
-					start: self.last_imported_hash.clone(),
-					count: SUBCHAIN_SIZE,
-					skip: (MAX_HEADERS_TO_REQUEST - 2) as u64,
-				});
+				if num_active_peers < MAX_PARALLEL_SUBCHAIN_DOWNLOAD {
+					// Request subchain headers
+					trace!(target: "sync", "Starting sync with better chain");
+					// Request MAX_HEADERS_TO_REQUEST - 2 headers apart so that
+					// MAX_HEADERS_TO_REQUEST would include headers for neighbouring subchains
+					return Some(BlockRequest::Headers {
+						start: self.last_imported_hash.clone(),
+						count: SUBCHAIN_SIZE,
+						skip: (MAX_HEADERS_TO_REQUEST - 2) as u64,
+					});
+				}
 			},
 			State::Blocks => {
 				// check to see if we need to download any block bodies first

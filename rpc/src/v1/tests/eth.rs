@@ -50,7 +50,7 @@ fn sync_provider() -> Arc<TestSyncProvider> {
 	}))
 }
 
-fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
+fn miner_service(spec: &Spec) -> Arc<Miner> {
 	Miner::new(
 		MinerOptions {
 			new_work_notify: vec![],
@@ -69,7 +69,6 @@ fn miner_service(spec: &Spec, accounts: Arc<AccountProvider>) -> Arc<Miner> {
 		},
 		GasPricer::new_fixed(20_000_000_000u64.into()),
 		&spec,
-		Some(accounts),
 	)
 }
 
@@ -116,7 +115,8 @@ impl EthTester {
 	fn from_spec(spec: Spec) -> Self {
 		let dir = RandomTempPath::new();
 		let account_provider = account_provider();
-		let miner_service = miner_service(&spec, account_provider.clone());
+		spec.engine.register_account_provider(account_provider.clone());
+		let miner_service = miner_service(&spec);
 		let snapshot_service = snapshot_service();
 
 		let db_config = ::util::kvdb::DatabaseConfig::with_columns(::ethcore::db::NUM_COLUMNS);

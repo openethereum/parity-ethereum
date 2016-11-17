@@ -22,6 +22,7 @@ import EditMeta from './EditMeta';
 import ExecuteContract from './ExecuteContract';
 import FirstRun from './FirstRun';
 import Shapeshift from './Shapeshift';
+import SMSVerification from './SMSVerification';
 import Transfer from './Transfer';
 import PasswordManager from './PasswordManager';
 import SaveContract from './SaveContract';
@@ -36,6 +37,7 @@ export {
   ExecuteContract,
   FirstRun,
   Shapeshift,
+  SMSVerification,
   Transfer,
   PasswordManager,
   LoadContract,

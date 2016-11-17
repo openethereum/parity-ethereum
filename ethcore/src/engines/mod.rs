@@ -114,7 +114,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { None }
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> { None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -179,5 +179,6 @@ pub trait Engine : Sync + Send {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
 
-	// TODO: sealing stuff - though might want to leave this for later.
+	/// Add an account provider useful for Engines that sign stuff.
+	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
 }
