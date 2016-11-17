@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Just in time compiler execution environment.
-use common::*;
+use util::*;
 use evmjit;
 use evm::{self, GasLeft};
+use types::executed::CallType;
 
 /// Should be used to convert jit types to ethcore
 trait FromJit<T>: Sized {
@@ -77,10 +78,11 @@ impl IntoJit<evmjit::I256> for U256 {
 impl IntoJit<evmjit::I256> for H256 {
 	fn into_jit(self) -> evmjit::I256 {
 		let mut ret = [0; 4];
-		for i in 0..self.bytes().len() {
-			let rev = self.bytes().len() - 1 - i;
+		let len = self.len();
+		for i in 0..len {
+			let rev = len - 1 - i;
 			let pos = rev / 8;
-			ret[pos] += (self.bytes()[i] as u64) << ((rev % 8) * 8);
+			ret[pos] += (self[i] as u64) << ((rev % 8) * 8);
 		}
 		evmjit::I256 { words: ret }
 	}
@@ -194,6 +196,7 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 				receive_address: *const evmjit::H256,
 				code_address: *const evmjit::H256,
 				transfer_value: *const evmjit::I256,
+				// We are ignoring apparent value - it's handled in externalities.
 				_apparent_value: *const evmjit::I256,
 				in_beg: *const u8,
 				in_size: u64,
@@ -207,10 +210,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 		let receive_address = unsafe { Address::from_jit(&*receive_address) };
 		let code_address = unsafe { Address::from_jit(&*code_address) };
 		let transfer_value = unsafe { U256::from_jit(&*transfer_value) };
-		let value = Some(transfer_value);
 
 		// receive address and code address are the same in normal calls
 		let is_callcode = receive_address != code_address;
+		let is_delegatecall = is_callcode && sender_address != receive_address;
+
+		let value = if is_delegatecall { None } else { Some(transfer_value) };
 
 		if !is_callcode && !self.ext.exists(&code_address) {
 			gas_cost = gas_cost + U256::from(self.ext.schedule().call_new_account_gas);
@@ -239,6 +244,12 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 			}
 		}
 
+		let call_type = match (is_callcode, is_delegatecall) {
+			(_, true) => CallType::DelegateCall,
+			(true, false) => CallType::CallCode,
+			(false, false) => CallType::Call,
+		};
+
 		match self.ext.call(
 					  &call_gas,
 					  &sender_address,
@@ -246,7 +257,9 @@ impl<'a> evmjit::Ext for ExtAdapter<'a> {
 					  value,
 					  unsafe { slice::from_raw_parts(in_beg, in_size as usize) },
 					  &code_address,
-					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) }) {
+					  unsafe { slice::from_raw_parts_mut(out_beg, out_size as usize) },
+					  call_type,
+					  ) {
 			evm::MessageCallResult::Success(gas_left) => unsafe {
 				*io_gas = (gas + gas_left).low_u64();
 				true
@@ -346,7 +359,7 @@ impl evm::Evm for JitEvm {
 		data.timestamp = ext.env_info().timestamp as i64;
 
 		self.context = Some(unsafe { evmjit::ContextHandle::new(data, schedule, &mut ext_handle) });
-		let mut context = self.context.as_mut().unwrap();
+		let mut context = self.context.as_mut().expect("context handle set on the prior line; qed");
 		let res = context.exec();
 
 		match res {

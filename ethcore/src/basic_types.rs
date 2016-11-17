@@ -16,7 +16,7 @@
 
 //! Ethcore basic typenames.
 
-use util::*;
+use util::hash::H2048;
 
 /// Type for a 2048-bit log-bloom, as used by our blocks.
 pub type LogBloom = H2048;

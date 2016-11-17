@@ -14,16 +14,16 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::{KeyPair, sign, Address, Secret, Signature, Message};
+use ethkey::{KeyPair, sign, Address, Secret, Signature, Message, Public};
 use {json, Error, crypto};
-use crypto::{Keccak256};
+use crypto::Keccak256;
 use random::Random;
 use account::{Version, Cipher, Kdf, Aes128Ctr, Pbkdf2, Prf};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct Crypto {
 	pub cipher: Cipher,
-	pub ciphertext: [u8; 32],
+	pub ciphertext: Vec<u8>,
 	pub kdf: Kdf,
 	pub mac: [u8; 32],
 }
@@ -95,7 +95,7 @@ impl Crypto {
 			cipher: Cipher::Aes128Ctr(Aes128Ctr {
 				iv: iv,
 			}),
-			ciphertext: ciphertext,
+			ciphertext: ciphertext.to_vec(),
 			kdf: Kdf::Pbkdf2(Pbkdf2 {
 				dklen: crypto::KEY_LENGTH as u32,
 				salt: salt,
@@ -107,6 +107,10 @@ impl Crypto {
 	}
 
 	pub fn secret(&self, password: &str) -> Result<Secret, Error> {
+		if self.ciphertext.len() > 32 {
+			return Err(Error::InvalidSecret);
+		}
+
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
 			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
 			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r),
@@ -122,7 +126,8 @@ impl Crypto {
 
 		match self.cipher {
 			Cipher::Aes128Ctr(ref params) => {
-				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut *secret)
+				let from = 32 - self.ciphertext.len();
+				crypto::aes::decrypt(&derived_left_bits, &params.iv, &self.ciphertext, &mut (&mut *secret)[from..])
 			},
 		}
 
@@ -173,6 +178,11 @@ impl SafeAccount {
 	pub fn decrypt(&self, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let secret = try!(self.crypto.secret(password));
 		crypto::ecies::decrypt(&secret, shared_mac, message).map_err(From::from)
+	}
+
+	pub fn public(&self, password: &str) -> Result<Public, Error> {
+		let secret = try!(self.crypto.secret(password));
+		Ok(try!(KeyPair::from_secret(secret)).public().clone())
 	}
 
 	pub fn change_password(&self, old_password: &str, new_password: &str, iterations: u32) -> Result<Self, Error> {

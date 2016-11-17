@@ -29,3 +29,12 @@ pub struct BestBlock {
 	/// Best block uncompressed bytes
 	pub block: Bytes,
 }
+
+/// Best ancient block info. If the blockchain has a gap this keeps track of where it starts.
+#[derive(Default)]
+pub struct BestAncientBlock {
+	/// Best block hash.
+	pub hash: H256,
+	/// Best block number.
+	pub number: BlockNumber,
+}

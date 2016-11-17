@@ -32,7 +32,6 @@ impl From<std::io::Error> for Error {
 	}
 }
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteJobDispatcher")]
 /// Interface that can provide pow/blockchain-specific responses for the clients
 pub trait JobDispatcher: Send + Sync {
@@ -46,7 +45,6 @@ pub trait JobDispatcher: Send + Sync {
 	fn submit(&self, payload: Vec<String>);
 }
 
-#[derive(Ipc)]
 #[ipc(client_ident="RemoteWorkHandler")]
 /// Interface that can handle requests to push job for workers
 pub trait PushWorkHandler: Send + Sync {

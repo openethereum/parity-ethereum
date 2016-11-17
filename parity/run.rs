@@ -15,31 +15,35 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::{Arc, Mutex, Condvar};
-use std::io::ErrorKind;
+use std::net::{TcpListener};
 use ctrlc::CtrlC;
 use fdlimit::raise_fd_limit;
-use ethcore_logger::{Config as LogConfig, setup_log};
-use ethcore_rpc::NetworkSettings;
+use ethcore_rpc::{NetworkSettings, is_major_importing};
 use ethsync::NetworkConfiguration;
-use util::{Colour, version, U256};
+use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
+use ethcore_logger::{Config as LogConfig};
 use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
 use ethcore::miner::StratumOptions;
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
-use ethsync::{SyncConfig, SyncProvider};
+use ethsync::SyncConfig;
 use informant::Informant;
 
 use rpc::{HttpServer, IpcServer, HttpConfiguration, IpcConfiguration};
 use signer::SignerServer;
 use dapps::WebappServer;
 use io_handler::ClientIoHandler;
-use params::{SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras};
+use params::{
+	SpecType, Pruning, AccountsConfig, GasPricerConfig, MinerExtras, Switch,
+	tracing_switch_to_bool, fatdb_switch_to_bool, mode_switch_to_bool
+};
 use helpers::{to_client_config, execute_upgrades, passwords_from_files};
 use dir::Directories;
 use cache::CacheConfig;
+use user_defaults::UserDefaults;
 use dapps;
 use signer;
 use modules;
@@ -51,7 +55,7 @@ use url;
 const SNAPSHOT_PERIOD: u64 = 10000;
 
 // how many blocks to wait before starting a periodic snapshot.
-const SNAPSHOT_HISTORY: u64 = 500;
+const SNAPSHOT_HISTORY: u64 = 100;
 
 #[derive(Debug, PartialEq)]
 pub struct RunCmd {
@@ -59,6 +63,7 @@ pub struct RunCmd {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	/// Some if execution should be daemonized. Contains pid_file path.
 	pub daemon: Option<String>,
 	pub logger_config: LogConfig,
@@ -66,18 +71,19 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<U256>,
+	pub network_id: Option<usize>,
+	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
-	pub mode: Mode,
+	pub mode: Option<Mode>,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
 	pub vm_type: VMType,
-	pub enable_network: bool,
 	pub geth_compatibility: bool,
-	pub signer_port: Option<u16>,
+	pub ui_address: Option<(String, u16)>,
 	pub net_settings: NetworkSettings,
 	pub dapps_conf: dapps::Configuration,
 	pub signer_conf: signer::Configuration,
@@ -86,37 +92,79 @@ pub struct RunCmd {
 	pub custom_bootnodes: bool,
 	pub stratum: Option<StratumOptions>,
 	pub no_periodic_snapshot: bool,
+	pub check_seal: bool,
 }
 
-pub fn execute(cmd: RunCmd) -> Result<(), String> {
-	// increase max number of open files
-	raise_fd_limit();
+pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
+	if !dapps_conf.enabled {
+		return Err("Cannot use UI command with Dapps turned off.".into())
+	}
 
-	// set up logger
-	let logger = try!(setup_log(&cmd.logger_config));
+	if !signer_conf.enabled {
+		return Err("Cannot use UI command with UI turned off.".into())
+	}
+
+	let token = try!(signer::generate_token_and_url(signer_conf));
+	// Open a browser
+	url::open(&token.url);
+	// Print a message
+	println!("{}", token.message);
+	Ok(())
+}
+
+pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
+	if cmd.ui && cmd.dapps_conf.enabled {
+		// Check if Parity is already running
+		let addr = format!("{}:{}", cmd.dapps_conf.interface, cmd.dapps_conf.port);
+		if !TcpListener::bind(&addr as &str).is_ok() {
+			return open_ui(&cmd.dapps_conf, &cmd.signer_conf);
+		}
+	}
 
 	// set up panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// increase max number of open files
+	raise_fd_limit();
+
 	// create dirs used by parity
-	try!(cmd.dirs.create_dirs());
+	try!(cmd.dirs.create_dirs(cmd.dapps_conf.enabled, cmd.signer_conf.enabled));
 
 	// load spec
 	let spec = try!(cmd.spec.spec());
-	let fork_name = spec.fork_name.clone();
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
+
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
+
+	// get the mode
+	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
+	trace!(target: "mode", "mode is {:?}", mode);
+	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// run in daemon mode
 	if let Some(pid_file) = cmd.daemon {
@@ -125,7 +173,18 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// display info about used pruning algorithm
 	info!("Starting {}", Colour::White.bold().paint(version()));
-	info!("Using state DB journalling strategy {}", Colour::White.bold().paint(algorithm.as_str()));
+	info!("State DB configuation: {}{}{}",
+		Colour::White.bold().paint(algorithm.as_str()),
+		match fat_db {
+			true => Colour::White.bold().paint(" +Fat").to_string(),
+			false => "".to_owned(),
+		},
+		match tracing {
+			true => Colour::White.bold().paint(" +Trace").to_string(),
+			false => "".to_owned(),
+		}
+	);
+	info!("Operating mode: {}", Colour::White.bold().paint(format!("{}", mode)));
 
 	// display warning about using experimental journaldb alorithm
 	if !algorithm.is_stable() {
@@ -138,7 +197,13 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		Some(id) => id,
 		None => spec.network_id(),
 	};
+	if spec.subprotocol_name().len() != 3 {
+		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");
+	} else {
+		sync_config.subprotocol_name.clone_from_slice(spec.subprotocol_name().as_bytes());
+	}
 	sync_config.fork_block = spec.fork_block();
+	sync_config.warp_sync = cmd.warp_sync;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -160,16 +225,16 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		&cmd.dirs,
-		genesis_hash,
-		cmd.mode,
-		cmd.tracing,
-		cmd.pruning,
+		mode,
+		tracing,
+		fat_db,
 		cmd.compaction,
 		cmd.wal,
 		cmd.vm_type,
 		cmd.name,
-		fork_name.as_ref(),
+		algorithm,
+		cmd.pruning_history,
+		cmd.check_seal,
 	);
 
 	// set up bootnodes
@@ -177,6 +242,12 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	if !cmd.custom_bootnodes {
 		net_conf.boot_nodes = spec.nodes.clone();
 	}
+
+	// set network path.
+	net_conf.net_config_path = Some(db_dirs.network_path().to_string_lossy().into_owned());
+
+	// create supervisor
+	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
 
 	// create client service.
 	let service = try!(ClientService::start(
@@ -187,6 +258,9 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		&cmd.dirs.ipc_path(),
 		miner.clone(),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	// drop the spec to free up genesis state.
+	drop(spec);
 
 	// forward panics from service
 	panic_handler.forward_from(&service);
@@ -207,21 +281,23 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(
-		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service, &cmd.logger_config,
+		&mut hypervisor, sync_config, net_conf.into(), client.clone(), snapshot_service.clone(), &cmd.logger_config,
 	).map_err(|e| format!("Sync error: {}", e)));
 
 	service.add_notify(chain_notify.clone());
 
 	// start network
-	if cmd.enable_network {
+	if network_enabled {
 		chain_notify.start();
 	}
 
 	// set up dependencies for rpc servers
 	let signer_path = cmd.signer_conf.signer_path.clone();
 	let deps_for_rpc_apis = Arc::new(rpc_apis::Dependencies {
-		signer_port: cmd.signer_port,
-		signer_service: Arc::new(rpc_apis::SignerService::new(move || signer::new_token(signer_path.clone()))),
+		signer_service: Arc::new(rpc_apis::SignerService::new(move || {
+			signer::generate_new_token(signer_path.clone()).map_err(|e| format!("{:?}", e))
+		}, cmd.ui_address)),
+		snapshot: snapshot_service.clone(),
 		client: client.clone(),
 		sync: sync_provider.clone(),
 		net: manage_network.clone(),
@@ -232,6 +308,14 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 		settings: Arc::new(cmd.net_settings.clone()),
 		net_service: manage_network.clone(),
 		geth_compatibility: cmd.geth_compatibility,
+		dapps_interface: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.interface.clone()),
+			false => None,
+		},
+		dapps_port: match cmd.dapps_conf.enabled {
+			true => Some(cmd.dapps_conf.port),
+			false => None,
+		},
 	});
 
 	let dependencies = rpc::Dependencies {
@@ -259,9 +343,15 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	};
 
 	// start signer server
-	let signer_server = try!(signer::start(cmd.signer_conf, signer_deps));
+	let signer_server = try!(signer::start(cmd.signer_conf.clone(), signer_deps));
 
-	let informant = Arc::new(Informant::new(service.client(), Some(sync_provider.clone()), Some(manage_network.clone()), cmd.logger_config.color));
+	let informant = Arc::new(Informant::new(
+		service.client(),
+		Some(sync_provider.clone()),
+		Some(manage_network.clone()),
+		Some(snapshot_service.clone()),
+		cmd.logger_config.color
+	));
 	let info_notify: Arc<ChainNotify> = informant.clone();
 	service.add_notify(info_notify);
 	let io_handler = Arc::new(ClientIoHandler {
@@ -274,6 +364,19 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 	});
 	service.register_io_handler(io_handler.clone()).expect("Error registering IO handler");
 
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
+	let on_mode_change = move |mode: &Mode| {
+		user_defaults.mode = mode.clone();
+		let _ = user_defaults.save(&user_defaults_path);	// discard failures - there's nothing we can do
+	};
+
+	// tell client how to save the default mode if it gets changed.
+	client.on_mode_change(on_mode_change);
+
 	// the watcher must be kept alive.
 	let _watcher = match cmd.no_periodic_snapshot {
 		true => None,
@@ -281,7 +384,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 			let sync = sync_provider.clone();
 			let watcher = Arc::new(snapshot::Watcher::new(
 				service.client(),
-				move || sync.status().is_major_syncing(),
+				move || is_major_importing(Some(sync.status().state), client.queue_info()),
 				service.io().channel(),
 				SNAPSHOT_PERIOD,
 				SNAPSHOT_HISTORY,
@@ -294,10 +397,7 @@ pub fn execute(cmd: RunCmd) -> Result<(), String> {
 
 	// start ui
 	if cmd.ui {
-		if !cmd.dapps_conf.enabled {
-			return Err("Cannot use UI command with Dapps turned off.".into())
-		}
-		url::open(&format!("http://{}:{}/", cmd.dapps_conf.interface, cmd.dapps_conf.port));
+		try!(open_ui(&cmd.dapps_conf, &cmd.signer_conf));
 	}
 
 	// Handle exit
@@ -333,27 +433,10 @@ fn daemonize(_pid_file: String) -> Result<(), String> {
 }
 
 fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig) -> Result<AccountProvider, String> {
-	use ethcore::ethstore::{import_accounts, EthStore};
-	use ethcore::ethstore::dir::{GethDirectory, DirectoryType, DiskDirectory};
-	use ethcore::ethstore::Error;
+	use ethcore::ethstore::EthStore;
+	use ethcore::ethstore::dir::DiskDirectory;
 
 	let passwords = try!(passwords_from_files(cfg.password_files));
-
-	if cfg.import_keys {
-		let t = if cfg.testnet {
-			DirectoryType::Testnet
-		} else {
-			DirectoryType::Main
-		};
-
-		let from = GethDirectory::open(t);
-		let to = try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e)));
-		match import_accounts(&from, &to) {
-			Ok(_) => {}
-			Err(Error::Io(ref io_err)) if io_err.kind() == ErrorKind::NotFound => {}
-			Err(err) => warn!("Import geth accounts failed. {}", err)
-		}
-	}
 
 	let dir = Box::new(try!(DiskDirectory::create(dirs.keys.clone()).map_err(|e| format!("Could not open keys directory: {}", e))));
 	let account_service = AccountProvider::new(Box::new(

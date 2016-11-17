@@ -21,20 +21,20 @@ use std::time::{Instant, Duration};
 use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
-use ethcore_logger::{setup_log, Config as LogConfig};
 use io::{PanicHandler, ForwardPanic};
 use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
 use informant::{Informant, MillisecondDuration};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use io_handler::ImportIoHandler;
-use params::{SpecType, Pruning};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 #[derive(Debug, PartialEq)]
@@ -70,34 +70,37 @@ pub enum BlockchainCmd {
 #[derive(Debug, PartialEq)]
 pub struct ImportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
-	pub mode: Mode,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub vm_type: VMType,
+	pub check_seal: bool,
+	pub with_color: bool,
 }
 
 #[derive(Debug, PartialEq)]
 pub struct ExportBlockchain {
 	pub spec: SpecType,
-	pub logger_config: LogConfig,
 	pub cache_config: CacheConfig,
 	pub dirs: Directories,
 	pub file_path: Option<String>,
 	pub format: Option<DataFormat>,
 	pub pruning: Pruning,
+	pub pruning_history: u64,
 	pub compaction: DatabaseCompactionProfile,
 	pub wal: bool,
-	pub mode: Mode,
+	pub fat_db: Switch,
 	pub tracing: Switch,
 	pub from_block: BlockID,
 	pub to_block: BlockID,
+	pub check_seal: bool,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
@@ -113,29 +116,44 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(false, false));
+
 	// load spec file
 	let spec = try!(cmd.spec.spec());
 
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let mut user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, cmd.vm_type, "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, cmd.vm_type,  "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	// build client
 	let service = try!(ClientService::start(
@@ -146,6 +164,9 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	// free up the spec in memory.
+	drop(spec);
 
 	panic_handler.forward_from(&service);
 	let client = service.client();
@@ -171,7 +192,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	};
 
-	let informant = Informant::new(client.clone(), None, None, cmd.logger_config.color);
+	let informant = Informant::new(client.clone(), None, None, None, cmd.with_color);
 
 	try!(service.register_io_handler(Arc::new(ImportIoHandler {
 		info: Arc::new(informant),
@@ -220,6 +241,12 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 		}
 	}
 	client.flush_queue();
+
+	// save user defaults
+	user_defaults.pruning = algorithm;
+	user_defaults.tracing = tracing;
+	try!(user_defaults.save(&user_defaults_path));
+
 	let report = client.report();
 
 	let ms = timer.elapsed().as_milliseconds();
@@ -238,6 +265,9 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler
 	let panic_handler = PanicHandler::new_in_arc();
 
+	// create dirs used by parity
+	try!(cmd.dirs.create_dirs(false, false));
+
 	let format = cmd.format.unwrap_or_default();
 
 	// load spec file
@@ -246,23 +276,35 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// load genesis hash
 	let genesis_hash = spec.genesis_header().hash();
 
-	// Setup logging
-	let _logger = setup_log(&cmd.logger_config);
+	// database paths
+	let db_dirs = cmd.dirs.database(genesis_hash, spec.fork_name.clone());
+
+	// user defaults path
+	let user_defaults_path = db_dirs.user_defaults_path();
+
+	// load user defaults
+	let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 	fdlimit::raise_fd_limit();
 
 	// select pruning algorithm
-	let algorithm = cmd.pruning.to_algorithm(&cmd.dirs, genesis_hash, spec.fork_name.as_ref());
+	let algorithm = cmd.pruning.to_algorithm(&user_defaults);
+
+	// check if tracing is on
+	let tracing = try!(tracing_switch_to_bool(cmd.tracing, &user_defaults));
+
+	// check if fatdb is on
+	let fat_db = try!(fatdb_switch_to_bool(cmd.fat_db, &user_defaults, algorithm));
 
 	// prepare client and snapshot paths.
-	let client_path = cmd.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
-	let snapshot_path = cmd.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
+	let client_path = db_dirs.client_path(algorithm);
+	let snapshot_path = db_dirs.snapshot_path();
 
 	// execute upgrades
-	try!(execute_upgrades(&cmd.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, cmd.compaction.compaction_profile()));
+	try!(execute_upgrades(&db_dirs, algorithm, cmd.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 	// prepare client config
-	let client_config = to_client_config(&cmd.cache_config, &cmd.dirs, genesis_hash, cmd.mode, cmd.tracing, cmd.pruning, cmd.compaction, cmd.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+	let client_config = to_client_config(&cmd.cache_config, Mode::Active, tracing, fat_db, cmd.compaction, cmd.wal, VMType::default(), "".into(), algorithm, cmd.pruning_history, cmd.check_seal);
 
 	let service = try!(ClientService::start(
 		client_config,
@@ -272,6 +314,8 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 		&cmd.dirs.ipc_path(),
 		Arc::new(Miner::with_spec(&spec)),
 	).map_err(|e| format!("Client service error: {:?}", e)));
+
+	drop(spec);
 
 	panic_handler.forward_from(&service);
 	let client = service.client();

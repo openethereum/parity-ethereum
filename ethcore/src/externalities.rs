@@ -15,9 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Transaction Execution environment.
-use common::*;
+use util::*;
+use action_params::{ActionParams, ActionValue};
 use state::{State, Substate};
 use engines::Engine;
+use env_info::EnvInfo;
 use executive::*;
 use evm::{self, Schedule, Ext, ContractCreateResult, MessageCallResult, Factory};
 use types::executed::CallType;
@@ -112,6 +114,12 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		self.state.exists(address)
 	}
 
+	fn exists_and_not_null(&self, address: &Address) -> bool {
+		self.state.exists_and_not_null(address)
+	}
+
+	fn origin_balance(&self) -> U256 { self.balance(&self.origin_info.address) }
+
 	fn balance(&self, address: &Address) -> U256 {
 		self.state.balance(address)
 	}
@@ -146,7 +154,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			value: ActionValue::Transfer(*value),
-			code: Some(code.to_vec()),
+			code: Some(Arc::new(code.to_vec())),
+			code_hash: code.sha3(),
 			data: None,
 			call_type: CallType::None,
 		};
@@ -185,6 +194,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			gas: *gas,
 			gas_price: self.origin_info.gas_price,
 			code: self.state.code(code_address),
+			code_hash: self.state.code_hash(code_address),
 			data: Some(data.to_vec()),
 			call_type: call_type,
 		};
@@ -201,14 +211,13 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		}
 	}
 
-	fn extcode(&self, address: &Address) -> Bytes {
-		self.state.code(address).unwrap_or_else(|| vec![])
+	fn extcode(&self, address: &Address) -> Arc<Bytes> {
+		self.state.code(address).unwrap_or_else(|| Arc::new(vec![]))
 	}
 
 	fn extcodesize(&self, address: &Address) -> usize {
 		self.state.code_size(address).unwrap_or(0)
 	}
-
 
 	#[cfg_attr(feature="dev", allow(match_ref_pats))]
 	fn ret(mut self, gas: &U256, data: &[u8]) -> evm::Result<U256>
@@ -233,7 +242,7 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 			},
 			OutputPolicy::InitContract(ref mut copy) => {
 				let return_cost = U256::from(data.len()) * U256::from(self.schedule.create_data_gas);
-				if return_cost > *gas {
+				if return_cost > *gas || data.len() > self.schedule.create_data_limit {
 					return match self.schedule.exceptional_failed_code_deposit {
 						true => Err(evm::Error::OutOfGas),
 						false => Ok(*gas)
@@ -252,6 +261,8 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 	}
 
 	fn log(&mut self, topics: Vec<H256>, data: &[u8]) {
+		use log_entry::LogEntry;
+
 		let address = self.origin_info.address.clone();
 		self.substate.logs.push(LogEntry {
 			address: address,
@@ -264,11 +275,11 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 		let address = self.origin_info.address.clone();
 		let balance = self.balance(&address);
 		if &address == refund_address {
-			// TODO [todr] To be consisted with CPP client we set balance to 0 in that case.
+			// TODO [todr] To be consistent with CPP client we set balance to 0 in that case.
 			self.state.sub_balance(&address, &balance);
 		} else {
-			trace!("Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
-			self.state.transfer_balance(&address, refund_address, &balance);
+			trace!(target: "ext", "Suiciding {} -> {} (xfer: {})", address, refund_address, balance);
+			self.state.transfer_balance(&address, refund_address, &balance, self.substate.to_cleanup_mode(&self.schedule));
 		}
 
 		self.tracer.trace_suicide(address, balance, refund_address.clone());
@@ -302,8 +313,9 @@ impl<'a, T, V> Ext for Externalities<'a, T, V> where T: 'a + Tracer, V: 'a + VMT
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use engines::Engine;
+	use env_info::EnvInfo;
 	use evm::Ext;
 	use state::{State, Substate};
 	use tests::helpers::*;

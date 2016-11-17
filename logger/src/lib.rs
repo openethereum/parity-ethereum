@@ -36,7 +36,7 @@ use regex::Regex;
 use util::RotatingLogger;
 use util::log::Colour;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Config {
 	pub mode: Option<String>,
 	pub color: bool,
@@ -65,11 +65,10 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	builder.filter(Some("rustls"), LogLevelFilter::Warn);
 	builder.filter(None, LogLevelFilter::Info);
 
-	if env::var("RUST_LOG").is_ok() {
-		let lvl = &env::var("RUST_LOG").unwrap();
-		levels.push_str(lvl);
+	if let Ok(lvl) = env::var("RUST_LOG") {
+		levels.push_str(&lvl);
 		levels.push_str(",");
-		builder.parse(lvl);
+		builder.parse(&lvl);
 	}
 
 	if let Some(ref s) = config.mode {
@@ -91,10 +90,10 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 		let timestamp = time::strftime("%Y-%m-%d %H:%M:%S %Z", &time::now()).unwrap();
 
 		let with_color = if max_log_level() <= LogLevelFilter::Info {
-			format!("{}{}", Colour::Black.bold().paint(timestamp), record.args())
+			format!("{} {}", Colour::Black.bold().paint(timestamp), record.args())
 		} else {
 			let name = thread::current().name().map_or_else(Default::default, |x| format!("{}", Colour::Blue.bold().paint(x)));
-			format!("{}{} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
+			format!("{} {} {} {}  {}", Colour::Black.bold().paint(timestamp), name, record.level(), record.target(), record.args())
 		};
 
 		let removed_color = kill_color(with_color.as_ref());
@@ -119,7 +118,7 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
     };
 
 	builder.format(format);
-	builder.init().unwrap();
+	builder.init().expect("Logger initialized only once.");
 
 	Ok(logs)
 }

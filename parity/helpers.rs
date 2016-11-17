@@ -15,17 +15,15 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::{io, env};
-use std::io::{Write, Read, BufReader, BufRead};
+use std::io::{Write, BufReader, BufRead};
 use std::time::Duration;
-use std::path::Path;
 use std::fs::File;
-use util::{clean_0x, U256, Uint, Address, path, H256, CompactionProfile};
+use util::{clean_0x, U256, Uint, Address, path, CompactionProfile};
 use util::journaldb::Algorithm;
-use ethcore::client::{Mode, BlockID, Switch, VMType, DatabaseCompactionProfile, ClientConfig};
-use ethcore::miner::PendingSet;
+use ethcore::client::{Mode, BlockID, VMType, DatabaseCompactionProfile, ClientConfig, VerifierType};
+use ethcore::miner::{PendingSet, GasLimit, PrioritizationStrategy};
 use cache::CacheConfig;
-use dir::Directories;
-use params::Pruning;
+use dir::DatabaseDirectories;
 use upgrade::upgrade;
 use migration::migrate;
 use ethsync::is_valid_node_url;
@@ -47,7 +45,7 @@ fn to_seconds(s: &str) -> Result<u64, String> {
 		"hourly" | "1hour" | "1 hour" | "hour" => Ok(60 * 60),
 		"daily" | "1day" | "1 day" | "day" => Ok(24 * 60 * 60),
 		x if x.ends_with("seconds") => x[0..x.len() - 7].parse().map_err(bad),
-		x if x.ends_with("minutes") => x[0..x.len() -7].parse::<u64>().map_err(bad).map(|x| x * 60),
+		x if x.ends_with("minutes") => x[0..x.len() - 7].parse::<u64>().map_err(bad).map(|x| x * 60),
 		x if x.ends_with("hours") => x[0..x.len() - 5].parse::<u64>().map_err(bad).map(|x| x * 60 * 60),
 		x if x.ends_with("days") => x[0..x.len() - 4].parse::<u64>().map_err(bad).map(|x| x * 24 * 60 * 60),
 		x => x.parse().map_err(bad),
@@ -59,7 +57,8 @@ pub fn to_mode(s: &str, timeout: u64, alarm: u64) -> Result<Mode, String> {
 		"active" => Ok(Mode::Active),
 		"passive" => Ok(Mode::Passive(Duration::from_secs(timeout), Duration::from_secs(alarm))),
 		"dark" => Ok(Mode::Dark(Duration::from_secs(timeout))),
-		_ => Err(format!("{}: Invalid address for --mode. Must be one of active, passive or dark.", s)),
+		"offline" => Ok(Mode::Off),
+		_ => Err(format!("{}: Invalid value for --mode. Must be one of active, passive, dark or offline.", s)),
 	}
 }
 
@@ -91,6 +90,23 @@ pub fn to_pending_set(s: &str) -> Result<PendingSet, String> {
 		"strict" => Ok(PendingSet::AlwaysSealing),
 		"lenient" => Ok(PendingSet::SealingOrElseQueue),
 		other => Err(format!("Invalid pending set value: {:?}", other)),
+	}
+}
+
+pub fn to_gas_limit(s: &str) -> Result<GasLimit, String> {
+	match s {
+		"auto" => Ok(GasLimit::Auto),
+		"off" => Ok(GasLimit::None),
+		other => Ok(GasLimit::Fixed(try!(to_u256(other)))),
+	}
+}
+
+pub fn to_queue_strategy(s: &str) -> Result<PrioritizationStrategy, String> {
+	match s {
+		"gas" => Ok(PrioritizationStrategy::GasAndGasPrice),
+		"gas_price" => Ok(PrioritizationStrategy::GasPriceOnly),
+		"gas_factor" => Ok(PrioritizationStrategy::GasFactorAndGasPrice),
+		other => Err(format!("Invalid queue strategy: {}", other)),
 	}
 }
 
@@ -169,10 +185,10 @@ pub fn to_bootnodes(bootnodes: &Option<String>) -> Result<Vec<String>, String> {
 
 #[cfg(test)]
 pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
-	use ethsync::NetworkConfiguration;
+	use ethsync::{NetworkConfiguration, AllowIP};
 	NetworkConfiguration {
 		config_path: Some(replace_home("$HOME/.parity/network")),
-		net_config_path: Some(replace_home("$HOME/.parity/network/1")),
+		net_config_path: None,
 		listen_address: Some("0.0.0.0:30303".into()),
 		public_address: None,
 		udp_port: None,
@@ -182,6 +198,9 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 		use_secret: None,
 		max_peers: 50,
 		min_peers: 25,
+		snapshot_peers: 0,
+		max_pending_peers: 64,
+		allow_ips: AllowIP::All,
 		reserved_nodes: Vec::new(),
 		allow_non_reserved: true,
 	}
@@ -190,16 +209,16 @@ pub fn default_network_config() -> ::ethsync::NetworkConfiguration {
 #[cfg_attr(feature = "dev", allow(too_many_arguments))]
 pub fn to_client_config(
 		cache_config: &CacheConfig,
-		dirs: &Directories,
-		genesis_hash: H256,
 		mode: Mode,
-		tracing: Switch,
-		pruning: Pruning,
+		tracing: bool,
+		fat_db: bool,
 		compaction: DatabaseCompactionProfile,
 		wal: bool,
 		vm_type: VMType,
 		name: String,
-		fork_name: Option<&String>,
+		pruning: Algorithm,
+		pruning_history: u64,
+		check_seal: bool,
 	) -> ClientConfig {
 	let mut client_config = ClientConfig::default();
 
@@ -218,26 +237,31 @@ pub fn to_client_config(
 	client_config.tracing.max_cache_size = cache_config.traces() as usize * mb;
 	// in bytes
 	client_config.tracing.pref_cache_size = cache_config.traces() as usize * 3 / 4 * mb;
+	// in bytes
+	client_config.state_cache_size = cache_config.state() as usize * mb;
+	// in bytes
+	client_config.jump_table_size = cache_config.jump_tables() as usize * mb;
 
 	client_config.mode = mode;
 	client_config.tracing.enabled = tracing;
-	client_config.pruning = pruning.to_algorithm(dirs, genesis_hash, fork_name);
+	client_config.fat_db = fat_db;
+	client_config.pruning = pruning;
+	client_config.history = pruning_history;
 	client_config.db_compaction = compaction;
 	client_config.db_wal = wal;
 	client_config.vm_type = vm_type;
 	client_config.name = name;
+	client_config.verifier_type = if check_seal { VerifierType::Canon } else { VerifierType::CanonNoSeal };
 	client_config
 }
 
 pub fn execute_upgrades(
-	dirs: &Directories,
-	genesis_hash: H256,
-	fork_name: Option<&String>,
+	dirs: &DatabaseDirectories,
 	pruning: Algorithm,
 	compaction_profile: CompactionProfile
 ) -> Result<(), String> {
 
-	match upgrade(Some(&dirs.db)) {
+	match upgrade(Some(&dirs.path)) {
 		Ok(upgrades_applied) if upgrades_applied > 0 => {
 			debug!("Executed {} upgrade scripts - ok", upgrades_applied);
 		},
@@ -247,24 +271,25 @@ pub fn execute_upgrades(
 		_ => {},
 	}
 
-	let client_path = dirs.db_version_path(genesis_hash, fork_name, pruning);
+	let client_path = dirs.version_path(pruning);
 	migrate(&client_path, pruning, compaction_profile).map_err(|e| format!("{}", e))
 }
 
 /// Prompts user asking for password.
 pub fn password_prompt() -> Result<String, String> {
 	use rpassword::read_password;
+	const STDIN_ERROR: &'static str = "Unable to ask for password on non-interactive terminal.";
 
 	println!("Please note that password is NOT RECOVERABLE.");
 	print!("Type password: ");
 	flush_stdout();
 
-	let password = read_password().unwrap();
+	let password = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
 
 	print!("Repeat password: ");
 	flush_stdout();
 
-	let password_repeat = read_password().unwrap();
+	let password_repeat = try!(read_password().map_err(|_| STDIN_ERROR.to_owned()));
 
 	if password != password_repeat {
 		return Err("Passwords do not match!".into());
@@ -274,12 +299,11 @@ pub fn password_prompt() -> Result<String, String> {
 }
 
 /// Read a password from password file.
-pub fn password_from_file<P>(path: P) -> Result<String, String> where P: AsRef<Path> {
-	let mut file = try!(File::open(path).map_err(|_| "Unable to open password file."));
-	let mut file_content = String::new();
-	try!(file.read_to_string(&mut file_content).map_err(|_| "Unable to read password file."));
-	// remove eof
-	Ok((&file_content[..file_content.len() - 1]).to_owned())
+pub fn password_from_file(path: String) -> Result<String, String> {
+	let passwords = try!(passwords_from_files(vec![path]));
+	// use only first password from the file
+	passwords.get(0).map(String::to_owned)
+		.ok_or_else(|| "Password file seems to be empty.".to_owned())
 }
 
 /// Reads passwords from files. Treats each line as a separate password.
@@ -288,20 +312,24 @@ pub fn passwords_from_files(files: Vec<String>) -> Result<Vec<String>, String> {
 		let file = try!(File::open(filename).map_err(|_| format!("{} Unable to read password file. Ensure it exists and permissions are correct.", filename)));
 		let reader = BufReader::new(&file);
 		let lines = reader.lines()
-			.map(|l| l.unwrap())
+			.filter_map(|l| l.ok())
+			.map(|pwd| pwd.trim().to_owned())
 			.collect::<Vec<String>>();
 		Ok(lines)
-		}).collect::<Result<Vec<Vec<String>>, String>>();
+	}).collect::<Result<Vec<Vec<String>>, String>>();
 	Ok(try!(passwords).into_iter().flat_map(|x| x).collect())
 }
 
 #[cfg(test)]
 mod tests {
 	use std::time::Duration;
+	use std::fs::File;
+	use std::io::Write;
+	use devtools::RandomTempPath;
 	use util::{U256};
 	use ethcore::client::{Mode, BlockID};
 	use ethcore::miner::PendingSet;
-	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes};
+	use super::{to_duration, to_mode, to_block_id, to_u256, to_pending_set, to_address, to_addresses, to_price, geth_ipc_path, to_bootnodes, password_from_file};
 
 	#[test]
 	fn test_to_duration() {
@@ -382,6 +410,27 @@ mod tests {
 				"D9A111feda3f362f55Ef1744347CDC8Dd9964a42".parse().unwrap(),
 			]
 		);
+	}
+
+	#[test]
+	fn test_password() {
+		let path = RandomTempPath::new();
+		let mut file = File::create(path.as_path()).unwrap();
+		file.write_all(b"a bc ").unwrap();
+		assert_eq!(password_from_file(path.as_str().into()).unwrap().as_bytes(), b"a bc");
+	}
+
+	#[test]
+	fn test_password_multiline() {
+		let path = RandomTempPath::new();
+		let mut file = File::create(path.as_path()).unwrap();
+		file.write_all(br#"    password with trailing whitespace
+those passwords should be
+ignored
+but the first password is trimmed
+
+"#).unwrap();
+		assert_eq!(&password_from_file(path.as_str().into()).unwrap(), "password with trailing whitespace");
 	}
 
 	#[test]

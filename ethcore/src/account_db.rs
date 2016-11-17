@@ -96,9 +96,9 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(&NULL_RLP_STATIC);
+			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
 		}
 		self.db.get(&combine_key(&self.address_hash, key))
 	}
@@ -114,12 +114,16 @@ impl<'db> HashDB for AccountDB<'db>{
 		unimplemented!()
 	}
 
-	fn emplace(&mut self, _key: H256, _value: Bytes) {
+	fn emplace(&mut self, _key: H256, _value: DBValue) {
 		unimplemented!()
 	}
 
 	fn remove(&mut self, _key: &H256) {
 		unimplemented!()
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
+		self.db.get_aux(hash)
 	}
 }
 
@@ -154,9 +158,9 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(&NULL_RLP_STATIC);
+			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
 		}
 		self.db.get(&combine_key(&self.address_hash, key))
 	}
@@ -174,16 +178,16 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		}
 		let k = value.sha3();
 		let ak = combine_key(&self.address_hash, &k);
-		self.db.emplace(ak, value.to_vec());
+		self.db.emplace(ak, DBValue::from_slice(value));
 		k
 	}
 
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		if key == SHA3_NULL_RLP {
 			return;
 		}
 		let key = combine_key(&self.address_hash, &key);
-		self.db.emplace(key, value.to_vec())
+		self.db.emplace(key, value)
 	}
 
 	fn remove(&mut self, key: &H256) {
@@ -192,6 +196,18 @@ impl<'db> HashDB for AccountDBMut<'db>{
 		}
 		let key = combine_key(&self.address_hash, key);
 		self.db.remove(&key)
+	}
+
+	fn insert_aux(&mut self, hash: Vec<u8>, value: Vec<u8>) {
+		self.db.insert_aux(hash, value);
+	}
+
+	fn get_aux(&self, hash: &[u8]) -> Option<DBValue> {
+		self.db.get_aux(hash)
+	}
+
+	fn remove_aux(&mut self, hash: &[u8]) {
+		self.db.remove_aux(hash);
 	}
 }
 
@@ -202,9 +218,9 @@ impl<'db> HashDB for Wrapping<'db> {
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(&NULL_RLP_STATIC);
+			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
 		}
 		self.0.get(key)
 	}
@@ -220,7 +236,7 @@ impl<'db> HashDB for Wrapping<'db> {
 		unimplemented!()
 	}
 
-	fn emplace(&mut self, _key: H256, _value: Bytes) {
+	fn emplace(&mut self, _key: H256, _value: DBValue) {
 		unimplemented!()
 	}
 
@@ -236,9 +252,9 @@ impl<'db> HashDB for WrappingMut<'db>{
 		unimplemented!()
 	}
 
-	fn get(&self, key: &H256) -> Option<&[u8]> {
+	fn get(&self, key: &H256) -> Option<DBValue> {
 		if key == &SHA3_NULL_RLP {
-			return Some(&NULL_RLP_STATIC);
+			return Some(DBValue::from_slice(&NULL_RLP_STATIC));
 		}
 		self.0.get(key)
 	}
@@ -257,7 +273,7 @@ impl<'db> HashDB for WrappingMut<'db>{
 		self.0.insert(value)
 	}
 
-	fn emplace(&mut self, key: H256, value: Bytes) {
+	fn emplace(&mut self, key: H256, value: DBValue) {
 		if key == SHA3_NULL_RLP {
 			return;
 		}

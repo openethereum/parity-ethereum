@@ -16,10 +16,13 @@
 
 //! Parameters for a block chain.
 
-use common::*;
-use engines::{Engine, NullEngine, InstantSeal, BasicAuthority};
+use util::*;
+use builtin::Builtin;
+use engines::{Engine, NullEngine, InstantSeal, BasicAuthority, AuthorityRound};
 use pod_state::*;
 use account_db::*;
+use header::{BlockNumber, Header};
+use state_db::StateDB;
 use super::genesis::Genesis;
 use super::seal::Generic as GenericSeal;
 use ethereum;
@@ -35,7 +38,9 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: U256,
+	pub network_id: usize,
+	/// Main subprotocol name.
+	pub subprotocol_name: String,
 	/// Minimum gas limit.
 	pub min_gas_limit: U256,
 	/// Fork block to check.
@@ -48,6 +53,7 @@ impl From<ethjson::spec::Params> for CommonParams {
 			account_start_nonce: p.account_start_nonce.into(),
 			maximum_extra_data_size: p.maximum_extra_data_size.into(),
 			network_id: p.network_id.into(),
+			subprotocol_name: p.subprotocol_name.unwrap_or_else(|| "eth".to_owned()),
 			min_gas_limit: p.min_gas_limit.into(),
 			fork_block: if let (Some(n), Some(h)) = (p.fork_block, p.fork_hash) { Some((n.into(), h.into())) } else { None },
 		}
@@ -129,6 +135,12 @@ impl From<ethjson::spec::Spec> for Spec {
 	}
 }
 
+macro_rules! load_bundled {
+	($e:expr) => {
+		Spec::load(include_bytes!(concat!("../../res/", $e, ".json")) as &[u8]).expect(concat!("Chain spec ", $e, " is invalid."))
+	};
+}
+
 impl Spec {
 	/// Convert engine spec into a arc'd Engine of the right underlying type.
 	/// TODO avoid this hard-coded nastiness - use dynamic-linked plugin framework instead.
@@ -138,6 +150,7 @@ impl Spec {
 			ethjson::spec::Engine::InstantSeal => Arc::new(InstantSeal::new(params, builtins)),
 			ethjson::spec::Engine::Ethash(ethash) => Arc::new(ethereum::Ethash::new(params, From::from(ethash.params), builtins)),
 			ethjson::spec::Engine::BasicAuthority(basic_authority) => Arc::new(BasicAuthority::new(params, From::from(basic_authority.params), builtins)),
+			ethjson::spec::Engine::AuthorityRound(authority_round) => AuthorityRound::new(params, From::from(authority_round.params), builtins).expect("Consensus engine could not be started."),
 		}
 	}
 
@@ -146,14 +159,18 @@ impl Spec {
 		if self.state_root_memo.read().is_none() {
 			*self.state_root_memo.write() = Some(self.genesis_state.root());
 		}
-		self.state_root_memo.read().as_ref().unwrap().clone()
+		self.state_root_memo.read().as_ref().cloned()
+			.expect("state root memo ensured to be set at this point; qed")
 	}
 
 	/// Get the known knodes of the network in enode format.
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> U256 { self.params.network_id }
+	pub fn network_id(&self) -> usize { self.params.network_id }
+
+	/// Get the configured subprotocol name.
+	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
 
 	/// Get the configured network fork block.
 	pub fn fork_block(&self) -> Option<(BlockNumber, H256)> { self.params.fork_block }
@@ -168,7 +185,7 @@ impl Spec {
 		header.set_transactions_root(self.transactions_root.clone());
 		header.set_uncles_hash(RlpStream::new_list(0).out().sha3());
 		header.set_extra_data(self.extra_data.clone());
-		header.set_state_root(self.state_root().clone());
+		header.set_state_root(self.state_root());
 		header.set_receipts_root(self.receipts_root.clone());
 		header.set_log_bloom(H2048::new().clone());
 		header.set_gas_used(self.gas_used.clone());
@@ -183,6 +200,7 @@ impl Spec {
 			let r = Rlp::new(&seal);
 			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
 		});
+		trace!(target: "spec", "Header hash is {}", header.hash());
 		header
 	}
 
@@ -226,19 +244,23 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut HashDB) -> Result<bool, Box<TrieError>> {
-		if !db.contains(&self.state_root()) {
+	pub fn ensure_db_good(&self, db: &mut StateDB) -> Result<bool, Box<TrieError>> {
+		if !db.as_hashdb().contains(&self.state_root()) {
+			trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
 			let mut root = H256::new();
+
 			{
-				let mut t = SecTrieDBMut::new(db, &mut root);
+				let mut t = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
 					try!(t.insert(&**address, &account.rlp()));
 				}
 			}
+			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
-				account.insert_additional(&mut AccountDBMut::new(db, address));
+				db.note_non_null_account(address);
+				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
 			}
-			assert!(db.contains(&self.state_root()));
+			assert!(db.as_hashdb().contains(&self.state_root()));
 			Ok(true)
 		} else { Ok(false) }
 	}
@@ -252,19 +274,17 @@ impl Spec {
 	}
 
 	/// Create a new Spec which conforms to the Frontier-era Morden chain except that it's a NullEngine consensus.
-	pub fn new_test() -> Self {
-		Spec::load(include_bytes!("../../res/null_morden.json") as &[u8]).expect("null_morden.json is invalid")
-	}
+	pub fn new_test() -> Spec { load_bundled!("null_morden") }
 
 	/// Create a new Spec which is a NullEngine consensus with a premine of address whose secret is sha3('').
-	pub fn new_null() -> Self {
-		Spec::load(include_bytes!("../../res/null.json") as &[u8]).expect("null.json is invalid")
-	}
+	pub fn new_null() -> Spec { load_bundled!("null") }
 
 	/// Create a new Spec with InstantSeal consensus which does internal sealing (not requiring work).
-	pub fn new_test_instant() -> Self {
-		Spec::load(include_bytes!("../../res/instant_seal.json") as &[u8]).expect("instant_seal.json is invalid")
-	}
+	pub fn new_instant() -> Spec { load_bundled!("instant_seal") }
+
+	/// Create a new Spec with AuthorityRound consensus which does internal sealing (not requiring work).
+	/// Accounts with secrets "1".sha3() and "2".sha3() are the authorities.
+	pub fn new_test_round() -> Self { load_bundled!("authority_round") }
 }
 
 #[cfg(test)]

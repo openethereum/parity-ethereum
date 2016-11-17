@@ -15,8 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 //! Universaly unique identifier.
-use std::str::FromStr;
-use std::fmt;
+use std::{fmt, str};
 use rustc_serialize::hex::{ToHex, FromHex};
 use serde::{Deserialize, Serialize, Deserializer, Serializer, Error as SerdeError};
 use serde::de::Visitor;
@@ -73,7 +72,7 @@ fn copy_into(from: &str, into: &mut [u8]) -> Result<(), Error> {
 	Ok(())
 }
 
-impl FromStr for UUID {
+impl str::FromStr for UUID {
 	type Err = Error;
 
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -92,6 +91,12 @@ impl FromStr for UUID {
 		try!(copy_into(parts[4], &mut uuid[10..16]));
 
 		Ok(UUID(uuid))
+	}
+}
+
+impl From<&'static str> for UUID {
+	fn from(s: &'static str) -> Self {
+		s.parse().expect(&format!("invalid string literal for {}: '{}'", stringify!(Self), s))
 	}
 }
 
@@ -116,7 +121,7 @@ impl Visitor for UUIDVisitor {
 	type Value = UUID;
 
 	fn visit_str<E>(&mut self, value: &str) -> Result<Self::Value, E> where E: SerdeError {
-		UUID::from_str(value).map_err(SerdeError::custom)
+		value.parse().map_err(SerdeError::custom)
 	}
 
 	fn visit_string<E>(&mut self, value: String) -> Result<Self::Value, E> where E: SerdeError {
@@ -126,19 +131,18 @@ impl Visitor for UUIDVisitor {
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
 	use super::UUID;
 
 	#[test]
 	fn uuid_from_str() {
-		let uuid = UUID::from_str("3198bc9c-6672-5ab3-d995-4942343ae5b6").unwrap();
+		let uuid: UUID = "3198bc9c-6672-5ab3-d995-4942343ae5b6".into();
 		assert_eq!(uuid, UUID::from([0x31, 0x98, 0xbc, 0x9c, 0x66, 0x72, 0x5a, 0xb3, 0xd9, 0x95, 0x49, 0x42, 0x34, 0x3a, 0xe5, 0xb6]));
 	}
 
 	#[test]
 	fn uuid_from_and_to_str() {
 		let from = "3198bc9c-6672-5ab3-d995-4942343ae5b6";
-		let uuid = UUID::from_str(from).unwrap();
+		let uuid: UUID = from.into();
 		let to: String = uuid.into();
 		assert_eq!(from, &to);
 	}

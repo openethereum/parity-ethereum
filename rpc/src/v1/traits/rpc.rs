@@ -16,26 +16,21 @@
 
 //! RPC interface.
 
-use std::sync::Arc;
-use jsonrpc_core::*;
+use jsonrpc_core::Error;
 
-/// RPC Interface.
-pub trait Rpc: Sized + Send + Sync + 'static {
+use v1::helpers::auto_args::Wrap;
 
-	/// Returns supported modules for Geth 1.3.6
-	fn modules(&self, _: Params) -> Result<Value, Error>;
+use std::collections::BTreeMap;
 
-	/// Returns supported modules for Geth 1.4.0
-	fn rpc_modules(&self, _: Params) -> Result<Value, Error>;
+build_rpc_trait! {
+	/// RPC Interface.
+	pub trait Rpc {
+		/// Returns supported modules for Geth 1.3.6
+		#[rpc(name = "modules")]
+		fn modules(&self) -> Result<BTreeMap<String, String>, Error>;
 
-	/// Should be used to convert object to io delegate.
-	fn to_delegate(self) -> IoDelegate<Self> {
-		let mut delegate = IoDelegate::new(Arc::new(self));
-		// Geth 1.3.6 compatibility
-		delegate.add_method("modules", Rpc::modules);
-		// Geth 1.4.0 compatibility
-		delegate.add_method("rpc_modules", Rpc::rpc_modules);
-		delegate
+		/// Returns supported modules for Geth 1.4.0
+		#[rpc(name = "rpc_modules")]
+		fn rpc_modules(&self) -> Result<BTreeMap<String, String>, Error>;
 	}
 }
-

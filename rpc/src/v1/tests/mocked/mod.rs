@@ -18,12 +18,13 @@
 //! method calls properly.
 
 mod eth;
-mod eth_signing;
 mod net;
 mod web3;
 mod personal;
-mod personal_signer;
-mod ethcore;
-mod ethcore_set;
+mod parity;
+mod parity_accounts;
+mod parity_set;
 mod rpc;
+mod signer;
+mod signing;
 mod manage_network;

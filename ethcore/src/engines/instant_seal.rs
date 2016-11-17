@@ -18,11 +18,11 @@ use std::collections::BTreeMap;
 use util::Address;
 use builtin::Builtin;
 use engines::Engine;
+use env_info::EnvInfo;
 use spec::CommonParams;
 use evm::Schedule;
-use env_info::EnvInfo;
 use block::ExecutedBlock;
-use common::Bytes;
+use util::Bytes;
 use account_provider::AccountProvider;
 
 /// An engine which does not provide any consensus mechanism, just seals blocks internally.
@@ -55,7 +55,7 @@ impl Engine for InstantSeal {
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_homestead()
+		Schedule::new_post_eip150(usize::max_value(), false, false, false)
 	}
 
 	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
@@ -67,10 +67,11 @@ impl Engine for InstantSeal {
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
 	use spec::Spec;
+	use header::Header;
 	use block::*;
 
 	#[test]
@@ -78,12 +79,12 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 
-		let spec = Spec::new_test_instant();
+		let spec = Spec::new_instant();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
@@ -94,7 +95,7 @@ mod tests {
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = Spec::new_test_instant().engine;
+		let engine = Spec::new_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());

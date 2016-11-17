@@ -20,19 +20,19 @@ use std::time::Duration;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use ethcore_logger::{setup_log, Config as LogConfig};
 use ethcore::snapshot::{Progress, RestorationStatus, SnapshotService as SS};
 use ethcore::snapshot::io::{SnapshotReader, PackedReader, PackedWriter};
 use ethcore::snapshot::service::Service as SnapshotService;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, Switch, VMType};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType};
 use ethcore::miner::Miner;
 use ethcore::ids::BlockID;
 
 use cache::CacheConfig;
-use params::{SpecType, Pruning};
+use params::{SpecType, Pruning, Switch, tracing_switch_to_bool, fatdb_switch_to_bool};
 use helpers::{to_client_config, execute_upgrades};
 use dir::Directories;
+use user_defaults::UserDefaults;
 use fdlimit;
 
 use io::PanicHandler;
@@ -53,9 +53,9 @@ pub struct SnapshotCommand {
 	pub dirs: Directories,
 	pub spec: SpecType,
 	pub pruning: Pruning,
-	pub logger_config: LogConfig,
-	pub mode: Mode,
+	pub pruning_history: u64,
 	pub tracing: Switch,
+	pub fat_db: Switch,
 	pub compaction: DatabaseCompactionProfile,
 	pub file_path: Option<String>,
 	pub wal: bool,
@@ -66,6 +66,8 @@ pub struct SnapshotCommand {
 // helper for reading chunks from arbitrary reader and feeding them into the
 // service.
 fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, recover: bool) -> Result<(), String> {
+	use util::sha3::Hashable;
+
 	let manifest = reader.manifest();
 
 	info!("Restoring to block #{} (0x{:?})", manifest.block_number, manifest.block_hash);
@@ -78,7 +80,7 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
 	let informant_handle = snapshot.clone();
 	::std::thread::spawn(move || {
- 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done } = informant_handle.status() {
+ 		while let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = informant_handle.status() {
  			info!("Processed {}/{} state chunks and {}/{} block chunks.",
  				state_chunks_done, num_state, block_chunks_done, num_blocks);
  			::std::thread::sleep(Duration::from_secs(5));
@@ -93,6 +95,12 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
  		let chunk = try!(reader.chunk(state_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", state_hash, e)));
+
+		let hash = chunk.sha3();
+		if hash != state_hash {
+			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", state_hash, hash));
+		}
+
  		snapshot.feed_state_chunk(state_hash, &chunk);
  	}
 
@@ -104,6 +112,11 @@ fn restore_using<R: SnapshotReader>(snapshot: Arc<SnapshotService>, reader: &R, 
 
  		let chunk = try!(reader.chunk(block_hash)
 			.map_err(|e| format!("Encountered error while reading chunk {:?}: {}", block_hash, e)));
+
+		let hash = chunk.sha3();
+		if hash != block_hash {
+			return Err(format!("Mismatched chunk hash. Expected {:?}, got {:?}", block_hash, hash));
+		}
 		snapshot.feed_block_chunk(block_hash, &chunk);
 	}
 
@@ -129,23 +142,35 @@ impl SnapshotCommand {
 		// load genesis hash
 		let genesis_hash = spec.genesis_header().hash();
 
-		// Setup logging
-		let _logger = setup_log(&self.logger_config);
+		// database paths
+		let db_dirs = self.dirs.database(genesis_hash, spec.fork_name.clone());
+
+		// user defaults path
+		let user_defaults_path = db_dirs.user_defaults_path();
+
+		// load user defaults
+		let user_defaults = try!(UserDefaults::load(&user_defaults_path));
 
 		fdlimit::raise_fd_limit();
 
 		// select pruning algorithm
-		let algorithm = self.pruning.to_algorithm(&self.dirs, genesis_hash, spec.fork_name.as_ref());
+		let algorithm = self.pruning.to_algorithm(&user_defaults);
+
+		// check if tracing is on
+		let tracing = try!(tracing_switch_to_bool(self.tracing, &user_defaults));
+
+		// check if fatdb is on
+		let fat_db = try!(fatdb_switch_to_bool(self.fat_db, &user_defaults, algorithm));
 
 		// prepare client and snapshot paths.
-		let client_path = self.dirs.client_path(genesis_hash, spec.fork_name.as_ref(), algorithm);
-		let snapshot_path = self.dirs.snapshot_path(genesis_hash, spec.fork_name.as_ref());
+		let client_path = db_dirs.client_path(algorithm);
+		let snapshot_path = db_dirs.snapshot_path();
 
 		// execute upgrades
-		try!(execute_upgrades(&self.dirs, genesis_hash, spec.fork_name.as_ref(), algorithm, self.compaction.compaction_profile()));
+		try!(execute_upgrades(&db_dirs, algorithm, self.compaction.compaction_profile(db_dirs.fork_path().as_path())));
 
 		// prepare client config
-		let client_config = to_client_config(&self.cache_config, &self.dirs, genesis_hash, self.mode, self.tracing, self.pruning, self.compaction, self.wal, VMType::default(), "".into(), spec.fork_name.as_ref());
+		let client_config = to_client_config(&self.cache_config, Mode::Active, tracing, fat_db, self.compaction, self.wal, VMType::default(), "".into(), algorithm, self.pruning_history, true);
 
 		let service = try!(ClientService::start(
 			client_config,
@@ -158,7 +183,6 @@ impl SnapshotCommand {
 
 		Ok((service, panic_handler))
 	}
-
 	/// restore from a snapshot
 	pub fn restore(self) -> Result<(), String> {
 		let file = self.file_path.clone();
@@ -214,9 +238,8 @@ impl SnapshotCommand {
 				let cur_size = p.size();
 				if cur_size != last_size {
 					last_size = cur_size;
-					info!("Snapshot: {} accounts {} blocks {} bytes", p.accounts(), p.blocks(), p.size());
-				} else {
-					info!("Snapshot: No progress since last update.");
+					let bytes = ::informant::format_bytes(p.size());
+					info!("Snapshot: {} accounts {} blocks {}", p.accounts(), p.blocks(), bytes);
 				}
 
 				::std::thread::sleep(Duration::from_secs(5));

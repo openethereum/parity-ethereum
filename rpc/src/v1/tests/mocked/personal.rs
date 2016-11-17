@@ -46,11 +46,11 @@ fn miner_service() -> Arc<TestMinerService> {
 	Arc::new(TestMinerService::default())
 }
 
-fn setup(signer: Option<u16>) -> PersonalTester {
+fn setup() -> PersonalTester {
 	let accounts = accounts_provider();
 	let client = blockchain_client();
 	let miner = miner_service();
-	let personal = PersonalClient::new(&accounts, &client, &miner, signer, false);
+	let personal = PersonalClient::new(&accounts, &client, &miner, false);
 
 	let io = IoHandler::new();
 	io.add_delegate(personal.to_delegate());
@@ -66,36 +66,8 @@ fn setup(signer: Option<u16>) -> PersonalTester {
 }
 
 #[test]
-fn should_return_false_if_signer_is_disabled() {
-	// given
-	let tester = setup(None);
-
-	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_signerEnabled", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":false,"id":1}"#;
-
-
-	// then
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
-fn should_return_port_number_if_signer_is_enabled() {
-	// given
-	let tester = setup(Some(8180));
-
-	// when
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_signerEnabled", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":8180,"id":1}"#;
-
-
-	// then
-	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
-}
-
-#[test]
 fn accounts() {
-	let tester = setup(None);
+	let tester = setup();
 	let address = tester.accounts.new_account("").unwrap();
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_listAccounts", "params": [], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned() + &format!("0x{:?}", address) + r#""],"id":1}"#;
@@ -105,7 +77,7 @@ fn accounts() {
 
 #[test]
 fn new_account() {
-	let tester = setup(None);
+	let tester = setup();
 	let request = r#"{"jsonrpc": "2.0", "method": "personal_newAccount", "params": ["pass"], "id": 1}"#;
 
 	let res = tester.io.handle_request_sync(request);
@@ -119,68 +91,8 @@ fn new_account() {
 }
 
 #[test]
-fn should_be_able_to_get_account_info() {
-	let tester = setup(None);
-	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts().unwrap();
-	assert_eq!(accounts.len(), 1);
-	let address = accounts[0];
-
-	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
-	tester.accounts.set_account_name(address.clone(), "Test".to_owned()).unwrap();
-	tester.accounts.set_account_meta(address.clone(), "{foo: 69}".to_owned()).unwrap();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
-	assert_eq!(res, Some(response));
-}
-
-#[test]
-fn should_be_able_to_set_name() {
-	let tester = setup(None);
-	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts().unwrap();
-	assert_eq!(accounts.len(), 1);
-	let address = accounts[0];
-
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountName", "params": ["0x{}", "Test"], "id": 1}}"#, address.hex());
-	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
-	let res = tester.io.handle_request_sync(&request);
-	assert_eq!(res, Some(response.into()));
-
-	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{}}\",\"name\":\"Test\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
-	assert_eq!(res, Some(response));
-}
-
-#[test]
-fn should_be_able_to_set_meta() {
-	let tester = setup(None);
-	tester.accounts.new_account("").unwrap();
-	let accounts = tester.accounts.accounts().unwrap();
-	assert_eq!(accounts.len(), 1);
-	let address = accounts[0];
-
-	let request = format!(r#"{{"jsonrpc": "2.0", "method": "personal_setAccountMeta", "params": ["0x{}", "{{foo: 69}}"], "id": 1}}"#, address.hex());
-	let response = r#"{"jsonrpc":"2.0","result":null,"id":1}"#;
-	let res = tester.io.handle_request_sync(&request);
-	assert_eq!(res, Some(response.into()));
-
-	let uuid = tester.accounts.accounts_info().unwrap().get(&address).unwrap().uuid.as_ref().unwrap().clone();
-
-	let request = r#"{"jsonrpc": "2.0", "method": "personal_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"{}\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid, uuid);
-	assert_eq!(res, Some(response));
-}
-
-#[test]
 fn sign_and_send_transaction_with_invalid_password() {
-	let tester = setup(None);
+	let tester = setup();
 	let address = tester.accounts.new_account("password123").unwrap();
 	let request = r#"{
 		"jsonrpc": "2.0",
@@ -202,7 +114,7 @@ fn sign_and_send_transaction_with_invalid_password() {
 
 #[test]
 fn sign_and_send_transaction() {
-	let tester = setup(None);
+	let tester = setup();
 	let address = tester.accounts.new_account("password123").unwrap();
 
 	let request = r#"{
@@ -227,8 +139,8 @@ fn sign_and_send_transaction() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
-	let signature = tester.accounts.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 
@@ -245,8 +157,8 @@ fn sign_and_send_transaction() {
 		data: vec![]
 	};
 	tester.accounts.unlock_account_temporarily(address, "password123".into()).unwrap();
-	let signature = tester.accounts.sign(address, t.hash()).unwrap();
-	let t = t.with_signature(signature);
+	let signature = tester.accounts.sign(address, None, t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
 
 	let response = r#"{"jsonrpc":"2.0","result":""#.to_owned() + format!("0x{:?}", t.hash()).as_ref() + r#"","id":1}"#;
 

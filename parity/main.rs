@@ -39,6 +39,8 @@ extern crate semver;
 extern crate ethcore_io as io;
 extern crate ethcore_ipc as ipc;
 extern crate ethcore_ipc_nano as nanoipc;
+extern crate serde;
+extern crate serde_json;
 extern crate rlp;
 
 extern crate json_ipc_server as jsonipc;
@@ -106,17 +108,19 @@ mod run;
 mod sync;
 #[cfg(feature="ipc")]
 mod boot;
+mod user_defaults;
 
 #[cfg(feature="stratum")]
 mod stratum;
 
 use std::{process, env};
-use std::io::BufReader;
+use std::io::{self as stdio, BufReader, Write};
 use std::fs::File;
 use util::sha3::sha3;
 use cli::Args;
-use configuration::{Cmd, Configuration};
+use configuration::{Cmd, Execute, Configuration};
 use deprecated::find_deprecated;
+use ethcore_logger::setup_log;
 
 fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	if let Some(file) = maybe_file {
@@ -128,10 +132,12 @@ fn print_hash_of(maybe_file: Option<String>) -> Result<String, String> {
 	}
 }
 
-fn execute(command: Cmd) -> Result<String, String> {
-	match command {
+fn execute(command: Execute) -> Result<String, String> {
+	let logger = setup_log(&command.logger).expect("Logger is initialized only once; qed");
+
+	match command.cmd {
 		Cmd::Run(run_cmd) => {
-			try!(run::execute(run_cmd));
+			try!(run::execute(run_cmd, logger));
 			Ok("".into())
 		},
 		Cmd::Version => Ok(Args::print_version()),
@@ -139,7 +145,7 @@ fn execute(command: Cmd) -> Result<String, String> {
 		Cmd::Account(account_cmd) => account::execute(account_cmd),
 		Cmd::ImportPresaleWallet(presale_cmd) => presale::execute(presale_cmd),
 		Cmd::Blockchain(blockchain_cmd) => blockchain::execute(blockchain_cmd),
-		Cmd::SignerToken(path) => signer::new_token(path),
+		Cmd::SignerToken(signer_cmd) => signer::execute(signer_cmd),
 		Cmd::Snapshot(snapshot_cmd) => snapshot::execute(snapshot_cmd),
 	}
 }
@@ -193,6 +199,9 @@ fn sync_main() -> bool {
 }
 
 fn main() {
+	// Always print backtrace on panic.
+	::std::env::set_var("RUST_BACKTRACE", "1");
+
 	if sync_main() {
 		return;
 	}
@@ -201,10 +210,10 @@ fn main() {
 
 	match start() {
 		Ok(result) => {
-			println!("{}", result);
+			info!("{}", result);
 		},
 		Err(err) => {
-			println!("{}", err);
+			writeln!(&mut stdio::stderr(), "{}", err).expect("StdErr available; qed");
 			process::exit(1);
 		}
 	}

@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 
-use DAPPS_DOMAIN;
+use apps::DAPPS_DOMAIN;
 use hyper::{server, header, StatusCode};
 use hyper::net::HttpStream;
 
@@ -41,6 +41,7 @@ pub fn host_invalid_response() -> Box<server::Handler<HttpStream> + Send> {
 	Box::new(ContentHandler::error(StatusCode::Forbidden,
 		"Current Host Is Disallowed",
 		"You are trying to access your node using incorrect address.",
-		Some("Use allowed URL or specify different <code>hosts</code> CLI options.")
+		Some("Use allowed URL or specify different <code>hosts</code> CLI options."),
+		None,
 	))
 }

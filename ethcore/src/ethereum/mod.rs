@@ -42,14 +42,23 @@ pub fn new_frontier() -> Spec { load(include_bytes!("../../res/ethereum/frontier
 /// Create a new Frontier mainnet chain spec without the DAO hardfork.
 pub fn new_classic() -> Spec { load(include_bytes!("../../res/ethereum/classic.json")) }
 
+/// Create a new Frontier mainnet chain spec without the DAO hardfork.
+pub fn new_expanse() -> Spec { load(include_bytes!("../../res/ethereum/expanse.json")) }
+
 /// Create a new Frontier chain spec as though it never changes to Homestead.
 pub fn new_frontier_test() -> Spec { load(include_bytes!("../../res/ethereum/frontier_test.json")) }
 
 /// Create a new Homestead chain spec as though it never changed from Frontier.
 pub fn new_homestead_test() -> Spec { load(include_bytes!("../../res/ethereum/homestead_test.json")) }
 
+/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+pub fn new_eip150_test() -> Spec { load(include_bytes!("../../res/ethereum/eip150_test.json")) }
+
+/// Create a new Homestead-EIP150 chain spec as though it never changed from Homestead/Frontier.
+pub fn new_eip161_test() -> Spec { load(include_bytes!("../../res/ethereum/eip161_test.json")) }
+
 /// Create a new Frontier/Homestead/DAO chain spec with transition points at #5 and #8.
-pub fn new_daohardfork_test() -> Spec { load(include_bytes!("../../res/ethereum/daohardfork_test.json")) }
+pub fn new_transition_test() -> Spec { load(include_bytes!("../../res/ethereum/transition_test.json")) }
 
 /// Create a new Frontier main net chain spec without genesis accounts.
 pub fn new_mainnet_like() -> Spec { load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
@@ -59,19 +68,20 @@ pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.jso
 
 #[cfg(test)]
 mod tests {
-	use common::*;
+	use util::*;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;
+	use views::BlockView;
 
 	#[test]
 	fn ensure_db_good() {
 		let spec = new_morden();
 		let engine = &spec.engine;
 		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_journal_db();
+		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(db.as_hashdb_mut()).unwrap();
+		spec.ensure_db_good(&mut db).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());

@@ -36,6 +36,7 @@ extern crate json_ipc_server as ipc;
 extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
+extern crate fetch;
 
 #[macro_use]
 extern crate log;
@@ -55,6 +56,7 @@ use self::jsonrpc_core::{IoHandler, IoDelegate};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
+pub use v1::block_import::is_major_importing;
 
 /// An object that can be extended with `IoDelegates`
 pub trait Extendable {

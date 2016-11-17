@@ -18,11 +18,12 @@ Usage:
 
 Operating Options:
   --mode MODE              Set the operating mode. MODE can be one of:
+                           last - Uses the last-used mode, active if none.
                            active - Parity continuously syncs the chain.
                            passive - Parity syncs initially, then sleeps and
                            wakes regularly to resync.
-                           dark - Parity syncs only when an external interface
-                           is active. (default: {flag_mode}).
+                           dark - Parity syncs only when the RPC is active.
+                           offline - Parity doesn't sync. (default: {flag_mode}).
   --mode-timeout SECS      Specify the number of seconds before inactivity
                            timeout occurs when mode is dark or passive
                            (default: {flag_mode_timeout}).
@@ -31,8 +32,8 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic or testnet
-                           (default: {flag_chain}).
+                           homestead, mainnet, morden, classic, expanse,
+                           testnet or dev (default: {flag_chain}).
   -d --db-path PATH        Specify the database & configuration directory path
                            (default: {flag_db_path}).
   --keys-path PATH         Specify the path for JSON key files to be found
@@ -42,34 +43,38 @@ Operating Options:
 Account Options:
   --unlock ACCOUNTS        Unlock ACCOUNTS for the duration of the execution.
                            ACCOUNTS is a comma-delimited list of addresses.
-                           Implies --no-signer. (default: {flag_unlock:?})
+                           Implies --no-ui. (default: {flag_unlock:?})
   --password FILE          Provide a file containing a password for unlocking
-                           an account. (default: {flag_password:?})
+                           an account. Leading and trailing whitespace is trimmed.
+                           (default: {flag_password:?})
   --keys-iterations NUM    Specify the number of iterations to use when
                            deriving key from the password (bigger is more
                            secure) (default: {flag_keys_iterations}).
-  --force-signer           Enable Trusted Signer WebSocket endpoint used by
-                           Signer UIs, even when --unlock is in use.
-                           (default: ${flag_force_signer})
-  --no-signer              Disable Trusted Signer WebSocket endpoint used by
-                           Signer UIs. (default: ${flag_no_signer})
-  --signer-port PORT       Specify the port of Trusted Signer server
-                           (default: {flag_signer_port}).
-  --signer-interface IP    Specify the hostname portion of the Trusted Signer
+
+UI Options:
+  --force-ui               Enable Trusted UI WebSocket endpoint,
+                           even when --unlock is in use. (default: ${flag_force_ui})
+  --no-ui                  Disable Trusted UI WebSocket endpoint.
+                           (default: ${flag_no_ui})
+  --ui-port PORT           Specify the port of Trusted UI server
+                           (default: {flag_ui_port}).
+  --ui-interface IP        Specify the hostname portion of the Trusted UI
                            server, IP should be an interface's IP address,
-                           or local (default: {flag_signer_interface}).
-  --signer-path PATH       Specify directory where Signer UIs tokens should
-                           be stored. (default: {flag_signer_path})
-  --signer-no-validation   Disable Origin and Host headers validation for
-                           Trusted Signer. WARNING: INSECURE. Used only for
-                           development. (default: {flag_signer_no_validation})
+                           or local (default: {flag_ui_interface}).
+  --ui-path PATH           Specify directory where Trusted UIs tokens should
+                           be stored. (default: {flag_ui_path})
+  --ui-no-validation       Disable Origin and Host headers validation for
+                           Trusted UI. WARNING: INSECURE. Used only for
+                           development. (default: {flag_ui_no_validation})
 
 Networking Options:
-  --no-network             Disable p2p networking. (default: {flag_no_network})
+  --warp                   Enable syncing from the snapshot over the network. (default: {flag_warp})
   --port PORT              Override the port on which the node should listen
                            (default: {flag_port}).
   --min-peers NUM          Try to maintain at least NUM peers (default: {flag_min_peers}).
-  --max-peers NUM          Allow up to that many peers (default: {flag_max_peers}).
+  --max-peers NUM          Allow up to NUM peers (default: {flag_max_peers}).
+  --snapshot-peers NUM     Allow additional NUM peers for a snapshot sync
+                           (default: {flag_snapshot_peers}).
   --nat METHOD             Specify method to use for determining public
                            address. Must be one of: any, none, upnp,
                            extip:<IP> (default: {flag_nat}).
@@ -84,6 +89,12 @@ Networking Options:
                            These nodes will always have a reserved slot on top
                            of the normal maximum peers. (default: {flag_reserved_peers:?})
   --reserved-only          Connect only to reserved nodes. (default: {flag_reserved_only})
+  --allow-ips FILTER       Filter outbound connections. Must be one of:
+                           private - connect to private network IP addresses only;
+                           public - connect to public network IP addresses only;
+                           all - connect to any IP address.
+                           (default: {flag_allow_ips})
+  --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
@@ -97,7 +108,7 @@ API and Console Options:
   --jsonrpc-apis APIS      Specify the APIs available through the JSONRPC
                            interface. APIS is a comma-delimited list of API
                            name. Possible name are web3, eth, net, personal,
-                           ethcore, ethcore_set, traces, rpc.
+                           parity, parity_set, traces, rpc, parity_accounts.
                            (default: {flag_jsonrpc_apis}).
   --jsonrpc-hosts HOSTS    List of allowed Host header values. This option will
                            validate the Host header sent by the browser, it
@@ -156,6 +167,11 @@ Sealing/Mining Options:
   --tx-gas-limit GAS       Apply a limit of GAS as the maximum amount of gas
                            a single transaction may have for it to be mined.
                            (default: {flag_tx_gas_limit:?})
+  --tx-time-limit MS       Maximal time for processing single transaction.
+                           If enabled senders/recipients/code of transactions
+                           offending the limit will be banned from being included
+                           in transaction queue for 180 seconds.
+                           (default: {flag_tx_time_limit:?})
   --relay-set SET          Set of transactions to relay. SET may be:
                            cheap - Relay any transaction in the queue (this
                            may include invalid transactions);
@@ -183,6 +199,23 @@ Sealing/Mining Options:
                            more than 32 characters. (default: {flag_extra_data:?})
   --tx-queue-size LIMIT    Maximum amount of transactions in the queue (waiting
                            to be included in next block) (default: {flag_tx_queue_size}).
+  --tx-queue-gas LIMIT     Maximum amount of total gas for external transactions in
+                           the queue. LIMIT can be either an amount of gas or
+                           'auto' or 'off'. 'auto' sets the limit to be 20x
+                           the current block gas limit. (default: {flag_tx_queue_gas}).
+  --tx-queue-strategy S    Prioritization strategy used to order transactions
+                           in the queue. S may be:
+                           gas - Prioritize txs with low gas limit;
+                           gas_price - Prioritize txs with high gas price;
+                           gas_factor - Prioritize txs using gas price
+                           and gas limit ratio (default: {flag_tx_queue_strategy}).
+  --tx-queue-ban-count C   Number of times maximal time for execution (--tx-time-limit)
+                           can be exceeded before banning sender/recipient/code.
+                           (default: {flag_tx_queue_ban_count})
+  --tx-queue-ban-time SEC  Banning time (in seconds) for offenders of specified
+                           execution time limit. Also number of offending actions
+                           have to reach the threshold within that time.
+                           (default: {flag_tx_queue_ban_time} seconds)
   --remove-solved          Move solved blocks from the work package queue
                            instead of cloning them. This gives a slightly
                            faster import speed, but means that extra solutions
@@ -208,11 +241,15 @@ Footprint Options:
                            fast - maintain journal overlay. Fast but 50MB used.
                            auto - use the method most recently synced or
                            default to fast if none synced (default: {flag_pruning}).
+  --pruning-history NUM    Set a number of recent states to keep when pruning
+                           is active. (default: {flag_pruning_history}).
   --cache-size-db MB       Override database cache size (default: {flag_cache_size_db}).
   --cache-size-blocks MB   Specify the prefered size of the blockchain cache in
                            megabytes (default: {flag_cache_size_blocks}).
   --cache-size-queue MB    Specify the maximum size of memory to use for block
                            queue (default: {flag_cache_size_queue}).
+  --cache-size-state MB    Specify the maximum size of memory to use for
+                           the state cache (default: {flag_cache_size_state}).
   --cache-size MB          Set total amount of discretionary memory to use for
                            the entire system, overrides other cache and queue
                            options.a (default: {flag_cache_size:?})
@@ -220,8 +257,12 @@ Footprint Options:
                            but means an unclean exit is unrecoverable. (default: {flag_fast_and_loose})
   --db-compaction TYPE     Database compaction type. TYPE may be one of:
                            ssd - suitable for SSDs and fast HDDs;
-                           hdd - suitable for slow HDDs (default: {flag_db_compaction}).
-  --fat-db                 Fat database. (default: {flag_fat_db})
+                           hdd - suitable for slow HDDs;
+                           auto - determine automatically (default: {flag_db_compaction}).
+  --fat-db BOOL            Build appropriate information to allow enumeration
+                           of all accounts and storage keys. Doubles the size
+                           of the state database. BOOL may be one of on, off
+                           or auto. (default: {flag_fat_db})
 
 Import/Export Options:
   --from BLOCK             Export from block BLOCK, which may be an index or
@@ -231,6 +272,7 @@ Import/Export Options:
   --format FORMAT          For import/export in given format. FORMAT must be
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
+  --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an
@@ -247,7 +289,7 @@ Legacy Options:
   --geth                   Run in Geth-compatibility mode. Sets the IPC path
                            to be the same as Geth's. Overrides the --ipc-path
                            and --ipcpath options. Alters RPCs to reflect Geth
-                           bugs.
+                           bugs. Includes the personal_ RPC by default.
   --testnet                Geth-compatible testnet mode. Equivalent to --chain
                            testnet --keys-path $HOME/parity/testnet-keys.
                            Overrides the --keys-path option.

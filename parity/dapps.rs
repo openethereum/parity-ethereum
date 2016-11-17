@@ -58,6 +58,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		return Ok(None);
 	}
 
+	let signer_address = deps.apis.signer_service.address();
 	let url = format!("{}:{}", configuration.interface, configuration.port);
 	let addr = try!(url.parse().map_err(|_| format!("Invalid Webapps listen host/port given: {}", url)));
 
@@ -72,7 +73,7 @@ pub fn new(configuration: Configuration, deps: Dependencies) -> Result<Option<We
 		(username.to_owned(), password)
 	});
 
-	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth))))
+	Ok(Some(try!(setup_dapps_server(deps, configuration.dapps_path, &addr, configuration.hosts, auth, signer_address))))
 }
 
 pub use self::server::WebappServer;
@@ -90,6 +91,7 @@ mod server {
 		_url: &SocketAddr,
 		_allowed_hosts: Option<Vec<String>>,
 		_auth: Option<(String, String)>,
+		_signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		Err("Your Parity version has been compiled without WebApps support.".into())
 	}
@@ -100,12 +102,14 @@ mod server {
 	use super::Dependencies;
 	use std::sync::Arc;
 	use std::net::SocketAddr;
+	use std::io;
 	use util::{Bytes, Address, U256};
 
 	use ethcore::transaction::{Transaction, Action};
 	use ethcore::client::{Client, BlockChainClient, BlockID};
 
 	use rpc_apis;
+	use ethcore_rpc::is_major_importing;
 	use ethcore_dapps::ContractClient;
 
 	pub use ethcore_dapps::Server as WebappServer;
@@ -115,7 +119,8 @@ mod server {
 		dapps_path: String,
 		url: &SocketAddr,
 		allowed_hosts: Option<Vec<String>>,
-		auth: Option<(String, String)>
+		auth: Option<(String, String)>,
+		signer_address: Option<(String, u16)>,
 	) -> Result<WebappServer, String> {
 		use ethcore_dapps as dapps;
 
@@ -124,7 +129,10 @@ mod server {
 			Arc::new(Registrar { client: deps.client.clone() })
 		);
 		let sync = deps.sync.clone();
-		server.with_sync_status(Arc::new(move || sync.status().is_major_syncing()));
+		let client = deps.client.clone();
+		server.with_sync_status(Arc::new(move || is_major_importing(Some(sync.status().state), client.queue_info())));
+		server.with_signer_address(signer_address);
+
 		let server = rpc_apis::setup_rpc(server, deps.apis.clone(), rpc_apis::ApiSet::UnsafeContext);
 		let start_result = match auth {
 			None => {
@@ -136,7 +144,10 @@ mod server {
 		};
 
 		match start_result {
-			Err(dapps::ServerError::IoError(err)) => Err(format!("WebApps io error: {}", err)),
+			Err(dapps::ServerError::IoError(err)) => match err.kind() {
+				io::ErrorKind::AddrInUse => Err(format!("WebApps address {} is already in use, make sure that another instance of an Ethereum client is not running or change the address using the --dapps-port and --dapps-interface options.", url)),
+				_ => Err(format!("WebApps io error: {}", err)),
+			},
 			Err(e) => Err(format!("WebApps error: {:?}", e)),
 			Ok(server) => {
 				server.set_panic_handler(move || {

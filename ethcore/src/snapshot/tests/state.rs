@@ -16,9 +16,12 @@
 
 //! State snapshotting tests.
 
-use snapshot::{chunk_state, Progress, StateRebuilder};
+use snapshot::{chunk_state, Error as SnapshotError, Progress, StateRebuilder};
+use snapshot::account::Account;
 use snapshot::io::{PackedReader, PackedWriter, SnapshotReader, SnapshotWriter};
 use super::helpers::{compare_dbs, StateProducer};
+
+use error::Error;
 
 use rand::{XorShiftRng, SeedableRng};
 use util::hash::H256;
@@ -28,7 +31,10 @@ use util::memorydb::MemoryDB;
 use util::Mutex;
 use devtools::RandomTempPath;
 
+use util::sha3::SHA3_NULL_RLP;
+
 use std::sync::Arc;
+use std::sync::atomic::AtomicBool;
 
 #[test]
 fn snap_and_restore() {
@@ -65,11 +71,13 @@ fn snap_and_restore() {
 		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
 		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
 
+		let flag = AtomicBool::new(true);
+
 		for chunk_hash in &reader.manifest().state_hashes {
 			let raw = reader.chunk(*chunk_hash).unwrap();
 			let chunk = ::util::snappy::decompress(&raw).unwrap();
 
-			rebuilder.feed(&chunk).unwrap();
+			rebuilder.feed(&chunk, &flag).unwrap();
 		}
 
 		assert_eq!(rebuilder.state_root(), state_root);
@@ -81,4 +89,105 @@ fn snap_and_restore() {
 	let new_db = journaldb::new(db, Algorithm::Archive, ::db::COL_STATE);
 
 	compare_dbs(&old_db, new_db.as_hashdb());
+}
+
+#[test]
+fn get_code_from_prev_chunk() {
+	use std::collections::HashSet;
+	use rlp::{RlpStream, Stream};
+	use util::{HashDB, H256, FixedHash, U256, Hashable};
+
+	use account_db::{AccountDBMut, AccountDB};
+
+	let code = b"this is definitely code";
+	let mut used_code = HashSet::new();
+	let mut acc_stream = RlpStream::new_list(4);
+	acc_stream.append(&U256::default())
+		.append(&U256::default())
+		.append(&SHA3_NULL_RLP)
+		.append(&code.sha3());
+
+	let (h1, h2) = (H256::random(), H256::random());
+
+	// two accounts with the same code, one per chunk.
+	// first one will have code inlined,
+	// second will just have its hash.
+	let thin_rlp = acc_stream.out();
+	let acc1 = Account::from_thin_rlp(&thin_rlp);
+	let acc2 = Account::from_thin_rlp(&thin_rlp);
+
+	let mut make_chunk = |acc: Account, hash| {
+		let mut db = MemoryDB::new();
+		AccountDBMut::from_hash(&mut db, hash).insert(&code[..]);
+
+		let fat_rlp = acc.to_fat_rlp(&AccountDB::from_hash(&db, hash), &mut used_code).unwrap();
+
+		let mut stream = RlpStream::new_list(1);
+		stream.begin_list(2).append(&hash).append_raw(&fat_rlp, 1);
+		stream.out()
+	};
+
+	let chunk1 = make_chunk(acc1, h1);
+	let chunk2 = make_chunk(acc2, h2);
+
+	let db_path = RandomTempPath::create_dir();
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+	let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
+
+	let mut rebuilder = StateRebuilder::new(new_db, Algorithm::Archive);
+	let flag = AtomicBool::new(true);
+
+	rebuilder.feed(&chunk1, &flag).unwrap();
+	rebuilder.feed(&chunk2, &flag).unwrap();
+
+	rebuilder.check_missing().unwrap();
+}
+
+#[test]
+fn checks_flag() {
+	let mut producer = StateProducer::new();
+	let mut rng = XorShiftRng::from_seed([5, 6, 7, 8]);
+	let mut old_db = MemoryDB::new();
+	let db_cfg = DatabaseConfig::with_columns(::db::NUM_COLUMNS);
+
+	for _ in 0..10 {
+		producer.tick(&mut rng, &mut old_db);
+	}
+
+	let snap_dir = RandomTempPath::create_dir();
+	let mut snap_file = snap_dir.as_path().to_owned();
+	snap_file.push("SNAP");
+
+	let state_root = producer.state_root();
+	let writer = Mutex::new(PackedWriter::new(&snap_file).unwrap());
+
+	let state_hashes = chunk_state(&old_db, &state_root, &writer, &Progress::default()).unwrap();
+
+	writer.into_inner().finish(::snapshot::ManifestData {
+		state_hashes: state_hashes,
+		block_hashes: Vec::new(),
+		state_root: state_root,
+		block_number: 0,
+		block_hash: H256::default(),
+	}).unwrap();
+
+	let mut db_path = snap_dir.as_path().to_owned();
+	db_path.push("db");
+	{
+		let new_db = Arc::new(Database::open(&db_cfg, &db_path.to_string_lossy()).unwrap());
+		let mut rebuilder = StateRebuilder::new(new_db.clone(), Algorithm::Archive);
+		let reader = PackedReader::new(&snap_file).unwrap().unwrap();
+
+		let flag = AtomicBool::new(false);
+
+		for chunk_hash in &reader.manifest().state_hashes {
+			let raw = reader.chunk(*chunk_hash).unwrap();
+			let chunk = ::util::snappy::decompress(&raw).unwrap();
+
+			match rebuilder.feed(&chunk, &flag) {
+				Err(Error::Snapshot(SnapshotError::RestorationAborted)) => {},
+				_ => panic!("unexpected result when feeding with flag off"),
+			}
+		}
+	}
 }

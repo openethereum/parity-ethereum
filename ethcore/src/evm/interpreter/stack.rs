@@ -34,7 +34,7 @@ pub trait Stack<T> {
 	/// Get number of elements on Stack
 	fn size(&self) -> usize;
 	/// Returns all data on stack.
-	fn peek_top(&mut self, no_of_elems: usize) -> &[T];
+	fn peek_top(&self, no_of_elems: usize) -> &[T];
 }
 
 pub struct VecStack<S> {
@@ -68,12 +68,7 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	fn pop_back(&mut self) -> S {
 		let val = self.stack.pop();
 		match val {
-			Some(x) => {
-				evm_debug!({
-					println!("   POP: {}", x)
-				});
-				x
-			},
+			Some(x) => x,
 			None => panic!("Tried to pop from empty stack.")
 		}
 	}
@@ -88,9 +83,6 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 	}
 
 	fn push(&mut self, elem: S) {
-		evm_debug!({
-			println!("  PUSH: {}", elem)
-		});
 		self.stack.push(elem);
 	}
 
@@ -98,7 +90,7 @@ impl<S : fmt::Display> Stack<S> for VecStack<S> {
 		self.stack.len()
 	}
 
-	fn peek_top(&mut self, no_from_top: usize) -> &[S] {
+	fn peek_top(&self, no_from_top: usize) -> &[S] {
 		assert!(self.stack.len() >= no_from_top, "peek_top asked for more items than exist.");
 		&self.stack[self.stack.len() - no_from_top .. self.stack.len()]
 	}

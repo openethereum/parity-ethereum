@@ -23,4 +23,6 @@ mod state;
 mod chain;
 mod homestead_state;
 mod homestead_chain;
+mod eip150_state;
+mod eip161_state;
 mod trie;

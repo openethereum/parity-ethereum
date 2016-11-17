@@ -17,7 +17,7 @@
 //! Block header.
 
 use util::*;
-use basic_types::*;
+use basic_types::{LogBloom, Seal, ZERO_LOGBLOOM};
 use time::get_time;
 use rlp::*;
 
@@ -199,8 +199,9 @@ impl Header {
  		match &mut *hash {
  			&mut Some(ref h) => h.clone(),
  			hash @ &mut None => {
- 				*hash = Some(self.rlp_sha3(Seal::With));
- 				hash.as_ref().unwrap().clone()
+				let h = self.rlp_sha3(Seal::With);
+ 				*hash = Some(h.clone());
+ 				h
  			}
 		}
 	}
@@ -211,8 +212,9 @@ impl Header {
 		match &mut *hash {
 			&mut Some(ref h) => h.clone(),
 			hash @ &mut None => {
-				*hash = Some(self.rlp_sha3(Seal::Without));
-				hash.as_ref().unwrap().clone()
+				let h = self.rlp_sha3(Seal::Without);
+				*hash = Some(h.clone());
+				h
 			}
 		}
 	}
@@ -292,6 +294,12 @@ impl Decodable for Header {
 impl Encodable for Header {
 	fn rlp_append(&self, s: &mut RlpStream) {
 		self.stream_rlp(s, Seal::With);
+	}
+}
+
+impl HeapSizeOf for Header {
+	fn heap_size_of_children(&self) -> usize {
+		self.extra_data.heap_size_of_children() + self.seal.heap_size_of_children()
 	}
 }
 
