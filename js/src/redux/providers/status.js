@@ -22,7 +22,7 @@ export default class Status {
     this._api = api;
     this._store = store;
 
-    this.__pingable = false;
+    this._pingable = false;
     this._apiStatus = {};
     this._status = {};
   }
