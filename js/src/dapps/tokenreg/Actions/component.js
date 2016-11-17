@@ -37,7 +37,6 @@ export default class Actions extends Component {
 
     handleQueryToken: PropTypes.func.isRequired,
     handleQueryClose: PropTypes.func.isRequired,
-    handleQueryMetaLookup: PropTypes.func.isRequired,
     query: PropTypes.object.isRequired
   };
 
@@ -82,7 +81,6 @@ export default class Actions extends Component {
           show={ this.state.show[ QUERY_ACTION ] }
           onClose={ this.onQueryClose }
           handleQueryToken={ this.props.handleQueryToken }
-          handleQueryMetaLookup={ this.props.handleQueryMetaLookup }
           { ...this.props.query } />
       </div>
     );

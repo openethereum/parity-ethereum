@@ -22,8 +22,12 @@ export default class TokenReg {
     this.getInstance();
   }
 
+  getContract () {
+    return this._registry.getContract('tokenreg');
+  }
+
   getInstance () {
-    return this._registry.getContractInstance('tokenreg');
+    return this.getContract().instance;
   }
 
   tokenCount () {

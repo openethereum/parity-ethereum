@@ -14,11 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import {
-  registry as registryAbi,
-  tokenreg as tokenregAbi,
-  githubhint as githubhintAbi
-} from '../../../contracts/abi';
+import Contracts from '../../../contracts';
 
 import { loadToken, setTokenPending, deleteToken, setTokenData } from '../Tokens/actions';
 
@@ -34,43 +30,31 @@ export const FIND_CONTRACT = 'FIND_CONTRACT';
 export const loadContract = () => (dispatch) => {
   dispatch(setLoading(true));
 
-  api.parity
-    .registryAddress()
-    .then((registryAddress) => {
-      console.log(`registry found at ${registryAddress}`);
-      const registry = api.newContract(registryAbi, registryAddress).instance;
+  const { tokenReg, githubHint } = new Contracts(api);
 
-      return Promise.all([
-        registry.getAddress.call({}, [api.util.sha3('tokenreg'), 'A']),
-        registry.getAddress.call({}, [api.util.sha3('githubhint'), 'A'])
-      ]);
-    })
-    .then(([ tokenregAddress, githubhintAddress ]) => {
-      console.log(`tokenreg was found at ${tokenregAddress}`);
-
-      const tokenregContract = api
-        .newContract(tokenregAbi, tokenregAddress);
-
-      const githubhintContract = api
-        .newContract(githubhintAbi, githubhintAddress);
-
+  return Promise
+    .all([
+      tokenReg.getContract(),
+      githubHint.getContract()
+    ])
+    .then(([ tokenRegContract, githubHintContract ]) => {
       dispatch(setContractDetails({
-        address: tokenregAddress,
-        instance: tokenregContract.instance,
-        raw: tokenregContract
+        address: tokenRegContract.address,
+        instance: tokenRegContract.instance,
+        raw: tokenRegContract
       }));
 
       dispatch(setGithubhintDetails({
-        address: githubhintAddress,
-        instance: githubhintContract.instance,
-        raw: githubhintContract
+        address: githubHintContract.address,
+        instance: githubHintContract.instance,
+        raw: githubHintContract
       }));
 
       dispatch(loadContractDetails());
       dispatch(subscribeEvents());
     })
     .catch((error) => {
-      console.error('loadContract error', error);
+      throw error;
     });
 };
 
@@ -78,7 +62,7 @@ export const LOAD_CONTRACT_DETAILS = 'LOAD_CONTRACT_DETAILS';
 export const loadContractDetails = () => (dispatch, getState) => {
   const state = getState();
 
-  const instance = state.status.contract.instance;
+  const { instance } = state.status.contract;
 
   Promise
     .all([
@@ -87,8 +71,6 @@ export const loadContractDetails = () => (dispatch, getState) => {
       instance.fee.call()
     ])
     .then(([accounts, owner, fee]) => {
-      console.log(`owner as ${owner}, fee set at ${fee.toFormat()}`);
-
       const isOwner = accounts.filter(a => a === owner).length > 0;
 
       dispatch(setContractDetails({
@@ -119,14 +101,14 @@ export const setGithubhintDetails = (details) => ({
 export const subscribeEvents = () => (dispatch, getState) => {
   const state = getState();
 
-  const contract = state.status.contract.raw;
+  const { raw } = state.status.contract;
   const previousSubscriptionId = state.status.subscriptionId;
 
   if (previousSubscriptionId) {
-    contract.unsubscribe(previousSubscriptionId);
+    raw.unsubscribe(previousSubscriptionId);
   }
 
-  contract
+  raw
     .subscribe(null, {
       fromBlock: 'latest',
       toBlock: 'pending',
@@ -187,7 +169,7 @@ export const subscribeEvents = () => (dispatch, getState) => {
           ));
         }
 
-        console.log('new log event', log);
+        console.warn('unknown log event', log);
       });
     })
     .then((subscriptionId) => {

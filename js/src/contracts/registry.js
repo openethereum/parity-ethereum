@@ -42,7 +42,7 @@ export default class Registry {
     });
   }
 
-  getContractInstance (_name) {
+  getContract (_name) {
     const name = _name.toLowerCase();
 
     return new Promise((resolve, reject) => {
@@ -54,11 +54,17 @@ export default class Registry {
       this
         .lookupAddress(name)
         .then((address) => {
-          this._contracts[name] = this._api.newContract(abis[name], address).instance;
+          this._contracts[name] = this._api.newContract(abis[name], address);
           resolve(this._contracts[name]);
         })
         .catch(reject);
     });
+  }
+
+  getContractInstance (_name) {
+    return this
+      .getContract(_name)
+      .then((contract) => contract.instance);
   }
 
   lookupAddress (_name) {
