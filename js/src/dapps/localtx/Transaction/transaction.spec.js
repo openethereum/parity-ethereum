@@ -19,15 +19,38 @@ import { shallow } from 'enzyme';
 
 import '../../../environment/tests';
 
-import Transaction from './transaction';
+import BigNumber from 'bignumber.js';
+import { Transaction, LocalTransaction } from './transaction';
 
 describe('localtx/Transaction', () => {
   describe('rendering', () => {
     it('renders without crashing', () => {
+      const transaction = {
+        hash: '0x1234567890',
+        nonce: 15,
+        gasPrice: new BigNumber(10),
+        gas: new BigNumber(10)
+      };
       const rendered = shallow(
         <Transaction
           isLocal={ false }
-          transaction={ {} }
+          transaction={ transaction }
+          blockNumber={ new BigNumber(0) }
+        />
+      );
+
+      expect(rendered).to.be.defined;
+    });
+  });
+});
+
+describe('localtx/LocalTransaction', () => {
+  describe('rendering', () => {
+    it('renders without crashing', () => {
+      const rendered = shallow(
+        <LocalTransaction
+          hash={ '0x1234567890' }
+          status={ 'pending' }
         />
       );
 
