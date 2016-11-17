@@ -40,7 +40,9 @@ pub trait JobDispatcher: Send + Sync {
 	// json for difficulty dispatch
 	fn difficulty(&self) -> Option<String> { None }
 	// json for job update given worker_id (payload manager should split job!)
-	fn job(&self, _worker_id: String) -> Option<String> { None }
+	fn job(&self) -> Option<String> { None }
+	// miner job result
+	fn submit(&self, payload: Vec<String>);
 }
 
 #[ipc(client_ident="RemoteWorkHandler")]
@@ -55,7 +57,9 @@ pub trait PushWorkHandler: Send + Sync {
 
 #[derive(Binary)]
 pub struct ServiceConfiguration {
+	pub io_path: String,
 	pub listen_addr: String,
+	pub port: u16,
 	pub secret: Option<H256>,
 }
 

@@ -32,7 +32,7 @@ use spec::Spec;
 use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
-use miner::work_notify::WorkPoster;
+use miner::work_notify::{WorkPoster, NotifyWork};
 use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
 use header::BlockNumber;
@@ -105,6 +105,19 @@ pub struct MinerOptions {
 	pub tx_queue_gas_limit: GasLimit,
 	/// Banning settings
 	pub tx_queue_banning: Banning,
+}
+
+/// Configures stratum server options.
+#[derive(Debug, PartialEq, Clone)]
+pub struct StratumOptions {
+	/// Working directory
+	pub io_path: String,
+	/// Network address
+	pub listen_addr: String,
+	/// Port
+	pub port: u16,
+	/// Secret for peers
+	pub secret: Option<H256>,
 }
 
 impl Default for MinerOptions {
@@ -221,11 +234,29 @@ pub struct Miner {
 	engine: Arc<Engine>,
 
 	accounts: Option<Arc<AccountProvider>>,
-	work_poster: Option<WorkPoster>,
+	notifiers: RwLock<Vec<Box<NotifyWork>>>,
 	gas_pricer: Mutex<GasPricer>,
 }
 
 impl Miner {
+	/// Push notifier that will handle new jobs
+	pub fn push_notifier(&self, notifier: Box<NotifyWork>) {
+		self.notifiers.write().push(notifier)
+	}
+
+	/// Creates new instance of miner Arc.
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
+		let txq = Arc::new(Mutex::new(TransactionQueue::with_limits(options.tx_queue_size, options.tx_gas_limit)));
+		let miner = Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts));
+
+		if !miner.options.new_work_notify.is_empty() {
+			let http_poster = Box::new(WorkPoster::new(&miner.options.new_work_notify));
+			miner.push_notifier(http_poster as Box<NotifyWork>);
+		};
+
+		miner
+	}
+
 	/// Creates new instance of miner.
 	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
 		let work_poster = match options.new_work_notify.is_empty() {
@@ -263,7 +294,7 @@ impl Miner {
 			options: options,
 			accounts: accounts,
 			engine: spec.engine.clone(),
-			work_poster: work_poster,
+			notifiers: RwLock::new(Vec::new()),
 			gas_pricer: Mutex::new(gas_pricer),
 		}
 	}
@@ -276,11 +307,6 @@ impl Miner {
 	/// Creates new instance of miner without accounts, but with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
 		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, None)
-	}
-
-	/// Creates new instance of a miner Arc.
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts))
 	}
 
 	fn forced_sealing(&self) -> bool {
@@ -504,7 +530,7 @@ impl Miner {
 				let is_new = original_work_hash.map_or(true, |h| block.block().fields().header.hash() != h);
 				sealing_work.queue.push(block);
 				// If push notifications are enabled we assume all work items are used.
-				if self.work_poster.is_some() && is_new {
+				if !self.notifiers.read().is_empty() && is_new {
 					sealing_work.queue.use_last_ref();
 				}
 				(Some((pow_hash, difficulty, number)), is_new)
@@ -515,7 +541,11 @@ impl Miner {
 			(work, is_new)
 		};
 		if is_new {
-			work.map(|(pow_hash, difficulty, number)| self.work_poster.as_ref().map(|p| p.notify(pow_hash, difficulty, number)));
+			work.map(|(pow_hash, difficulty, number)| {
+				for notifier in self.notifiers.read().iter() {
+					notifier.notify(pow_hash, difficulty, number)
+				}
+			});
 		}
 	}
 

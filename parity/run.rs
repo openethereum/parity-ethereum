@@ -23,7 +23,8 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
+use ethcore::client::{Mode, Switch, DatabaseCompactionProfile, VMType, ChainNotify};
+use ethcore::miner::StratumOptions;
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -89,6 +90,7 @@ pub struct RunCmd {
 	pub ui: bool,
 	pub name: String,
 	pub custom_bootnodes: bool,
+	pub stratum: Option<StratumOptions>,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 }
@@ -206,6 +208,12 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
+	// create supervisor
+	let mut hypervisor = modules::hypervisor(::std::path::Path::new(&cmd.dirs.ipc_path()));
+	if let Some(ref stratum_cfg) = cmd.stratum {
+		modules::stratum(&mut hypervisor, stratum_cfg);
+	}
+
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
@@ -263,6 +271,13 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// create external miner
 	let external_miner = Arc::new(ExternalMiner::default());
+
+	// start stratum
+	if let Some(ref stratum_config) = cmd.stratum {
+		let _ = ClientService::stratum_notifier(stratum_config, Arc::downgrade(&miner), Arc::downgrade(&client)).map(|stratum_notifier| {
+			miner.push_notifier(stratum_notifier)
+		});
+	}
 
 	// create sync object
 	let (sync_provider, manage_network, chain_notify) = try!(modules::sync(

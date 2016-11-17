@@ -37,10 +37,7 @@ pub mod service_urls {
 	pub const NETWORK_MANAGER: &'static str = "parity-manage-net.ipc";
 	pub const SYNC_CONTROL: &'static str = "parity-sync-control.ipc";
 	#[cfg(feature="stratum")]
-	pub const STRATUM: &'static str = "parity-stratum.ipc";
-	#[cfg(feature="stratum")]
-	pub const MINING_JOB_DISPATCHER: &'static str = "parity-mining-jobs.ipc";
-
+	pub const STRATUM_CONTROL: &'static str = "parity-stratum-control.ipc";
 
 	pub fn with_base(data_dir: &str, service_path: &str) -> String {
 		let mut path = PathBuf::from(data_dir);
@@ -114,6 +111,33 @@ fn sync_arguments(io_path: &str, sync_cfg: SyncConfig, net_cfg: NetworkConfigura
 	}
 
 	BootArgs::new().stdin(service_payload).cli(cli_args)
+}
+
+#[cfg(feature="stratum")]
+pub fn stratum (hypervisor_ref: &mut Option<Hypervisor>, config: &::ethcore::miner::StratumOptions)
+{
+	use ethcore_stratum;
+
+	let mut hypervisor = hypervisor_ref.take().expect("There should be hypervisor for ipc configuration");
+	let args = BootArgs::new().stdin(
+			serialize(&ethcore_stratum::ServiceConfiguration {
+				io_path: hypervisor.io_path.to_owned(),
+				port: config.port,
+				listen_addr: config.listen_addr.to_owned(),
+				secret: config.secret,
+			}).expect("Any binary-derived struct is serializable by definition")
+		).cli(vec!["stratum".to_owned()]);
+	hypervisor = hypervisor.module(super::stratum::MODULE_ID, args);
+	*hypervisor_ref = Some(hypervisor);
+}
+
+#[cfg(not(feature="stratum"))]
+pub fn stratum (_hypervisor_ref: &mut Option<Hypervisor>, _config: &::ethcore::miner::StratumOptions)
+{
+	warn!(
+		"Stratum arguments ignored: parity should be recompiled with --features=\"stratum\"\n
+		 Use \"cargo build --features=\"stratum\"\""
+	);
 }
 
 #[cfg(feature="ipc")]

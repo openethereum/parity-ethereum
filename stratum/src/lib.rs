@@ -45,7 +45,7 @@ pub use traits::{
 };
 
 use json_tcp_server::Server as JsonRpcServer;
-use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
+use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params, Value};
 use std::sync::Arc;
 
 use std::net::SocketAddr;
@@ -65,7 +65,11 @@ pub struct Stratum {
 	workers: Arc<RwLock<HashMap<SocketAddr, String>>>,
 	/// Secret if any
 	secret: Option<H256>,
+	/// Dispatch notify couinter
+	notify_counter: RwLock<u32>,
 }
+
+const NOTIFY_CONTER_INITIAL: u32 = 16;
 
 impl Stratum {
 	pub fn start(
@@ -83,17 +87,36 @@ impl Stratum {
 			dispatcher: dispatcher,
 			workers: Arc::new(RwLock::new(HashMap::new())),
 			secret: secret,
+			notify_counter: RwLock::new(NOTIFY_CONTER_INITIAL),
 		});
 
 		let mut delegate = IoDelegate::<Stratum>::new(stratum.clone());
-		delegate.add_method("miner.subscribe", Stratum::subscribe);
-		delegate.add_method("miner.authorize", Stratum::authorize);
+		delegate.add_method("mining.subscribe", Stratum::subscribe);
+		delegate.add_method("mining.authorize", Stratum::authorize);
+		delegate.add_method("mining.submit", Stratum::submit);
 		stratum.handler.add_delegate(delegate);
 
 		try!(stratum.rpc_server.run_async());
 
 		Ok(stratum)
 	}
+
+	fn submit(&self, params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
+		Ok(match params {
+			Params::Array(vals) => {
+				// first two elements are service messages (worker_id & job_id)
+				self.dispatcher.submit(vals.iter().skip(2)
+					.filter_map(|val| match val { &Value::String(ref str) => Some(str.to_owned()), _ => None })
+					.collect::<Vec<String>>());
+				to_value(true)
+			},
+			_ => {
+				trace!(target: "stratum", "Invalid submit work format {:?}", params);
+				to_value(false)
+			}
+		})
+	}
+
 
 	fn subscribe(&self, _params: Params) -> std::result::Result<jsonrpc_core::Value, jsonrpc_core::Error> {
 		use std::str::FromStr;
@@ -125,11 +148,11 @@ impl Stratum {
 			}
 			if let Some(context) = self.rpc_server.request_context() {
 				self.workers.write().insert(context.socket_addr, worker_id);
-				to_value(&true)
+				to_value(true)
 			}
 			else {
 				warn!(target: "stratum", "Authorize without valid context received!");
-				to_value(&false)
+				to_value(false)
 			}
 		})
 	}
@@ -140,20 +163,11 @@ impl Stratum {
 
 	pub fn maintain(&self) {
 		let mut job_que = self.job_que.write();
-		let workers = self.workers.read();
 		for socket_addr in job_que.drain() {
-			if let Some(worker_id) = workers.get(&socket_addr) {
-				let job_payload = self.dispatcher.job(worker_id.to_owned());
-				job_payload.map(
-					|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
-				);
-			}
-			else {
-				trace!(
-					target: "stratum",
-					"Job queued for worker that is still not authorized, skipping ('{:?}')", socket_addr
-				);
-			}
+			let job_payload = self.dispatcher.job();
+			job_payload.map(
+				|json| self.rpc_server.push_message(&socket_addr, json.as_bytes())
+			);
 		}
 	}
 }
@@ -161,9 +175,17 @@ impl Stratum {
 impl PushWorkHandler for Stratum {
 	fn push_work_all(&self, payload: String) -> Result<(), Error> {
 		let workers = self.workers.read();
-		println!("pushing work for {} workers", workers.len());
+		let next_request_id = {
+			let mut counter = self.notify_counter.write();
+			if *counter == ::std::u32::MAX { *counter = NOTIFY_CONTER_INITIAL; }
+			else { *counter = *counter + 1 }
+			*counter
+		};
+
+		let workers_msg = format!("{{ \"id\": {}, \"method\": \"mining.notify\", \"params\": {} }}\n", next_request_id, payload);
+		trace!(target: "stratum", "pushing work for {} workers (payload: '{}')", workers.len(), &workers_msg);
 		for (ref addr, _) in workers.iter() {
-			try!(self.rpc_server.push_message(addr, payload.as_bytes()));
+			try!(self.rpc_server.push_message(addr, workers_msg.as_bytes()));
 		}
 		Ok(())
 	}
@@ -302,7 +324,7 @@ mod tests {
 	fn records_subscriber() {
 		let addr = SocketAddr::from_str("0.0.0.0:19985").unwrap();
 		let stratum = Stratum::start(&addr, Arc::new(VoidManager), None).unwrap();
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 1}"#;
 		dummy_request(&addr, request.as_bytes());
 		assert_eq!(1, stratum.subscribers.read().len());
 	}
@@ -336,11 +358,11 @@ mod tests {
 	fn receives_initial_paylaod() {
 		let addr = SocketAddr::from_str("0.0.0.0:19975").unwrap();
 		Stratum::start(&addr, DummyManager::new(), None).unwrap();
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.subscribe", "params": [], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.subscribe", "params": [], "id": 2}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 
-		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":1}"#, response);
+		assert_eq!(r#"{"jsonrpc":"2.0","result":["dummy payload"],"id":2}"#, response);
 	}
 
 	#[test]
@@ -352,7 +374,7 @@ mod tests {
 			None
 		).unwrap();
 
-		let request = r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#;
+		let request = r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#;
 
 		let response = String::from_utf8(dummy_request(&addr, request.as_bytes())).unwrap();
 
@@ -375,7 +397,7 @@ mod tests {
 		let _stop = dummy_async_waiter(
 			&addr,
 			vec![
-				r#"{"jsonrpc": "2.0", "method": "miner.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
+				r#"{"jsonrpc": "2.0", "method": "mining.authorize", "params": ["miner1", ""], "id": 1}"#.to_owned(),
 			],
 			result.clone(),
 		);

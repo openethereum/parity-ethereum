@@ -115,8 +115,8 @@ extern crate heapsize;
 extern crate ethcore_ipc as ipc;
 extern crate lru_cache;
 
-#[cfg(feature = "jit" )]
-extern crate evmjit;
+#[cfg(feature = "jit" )] extern crate evmjit;
+#[cfg(feature = "stratum")] extern crate ethcore_stratum;
 
 pub extern crate ethstore;
 
