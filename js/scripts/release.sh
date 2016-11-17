@@ -68,11 +68,13 @@ if [ "$BRANCH" == "master" ]; then
 fi
 
 echo "*** Updating cargo parity-ui-precompiled#$PRECOMPILED_HASH"
+git submodule update
 cargo update -p parity-ui-precompiled
 # --precise "$PRECOMPILED_HASH"
 
 echo "*** Committing updated files"
-git add .
+git add js
+git add Cargo.lock
 git commit -m "[ci skip] js-precompiled $UTCDATE"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 

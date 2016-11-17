@@ -14,6 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Http from './http';
-export Ws from './ws';
-export TransportError from './error.js';
+import React, { Component } from 'react';
+import SuccessIcon from 'material-ui/svg-icons/navigation/check';
+
+import styles from './done.css';
+
+export default class Done extends Component {
+  render () {
+    return (
+      <div className={ styles.container }>
+        <SuccessIcon />
+        <p className={ styles.message }>Congratulations, your account is verified!</p>
+      </div>
+    );
+  }
+}

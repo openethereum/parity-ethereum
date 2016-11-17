@@ -15,12 +15,6 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  z-index: 10101 !important;
-
-  button {
-    color: white !important;
-    margin: 0 !important;
-    margin-right: -16px !important;
-  }
+.centered {
+  text-align: center;
 }

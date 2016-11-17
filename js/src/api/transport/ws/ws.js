@@ -18,6 +18,7 @@ import { keccak_256 } from 'js-sha3'; // eslint-disable-line camelcase
 
 import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
+import TransportError from '../error';
 
 /* global WebSocket */
 export default class Ws extends JsonRpcBase {
@@ -109,7 +110,9 @@ export default class Ws extends JsonRpcBase {
 
         console.error(`${method}(${JSON.stringify(params)}): ${result.error.code}: ${result.error.message}`);
 
-        reject(new Error(`${method}: ${result.error.code}: ${result.error.message}`));
+        const error = new TransportError(method, result.error.code, result.error.message);
+        reject(error);
+
         delete this._messages[result.id];
         return;
       }

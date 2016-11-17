@@ -16,6 +16,7 @@
 
 import { Logging } from '../../subscriptions';
 import JsonRpcBase from '../jsonRpcBase';
+import TransportError from '../error';
 
 /* global fetch */
 export default class Http extends JsonRpcBase {
@@ -73,7 +74,8 @@ export default class Http extends JsonRpcBase {
           this.error(JSON.stringify(response));
           console.error(`${method}(${JSON.stringify(params)}): ${response.error.code}: ${response.error.message}`);
 
-          throw new Error(`${method}: ${response.error.code}: ${response.error.message}`);
+          const error = new TransportError(method, response.error.code, response.error.message);
+          throw error;
         }
 
         this.log(JSON.stringify(response));

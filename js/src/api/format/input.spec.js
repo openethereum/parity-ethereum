@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber10, inNumber16, inOptions } from './input';
+import { inAddress, inBlockNumber, inData, inFilter, inHex, inNumber10, inNumber16, inOptions, inTraceType } from './input';
 import { isAddress } from '../../../test/types';
 
 describe('api/format/input', () => {
@@ -240,6 +240,18 @@ describe('api/format/input', () => {
         data: '0x0123456789',
         extraData: 'someExtraStuffInHere'
       });
+    });
+  });
+
+  describe('inTraceType', () => {
+    it('returns array of types as is', () => {
+      const types = ['vmTrace', 'trace', 'stateDiff'];
+      expect(inTraceType(types)).to.deep.equal(types);
+    });
+
+    it('formats single string type into array', () => {
+      const type = 'vmTrace';
+      expect(inTraceType(type)).to.deep.equal([type]);
     });
   });
 });

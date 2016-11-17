@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.49",
+  "version": "0.2.52",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -123,6 +123,7 @@
     "brace": "^0.9.0",
     "bytes": "^2.4.0",
     "chart.js": "^2.3.0",
+    "es6-error": "^4.0.0",
     "es6-promise": "^3.2.1",
     "ethereumjs-tx": "^1.1.2",
     "file-saver": "^1.3.3",
@@ -139,6 +140,7 @@
     "mobx-react": "^3.5.8",
     "mobx-react-devtools": "^4.2.9",
     "moment": "^2.14.1",
+    "phoneformat.js": "^1.0.3",
     "qs": "^6.3.0",
     "react": "^15.2.1",
     "react-ace": "^4.0.0",

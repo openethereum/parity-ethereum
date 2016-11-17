@@ -23,6 +23,8 @@ import { validateAddress, validateUint } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
+import { ERROR_CODES } from '../../api/transport/error';
+
 export default class ExecuteContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
@@ -49,7 +51,8 @@ export default class ExecuteContract extends Component {
     step: 0,
     sending: false,
     busyState: null,
-    txhash: null
+    txhash: null,
+    rejected: false
   }
 
   componentDidMount () {
@@ -80,6 +83,7 @@ export default class ExecuteContract extends Component {
     const { onClose, fromAddress } = this.props;
     const { sending, step, fromAddressError, valuesError } = this.state;
     const hasError = fromAddressError || valuesError.find((error) => error);
+
     const cancelBtn = (
       <Button
         key='cancel'
@@ -115,7 +119,16 @@ export default class ExecuteContract extends Component {
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { step, busyState, txhash } = this.state;
+    const { step, busyState, txhash, rejected } = this.state;
+
+    if (rejected) {
+      return (
+        <BusyStep
+          title='The execution has been rejected'
+          state='You can safely close this window, the function execution will not occur.'
+        />
+      );
+    }
 
     if (step === 0) {
       return (
@@ -221,7 +234,17 @@ export default class ExecuteContract extends Component {
       })
       .then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('parity_checkRequest', requestId);
+
+        return api
+          .pollMethod('parity_checkRequest', requestId)
+          .catch((e) => {
+            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+              this.setState({ rejected: true });
+              return false;
+            }
+
+            throw e;
+          });
       })
       .then((txhash) => {
         this.setState({ sending: false, step: 2, txhash, busyState: 'Your transaction has been posted to the network' });
