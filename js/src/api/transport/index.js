@@ -16,3 +16,4 @@
 
 export Http from './http';
 export Ws from './ws';
+export TransportError from './error.js';
