@@ -21,17 +21,12 @@ mod instant_seal;
 mod basic_authority;
 mod authority_round;
 mod tendermint;
-mod signed_vote;
-mod propose_collect;
-
 
 pub use self::null_engine::NullEngine;
 pub use self::instant_seal::InstantSeal;
 pub use self::basic_authority::BasicAuthority;
 pub use self::authority_round::AuthorityRound;
 pub use self::tendermint::Tendermint;
-pub use self::signed_vote::SignedVote;
-pub use self::propose_collect::ProposeCollect;
 
 use rlp::UntrustedRlp;
 use util::*;
