@@ -15,8 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, RadioButtons } from '../../../ui';
+import { AddressSelect, Form, Input, Select } from '../../../ui';
+import { validateAbi } from '../../../util/validation';
+import { parseAbiType } from '../../../util/abi';
 
 export default class DetailsStep extends Component {
   static contextTypes = {
@@ -25,12 +28,14 @@ export default class DetailsStep extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    inputTypeValues: PropTypes.array.isRequired,
 
     onFromAddressChange: PropTypes.func.isRequired,
     onNameChange: PropTypes.func.isRequired,
     onDescriptionChange: PropTypes.func.isRequired,
-    onInputTypeChange: PropTypes.func.isRequired,
+    onAbiChange: PropTypes.func.isRequired,
+    onCodeChange: PropTypes.func.isRequired,
+    onParamsChange: PropTypes.func.isRequired,
+    onInputsChange: PropTypes.func.isRequired,
 
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
@@ -38,7 +43,11 @@ export default class DetailsStep extends Component {
     nameError: PropTypes.string,
     description: PropTypes.string,
     descriptionError: PropTypes.string,
-    inputType: PropTypes.object,
+    abi: PropTypes.string,
+    abiError: PropTypes.string,
+    code: PropTypes.string,
+    codeError: PropTypes.string,
+
     readOnly: PropTypes.bool
   };
 
@@ -46,9 +55,39 @@ export default class DetailsStep extends Component {
     readOnly: false
   };
 
+  state = {
+    solcOutput: '',
+    contracts: {},
+    selectedContractIndex: 0
+  }
+
+  componentDidMount () {
+    const { abi, code } = this.props;
+
+    if (abi) {
+      this.onAbiChange(abi);
+      this.setState({ solcOutput: abi });
+    }
+
+    if (code) {
+      this.onCodeChange(code);
+    }
+  }
+
   render () {
-    const { accounts } = this.props;
-    const { fromAddress, fromAddressError, name, nameError, description, descriptionError } = this.props;
+    const {
+      accounts,
+      readOnly,
+
+      fromAddress, fromAddressError,
+      name, nameError,
+      description, descriptionError,
+      abiError,
+      code, codeError
+    } = this.props;
+
+    const { solcOutput, contracts } = this.state;
+    const solc = contracts && Object.keys(contracts).length > 0;
 
     return (
       <Form>
@@ -74,32 +113,97 @@ export default class DetailsStep extends Component {
           value={ description }
           onChange={ this.onDescriptionChange } />
 
-        { this.renderChooseInputType() }
+        { this.renderContractSelect() }
+
+        <Input
+          label='abi / solc combined-output'
+          hint='the abi of the contract to deploy or solc combined-output'
+          error={ abiError }
+          value={ solcOutput }
+          onChange={ this.onSolcChange }
+          onSubmit={ this.onSolcSubmit }
+          readOnly={ readOnly } />
+        <Input
+          label='code'
+          hint='the compiled code of the contract to deploy'
+          error={ codeError }
+          value={ code }
+          onSubmit={ this.onCodeChange }
+          readOnly={ readOnly || solc } />
+
       </Form>
     );
   }
 
-  renderChooseInputType () {
-    const { readOnly } = this.props;
+  renderContractSelect () {
+    const { contracts } = this.state;
 
-    if (readOnly) {
+    if (!contracts || Object.keys(contracts).length === 0) {
       return null;
     }
 
-    const { inputTypeValues, inputType } = this.props;
+    const { selectedContractIndex } = this.state;
+    const contractsItems = Object.keys(contracts).map((name, index) => (
+      <MenuItem
+        key={ index }
+        label={ name }
+        value={ index }
+      >
+        { name }
+      </MenuItem>
+    ));
 
     return (
-      <div>
-        <br />
-        <p>Choose how ABI and Bytecode will be entered</p>
-        <RadioButtons
-          name='contractInputType'
-          value={ inputType }
-          values={ inputTypeValues }
-          onChange={ this.onInputTypeChange }
-        />
-      </div>
+      <Select
+        label='select a contract'
+        onChange={ this.onContractChange }
+        value={ selectedContractIndex }
+      >
+        { contractsItems }
+      </Select>
     );
+  }
+
+  onContractChange = (event, index) => {
+    const { contracts } = this.state;
+    const contractName = Object.keys(contracts)[index];
+    const contract = contracts[contractName];
+
+    const { abi, bin } = contract;
+    const code = /^0x/.test(bin) ? bin : `0x${bin}`;
+
+    this.setState({ selectedContractIndex: index }, () => {
+      this.onAbiChange(abi);
+      this.onCodeChange(code);
+    });
+  }
+
+  onSolcChange = (event, value) => {
+    // Change triggered only if valid
+    if (this.props.abiError) {
+      return null;
+    }
+
+    this.onSolcSubmit(value);
+  }
+
+  onSolcSubmit = (value) => {
+    try {
+      const solcParsed = JSON.parse(value);
+
+      if (!solcParsed || !solcParsed.contracts) {
+        throw new Error('Wrong solc output');
+      }
+
+      this.setState({ contracts: solcParsed.contracts }, () => {
+        this.onContractChange(null, 0);
+      });
+    } catch (e) {
+      this.setState({ contracts: null });
+      this.onAbiChange(value);
+    }
+
+    this.setState({ solcOutput: value });
   }
 
   onFromAddressChange = (event, fromAddress) => {
@@ -120,8 +224,35 @@ export default class DetailsStep extends Component {
     onDescriptionChange(description);
   }
 
-  onInputTypeChange = (inputType, index) => {
-    const { onInputTypeChange } = this.props;
-    onInputTypeChange(inputType, index);
+  onAbiChange = (abi) => {
+    const { api } = this.context;
+    const { onAbiChange, onParamsChange, onInputsChange } = this.props;
+    const { abiError, abiParsed } = validateAbi(abi, api);
+
+    if (!abiError) {
+      const { inputs } = abiParsed
+        .find((method) => method.type === 'constructor') || { inputs: [] };
+
+      const params = [];
+
+      inputs.forEach((input) => {
+        const param = parseAbiType(input.type);
+        params.push(param.default);
+      });
+
+      onParamsChange(params);
+      onInputsChange(inputs);
+    } else {
+      onParamsChange([]);
+      onInputsChange([]);
+    }
+
+    onAbiChange(abi);
+  }
+
+  onCodeChange = (code) => {
+    const { onCodeChange } = this.props;
+
+    onCodeChange(code);
   }
 }

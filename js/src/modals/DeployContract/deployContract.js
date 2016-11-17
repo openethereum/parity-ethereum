@@ -32,22 +32,9 @@ import { ERROR_CODES } from '../../api/transport/error';
 const STEPS = {
   CONTRACT_DETAILS: { title: 'contract details' },
   CONTRACT_PARAMETERS: { title: 'contract parameters' },
-  DEPLOYMENT: { title: 'deployment' },
+  DEPLOYMENT: { title: 'deployment', waiting: true },
   COMPLETED: { title: 'completed' }
 };
-
-const CONTRACT_INPUT_TYPES = [
-  {
-    key: 'MANUAL',
-    label: 'Manually',
-    description: 'Manual input of the ABI and the bytecode'
-  },
-  {
-    key: 'SOLC',
-    label: 'From solc',
-    description: 'Parse the ABI and the bytecode from solc output'
-  }
-];
 
 export default class DeployContract extends Component {
   static contextTypes = {
@@ -82,7 +69,7 @@ export default class DeployContract extends Component {
     nameError: ERRORS.invalidName,
     params: [],
     paramsError: [],
-    inputType: CONTRACT_INPUT_TYPES[0],
+    inputs: [],
 
     deployState: '',
     deployError: null,
@@ -116,24 +103,30 @@ export default class DeployContract extends Component {
   }
 
   render () {
-    const { step, deployError, rejected } = this.state;
+    const { step, deployError, rejected, inputs } = this.state;
 
     const realStep = Object.keys(STEPS).findIndex((k) => k === step);
     const realSteps = deployError || rejected
       ? null
-      : Object.values(STEPS).map((s) => s.title);
+      : Object.keys(STEPS)
+        .filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0)
+        .map((k) => STEPS[k]);
 
     const title = realSteps
       ? null
       : (deployError ? 'deployment failed' : 'rejected');
 
+    const waiting = realSteps
+      ? realSteps.map((s, i) => s.waiting ? i : false).filter((v) => v !== false)
+      : null;
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ realStep }
-        steps={ realSteps }
+        steps={ realSteps ? realSteps.map((s) => s.title) : null }
         title={ title }
-        waiting={ realSteps ? [2] : null }
+        waiting={ waiting }
         visible
         scroll>
         { this.renderStep() }
@@ -143,8 +136,7 @@ export default class DeployContract extends Component {
 
   renderDialogActions () {
     const { deployError, abiError, codeError, nameError, descriptionError, fromAddressError, fromAddress, step } = this.state;
-    const isDetailsValid = !nameError && !fromAddressError && !descriptionError;
-    const isParametersValid = !abiError && !codeError;
+    const isValid = !nameError && !fromAddressError && !descriptionError && !abiError && !codeError;
 
     const cancelBtn = (
       <Button
@@ -176,7 +168,7 @@ export default class DeployContract extends Component {
         return [
           cancelBtn,
           <Button
-            disabled={ !isDetailsValid }
+            disabled={ !isValid }
             icon={ <IdentityIcon button address={ fromAddress } /> }
             label='Next'
             onClick={ this.onParametersStep } />
@@ -186,7 +178,6 @@ export default class DeployContract extends Component {
         return [
           cancelBtn,
           <Button
-            disabled={ !isParametersValid }
             icon={ <IdentityIcon button address={ fromAddress } /> }
             label='Create'
             onClick={ this.onDeployStart } />
@@ -226,11 +217,13 @@ export default class DeployContract extends Component {
             { ...this.state }
             accounts={ accounts }
             readOnly={ readOnly }
-            inputTypeValues={ CONTRACT_INPUT_TYPES }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange }
-            onInputTypeChange={ this.onInputTypeChange }
+            onAbiChange={ this.onAbiChange }
+            onCodeChange={ this.onCodeChange }
+            onParamsChange={ this.onParamsChange }
+            onInputsChange={ this.onInputsChange }
           />
         );
 
@@ -240,8 +233,6 @@ export default class DeployContract extends Component {
             { ...this.state }
             readOnly={ readOnly }
             accounts={ accounts }
-            onAbiChange={ this.onAbiChange }
-            onCodeChange={ this.onCodeChange }
             onParamsChange={ this.onParamsChange }
           />
         );
@@ -274,15 +265,17 @@ export default class DeployContract extends Component {
   }
 
   onParametersStep = () => {
-    this.setState({ step: 'CONTRACT_PARAMETERS' });
+    const { inputs } = this.state;
+
+    if (inputs.length) {
+      return this.setState({ step: 'CONTRACT_PARAMETERS' });
+    }
+
+    return this.onDeployStart();
   }
 
   onDescriptionChange = (description) => {
     this.setState({ description, descriptionError: null });
-  }
-
-  onInputTypeChange = (inputType) => {
-    this.setState({ inputType });
   }
 
   onFromAddressChange = (fromAddress) => {
@@ -301,6 +294,10 @@ export default class DeployContract extends Component {
 
   onParamsChange = (params) => {
     this.setState({ params });
+  }
+
+  onInputsChange = (inputs) => {
+    this.setState({ inputs });
   }
 
   onAbiChange = (abi) => {
