@@ -22,11 +22,9 @@ import ABI from '../../contracts/abi/sms-verification.json';
 // TODO: move this to a better place
 const contract = '0xcE381B876A85A72303f7cA7b3a012f58F4CEEEeB';
 
-import checkIfVerified from './check-if-verified';
-import checkIfRequested from './check-if-requested';
-import checkIfTxFailed from './check-if-tx-failed';
-import waitForConfirmations from './wait-for-confirmations';
-import postToVerificationServer from './post-to-verification-server';
+import { checkIfVerified, checkIfRequested, postToServer } from '../../contracts/sms-verification';
+import checkIfTxFailed from '../../util/check-if-tx-failed';
+import waitForConfirmations from '../../util/wait-for-block-confirmations';
 
 const validCode = /^[A-Z\s]+$/i;
 
@@ -180,7 +178,7 @@ export default class VerificationStore {
     chain
       .then(() => {
         this.step = REQUESTING_SMS;
-        return postToVerificationServer({ number, address: account });
+        return postToServer({ number, address: account });
       })
       .then(() => {
         this.step = REQUESTED_SMS;
