@@ -17,4 +17,10 @@
 
 .container {
   z-index: 10101 !important;
+
+  button {
+    color: white !important;
+    margin: 0 !important;
+    margin-right: -16px !important;
+  }
 }

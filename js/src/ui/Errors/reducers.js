@@ -19,7 +19,8 @@ function newError (state, action) {
 
   return Object.assign({}, state, {
     visible: true,
-    message: error.message
+    message: error.message,
+    error
   });
 }
 

@@ -23,9 +23,12 @@ import { closeErrors } from './actions';
 
 import styles from './errors.css';
 
+const ERROR_REGEX = /-(\d+): (.+)$/;
+
 class Errors extends Component {
   static propTypes = {
     message: PropTypes.string,
+    error: PropTypes.object,
     visible: PropTypes.bool,
     onCloseErrors: PropTypes.func
   };
@@ -37,22 +40,60 @@ class Errors extends Component {
       return null;
     }
 
+    const text = this.getErrorMessage();
+
     return (
       <Snackbar
-        open
         className={ styles.container }
-        message={ message }
-        autoHideDuration={ 5000 }
-        onRequestClose={ onCloseErrors } />
+        open
+        action='close'
+        autoHideDuration={ 60000 }
+        message={ text }
+        onActionTouchTap={ onCloseErrors }
+        onRequestClose={ this.onRequestClose }
+        bodyStyle={ {
+          whiteSpace: 'pre-line',
+          height: 'auto'
+        } }
+        contentStyle={ {
+          display: 'flex',
+          flexDirection: 'row',
+          lineHeight: '1.5em',
+          padding: '0.75em 0',
+          alignItems: 'center'
+        } }
+      />
     );
+  }
+
+  getErrorMessage = () => {
+    const { message, error } = this.props;
+
+    if (!error.text && !ERROR_REGEX.test(message)) {
+      return message;
+    }
+
+    const matches = ERROR_REGEX.exec(message);
+
+    const code = error.code || parseInt(matches[1]) * -1;
+    const text = error.text || matches[2];
+
+    return `[${code}] ${text}`;
+  }
+
+  onRequestClose = (reason) => {
+    if (reason === 'timeout') {
+      this.props.onCloseErrors();
+    }
   }
 }
 
 function mapStateToProps (state) {
-  const { message, visible } = state.errors;
+  const { message, error, visible } = state.errors;
 
   return {
     message,
+    error,
     visible
   };
 }
