@@ -59,7 +59,7 @@ class BaseTransaction extends Component {
     }
 
     return (
-      <span title={ `${transaction.gasPrice.toFormat(0) } wei`}>
+      <span title={ `${transaction.gasPrice.toFormat(0)} wei` }>
         { api.util.fromWei(transaction.gasPrice, 'shannon').toFormat(2) }&nbsp;shannon
       </span>
     );
@@ -72,7 +72,7 @@ class BaseTransaction extends Component {
 
     return (
       <span title={ `${transaction.gas.toFormat(0)} Gas` }>
-        { transaction.gas.div(10**6).toFormat(3) }&nbsp;MGas
+        { transaction.gas.div(10 ** 6).toFormat(3) }&nbsp;MGas
       </span>
     );
   }
@@ -137,13 +137,11 @@ export class Transaction extends BaseTransaction {
 
   render () {
     const { isLocal, stats, transaction, idx } = this.props;
+    const blockNo = new BigNumber(stats.firstSeen);
 
     const clazz = classnames(styles.transaction, {
       [styles.local]: isLocal
     });
-    const noOfPeers = Object.keys(stats.propagatedTo).length;
-    const noOfPropagations = Object.values(stats.propagatedTo).reduce((sum, val) => sum + val, 0);
-    const blockNo = new BigNumber(stats.firstSeen);
 
     return (
       <tr className={ clazz }>
@@ -232,15 +230,27 @@ export class LocalTransaction extends BaseTransaction {
     const { isResubmitting, gasPrice } = this.state;
 
     this.setState({
-      isResubmitting: !isResubmitting,
+      isResubmitting: !isResubmitting
     });
 
     if (gasPrice === null) {
       this.setState({
-        gasPrice: `0x${ transaction.gasPrice.toString(16) }`,
-        gas: `0x${ transaction.gas.toString(16) }`
+        gasPrice: `0x${transaction.gasPrice.toString(16)}`,
+        gas: `0x${transaction.gas.toString(16)}`
       });
     }
+  };
+
+  setGasPrice = el => {
+    this.setState({
+      gasPrice: el.target.value
+    });
+  };
+
+  setGas = el => {
+    this.setState({
+      gas: el.target.value
+    });
   };
 
   sendTransaction = () => {
@@ -317,18 +327,20 @@ export class LocalTransaction extends BaseTransaction {
     const { details } = this.props;
 
     let state = {
-      'pending': () => `In queue: Pending`,
-      'future': () => `In queue: Future`,
-      'mined': () => `Mined`,
-      'dropped': () => `Dropped because of queue limit`,
-      'invalid': () => `Transaction is invalid`,
-      'rejected': () => `Rejected: ${ details.error }`,
-      'replaced': () => `Replaced by ${ this.shortHash(details.hash) }`,
+      'pending': () => 'In queue: Pending',
+      'future': () => 'In queue: Future',
+      'mined': () => 'Mined',
+      'dropped': () => 'Dropped because of queue limit',
+      'invalid': () => 'Transaction is invalid',
+      'rejected': () => `Rejected: ${details.error}`,
+      'replaced': () => `Replaced by ${this.shortHash(details.hash)}`
     }[this.props.status];
 
     return state ? state() : 'unknown';
   }
 
+  // TODO [ToDr] Gas Price / Gas selection is not needed
+  // when signer supports gasPrice/gas tunning.
   renderResubmit () {
     const { transaction } = this.props;
     const { gasPrice, gas } = this.state;
@@ -350,12 +362,12 @@ export class LocalTransaction extends BaseTransaction {
           <input
             type='text'
             value={ gasPrice }
-            onChange={ el => this.setState({ gasPrice: el.target.value }) }
+            onChange={ this.setGasPrice }
             />
           <input
             type='text'
             value={ gas }
-            onChange={ el => this.setState({ gas: el.target.value }) }
+            onChange={ this.setGas }
             />
         </td>
         <td colSpan='2'>

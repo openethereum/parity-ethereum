@@ -135,7 +135,9 @@ export default class Parity {
       .then(transactions => {
         Object.values(transactions)
           .filter(tx => tx.transaction)
-          .map(tx => tx.transaction = outTransaction(tx.transaction));
+          .map(tx => {
+            tx.transaction = outTransaction(tx.transaction);
+          });
         return transactions;
       });
   }

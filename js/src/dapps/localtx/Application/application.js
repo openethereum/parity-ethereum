@@ -157,7 +157,7 @@ export default class Application extends Component {
           transactions.map((tx, idx) => (
             <Transaction
               key={ tx.transaction.hash }
-              idx={ idx + 1}
+              idx={ idx + 1 }
               isLocal={ tx.isLocal }
               transaction={ tx.transaction }
               stats={ tx.stats }
