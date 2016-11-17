@@ -14,30 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import basiccoin from './basiccoin.json';
-import basiccoinmanager from './basiccoinmanager.json';
-import dappreg from './dappreg.json';
-import eip20 from './eip20.json';
-import gavcoin from './gavcoin.json';
-import githubhint from './githubhint.json';
-import owned from './owned.json';
-import registry from './registry.json';
-import signaturereg from './signaturereg.json';
-import smsverification from './sms-verification.json';
-import tokenreg from './tokenreg.json';
-import wallet from './wallet.json';
-
-export {
-  basiccoin,
-  basiccoinmanager,
-  dappreg,
-  eip20,
-  gavcoin,
-  githubhint,
-  owned,
-  registry,
-  signaturereg,
-  smsverification,
-  tokenreg,
-  wallet
+const checkIfTxFailed = (api, tx, gasSent) => {
+  return api.pollMethod('eth_getTransactionReceipt', tx)
+  .then((receipt) => {
+    // TODO: Right now, there's no way to tell wether the EVM code crashed.
+    // Because you usually send a bit more gas than estimated (to make sure
+    // it gets mined quickly), we transaction probably failed if all the gas
+    // has been used up.
+    return receipt.gasUsed.eq(gasSent);
+  });
 };
+
+export default checkIfTxFailed;
