@@ -125,11 +125,37 @@ impl Tendermint {
 		}
 	}
 
+	fn broadcast_message(&self, message: Bytes) {
+		if let Some(ref channel) = *self.message_channel.lock() {
+			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
+				Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
+				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+			}
+		}
+	}
+
 	fn to_step(&self, step: Step) {
 		*self.step.write() = step;
 		match step {
 			Step::Propose => self.update_sealing(),
-			_ => {},
+			Step::Prevote => {
+				self.broadcast_message()
+			},
+			Step::Precommit => {
+				self.broadcast_message()
+			},
+			Step::Commit => {
+				// Commit the block using a complete signature set.
+				let round = self.round.load(AtomicOrdering::SeqCst);
+				if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, Some(block_hash(header))) {
+					let seal = vec![
+						::rlp::encode(&round).to_vec(),
+						::rlp::encode(proposer).to_vec(),
+						::rlp::encode(&votes).to_vec()
+					];
+					self.submit_seal(seal)
+				}
+			},
 		}
 	}
 
@@ -240,47 +266,27 @@ impl Engine for Tendermint {
 	}
 
 	/// Attempt to seal the block internally using all available signatures.
-	///
-	/// None is returned if not enough signatures can be collected.
 	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if let (Some(ap), Some(step)) = (accounts, self.step.try_read()) {
+		if let Some(ap) = accounts {
 			let header = block.header();
 			let author = header.author();
-			match *step {
-				Step::Commit => {
-					// Commit the block using a complete signature set.
-					let round = self.round.load(AtomicOrdering::SeqCst);
-					if let Some((proposer, votes)) = self.votes.seal_signatures(header.number() as Height, round, Some(block_hash(header))).split_first() {
-						if votes.len() + 1 > self.threshold() {
-							return Some(vec![
-								::rlp::encode(&round).to_vec(),
-								::rlp::encode(proposer).to_vec(),
-								::rlp::encode(&votes).to_vec()
-							]);
-						}
-					}
-				},
-				Step::Propose if self.is_proposer(author) =>
-					// Seal block with propose signature.
-					
-					if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
-						return Some(vec![
-							::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
-							::rlp::encode(&H520::from(signature)).to_vec(),
-							Vec::new()
-						])
-					} else {
-						trace!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
-					},
-				_ => {},
+			if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
+				Some(vec![
+					::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
+					::rlp::encode(&H520::from(signature)).to_vec(),
+					Vec::new()
+				])
+			} else {
+				warn!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
+				None
 			}
 		} else {
-			trace!(target: "poa", "generate_seal: FAIL: accounts not provided");
+			warn!(target: "poa", "generate_seal: FAIL: accounts not provided");
+			None
 		}
-		None
 	}
 
-	fn handle_message(&self, rlp: UntrustedRlp) -> Result<Bytes, Error> {
+	fn handle_message(&self, rlp: UntrustedRlp) -> Result<(), Error> {
 		let message: ConsensusMessage = try!(rlp.as_val());
 		let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
 		// TODO: Do not admit old messages.
@@ -288,10 +294,8 @@ impl Engine for Tendermint {
 			try!(Err(BlockError::InvalidSeal));
 		}
 
-		self.votes.vote(message.clone(), sender);
-
-		// Check if the message should be handled right now.
-		if self.is_current(&message) {
+		// Check if the message is known and should be handled right now.
+		if self.votes.vote(message.clone(), sender).is_none() && self.is_current(&message) {
 			let next_step = match *self.step.read() {
 				Step::Precommit if self.has_enough_aligned_votes(&message) => {
 					if message.block_hash.is_none() {
@@ -319,8 +323,7 @@ impl Engine for Tendermint {
 				}
 			}
 		}
-		
-		Err(BlockError::InvalidSeal.into())
+		Ok(())
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {

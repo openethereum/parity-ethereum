@@ -32,11 +32,11 @@ impl VoteCollector {
 		VoteCollector { votes: RwLock::new(BTreeMap::new()) }
 	}
 
-	pub fn vote(&self, message: ConsensusMessage, voter: Address) {
-		self.votes.write().insert(message, voter);
+	pub fn vote(&self, message: ConsensusMessage, voter: Address) -> Option<Address> {
+		self.votes.write().insert(message, voter)
 	}
 
-	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Vec<H520> {
+	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> (H520, Vec<H520>) {
 		self.votes
 			.read()
 			.keys()
@@ -44,6 +44,7 @@ impl VoteCollector {
 			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
 			.map(|m| m.signature)
 			.collect()
+			.split_first()
 	}
 
 	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> Vec<H520> {
