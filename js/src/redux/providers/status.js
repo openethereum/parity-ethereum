@@ -15,11 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import { isEqual } from 'lodash';
 
 export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
+
+    this.__pingable = false;
+    this._apiStatus = {};
+    this._status = {};
   }
 
   start () {
@@ -34,7 +39,9 @@ export default class Status {
     this._api.parity
       .enode()
       .then((enode) => {
-        this._store.dispatch(statusCollection({ enode }));
+        if (this._store.state.nodeStatus.enode !== enode) {
+          this._store.dispatch(statusCollection({ enode }));
+        }
       })
       .catch(() => {
         window.setTimeout(() => {
@@ -58,8 +65,12 @@ export default class Status {
   }
 
   _pollPing = () => {
-    const dispatch = (status, timeout = 500) => {
-      this._store.dispatch(statusCollection({ isPingable: status }));
+    const dispatch = (pingable, timeout = 500) => {
+      if (pingable !== this._pingable) {
+        this._pingable = pingable;
+        this._store.dispatch(statusCollection({ isPingable: pingable }));
+      }
+
       setTimeout(this._pollPing, timeout);
     };
 
@@ -79,13 +90,23 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const { secureToken, isConnected, isConnecting, needsToken } = this._api;
+    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
 
     const nextTimeout = (timeout = 1000) => {
       setTimeout(this._pollStatus, timeout);
     };
 
-    this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
+    const apiStatus = {
+      isConnected,
+      isConnecting,
+      needsToken,
+      secureToken
+    };
+
+    if (!isEqual(apiStatus, this._apiStatus)) {
+      this._store.dispatch(statusCollection(apiStatus));
+      this._apiStatus = apiStatus;
+    }
 
     if (!isConnected) {
       nextTimeout(250);
@@ -111,7 +132,7 @@ export default class Status {
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        this._store.dispatch(statusCollection({
+        const status = {
           clientVersion,
           coinbase,
           defaultExtraData,
@@ -127,7 +148,12 @@ export default class Status {
           syncing,
           isTest,
           traceMode
-        }));
+        };
+
+        if (!isEqual(status, this._status)) {
+          this._store.dispatch(statusCollection(status));
+          this._status = status;
+        }
       })
       .catch((error) => {
         console.error('_pollStatus', error);
