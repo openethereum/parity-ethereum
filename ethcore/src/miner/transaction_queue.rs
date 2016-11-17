@@ -2137,12 +2137,11 @@ mod test {
 		let mut txq = TransactionQueue::with_limits(PrioritizationStrategy::GasPriceOnly, 100, default_gas_val() * U256::from(2), !U256::zero());
 		let (tx1, tx2) = new_tx_pair_default(U256::from(1), U256::from(1));
 		let (tx3, tx4) = new_tx_pair_default(U256::from(1), U256::from(2));
-		let (tx5, tx6) = new_tx_pair_default(U256::from(1), U256::from(2));
+		let (tx5, _) = new_tx_pair_default(U256::from(1), U256::from(2));
 		txq.add(tx1.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx2.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		// Not accepted because of limit
 		txq.add(tx5.clone(), TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap_err();
-		txq.add(tx6.clone(), TransactionOrigin::External, &default_account_details, &gas_estimator).unwrap_err();
 		txq.add(tx3.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		txq.add(tx4.clone(), TransactionOrigin::Local, &default_account_details, &gas_estimator).unwrap();
 		assert_eq!(txq.status().pending, 4);

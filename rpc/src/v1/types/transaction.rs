@@ -132,7 +132,6 @@ impl Serialize for LocalTransactionStatus {
 	}
 }
 
-
 impl From<LocalizedTransaction> for Transaction {
 	fn from(t: LocalizedTransaction) -> Transaction {
 		let signature = t.signature();

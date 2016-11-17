@@ -18,5 +18,4 @@ extern crate ethcore_ipc_codegen;
 
 fn main() {
 	ethcore_ipc_codegen::derive_ipc_cond("src/api.rs", cfg!(feature="ipc")).unwrap();
-	ethcore_ipc_codegen::derive_ipc_cond("src/transactions_stats.rs", cfg!(feature="ipc")).unwrap();
 }

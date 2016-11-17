@@ -38,7 +38,6 @@ use miner::price_info::PriceInfo;
 use miner::local_transactions::{Status as LocalTransactionStatus};
 use header::BlockNumber;
 
-
 /// Different possible definitions for pending transaction set.
 #[derive(Debug, PartialEq)]
 pub enum PendingSet {
