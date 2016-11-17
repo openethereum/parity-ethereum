@@ -35,7 +35,8 @@ git checkout -b $BRANCH
 git submodule update
 
 echo "*** Committing compiled files for $UTCDATE"
-git add .
+git add js
+git add Cargo.lock
 git commit -m "$UTCDATE"
 
 echo "*** Merging remote"
