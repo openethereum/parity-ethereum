@@ -39,7 +39,8 @@ mod buffer_flow;
 mod error;
 mod status;
 
-pub use self::status::Announcement;
+pub mod event;
+pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
 const TIMEOUT_INTERVAL_MS: u64 = 1000;
