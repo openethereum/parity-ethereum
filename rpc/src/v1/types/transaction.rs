@@ -19,7 +19,7 @@ use ethcore::transaction::{LocalizedTransaction, Action, SignedTransaction};
 use v1::types::{Bytes, H160, H256, U256, H512};
 
 /// Transaction
-#[derive(Debug, Default, Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
 pub struct Transaction {
 	/// Hash
 	pub hash: H256,
@@ -60,6 +60,26 @@ pub struct Transaction {
 	pub r: H256,
 	/// The S field of the signature.
 	pub s: H256,
+}
+
+/// Geth-compatible output for eth_signTransaction method
+#[derive(Debug, Default, Clone, PartialEq, Serialize)]
+pub struct RichRawTransaction {
+	/// Raw transaction RLP
+	pub raw: Bytes,
+	/// Transaction details
+	#[serde(rename="tx")]
+	pub transaction: Transaction
+}
+
+impl From<SignedTransaction> for RichRawTransaction {
+	fn from(t: SignedTransaction) -> Self {
+		let tx: Transaction = t.into();
+		RichRawTransaction {
+			raw: tx.raw.clone(),
+			transaction: tx,
+		}
+	}
 }
 
 impl From<LocalizedTransaction> for Transaction {
