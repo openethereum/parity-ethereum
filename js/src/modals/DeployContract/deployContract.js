@@ -22,13 +22,19 @@ import { BusyStep, CompletedStep, CopyToClipboard, Button, IdentityIcon, Modal, 
 import { ERRORS, validateAbi, validateCode, validateName } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
+import ParametersStep from './ParametersStep';
 import ErrorStep from './ErrorStep';
 
 import styles from './deployContract.css';
 
 import { ERROR_CODES } from '../../api/transport/error';
 
-const steps = ['contract details', 'deployment', 'completed'];
+const STEPS = {
+  CONTRACT_DETAILS: { title: 'contract details' },
+  CONTRACT_PARAMETERS: { title: 'contract parameters' },
+  DEPLOYMENT: { title: 'deployment', waiting: true },
+  COMPLETED: { title: 'completed' }
+};
 
 export default class DeployContract extends Component {
   static contextTypes = {
@@ -55,7 +61,6 @@ export default class DeployContract extends Component {
     abiError: ERRORS.invalidAbi,
     code: '',
     codeError: ERRORS.invalidCode,
-    deployState: '',
     description: '',
     descriptionError: null,
     fromAddress: Object.keys(this.props.accounts)[0],
@@ -64,9 +69,12 @@ export default class DeployContract extends Component {
     nameError: ERRORS.invalidName,
     params: [],
     paramsError: [],
-    step: 0,
+    inputs: [],
+
+    deployState: '',
     deployError: null,
-    rejected: false
+    rejected: false,
+    step: 'CONTRACT_DETAILS'
   }
 
   componentWillMount () {
@@ -95,20 +103,30 @@ export default class DeployContract extends Component {
   }
 
   render () {
-    const { step, deployError, rejected } = this.state;
+    const { step, deployError, rejected, inputs } = this.state;
 
-    const realSteps = deployError || rejected ? null : steps;
+    const realStep = Object.keys(STEPS).findIndex((k) => k === step);
+    const realSteps = deployError || rejected
+      ? null
+      : Object.keys(STEPS)
+        .filter((k) => k !== 'CONTRACT_PARAMETERS' || inputs.length > 0)
+        .map((k) => STEPS[k]);
+
     const title = realSteps
       ? null
       : (deployError ? 'deployment failed' : 'rejected');
 
+    const waiting = realSteps
+      ? realSteps.map((s, i) => s.waiting ? i : false).filter((v) => v !== false)
+      : null;
+
     return (
       <Modal
         actions={ this.renderDialogActions() }
-        current={ step }
-        steps={ realSteps }
+        current={ realStep }
+        steps={ realSteps ? realSteps.map((s) => s.title) : null }
         title={ title }
-        waiting={ realSteps ? [1] : null }
+        waiting={ waiting }
         visible
         scroll>
         { this.renderStep() }
@@ -146,20 +164,29 @@ export default class DeployContract extends Component {
     }
 
     switch (step) {
-      case 0:
+      case 'CONTRACT_DETAILS':
         return [
           cancelBtn,
           <Button
             disabled={ !isValid }
             icon={ <IdentityIcon button address={ fromAddress } /> }
+            label='Next'
+            onClick={ this.onParametersStep } />
+        ];
+
+      case 'CONTRACT_PARAMETERS':
+        return [
+          cancelBtn,
+          <Button
+            icon={ <IdentityIcon button address={ fromAddress } /> }
             label='Create'
             onClick={ this.onDeployStart } />
         ];
 
-      case 1:
+      case 'DEPLOYMENT':
         return [ closeBtn ];
 
-      case 2:
+      case 'COMPLETED':
         return [ closeBtnOk ];
     }
   }
@@ -184,21 +211,33 @@ export default class DeployContract extends Component {
     }
 
     switch (step) {
-      case 0:
+      case 'CONTRACT_DETAILS':
         return (
           <DetailsStep
             { ...this.state }
-            readOnly={ readOnly }
             accounts={ accounts }
-            onAbiChange={ this.onAbiChange }
-            onCodeChange={ this.onCodeChange }
+            readOnly={ readOnly }
             onFromAddressChange={ this.onFromAddressChange }
             onDescriptionChange={ this.onDescriptionChange }
             onNameChange={ this.onNameChange }
-            onParamsChange={ this.onParamsChange } />
+            onAbiChange={ this.onAbiChange }
+            onCodeChange={ this.onCodeChange }
+            onParamsChange={ this.onParamsChange }
+            onInputsChange={ this.onInputsChange }
+          />
         );
 
-      case 1:
+      case 'CONTRACT_PARAMETERS':
+        return (
+          <ParametersStep
+            { ...this.state }
+            readOnly={ readOnly }
+            accounts={ accounts }
+            onParamsChange={ this.onParamsChange }
+          />
+        );
+
+      case 'DEPLOYMENT':
         const body = txhash
           ? <TxHash hash={ txhash } />
           : null;
@@ -210,7 +249,7 @@ export default class DeployContract extends Component {
           </BusyStep>
         );
 
-      case 2:
+      case 'COMPLETED':
         return (
           <CompletedStep>
             <div>Your contract has been deployed at</div>
@@ -225,12 +264,23 @@ export default class DeployContract extends Component {
     }
   }
 
+  onParametersStep = () => {
+    const { inputs } = this.state;
+
+    if (inputs.length) {
+      return this.setState({ step: 'CONTRACT_PARAMETERS' });
+    }
+
+    return this.onDeployStart();
+  }
+
   onDescriptionChange = (description) => {
     this.setState({ description, descriptionError: null });
   }
 
   onFromAddressChange = (fromAddress) => {
     const { api } = this.context;
+
     const fromAddressError = api.util.isAddressValid(fromAddress)
       ? null
       : 'a valid account as the contract owner needs to be selected';
@@ -244,6 +294,10 @@ export default class DeployContract extends Component {
 
   onParamsChange = (params) => {
     this.setState({ params });
+  }
+
+  onInputsChange = (inputs) => {
+    this.setState({ inputs });
   }
 
   onAbiChange = (abi) => {
@@ -267,7 +321,7 @@ export default class DeployContract extends Component {
       from: fromAddress
     };
 
-    this.setState({ step: 1 });
+    this.setState({ step: 'DEPLOYMENT' });
 
     api
       .newContract(abiParsed)
@@ -286,7 +340,7 @@ export default class DeployContract extends Component {
         ])
         .then(() => {
           console.log(`contract deployed at ${address}`);
-          this.setState({ step: 2, address });
+          this.setState({ step: 'DEPLOYMENT', address });
         });
       })
       .catch((error) => {

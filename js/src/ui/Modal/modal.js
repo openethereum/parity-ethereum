@@ -43,7 +43,7 @@ class Modal extends Component {
     waiting: PropTypes.array,
     scroll: PropTypes.bool,
     steps: PropTypes.array,
-    title: React.PropTypes.oneOfType([
+    title: PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
     ]),
     visible: PropTypes.bool.isRequired,

@@ -38,12 +38,13 @@ const initialState = {
     max: new BigNumber(0)
   },
   netPort: new BigNumber(0),
-  nodeName: '',
   rpcSettings: {},
   syncing: false,
-  isApiConnected: true,
-  isPingConnected: true,
+  isConnected: false,
+  isConnecting: false,
+  isPingable: false,
   isTest: false,
+  refreshStatus: false,
   traceMode: undefined
 };
 
@@ -74,5 +75,10 @@ export default handleActions({
 
   clearStatusLogs (state, action) {
     return Object.assign({}, state, { devLogs: [] });
+  },
+
+  toggleStatusRefresh (state, action) {
+    const { refreshStatus } = action;
+    return Object.assign({}, state, { refreshStatus });
   }
 }, initialState);

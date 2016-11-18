@@ -20,13 +20,10 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 
-import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
-
-import { Button, Modal, Form, Input, InputAddress } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '../../ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
 
 import { eip20, wallet } from '../../contracts/abi';
-import styles from './addContract.css';
 
 const ABI_TYPES = [
   {
@@ -105,13 +102,12 @@ export default class AddContract extends Component {
     const { abiTypeIndex } = this.state;
 
     return (
-      <RadioButtonGroup
-        valueSelected={ abiTypeIndex }
+      <RadioButtons
         name='contractType'
+        value={ abiTypeIndex }
+        values={ this.getAbiTypes() }
         onChange={ this.onChangeABIType }
-      >
-        { this.renderAbiTypes() }
-      </RadioButtonGroup>
+      />
     );
   }
 
@@ -194,20 +190,13 @@ export default class AddContract extends Component {
     );
   }
 
-  renderAbiTypes () {
-    return ABI_TYPES.map((type, index) => (
-      <RadioButton
-        className={ styles.spaced }
-        value={ index }
-        label={ (
-          <div className={ styles.typeContainer }>
-            <span>{ type.label }</span>
-            <span className={ styles.desc }>{ type.description }</span>
-          </div>
-        ) }
-        key={ index }
-      />
-    ));
+  getAbiTypes () {
+    return ABI_TYPES.map((type, index) => ({
+      label: type.label,
+      description: type.description,
+      key: index,
+      ...type
+    }));
   }
 
   onNext = () => {
@@ -218,8 +207,8 @@ export default class AddContract extends Component {
     this.setState({ step: this.state.step - 1 });
   }
 
-  onChangeABIType = (event, index) => {
-    const abiType = ABI_TYPES[index];
+  onChangeABIType = (value, index) => {
+    const abiType = value || ABI_TYPES[index];
     this.setState({ abiTypeIndex: index, abiType });
     this.onEditAbi(abiType.value);
   }

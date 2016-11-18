@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
-import { clearStatusLogs, toggleStatusLogs } from '../../../../redux/actions';
+import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from '../../../../redux/actions';
 
 import Debug from '../../components/Debug';
 import Status from '../../components/Status';
@@ -29,6 +29,14 @@ class StatusPage extends Component {
   static propTypes = {
     nodeStatus: PropTypes.object.isRequired,
     actions: PropTypes.object.isRequired
+  }
+
+  componentWillMount () {
+    this.props.actions.toggleStatusRefresh(true);
+  }
+
+  componentWillUnmount () {
+    this.props.actions.toggleStatusRefresh(false);
   }
 
   render () {
@@ -49,7 +57,8 @@ function mapDispatchToProps (dispatch) {
   return {
     actions: bindActionCreators({
       clearStatusLogs,
-      toggleStatusLogs
+      toggleStatusLogs,
+      toggleStatusRefresh
     }, dispatch)
   };
 }
