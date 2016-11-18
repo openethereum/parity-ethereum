@@ -29,7 +29,7 @@ import ContextProvider from './ContextProvider';
 import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
-import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select } from './Form';
+import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import MethodDecoding from './MethodDecoding';
@@ -78,6 +78,7 @@ export {
   muiTheme,
   Page,
   ParityBackground,
+  RadioButtons,
   SignerIcon,
   Tags,
   Tooltip,

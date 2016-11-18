@@ -26,6 +26,7 @@ const DEST = process.env.BUILD_DEST || '.build';
 
 module.exports = {
   context: path.join(__dirname, './src'),
+  target: 'node',
   entry: {
     // library
     'inject': ['./web3.js'],
@@ -34,9 +35,18 @@ module.exports = {
   },
   output: {
     path: path.join(__dirname, DEST),
-    filename: '[name].js'
+    filename: '[name].js',
+    library: '[name].js',
+    libraryTarget: 'umd'
+  },
+  externals: {
+    'node-fetch': 'node-fetch',
+    'vertx': 'vertx'
   },
   module: {
+    noParse: [
+      /babel-polyfill/
+    ],
     loaders: [
       {
         test: /\.js$/,
