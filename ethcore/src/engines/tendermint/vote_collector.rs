@@ -27,6 +27,11 @@ pub struct VoteCollector {
 	votes: RwLock<BTreeMap<ConsensusMessage, Address>>
 }
 
+pub struct SealSignatures {
+	pub proposal: H520,
+	pub votes: Vec<H520>
+}
+
 impl VoteCollector {
 	pub fn new() -> VoteCollector {
 		VoteCollector { votes: RwLock::new(BTreeMap::new()) }
@@ -36,29 +41,29 @@ impl VoteCollector {
 		self.votes.write().insert(message, voter)
 	}
 
-	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Option<(&H520, &[H520])> {
-		self.votes
-			.read()
-			.keys()
-			.cloned()
+	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Option<SealSignatures> {
+		let guard = self.votes.read();
 			// Get only Propose and Precommits.
+		let mut correct_signatures = guard.keys()
 			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
-			.map(|m| m.signature)
-			.collect::<Vec<H520>>()
-			.split_first()
+			.map(|m| m.signature.clone());
+		correct_signatures.next().map(|proposal| SealSignatures {
+			proposal: proposal,
+			votes: correct_signatures.collect()
+		})
 	}
 
-	pub fn aligned_votes(&self, message: &ConsensusMessage) -> Vec<&ConsensusMessage> {
-		self.votes
-			.read()
-			.keys()
+	pub fn aligned_votes(&self, message: &ConsensusMessage) -> Vec<ConsensusMessage> {
+		let guard = self.votes.read();
+		guard.keys()
 			// Get only Propose and Precommits.
 			.filter(|m| m.is_aligned(message.height, message.round, message.block_hash) && m.step == message.step)
+			.cloned()
 			.collect()
 	}
 
-	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> &[H520] {
-		self.seal_signatures(message.height, message.round, message.block_hash).map_or(&[], |s| s.1)
+	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> Vec<H520> {
+		self.seal_signatures(message.height, message.round, message.block_hash).map_or(Vec::new(), |s| s.votes)
 	}
 
 	pub fn count_step_votes(&self, height: Height, round: Round, step: Step) -> usize {

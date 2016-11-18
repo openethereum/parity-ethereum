@@ -91,6 +91,7 @@ impl IoHandler<Step> for TransitionHandler {
 					},
 					Step::Commit => {
 						set_timeout(io, engine.our_params.timeouts.propose);
+						engine.last_lock.store(0, AtomicOrdering::SeqCst);
 						engine.round.store(0, AtomicOrdering::SeqCst);
 						engine.height.fetch_add(1, AtomicOrdering::SeqCst);
 						Some(Step::Propose)

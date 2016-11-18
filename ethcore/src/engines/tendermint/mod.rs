@@ -78,14 +78,14 @@ pub struct Tendermint {
 	proposer_nonce: AtomicUsize,
 	/// Vote accumulator.
 	votes: VoteCollector,
-	/// Proposed block held until seal is gathered.
-	proposed_block: Mutex<Option<ExecutedBlock>>,
 	/// Channel for updating the sealing.
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	/// Used to sign messages and proposals.
 	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 	/// Message for the last PoLC.
-	last_lock: RwLock<Option<ConsensusMessage>>,
+	lock_change: RwLock<Option<ConsensusMessage>>,
+	/// Last lock round.
+	last_lock: AtomicUsize,
 	/// Bare hash of the proposed block, used for seal submission.
 	proposal: RwLock<Option<H256>>
 }
@@ -105,10 +105,10 @@ impl Tendermint {
 				step: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0),
 				votes: VoteCollector::new(),
-				proposed_block: Mutex::new(None),
 				message_channel: Mutex::new(None),
 				account_provider: Mutex::new(None),
-				last_lock: RwLock::new(None),
+				lock_change: RwLock::new(None),
+				last_lock: AtomicUsize::new(0),
 				proposal: RwLock::new(None)
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
@@ -169,29 +169,41 @@ impl Tendermint {
 				self.update_sealing()
 			},
 			Step::Prevote => {
-				self.broadcast_message(None)
+				let should_unlock = |lock_change_round| { 
+					self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
+						&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
+				};
+				let block_hash = match *self.lock_change.read() {
+					Some(ref m) if should_unlock(m.round) => self.proposal.read().clone(),
+					Some(ref m) => m.block_hash,
+					None => None,
+				};
+				self.broadcast_message(block_hash)
 			},
 			Step::Precommit => {
-				let block_hash = match *self.last_lock.read() {
-					Some(ref m) => None,
-					None => None,
+				let block_hash = match *self.lock_change.read() {
+					Some(ref m) if self.is_round(m) => {
+						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
+						m.block_hash
+					},
+					_ => None,
 				};
 				self.broadcast_message(block_hash);
 			},
 			Step::Commit => {
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
-				if let Some((proposer, votes)) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, *self.proposal.read()) {
+				if let Some(seal) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, *self.proposal.read()) {
 					let seal = vec![
 						::rlp::encode(&round).to_vec(),
-						::rlp::encode(proposer).to_vec(),
-						::rlp::encode(&votes).to_vec()
+						::rlp::encode(&seal.proposal).to_vec(),
+						::rlp::encode(&seal.votes).to_vec()
 					];
 					if let Some(block_hash) = *self.proposal.read() {
 						self.submit_seal(block_hash, seal);
 					}
 				}
-				*self.last_lock.write() = None;
+				*self.lock_change.write() = None;
 			},
 		}
 	}
@@ -218,8 +230,12 @@ impl Tendermint {
 		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
 	}
 
-	fn is_current(&self, message: &ConsensusMessage) -> bool {
+	fn is__height(&self, message: &ConsensusMessage) -> bool {
 		message.is_height(self.height.load(AtomicOrdering::SeqCst)) 
+	}
+
+	fn is_round(&self, message: &ConsensusMessage) -> bool {
+		message.is_round(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst)) 
 	}
 
 	fn has_enough_any_votes(&self) -> bool {
@@ -332,17 +348,17 @@ impl Engine for Tendermint {
 
 		// Check if the message is known.
 		if self.votes.vote(message.clone(), sender).is_none() {
-			let is_newer_than_lock = match *self.last_lock.read() {
+			let is_newer_than_lock = match *self.lock_change.read() {
 				Some(ref lock) => &message > lock,
 				None => true,
 			};
 			if is_newer_than_lock
 				&& message.step == Step::Prevote
 				&& self.has_enough_aligned_votes(&message) {
-				*self.last_lock.write()	= Some(message.clone());
+				*self.lock_change.write()	= Some(message.clone());
 			}
 			// Check if it can affect step transition.
-			if self.is_current(&message) {
+			if self.is__height(&message) {
 				let next_step = match *self.step.read() {
 					Step::Precommit if self.has_enough_aligned_votes(&message) => {
 						if message.block_hash.is_none() {
