@@ -18,7 +18,7 @@
 
 use std::fmt;
 use serde::{Serialize, Serializer};
-use v1::types::{U256, TransactionRequest, H160, H256, H520, Bytes};
+use v1::types::{U256, TransactionRequest, RichRawTransaction, H160, H256, H520, Bytes};
 use v1::helpers;
 
 /// Confirmation waiting in a queue
@@ -76,12 +76,12 @@ impl From<(H160, Bytes)> for DecryptRequest {
 }
 
 /// Confirmation response for particular payload
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ConfirmationResponse {
 	/// Transaction Hash
 	SendTransaction(H256),
 	/// Transaction RLP
-	SignTransaction(Bytes),
+	SignTransaction(RichRawTransaction),
 	/// Signature
 	Signature(H520),
 	/// Decrypted data

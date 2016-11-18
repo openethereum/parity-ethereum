@@ -17,7 +17,7 @@
 //! Eth rpc interface.
 
 use v1::helpers::auto_args::{WrapAsync, Ready};
-use v1::types::{H160, H256, H520, TransactionRequest, Bytes};
+use v1::types::{H160, H256, H520, TransactionRequest, RichRawTransaction};
 
 build_rpc_trait! {
 	/// Signing methods implementation relying on unlocked accounts.
@@ -33,9 +33,9 @@ build_rpc_trait! {
 		fn send_transaction(&self, Ready<H256>, TransactionRequest);
 
 		/// Signs transactions without dispatching it to the network.
-		/// Returns signed transaction RLP representation.
-		/// It can be later submitted using `eth_sendRawTransaction`.
+		/// Returns signed transaction RLP representation and the transaction itself.
+		/// It can be later submitted using `eth_sendRawTransaction/eth_submitTransaction`.
 		#[rpc(async, name = "eth_signTransaction")]
-		fn sign_transaction(&self, Ready<Bytes>, TransactionRequest);
+		fn sign_transaction(&self, Ready<RichRawTransaction>, TransactionRequest);
 	}
 }
