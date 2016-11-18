@@ -1144,6 +1144,7 @@ impl ChainSync {
 					let have_latest = io.chain().block_status(BlockID::Hash(peer_latest)) != BlockStatus::Unknown;
 					if !have_latest && (higher_difficulty || force || self.state == SyncState::NewBlocks) {
 						// check if got new blocks to download
+						trace!(target: "sync", "Syncing with {}, force={}, td={:?}, our td={}, state={:?}", peer_id, force, peer_difficulty, syncing_difficulty, self.state);
 						if let Some(request) = self.new_blocks.request_blocks(io, num_active_peers) {
 							self.request_blocks(io, peer_id, request, BlockSet::NewBlocks);
 							if self.state == SyncState::Idle {
