@@ -24,13 +24,23 @@ const isProd = ENV === 'production';
 
 module.exports = {
   context: path.join(__dirname, './src'),
+  target: 'node',
   entry: 'library.js',
   output: {
     path: path.join(__dirname, '.npmjs'),
     filename: 'library.js',
-    libraryTarget: 'commonjs'
+    library: 'Parity',
+    libraryTarget: 'umd',
+    umdNamedDefine: true
+  },
+  externals: {
+    'node-fetch': 'node-fetch',
+    'vertx': 'vertx'
   },
   module: {
+    noParse: [
+      /babel-polyfill/
+    ],
     loaders: [
       {
         test: /(\.jsx|\.js)$/,

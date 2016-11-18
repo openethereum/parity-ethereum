@@ -15,32 +15,29 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import { isEqual } from 'lodash';
 
 export default class Status {
   constructor (store, api) {
     this._api = api;
     this._store = store;
+
+    this._pingable = false;
+    this._apiStatus = {};
+    this._status = {};
+    this._longStatus = {};
+    this._minerSettings = {};
+
+    this._pollPingTimeoutId = null;
+    this._longStatusTimeoutId = null;
   }
 
   start () {
     this._subscribeBlockNumber();
     this._pollPing();
     this._pollStatus();
+    this._pollLongStatus();
     this._pollLogs();
-    this._fetchEnode();
-  }
-
-  _fetchEnode () {
-    this._api.parity
-      .enode()
-      .then((enode) => {
-        this._store.dispatch(statusCollection({ enode }));
-      })
-      .catch(() => {
-        window.setTimeout(() => {
-          this._fetchEnode();
-        }, 1000);
-      });
   }
 
   _subscribeBlockNumber () {
@@ -51,16 +48,58 @@ export default class Status {
         }
 
         this._store.dispatch(statusBlockNumber(blockNumber));
+
+        this._api.eth
+          .getBlockByNumber(blockNumber)
+          .then((block) => {
+            this._store.dispatch(statusCollection({ gasLimit: block.gasLimit }));
+          })
+          .catch((error) => {
+            console.warn('status._subscribeBlockNumber', 'getBlockByNumber', error);
+          });
       })
       .then((subscriptionId) => {
         console.log('status._subscribeBlockNumber', 'subscriptionId', subscriptionId);
       });
   }
 
+  /**
+   * Pinging should be smart. It should only
+   * be used when the UI is connecting or the
+   * Node is deconnected.
+   *
+   * @see src/views/Connection/connection.js
+   */
+  _shouldPing = () => {
+    const { isConnected, isConnecting } = this._apiStatus;
+    return isConnecting || !isConnected;
+  }
+
+  _stopPollPing = () => {
+    if (!this._pollPingTimeoutId) {
+      return;
+    }
+
+    clearTimeout(this._pollPingTimeoutId);
+    this._pollPingTimeoutId = null;
+  }
+
   _pollPing = () => {
-    const dispatch = (status, timeout = 500) => {
-      this._store.dispatch(statusCollection({ isPingable: status }));
-      setTimeout(this._pollPing, timeout);
+    // Already pinging, don't try again
+    if (this._pollPingTimeoutId) {
+      return;
+    }
+
+    const dispatch = (pingable, timeout = 1000) => {
+      if (pingable !== this._pingable) {
+        this._pingable = pingable;
+        this._store.dispatch(statusCollection({ isPingable: pingable }));
+      }
+
+      this._pollPingTimeoutId = setTimeout(() => {
+        this._stopPollPing();
+        this._pollPing();
+      }, timeout);
     };
 
     fetch('/', { method: 'HEAD' })
@@ -79,61 +118,162 @@ export default class Status {
   }
 
   _pollStatus = () => {
-    const { secureToken, isConnected, isConnecting, needsToken } = this._api;
-
     const nextTimeout = (timeout = 1000) => {
       setTimeout(this._pollStatus, timeout);
     };
 
-    this._store.dispatch(statusCollection({ isConnected, isConnecting, needsToken, secureToken }));
+    const { isConnected, isConnecting, needsToken, secureToken } = this._api;
+
+    const apiStatus = {
+      isConnected,
+      isConnecting,
+      needsToken,
+      secureToken
+    };
+
+    const gotReconnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+
+    if (gotReconnected) {
+      this._pollLongStatus();
+    }
+
+    if (!isEqual(apiStatus, this._apiStatus)) {
+      this._store.dispatch(statusCollection(apiStatus));
+      this._apiStatus = apiStatus;
+    }
+
+    // Ping if necessary, otherwise stop pinging
+    if (this._shouldPing()) {
+      this._pollPing();
+    } else {
+      this._stopPollPing();
+    }
 
     if (!isConnected) {
-      nextTimeout(250);
-      return;
+      return nextTimeout(250);
     }
+
+    const { refreshStatus } = this._store.getState().nodeStatus;
+
+    const statusPromises = [ this._api.eth.syncing() ];
+
+    if (refreshStatus) {
+      statusPromises.push(this._api.eth.hashrate());
+      statusPromises.push(this._api.parity.netPeers());
+    }
+
+    Promise
+      .all(statusPromises)
+      .then((statusResults) => {
+        const status = statusResults.length === 1
+          ? {
+            syncing: statusResults[0]
+          }
+          : {
+            syncing: statusResults[0],
+            hashrate: statusResults[1],
+            netPeers: statusResults[2]
+          };
+
+        if (!isEqual(status, this._status)) {
+          this._store.dispatch(statusCollection(status));
+          this._status = status;
+        }
+
+        nextTimeout();
+      })
+      .catch((error) => {
+        console.error('_pollStatus', error);
+        nextTimeout(250);
+      });
+  }
+
+  /**
+   * Miner settings should never changes unless
+   * Parity is restarted, or if the values are changed
+   * from the UI
+   */
+  _pollMinerSettings = () => {
+    Promise
+      .all([
+        this._api.eth.coinbase(),
+        this._api.parity.extraData(),
+        this._api.parity.minGasPrice(),
+        this._api.parity.gasFloorTarget()
+      ])
+      .then(([
+        coinbase, extraData, minGasPrice, gasFloorTarget
+      ]) => {
+        const minerSettings = {
+          coinbase,
+          extraData,
+          minGasPrice,
+          gasFloorTarget
+        };
+
+        if (!isEqual(minerSettings, this._minerSettings)) {
+          this._store.dispatch(statusCollection(minerSettings));
+          this._minerSettings = minerSettings;
+        }
+      })
+      .catch((error) => {
+        console.error('_pollMinerSettings', error);
+      });
+  }
+
+  /**
+   * The data fetched here should not change
+   * unless Parity is restarted. They are thus
+   * fetched every 30s just in case, and whenever
+   * the client got reconnected.
+   */
+  _pollLongStatus = () => {
+    const nextTimeout = (timeout = 30000) => {
+      if (this._longStatusTimeoutId) {
+        clearTimeout(this._longStatusTimeoutId);
+      }
+
+      this._longStatusTimeoutId = setTimeout(this._pollLongStatus, timeout);
+    };
+
+    // Poll Miner settings just in case
+    this._pollMinerSettings();
 
     Promise
       .all([
         this._api.web3.clientVersion(),
-        this._api.eth.coinbase(),
         this._api.parity.defaultExtraData(),
-        this._api.parity.extraData(),
-        this._api.parity.gasFloorTarget(),
-        this._api.eth.hashrate(),
-        this._api.parity.minGasPrice(),
         this._api.parity.netChain(),
-        this._api.parity.netPeers(),
         this._api.parity.netPort(),
-        this._api.parity.nodeName(),
         this._api.parity.rpcSettings(),
-        this._api.eth.syncing()
+        this._api.parity.enode()
       ])
-      .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
+      .then(([
+        clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+      ]) => {
         const isTest = netChain === 'morden' || netChain === 'testnet';
 
-        this._store.dispatch(statusCollection({
+        const longStatus = {
           clientVersion,
-          coinbase,
           defaultExtraData,
-          extraData,
-          gasFloorTarget,
-          hashrate,
-          minGasPrice,
           netChain,
-          netPeers,
           netPort,
-          nodeName,
           rpcSettings,
-          syncing,
-          isTest,
-          traceMode
-        }));
+          enode,
+          isTest
+        };
+
+        if (!isEqual(longStatus, this._longStatus)) {
+          this._store.dispatch(statusCollection(longStatus));
+          this._longStatus = longStatus;
+        }
+
+        nextTimeout();
       })
       .catch((error) => {
-        console.error('_pollStatus', error);
+        console.error('_pollLongStatus', error);
+        nextTimeout(250);
       });
-
-    nextTimeout();
   }
 
   _pollLogs = () => {

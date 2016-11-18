@@ -31,3 +31,7 @@
 .funcparams {
   padding-left: 3em;
 }
+
+p {
+  color: rgba(255, 255, 255, 0.498039);
+}
