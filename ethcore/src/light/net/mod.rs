@@ -170,6 +170,10 @@ pub struct Params {
 /// This is simply designed for request-response purposes. Higher level uses
 /// of the protocol, such as synchronization, will function as wrappers around
 /// this system.
+// 
+// LOCK ORDER:
+//   Locks must be acquired in the order declared, and when holding a read lock 
+//   on the peers, only one peer may be held at a time.
 pub struct LightProtocol {
 	provider: Box<Provider>,
 	genesis_hash: H256,
