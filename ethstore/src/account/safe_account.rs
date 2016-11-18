@@ -113,7 +113,7 @@ impl Crypto {
 
 		let (derived_left_bits, derived_right_bits) = match self.kdf {
 			Kdf::Pbkdf2(ref params) => crypto::derive_key_iterations(password, &params.salt, params.c),
-			Kdf::Scrypt(ref params) => crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r),
+			Kdf::Scrypt(ref params) => try!(crypto::derive_key_scrypt(password, &params.salt, params.n, params.p, params.r)),
 		};
 
 		let mac = crypto::derive_mac(&derived_right_bits, &self.ciphertext).keccak256();

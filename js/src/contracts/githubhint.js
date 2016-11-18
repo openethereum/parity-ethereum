@@ -14,4 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './tokenContainer';
+export default class GithubHint {
+  constructor (api, registry) {
+    this._api = api;
+    this._registry = registry;
+
+    this.getInstance();
+  }
+
+  getContract () {
+    return this._registry.getContract('githubhint');
+  }
+
+  getInstance () {
+    return this.getContract().instance;
+  }
+}

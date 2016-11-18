@@ -35,21 +35,16 @@ export const setSelectedAccount = (address) => ({
 });
 
 export const loadAccounts = () => (dispatch) => {
-  Promise
-    .all([
-      api.eth.accounts(),
-      api.parity.accounts()
-    ])
-    .then(([ accounts, accountsInfo ]) => {
-      accountsInfo = accountsInfo || {};
-
-      const accountsList = accounts
-        .map(address => ({
+  api.parity
+    .accounts()
+    .then((accountsInfo) => {
+      const accountsList = Object
+        .keys(accountsInfo)
+        .filter((address) => accountsInfo[address].uuid)
+        .map((address) => ({
           ...accountsInfo[address],
           address
         }));
-
-      console.log('accounts', accountsList);
 
       dispatch(setAccounts(accountsList));
       dispatch(setAccountsInfo(accountsInfo));
