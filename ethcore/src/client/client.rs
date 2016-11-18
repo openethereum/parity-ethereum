@@ -255,11 +255,13 @@ impl Client {
 			registrar: Mutex::new(None),
 		});
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
+			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
 			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
-			if let Ok(operations) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
-				if !operations.is_zero() { 
-					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), operations));
+			if let Ok(ops_addr) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
+				if !ops_addr.is_zero() { 
+					trace!(target: "client", "Found operations at {}", ops_addr);
+					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), ops_addr));
 				}
 			}
 			*client.registrar.lock() = Some(registrar);
