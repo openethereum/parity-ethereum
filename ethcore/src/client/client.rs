@@ -13,7 +13,9 @@
 
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
+
 use std::collections::{HashSet, HashMap, BTreeMap, VecDeque};
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::path::{Path};
 use std::fmt;
@@ -22,12 +24,11 @@ use std::time::{Instant};
 use time::precise_time_ns;
 
 // util
-use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, ToPretty};
+use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock, MutexGuard, Hashable};
 use util::{journaldb, TrieFactory, Trie};
 use util::trie::TrieSpec;
 use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::kvdb::*;
-use util::misc::code_hash;
 
 // other
 use io::*;
@@ -69,7 +70,8 @@ use factory::Factories;
 use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
-use ethabi::{Interface, Contract, Token};
+use client::updater::Updater;
+use client::registry::Registry;
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -140,6 +142,7 @@ pub struct Client {
 	panic_handler: Arc<PanicHandler>,
 	verifier: Box<Verifier>,
 	miner: Arc<Miner>,
+	updater: Mutex<Option<Updater>>,
 	sleep_state: Mutex<SleepState>,
 	liveness: AtomicBool,
 	io_channel: Mutex<IoChannel<ClientIoMessage>>,
@@ -150,6 +153,7 @@ pub struct Client {
 	history: u64,
 	rng: Mutex<OsRng>,
 	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
+	registrar: Mutex<Option<Registry>>,
 }
 
 impl Client {
@@ -222,7 +226,7 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
-		let client = Client {
+		let client = Arc::new(Client {
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
 			mode: Mutex::new(config.mode.clone()),
@@ -239,6 +243,7 @@ impl Client {
 			import_lock: Mutex::new(()),
 			panic_handler: panic_handler,
 			miner: miner,
+			updater: Mutex::new(None),
 			io_channel: Mutex::new(message_channel),
 			notify: RwLock::new(Vec::new()),
 			queue_transactions: AtomicUsize::new(0),
@@ -247,8 +252,19 @@ impl Client {
 			history: history,
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 			on_mode_change: Mutex::new(None),
-		};
-		Ok(Arc::new(client))
+			registrar: Mutex::new(None),
+		});
+		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
+			let weak = Arc::downgrade(&client);
+			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			if let Ok(operations) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
+				if !operations.is_zero() { 
+					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), operations));
+				}
+			}
+			*client.registrar.lock() = Some(registrar);
+		}
+		Ok(client)
 	}
 
 	/// Adds an actor to be notified on certain events
@@ -262,6 +278,11 @@ impl Client {
 				f(&*n);
 			}
 		}
+	}
+
+	/// Get the Registry object - useful for looking up names.
+	pub fn registrar(&self) -> MutexGuard<Option<Registry>> {
+		self.registrar.lock()
 	}
 
 	/// Register an action to be done if a mode change happens. 
@@ -644,7 +665,9 @@ impl Client {
 	pub fn tick(&self) {
 		self.check_garbage();
 		self.check_snooze();
-		self.check_updates();
+		if let Some(ref mut updater) = *self.updater.lock() {
+			updater.tick();
+		}
 	}
 
 	fn check_garbage(&self) {
@@ -687,7 +710,8 @@ impl Client {
 		}
 	}
 
-	fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+	/// Like `call`, but with various defaults. Designed to be used for calling contracts.
+	pub fn call_contract(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
 		let from = Address::default();
 		let transaction = Transaction {
 			nonce: self.latest_nonce(&from),
@@ -703,39 +727,6 @@ impl Client {
 			.map(|executed| {
 				executed.output
 			})
-	}
-
-	fn check_updates(&self) {
-		let operations_json = Interface::load(include_bytes!("../../res/Operations.json")).expect("Operations.json is valid ABI");
-		let operations = Contract::new(operations_json);
-
-		fn as_string<T: fmt::Debug>(e: T) -> String {
-			format!("{:?}", e)
-		}
-
-		let res = || {
-			let is_latest = try!(operations.function("isLatest".into()).map_err(as_string));
-			let params = try!(is_latest.encode_call(
-				vec![Token::FixedBytes(b"par"[..].to_owned()), Token::Address(code_hash().0)]
-			).map_err(as_string));
-			println!("params: {}", params.pretty());
-			let output = try!(self.call_contract("0x4c1783B4FfB1A99eFC4cda632aA990F5138b26f1".into(), params));
-			let result = try!(is_latest.decode_output(output).map_err(as_string));
-
-			match result.get(0) {
-				Some(&Token::Bool(answer)) => Ok(answer),
-				e => Err(format!("Invalid result: {:?}", e)),
-			}
-		};
-
-		match res() {
-			Ok(res) => {
-				info!("isLatest returned {}", res);
-			},
-			Err(e) => {
-				warn!(target: "dapps", "Error while calling Operations.isLatest: {:?}", e);
-			}
-		}
 	}
 
 	/// Look up the block number for the given block ID.
