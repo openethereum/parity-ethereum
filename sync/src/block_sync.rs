@@ -34,7 +34,6 @@ const MAX_RECEPITS_TO_REQUEST: usize = 128;
 const SUBCHAIN_SIZE: u64 = 256;
 const MAX_ROUND_PARENTS: usize = 32;
 const MAX_PARALLEL_SUBCHAIN_DOWNLOAD: usize = 5;
-const MAX_REORG_BLOCKS: u64 = 20;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Downloader state
@@ -263,8 +262,7 @@ impl BlockDownloader {
 			State::Blocks => {
 				let count = headers.len();
 				// At least one of the heades must advance the subchain. Otherwise they are all useless.
-				if count == 0 || !any_known {
-					trace!(target: "sync", "No useful headers");
+				if !any_known {
 					return Err(BlockDownloaderImportError::Useless);
 				}
 				self.blocks.insert_headers(headers);
@@ -342,21 +340,14 @@ impl BlockDownloader {
 					self.last_imported_hash = p.clone();
 					trace!(target: "sync", "Searching common header from the last round {} ({})", self.last_imported_block, self.last_imported_hash);
 				} else {
-					let best = io.chain().chain_info().best_block_number;
-					if best > self.last_imported_block && best - self.last_imported_block > MAX_REORG_BLOCKS {
-						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
-						self.reset();
-					} else {
-						match io.chain().block_hash(BlockID::Number(self.last_imported_block - 1)) {
-							Some(h) => {
-								self.last_imported_block -= 1;
-								self.last_imported_hash = h;
-								trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
-							}
-							None => {
-								debug!(target: "sync", "Could not revert to previous block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
-								self.reset();
-							}
+					match io.chain().block_hash(BlockID::Number(self.last_imported_block - 1)) {
+						Some(h) => {
+							self.last_imported_block -= 1;
+							self.last_imported_hash = h;
+							trace!(target: "sync", "Searching common header in the blockchain {} ({})", self.last_imported_block, self.last_imported_hash);
+						}
+						None => {
+							debug!(target: "sync", "Could not revert to previous block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
 						}
 					}
 				}
@@ -371,9 +362,7 @@ impl BlockDownloader {
 		match self.state {
 			State::Idle => {
 				self.start_sync_round(io);
-				if self.state == State::ChainHead {
-					return self.request_blocks(io, num_active_peers);
-				}
+				return self.request_blocks(io, num_active_peers);
 			},
 			State::ChainHead => {
 				if num_active_peers < MAX_PARALLEL_SUBCHAIN_DOWNLOAD {
