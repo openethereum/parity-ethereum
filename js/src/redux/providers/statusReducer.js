@@ -28,6 +28,7 @@ const initialState = {
   enode: '',
   extraData: '',
   gasFloorTarget: new BigNumber(0),
+  gasLimit: new BigNumber(0),
   hashrate: new BigNumber(0),
   minGasPrice: new BigNumber(0),
   netChain: 'morden',
