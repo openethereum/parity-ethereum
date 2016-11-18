@@ -30,16 +30,15 @@ use std::sync::atomic::AtomicUsize;
 
 use light::provider::Provider;
 use light::request::{self, Request};
+use transaction::SignedTransaction;
 
 use self::buffer_flow::{Buffer, FlowParams};
 use self::error::{Error, Punishment};
-use self::status::{Status, Capabilities};
 
 mod buffer_flow;
 mod error;
 mod status;
 
-pub mod event;
 pub use self::status::{Status, Capabilities, Announcement};
 
 const TIMEOUT: TimerToken = 0;
@@ -126,6 +125,18 @@ impl Peer {
 	}
 }
 
+/// An LES event handler.
+pub trait Handler: Send + Sync {
+	/// Called when a peer connects.
+	fn on_connect(&self, _id: PeerId, _status: &Status, _capabilities: &Capabilities) { }
+	/// Called when a peer disconnects
+	fn on_disconnect(&self, _id: PeerId) { }
+	/// Called when a peer makes an announcement.
+	fn on_announcement(&self, _id: PeerId, _announcement: &Announcement) { }
+	/// Called when a peer requests relay of some transactions.
+	fn on_transactions(&self, _id: PeerId, _relay: &[SignedTransaction]) { }
+}
+
 /// This is an implementation of the light ethereum network protocol, abstracted
 /// over a `Provider` of data and a p2p network.
 ///
@@ -141,6 +152,7 @@ pub struct LightProtocol {
 	pending_requests: RwLock<HashMap<usize, Request>>,
 	capabilities: RwLock<Capabilities>,
 	flow_params: FlowParams, // assumed static and same for every peer.
+	handlers: Vec<Box<Handler>>,
 	req_id: AtomicUsize,
 }
 
@@ -149,6 +161,9 @@ impl LightProtocol {
 	/// The announcement is expected to be valid.
 	pub fn make_announcement(&self, mut announcement: Announcement, io: &NetworkContext) {
 		let mut reorgs_map = HashMap::new();
+
+		// update stored capabilities
+		self.capabilities.write().update_from(&announcement);
 
 		// calculate reorg info and send packets
 		for (peer_id, peer_info) in self.peers.write().iter_mut() {
@@ -174,6 +189,14 @@ impl LightProtocol {
 			}
 		}
 	}
+
+	/// Add an event handler.
+	/// Ownership will be transferred to the protocol structure,
+	/// and the handler will be kept alive as long as it is.
+	/// These are intended to be added at the beginning of the 
+	pub fn add_handler(&mut self, handler: Box<Handler>) {
+		self.handlers.push(handler);
+	}
 }
 
 impl LightProtocol {
@@ -196,7 +219,11 @@ impl LightProtocol {
 	fn on_disconnect(&self, peer: PeerId) {
 		// TODO: reassign all requests assigned to this peer.
 		self.pending_peers.write().remove(&peer);
-		self.peers.write().remove(&peer);
+		if self.peers.write().remove(&peer).is_some() {
+			for handler in &self.handlers {
+				handler.on_disconnect(peer)
+			}	
+		}
 	}
 
 	// send status to a peer.
@@ -246,11 +273,15 @@ impl LightProtocol {
 			local_buffer: Mutex::new(self.flow_params.create_buffer()),
 			remote_buffer: flow_params.create_buffer(),
 			current_asking: HashSet::new(),
-			status: status,
-			capabilities: capabilities,
+			status: status.clone(),
+			capabilities: capabilities.clone(),
 			remote_flow: flow_params,
 			sent_head: pending.sent_head,
 		});
+
+		for handler in &self.handlers {
+			handler.on_connect(*peer, &status, &capabilities)
+		}
 
 		Ok(())
 	}
@@ -282,15 +313,11 @@ impl LightProtocol {
 		}
 
 		// update capabilities.
-		{
-			let caps = &mut peer_info.capabilities;
-			caps.serve_headers = caps.serve_headers || announcement.serve_headers;
-			caps.serve_state_since = caps.serve_state_since.or(announcement.serve_state_since);
-			caps.serve_chain_since = caps.serve_chain_since.or(announcement.serve_chain_since);
-			caps.tx_relay = caps.tx_relay || announcement.tx_relay;
-		}
+		peer_info.capabilities.update_from(&announcement);
 
-		// TODO: notify listeners if new best block.
+		for handler in &self.handlers {
+			handler.on_announcement(*peer, &announcement);
+		}
 
 		Ok(())
 	}
@@ -603,8 +630,18 @@ impl LightProtocol {
 	}
 
 	// Receive a set of transactions to relay.
-	fn relay_transactions(&self, _: &PeerId, _: &NetworkContext, _: UntrustedRlp) -> Result<(), Error> {
-		unimplemented!()
+	fn relay_transactions(&self, peer: &PeerId, data: UntrustedRlp) -> Result<(), Error> {
+		const MAX_TRANSACTIONS: usize = 256;
+
+		let txs: Vec<_> = try!(data.iter().take(MAX_TRANSACTIONS).map(|x| x.as_val::<SignedTransaction>()).collect());
+
+		debug!(target: "les", "Received {} transactions to relay from peer {}", txs.len(), peer);
+
+		for handler in &self.handlers {
+			handler.on_transactions(*peer, &txs);
+		}
+
+		Ok(())
 	}
 }
 
@@ -639,7 +676,7 @@ impl NetworkProtocolHandler for LightProtocol {
 			packet::GET_HEADER_PROOFS => self.get_header_proofs(peer, io, rlp),
 			packet::HEADER_PROOFS => self.header_proofs(peer, io, rlp),
 
-			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, io, rlp),
+			packet::SEND_TRANSACTIONS => self.relay_transactions(peer, rlp),
 
 			other => {
 				Err(Error::UnrecognizedPacket(other))

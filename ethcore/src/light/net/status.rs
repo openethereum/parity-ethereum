@@ -201,6 +201,16 @@ impl Default for Capabilities {
 	}
 }
 
+impl Capabilities {
+	/// Update the capabilities from an announcement.
+	pub fn update_from(&mut self, announcement: &Announcement) {
+		self.serve_headers = self.serve_headers || announcement.serve_headers;
+		self.serve_state_since = self.serve_state_since.or(announcement.serve_state_since);
+		self.serve_chain_since = self.serve_chain_since.or(announcement.serve_chain_since);
+		self.tx_relay = self.tx_relay || announcement.tx_relay;
+	}
+}
+
 /// Attempt to parse a handshake message into its three parts:
 ///   - chain status
 ///   - serving capabilities
