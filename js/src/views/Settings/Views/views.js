@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
@@ -38,10 +39,10 @@ class Views extends Component {
         <ContainerTitle title='Views' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>Manage the available application views, using only the parts of the application that is applicable to you.</div>
-            <div>Are you an end-user? The defaults are setups for both beginner and advanced users alike.</div>
-            <div>Are you a developer? Add some features to manage contracts are interact with application deployments.</div>
-            <div>Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.</div>
+            <div><Translate value='settings.views.overview_0' /></div>
+            <div><Translate value='settings.views.overview_1' /></div>
+            <div><Translate value='settings.views.overview_2' /></div>
+            <div><Translate value='settings.views.overview_3' /></div>
           </div>
           <div className={ layout.details }>
             { this.renderViews() }
@@ -63,7 +64,7 @@ class Views extends Component {
             { view.icon }
           </div>
           <div className={ styles.label }>
-            { view.label }
+            <Translate value={ `settings.views.${id}.label` } />
           </div>
         </div>
       );
@@ -77,7 +78,7 @@ class Views extends Component {
             checked={ view.active }
             value={ view.active } />
           <div className={ styles.info }>
-            { view.description }
+            <Translate value={ `settings.views.${id}.description` } />
           </div>
         </div>
       );

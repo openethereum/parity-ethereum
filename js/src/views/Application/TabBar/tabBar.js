@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
@@ -89,7 +90,7 @@ class TabBar extends Component {
       .filter((id) => settings.views[id].fixed || settings.views[id].active)
       .map((id) => {
         const view = settings.views[id];
-        let label = this.renderLabel(view.label);
+        let label = this.renderLabel(id);
         let body = null;
 
         if (id === 'accounts') {
@@ -97,9 +98,7 @@ class TabBar extends Component {
             <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           );
         } else if (id === 'signer') {
-          label = this.renderSignerLabel(label);
-        } else if (id === 'status') {
-          label = this.renderStatusLabel(label);
+          label = this.renderSignerLabel(id);
         }
 
         return (
@@ -124,16 +123,16 @@ class TabBar extends Component {
     );
   }
 
-  renderLabel = (name, bubble) => {
+  renderLabel = (id, bubble) => {
     return (
       <div className={ styles.label }>
-        { name }
+        <Translate value={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );
   }
 
-  renderSignerLabel = (label) => {
+  renderSignerLabel = (id) => {
     const { pending } = this.props;
     let bubble = null;
 
@@ -146,19 +145,7 @@ class TabBar extends Component {
       );
     }
 
-    return this.renderLabel(label, bubble);
-  }
-
-  renderStatusLabel = (label) => {
-    // const { isTest, netChain } = this.props;
-    // const bubble = (
-    //   <Badge
-    //     color={ isTest ? 'red' : 'default' }
-    //     className={ styles.labelBubble }
-    //     value={ isTest ? 'TEST' : netChain } />
-    //   );
-
-    return this.renderLabel(label, null);
+    return this.renderLabel(id, bubble);
   }
 
   onActivate = (activeRoute) => {
