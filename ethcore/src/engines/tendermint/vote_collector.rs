@@ -19,7 +19,6 @@
 use util::*;
 use super::message::ConsensusMessage;
 use super::{Height, Round, Step};
-use ethkey::recover;
 
 #[derive(Debug)]
 pub struct VoteCollector {

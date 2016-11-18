@@ -17,7 +17,7 @@
 //! Tendermint BFT consensus engine with round robin proof-of-authority.
 
 mod message;
-mod timeout;
+mod transition;
 mod params;
 mod vote_collector;
 
@@ -29,7 +29,7 @@ use header::Header;
 use builtin::Builtin;
 use env_info::EnvInfo;
 use transaction::SignedTransaction;
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, View};
 use ethkey::{recover, public_to_address};
 use account_provider::AccountProvider;
 use block::*;
@@ -41,7 +41,7 @@ use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
 use self::message::ConsensusMessage;
-use self::timeout::TransitionHandler;
+use self::transition::TransitionHandler;
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
 
@@ -57,7 +57,6 @@ pub type Height = usize;
 pub type Round = usize;
 pub type BlockHash = H256;
 
-pub type AtomicMs = AtomicUsize;
 type Signatures = Vec<Bytes>;
 
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
@@ -169,12 +168,8 @@ impl Tendermint {
 				self.update_sealing()
 			},
 			Step::Prevote => {
-				let should_unlock = |lock_change_round| { 
-					self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
-						&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
-				};
 				let block_hash = match *self.lock_change.read() {
-					Some(ref m) if should_unlock(m.round) => self.proposal.read().clone(),
+					Some(ref m) if self.should_unlock(m.round) => self.proposal.read().clone(),
 					Some(ref m) => m.block_hash,
 					None => None,
 				};
@@ -210,7 +205,7 @@ impl Tendermint {
 
 	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
 		let ref p = self.our_params;
-		p.authorities.get(proposer_nonce % p.authority_n).unwrap()
+		p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
 	}
 
 	fn is_nonce_proposer(&self, proposer_nonce: usize, address: &Address) -> bool {
@@ -230,7 +225,7 @@ impl Tendermint {
 		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
 	}
 
-	fn is__height(&self, message: &ConsensusMessage) -> bool {
+	fn is_height(&self, message: &ConsensusMessage) -> bool {
 		message.is_height(self.height.load(AtomicOrdering::SeqCst)) 
 	}
 
@@ -238,12 +233,31 @@ impl Tendermint {
 		message.is_round(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst)) 
 	}
 
+	fn increment_round(&self, n: Round) {
+		self.proposer_nonce.fetch_add(n, AtomicOrdering::SeqCst);
+		self.round.fetch_add(n, AtomicOrdering::SeqCst);
+	}
+
+	fn reset_round(&self) {
+		self.last_lock.store(0, AtomicOrdering::SeqCst);
+		self.proposer_nonce.fetch_add(1, AtomicOrdering::SeqCst);
+		self.height.fetch_add(1, AtomicOrdering::SeqCst);
+		self.round.store(0, AtomicOrdering::SeqCst);
+	}
+
+	fn should_unlock(&self, lock_change_round: Round) -> bool { 
+		self.last_lock.load(AtomicOrdering::SeqCst) < lock_change_round
+			&& lock_change_round < self.round.load(AtomicOrdering::SeqCst)
+	}
+
+
 	fn has_enough_any_votes(&self) -> bool {
 		self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), *self.step.read()) > self.threshold()	
 	}
 
-	fn has_enough_step_votes(&self, message: &ConsensusMessage) -> bool {
-		self.votes.count_step_votes(message.height, message.round, message.step) > self.threshold()	
+	fn has_enough_future_step_votes(&self, message: &ConsensusMessage) -> bool {
+		message.round > self.round.load(AtomicOrdering::SeqCst)
+			&& self.votes.count_step_votes(message.height, message.round, message.step) > self.threshold()	
 	}
 
 	fn has_enough_aligned_votes(&self, message: &ConsensusMessage) -> bool {
@@ -357,24 +371,24 @@ impl Engine for Tendermint {
 				&& self.has_enough_aligned_votes(&message) {
 				*self.lock_change.write()	= Some(message.clone());
 			}
-			// Check if it can affect step transition.
-			if self.is__height(&message) {
+			// Check if it can affect the step transition.
+			if self.is_height(&message) {
 				let next_step = match *self.step.read() {
 					Step::Precommit if self.has_enough_aligned_votes(&message) => {
 						if message.block_hash.is_none() {
-							self.round.fetch_add(1, AtomicOrdering::SeqCst);
+							self.increment_round(1);
 							Some(Step::Propose)
 						} else {
 							Some(Step::Commit)
 						}
 					},
-					Step::Precommit if self.has_enough_step_votes(&message) => {
-						self.round.store(message.round, AtomicOrdering::SeqCst);
+					Step::Precommit if self.has_enough_future_step_votes(&message) => {
+						self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
 						Some(Step::Precommit)
 					},
 					Step::Prevote if self.has_enough_aligned_votes(&message) => Some(Step::Precommit),
-					Step::Prevote if self.has_enough_step_votes(&message) => {
-						self.round.store(message.round, AtomicOrdering::SeqCst);
+					Step::Prevote if self.has_enough_future_step_votes(&message) => {
+						self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
 						Some(Step::Prevote)
 					},
 					_ => None,

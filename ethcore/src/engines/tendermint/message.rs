@@ -19,7 +19,6 @@
 use util::*;
 use super::{Height, Round, BlockHash, Step};
 use rlp::*;
-use error::Error;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConsensusMessage {
@@ -37,7 +36,13 @@ impl ConsensusMessage {
 		s.append(&round);
 		s.append(&step);
 		s.append(&block_hash.unwrap_or(H256::zero()));
-		Some(s.out())
+		let block_info = s.out();
+		signer(block_info.sha3()).map(|ref signature| {
+			let mut s = RlpStream::new_list(2);
+			s.append(signature);
+			s.append(&block_info);
+			s.out()
+		})
 	}
 
 	pub fn is_height(&self, height: Height) -> bool {

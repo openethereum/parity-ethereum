@@ -24,13 +24,11 @@ use time::precise_time_ns;
 // util
 use util::{Bytes, PerfTimer, Itertools, Mutex, RwLock};
 use util::{journaldb, TrieFactory, Trie};
-use util::{U256, H256, H520, Address, H2048, Uint, FixedHash};
-use util::sha3::*;
+use util::{U256, H256, Address, H2048, Uint, FixedHash};
 use util::trie::TrieSpec;
 use util::kvdb::*;
 
 // other
-use ethkey::recover;
 use io::*;
 use views::{HeaderView, BodyView, BlockView};
 use error::{ImportError, ExecutionError, CallError, BlockError, ImportResult, Error as EthcoreError};
