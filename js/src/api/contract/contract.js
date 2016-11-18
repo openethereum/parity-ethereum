@@ -48,7 +48,8 @@ export default class Contract {
       this._instance[fn.signature] = fn;
     });
 
-    this._sendSubscriptionChanges();
+    this._subscribedToChanges = false;
+    this._subscribedToChangesId = null;
   }
 
   get address () {
@@ -271,12 +272,14 @@ export default class Contract {
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
+
             this._subscriptions[subscriptionId] = {
               options,
               callback,
               filterId
             };
 
+            this._subscribeToChanges();
             return subscriptionId;
           });
       });
@@ -287,10 +290,28 @@ export default class Contract {
       .uninstallFilter(this._subscriptions[subscriptionId].filterId)
       .then(() => {
         delete this._subscriptions[subscriptionId];
+
+        if (Object.keys(this._subscriptions).length === 0) {
+          this._unsubscribeToChanges();
+        }
       })
       .catch((error) => {
         console.error('unsubscribe', error);
       });
+  }
+
+  _subscribeToChanges = () => {
+    if (this._subscribedToChanges) {
+      return;
+    }
+
+    this._subscribedToChanges = true;
+    this._sendSubscriptionChanges();
+  }
+
+  _unsubscribeToChanges = () => {
+    this._subscribedToChanges = false;
+    clearTimeout(this._subscribedToChangesId);
   }
 
   _sendSubscriptionChanges = () => {
@@ -316,11 +337,11 @@ export default class Contract {
           }
         });
 
-        timeout();
+        this._subscribedToChangesId = timeout();
       })
       .catch((error) => {
         console.error('_sendSubscriptionChanges', error);
-        timeout();
+        this._subscribedToChangesId = timeout();
       });
   }
 }
