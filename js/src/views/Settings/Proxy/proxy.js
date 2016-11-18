@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 
 import { Container, ContainerTitle } from '../../../ui';
 
@@ -35,13 +36,38 @@ export default class Proxy extends Component {
         <ContainerTitle title='Proxy' />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.</div>
+            <div><Translate value='settings.proxy.overview_0' /></div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.details }>
-              <div>Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting <span className={ layout.console }>http://home.parity/</span>. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,</div>
-              <div className={ layout.center }><a href={ proxyurl } target='_blank'>{ proxyurl }</a></div>
-              <div>To learn how to configure the proxy, instructions are provided for <a href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/' target='_blank'>Windows</a>, <a href='https://support.apple.com/kb/PH18553?locale=en_US' target='_blank'>Max OS X</a> or <a href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html' target='_blank'>Ubuntu</a>.</div>
+              <div>
+                <Translate value='settings.proxy.details_0' />
+                <span className={ layout.console }>http://home.parity/</span>
+                <Translate value='settings.proxy.details_1' />
+              </div>
+              <div className={ layout.center }>
+                <a href={ proxyurl } target='_blank'>{ proxyurl }</a>
+              </div>
+              <div>
+                <Translate value='settings.proxy.details_2' />
+                <a
+                  href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/'
+                  target='_blank'>
+                  <Translate value='settings.proxy.details_windows' />
+                </a>
+                <Translate value='settings.proxy.details_3' />
+                <a
+                  href='https://support.apple.com/kb/PH18553?locale=en_US'
+                  target='_blank'>
+                  <Translate value='settings.proxy.details_macos' />
+                </a>
+                <Translate value='settings.proxy.details_4' />
+                <a
+                  href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html'
+                  target='_blank'>
+                  <Translate value='settings.proxy.details_ubuntu' />
+                </a>
+              </div>
             </div>
           </div>
         </div>

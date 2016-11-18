@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 import { Tab, Tabs } from 'material-ui';
 import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
 import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
@@ -40,13 +41,15 @@ export default class Settings extends Component {
     const isProxied = window.location.hostname.indexOf('.parity') !== -1;
     let proxy = null;
 
+    const title = <Translate value='settings.label' />;
+
     if (!isProxied) {
       proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
     }
 
     return (
       <div className={ styles.layout }>
-        <Actionbar title='settings' className={ styles.bar }>
+        <Actionbar title={ title } className={ styles.bar }>
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
             { this.renderTab(hash, 'background', <ImageBlurOn />) }
@@ -62,13 +65,19 @@ export default class Settings extends Component {
   }
 
   renderTab (hash, section, icon) {
+    const label = (
+      <div className={ styles.menu }>
+        <Translate value={ `settings.views.${section}` } />
+      </div>
+    );
+
     return (
       <Tab
         className={ hash === section ? styles.tabactive : styles.tab }
         value={ section }
         key={ section }
         icon={ icon }
-        label={ <div className={ styles.menu }>{ section }</div> }
+        label={ label }
         onActive={ this.onActivate(section) } />
     );
   }

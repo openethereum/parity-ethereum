@@ -15,11 +15,34 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
+  label: 'settings',
+
+  tabs: {
+    background: 'background',
+    parity: 'parity',
+    proxy: 'proxy',
+    views: 'views'
+  },
+
+  proxy: {
+    overview_0: 'The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.',
+
+    details_0: 'Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting ',
+    details_1: '. To setup subdomain-based routing, you need to add the relevant proxy entries to your browser,',
+    details_2: 'To learn how to configure the proxy, instructions are provided for ',
+    details_windows: 'Windows',
+    details_3: ', ',
+    details_macos: 'macOS',
+    details_4: ' or ',
+    details_ubuntu: 'Ubuntu'
+  },
+
   views: {
     overview_0: 'Manage the available application views, using only the parts of the application that is applicable to you.',
     overview_1: 'Are you an end-user? The defaults are setups for both beginner and advanced users alike.',
     overview_2: 'Are you a developer? Add some features to manage contracts are interact with application deployments.',
     overview_3: 'Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.',
+
     accounts: {
       label: 'Accounts',
       description: 'A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
