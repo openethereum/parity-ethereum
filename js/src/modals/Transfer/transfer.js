@@ -16,12 +16,15 @@
 
 import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
 
 import Details from './Details';
 import Extras from './Extras';
@@ -30,8 +33,6 @@ import styles from './transfer.css';
 
 import { ERROR_CODES } from '../../api/transport/error';
 
-const DEFAULT_GAS = '21000';
-const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
   sending: 'sending',
@@ -42,7 +43,7 @@ const TITLES = {
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
 const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
 
-export default class Transfer extends Component {
+class Transfer extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
@@ -52,6 +53,7 @@ export default class Transfer extends Component {
     account: PropTypes.object,
     balance: PropTypes.object,
     balances: PropTypes.object,
+    gasLimit: PropTypes.object.isRequired,
     images: PropTypes.object.isRequired,
     onClose: PropTypes.func
   }
@@ -64,6 +66,7 @@ export default class Transfer extends Component {
     gas: DEFAULT_GAS,
     gasEst: '0',
     gasError: null,
+    gasLimitError: null,
     gasPrice: DEFAULT_GASPRICE,
     gasPriceHistogram: {},
     gasPriceError: null,
@@ -103,6 +106,7 @@ export default class Transfer extends Component {
         visible
         scroll
       >
+        { this.renderWarning() }
         { this.renderPage() }
       </Modal>
     );
@@ -262,6 +266,20 @@ export default class Transfer extends Component {
       default:
         return [doneBtn];
     }
+  }
+
+  renderWarning () {
+    const { gasLimitError } = this.state;
+
+    if (!gasLimitError) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.warning }>
+        { gasLimitError }
+      </div>
+    );
   }
 
   isValid () {
@@ -519,6 +537,7 @@ export default class Transfer extends Component {
 
     return token.contract.instance.transfer
       .estimateGas({
+        gas: MAX_GAS_ESTIMATION,
         from: account.address,
         to: token.address
       }, [
@@ -532,6 +551,7 @@ export default class Transfer extends Component {
     const { account } = this.props;
     const { data, recipient, value } = this.state;
     const options = {
+      gas: MAX_GAS_ESTIMATION,
       from: account.address,
       to: recipient,
       value: api.util.toWei(value || 0)
@@ -552,19 +572,29 @@ export default class Transfer extends Component {
       return;
     }
 
+    const { gasLimit } = this.props;
+
     (this.state.isEth
       ? this._estimateGasEth()
       : this._estimateGasToken()
-    ).then((_value) => {
-      let gas = _value;
+    ).then((gasEst) => {
+      let gas = gasEst;
+      let gasLimitError = null;
 
       if (gas.gt(DEFAULT_GAS)) {
         gas = gas.mul(1.2);
       }
 
+      if (gas.gte(MAX_GAS_ESTIMATION)) {
+        gasLimitError = ERRORS.gasException;
+      } else if (gas.gt(gasLimit)) {
+        gasLimitError = ERRORS.gasBlockLimit;
+      }
+
       this.setState({
         gas: gas.toFixed(0),
-        gasEst: _value.toFormat()
+        gasEst: gasEst.toFormat(),
+        gasLimitError
       }, this.recalculate);
     })
     .catch((error) => {
@@ -649,3 +679,18 @@ export default class Transfer extends Component {
     store.dispatch({ type: 'newError', error });
   }
 }
+
+function mapStateToProps (state) {
+  const { gasLimit } = state.status;
+
+  return { gasLimit };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Transfer);

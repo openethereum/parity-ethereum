@@ -33,3 +33,11 @@
 .txhash {
   word-break: break-all;
 }
+
+.warning {
+  border-radius: 0.5em;
+  background: #f80;
+  color: white;
+  padding: 0.75em;
+  text-align: center;
+}
