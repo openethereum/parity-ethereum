@@ -183,8 +183,10 @@ pub struct Capabilities {
 	/// Whether this peer can serve headers
 	pub serve_headers: bool,
 	/// Earliest block number it can serve block/receipt requests for.
+	/// `None` means no requests will be servable.
 	pub serve_chain_since: Option<u64>,
 	/// Earliest block number it can serve state requests for.
+	/// `None` means no requests will be servable.
 	pub serve_state_since: Option<u64>,
 	/// Whether it can relay transactions to the eth network.
 	pub tx_relay: bool,

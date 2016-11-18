@@ -152,4 +152,16 @@ impl Request {
 			Request::HeaderProofs(_) => Kind::HeaderProofs,
 		}
 	}
+
+	/// Get the amount of requests being made.
+	pub fn amount(&self) -> usize {
+		match *self {
+			Request::Headers(ref req) => req.max,
+			Request::Bodies(ref req) => req.block_hashes.len(),
+			Request::Receipts(ref req) => req.block_hashes.len(),
+			Request::StateProofs(ref req) => req.requests.len(),
+			Request::Codes(ref req) => req.code_requests.len(),
+			Request::HeaderProofs(ref req) => req.requests.len(),
+		}
+	}
 }
