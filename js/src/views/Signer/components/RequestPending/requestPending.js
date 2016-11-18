@@ -16,28 +16,34 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import TransactionFinished from '../TransactionFinished';
+import TransactionPending from '../TransactionPending';
 import SignRequest from '../SignRequest';
 
-export default class RequestFinishedWeb3 extends Component {
+export default class RequestPending extends Component {
   static propTypes = {
     id: PropTypes.object.isRequired,
-    result: PropTypes.any.isRequired,
+    onConfirm: PropTypes.func.isRequired,
+    onReject: PropTypes.func.isRequired,
+    isSending: PropTypes.bool.isRequired,
     date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
       PropTypes.shape({ transaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
     ]).isRequired,
-    msg: PropTypes.string,
-    status: PropTypes.string,
-    error: PropTypes.string,
     className: PropTypes.string,
     isTest: PropTypes.bool.isRequired,
     store: PropTypes.object.isRequired
-  }
+  };
+
+  onConfirm = data => {
+    const { onConfirm, payload } = this.props;
+
+    data.payload = payload;
+    onConfirm(data);
+  };
 
   render () {
-    const { payload, id, result, msg, status, error, date, className, isTest, store } = this.props;
+    const { payload, id, className, isSending, date, onReject, isTest, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -45,13 +51,13 @@ export default class RequestFinishedWeb3 extends Component {
       return (
         <SignRequest
           className={ className }
-          isFinished
+          onConfirm={ this.onConfirm }
+          onReject={ onReject }
+          isSending={ isSending }
+          isFinished={ false }
           id={ id }
           address={ sign.address }
           hash={ sign.hash }
-          msg={ msg }
-          status={ status }
-          error={ error }
           isTest={ isTest }
           store={ store }
           />
@@ -62,22 +68,22 @@ export default class RequestFinishedWeb3 extends Component {
       const { transaction } = payload;
 
       return (
-        <TransactionFinished
+        <TransactionPending
           className={ className }
-          txHash={ result }
+          onConfirm={ this.onConfirm }
+          onReject={ onReject }
+          isSending={ isSending }
           id={ id }
           gasPrice={ transaction.gasPrice }
           gas={ transaction.gas }
+          data={ transaction.data }
           from={ transaction.from }
           to={ transaction.to }
           value={ transaction.value }
-          msg={ msg }
           date={ date }
-          status={ status }
-          error={ error }
           isTest={ isTest }
           store={ store }
-        />
+          />
       );
     }
 

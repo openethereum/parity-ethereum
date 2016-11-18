@@ -23,7 +23,7 @@ import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, ContainerTitle } from '../../../../ui';
 
-import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
+import { RequestPending, RequestFinished } from '../../components';
 
 import styles from './RequestsPage.css';
 
@@ -108,7 +108,7 @@ class RequestsPage extends Component {
     const { payload, id, isSending, date } = data;
 
     return (
-      <RequestPendingWeb3
+      <RequestPending
         className={ styles.request }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
@@ -128,7 +128,7 @@ class RequestsPage extends Component {
     const { payload, id, result, msg, status, error, date } = data;
 
     return (
-      <RequestFinishedWeb3
+      <RequestFinished
         className={ styles.request }
         result={ result }
         key={ id }

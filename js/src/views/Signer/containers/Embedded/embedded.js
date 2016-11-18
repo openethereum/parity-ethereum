@@ -23,7 +23,7 @@ import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container } from '../../../../ui';
 
-import { RequestPendingWeb3 } from '../../components';
+import { RequestPending } from '../../components';
 
 import styles from './embedded.css';
 
@@ -82,7 +82,7 @@ class Embedded extends Component {
     const { payload, id, isSending, date } = data;
 
     return (
-      <RequestPendingWeb3
+      <RequestPending
         className={ styles.request }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
