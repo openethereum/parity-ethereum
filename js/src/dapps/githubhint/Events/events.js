@@ -28,7 +28,9 @@ export default class Events extends Component {
   render () {
     return (
       <table className={ styles.list }>
-        { this.props.eventIds.map((id) => this.renderEvent(id, this.props.events[id])) }
+        <tbody>
+          { this.props.eventIds.map((id) => this.renderEvent(id, this.props.events[id])) }
+        </tbody>
       </table>
     );
   }
