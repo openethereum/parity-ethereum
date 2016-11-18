@@ -23,6 +23,7 @@ import githubhint from './githubhint.json';
 import owned from './owned.json';
 import registry from './registry.json';
 import signaturereg from './signaturereg.json';
+import smsverification from './sms-verification.json';
 import tokenreg from './tokenreg.json';
 import wallet from './wallet.json';
 
@@ -36,6 +37,7 @@ export {
   owned,
   registry,
   signaturereg,
+  smsverification,
   tokenreg,
   wallet
 };

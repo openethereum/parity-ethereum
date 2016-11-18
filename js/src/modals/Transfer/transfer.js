@@ -28,13 +28,16 @@ import Extras from './Extras';
 import ERRORS from './errors';
 import styles from './transfer.css';
 
+import { ERROR_CODES } from '../../api/transport/error';
+
 const DEFAULT_GAS = '21000';
 const DEFAULT_GASPRICE = '20000000000';
 const TITLES = {
   transfer: 'transfer details',
   sending: 'sending',
   complete: 'complete',
-  extras: 'extra information'
+  extras: 'extra information',
+  rejected: 'rejected'
 };
 const STAGES_BASIC = [TITLES.transfer, TITLES.sending, TITLES.complete];
 const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.complete];
@@ -74,7 +77,8 @@ export default class Transfer extends Component {
     valueAll: false,
     valueError: null,
     isEth: true,
-    busyState: null
+    busyState: null,
+    rejected: false
   }
 
   componentDidMount () {
@@ -82,13 +86,19 @@ export default class Transfer extends Component {
   }
 
   render () {
-    const { stage, extras } = this.state;
+    const { stage, extras, rejected } = this.state;
+
+    const steps = [].concat(extras ? STAGES_EXTRA : STAGES_BASIC);
+
+    if (rejected) {
+      steps[steps.length - 1] = TITLES.rejected;
+    }
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ extras ? STAGES_EXTRA : STAGES_BASIC }
+        steps={ steps }
         waiting={ extras ? [2] : [1] }
         visible
         scroll
@@ -133,7 +143,16 @@ export default class Transfer extends Component {
   }
 
   renderCompletePage () {
-    const { sending, txhash, busyState } = this.state;
+    const { sending, txhash, busyState, rejected } = this.state;
+
+    if (rejected) {
+      return (
+        <BusyStep
+          title='The transaction has been rejected'
+          state='You can safely close this window, the transfer will not occur.'
+        />
+      );
+    }
 
     if (sending) {
       return (
@@ -314,7 +333,7 @@ export default class Transfer extends Component {
     }
 
     const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-    const s = new BigNumber(num).mul(token.format || 1).toString();
+    const s = new BigNumber(num).mul(token.format || 1).toFixed();
 
     if (s.indexOf('.') !== -1) {
       return ERRORS.invalidDecimals;
@@ -455,7 +474,17 @@ export default class Transfer extends Component {
         : this._sendToken()
       ).then((requestId) => {
         this.setState({ busyState: 'Waiting for authorization in the Parity Signer' });
-        return api.pollMethod('parity_checkRequest', requestId);
+
+        return api
+          .pollMethod('parity_checkRequest', requestId)
+          .catch((e) => {
+            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+              this.setState({ rejected: true });
+              return false;
+            }
+
+            throw e;
+          });
       })
       .then((txhash) => {
         this.onNext();
@@ -516,6 +545,13 @@ export default class Transfer extends Component {
   }
 
   recalculateGas = () => {
+    if (!this.isValid()) {
+      this.setState({
+        gas: '0'
+      }, this.recalculate);
+      return;
+    }
+
     (this.state.isEth
       ? this._estimateGasEth()
       : this._estimateGasToken()

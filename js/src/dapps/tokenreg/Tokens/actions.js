@@ -67,8 +67,6 @@ export const deleteToken = (index) => ({
 });
 
 export const loadTokens = () => (dispatch, getState) => {
-  console.log('loading tokens...');
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
 
@@ -79,7 +77,6 @@ export const loadTokens = () => (dispatch, getState) => {
     .call()
     .then((count) => {
       const tokenCount = parseInt(count);
-      console.log(`token count: ${tokenCount}`);
       dispatch(setTokenCount(tokenCount));
 
       for (let i = 0; i < tokenCount; i++) {
@@ -94,8 +91,6 @@ export const loadTokens = () => (dispatch, getState) => {
 };
 
 export const loadToken = (index) => (dispatch, getState) => {
-  console.log('loading token', index);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
 
@@ -144,7 +139,7 @@ export const loadToken = (index) => (dispatch, getState) => {
       }
 
       data.totalSupply = data.totalSupply.toNumber();
-      console.log(`token loaded: #${index}`, data);
+
       dispatch(setTokenData(index, data));
       dispatch(setTokenLoading(index, false));
     })
@@ -159,8 +154,6 @@ export const loadToken = (index) => (dispatch, getState) => {
 };
 
 export const queryTokenMeta = (index, query) => (dispatch, getState) => {
-  console.log('loading token meta', index, query);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
 
@@ -176,7 +169,6 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
         value: value.find(v => v !== 0) ? bytesToHex(value) : null
       };
 
-      console.log(`token meta loaded: #${index}`, value);
       dispatch(setTokenMeta(index, meta));
 
       setTimeout(() => {
@@ -189,8 +181,6 @@ export const queryTokenMeta = (index, query) => (dispatch, getState) => {
 };
 
 export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
-  console.log('add token meta', index, key, value);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
   const token = state.tokens.tokens.find(t => t.index === index);
@@ -203,8 +193,6 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
     .estimateGas(options, values)
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`addTokenMeta: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
-
       return contractInstance.setMeta.postTransaction(options, values);
     })
     .catch((e) => {
@@ -213,8 +201,6 @@ export const addTokenMeta = (index, key, value) => (dispatch, getState) => {
 };
 
 export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
-  console.log('add githubhint url', key, url);
-
   const state = getState();
   const contractInstance = state.status.githubhint.instance;
 
@@ -227,8 +213,6 @@ export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
     .estimateGas(options, values)
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
-
       return contractInstance.hintURL.postTransaction(options, values);
     })
     .catch((e) => {
@@ -237,24 +221,20 @@ export const addGithubhintURL = (from, key, url) => (dispatch, getState) => {
 };
 
 export const unregisterToken = (index) => (dispatch, getState) => {
-  console.log('unregistering token', index);
-
-  const state = getState();
-  const contractInstance = state.status.contract.instance;
+  const { contract } = getState().status;
+  const { instance, owner } = contract;
 
   const values = [ index ];
   const options = {
-    from: state.accounts.selected.address
+    from: owner
   };
 
-  contractInstance
+  instance
     .unregister
     .estimateGas(options, values)
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
-
-      return contractInstance.unregister.postTransaction(options, values);
+      return instance.unregister.postTransaction(options, values);
     })
     .catch((e) => {
       console.error(`unregisterToken #${index} error`, e);

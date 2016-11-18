@@ -23,13 +23,8 @@ import styles from './tokens.css';
 
 export default class Tokens extends Component {
   static propTypes = {
-    handleAddMeta: PropTypes.func.isRequired,
-    handleUnregister: PropTypes.func.isRequired,
-    handleMetaLookup: PropTypes.func.isRequired,
-    isOwner: PropTypes.bool.isRequired,
     isLoading: PropTypes.bool.isRequired,
-    tokens: PropTypes.array,
-    accounts: PropTypes.array
+    tokens: PropTypes.array
   };
 
   render () {
@@ -45,24 +40,12 @@ export default class Tokens extends Component {
   }
 
   renderTokens (tokens) {
-    const { accounts, isOwner } = this.props;
-
-    return tokens.map((token, index) => {
-      if (!token || !token.tla) {
-        return null;
-      }
-
-      const isTokenOwner = !!accounts.find((account) => account.address === token.owner);
-
+    return tokens.map((token) => {
       return (
         <Token
-          { ...token }
-          handleUnregister={ this.props.handleUnregister }
-          handleMetaLookup={ this.props.handleMetaLookup }
-          handleAddMeta={ this.props.handleAddMeta }
-          key={ index }
-          isTokenOwner={ isTokenOwner }
-          isContractOwner={ isOwner } />
+          key={ token.tla }
+          tla={ token.tla }
+        />
       );
     });
   }

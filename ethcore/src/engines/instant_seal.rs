@@ -55,7 +55,7 @@ impl Engine for InstantSeal {
 	}
 
 	fn schedule(&self, _env_info: &EnvInfo) -> Schedule {
-		Schedule::new_homestead()
+		Schedule::new_post_eip150(usize::max_value(), false, false, false)
 	}
 
 	fn is_sealer(&self, _author: &Address) -> Option<bool> { Some(true) }
@@ -79,7 +79,7 @@ mod tests {
 		let tap = AccountProvider::transient_provider();
 		let addr = tap.insert_account("".sha3(), "").unwrap();
 
-		let spec = Spec::new_test_instant();
+		let spec = Spec::new_instant();
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
@@ -95,7 +95,7 @@ mod tests {
 
 	#[test]
 	fn instant_cant_verify() {
-		let engine = Spec::new_test_instant().engine;
+		let engine = Spec::new_instant().engine;
 		let mut header: Header = Header::default();
 
 		assert!(engine.verify_block_basic(&header, None).is_ok());

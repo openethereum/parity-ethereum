@@ -25,6 +25,7 @@ import ReactDOM from 'react-dom';
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { createHashHistory } from 'history';
 import { Redirect, Router, Route, useRouterHistory } from 'react-router';
+import qs from 'querystring';
 
 import SecureApi from './secureApi';
 import ContractInstances from './contracts';
@@ -45,6 +46,7 @@ import './index.html';
 
 injectTapEventPlugin();
 
+const AUTH_HASH = '#/auth?';
 const parityUrl = process.env.PARITY_URL ||
   (
     process.env.NODE_ENV === 'production'
@@ -52,7 +54,12 @@ const parityUrl = process.env.PARITY_URL ||
     : '127.0.0.1:8180'
   );
 
-const api = new SecureApi(`ws://${parityUrl}`);
+let token = null;
+if (window.location.hash && window.location.hash.indexOf(AUTH_HASH) === 0) {
+  token = qs.parse(window.location.hash.substr(AUTH_HASH.length)).token;
+}
+
+const api = new SecureApi(`ws://${parityUrl}`, token);
 ContractInstances.create(api);
 
 const store = initStore(api);
@@ -67,6 +74,7 @@ ReactDOM.render(
   <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
     <Router className={ styles.reset } history={ routerHistory }>
       <Redirect from='/' to='/accounts' />
+      <Redirect from='/auth' to='/accounts' query={ {} } />
       <Redirect from='/settings' to='/settings/views' />
       <Route path='/' component={ Application }>
         <Route path='accounts' component={ Accounts } />

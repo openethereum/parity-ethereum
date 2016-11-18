@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import nullable from '../../../../util/nullable-proptype';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
 import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class SignRequest extends Component {
   static contextTypes = {

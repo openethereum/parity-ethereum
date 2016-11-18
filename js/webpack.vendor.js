@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+const HappyPack = require('happypack');
 const webpack = require('webpack');
 
 const ENV = process.env.NODE_ENV || 'development';
@@ -22,10 +23,26 @@ const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
   'babel-polyfill',
-  'browserify-aes', 'ethereumjs-tx', 'scryptsy',
-  'react', 'react-dom', 'react-redux', 'react-router',
-  'redux', 'redux-thunk', 'react-router-redux',
-  'lodash', 'material-ui', 'moment', 'blockies'
+  'bignumber.js',
+  'blockies',
+  'brace',
+  'browserify-aes',
+  'chart.js',
+  'ethereumjs-tx',
+  'lodash',
+  'material-ui',
+  'mobx',
+  'mobx-react',
+  'moment',
+  'react',
+  'react-dom',
+  'react-redux',
+  'react-router',
+  'react-router-redux',
+  'recharts',
+  'redux',
+  'redux-thunk',
+  'scryptsy'
 ];
 
 if (!isProd) {
@@ -44,6 +61,11 @@ module.exports = {
       {
         test: /\.json$/,
         loaders: ['json']
+      },
+      {
+        test: /\.js$/,
+        include: /(ethereumjs-tx)/,
+        loaders: [ 'happypack/loader?id=js' ]
       }
     ]
   },
@@ -63,6 +85,12 @@ module.exports = {
         'process.env': {
           NODE_ENV: JSON.stringify(ENV)
         }
+      }),
+
+      new HappyPack({
+        id: 'js',
+        threads: 4,
+        loaders: ['babel']
       })
     ];
 

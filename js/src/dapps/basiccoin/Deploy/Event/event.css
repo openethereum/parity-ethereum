@@ -46,11 +46,22 @@ a.link, a.link:hover, a.link:visited {
 }
 
 .address {
+  max-width: 250px;
   text-align: left;
+
+  div {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 .description {
   text-align: left;
+
+  div {
+    white-space: nowrap;
+  }
 }
 
 .center {

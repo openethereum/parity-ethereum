@@ -16,8 +16,6 @@
 
 import { getTokenTotalSupply } from '../utils';
 
-const { sha3, bytesToHex } = window.parity.api.util;
-
 export const SET_REGISTER_SENDING = 'SET_REGISTER_SENDING';
 export const setRegisterSending = (isSending) => ({
   type: SET_REGISTER_SENDING,
@@ -41,13 +39,12 @@ export const registerCompleted = () => ({
 });
 
 export const registerToken = (tokenData) => (dispatch, getState) => {
-  console.log('registering token', tokenData);
-
   const state = getState();
   const contractInstance = state.status.contract.instance;
   const fee = state.status.contract.fee;
 
-  const { address, base, name, tla } = tokenData;
+  const { address, decimals, name, tla } = tokenData;
+  const base = Math.pow(10, decimals);
 
   dispatch(setRegisterSending(true));
 
@@ -82,8 +79,6 @@ export const registerToken = (tokenData) => (dispatch, getState) => {
     })
     .then((gasEstimate) => {
       options.gas = gasEstimate.mul(1.2).toFixed(0);
-      console.log(`transfer: gas estimated as ${gasEstimate.toFixed(0)} setting to ${options.gas}`);
-
       return contractInstance.register.postTransaction(options, values);
     })
     .then((result) => {
@@ -180,36 +175,5 @@ export const queryToken = (key, query) => (dispatch, getState) => {
     }, () => {
       dispatch(setQueryNotFound());
       dispatch(setQueryLoading(false));
-    });
-};
-
-export const queryTokenMeta = (id, query) => (dispatch, getState) => {
-  console.log('loading token meta', query);
-
-  const state = getState();
-  const contractInstance = state.status.contract.instance;
-
-  const key = sha3(query);
-
-  const startDate = Date.now();
-  dispatch(setQueryMetaLoading(true));
-
-  contractInstance
-    .meta
-    .call({}, [ id, key ])
-    .then((value) => {
-      const meta = {
-        key, query,
-        value: value.find(v => v !== 0) ? bytesToHex(value) : null
-      };
-
-      dispatch(setQueryMeta(meta));
-
-      setTimeout(() => {
-        dispatch(setQueryMetaLoading(false));
-      }, 500 - (Date.now() - startDate));
-    })
-    .catch((e) => {
-      console.error('load meta query error', e);
     });
 };
