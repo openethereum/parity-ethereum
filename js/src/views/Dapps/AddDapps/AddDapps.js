@@ -60,7 +60,7 @@ export default class AddDapps extends Component {
 
   renderApp = (app) => {
     const { store } = this.props;
-    const isHidden = store.hidden.includes(app.id);
+    const isHidden = store.hiddenApps.includes(app.id);
     const onCheck = () => {
       if (isHidden) {
         store.showApp(app.id);
