@@ -43,6 +43,7 @@
     "test": "mocha 'src/**/*.spec.js'",
     "test:coverage": "istanbul cover _mocha -- 'src/**/*.spec.js'",
     "test:e2e": "mocha 'src/**/*.e2e.js'",
+    "test:npm": "(cd .npmjs && npm i) && node test/npmLibrary && (rm -rf .npmjs/node_modules)",
     "prepush": "npm run lint:cached"
   },
   "devDependencies": {
