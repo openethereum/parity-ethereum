@@ -84,7 +84,7 @@ export default class Ws extends JsonRpcBase {
     this._connecting = false;
 
     if (this._autoConnect) {
-      this._connect();
+      setTimeout(() => this._connect(), 500);
     }
   }
 
