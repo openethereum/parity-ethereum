@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
+import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, ContainerTitle } from '../../../../ui';
 
@@ -27,6 +28,10 @@ import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
 import styles from './RequestsPage.css';
 
 class RequestsPage extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
@@ -38,6 +43,8 @@ class RequestsPage extends Component {
     }).isRequired,
     isTest: PropTypes.bool.isRequired
   };
+
+  store = new Store(this.context.api);
 
   render () {
     const { pending, finished } = this.props.signer;
@@ -111,6 +118,7 @@ class RequestsPage extends Component {
         payload={ payload }
         date={ date }
         isTest={ isTest }
+        store={ this.store }
       />
     );
   }
@@ -131,6 +139,7 @@ class RequestsPage extends Component {
         payload={ payload }
         date={ date }
         isTest={ isTest }
+        store={ this.store }
         />
     );
   }

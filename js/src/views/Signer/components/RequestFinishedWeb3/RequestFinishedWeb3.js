@@ -32,11 +32,12 @@ export default class RequestFinishedWeb3 extends Component {
     status: PropTypes.string,
     error: PropTypes.string,
     className: PropTypes.string,
-    isTest: PropTypes.bool.isRequired
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { payload, id, result, msg, status, error, date, className, isTest } = this.props;
+    const { payload, id, result, msg, status, error, date, className, isTest, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
@@ -52,6 +53,7 @@ export default class RequestFinishedWeb3 extends Component {
           status={ status }
           error={ error }
           isTest={ isTest }
+          store={ store }
           />
       );
     }
@@ -74,6 +76,7 @@ export default class RequestFinishedWeb3 extends Component {
           status={ status }
           error={ error }
           isTest={ isTest }
+          store={ store }
         />
       );
     }
