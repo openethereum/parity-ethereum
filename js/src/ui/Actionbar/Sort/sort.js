@@ -15,6 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { observer } from 'mobx-react';
+
 import IconMenu from 'material-ui/IconMenu';
 import MenuItem from 'material-ui/MenuItem';
 
@@ -22,11 +24,15 @@ import SortIcon from 'material-ui/svg-icons/content/sort';
 
 import { Button } from '../../';
 
+import SortStore from './sortStore';
 import styles from './sort.css';
 
+@observer
 export default class ActionbarSort extends Component {
   static propTypes = {
+    id: PropTypes.string.isRequired,
     onChange: PropTypes.func.isRequired,
+
     order: PropTypes.string,
     showDefault: PropTypes.bool,
     metas: PropTypes.array
@@ -37,8 +43,10 @@ export default class ActionbarSort extends Component {
     showDefault: true
   }
 
-  state = {
-    menuOpen: false
+  store = new SortStore(this.props);
+
+  componentDidMount () {
+    this.store.restoreSavedOrder();
   }
 
   render () {
@@ -51,12 +59,12 @@ export default class ActionbarSort extends Component {
             className={ styles.sortButton }
             label=''
             icon={ <SortIcon /> }
-            onClick={ this.handleMenuOpen }
+            onClick={ this.store.handleMenuOpen }
             />
         }
-        open={ this.state.menuOpen }
-        onRequestChange={ this.handleMenuChange }
-        onItemTouchTap={ this.handleSortChange }
+        open={ this.store.menuOpen }
+        onRequestChange={ this.store.handleMenuChange }
+        onItemTouchTap={ this.store.handleSortChange }
         targetOrigin={ { horizontal: 'right', vertical: 'top' } }
         anchorOrigin={ { horizontal: 'right', vertical: 'top' } }
         touchTapCloseDelay={ 0 }
@@ -109,16 +117,4 @@ export default class ActionbarSort extends Component {
     );
   }
 
-  handleSortChange = (event, child) => {
-    const order = child.props.value;
-    this.props.onChange(order);
-  }
-
-  handleMenuOpen = () => {
-    this.setState({ menuOpen: true });
-  }
-
-  handleMenuChange = (open) => {
-    this.setState({ menuOpen: open });
-  }
 }

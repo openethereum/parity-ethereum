@@ -18,6 +18,12 @@
 .container {
 }
 
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .details,
 .gasDetails {
   color: #aaa;
@@ -46,7 +52,7 @@
 .highlight {
 }
 
-.inputs {
+.inputs, .addressContainer {
   padding-left: 2em;
 }
 
@@ -72,4 +78,8 @@
 .identityicon {
   margin-bottom: -10px;
   margin-right: 0.5em;
+}
+
+.inputData {
+  word-break: break-all;
 }

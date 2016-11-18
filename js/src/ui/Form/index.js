@@ -16,6 +16,7 @@
 
 import AddressSelect from './AddressSelect';
 import FormWrap from './FormWrap';
+import TypedInput from './TypedInput';
 import Input from './Input';
 import InputAddress from './InputAddress';
 import InputAddressSelect from './InputAddressSelect';
@@ -27,6 +28,7 @@ export default from './form';
 export {
   AddressSelect,
   FormWrap,
+  TypedInput,
   Input,
   InputAddress,
   InputAddressSelect,

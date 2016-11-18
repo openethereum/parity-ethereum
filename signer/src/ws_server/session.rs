@@ -94,6 +94,9 @@ fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 					// Check if the code is valid
 					AuthCodes::from_file(codes_path)
 						.map(|mut codes| {
+							// remove old tokens
+							codes.clear_garbage();
+
 							let res = codes.is_valid(&auth, time);
 							// make sure to save back authcodes - it might have been modified
 							if let Err(_) = codes.to_file(codes_path) {

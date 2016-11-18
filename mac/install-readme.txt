@@ -14,7 +14,7 @@ To temporarily disable Parity Wallet (and stop Parity) use:
 
 To completely uninstall Parity Wallet use:
 
-	sudo -c /usr/local/libexec/uninstall-parity.sh
+	sudo /usr/local/libexec/uninstall-parity.sh
 
 
 Parity is distributed under the terms of the GPL.

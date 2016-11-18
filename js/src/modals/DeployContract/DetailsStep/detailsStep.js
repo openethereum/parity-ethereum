@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
+import { AddressSelect, Form, Input, TypedInput } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
+import { parseAbiType } from '../../../util/abi';
 
 import styles from '../deployContract.css';
 
@@ -103,6 +103,7 @@ export default class DetailsStep extends Component {
           value={ code }
           onSubmit={ this.onCodeChange }
           readOnly={ readOnly } />
+
         { this.renderConstructorInputs() }
       </Form>
     );
@@ -117,59 +118,23 @@ export default class DetailsStep extends Component {
     }
 
     return inputs.map((input, index) => {
-      const onChange = (event, value) => this.onParamChange(index, value);
-      const onChangeBool = (event, _index, value) => this.onParamChange(index, value === 'true');
-      const onSubmit = (value) => this.onParamChange(index, value);
-      const label = `${input.name}: ${input.type}`;
-      let inputBox = null;
+      const onChange = (value) => this.onParamChange(index, value);
 
-      switch (input.type) {
-        case 'address':
-          inputBox = (
-            <InputAddressSelect
-              accounts={ accounts }
-              editing
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onChange={ onChange } />
-          );
-          break;
-
-        case 'bool':
-          const boolitems = ['false', 'true'].map((bool) => {
-            return (
-              <MenuItem
-                key={ bool }
-                value={ bool }
-                label={ bool }>{ bool }</MenuItem>
-            );
-          });
-          inputBox = (
-            <Select
-              label={ label }
-              value={ params[index] ? 'true' : 'false' }
-              error={ paramsError[index] }
-              onChange={ onChangeBool }>
-              { boolitems }
-            </Select>
-          );
-          break;
-
-        default:
-          inputBox = (
-            <Input
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onSubmit={ onSubmit } />
-            );
-          break;
-      }
+      const label = `${input.name ? `${input.name}: ` : ''}${input.type}`;
+      const value = params[index];
+      const error = paramsError[index];
+      const param = parseAbiType(input.type);
 
       return (
         <div key={ index } className={ styles.funcparams }>
-          { inputBox }
+          <TypedInput
+            label={ label }
+            value={ value }
+            error={ error }
+            accounts={ accounts }
+            onChange={ onChange }
+            param={ param }
+          />
         </div>
       );
     });
@@ -200,35 +165,14 @@ export default class DetailsStep extends Component {
     const { abiError, abiParsed } = validateAbi(abi, api);
 
     if (!abiError) {
-      const { inputs } = abiParsed.find((method) => method.type === 'constructor') || { inputs: [] };
+      const { inputs } = abiParsed
+        .find((method) => method.type === 'constructor') || { inputs: [] };
+
       const params = [];
 
       inputs.forEach((input) => {
-        switch (input.type) {
-          case 'address':
-            params.push('0x');
-            break;
-
-          case 'bool':
-            params.push(false);
-            break;
-
-          case 'bytes':
-            params.push('0x');
-            break;
-
-          case 'uint':
-            params.push('0');
-            break;
-
-          case 'string':
-            params.push('');
-            break;
-
-          default:
-            params.push('0');
-            break;
-        }
+        const param = parseAbiType(input.type);
+        params.push(param.default);
       });
 
       onParamsChange(params);

@@ -1250,7 +1250,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#bf33dd4aabd2adb2178576db5a4d23b8902d39b8"
+source = "git+https://github.com/ethcore/js-precompiled.git#b2513e92603b473799d653583bd86771e0063c08"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -1927,7 +1927,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "ws"
 version = "0.5.3"
-source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#0cd6c5e3e9d5e61a37d53eb8dcbad523dcc69314"
+source = "git+https://github.com/ethcore/ws-rs.git?branch=mio-upstream-stable#f5c0b35d660244d1b7500693c8cc28277ce1d418"
 dependencies = [
  "bytes 0.4.0-dev (git+https://github.com/carllerche/bytes)",
  "httparse 1.1.2 (registry+https://github.com/rust-lang/crates.io-index)",

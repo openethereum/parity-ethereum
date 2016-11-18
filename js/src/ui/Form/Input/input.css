@@ -24,8 +24,4 @@
 
 .copy {
   margin-right: 0.5em;
-
-  svg {
-    transition: all .5s ease-in-out;
-  }
 }

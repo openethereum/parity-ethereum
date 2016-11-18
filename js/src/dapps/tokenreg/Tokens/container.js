@@ -19,16 +19,13 @@ import { connect } from 'react-redux';
 
 import Tokens from './tokens';
 
-import { loadTokens, queryTokenMeta, unregisterToken, addTokenMeta } from './actions';
+import { loadTokens } from './actions';
 
 class TokensContainer extends Component {
   static propTypes = {
-    isOwner: PropTypes.bool,
     isLoading: PropTypes.bool,
     tokens: PropTypes.array,
-    tokenCount: PropTypes.number,
-    onLoadTokens: PropTypes.func,
-    accounts: PropTypes.array
+    onLoadTokens: PropTypes.func
   };
 
   componentDidMount () {
@@ -36,7 +33,6 @@ class TokensContainer extends Component {
   }
 
   render () {
-    console.log(this.props);
     return (
       <Tokens
         { ...this.props }
@@ -46,30 +42,19 @@ class TokensContainer extends Component {
 }
 
 const mapStateToProps = (state) => {
-  const { list } = state.accounts;
-  const { isLoading, tokens, tokenCount } = state.tokens;
+  const { isLoading, tokens } = state.tokens;
 
-  const { isOwner } = state.status.contract;
+  const filteredTokens = tokens
+    .filter((token) => token && token.tla)
+    .map((token) => ({ tla: token.tla, owner: token.owner }));
 
-  return { isLoading, tokens, tokenCount, isOwner, accounts: list };
+  return { isLoading, tokens: filteredTokens };
 };
 
 const mapDispatchToProps = (dispatch) => {
   return {
     onLoadTokens: () => {
       dispatch(loadTokens());
-    },
-
-    handleMetaLookup: (index, query) => {
-      dispatch(queryTokenMeta(index, query));
-    },
-
-    handleUnregister: (index) => {
-      dispatch(unregisterToken(index));
-    },
-
-    handleAddMeta: (index, key, value) => {
-      dispatch(addTokenMeta(index, key, value));
     }
   };
 };

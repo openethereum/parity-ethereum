@@ -29,6 +29,8 @@ const initialState = {
   show: false,
   validate: false,
   validationBody: null,
+  error: false,
+  errorText: '',
   content: ''
 };
 
@@ -65,7 +67,7 @@ export default class ActionbarImport extends Component {
 
   renderModal () {
     const { title, renderValidation } = this.props;
-    const { show, step } = this.state;
+    const { show, step, error } = this.state;
 
     if (!show) {
       return null;
@@ -73,7 +75,7 @@ export default class ActionbarImport extends Component {
 
     const hasSteps = typeof renderValidation === 'function';
 
-    const steps = hasSteps ? [ 'select a file', 'validate' ] : null;
+    const steps = hasSteps ? [ 'select a file', error ? 'error' : 'validate' ] : null;
 
     return (
       <Modal
@@ -89,7 +91,7 @@ export default class ActionbarImport extends Component {
   }
 
   renderActions () {
-    const { validate } = this.state;
+    const { validate, error } = this.state;
 
     const cancelBtn = (
       <Button
@@ -99,6 +101,10 @@ export default class ActionbarImport extends Component {
         onClick={ this.onCloseModal }
       />
     );
+
+    if (error) {
+      return [ cancelBtn ];
+    }
 
     if (validate) {
       const confirmBtn = (
@@ -117,7 +123,15 @@ export default class ActionbarImport extends Component {
   }
 
   renderBody () {
-    const { validate } = this.state;
+    const { validate, errorText, error } = this.state;
+
+    if (error) {
+      return (
+        <div>
+          <p>An error occured: { errorText }</p>
+        </div>
+      );
+    }
 
     if (validate) {
       return this.renderValidation();
@@ -169,10 +183,20 @@ export default class ActionbarImport extends Component {
         return this.onCloseModal();
       }
 
+      const validationBody = renderValidation(content);
+
+      if (validationBody && validationBody.error) {
+        return this.setState({
+          step: 1,
+          error: true,
+          errorText: validationBody.error
+        });
+      }
+
       this.setState({
         step: 1,
         validate: true,
-        validationBody: renderValidation(content),
+        validationBody,
         content
       });
     };

@@ -389,7 +389,7 @@ pub fn chunk_state<'a>(db: &HashDB, root: &H256, writer: &Mutex<SnapshotWriter +
 pub struct StateRebuilder {
 	db: Box<JournalDB>,
 	state_root: H256,
-	code_map: HashMap<H256, Bytes>, // maps code hashes to code itself.
+	known_code: HashMap<H256, H256>, // code hashes mapped to first account with this code.
 	missing_code: HashMap<H256, Vec<H256>>, // maps code hashes to lists of accounts missing that code.
 	bloom: Bloom,
 }
@@ -400,7 +400,7 @@ impl StateRebuilder {
 		StateRebuilder {
 			db: journaldb::new(db.clone(), pruning, ::db::COL_STATE),
 			state_root: SHA3_NULL_RLP,
-			code_map: HashMap::new(),
+			known_code: HashMap::new(),
 			missing_code: HashMap::new(),
 			bloom: StateDB::load_bloom(&*db),
 		}
@@ -419,7 +419,7 @@ impl StateRebuilder {
 			self.db.as_hashdb_mut(),
 			rlp,
 			&mut pairs,
-			&self.code_map,
+			&self.known_code,
 			flag
 		));
 
@@ -428,13 +428,13 @@ impl StateRebuilder {
 		}
 
 		// patch up all missing code. must be done after collecting all new missing code entries.
-		for (code_hash, code) in status.new_code {
+		for (code_hash, code, first_with) in status.new_code {
 			for addr_hash in self.missing_code.remove(&code_hash).unwrap_or_else(Vec::new) {
 				let mut db = AccountDBMut::from_hash(self.db.as_hashdb_mut(), addr_hash);
 				db.emplace(code_hash, DBValue::from_slice(&code));
 			}
 
-			self.code_map.insert(code_hash, code);
+			self.known_code.insert(code_hash, first_with);
 		}
 
 		let backing = self.db.backing().clone();
@@ -482,7 +482,8 @@ impl StateRebuilder {
 
 #[derive(Default)]
 struct RebuiltStatus {
-	new_code: Vec<(H256, Bytes)>, // new code that's become available.
+	// new code that's become available. (code_hash, code, addr_hash)
+	new_code: Vec<(H256, Bytes, H256)>,
 	missing_code: Vec<(H256, H256)>, // accounts that are missing code.
 }
 
@@ -492,10 +493,9 @@ fn rebuild_accounts(
 	db: &mut HashDB,
 	account_fat_rlps: UntrustedRlp,
 	out_chunk: &mut [(H256, Bytes)],
-	code_map: &HashMap<H256, Bytes>,
-	abort_flag: &AtomicBool
-) -> Result<RebuiltStatus, ::error::Error>
-{
+	known_code: &HashMap<H256, H256>,
+	abort_flag: &AtomicBool,
+) -> Result<RebuiltStatus, ::error::Error> {
 	let mut status = RebuiltStatus::default();
 	for (account_rlp, out) in account_fat_rlps.into_iter().zip(out_chunk) {
 		if !abort_flag.load(Ordering::SeqCst) { return Err(Error::RestorationAborted.into()) }
@@ -504,17 +504,33 @@ fn rebuild_accounts(
 		let fat_rlp = try!(account_rlp.at(1));
 
 		let thin_rlp = {
-			let mut acct_db = AccountDBMut::from_hash(db, hash);
 
 			// fill out the storage trie and code while decoding.
-			let (acc, maybe_code) = try!(Account::from_fat_rlp(&mut acct_db, fat_rlp, code_map));
+			let (acc, maybe_code) = {
+				let mut acct_db = AccountDBMut::from_hash(db, hash);
+				try!(Account::from_fat_rlp(&mut acct_db, fat_rlp))
+			};
 
 			let code_hash = acc.code_hash().clone();
 			match maybe_code {
-				Some(code) => status.new_code.push((code_hash, code)),
+				// new inline code
+				Some(code) => status.new_code.push((code_hash, code, hash)),
 				None => {
-					if code_hash != ::util::SHA3_EMPTY && !code_map.contains_key(&code_hash) {
-						status.missing_code.push((hash, code_hash));
+					if code_hash != ::util::SHA3_EMPTY {
+						// see if this code has already been included inline
+						match known_code.get(&code_hash) {
+							Some(&first_with) => {
+								// if so, load it from the database.
+								let code = try!(AccountDB::from_hash(db, first_with)
+									.get(&code_hash)
+									.ok_or_else(|| Error::MissingCode(vec![first_with])));
+
+								// and write it again under a different mangled key
+								AccountDBMut::from_hash(db, hash).emplace(code_hash, code);
+							}
+							// if not, queue it up to be filled later
+							None => status.missing_code.push((hash, code_hash)),
+						}
 					}
 				}
 			}

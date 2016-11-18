@@ -35,7 +35,7 @@ use params::{ResealPolicy, AccountsConfig, GasPricerConfig, MinerExtras};
 use ethcore_logger::Config as LogConfig;
 use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
-use signer::{Configuration as SignerConfiguration, SignerCommand};
+use signer::{Configuration as SignerConfiguration};
 use run::RunCmd;
 use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 use presale::ImportWallet;
@@ -49,7 +49,7 @@ pub enum Cmd {
 	Account(AccountCmd),
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
-	SignerToken(SignerCommand),
+	SignerToken(SignerConfiguration),
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
 }
@@ -103,9 +103,7 @@ impl Configuration {
 		let cmd = if self.args.flag_version {
 			Cmd::Version
 		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(SignerCommand {
-				path: dirs.signer
-			})
+			Cmd::SignerToken(signer_conf)
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {
@@ -690,7 +688,7 @@ mod tests {
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
-	use signer::{Configuration as SignerConfiguration, SignerCommand};
+	use signer::{Configuration as SignerConfiguration};
 	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
@@ -827,8 +825,12 @@ mod tests {
 		let args = vec!["parity", "signer", "new-token"];
 		let conf = parse(&args);
 		let expected = replace_home("$HOME/.parity/signer");
-		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerCommand {
-			path: expected,
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::SignerToken(SignerConfiguration {
+			enabled: true,
+			signer_path: expected,
+			interface: "127.0.0.1".into(),
+			port: 8180,
+			skip_origin_validation: false,
 		}));
 	}
 

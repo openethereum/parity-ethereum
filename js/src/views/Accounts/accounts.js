@@ -22,7 +22,7 @@ import { uniq } from 'lodash';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
-import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
+import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
 
@@ -90,18 +90,26 @@ class Accounts extends Component {
     return (
       <ActionbarSort
         key='sortAccounts'
+        id='sortAccounts'
         order={ this.state.sortOrder }
         onChange={ onChange } />
     );
   }
 
   renderActionbar () {
+    const { accounts } = this.props;
+
     const buttons = [
       <Button
         key='newAccount'
         icon={ <ContentAdd /> }
         label='new account'
         onClick={ this.onNewAccountClick } />,
+
+      <ActionbarExport
+        key='exportAccounts'
+        content={ accounts }
+        filename='accounts' />,
 
       this.renderSearchButton(),
       this.renderSortButton()

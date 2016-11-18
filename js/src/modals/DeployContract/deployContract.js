@@ -26,6 +26,8 @@ import ErrorStep from './ErrorStep';
 
 import styles from './deployContract.css';
 
+import { ERROR_CODES } from '../../api/transport/error';
+
 const steps = ['contract details', 'deployment', 'completed'];
 
 export default class DeployContract extends Component {
@@ -63,7 +65,8 @@ export default class DeployContract extends Component {
     params: [],
     paramsError: [],
     step: 0,
-    deployError: null
+    deployError: null,
+    rejected: false
   }
 
   componentWillMount () {
@@ -92,16 +95,22 @@ export default class DeployContract extends Component {
   }
 
   render () {
-    const { step, deployError } = this.state;
+    const { step, deployError, rejected } = this.state;
+
+    const realSteps = deployError || rejected ? null : steps;
+    const title = realSteps
+      ? null
+      : (deployError ? 'deployment failed' : 'rejected');
 
     return (
       <Modal
         actions={ this.renderDialogActions() }
         current={ step }
-        steps={ deployError ? null : steps }
-        title={ deployError ? 'deployment failed' : null }
-        waiting={ [1] }
-        visible>
+        steps={ realSteps }
+        title={ title }
+        waiting={ realSteps ? [1] : null }
+        visible
+        scroll>
         { this.renderStep() }
       </Modal>
     );
@@ -118,8 +127,22 @@ export default class DeployContract extends Component {
         onClick={ this.onClose } />
     );
 
+    const closeBtn = (
+      <Button
+        icon={ <ContentClear /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
+    const closeBtnOk = (
+      <Button
+        icon={ <ActionDoneAll /> }
+        label='Close'
+        onClick={ this.onClose } />
+    );
+
     if (deployError) {
-      return cancelBtn;
+      return closeBtn;
     }
 
     switch (step) {
@@ -134,27 +157,29 @@ export default class DeployContract extends Component {
         ];
 
       case 1:
-        return [
-          cancelBtn
-        ];
+        return [ closeBtn ];
 
       case 2:
-        return [
-          <Button
-            icon={ <ActionDoneAll /> }
-            label='Close'
-            onClick={ this.onClose } />
-        ];
+        return [ closeBtnOk ];
     }
   }
 
   renderStep () {
     const { accounts, readOnly } = this.props;
-    const { address, deployError, step, deployState, txhash } = this.state;
+    const { address, deployError, step, deployState, txhash, rejected } = this.state;
 
     if (deployError) {
       return (
         <ErrorStep error={ deployError } />
+      );
+    }
+
+    if (rejected) {
+      return (
+        <BusyStep
+          title='The deployment has been rejected'
+          state='You can safely close this window, the contract deployment will not occur.'
+        />
       );
     }
 
@@ -265,6 +290,11 @@ export default class DeployContract extends Component {
         });
       })
       .catch((error) => {
+        if (error.code === ERROR_CODES.REQUEST_REJECTED) {
+          this.setState({ rejected: true });
+          return false;
+        }
+
         console.error('error deploying contract', error);
         this.setState({ deployError: error });
         store.dispatch({ type: 'newError', error });
@@ -276,8 +306,6 @@ export default class DeployContract extends Component {
       console.error('onDeploymentState', error);
       return;
     }
-
-    console.log('onDeploymentState', data);
 
     switch (data.state) {
       case 'estimateGas':
