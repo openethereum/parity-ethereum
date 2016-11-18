@@ -71,6 +71,12 @@ class ExecuteContract extends Component {
     this.onFuncChange(null, functions[0]);
   }
 
+  componentWillReceiveProps (newProps) {
+    if (newProps.fromAddress !== this.props.fromAddress) {
+      this.estimateGas(newProps.fromAddress);
+    }
+  }
+
   render () {
     const { sending } = this.state;
 
@@ -164,8 +170,7 @@ class ExecuteContract extends Component {
   }
 
   onAmountChange = (amount) => {
-    this.estimateGas();
-    this.setState({ amount });
+    this.setState({ amount }, this.estimateGas);
   }
 
   onFuncChange = (event, func) => {
@@ -188,11 +193,10 @@ class ExecuteContract extends Component {
       }
     });
 
-    this.estimateGas();
     this.setState({
       func,
       values
-    });
+    }, this.estimateGas);
   }
 
   onValueChange = (event, index, _value) => {
@@ -218,29 +222,34 @@ class ExecuteContract extends Component {
     values[index] = value;
     valuesError[index] = valueError;
 
-    if (!valueError) {
-      this.estimateGas();
-    }
-
     this.setState({
       values: [].concat(values),
       valuesError: [].concat(valuesError)
+    }, () => {
+      if (!valueError) {
+        this.estimateGas();
+      }
     });
   }
 
-  estimateGas = () => {
+  estimateGas = (_fromAddress) => {
     const { api } = this.context;
     const { fromAddress, gasLimit } = this.props;
     const { amount, func, values } = this.state;
     const options = {
       gas: MAX_GAS_ESTIMATION,
-      from: fromAddress,
+      from: _fromAddress || fromAddress,
       value: api.util.toWei(amount || 0)
     };
+
+    if (!func) {
+      return;
+    }
 
     func
       .estimateGas(options, values)
       .then((gasEst) => {
+        console.log(gasEst.toFormat(0));
         const gas = gasEst.mul(1.2);
         let gasLimitError = null;
 
@@ -304,7 +313,7 @@ class ExecuteContract extends Component {
 }
 
 function mapStateToProps (state) {
-  const { gasLimit } = state.status;
+  const { gasLimit } = state.nodeStatus;
 
   return { gasLimit };
 }

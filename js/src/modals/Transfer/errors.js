@@ -20,8 +20,8 @@ const ERRORS = {
   invalidAmount: 'the supplied amount should be a valid positive number',
   invalidDecimals: 'the supplied amount exceeds the allowed decimals',
   largeAmount: 'the transaction total is higher than the available balance',
-  gasException: 'the transaction indicates a thrown exception',
-  gasBlockLimit: 'the transaction will exceed the block gas limit'
+  gasException: 'the transaction will throw an exception with the current values',
+  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
 };
 
 export default ERRORS;

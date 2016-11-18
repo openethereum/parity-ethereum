@@ -681,7 +681,7 @@ class Transfer extends Component {
 }
 
 function mapStateToProps (state) {
-  const { gasLimit } = state.status;
+  const { gasLimit } = state.nodeStatus;
 
   return { gasLimit };
 }
