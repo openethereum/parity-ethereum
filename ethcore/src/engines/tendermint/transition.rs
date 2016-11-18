@@ -16,7 +16,6 @@
 
 //! Tendermint timeout handling.
 
-use std::sync::atomic::{Ordering as AtomicOrdering};
 use std::sync::Weak;
 use io::{IoContext, IoHandler, TimerToken};
 use super::{Tendermint, Step};
@@ -86,14 +85,12 @@ impl IoHandler<Step> for TransitionHandler {
 					},
 					Step::Precommit if engine.has_enough_any_votes() => {
 						set_timeout(io, engine.our_params.timeouts.propose);
-						engine.round.fetch_add(1, AtomicOrdering::SeqCst);
+						engine.increment_round(1);
 						Some(Step::Propose)
 					},
 					Step::Commit => {
 						set_timeout(io, engine.our_params.timeouts.propose);
-						engine.last_lock.store(0, AtomicOrdering::SeqCst);
-						engine.round.store(0, AtomicOrdering::SeqCst);
-						engine.height.fetch_add(1, AtomicOrdering::SeqCst);
+						engine.reset_round();
 						Some(Step::Propose)
 					},
 					_ => None,
