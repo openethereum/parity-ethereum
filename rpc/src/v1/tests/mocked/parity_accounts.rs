@@ -112,7 +112,7 @@ fn should_be_able_to_set_meta() {
 
 	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
 	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"{}\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid, uuid);
+	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{\"0x{}\":{{\"meta\":\"{{foo: 69}}\",\"name\":\"\",\"uuid\":\"{}\"}}}},\"id\":1}}", address.hex(), uuid);
 	assert_eq!(res, Some(response));
 }
 
