@@ -19,4 +19,17 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  padding-bottom: 10em;
+}
+
+.warning {
+  background: #f80;
+  bottom: 0;
+  color: #fff;
+  left: 0;
+  opacity: 1;
+  padding: 1.5em;
+  position: fixed;
+  right: 50%;
+  z-index: 100;
 }

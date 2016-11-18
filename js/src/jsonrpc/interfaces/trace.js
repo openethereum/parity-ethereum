@@ -14,9 +14,45 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { BlockNumber, Hash, Integer } from '../types';
+import { BlockNumber, Data, Hash, Integer } from '../types';
 
 export default {
+  block: {
+    desc: 'Returns traces created at given block',
+    params: [
+      {
+        type: BlockNumber,
+        desc: 'Integer block number, or \'latest\' for the last mined block or \'pending\', \'earliest\' for not yet mined transactions'
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'Block traces'
+    }
+  },
+
+  call: {
+    desc: 'Returns traces for a specific call',
+    params: [
+      {
+        type: Object,
+        desc: 'Call options'
+      },
+      {
+        type: BlockNumber,
+        desc: 'The blockNumber'
+      },
+      {
+        type: Array,
+        desc: 'Type of trace, one or more of \'vmTrace\', \'trace\' and/or \'stateDiff\''
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'Block traces'
+    }
+  },
+
   filter: {
     desc: 'Returns traces matching given filter',
     params: [
@@ -49,6 +85,42 @@ export default {
     }
   },
 
+  rawTransaction: {
+    desc: 'Traces a call to eth_sendRawTransaction without making the call, returning the traces',
+    params: [
+      {
+        type: Data,
+        desc: 'Transaction data'
+      },
+      {
+        type: Array,
+        desc: 'Type of trace, one or more of \'vmTrace\', \'trace\' and/or \'stateDiff\''
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'Block traces'
+    }
+  },
+
+  replayTransaction: {
+    desc: 'Replays a transaction, returning the traces',
+    params: [
+      {
+        type: Hash,
+        desc: 'Transaction hash'
+      },
+      {
+        type: Array,
+        desc: 'Type of trace, one or more of \'vmTrace\', \'trace\' and/or \'stateDiff\''
+      }
+    ],
+    returns: {
+      type: Array,
+      desc: 'Block traces'
+    }
+  },
+
   transaction: {
     desc: 'Returns all traces of given transaction',
     params: [
@@ -60,20 +132,6 @@ export default {
     returns: {
       type: Array,
       desc: 'Traces of given transaction'
-    }
-  },
-
-  block: {
-    desc: 'Returns traces created at given block',
-    params: [
-      {
-        type: BlockNumber,
-        desc: 'Integer block number, or \'latest\' for the last mined block or \'pending\', \'earliest\' for not yet mined transactions'
-      }
-    ],
-    returns: {
-      type: Array,
-      desc: 'Block traces'
     }
   }
 };

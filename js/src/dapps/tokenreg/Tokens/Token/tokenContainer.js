@@ -17,44 +17,52 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 
-import Tokens from './tokens';
+import Token from './token';
 
-import { loadTokens } from './actions';
+import { queryTokenMeta, unregisterToken, addTokenMeta } from '../actions';
 
-class TokensContainer extends Component {
+class TokenContainer extends Component {
   static propTypes = {
-    isLoading: PropTypes.bool,
-    tokens: PropTypes.array,
-    onLoadTokens: PropTypes.func
-  };
+    handleMetaLookup: PropTypes.func.isRequired,
+    handleUnregister: PropTypes.func.isRequired,
+    handleAddMeta: PropTypes.func.isRequired,
 
-  componentDidMount () {
-    this.props.onLoadTokens();
-  }
+    tla: PropTypes.string.isRequired
+  };
 
   render () {
     return (
-      <Tokens
+      <Token
         { ...this.props }
       />
     );
   }
 }
 
-const mapStateToProps = (state) => {
-  const { isLoading, tokens } = state.tokens;
+const mapStateToProps = (_, initProps) => {
+  const { tla } = initProps;
 
-  const filteredTokens = tokens
-    .filter((token) => token && token.tla)
-    .map((token) => ({ tla: token.tla, owner: token.owner }));
+  return (state) => {
+    const { isOwner } = state.status.contract;
+    const { tokens } = state.tokens;
+    const token = tokens.find((t) => t.tla === tla);
 
-  return { isLoading, tokens: filteredTokens };
+    return { ...token, isContractOwner: isOwner };
+  };
 };
 
 const mapDispatchToProps = (dispatch) => {
   return {
-    onLoadTokens: () => {
-      dispatch(loadTokens());
+    handleMetaLookup: (index, query) => {
+      dispatch(queryTokenMeta(index, query));
+    },
+
+    handleUnregister: (index) => {
+      dispatch(unregisterToken(index));
+    },
+
+    handleAddMeta: (index, key, value) => {
+      dispatch(addTokenMeta(index, key, value));
     }
   };
 };
@@ -62,4 +70,4 @@ const mapDispatchToProps = (dispatch) => {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(TokensContainer);
+)(TokenContainer);
