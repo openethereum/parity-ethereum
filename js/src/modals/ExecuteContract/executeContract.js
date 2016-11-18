@@ -249,7 +249,6 @@ class ExecuteContract extends Component {
     func
       .estimateGas(options, values)
       .then((gasEst) => {
-        console.log(gasEst.toFormat(0));
         const gas = gasEst.mul(1.2);
         let gasLimitError = null;
 
