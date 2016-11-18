@@ -34,9 +34,9 @@
 .overlay {
   background: rgba(0, 0, 0, 0.85);
   bottom: 0.5em;
-  left: -0.25em;
+  left: -0.125em;
   position: absolute;
-  right: -0.25em;
+  right: -0.125em;
   top: -0.25em;
   z-index: 100;
   padding: 1em;
