@@ -46,7 +46,7 @@ export default {
       mode_active: 'Parity continuously syncs the chain',
       mode_passive: 'Parity syncs initially, then sleeps and wakes regularly to resync',
       mode_dark: 'Parity syncs only when the RPC is active',
-      mode_offline: 'Parity doesn\'t sync'
+      mode_offline: "Parity doesn't sync"
     }
   },
 
