@@ -233,6 +233,10 @@ export default class Contract {
       return this._subscribe(event, options, callback);
     };
 
+    event.register = (options = {}, callback) => {
+      return this._register(event, options, callback);
+    };
+
     event.unsubscribe = (subscriptionId) => {
       return this.unsubscribe(subscriptionId);
     };
@@ -240,33 +244,79 @@ export default class Contract {
     return event;
   }
 
-  subscribe (eventName = null, options = {}, callback) {
-    return new Promise((resolve, reject) => {
-      let event = null;
+  _register (event = null, _options, callback) {
+    return this
+      ._createEthFilter(event, _options)
+      .then((filterId) => {
+        return {
+          fetch: () => {
+            return this._api.eth
+              .getFilterChanges(filterId)
+              .then((logs) => {
+                if (!logs || !logs.length) {
+                  return;
+                }
 
-      if (eventName) {
-        event = this._events.find((evt) => evt.name === eventName);
+                try {
+                  callback(null, this.parseEventLogs(logs));
+                } catch (error) {
+                  callback(error);
+                }
+              });
+          },
 
-        if (!event) {
-          const events = this._events.map((evt) => evt.name).join(', ');
-          reject(new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`));
-          return;
-        }
-      }
+          unsubscribe: () => {
+            return this._api.eth.uninstallFilter(filterId);
+          }
+        };
+      });
+  }
 
-      return this._subscribe(event, options, callback).then(resolve).catch(reject);
+  _findEvent (eventName = null) {
+    const event = eventName
+      ? this._events.find((evt) => evt.name === eventName)
+      : null;
+
+    if (eventName && !event) {
+      const events = this._events.map((evt) => evt.name).join(', ');
+      throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
+    }
+
+    return event;
+  }
+
+  _createEthFilter (event = null, _options) {
+    const optionTopics = _options.topics || [];
+    const signature = event && event.signature || null;
+
+    // If event provided, remove the potential event signature
+    // as the first element of the topics
+    const topics = signature
+      ? [ signature ].concat(optionTopics.filter((t, idx) => idx > 0 || t !== signature))
+      : optionTopics;
+
+    const options = Object.assign({}, _options, {
+      address: this._address,
+      topics
     });
+
+    return this._api.eth.newFilter(options);
+  }
+
+  subscribe (eventName = null, options = {}, callback) {
+    try {
+      const event = this._findEvent(eventName);
+      return this._subscribe(event, options, callback);
+    } catch (e) {
+      return Promise.reject(e);
+    }
   }
 
   _subscribe (event = null, _options, callback) {
     const subscriptionId = nextSubscriptionId++;
-    const options = Object.assign({}, _options, {
-      address: this._address,
-      topics: [event ? event.signature : null]
-    });
 
-    return this._api.eth
-      .newFilter(options)
+    return this
+      ._createEthFilter(event, _options)
       .then((filterId) => {
         return this._api.eth
           .getFilterLogs(filterId)
@@ -274,7 +324,6 @@ export default class Contract {
             callback(null, this.parseEventLogs(logs));
 
             this._subscriptions[subscriptionId] = {
-              options,
               callback,
               filterId
             };

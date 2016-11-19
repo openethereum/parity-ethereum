@@ -35,11 +35,14 @@ export default class Balances {
     this._tokens = {};
     this._images = {};
     this._tokenreg = null;
+    this._fetchedTokens = false;
+    this._tokenregSub = null;
   }
 
   start () {
     this._subscribeBlockNumber();
     this._subscribeAccountsInfo();
+    this._retrieveTokens();
   }
 
   _subscribeAccountsInfo () {
@@ -50,10 +53,7 @@ export default class Balances {
         }
 
         this._accountsInfo = accountsInfo;
-        this._retrieveBalances();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+        this._retrieveTokens();
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
@@ -68,9 +68,10 @@ export default class Balances {
         }
 
         this._retrieveTokens();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeBlockNumber', 'subscriptionId', subscriptionId);
+
+        if (this._tokenregSub) {
+          this._tokenregSub.fetch();
+        }
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
@@ -92,12 +93,19 @@ export default class Balances {
       .then((tokenregAddress) => {
         const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
         this._tokenreg = tokenreg;
+        this.attachToTokens();
 
         return tokenreg;
       });
   }
 
   _retrieveTokens () {
+    if (this._fetchedTokens) {
+      return this._retrieveBalances();
+    }
+
+    this._fetchedTokens = true;
+
     this
       .getTokenRegistry()
       .then((tokenreg) => {
@@ -113,25 +121,12 @@ export default class Balances {
             return Promise.all(promises);
           });
       })
-      .then((_tokens) => {
-        const prevHashes = Object.values(this._tokens).map((t) => t.hash).sort().join('');
-        const nextHashes = _tokens.map((t) => t.hash).sort().join('');
-
-        if (prevHashes !== nextHashes) {
-          this._tokens = _tokens
-            .reduce((obj, token) => {
-              obj[token.address] = token;
-              return obj;
-            }, {});
-
-          this._store.dispatch(getTokens(this._tokens));
-        }
-
+      .then(() => {
+        this._store.dispatch(getTokens(this._tokens));
         this._retrieveBalances();
       })
       .catch((error) => {
-        console.warn('_retrieveTokens', error);
-        this._retrieveBalances();
+        console.warn('balances::_retrieveTokens', error);
       });
   }
 
@@ -157,39 +152,88 @@ export default class Balances {
       });
   }
 
+  attachToTokens () {
+    if (this._tokenregSub) {
+      return;
+    }
+
+    this._tokenreg
+      .instance
+      .MetaChanged
+      .register({
+        fromBlock: 0,
+        toBlock: 'latest',
+        topics: [ null, this._api.util.asciiToHex('IMG') ]
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToToken', 'failed to attacht to token registry', error.toString(), error.stack);
+        }
+
+        // In case multiple logs for same token
+        // in one block. Take the last value.
+        const tokens = logs
+          .filter((log) => log.type === 'mined')
+          .reduce((_tokens, log) => {
+            const id = log.params.id.value.toNumber();
+            const image = log.params.value.value;
+
+            const token = Object.values(this._tokens).find((c) => c.id === id);
+            const { address } = token;
+
+            _tokens[address] = { address, id, image };
+            return _tokens;
+          }, {});
+
+        Object
+          .values(tokens)
+          .forEach((token) => {
+            const { address, image } = token;
+
+            if (this._images[address] !== image.toString()) {
+              this._store.dispatch(setAddressImage(address, image));
+              this._images[address] = image.toString();
+            }
+          });
+      })
+      .then((tokenregSub) => {
+        this._tokenregSub = tokenregSub;
+      })
+      .catch((e) => {
+        console.warn('balances::attachToTokens', e);
+      });
+  }
+
   fetchTokenInfo (tokenreg, tokenId) {
     return Promise
       .all([
         tokenreg.instance.token.call({}, [tokenId]),
         tokenreg.instance.meta.call({}, [tokenId, 'IMG'])
       ])
-      .then(([ token, image ]) => {
-        const [ address, tag, format, name ] = token;
-        const oldToken = this._tokens[address];
+      .then(([ tokenData, image ]) => {
+        const [ address, tag, format, name ] = tokenData;
+        const contract = this._api.newContract(abis.eip20, address);
 
         if (this._images[address] !== image.toString()) {
           this._store.dispatch(setAddressImage(address, image));
           this._images[address] = image.toString();
         }
 
-        const newToken = {
+        const token = {
+          format: format.toString(),
+          id: tokenId,
+
           address,
-          name,
           tag,
-          format: format.toString()
-        };
-
-        const hash = this._api.util.sha3(JSON.stringify(newToken));
-
-        const contract = oldToken
-          ? oldToken.contract
-          : this._api.newContract(abis.eip20, address);
-
-        return {
-          ...newToken,
-          hash,
+          name,
           contract
         };
+
+        this._tokens[address] = token;
+
+        return token;
+      })
+      .catch((e) => {
+        console.warn('balances::fetchTokenInfo', `couldn't fetch token #${tokenId}`, e);
       });
   }
 
