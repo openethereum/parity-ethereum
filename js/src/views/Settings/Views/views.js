@@ -34,9 +34,11 @@ class Views extends Component {
   }
 
   render () {
+    const title = <Translate value='settings.views.label' />;
+
     return (
       <Container>
-        <ContainerTitle title='Views' />
+        <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div><Translate value='settings.views.overview_0' /></div>

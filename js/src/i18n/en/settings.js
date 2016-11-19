@@ -17,14 +17,42 @@
 export default {
   label: 'settings',
 
-  tabs: {
-    background: 'background',
-    parity: 'parity',
-    proxy: 'proxy',
-    views: 'views'
+  background: {
+    label: 'background',
+
+    overview_0: 'The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.',
+    overview_1: 'Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.',
+
+    button_more: 'generate more'
+  },
+
+  parity: {
+    label: 'parity',
+
+    overview_0: 'Control the Parity node settings and mode of operation via this interface.',
+
+    languages: {
+      label: 'UI language',
+      hint: 'the language this interface is displayed with',
+
+      language_en: 'English',
+      language_de: 'German'
+    },
+
+    modes: {
+      label: 'mode of operation',
+      hint: 'the syning mode for the Parity node',
+
+      mode_active: 'Parity continuously syncs the chain',
+      mode_passive: 'Parity syncs initially, then sleeps and wakes regularly to resync',
+      mode_dark: 'Parity syncs only when the RPC is active',
+      mode_offline: 'Parity doesn\'t sync'
+    }
   },
 
   proxy: {
+    label: 'proxy',
+
     overview_0: 'The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.',
 
     details_0: 'Instead of accessing Parity via the IP address and port, you will be able to access it via the .parity subdomain, by visiting ',
@@ -38,6 +66,8 @@ export default {
   },
 
   views: {
+    label: 'views',
+
     overview_0: 'Manage the available application views, using only the parts of the application that is applicable to you.',
     overview_1: 'Are you an end-user? The defaults are setups for both beginner and advanced users alike.',
     overview_2: 'Are you a developer? Add some features to manage contracts are interact with application deployments.',

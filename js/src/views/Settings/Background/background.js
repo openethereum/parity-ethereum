@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
@@ -54,17 +55,20 @@ class Background extends Component {
   }
 
   render () {
+    const title = <Translate value='settings.background.label' />;
+    const labelMore = <Translate value='settings.background.button_more' />;
+
     return (
       <Container>
-        <ContainerTitle title='Background Pattern' />
+        <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>
-            <div>Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.</div>
+            <div><Translate value='settings.background.overview_0' /></div>
+            <div><Translate value='settings.background.overview_1' /></div>
             <div>
               <Button
                 icon={ <NavigationRefresh /> }
-                label='generate more'
+                label={ labelMore }
                 onClick={ this.generateSeeds } />
             </div>
           </div>

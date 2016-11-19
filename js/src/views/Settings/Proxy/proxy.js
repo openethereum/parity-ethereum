@@ -30,10 +30,11 @@ export default class Proxy extends Component {
   render () {
     const { dappsUrl } = this.context.api;
     const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
+    const title = <Translate value='settings.proxy.label' />;
 
     return (
       <Container>
-        <ContainerTitle title='Proxy' />
+        <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div><Translate value='settings.proxy.overview_0' /></div>

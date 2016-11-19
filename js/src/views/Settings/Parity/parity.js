@@ -15,18 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Translate } from 'react-i18nify';
 import { MenuItem } from 'material-ui';
 
 import { Select, Container, ContainerTitle } from '../../../ui';
 
 import layout from '../layout.css';
 
-const MODES = {
-  'active': 'Parity continuously syncs the chain',
-  'passive': 'Parity syncs initially, then sleeps and wakes regularly to resync',
-  'dark': 'Parity syncs only when the RPC is active',
-  'offline': 'Parity doesn\'t sync'
-};
+const MODES = ['active', 'passive', 'dark', 'offline'];
 
 export default class Parity extends Component {
   static contextTypes = {
@@ -42,12 +38,14 @@ export default class Parity extends Component {
   }
 
   render () {
+    const title = <Translate value='settings.parity.label' />;
+
     return (
       <Container>
-        <ContainerTitle title='Parity' />
+        <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div>Control the Parity node settings and mode of operation via this interface.</div>
+            <div><Translate value='settings.parity.overview_0' /></div>
           </div>
           <div className={ layout.details }>
             { this.renderModes() }
@@ -58,27 +56,26 @@ export default class Parity extends Component {
   }
 
   renderModes () {
-    const modes = Object
-      .keys(MODES)
-      .map((mode) => {
-        const description = MODES[mode];
+    const modes = MODES.map((mode) => {
+      const label = <Translate value={ `settings.parity.modes.${mode}` } />;
 
-        return (
-          <MenuItem
-            key={ mode }
-            value={ mode }
-            label={ description }>
-            { description }
-          </MenuItem>
-        );
-      });
-
+      return (
+        <MenuItem
+          key={ mode }
+          value={ mode }
+          label={ label }>
+          { label }
+        </MenuItem>
+      );
+    });
     const { mode } = this.state;
+    const label = <Translate value='settings.parity.modes.label' />;
+    const hint = <Translate value='settings.parity.modes.hint' />;
 
     return (
       <Select
-        label='mode of operation'
-        hint='the syning mode for the Parity node'
+        label={ label }
+        hint={ hint }
         value={ mode }
         onChange={ this.onChangeMode }>
         { modes }

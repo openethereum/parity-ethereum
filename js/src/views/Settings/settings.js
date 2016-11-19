@@ -67,7 +67,7 @@ export default class Settings extends Component {
   renderTab (hash, section, icon) {
     const label = (
       <div className={ styles.menu }>
-        <Translate value={ `settings.views.${section}` } />
+        <Translate value={ `settings.${section}.label` } />
       </div>
     );
 
