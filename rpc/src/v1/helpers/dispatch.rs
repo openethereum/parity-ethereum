@@ -28,6 +28,7 @@ use jsonrpc_core::Error;
 use v1::helpers::{errors, TransactionRequest, FilledTransactionRequest, ConfirmationPayload};
 use v1::types::{
 	H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
+	RichRawTransaction as RpcRichRawTransaction,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse,
 	SignRequest as RpcSignRequest,
@@ -47,8 +48,7 @@ pub fn execute<C, M>(client: &C, miner: &M, accounts: &AccountProvider, payload:
 		},
 		ConfirmationPayload::SignTransaction(request) => {
 			sign_no_dispatch(client, miner, accounts, request, pass)
-				.map(|tx| rlp::encode(&tx).to_vec())
-				.map(RpcBytes)
+				.map(RpcRichRawTransaction::from)
 				.map(ConfirmationResponse::SignTransaction)
 		},
 		ConfirmationPayload::Signature(address, hash) => {

@@ -37,7 +37,7 @@ export function validateAbi (abi, api) {
   try {
     abiParsed = JSON.parse(abi);
 
-    if (!api.util.isArray(abiParsed) || !abiParsed.length) {
+    if (!api.util.isArray(abiParsed)) {
       abiError = ERRORS.invalidAbi;
       return { abi, abiError, abiParsed };
     }
