@@ -11,4 +11,5 @@ log = "0.3"
 rustc-serialize = "0.3"
 ethabi = "0.2.2"
 mime_guess = "1.6.1"
+fetch = { path = "../../util/fetch" }
 ethcore-util = { path = "../../util" }

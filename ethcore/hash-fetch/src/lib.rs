@@ -14,12 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! Hash-addressed content resolver & fetcher.
+
+#![warn(missing_docs)]
+
 #[macro_use]
 extern crate log;
 extern crate rustc_serialize;
 extern crate mime_guess;
 extern crate ethabi;
 extern crate ethcore_util as util;
+extern crate fetch;
+
+mod client;
 
 pub mod urlhint;
 
+pub use client::{HashFetch, Client};

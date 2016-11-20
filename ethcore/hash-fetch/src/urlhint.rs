@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+//! URLHint Contract
+
 use std::fmt;
 use std::sync::Arc;
 use rustc_serialize::hex::ToHex;
@@ -24,15 +26,30 @@ use util::{Address, Bytes, Hashable};
 
 const COMMIT_LEN: usize = 20;
 
+/// RAW Contract interface.
+/// Should execute transaction using current blockchain state.
+pub trait ContractClient: Send + Sync {
+	/// Get registrar address
+	fn registrar(&self) -> Result<Address, String>;
+	/// Call Contract
+	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
+}
+
+/// Github-hosted dapp.
 #[derive(Debug, PartialEq)]
 pub struct GithubApp {
+	/// Github Account
 	pub account: String,
+	/// Github Repository
 	pub repo: String,
+	/// Commit on Github
 	pub commit: [u8;COMMIT_LEN],
+	/// Dapp owner address
 	pub owner: Address,
 }
 
 impl GithubApp {
+	/// Returns URL of this Github-hosted dapp package.
 	pub fn url(&self) -> String {
 		// Since https fetcher doesn't support redirections we use direct link
 		// format!("https://github.com/{}/{}/archive/{}.zip", self.account, self.repo, self.commit.to_hex())
@@ -53,20 +70,15 @@ impl GithubApp {
 	}
 }
 
+/// Hash-Addressed Content
 #[derive(Debug, PartialEq)]
 pub struct Content {
+	/// URL of the content
 	pub url: String,
+	/// MIME type of the content
 	pub mime: String,
+	/// Content owner address
 	pub owner: Address,
-}
-
-/// RAW Contract interface.
-/// Should execute transaction using current blockchain state.
-pub trait ContractClient: Send + Sync {
-	/// Get registrar address
-	fn registrar(&self) -> Result<Address, String>;
-	/// Call Contract
-	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String>;
 }
 
 /// Result of resolving id to URL
@@ -84,6 +96,7 @@ pub trait URLHint {
 	fn resolve(&self, id: Bytes) -> Option<URLHintResult>;
 }
 
+/// `URLHintContract` API
 pub struct URLHintContract {
 	urlhint: Contract,
 	registrar: Contract,
@@ -91,6 +104,7 @@ pub struct URLHintContract {
 }
 
 impl URLHintContract {
+	/// Creates new `URLHintContract`
 	pub fn new(client: Arc<ContractClient>) -> Self {
 		let urlhint = Interface::load(include_bytes!("../res/urlhint.json")).expect("urlhint.json is valid ABI");
 		let registrar = Interface::load(include_bytes!("../res/registrar.json")).expect("registrar.json is valid ABI");
@@ -244,11 +258,6 @@ fn guess_mime_type(url: &str) -> Option<String> {
 	})
 }
 
-#[cfg(test)]
-pub fn test_guess_mime_type(url: &str) -> Option<String> {
-	guess_mime_type(url)
-}
-
 fn as_string<T: fmt::Debug>(e: T) -> String {
 	format!("{:?}", e)
 }
@@ -260,6 +269,7 @@ mod tests {
 	use rustc_serialize::hex::FromHex;
 
 	use super::*;
+	use super::guess_mime_type;
 	use util::{Bytes, Address, Mutex, ToPretty};
 
 	struct FakeRegistrar {
@@ -390,10 +400,10 @@ mod tests {
 		let url5 = "https://ethcore.io/parity.png";
 
 
-		assert_eq!(test_guess_mime_type(url1), None);
-		assert_eq!(test_guess_mime_type(url2), Some("image/png".into()));
-		assert_eq!(test_guess_mime_type(url3), Some("image/png".into()));
-		assert_eq!(test_guess_mime_type(url4), Some("image/jpeg".into()));
-		assert_eq!(test_guess_mime_type(url5), Some("image/png".into()));
+		assert_eq!(guess_mime_type(url1), None);
+		assert_eq!(guess_mime_type(url2), Some("image/png".into()));
+		assert_eq!(guess_mime_type(url3), Some("image/png".into()));
+		assert_eq!(guess_mime_type(url4), Some("image/jpeg".into()));
+		assert_eq!(guess_mime_type(url5), Some("image/png".into()));
 	}
 }
