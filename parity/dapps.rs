@@ -110,7 +110,7 @@ mod server {
 
 	use rpc_apis;
 	use ethcore_rpc::is_major_importing;
-	use ethcore_dapps::ContractClient;
+	use hash_fetch::urlhint::ContractClient;
 
 	pub use ethcore_dapps::Server as WebappServer;
 
