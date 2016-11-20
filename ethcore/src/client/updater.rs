@@ -16,12 +16,16 @@
 
 use std::sync::Weak;
 use util::misc::code_hash;
-use util::Address;
+use util::{Address, H160};
 use client::operations::Operations;
 use client::client::Client;
 
 pub struct Updater {
 	operations: Operations,
+}
+
+fn platform() -> &'static str {
+	"linux_x64"
 }
 
 impl Updater {
@@ -32,13 +36,24 @@ impl Updater {
 	}
 
 	pub fn tick(&mut self) {
-		match self.operations.is_latest("par", &code_hash().into()) {
-			Ok(res) => {
-				info!("isLatest returned {}", res);
-			},
-			Err(e) => {
-				warn!(target: "dapps", "Error while calling Operations.isLatest: {:?}", e);
-			}
-		}
+		(|| -> Result<(), String> {
+			let code_hash = H160::from("0x080ec8043f41e25ee8aa4ee6112906ac6d82ea74").into();//code_hash().into();
+			let client = "parity";
+
+			let (fork, track, semver) = self.operations.find_release(client, &code_hash)?;
+			let track_name = match track { 1 => "stable", 2 => "beta", 3 => "nightly", _ => "unknown" };
+			info!(target: "updater", "Current release ({}) is {}.{}.{}-{} and latest fork it supports is at block #{}", H160::from(code_hash), semver >> 16, (semver >> 8) & 0xff, semver & 0xff, track_name, fork);
+
+			let latest_fork = self.operations.latest_fork()?;
+			info!(target: "updater", "Latest fork is at block #{}", latest_fork);
+
+			let latest = self.operations.latest_in_track(client, track)?;
+			let (fork, _, semver) = self.operations.find_release(client, &latest)?;
+			info!(target: "updater", "Latest release in our track is {}.{}.{}-{} ({:?}); supports fork at block #{}", semver >> 16, (semver >> 8) & 0xff, semver & 0xff, track_name, H160::from(latest), fork);
+
+			let exe_hash = self.operations.find_checksum(client, &latest, platform())?;
+			info!(target: "updater", "Latest release's binary on {} is {}", platform(), exe_hash);
+			Ok(())
+		})().unwrap_or_else(|e| warn!("{}", e));
 	}
 }
