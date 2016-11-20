@@ -24,6 +24,7 @@ use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
+use hash_fetch::urlhint::{URLHintContract, URLHint, URLHintResult};
 
 use hyper;
 use hyper::status::StatusCode;
@@ -37,7 +38,6 @@ use handlers::{ContentHandler, ContentFetcherHandler, ContentValidator};
 use endpoint::{Endpoint, EndpointPath, Handler};
 use apps::cache::{ContentCache, ContentStatus};
 use apps::manifest::{MANIFEST_FILENAME, deserialize_manifest, serialize_manifest, Manifest};
-use apps::urlhint::{URLHintContract, URLHint, URLHintResult};
 
 /// Limit of cached dapps/content
 const MAX_CACHED_DAPPS: usize = 20;
@@ -402,10 +402,11 @@ mod tests {
 	use std::env;
 	use std::sync::Arc;
 	use util::Bytes;
+	use hash_fetch::urlhint::{URLHint, URLHintResult};
+
+	use apps::cache::ContentStatus;
 	use endpoint::EndpointInfo;
 	use page::LocalPageEndpoint;
-	use apps::cache::ContentStatus;
-	use apps::urlhint::{URLHint, URLHintResult};
 	use super::ContentFetcher;
 
 	struct FakeResolver;

@@ -92,8 +92,8 @@ pub struct URLHintContract {
 
 impl URLHintContract {
 	pub fn new(client: Arc<ContractClient>) -> Self {
-		let urlhint = Interface::load(include_bytes!("./urlhint.json")).expect("urlhint.json is valid ABI");
-		let registrar = Interface::load(include_bytes!("./registrar.json")).expect("registrar.json is valid ABI");
+		let urlhint = Interface::load(include_bytes!("../res/urlhint.json")).expect("urlhint.json is valid ABI");
+		let registrar = Interface::load(include_bytes!("../res/registrar.json")).expect("registrar.json is valid ABI");
 
 		URLHintContract {
 			urlhint: Contract::new(urlhint),
