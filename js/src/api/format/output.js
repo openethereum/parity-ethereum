@@ -254,3 +254,25 @@ export function outTrace (trace) {
 
   return trace;
 }
+
+export function outTraces (traces) {
+  if (traces) {
+    return traces.map(outTrace);
+  }
+
+  return traces;
+}
+
+export function outTraceReplay (trace) {
+  if (trace) {
+    Object.keys(trace).forEach((key) => {
+      switch (key) {
+        case 'trace':
+          trace[key] = outTraces(trace[key]);
+          break;
+      }
+    });
+  }
+
+  return trace;
+}

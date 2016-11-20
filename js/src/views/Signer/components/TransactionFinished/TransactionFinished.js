@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import nullable from '../../../../util/nullable-proptype';
 
 import CircularProgress from 'material-ui/CircularProgress';
 
@@ -28,8 +29,6 @@ import styles from './TransactionFinished.css';
 
 import * as tUtil from '../util/transaction';
 import { capitalize } from '../util/util';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class TransactionFinished extends Component {
   static contextTypes = {

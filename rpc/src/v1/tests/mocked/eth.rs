@@ -18,8 +18,10 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Instant, Duration};
+use rustc_serialize::hex::ToHex;
+use time::get_time;
 use rlp;
-use jsonrpc_core::IoHandler;
+
 use util::{Uint, U256, Address, H256, FixedHash, Mutex};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::{TestBlockChainClient, EachBlockWith, Executed, TransactionID};
@@ -28,10 +30,10 @@ use ethcore::receipt::LocalizedReceipt;
 use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
+
+use jsonrpc_core::IoHandler;
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
-use rustc_serialize::hex::ToHex;
-use time::get_time;
 
 fn blockchain_client() -> Arc<TestBlockChainClient> {
 	let client = TestBlockChainClient::new();
@@ -798,9 +800,25 @@ fn rpc_eth_sign_transaction() {
 	};
 	let signature = tester.accounts_provider.sign(address, None, t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
+	let signature = t.signature();
 	let rlp = rlp::encode(&t);
 
-	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:?}\",", &address) +
+		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
+		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		r#""input":"0x","nonce":"0x1","# +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
+		&format!("\"r\":\"0x{}\",", signature.r().to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{}\",", signature.s().to_hex()) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":{},", signature.v()) +
+		r#""value":"0x9184e72a""# +
+		r#"}},"id":1}"#;
 
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
 

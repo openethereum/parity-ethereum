@@ -268,16 +268,32 @@ fn should_add_sign_transaction_to_the_queue() {
 	};
 	let signature = tester.accounts.sign(address, Some("test".into()), t.hash(None)).unwrap();
 	let t = t.with_signature(signature, None);
+	let signature = t.signature();
 	let rlp = rlp::encode(&t);
 
-	let response = r#"{"jsonrpc":"2.0","result":"0x"#.to_owned() + &rlp.to_hex() + r#"","id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"#.to_owned() +
+		r#""raw":"0x"# + &rlp.to_hex() + r#"","# +
+		r#""tx":{"# +
+		r#""blockHash":null,"blockNumber":null,"creates":null,"# +
+		&format!("\"from\":\"0x{:?}\",", &address) +
+		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
+		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
+		r#""input":"0x","nonce":"0x1","# +
+		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
+		&format!("\"r\":\"0x{}\",", signature.r().to_hex()) +
+		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
+		&format!("\"s\":\"0x{}\",", signature.s().to_hex()) +
+		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
+		&format!("\"v\":{},", signature.v()) +
+		r#""value":"0x9184e72a""# +
+		r#"}},"id":1}"#;
 
 	// then
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
 	let async_result = tester.io.handle_request(&request).unwrap();
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
-	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(rlp.to_vec().into())));
+	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(t.into())));
 	assert!(async_result.on_result(move |res| {
 		assert_eq!(res, response.to_owned());
 	}));

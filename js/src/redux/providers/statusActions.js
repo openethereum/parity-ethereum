@@ -47,3 +47,10 @@ export function clearStatusLogs () {
     type: 'clearStatusLogs'
   };
 }
+
+export function toggleStatusRefresh (refreshStatus) {
+  return {
+    type: 'toggleStatusRefresh',
+    refreshStatus
+  };
+}

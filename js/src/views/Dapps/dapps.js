@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
 
 import { Actionbar, Page } from '../../ui';
@@ -37,6 +38,24 @@ export default class Dapps extends Component {
   store = new DappsStore(this.context.api);
 
   render () {
+    let externalOverlay = null;
+    if (this.store.externalOverlayVisible) {
+      externalOverlay = (
+        <div className={ styles.overlay }>
+          <div className={ styles.body }>
+            <div>Applications made available on the network by 3rd-party authors are not affiliated with Parity nor are they published by Parity. Each remain under the control of their respective authors. Please ensure that you understand the goals for each before interacting.</div>
+            <div>
+              <Checkbox
+                className={ styles.accept }
+                label='I understand that these applications are not affiliated with Parity'
+                checked={ false }
+                onCheck={ this.onClickAcceptExternal } />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div>
         <AddDapps store={ this.store } />
@@ -53,10 +72,23 @@ export default class Dapps extends Component {
           ] }
         />
         <Page>
-          <div className={ styles.list }>
-            { this.store.visible.map(this.renderApp) }
-          </div>
+          { this.renderList(this.store.visibleLocal) }
+          { this.renderList(this.store.visibleBuiltin) }
+          { this.renderList(this.store.visibleNetwork, externalOverlay) }
         </Page>
+      </div>
+    );
+  }
+
+  renderList (items, overlay) {
+    if (!items || !items.length) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.list }>
+        { overlay }
+        { items.map(this.renderApp) }
       </div>
     );
   }
@@ -69,5 +101,9 @@ export default class Dapps extends Component {
         <Summary app={ app } />
       </div>
     );
+  }
+
+  onClickAcceptExternal = () => {
+    this.store.closeExternalOverlay();
   }
 }

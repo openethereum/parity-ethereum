@@ -21,6 +21,7 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
+use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
 use client::TransactionImportResult;
@@ -577,7 +578,16 @@ impl Miner {
 
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
+		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
+			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
+					Ok(()) => true,
+					Err(e) => {
+						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
+						false
+					}
+				}
+			)
 			.map(|tx| {
 				let origin = accounts.as_ref().and_then(|accounts| {
 					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {

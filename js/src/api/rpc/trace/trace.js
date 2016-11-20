@@ -14,35 +14,53 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { inBlockNumber, inHex, inNumber16, inTraceFilter } from '../../format/input';
-import { outTrace } from '../../format/output';
+import { inBlockNumber, inData, inHex, inNumber16, inOptions, inTraceFilter, inTraceType } from '../../format/input';
+import { outTraces, outTraceReplay } from '../../format/output';
 
 export default class Trace {
   constructor (transport) {
     this._transport = transport;
   }
 
+  block (blockNumber = 'latest') {
+    return this._transport
+      .execute('trace_block', inBlockNumber(blockNumber))
+      .then(outTraces);
+  }
+
+  call (options, blockNumber = 'latest', whatTrace = ['trace']) {
+    return this._transport
+      .execute('trace_call', inOptions(options), inBlockNumber(blockNumber), inTraceType(whatTrace))
+      .then(outTraceReplay);
+  }
+
   filter (filterObj) {
     return this._transport
       .execute('trace_filter', inTraceFilter(filterObj))
-      .then(traces => traces.map(trace => outTrace(trace)));
+      .then(outTraces);
   }
 
   get (txHash, position) {
     return this._transport
       .execute('trace_get', inHex(txHash), inNumber16(position))
-      .then(trace => outTrace(trace));
+      .then(outTraces);
+  }
+
+  rawTransaction (data, whatTrace = ['trace']) {
+    return this._transport
+      .execute('trace_rawTransaction', inData(data), inTraceType(whatTrace))
+      .then(outTraceReplay);
+  }
+
+  replayTransaction (txHash, whatTrace = ['trace']) {
+    return this._transport
+      .execute('trace_replayTransaction', txHash, inTraceType(whatTrace))
+      .then(outTraceReplay);
   }
 
   transaction (txHash) {
     return this._transport
       .execute('trace_transaction', inHex(txHash))
-      .then(traces => traces.map(trace => outTrace(trace)));
-  }
-
-  block (blockNumber = 'latest') {
-    return this._transport
-      .execute('trace_block', inBlockNumber(blockNumber))
-      .then(traces => traces.map(trace => outTrace(trace)));
+      .then(outTraces);
   }
 }
