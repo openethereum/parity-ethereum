@@ -14,11 +14,17 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { initLocales, setLocale } from './i18n';
-import Translate from './translate';
+import React, { Component, PropTypes } from 'react';
+import { Translate as I18NTranslate } from 'react-i18nify';
 
-export {
-  initLocales,
-  setLocale,
-  Translate
-};
+export default class Translate extends Component {
+  static propTypes = {
+    value: PropTypes.string.isRequired
+  }
+
+  render () {
+    return (
+      <I18NTranslate { ...this.props } />
+    );
+  }
+}

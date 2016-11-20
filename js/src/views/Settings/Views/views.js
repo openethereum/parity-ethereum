@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Translate } from 'react-i18nify';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
+import { Translate } from '../../../i18n';
 import { Container, ContainerTitle } from '../../../ui';
 
 import { toggleView } from '../actions';

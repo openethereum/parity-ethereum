@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Translate } from 'react-i18nify';
 import { MenuItem } from 'material-ui';
 
+import { Translate } from '../../../i18n';
 import { Select, Container, ContainerTitle } from '../../../ui';
 
 import layout from '../layout.css';

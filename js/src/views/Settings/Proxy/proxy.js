@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Translate } from 'react-i18nify';
 
+import { Translate } from '../../../i18n';
 import { Container, ContainerTitle } from '../../../ui';
 
 import layout from '../layout.css';

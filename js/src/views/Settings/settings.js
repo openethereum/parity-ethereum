@@ -15,12 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Translate } from 'react-i18nify';
 import { Tab, Tabs } from 'material-ui';
 import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
 import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
 import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
+import { Translate } from '../../i18n';
 import { Actionbar, Page } from '../../ui';
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 
