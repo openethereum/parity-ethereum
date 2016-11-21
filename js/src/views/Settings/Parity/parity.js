@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container, ContainerTitle, Translate } from '../../../ui';
+import { Select, Container, ContainerTitle, LanguageSelector, Translate } from '../../../ui';
 
 import layout from '../layout.css';
 
@@ -47,6 +47,7 @@ export default class Parity extends Component {
             <div><Translate value='settings.parity.overview_0' /></div>
           </div>
           <div className={ layout.details }>
+            <LanguageSelector />
             { this.renderModes() }
           </div>
         </div>
