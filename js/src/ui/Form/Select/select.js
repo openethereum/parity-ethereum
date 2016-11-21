@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { SelectField } from 'material-ui';
 
+import { nodeOrString } from '../../../util/proptypes';
+
 // TODO: duplicated in Input
 const UNDERLINE_DISABLED = {
   borderColor: 'rgba(255, 255, 255, 0.298039)' // 'transparent' // 'rgba(255, 255, 255, 0.298039)'
@@ -33,9 +35,9 @@ export default class Select extends Component {
     children: PropTypes.node,
     className: PropTypes.string,
     disabled: PropTypes.bool,
-    error: PropTypes.string,
-    hint: PropTypes.string,
-    label: PropTypes.string,
+    error: nodeOrString(),
+    hint: nodeOrString(),
+    label: nodeOrString(),
     onBlur: PropTypes.func,
     onChange: PropTypes.func,
     onKeyDown: PropTypes.func,

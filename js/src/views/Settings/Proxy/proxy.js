@@ -16,8 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Translate } from '../../../i18n';
-import { Container, ContainerTitle } from '../../../ui';
+import { Container, ContainerTitle, Translate } from '../../../ui';
 
 import layout from '../layout.css';
 import styles from './proxy.css';

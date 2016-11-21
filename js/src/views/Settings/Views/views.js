@@ -19,8 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
-import { Translate } from '../../../i18n';
-import { Container, ContainerTitle } from '../../../ui';
+import { Container, ContainerTitle, Translate } from '../../../ui';
 
 import { toggleView } from '../actions';
 

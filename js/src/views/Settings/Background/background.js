@@ -19,8 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Translate } from '../../../i18n';
-import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
+import { Button, Container, ContainerTitle, ParityBackground, Translate } from '../../../ui';
 
 import { updateBackground } from '../actions';
 

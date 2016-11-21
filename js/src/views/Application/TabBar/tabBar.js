@@ -20,8 +20,7 @@ import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tabs, Tab } from 'material-ui/Tabs';
 
-import { Translate } from '../../../i18n';
-import { Badge, Tooltip } from '../../../ui';
+import { Badge, Tooltip, Translate } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
