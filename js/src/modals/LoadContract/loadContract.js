@@ -174,7 +174,7 @@ export default class LoadContract extends Component {
         const secondaryText = description || `Saved ${moment(timestamp).fromNow()}`;
         const remove = removable
           ? (
-          <IconButton onClick={ onDelete }>
+          <IconButton onTouchTap={ onDelete }>
             <DeleteIcon />
           </IconButton>
           )
