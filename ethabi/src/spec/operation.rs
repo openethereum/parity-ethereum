@@ -14,6 +14,8 @@ pub enum Operation {
 	Function(Function),
 	/// Contract event.
 	Event(Event),
+	/// Fallback, ignored.
+	Fallback,
 }
 
 impl Deserialize for Operation {
@@ -27,6 +29,7 @@ impl Deserialize for Operation {
 			"constructor" => from_value(v).map(Operation::Constructor),
 			"function" => from_value(v).map(Operation::Function),
 			"event" => from_value(v).map(Operation::Event),
+			"fallback" => Ok(Operation::Fallback),
 			_ => Err(SerdeError::custom("Invalid operation type.")),
 		};
 		result.map_err(|e| D::Error::custom(e.to_string()))
