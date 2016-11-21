@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../util/nullable-proptype';
+import { nullable } from '../../../util/proptypes';
 
 import TxHash from '../../../ui/TxHash';
 import {
