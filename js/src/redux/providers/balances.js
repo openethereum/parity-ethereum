@@ -37,6 +37,7 @@ export default class Balances {
 
     this._accountsInfo = null;
     this._tokenreg = null;
+    this._fetchingTokens = false;
     this._fetchedTokens = false;
 
     this._tokenregSub = null;
@@ -101,11 +102,16 @@ export default class Balances {
   }
 
   _retrieveTokens () {
+    if (this._fetchingTokens) {
+      return;
+    }
+
     if (this._fetchedTokens) {
       return this._retrieveBalances();
     }
 
-    this._fetchedTokens = true;
+    this._fetchingTokens = true;
+    this._fetchedTokens = false;
 
     this
       .getTokenRegistry()
@@ -123,6 +129,9 @@ export default class Balances {
           });
       })
       .then(() => {
+        this._fetchingTokens = false;
+        this._fetchedTokens = true;
+
         this._store.dispatch(getTokens(this._tokens));
         this._retrieveBalances();
       })

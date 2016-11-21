@@ -21,18 +21,35 @@ export const checkIfVerified = (contract, account) => {
 };
 
 export const checkIfRequested = (contract, account) => {
+  let subId = null;
+  let resolved = false;
+
   return new Promise((resolve, reject) => {
-    contract.subscribe('Requested', {
-      fromBlock: 0, toBlock: 'pending'
-    }, (err, logs) => {
-      if (err) {
-        return reject(err);
-      }
-      const e = logs.find((l) => {
-        return l.type === 'mined' && l.params.who && l.params.who.value === account;
+    contract
+      .subscribe('Requested', {
+        fromBlock: 0, toBlock: 'pending'
+      }, (err, logs) => {
+        if (err) {
+          return reject(err);
+        }
+        const e = logs.find((l) => {
+          return l.type === 'mined' && l.params.who && l.params.who.value === account;
+        });
+
+        resolve(e ? e.transactionHash : false);
+        resolved = true;
+
+        if (subId) {
+          contract.unsubscribe(subId);
+        }
+      })
+      .then((_subId) => {
+        subId = _subId;
+
+        if (resolved) {
+          contract.unsubscribe(subId);
+        }
       });
-      resolve(e ? e.transactionHash : false);
-    });
   });
 };
 
