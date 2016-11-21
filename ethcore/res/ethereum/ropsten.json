@@ -8,7 +8,7 @@
 				"difficultyBoundDivisor": "0x0800",
 				"durationLimit": "0x0d",
 				"blockReward": "0x4563918244F40000",
-				"registrar": "0xaebeaee2e84183d24b60df7cbf793b176ff77a8d",
+				"registrar": "0x5340e74cda65bc0de4d45908fc288cf99fdb2f9a",
 				"homesteadTransition": 0,
 				"eip150Transition": 0,
 				"eip155Transition": 10,
