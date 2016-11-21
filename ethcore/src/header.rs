@@ -228,8 +228,7 @@ impl Header {
 	// TODO: make these functions traity
 	/// Place this header into an RLP stream `s`, optionally `with_seal`.
 	pub fn stream_rlp(&self, s: &mut RlpStream, with_seal: Seal) {
-		let seal_n = match with_seal { Seal::With => self.seal.len(), Seal::WithSome(n) => n, _ => 0 };
-		s.begin_list(13 + seal_n);
+		s.begin_list(13 + match with_seal { Seal::With => self.seal.len(), _ => 0 });
 		s.append(&self.parent_hash);
 		s.append(&self.uncles_hash);
 		s.append(&self.author);
@@ -243,8 +242,10 @@ impl Header {
 		s.append(&self.gas_used);
 		s.append(&self.timestamp);
 		s.append(&self.extra_data);
-		for b in self.seal.iter().take(seal_n) {
-			s.append_raw(b, 1);
+		if let Seal::With = with_seal {
+			for b in &self.seal {
+				s.append_raw(b, 1);
+			}
 		}
 	}
 

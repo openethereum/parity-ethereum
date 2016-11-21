@@ -25,12 +25,10 @@ pub type LogBloom = H2048;
 pub static ZERO_LOGBLOOM: LogBloom = H2048([0x00; 256]);
 
 #[cfg_attr(feature="dev", allow(enum_variant_names))]
-/// Enum for when a seal/signature is included.
+/// Semantic boolean for when a seal/signature is included.
 pub enum Seal {
 	/// The seal/signature is included.
 	With,
 	/// The seal/signature is not included.
 	Without,
-	/// First N fields of seal are included.
-	WithSome(usize),
 }
