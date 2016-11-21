@@ -66,20 +66,20 @@ impl Default for Config {
 
 struct VerifierHandle {
 	deleting: Arc<AtomicBool>,
-	sleep: Arc<(Mutex<bool>, Condvar)>,
+	sleep: Arc<AtomicBool>,
 	thread: JoinHandle<()>,
 }
 
 impl VerifierHandle {
 	// signal to the verifier thread that it should sleep.
 	fn sleep(&self) {
-		*self.sleep.0.lock() = true;
+		self.sleep.store(true, AtomicOrdering::SeqCst);
 	}
 
 	// signal to the verifier thread that it should wake up.
 	fn wake_up(&self) {
-		*self.sleep.0.lock() = false;
-		self.sleep.1.notify_all();
+		self.sleep.store(false, AtomicOrdering::SeqCst);
+		self.thread.thread().unpark();
 	}
 
 	// signal to the verifier thread that it should conclude its
@@ -91,7 +91,7 @@ impl VerifierHandle {
 
 	// join the verifier thread.
 	fn join(self) {
-		self.thread.join().unwrap();
+		self.thread.join().expect("Verifier thread panicked");
 	}
 }
 
@@ -241,9 +241,9 @@ impl<K: Kind> VerificationQueue<K> {
 
 			// enable only the first few verifiers.
 			let sleep = if i < default_amount {
-				Arc::new((Mutex::new(false), Condvar::new()))
+				Arc::new(AtomicBool::new(false))
 			} else {
-				Arc::new((Mutex::new(true), Condvar::new()))
+				Arc::new(AtomicBool::new(true))
 			};
 
 			verifiers.push(VerifierHandle {
@@ -283,14 +283,13 @@ impl<K: Kind> VerificationQueue<K> {
 		ready: Arc<QueueSignal>,
 		deleting: Arc<AtomicBool>,
 		empty: Arc<SCondvar>,
-		sleep: Arc<(Mutex<bool>, Condvar)>,
+		sleep: Arc<AtomicBool>,
 	) {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
-				let mut should_sleep = sleep.0.lock();
-				while *should_sleep {
+				while sleep.load(AtomicOrdering::SeqCst) {
 					trace!(target: "verification", "Verifier sleeping");
-					sleep.1.wait(&mut should_sleep);
+					::std::thread::park();
 					trace!(target: "verification", "Verifier waking up");
 
 					if deleting.load(AtomicOrdering::Acquire) {
