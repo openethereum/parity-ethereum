@@ -32,7 +32,7 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic, expanse or
+                           homestead, mainnet, ropsten, morden, classic, expanse or
                            testnet (default: {flag_chain}).
   -d --db-path PATH        Specify the database & configuration directory path
                            (default: {flag_db_path}).
