@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container, ContainerTitle, Tags } from '../../../ui';
 
 import styles from './summary.css';
 
@@ -49,6 +49,7 @@ export default class Summary extends Component {
     return (
       <Container className={ styles.container }>
         { image }
+        <Tags tags={ [app.type] } />
         <div className={ styles.description }>
           <ContainerTitle
             className={ styles.title }

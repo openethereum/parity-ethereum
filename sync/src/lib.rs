@@ -52,6 +52,7 @@ mod block_sync;
 mod sync_io;
 mod infinity;
 mod snapshot;
+mod transactions_stats;
 
 #[cfg(test)]
 mod tests;
@@ -62,7 +63,7 @@ mod api {
 }
 
 pub use api::{EthSync, SyncProvider, SyncClient, NetworkManagerClient, ManageNetwork, SyncConfig,
-	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP};
+	ServiceConfiguration, NetworkConfiguration, PeerInfo, AllowIP, TransactionStats};
 pub use chain::{SyncStatus, SyncState};
 pub use network::{is_valid_node_url, NonReservedPeerMode, NetworkError};
 

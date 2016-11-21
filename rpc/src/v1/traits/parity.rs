@@ -19,7 +19,11 @@ use jsonrpc_core::Error;
 
 use std::collections::BTreeMap;
 use v1::helpers::auto_args::Wrap;
-use v1::types::{H160, H256, H512, U256, Bytes, Peers, Transaction, RpcSettings, Histogram};
+use v1::types::{
+	H160, H256, H512, U256, Bytes,
+	Peers, Transaction, RpcSettings, Histogram,
+	TransactionStats, LocalTransactionStatus,
+};
 
 build_rpc_trait! {
 	/// Parity-specific rpc interface.
@@ -114,6 +118,14 @@ build_rpc_trait! {
 		/// Returns all pending transactions from transaction queue.
 		#[rpc(name = "parity_pendingTransactions")]
 		fn pending_transactions(&self) -> Result<Vec<Transaction>, Error>;
+
+		/// Returns propagation statistics on transactions pending in the queue.
+		#[rpc(name = "parity_pendingTransactionsStats")]
+		fn pending_transactions_stats(&self) -> Result<BTreeMap<H256, TransactionStats>, Error>;
+
+		/// Returns a list of current and past local transactions with status details.
+		#[rpc(name = "parity_localTransactions")]
+		fn local_transactions(&self) -> Result<BTreeMap<H256, LocalTransactionStatus>, Error>;
 
 		/// Returns current Trusted Signer port or an error if signer is disabled.
 		#[rpc(name = "parity_signerPort")]

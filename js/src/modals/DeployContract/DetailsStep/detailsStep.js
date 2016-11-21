@@ -103,7 +103,7 @@ export default class DetailsStep extends Component {
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
-          value={ name }
+          value={ name || '' }
           onChange={ this.onNameChange } />
 
         <Input
@@ -168,6 +168,10 @@ export default class DetailsStep extends Component {
     const { contracts } = this.state;
     const contractName = Object.keys(contracts)[index];
     const contract = contracts[contractName];
+
+    if (!this.props.name || this.props.name.trim() === '') {
+      this.onNameChange(null, contractName);
+    }
 
     const { abi, bin } = contract;
     const code = /^0x/.test(bin) ? bin : `0x${bin}`;
