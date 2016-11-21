@@ -119,6 +119,16 @@ impl TestBlockChainClient {
 	/// Creates new test client with specified extra data for each block
 	pub fn new_with_extra_data(extra_data: Bytes) -> Self {
 		let spec = Spec::new_test();
+		TestBlockChainClient::new_with_spec_and_extra(spec, extra_data)
+	}
+
+	/// Create test client with custom spec.
+	pub fn new_with_spec(spec: Spec) -> Self {
+		TestBlockChainClient::new_with_spec_and_extra(spec, Bytes::new())
+	}
+
+	/// Create test client with custom spec and extra data.
+	pub fn new_with_spec_and_extra(spec: Spec, extra_data: Bytes) -> Self {
 		let mut client = TestBlockChainClient {
 			blocks: RwLock::new(HashMap::new()),
 			numbers: RwLock::new(HashMap::new()),
@@ -315,7 +325,7 @@ pub fn get_temp_state_db() -> GuardedTempResult<StateDB> {
 
 impl MiningBlockChainClient for TestBlockChainClient {
 	fn latest_schedule(&self) -> Schedule {
-		Schedule::new_post_eip150(true, true, true)
+		Schedule::new_post_eip150(24576, true, true, true)
 	}
 
 	fn prepare_open_block(&self, author: Address, gas_range_target: (U256, U256), extra_data: Bytes) -> OpenBlock {

@@ -106,15 +106,21 @@ export default class AddressSelect extends Component {
   }
 
   renderIdentityIcon (inputValue) {
-    const { error, value } = this.props;
+    const { error, value, label } = this.props;
 
     if (error || !inputValue || value.length !== 42) {
       return null;
     }
 
+    const classes = [ styles.icon ];
+
+    if (!label) {
+      classes.push(styles.noLabel);
+    }
+
     return (
       <IdentityIcon
-        className={ styles.icon }
+        className={ classes.join(' ') }
         inline center
         address={ value } />
     );

@@ -16,8 +16,9 @@
 
 //! Test implementation of SyncProvider.
 
-use util::{RwLock};
-use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo};
+use std::collections::BTreeMap;
+use util::{H256, RwLock};
+use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo, TransactionStats};
 
 /// TestSyncProvider config.
 pub struct Config {
@@ -74,7 +75,7 @@ impl SyncProvider for TestSyncProvider {
 			PeerInfo {
 				id: Some("node1".to_owned()),
     			client_version: "Parity/1".to_owned(),
-				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()], 
+				capabilities: vec!["eth/62".to_owned(), "eth/63".to_owned()],
     			remote_address: "127.0.0.1:7777".to_owned(),
 				local_address: "127.0.0.1:8888".to_owned(),
 				eth_version: 62,
@@ -84,7 +85,7 @@ impl SyncProvider for TestSyncProvider {
 			PeerInfo {
 				id: None,
     			client_version: "Parity/2".to_owned(),
-				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()], 
+				capabilities: vec!["eth/63".to_owned(), "eth/64".to_owned()],
     			remote_address: "Handshake".to_owned(),
 				local_address: "127.0.0.1:3333".to_owned(),
 				eth_version: 64,
@@ -96,6 +97,23 @@ impl SyncProvider for TestSyncProvider {
 
 	fn enode(&self) -> Option<String> {
 		None
+	}
+
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
+		map![
+			1.into() => TransactionStats {
+				first_seen: 10,
+				propagated_to: map![
+					128.into() => 16
+				]
+			},
+			5.into() => TransactionStats {
+				first_seen: 16,
+				propagated_to: map![
+					16.into() => 1
+				]
+			}
+		]
 	}
 }
 

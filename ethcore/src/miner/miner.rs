@@ -21,8 +21,10 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
+use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
 use error::*;
@@ -33,8 +35,8 @@ use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
-use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
+use miner::local_transactions::{Status as LocalTransactionStatus};
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -212,7 +214,8 @@ pub struct Miner {
 	sealing_block_last_request: Mutex<u64>,
 	// for sealing...
 	options: MinerOptions,
-	seals_internally: bool,
+	/// Does the node perform internal (without work) sealing.
+	pub seals_internally: bool,
 
 	gas_range_target: RwLock<(U256, U256)>,
 	author: RwLock<Address>,
@@ -265,6 +268,11 @@ impl Miner {
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
 		}
+	}
+
+	/// Creates new instance of miner with accounts and with given spec.
+	pub fn with_spec_and_accounts(spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, accounts)
 	}
 
 	/// Creates new instance of miner without accounts, but with given spec.
@@ -429,6 +437,7 @@ impl Miner {
 			let last_request = *self.sealing_block_last_request.lock();
 			let should_disable_sealing = !self.forced_sealing()
 				&& !has_local_transactions
+				&& !self.seals_internally
 				&& best_block > last_request
 				&& best_block - last_request > SEALING_TIMEOUT_IN_BLOCKS;
 
@@ -472,9 +481,10 @@ impl Miner {
 
 	/// Uses Engine to seal the block internally and then imports it to chain.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
-		if !block.transactions().is_empty() {
+		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+					trace!(target: "miner", "import_block_internally: imported internally sealed block");
 					return true
 				}
 			}
@@ -554,7 +564,7 @@ impl Miner {
 		prepare_new
 	}
 
-	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, default_origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
 		Vec<Result<TransactionImportResult, Error>> {
 
 		let fetch_account = |a: &Address| AccountDetails {
@@ -562,15 +572,37 @@ impl Miner {
 			balance: chain.latest_balance(a),
 		};
 
+		let accounts = self.accounts.as_ref()
+			.and_then(|provider| provider.accounts().ok())
+			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
+
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
+		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
-			.map(|tx| match origin {
-				TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-					transaction_queue.add(tx, origin, &fetch_account, &gas_required)
-				},
-				TransactionOrigin::External => {
-					transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
+					Ok(()) => true,
+					Err(e) => {
+						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
+						false
+					}
+				}
+			)
+			.map(|tx| {
+				let origin = accounts.as_ref().and_then(|accounts| {
+					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
+						true => Some(TransactionOrigin::Local),
+						false => None,
+					})
+				}).unwrap_or(default_origin);
+
+				match origin {
+					TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+						transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+					},
+					TransactionOrigin::External => {
+						transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+					}
 				}
 			})
 			.collect()
@@ -773,7 +805,7 @@ impl MinerService for Miner {
 		chain: &MiningBlockChainClient,
 		transactions: Vec<SignedTransaction>
 	) -> Vec<Result<TransactionImportResult, Error>> {
-
+		trace!(target: "external_tx", "Importing external transactions");
 		let results = {
 			let mut transaction_queue = self.transaction_queue.lock();
 			self.add_transactions_to_queue(
@@ -843,6 +875,14 @@ impl MinerService for Miner {
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
 		queue.top_transactions()
+	}
+
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		let queue = self.transaction_queue.lock();
+		queue.local_transactions()
+			.iter()
+			.map(|(hash, status)| (*hash, status.clone()))
+			.collect()
 	}
 
 	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {

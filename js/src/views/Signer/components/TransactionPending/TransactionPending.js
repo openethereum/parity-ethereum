@@ -16,7 +16,6 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import CircularProgress from 'material-ui/CircularProgress';
 import TransactionMainDetails from '../TransactionMainDetails';
 import TransactionPendingForm from '../TransactionPendingForm';
 import TransactionSecondaryDetails from '../TransactionSecondaryDetails';
@@ -43,7 +42,8 @@ export default class TransactionPending extends Component {
     onConfirm: PropTypes.func.isRequired,
     onReject: PropTypes.func.isRequired,
     isSending: PropTypes.bool.isRequired,
-    className: PropTypes.string
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired
   };
 
   static defaultProps = {
@@ -51,7 +51,6 @@ export default class TransactionPending extends Component {
   };
 
   state = {
-    chain: null,
     fromBalance: null,
     toBalance: null
   };
@@ -64,28 +63,12 @@ export default class TransactionPending extends Component {
     const gasToDisplay = tUtil.getGasDisplay(gas);
     this.setState({ gasPriceEthmDisplay, totalValue, gasToDisplay });
 
-    this.context.api.parity.netChain()
-      .then((chain) => {
-        this.setState({ chain });
-      })
-      .catch((err) => {
-        console.error('could not fetch chain', err);
-      });
-
     const { from, to } = this.props;
     this.fetchBalance(from, 'fromBalance');
     if (to) this.fetchBalance(to, 'toBalance');
   }
 
   render () {
-    if (!this.state.chain) {
-      return (
-        <div className={ `${styles.container} ${className}` }>
-          <CircularProgress size={ 60 } />
-        </div>
-      );
-    }
-
     const { totalValue, gasPriceEthmDisplay, gasToDisplay } = this.state;
     const { className, id, date, data, from } = this.props;
 

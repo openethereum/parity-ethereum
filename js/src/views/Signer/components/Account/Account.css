@@ -17,6 +17,9 @@
 .acc {
   text-align: center;
   display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .acc > * {
@@ -35,10 +38,13 @@
 }
 
 .name {
-  text-overflow: ellipsis;
-  overflow: hidden;
   white-space: nowrap;
-  display: lock;
+  display: block;
   vertical-align: middle;
   text-transform: uppercase;
+
+  span {
+    text-overflow: ellipsis;
+    overflow: hidden;
+  }
 }

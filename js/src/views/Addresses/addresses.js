@@ -75,6 +75,7 @@ class Addresses extends Component {
     return (
       <ActionbarSort
         key='sortAccounts'
+        id='sortAddresses'
         order={ this.state.sortOrder }
         onChange={ onChange } />
     );
@@ -106,7 +107,7 @@ class Addresses extends Component {
       <ActionbarExport
         key='exportAddressbook'
         content={ contacts }
-        filename='addressbook.json' />,
+        filename='addressbook' />,
 
       <ActionbarImport
         key='importAddressbook'

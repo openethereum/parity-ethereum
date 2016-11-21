@@ -58,6 +58,7 @@ export default class Event extends Component {
         <td className={ styles.description }>
           <div>{ isPending ? '' : coin.tla }</div>
           <div>{ isPending ? '' : coin.name }</div>
+          <div>{ this.renderAddress(event.params.coin) }</div>
         </td>
         <td className={ styles.address }>
           { this.renderAddress(event.params.owner) }

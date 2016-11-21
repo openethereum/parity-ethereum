@@ -17,10 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect, Select } from '../../../ui';
+import { AddressSelect, Form, Input, Select } from '../../../ui';
 import { validateAbi } from '../../../util/validation';
-
-import styles from '../deployContract.css';
+import { parseAbiType } from '../../../util/abi';
 
 export default class DetailsStep extends Component {
   static contextTypes = {
@@ -29,24 +28,26 @@ export default class DetailsStep extends Component {
 
   static propTypes = {
     accounts: PropTypes.object.isRequired,
-    abi: PropTypes.string,
-    abiError: PropTypes.string,
-    code: PropTypes.string,
-    codeError: PropTypes.string,
-    description: PropTypes.string,
-    descriptionError: PropTypes.string,
+
+    onFromAddressChange: PropTypes.func.isRequired,
+    onNameChange: PropTypes.func.isRequired,
+    onDescriptionChange: PropTypes.func.isRequired,
+    onAbiChange: PropTypes.func.isRequired,
+    onCodeChange: PropTypes.func.isRequired,
+    onParamsChange: PropTypes.func.isRequired,
+    onInputsChange: PropTypes.func.isRequired,
+
     fromAddress: PropTypes.string,
     fromAddressError: PropTypes.string,
     name: PropTypes.string,
     nameError: PropTypes.string,
-    params: PropTypes.array,
-    paramsError: PropTypes.array,
-    onAbiChange: PropTypes.func.isRequired,
-    onCodeChange: PropTypes.func.isRequired,
-    onFromAddressChange: PropTypes.func.isRequired,
-    onDescriptionChange: PropTypes.func.isRequired,
-    onNameChange: PropTypes.func.isRequired,
-    onParamsChange: PropTypes.func.isRequired,
+    description: PropTypes.string,
+    descriptionError: PropTypes.string,
+    abi: PropTypes.string,
+    abiError: PropTypes.string,
+    code: PropTypes.string,
+    codeError: PropTypes.string,
+
     readOnly: PropTypes.bool
   };
 
@@ -55,7 +56,9 @@ export default class DetailsStep extends Component {
   };
 
   state = {
-    inputs: []
+    solcOutput: '',
+    contracts: {},
+    selectedContractIndex: 0
   }
 
   componentDidMount () {
@@ -63,6 +66,7 @@ export default class DetailsStep extends Component {
 
     if (abi) {
       this.onAbiChange(abi);
+      this.setState({ solcOutput: abi });
     }
 
     if (code) {
@@ -71,8 +75,19 @@ export default class DetailsStep extends Component {
   }
 
   render () {
-    const { accounts } = this.props;
-    const { abi, abiError, code, codeError, fromAddress, fromAddressError, name, nameError, readOnly } = this.props;
+    const {
+      accounts,
+      readOnly,
+
+      fromAddress, fromAddressError,
+      name, nameError,
+      description, descriptionError,
+      abiError,
+      code, codeError
+    } = this.props;
+
+    const { solcOutput, contracts } = this.state;
+    const solc = contracts && Object.keys(contracts).length > 0;
 
     return (
       <Form>
@@ -83,18 +98,30 @@ export default class DetailsStep extends Component {
           error={ fromAddressError }
           accounts={ accounts }
           onChange={ this.onFromAddressChange } />
+
         <Input
           label='contract name'
           hint='a name for the deployed contract'
           error={ nameError }
-          value={ name }
-          onSubmit={ this.onNameChange } />
+          value={ name || '' }
+          onChange={ this.onNameChange } />
+
         <Input
-          label='abi'
-          hint='the abi of the contract to deploy'
+          label='contract description (optional)'
+          hint='a description for the contract'
+          error={ descriptionError }
+          value={ description }
+          onChange={ this.onDescriptionChange } />
+
+        { this.renderContractSelect() }
+
+        <Input
+          label='abi / solc combined-output'
+          hint='the abi of the contract to deploy or solc combined-output'
           error={ abiError }
-          value={ abi }
-          onSubmit={ this.onAbiChange }
+          value={ solcOutput }
+          onChange={ this.onSolcChange }
+          onSubmit={ this.onSolcSubmit }
           readOnly={ readOnly } />
         <Input
           label='code'
@@ -102,77 +129,85 @@ export default class DetailsStep extends Component {
           error={ codeError }
           value={ code }
           onSubmit={ this.onCodeChange }
-          readOnly={ readOnly } />
-        { this.renderConstructorInputs() }
+          readOnly={ readOnly || solc } />
+
       </Form>
     );
   }
 
-  renderConstructorInputs () {
-    const { accounts, params, paramsError } = this.props;
-    const { inputs } = this.state;
+  renderContractSelect () {
+    const { contracts } = this.state;
 
-    if (!inputs || !inputs.length) {
+    if (!contracts || Object.keys(contracts).length === 0) {
       return null;
     }
 
-    return inputs.map((input, index) => {
-      const onChange = (event, value) => this.onParamChange(index, value);
-      const onChangeBool = (event, _index, value) => this.onParamChange(index, value === 'true');
-      const onSubmit = (value) => this.onParamChange(index, value);
-      const label = `${input.name}: ${input.type}`;
-      let inputBox = null;
+    const { selectedContractIndex } = this.state;
+    const contractsItems = Object.keys(contracts).map((name, index) => (
+      <MenuItem
+        key={ index }
+        label={ name }
+        value={ index }
+      >
+        { name }
+      </MenuItem>
+    ));
 
-      switch (input.type) {
-        case 'address':
-          inputBox = (
-            <InputAddressSelect
-              accounts={ accounts }
-              editing
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onChange={ onChange } />
-          );
-          break;
+    return (
+      <Select
+        label='select a contract'
+        onChange={ this.onContractChange }
+        value={ selectedContractIndex }
+      >
+        { contractsItems }
+      </Select>
+    );
+  }
 
-        case 'bool':
-          const boolitems = ['false', 'true'].map((bool) => {
-            return (
-              <MenuItem
-                key={ bool }
-                value={ bool }
-                label={ bool }>{ bool }</MenuItem>
-            );
-          });
-          inputBox = (
-            <Select
-              label={ label }
-              value={ params[index] ? 'true' : 'false' }
-              error={ paramsError[index] }
-              onChange={ onChangeBool }>
-              { boolitems }
-            </Select>
-          );
-          break;
+  onContractChange = (event, index) => {
+    const { contracts } = this.state;
+    const contractName = Object.keys(contracts)[index];
+    const contract = contracts[contractName];
 
-        default:
-          inputBox = (
-            <Input
-              label={ label }
-              value={ params[index] }
-              error={ paramsError[index] }
-              onSubmit={ onSubmit } />
-            );
-          break;
+    if (!this.props.name || this.props.name.trim() === '') {
+      this.onNameChange(null, contractName);
+    }
+
+    const { abi, bin } = contract;
+    const code = /^0x/.test(bin) ? bin : `0x${bin}`;
+
+    this.setState({ selectedContractIndex: index }, () => {
+      this.onAbiChange(abi);
+      this.onCodeChange(code);
+    });
+  }
+
+  onSolcChange = (event, value) => {
+    // Change triggered only if valid
+    if (this.props.abiError) {
+      return null;
+    }
+
+    this.onSolcSubmit(value);
+  }
+
+  onSolcSubmit = (value) => {
+    try {
+      const solcParsed = JSON.parse(value);
+
+      if (!solcParsed || !solcParsed.contracts) {
+        throw new Error('Wrong solc output');
       }
 
-      return (
-        <div key={ index } className={ styles.funcparams }>
-          { inputBox }
-        </div>
-      );
-    });
+      this.setState({ contracts: solcParsed.contracts }, () => {
+        this.onContractChange(null, 0);
+      });
+    } catch (e) {
+      this.setState({ contracts: null });
+      this.onAbiChange(value);
+    }
+
+    this.setState({ solcOutput: value });
   }
 
   onFromAddressChange = (event, fromAddress) => {
@@ -181,61 +216,39 @@ export default class DetailsStep extends Component {
     onFromAddressChange(fromAddress);
   }
 
-  onNameChange = (name) => {
+  onNameChange = (event, name) => {
     const { onNameChange } = this.props;
 
     onNameChange(name);
   }
 
-  onParamChange = (index, value) => {
-    const { params, onParamsChange } = this.props;
+  onDescriptionChange = (event, description) => {
+    const { onDescriptionChange } = this.props;
 
-    params[index] = value;
-    onParamsChange(params);
+    onDescriptionChange(description);
   }
 
   onAbiChange = (abi) => {
     const { api } = this.context;
-    const { onAbiChange, onParamsChange } = this.props;
+    const { onAbiChange, onParamsChange, onInputsChange } = this.props;
     const { abiError, abiParsed } = validateAbi(abi, api);
 
     if (!abiError) {
-      const { inputs } = abiParsed.find((method) => method.type === 'constructor') || { inputs: [] };
+      const { inputs } = abiParsed
+        .find((method) => method.type === 'constructor') || { inputs: [] };
+
       const params = [];
 
       inputs.forEach((input) => {
-        switch (input.type) {
-          case 'address':
-            params.push('0x');
-            break;
-
-          case 'bool':
-            params.push(false);
-            break;
-
-          case 'bytes':
-            params.push('0x');
-            break;
-
-          case 'uint':
-            params.push('0');
-            break;
-
-          case 'string':
-            params.push('');
-            break;
-
-          default:
-            params.push('0');
-            break;
-        }
+        const param = parseAbiType(input.type);
+        params.push(param.default);
       });
 
       onParamsChange(params);
-      this.setState({ inputs });
+      onInputsChange(inputs);
     } else {
       onParamsChange([]);
-      this.setState({ inputs: [] });
+      onInputsChange([]);
     }
 
     onAbiChange(abi);

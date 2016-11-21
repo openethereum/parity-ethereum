@@ -59,10 +59,13 @@ export default class TransactionSecondaryDetails extends Component {
   }
 
   renderGasPrice () {
-    if (!this.props.gasPriceEthmDisplay && !this.props.gasToDisplay) return null;
+    if (!this.props.gasPriceEthmDisplay && !this.props.gasToDisplay) {
+      return null;
+    }
 
     const { id } = this.props;
     const { gasPriceEthmDisplay, gasToDisplay } = this.props;
+
     return (
       <div
         data-tip
@@ -83,11 +86,14 @@ export default class TransactionSecondaryDetails extends Component {
   }
 
   renderData () {
-    if (!this.props.data) return null;
+    if (!this.props.data) {
+      return null;
+    }
 
     const { data, id } = this.props;
     let dataToDisplay = this.noData() ? 'no data' : tUtil.getShortData(data);
     const noDataClass = this.noData() ? styles.noData : '';
+
     return (
       <div
         className={ `${styles.data} ${noDataClass}` }

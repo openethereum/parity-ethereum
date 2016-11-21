@@ -15,13 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::sync::Arc;
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::io;
 use util::Bytes;
 use network::{NetworkProtocolHandler, NetworkService, NetworkContext, PeerId, ProtocolId,
 	NetworkConfiguration as BasicNetworkConfiguration, NonReservedPeerMode, NetworkError,
 	AllowIP as NetworkAllowIP};
-use util::{U256, H256};
+use util::{U256, H256, H512};
 use io::{TimerToken};
 use ethcore::client::{BlockChainClient, ChainNotify};
 use ethcore::snapshot::SnapshotService;
@@ -76,6 +76,16 @@ pub trait SyncProvider: Send + Sync {
 
 	/// Get the enode if available.
 	fn enode(&self) -> Option<String>;
+
+	/// Returns propagation count for pending transactions.
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats>;
+}
+
+/// Transaction stats
+#[derive(Debug, Binary)]
+pub struct TransactionStats {
+	pub first_seen: u64,
+	pub propagated_to: BTreeMap<H512, usize>,
 }
 
 /// Peer connection information
@@ -149,6 +159,14 @@ impl SyncProvider for EthSync {
 
 	fn enode(&self) -> Option<String> {
 		self.network.external_url()
+	}
+
+	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
+		let sync = self.handler.sync.read();
+		sync.transactions_stats()
+			.iter()
+			.map(|(hash, stats)| (*hash, stats.into()))
+			.collect()
 	}
 }
 

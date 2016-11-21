@@ -25,17 +25,15 @@ const initialState = {
   isLoading: true,
   subscriptionId: null,
   contract: {
-    addres: null,
+    address: null,
     instance: null,
-    raw: null,
     owner: null,
     isOwner: false,
     fee: null
   },
   githubhint: {
     address: null,
-    instance: null,
-    raw: null
+    instance: null
   }
 };
 

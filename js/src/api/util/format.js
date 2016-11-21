@@ -17,3 +17,15 @@
 export function bytesToHex (bytes) {
   return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
 }
+
+export function hex2Ascii (_hex) {
+  const hex = /^(?:0x)?(.*)$/.exec(_hex.toString())[1];
+
+  let str = '';
+
+  for (let i = 0; i < hex.length; i += 2) {
+    str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+  }
+
+  return str;
+}

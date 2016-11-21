@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import nullable from '../../../../util/nullable-proptype';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
 import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
-
-const nullable = (type) => React.PropTypes.oneOfType([ React.PropTypes.oneOf([ null ]), type ]);
 
 export default class SignRequest extends Component {
   static contextTypes = {
@@ -40,24 +39,15 @@ export default class SignRequest extends Component {
     onReject: PropTypes.func,
     status: PropTypes.string,
     className: PropTypes.string,
-    chain: nullable(PropTypes.object),
+    isTest: PropTypes.bool.isRequired,
     balance: nullable(PropTypes.object)
   };
 
   state = {
-    chain: null,
     balance: null
   }
 
   componentWillMount () {
-    this.context.api.parity.netChain()
-      .then((chain) => {
-        this.setState({ chain });
-      })
-      .catch((err) => {
-        console.error('could not fetch chain', err);
-      });
-
     this.context.api.eth.getBalance(this.props.address)
       .then((balance) => {
         this.setState({ balance });
@@ -69,6 +59,7 @@ export default class SignRequest extends Component {
 
   render () {
     const { className } = this.props;
+
     return (
       <div className={ `${styles.container} ${className || ''}` }>
         { this.renderDetails() }
@@ -78,15 +69,20 @@ export default class SignRequest extends Component {
   }
 
   renderDetails () {
-    const { address, hash } = this.props;
-    const { balance, chain } = this.state;
+    const { address, hash, isTest } = this.props;
+    const { balance } = this.state;
 
-    if (!balance || !chain) return (<div />);
+    if (!balance) {
+      return <div />;
+    }
 
     return (
       <div className={ styles.signDetails }>
         <div className={ styles.address }>
-          <Account address={ address } balance={ balance } chain={ chain } />
+          <Account
+            address={ address }
+            balance={ balance }
+            isTest={ isTest } />
         </div>
         <div className={ styles.info } title={ hash }>
           <p>Dapp is requesting to sign arbitrary transaction using this account.</p>
@@ -101,15 +97,17 @@ export default class SignRequest extends Component {
 
     if (isFinished) {
       if (status === 'confirmed') {
-        const { hash } = this.props;
-        const { chain } = this.state;
+        const { hash, isTest } = this.props;
 
         return (
           <div className={ styles.actions }>
             <span className={ styles.isConfirmed }>Confirmed</span>
             <div>
               Transaction hash:
-              <TxHashLink chain={ chain } txHash={ hash } className={ styles.txHash } />
+              <TxHashLink
+                isTest={ isTest }
+                txHash={ hash }
+                className={ styles.txHash } />
             </div>
           </div>
         );
