@@ -255,7 +255,7 @@ impl Engine for AuthorityRound {
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let header_step = try!(header_step(header));
-    // Give one step slack if step is lagging, double vote is still not possible.
+		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step() + 1 {
 			let proposer_signature = try!(header_signature(header));
 			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
