@@ -57,7 +57,7 @@ pub fn new_transition_test() -> Spec { Spec::load(include_bytes!("../../res/ethe
 pub fn new_mainnet_like() -> Spec { Spec::load(include_bytes!("../../res/ethereum/frontier_like_test.json")) }
 
 /// Create a new Ropsten chain spec.
-pub fn new_ropsten() -> Spec { load(include_bytes!("../../res/ethereum/ropsten.json")) }
+pub fn new_ropsten() -> Spec { Spec::load(include_bytes!("../../res/ethereum/ropsten.json")) }
 
 /// Create a new Morden chain spec.
 pub fn new_morden() -> Spec { Spec::load(include_bytes!("../../res/ethereum/morden.json")) }

@@ -294,7 +294,7 @@ impl Configuration {
 
 	fn chain(&self) -> String {
 		if self.args.flag_testnet {
-			"morden".to_owned()
+			"ropsten".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -826,7 +826,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "morden".to_owned(),
+			chain: "ropsten".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),
