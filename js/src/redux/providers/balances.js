@@ -31,12 +31,16 @@ export default class Balances {
   constructor (store, api) {
     this._api = api;
     this._store = store;
-    this._accountsInfo = null;
+
     this._tokens = {};
     this._images = {};
+
+    this._accountsInfo = null;
     this._tokenreg = null;
     this._fetchedTokens = false;
+
     this._tokenregSub = null;
+    this._tokenregMetaSub = null;
   }
 
   start () {
@@ -64,14 +68,11 @@ export default class Balances {
     this._api
       .subscribe('eth_blockNumber', (error) => {
         if (error) {
-          return;
+          return console.warn('_subscribeBlockNumber', error);
         }
 
         this._retrieveTokens();
-
-        if (this._tokenregSub) {
-          this._tokenregSub.fetch();
-        }
+        this.fetchTokensChanges();
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
@@ -135,7 +136,14 @@ export default class Balances {
       return;
     }
 
-    const addresses = Object.keys(this._accountsInfo);
+    const addresses = Object
+      .keys(this._accountsInfo)
+      .filter((address) => {
+        const account = this._accountsInfo[address];
+        return !account.meta || !account.meta.deleted;
+      });
+
+  console.warn(`fetching ${addresses.length} accounts`);
     this._balances = {};
 
     Promise
@@ -152,8 +160,54 @@ export default class Balances {
       });
   }
 
-  attachToTokens () {
+  fetchTokensChanges () {
+    if (this._tokenregMetaSub) {
+      this._tokenregMetaSub.fetch();
+    }
+
     if (this._tokenregSub) {
+      this._tokenregSub.fetch();
+    }
+  }
+
+  attachToTokens () {
+    this.attachToTokenMetaChange();
+    this.attachToNewToken();
+  }
+
+  attachToNewToken () {
+    if (this._tokenregSub) {
+      return;
+    }
+
+    this._tokenreg
+      .instance
+      .Registered
+      .register({
+        fromBlock: 0,
+        toBlock: 'latest'
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToNewToken', 'failed to attacht to tokenreg Registered', error.toString(), error.stack);
+        }
+
+        const promises = logs.map((log) => {
+          const id = log.params.id.value.toNumber();
+          return this.fetchTokenInfo(this._tokenreg, id);
+        });
+
+        return Promise.all(promises);
+      })
+      .then((tokenregSub) => {
+        this._tokenregSub = tokenregSub;
+      })
+      .catch((e) => {
+        console.warn('balances::attachToNewToken', e);
+      });
+  }
+
+  attachToTokenMetaChange () {
+    if (this._tokenregMetaSub) {
       return;
     }
 
@@ -166,7 +220,7 @@ export default class Balances {
         topics: [ null, this._api.util.asciiToHex('IMG') ]
       }, (error, logs) => {
         if (error) {
-          return console.error('balances::attachToToken', 'failed to attacht to token registry', error.toString(), error.stack);
+          return console.error('balances::attachToTokenMetaChange', 'failed to attacht to tokenreg MetaChanged', error.toString(), error.stack);
         }
 
         // In case multiple logs for same token
@@ -195,11 +249,11 @@ export default class Balances {
             }
           });
       })
-      .then((tokenregSub) => {
-        this._tokenregSub = tokenregSub;
+      .then((tokenregMetaSub) => {
+        this._tokenregMetaSub = tokenregMetaSub;
       })
       .catch((e) => {
-        console.warn('balances::attachToTokens', e);
+        console.warn('balances::attachToTokenMetaChange', e);
       });
   }
 
@@ -237,6 +291,12 @@ export default class Balances {
       });
   }
 
+  /**
+   * TODO?: txCount is only shown on an address page, so we
+   * might not need to fetch it for each address for each block,
+   * but only for one address when the user is on the account
+   * view.
+   */
   fetchAccountBalance (address) {
     const _tokens = Object.values(this._tokens);
     const tokensPromises = _tokens
