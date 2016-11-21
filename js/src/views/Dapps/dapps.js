@@ -67,7 +67,7 @@ export default class Dapps extends Component {
               label='edit'
               key='edit'
               icon={ <EyeIcon /> }
-              onClick={ this.store.openModal }
+              onTouchTap={ this.store.openModal }
             />
           ] }
         />

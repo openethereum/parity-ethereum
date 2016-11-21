@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { sha3 } from '../parity.js';
+import { sha3, api } from '../parity.js';
 
 const alreadyQueued = (queue, action, name) =>
   !!queue.find((entry) => entry.action === action && entry.name === name);
@@ -43,14 +43,23 @@ export const reserve = (name) => (dispatch, getState) => {
   const values = [ sha3(name) ];
 
   dispatch(reserveStart(name));
+
   reserve.estimateGas(options, values)
     .then((gas) => {
       options.gas = gas.mul(1.2).toFixed(0);
       return reserve.postTransaction(options, values);
     })
-    .then((data) => {
+    .then((requestId) => {
+      return api.pollMethod('parity_checkRequest', requestId);
+    })
+    .then((txhash) => {
       dispatch(reserveSuccess(name));
-    }).catch((err) => {
+    })
+    .catch((err) => {
+      if (err && err.type === 'REQUEST_REJECTED') {
+        return dispatch(reserveFail(name));
+      }
+
       console.error(`could not reserve ${name}`);
       if (err) console.error(err.stack);
       dispatch(reserveFail(name));
@@ -81,9 +90,17 @@ export const drop = (name) => (dispatch, getState) => {
       options.gas = gas.mul(1.2).toFixed(0);
       return drop.postTransaction(options, values);
     })
-    .then((data) => {
+    .then((requestId) => {
+      return api.pollMethod('parity_checkRequest', requestId);
+    })
+    .then((txhash) => {
       dispatch(dropSuccess(name));
-    }).catch((err) => {
+    })
+    .catch((err) => {
+      if (err && err.type === 'REQUEST_REJECTED') {
+        dispatch(reserveFail(name));
+      }
+
       console.error(`could not drop ${name}`);
       if (err) console.error(err.stack);
       dispatch(reserveFail(name));
