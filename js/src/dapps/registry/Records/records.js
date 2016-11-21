@@ -52,7 +52,7 @@ export default class Records extends Component {
             label='Save'
             primary
             icon={ <SaveIcon /> }
-            onClick={ this.onSaveClick }
+            onTouchTap={ this.onSaveClick }
           />
         </CardText>
       </Card>

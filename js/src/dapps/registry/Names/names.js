@@ -120,7 +120,7 @@ export default class Names extends Component {
             label={ action === 'reserve' ? 'Reserve' : 'Drop' }
             primary
             icon={ <CheckIcon /> }
-            onClick={ this.onSubmitClick }
+            onTouchTap={ this.onSubmitClick }
           />
           { queue.length > 0
             ? (<div>{ useSignerText }{ renderQueue(queue) }</div>)
