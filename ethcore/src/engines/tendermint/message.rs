@@ -18,7 +18,10 @@
 
 use util::*;
 use super::{Height, Round, BlockHash, Step};
+use error::Error;
+use header::Header;
 use rlp::*;
+use ethkey::{recover, public_to_address};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct ConsensusMessage {
@@ -29,7 +32,23 @@ pub struct ConsensusMessage {
 	pub block_hash: Option<BlockHash>
 }
 
+
+fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
+	UntrustedRlp::new(header.seal()[0].as_slice()).as_val()
+}
+
 impl ConsensusMessage {
+	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
+		Ok(ConsensusMessage {
+			signature: try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val()),
+			height: header.number() as Height,
+			round: try!(consensus_round(header)),
+			step: Step::Propose,
+			block_hash: Some(header.bare_hash())
+		})
+	}
+
+
 	pub fn is_height(&self, height: Height) -> bool {
 		self.height == height
 	}
@@ -45,6 +64,13 @@ impl ConsensusMessage {
 	pub fn is_aligned(&self, height: Height, round: Round, block_hash: Option<H256>) -> bool {
 		self.height == height && self.round == round && self.block_hash == block_hash
 	}
+
+	pub fn verify(&self) -> Result<Address, Error> {
+		let full_rlp = ::rlp::encode(self);
+		let block_info = Rlp::new(&full_rlp).at(1);
+		let public_key = try!(recover(&self.signature.into(), &block_info.as_raw().sha3()));
+		Ok(public_to_address(&public_key))
+	}
 }
 
 impl PartialOrd for ConsensusMessage {
@@ -56,10 +82,10 @@ impl PartialOrd for ConsensusMessage {
 impl Step {
 	fn number(&self) -> i8 {
 		match *self {
-			Step::Propose => -1,
-			Step::Prevote => 0,
-			Step::Precommit => 1,
-			Step::Commit => 2,
+			Step::Propose => 0,
+			Step::Prevote => 1,
+			Step::Precommit => 2,
+			Step::Commit => 3,
 		}
 	}
 }
@@ -133,6 +159,11 @@ pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Op
 	let mut s = RlpStream::new_list(4);
 	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or(H256::zero()));
 	s.out()
+}
+
+pub fn message_info_rlp_from_header(header: &Header) -> Result<Bytes, ::rlp::DecoderError> {
+	let round = try!(consensus_round(header));
+	Ok(message_info_rlp(header.number() as Height, round, Step::Precommit, Some(header.bare_hash())))
 }
 
 pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Option<Bytes> where F: FnOnce(H256) -> Option<H520> {

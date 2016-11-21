@@ -23,7 +23,6 @@ mod vote_collector;
 
 use std::sync::atomic::{AtomicUsize, Ordering as AtomicOrdering};
 use util::*;
-use basic_types::Seal;
 use error::{Error, BlockError};
 use header::Header;
 use builtin::Builtin;
@@ -40,7 +39,7 @@ use views::HeaderView;
 use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
-use self::message::{ConsensusMessage, message_info_rlp, message_full_rlp};
+use self::message::*;
 use self::transition::TransitionHandler;
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
@@ -265,19 +264,6 @@ impl Tendermint {
 	}
 }
 
-/// Block hash including the consensus round, gets signed and included in the seal.
-fn block_hash(header: &Header) -> H256 {
-	header.rlp(Seal::WithSome(1)).sha3()
-}
-
-fn proposer_signature(header: &Header) -> Result<H520, ::rlp::DecoderError> {
-	UntrustedRlp::new(header.seal()[1].as_slice()).as_val()
-}
-
-fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
-	UntrustedRlp::new(header.seal()[0].as_slice()).as_val()
-}
-
 impl Engine for Tendermint {
 	fn name(&self) -> &str { "Tendermint" }
 	fn version(&self) -> SemanticVersion { SemanticVersion::new(1, 0, 0) }
@@ -289,11 +275,12 @@ impl Engine for Tendermint {
 
 	/// Additional engine-specific information for the user/developer concerning `header`.
 	fn extra_info(&self, header: &Header) -> BTreeMap<String, String> {
+		let message = ConsensusMessage::new_proposal(header).expect("Invalid header.");
 		map![
-			"signature".into() => proposer_signature(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
-			"height".into() => header.number().to_string(),
-			"round".into() => consensus_round(header).as_ref().map(ToString::to_string).unwrap_or("".into()),
-			"block_hash".into() => block_hash(header).to_string()
+			"signature".into() => message.signature.to_string(),
+			"height".into() => message.height.to_string(),
+			"round".into() => message.round.to_string(),
+			"block_hash".into() => message.block_hash.as_ref().map(ToString::to_string).unwrap_or("".into())
 		]
 	}
 
@@ -319,12 +306,6 @@ impl Engine for Tendermint {
 		*self.authority.write()	= *block.header().author()
 	}
 
-	/// Set the correct round in the seal.
-	fn on_close_block(&self, block: &mut ExecutedBlock) {
-		let round = self.round.load(AtomicOrdering::SeqCst);
-		block.fields_mut().header.set_seal(vec![::rlp::encode(&round).to_vec(), Vec::new(), Vec::new()]);
-	}
-
 	/// Round proposer switching.
 	fn is_sealer(&self, address: &Address) -> Option<bool> {
 		Some(self.is_proposer(address))
@@ -335,7 +316,7 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
-			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(block_hash(header)));
+			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(header.bare_hash()));
 			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()) {
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
@@ -418,23 +399,16 @@ impl Engine for Tendermint {
 
 	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		let signature = try!(proposer_signature(header));
-		let proposal = ConsensusMessage {
-			signature: signature,
-			height: header.number() as Height,
-			round: try!(consensus_round(header)),
-			step: Step::Propose,
-			block_hash: Some(block_hash(header))
-		};
-		let proposer = public_to_address(&try!(recover(&signature.into(), &::rlp::encode(&proposal))));
+		let proposal = try!(ConsensusMessage::new_proposal(header));	
+		let proposer = try!(proposal.verify());
 		if !self.is_proposer(&proposer) {
 			try!(Err(BlockError::InvalidSeal))
 		}
 		self.votes.vote(proposal, proposer);
-		let votes_rlp = UntrustedRlp::new(&header.seal()[2]);
-		for rlp in votes_rlp.iter() {
-			let sig: H520 = try!(rlp.as_val());
-			let address = public_to_address(&try!(recover(&sig.into(), &block_hash(header))));
+		let block_info_hash = try!(message_info_rlp_from_header(header)).sha3();
+		for rlp in UntrustedRlp::new(&header.seal()[2]).iter() {
+			let signature: H520 = try!(rlp.as_val());
+			let address = public_to_address(&try!(recover(&signature.into(), &block_info_hash)));
 			if !self.our_params.authorities.contains(&address) {
 				try!(Err(BlockError::InvalidSeal))
 			}
