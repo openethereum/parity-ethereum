@@ -30,21 +30,6 @@ pub struct ConsensusMessage {
 }
 
 impl ConsensusMessage {
-	pub fn new_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Option<Bytes> where F: FnOnce(H256) -> Option<H520> {
-		let mut s = RlpStream::new_list(4);
-		s.append(&height);
-		s.append(&round);
-		s.append(&step);
-		s.append(&block_hash.unwrap_or(H256::zero()));
-		let block_info = s.out();
-		signer(block_info.sha3()).map(|ref signature| {
-			let mut s = RlpStream::new_list(2);
-			s.append(signature);
-			s.append(&block_info);
-			s.out()
-		})
-	}
-
 	pub fn is_height(&self, height: Height) -> bool {
 		self.height == height
 	}
@@ -142,4 +127,19 @@ impl Encodable for ConsensusMessage {
 		s.append(&self.step);
 		s.append(&self.block_hash.unwrap_or(H256::zero()));
 	}
+}
+
+pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Bytes {
+	let mut s = RlpStream::new_list(4);
+	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or(H256::zero()));
+	s.out()
+}
+
+pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Option<Bytes> where F: FnOnce(H256) -> Option<H520> {
+	let vote_info = message_info_rlp(height, round, step, block_hash);
+	signer(vote_info.sha3()).map(|ref signature| {
+		let mut s = RlpStream::new_list(2);
+		s.append(signature).append(&vote_info);
+		s.out()
+	})
 }

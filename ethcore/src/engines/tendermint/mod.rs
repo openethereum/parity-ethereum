@@ -40,7 +40,7 @@ use views::HeaderView;
 use evm::Schedule;
 use io::{IoService, IoChannel};
 use service::ClientIoMessage;
-use self::message::ConsensusMessage;
+use self::message::{ConsensusMessage, message_info_rlp, message_full_rlp};
 use self::transition::TransitionHandler;
 use self::params::TendermintParams;
 use self::vote_collector::VoteCollector;
@@ -148,7 +148,7 @@ impl Tendermint {
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		if let Some(ref ap) = *self.account_provider.lock() {
-			ConsensusMessage::new_rlp(
+			message_full_rlp(
 				|mh| ap.sign(*self.authority.read(), None, mh).ok().map(H520::from),
 				self.height.load(AtomicOrdering::SeqCst),
 				self.round.load(AtomicOrdering::SeqCst),
@@ -335,7 +335,8 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
-			if let Ok(signature) = ap.sign(*author, None, block_hash(header)) {
+			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(block_hash(header)));
+			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()) {
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
 					::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
@@ -418,10 +419,6 @@ impl Engine for Tendermint {
 	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let signature = try!(proposer_signature(header));
-		let proposer = public_to_address(&try!(recover(&signature.into(), &block_hash(header))));
-		if !self.is_proposer(&proposer) {
-			try!(Err(BlockError::InvalidSeal))
-		}
 		let proposal = ConsensusMessage {
 			signature: signature,
 			height: header.number() as Height,
@@ -429,6 +426,10 @@ impl Engine for Tendermint {
 			step: Step::Propose,
 			block_hash: Some(block_hash(header))
 		};
+		let proposer = public_to_address(&try!(recover(&signature.into(), &::rlp::encode(&proposal))));
+		if !self.is_proposer(&proposer) {
+			try!(Err(BlockError::InvalidSeal))
+		}
 		self.votes.vote(proposal, proposer);
 		let votes_rlp = UntrustedRlp::new(&header.seal()[2]);
 		for rlp in votes_rlp.iter() {
