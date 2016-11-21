@@ -152,7 +152,6 @@ export default class Balances {
         return !account.meta || !account.meta.deleted;
       });
 
-  console.warn(`fetching ${addresses.length} accounts`);
     this._balances = {};
 
     Promise
