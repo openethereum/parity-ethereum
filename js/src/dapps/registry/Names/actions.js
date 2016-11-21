@@ -29,6 +29,8 @@ export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
+  const fee = state.fee;
+
   if (!contract || !account) return;
   if (alreadyQueued(state.names.queue, 'reserve', name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
@@ -36,7 +38,7 @@ export const reserve = (name) => (dispatch, getState) => {
   name = name.toLowerCase();
   const options = {
     from: account.address,
-    value: toWei(1).toString()
+    value: fee
   };
   const values = [ sha3(name) ];
 
