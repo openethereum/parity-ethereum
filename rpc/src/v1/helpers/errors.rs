@@ -22,7 +22,7 @@ macro_rules! rpc_unimplemented {
 
 use std::fmt;
 use rlp::DecoderError;
-use ethcore::error::{Error as EthcoreError, CallError};
+use ethcore::error::{Error as EthcoreError, CallError, TransactionError};
 use ethcore::account_provider::{Error as AccountError};
 use fetch::FetchError;
 use jsonrpc_core::{Error, ErrorCode, Value};
@@ -227,40 +227,44 @@ pub fn from_password_error(error: AccountError) -> Error {
 	}
 }
 
-pub fn from_transaction_error(error: EthcoreError) -> Error {
+pub fn transaction_message(error: TransactionError) -> String {
 	use ethcore::error::TransactionError::*;
 
+	match error {
+		AlreadyImported => "Transaction with the same hash was already imported.".into(),
+		Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
+		TooCheapToReplace => {
+			"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
+		},
+		LimitReached => {
+			"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
+		},
+		InsufficientGas { minimal, got } => {
+			format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
+		},
+		InsufficientGasPrice { minimal, got } => {
+			format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
+		},
+		InsufficientBalance { balance, cost } => {
+			format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
+		},
+		GasLimitExceeded { limit, got } => {
+			format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
+		},
+		InvalidNetworkId => "Invalid network id.".into(),
+		InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
+		SenderBanned => "Sender is banned in local queue.".into(),
+		RecipientBanned => "Recipient is banned in local queue.".into(),
+		CodeBanned => "Code is banned in local queue.".into(),
+	}
+}
+
+pub fn from_transaction_error(error: EthcoreError) -> Error {
+
 	if let EthcoreError::Transaction(e) = error {
-		let msg = match e {
-			AlreadyImported => "Transaction with the same hash was already imported.".into(),
-			Old => "Transaction nonce is too low. Try incrementing the nonce.".into(),
-			TooCheapToReplace => {
-				"Transaction gas price is too low. There is another transaction with same nonce in the queue. Try increasing the gas price or incrementing the nonce.".into()
-			},
-			LimitReached => {
-				"There are too many transactions in the queue. Your transaction was dropped due to limit. Try increasing the fee.".into()
-			},
-			InsufficientGas { minimal, got } => {
-				format!("Transaction gas is too low. There is not enough gas to cover minimal cost of the transaction (minimal: {}, got: {}). Try increasing supplied gas.", minimal, got)
-			},
-			InsufficientGasPrice { minimal, got } => {
-				format!("Transaction gas price is too low. It does not satisfy your node's minimal gas price (minimal: {}, got: {}). Try increasing the gas price.", minimal, got)
-			},
-			InsufficientBalance { balance, cost } => {
-				format!("Insufficient funds. Account you try to send transaction from does not have enough funds. Required {} and got: {}.", cost, balance)
-			},
-			GasLimitExceeded { limit, got } => {
-				format!("Transaction cost exceeds current gas limit. Limit: {}, got: {}. Try decreasing supplied gas.", limit, got)
-			},
-			InvalidGasLimit(_) => "Supplied gas is beyond limit.".into(),
-			SenderBanned => "Sender is banned in local queue.".into(),
-			RecipientBanned => "Recipient is banned in local queue.".into(),
-			CodeBanned => "Code is banned in local queue.".into(),
-			e => format!("{}", e).into(),
-		};
 		Error {
 			code: ErrorCode::ServerError(codes::TRANSACTION_ERROR),
-			message: msg,
+			message: transaction_message(e),
 			data: None,
 		}
 	} else {

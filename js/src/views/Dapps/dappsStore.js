@@ -14,39 +14,65 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
 import { action, computed, observable, transaction } from 'mobx';
+import store from 'store';
 
 import Contracts from '../../contracts';
 import { hashToImageUrl } from '../../redux/util';
 
 import builtinApps from './builtin.json';
 
-const LS_KEY_HIDDEN = 'hiddenApps';
-const LS_KEY_EXTERNAL = 'externalApps';
+const LS_KEY_DISPLAY = 'displayApps';
+const LS_KEY_EXTERNAL_ACCEPT = 'acceptExternal';
 
 export default class DappsStore {
   @observable apps = [];
-  @observable externalApps = [];
-  @observable hiddenApps = [];
+  @observable displayApps = {};
   @observable modalOpen = false;
+  @observable externalOverlayVisible = true;
 
   constructor (api) {
     this._api = api;
 
-    this._readHiddenApps();
-    this._readExternalApps();
+    this.loadExternalOverlay();
+    this.readDisplayApps();
 
-    this._fetchBuiltinApps();
-    this._fetchLocalApps();
-    this._fetchRegistryApps();
+    Promise
+      .all([
+        this._fetchBuiltinApps(),
+        this._fetchLocalApps(),
+        this._fetchRegistryApps()
+      ])
+      .then(this.writeDisplayApps);
   }
 
-  @computed get visible () {
-    return this.apps
-      .filter((app) => {
-        return this.externalApps.includes(app.id) || !this.hiddenApps.includes(app.id);
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+  @computed get sortedBuiltin () {
+    return this.apps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get sortedLocal () {
+    return this.apps.filter((app) => app.type === 'local');
+  }
+
+  @computed get sortedNetwork () {
+    return this.apps.filter((app) => app.type === 'network');
+  }
+
+  @computed get visibleApps () {
+    return this.apps.filter((app) => this.displayApps[app.id] && this.displayApps[app.id].visible);
+  }
+
+  @computed get visibleBuiltin () {
+    return this.visibleApps.filter((app) => app.type === 'builtin');
+  }
+
+  @computed get visibleLocal () {
+    return this.visibleApps.filter((app) => app.type === 'local');
+  }
+
+  @computed get visibleNetwork () {
+    return this.visibleApps.filter((app) => app.type === 'network');
   }
 
   @action openModal = () => {
@@ -57,14 +83,48 @@ export default class DappsStore {
     this.modalOpen = false;
   }
 
+  @action closeExternalOverlay = () => {
+    this.externalOverlayVisible = false;
+    store.set(LS_KEY_EXTERNAL_ACCEPT, true);
+  }
+
+  @action loadExternalOverlay () {
+    this.externalOverlayVisible = !(store.get(LS_KEY_EXTERNAL_ACCEPT) || false);
+  }
+
   @action hideApp = (id) => {
-    this.hiddenApps = this.hiddenApps.concat(id);
-    this._writeHiddenApps();
+    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: false } });
+    this.writeDisplayApps();
   }
 
   @action showApp = (id) => {
-    this.hiddenApps = this.hiddenApps.filter((_id) => _id !== id);
-    this._writeHiddenApps();
+    this.displayApps = Object.assign({}, this.displayApps, { [id]: { visible: true } });
+    this.writeDisplayApps();
+  }
+
+  @action readDisplayApps = () => {
+    this.displayApps = store.get(LS_KEY_DISPLAY) || {};
+  }
+
+  @action writeDisplayApps = () => {
+    store.set(LS_KEY_DISPLAY, this.displayApps);
+  }
+
+  @action addApps = (apps) => {
+    transaction(() => {
+      this.apps = this.apps
+        .concat(apps || [])
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      const visibility = {};
+      apps.forEach((app) => {
+        if (!this.displayApps[app.id]) {
+          visibility[app.id] = { visible: app.visible };
+        }
+      });
+
+      this.displayApps = Object.assign({}, this.displayApps, visibility);
+    });
   }
 
   _getHost (api) {
@@ -79,13 +139,16 @@ export default class DappsStore {
     return Promise
       .all(builtinApps.map((app) => dappReg.getImage(app.id)))
       .then((imageIds) => {
-        transaction(() => {
-          builtinApps.forEach((app, index) => {
+        this.addApps(
+          builtinApps.map((app, index) => {
             app.type = 'builtin';
             app.image = hashToImageUrl(imageIds[index]);
-            this.apps.push(app);
-          });
-        });
+            return app;
+          })
+        );
+      })
+      .catch((error) => {
+        console.warn('DappsStore:fetchBuiltinApps', error);
       });
   }
 
@@ -100,15 +163,12 @@ export default class DappsStore {
         return apps
           .map((app) => {
             app.type = 'local';
+            app.visible = true;
             return app;
           })
           .filter((app) => app.id && !['ui'].includes(app.id));
       })
-      .then((apps) => {
-        transaction(() => {
-          (apps || []).forEach((app) => this.apps.push(app));
-        });
-      })
+      .then(this.addApps)
       .catch((error) => {
         console.warn('DappsStore:fetchLocal', error);
       });
@@ -132,7 +192,9 @@ export default class DappsStore {
       .then((appsInfo) => {
         const appIds = appsInfo
           .map(([appId, owner]) => this._api.util.bytesToHex(appId))
-          .filter((appId) => !builtinApps.find((app) => app.id === appId));
+          .filter((appId) => {
+            return (new BigNumber(appId)).gt(0) && !builtinApps.find((app) => app.id === appId);
+          });
 
         return Promise
           .all([
@@ -147,7 +209,8 @@ export default class DappsStore {
                 image: hashToImageUrl(imageIds[index]),
                 contentHash: this._api.util.bytesToHex(contentIds[index]).substr(2),
                 manifestHash: this._api.util.bytesToHex(manifestIds[index]).substr(2),
-                type: 'network'
+                type: 'network',
+                visible: true
               };
 
               return app;
@@ -179,11 +242,7 @@ export default class DappsStore {
             });
           });
       })
-      .then((apps) => {
-        transaction(() => {
-          (apps || []).forEach((app) => this.apps.push(app));
-        });
-      })
+      .then(this.addApps)
       .catch((error) => {
         console.warn('DappsStore:fetchRegistry', error);
       });
@@ -200,45 +259,5 @@ export default class DappsStore {
         console.warn('DappsStore:fetchManifest', error);
         return null;
       });
-  }
-
-  _readHiddenApps () {
-    const stored = localStorage.getItem(LS_KEY_HIDDEN);
-
-    if (stored) {
-      try {
-        this.hiddenApps = JSON.parse(stored);
-      } catch (error) {
-        console.warn('DappsStore:readHiddenApps', error);
-      }
-    }
-  }
-
-  _readExternalApps () {
-    const stored = localStorage.getItem(LS_KEY_EXTERNAL);
-
-    if (stored) {
-      try {
-        this.externalApps = JSON.parse(stored);
-      } catch (error) {
-        console.warn('DappsStore:readExternalApps', error);
-      }
-    }
-  }
-
-  _writeExternalApps () {
-    try {
-      localStorage.setItem(LS_KEY_EXTERNAL, JSON.stringify(this.externalApps));
-    } catch (error) {
-      console.error('DappsStore:writeExternalApps', error);
-    }
-  }
-
-  _writeHiddenApps () {
-    try {
-      localStorage.setItem(LS_KEY_HIDDEN, JSON.stringify(this.hiddenApps));
-    } catch (error) {
-      console.error('DappsStore:writeHiddenApps', error);
-    }
   }
 }

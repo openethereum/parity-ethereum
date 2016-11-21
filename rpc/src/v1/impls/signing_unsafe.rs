@@ -31,6 +31,7 @@ use v1::types::{
 	U256 as RpcU256,
 	H160 as RpcH160, H256 as RpcH256, H520 as RpcH520, Bytes as RpcBytes,
 	Either as RpcEither,
+	RichRawTransaction as RpcRichRawTransaction,
 	TransactionRequest as RpcTransactionRequest,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse as RpcConfirmationResponse,
@@ -100,9 +101,9 @@ impl<C: 'static, M: 'static> EthSigning for SigningUnsafeClient<C, M> where
 		ready.ready(result);
 	}
 
-	fn sign_transaction(&self, ready: Ready<RpcBytes>, request: RpcTransactionRequest) {
+	fn sign_transaction(&self, ready: Ready<RpcRichRawTransaction>, request: RpcTransactionRequest) {
 		let result = match self.handle(RpcConfirmationPayload::SignTransaction(request)) {
-			Ok(RpcConfirmationResponse::SignTransaction(rlp)) => Ok(rlp),
+			Ok(RpcConfirmationResponse::SignTransaction(tx)) => Ok(tx),
 			Err(e) => Err(e),
 			e => Err(errors::internal("Unexpected result", e)),
 		};
