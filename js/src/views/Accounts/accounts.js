@@ -38,34 +38,66 @@ class Accounts extends Component {
   }
 
   state = {
+    accountsNodes: null,
     addressBook: false,
     newDialog: false,
     sortOrder: '',
     searchValues: [],
-    searchTokens: []
+    searchTokens: [],
+    show: false
+  }
+
+  componentDidMount () {
+    window.setTimeout(() => {
+      const accountsNodes = this.renderAccounts();
+      this.setState({ show: true, accountsNodes });
+    }, 0);
   }
 
   render () {
-    const { accounts, hasAccounts, balances } = this.props;
-    const { searchValues, sortOrder } = this.state;
-
     return (
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
-        <Page>
-          <List
-            search={ searchValues }
-            accounts={ accounts }
-            balances={ balances }
-            empty={ !hasAccounts }
-            order={ sortOrder }
-            handleAddSearchToken={ this.onAddSearchToken } />
-          <Tooltip
-            className={ styles.accountTooltip }
-            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-        </Page>
+
+        { this.state.show ? this.state.accountsNodes : this.renderLoading() }
       </div>
+    );
+  }
+
+  renderLoading () {
+    const { accounts } = this.props;
+
+    const loadings = ((accounts && Object.keys(accounts)) || []).map((_, idx) => (
+      <div key={ idx } className={ styles.loading }>
+        <div></div>
+      </div>
+    ));
+
+    return (
+      <div className={ styles.loadings }>
+        { loadings }
+      </div>
+    );
+  }
+
+  renderAccounts () {
+    const { accounts, hasAccounts, balances } = this.props;
+    const { searchValues, sortOrder } = this.state;
+
+    return (
+      <Page>
+        <List
+          search={ searchValues }
+          accounts={ accounts }
+          balances={ balances }
+          empty={ !hasAccounts }
+          order={ sortOrder }
+          handleAddSearchToken={ this.onAddSearchToken } />
+        <Tooltip
+          className={ styles.accountTooltip }
+          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+      </Page>
     );
   }
 
