@@ -25,7 +25,7 @@ import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 import { fromWei } from '../../../api/util/wei';
 import { Form, Input } from '../../../ui';
 
-import terms from '../terms-of-service';
+import { termsOfService } from '../../../3rdparty/sms-verification';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
@@ -66,7 +66,7 @@ export default class GatherData extends Component {
           disabled={ isVerified }
           onCheck={ this.consentOnChange }
         />
-        <div className={ styles.terms }>{ terms }</div>
+        <div className={ styles.terms }>{ termsOfService }</div>
       </Form>
     );
   }
