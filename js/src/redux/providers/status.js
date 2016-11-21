@@ -163,16 +163,12 @@ export default class Status {
 
     Promise
       .all(statusPromises)
-      .then((statusResults) => {
-        const status = statusResults.length === 1
-          ? {
-            syncing: statusResults[0],
-            netPeers: statusResults[1]
-          }
+      .then(([ syncing, netPeers, ...statusResults ]) => {
+        const status = statusResults.length === 0
+          ? { syncing, netPeers }
           : {
-            syncing: statusResults[0],
-            hashrate: statusResults[2],
-            netPeers: statusResults[1]
+            syncing, netPeers,
+            hashrate: statusResults[0]
           };
 
         if (!isEqual(status, this._status)) {
