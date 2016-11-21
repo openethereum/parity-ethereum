@@ -574,7 +574,11 @@ impl<K: Kind> VerificationQueue<K> {
 	pub fn collect_garbage(&self) {
 		// number of ticks to average queue stats over
 		// when deciding whether to change the number of verifiers.
+		#[cfg(not(test))]
 		const READJUSTMENT_PERIOD: usize = 12;
+
+		#[cfg(test)]
+		const READJUSTMENT_PERIOD: usize = 1;
 
 		let (u_len, v_len) = {
 			let u_len = {
@@ -595,10 +599,9 @@ impl<K: Kind> VerificationQueue<K> {
 
 		self.processing.write().shrink_to_fit();
 
-		if self.ticks_since_adjustment.load(AtomicOrdering::SeqCst) == READJUSTMENT_PERIOD {
+		if self.ticks_since_adjustment.fetch_add(1, AtomicOrdering::SeqCst) + 1 >= READJUSTMENT_PERIOD {
 			self.ticks_since_adjustment.store(0, AtomicOrdering::SeqCst);
 		} else {
-			self.ticks_since_adjustment.fetch_add(1, AtomicOrdering::SeqCst);
 			return;
 		}
 
@@ -627,7 +630,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let mut verifiers = self.verifiers.lock();
 		let &mut (ref mut verifiers, ref mut verifier_count) = &mut *verifiers;
 
-		let target = min(verifiers.capacity(), target);
+		let target = min(verifiers.len(), target);
 		let target = max(1, target);
 
 		debug!(target: "verification", "Scaling from {} to {} verifiers", verifier_count, target);
@@ -773,5 +776,57 @@ mod tests {
 			queue.import(Unverified::new(b)).unwrap();
 		}
 		assert!(queue.queue_info().is_full());
+	}
+
+	#[test]
+	fn scaling_limits() {
+		use super::MAX_VERIFIERS;
+
+		let queue = get_test_queue();
+		queue.scale_verifiers(MAX_VERIFIERS + 1);
+
+		assert!(queue.verifiers.lock().1 < MAX_VERIFIERS + 1);
+
+		queue.scale_verifiers(0);
+
+		assert!(queue.verifiers.lock().1 == 1);
+	}
+
+	#[test]
+	fn readjust_verifiers() {
+		let queue = get_test_queue();
+
+		// put all the verifiers to sleep to ensure 
+		// the test isn't timing sensitive.
+		let num_verifiers = {
+			let verifiers = queue.verifiers.lock();
+			for i in 0..verifiers.1 {
+				verifiers.0[i].sleep();
+			}
+
+			verifiers.1
+		};
+
+		for block in get_good_dummy_block_seq(5000) {
+			queue.import(Unverified::new(block)).expect("Block good by definition; qed");
+		}
+
+		// almost all unverified == bump verifier count.
+		queue.collect_garbage();
+		assert_eq!(queue.verifiers.lock().1, num_verifiers + 1);
+
+		// wake them up again and verify everything.
+		{
+			let verifiers = queue.verifiers.lock();
+			for i in 0..verifiers.1 {
+				verifiers.0[i].wake_up();
+			}
+		}
+
+		queue.flush();
+
+		// nothing to verify == use minimum number of verifiers.
+		queue.collect_garbage();
+		assert_eq!(queue.verifiers.lock().1, 1);
 	}
 }
