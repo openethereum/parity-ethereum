@@ -31,14 +31,16 @@ export default class RequestFinishedWeb3 extends Component {
     msg: PropTypes.string,
     status: PropTypes.string,
     error: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired
   }
 
   render () {
-    const { payload, id, result, msg, status, error, date, className } = this.props;
+    const { payload, id, result, msg, status, error, date, className, isTest } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
+
       return (
         <SignRequest
           className={ className }
@@ -49,12 +51,14 @@ export default class RequestFinishedWeb3 extends Component {
           msg={ msg }
           status={ status }
           error={ error }
+          isTest={ isTest }
           />
       );
     }
 
     if (payload.transaction) {
       const { transaction } = payload;
+
       return (
         <TransactionFinished
           className={ className }
@@ -69,6 +73,7 @@ export default class RequestFinishedWeb3 extends Component {
           date={ date }
           status={ status }
           error={ error }
+          isTest={ isTest }
         />
       );
     }
