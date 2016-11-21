@@ -16,9 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import styles from './hash.css';
+import styles from './shortenedHash.css';
 
-export default class Hash extends Component {
+export default class ShortenedHash extends Component {
   static propTypes = {
     data: PropTypes.string.isRequired
   }

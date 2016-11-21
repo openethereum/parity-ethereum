@@ -30,7 +30,6 @@ import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
-import Hash from './Hash';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import MethodDecoding from './MethodDecoding';
@@ -38,6 +37,7 @@ import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
+import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
@@ -64,7 +64,6 @@ export {
   Form,
   FormWrap,
   TypedInput,
-  Hash,
   Input,
   InputAddress,
   InputAddressSelect,
@@ -81,6 +80,7 @@ export {
   Page,
   ParityBackground,
   RadioButtons,
+  ShortenedHash,
   SignerIcon,
   Tags,
   Tooltip,

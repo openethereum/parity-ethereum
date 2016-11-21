@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import Hash from '../Hash';
+import ShortenedHash from '../ShortenedHash';
 
 const defaultName = 'UNNAMED';
 
@@ -43,7 +43,7 @@ class IdentityName extends Component {
       return null;
     }
 
-    const addressFallback = shorten ? (<Hash data={ address } />) : address;
+    const addressFallback = shorten ? (<ShortenedHash data={ address } />) : address;
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = hasAccount && account.name === account.uuid;
     const displayName = (name && name.toUpperCase().trim()) ||

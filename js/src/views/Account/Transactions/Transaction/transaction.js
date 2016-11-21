@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
-import Hash from '../../../../ui/Hash';
+import ShortenedHash from '../../../../ui/ShortenedHash';
 import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
@@ -96,7 +96,7 @@ export default class Transaction extends Component {
             href={ txLink(transaction.hash, isTest) }
             target='_blank'
           >
-            <Hash data={ transaction.hash } />
+            <ShortenedHash data={ transaction.hash } />
           </a>
         </div>
       </td>
