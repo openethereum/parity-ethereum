@@ -22,7 +22,7 @@ use env_logger::LogBuilder;
 
 use ServerBuilder;
 use Server;
-use apps::urlhint::ContractClient;
+use hash_fetch::urlhint::ContractClient;
 use util::{Bytes, Address, Mutex, ToPretty};
 use devtools::http_client;
 
