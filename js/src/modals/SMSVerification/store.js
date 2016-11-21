@@ -88,7 +88,7 @@ export default class VerificationStore {
     this.account = account;
 
     this.step = LOADING;
-    Contracts.create(api).registry.getContract('smsVerification')
+    Contracts.create(api).registry.getContract('smsverification')
       .then((contract) => {
         this.contract = contract;
         this.load();
