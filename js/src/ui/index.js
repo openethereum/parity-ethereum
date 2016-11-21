@@ -30,6 +30,7 @@ import CopyToClipboard from './CopyToClipboard';
 import Editor from './Editor';
 import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
+import Hash from './Hash';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
 import MethodDecoding from './MethodDecoding';
@@ -63,6 +64,7 @@ export {
   Form,
   FormWrap,
   TypedInput,
+  Hash,
   Input,
   InputAddress,
   InputAddressSelect,
