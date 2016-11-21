@@ -251,7 +251,7 @@ export default class Status {
       .then(([
         clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
       ]) => {
-        const isTest = netChain === 'morden' || netChain === 'testnet';
+        const isTest = netChain === 'morden' || netChain === 'ropsten' || netChain === 'testnet';
 
         const longStatus = {
           clientVersion,
