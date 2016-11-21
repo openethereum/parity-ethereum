@@ -461,11 +461,10 @@ impl Engine for Tendermint {
 
 #[cfg(test)]
 mod tests {
-	use std::thread::sleep;
-	use std::time::{Duration};
 	use util::*;
 	use rlp::{UntrustedRlp, RlpStream, Stream, View};
 	use block::*;
+	use state_db::StateDB;
 	use error::{Error, BlockError};
 	use header::Header;
 	use env_info::EnvInfo;
@@ -473,46 +472,38 @@ mod tests {
 	use account_provider::AccountProvider;
 	use spec::Spec;
 	use engines::{Engine, EngineError};
-	use super::Tendermint;
+	use super::*;
 	use super::params::TendermintParams;
+	use super::message::*;
 
-	fn propose_default(engine: &Arc<Engine>, round: u8, proposer: Address) -> Result<Bytes, Error> {
-		let mut s = RlpStream::new_list(3);
-		let header = Header::default();
-		s.append(&round).append(&0u8).append(&header.bare_hash());
-		let drain = s.out();
-		let propose_rlp = UntrustedRlp::new(&drain);
-
-		engine.handle_message(proposer, H520::default(), propose_rlp)
+	fn propose_default(engine: &Arc<Engine>, db: &StateDB, proposer: Address) -> Option<Vec<Bytes>> {
+		let mut header = Header::default();
+		let last_hashes = Arc::new(vec![]);
+		let b = OpenBlock::new(engine.as_ref(), Default::default(), false, db.boxed_clone(), &header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = b.close_and_lock();
+		engine.generate_seal(b.block())
 	}
 
-	fn vote_default(engine: &Arc<Engine>, round: u8, voter: Address) -> Result<Bytes, Error> {
-		let mut s = RlpStream::new_list(3);
-		let header = Header::default();
-		s.append(&round).append(&1u8).append(&header.bare_hash());
-		let drain = s.out();
-		let vote_rlp = UntrustedRlp::new(&drain);
-
-		engine.handle_message(voter, H520::default(), vote_rlp)
+	fn vote_default<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step) where F: FnOnce(H256) -> Option<H520> {
+		let m = message_full_rlp(signer, height, round, step, Some(Default::default())).unwrap();
+		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
 	}
 
-	fn good_seal(header: &Header) -> Vec<Bytes> {
+	fn proposal_seal(header: &Header, round: Round) -> Vec<Bytes> {
 		let tap = AccountProvider::transient_provider();
 
-		let mut seal = Vec::new();
-
-		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
-		let sig0 = tap.sign(v0, Some("0".into()), header.bare_hash()).unwrap();
-		seal.push(::rlp::encode(&(&*sig0 as &[u8])).to_vec());
-
-		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
-		let sig1 = tap.sign(v1, Some("1".into()), header.bare_hash()).unwrap();
-		seal.push(::rlp::encode(&(&*sig1 as &[u8])).to_vec());
-		seal
+		let author = header.author();
+		let vote_info = message_info_rlp(header.number() as Height, round, Step::Propose, Some(header.bare_hash()));
+		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
+		vec![
+			::rlp::encode(&round).to_vec(),
+			::rlp::encode(&H520::from(signature)).to_vec(),
+			Vec::new()
+		]
 	}
 
-	fn default_block() -> Vec<u8> {
-		vec![160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101]
+	fn default_seal() -> Vec<Bytes> {
+		vec![vec![160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101]]
 	}
 
 	#[test]
@@ -593,7 +584,7 @@ mod tests {
 		let engine = Spec::new_test_tendermint().engine;
 		let mut header = Header::default();
 
-		let seal = good_seal(&header);
+		let seal = proposal_seal(&header, 0);
 		header.set_seal(seal);
 
 		// Enough signatures.
@@ -607,7 +598,7 @@ mod tests {
 	fn can_generate_seal() {
 		let spec = Spec::new_test_tendermint();
 		let ref engine = *spec.engine;
-		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new());
+		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new()).unwrap();
 
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
@@ -617,82 +608,55 @@ mod tests {
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 
-		tender.to_commit(b.hash(), good_seal(&b.header()));
-
-		let seal = tender.generate_seal(b.block(), None).unwrap();
+		let seal = tender.generate_seal(b.block()).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
 	}
 
 	#[test]
 	fn propose_step() {
-		let engine = Spec::new_test_tendermint().engine;
+		let spec = Spec::new_test_tendermint();
+		let engine = spec.engine.clone();
 		let tap = AccountProvider::transient_provider();
-		let r = 0;
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db).unwrap();
 
 		let not_authority_addr = tap.insert_account("101".sha3(), "101").unwrap();
-		assert!(propose_default(&engine, r, not_authority_addr).is_err());
+		assert!(propose_default(&engine, &db, not_authority_addr).is_none());
 
 		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(propose_default(&engine, r, not_proposer_addr).is_err());
+		assert!(propose_default(&engine, &db, not_proposer_addr).is_none());
 
 		let proposer_addr = tap.insert_account("1".sha3(), "1").unwrap();
-		assert_eq!(default_block(), propose_default(&engine, r, proposer_addr).unwrap());
+		assert_eq!(default_seal(), propose_default(&engine, &db, proposer_addr).unwrap());
 
-		assert!(propose_default(&engine, r, proposer_addr).is_err());
-		assert!(propose_default(&engine, r, not_proposer_addr).is_err());
-	}
-
-	#[test]
-	fn proposer_switching() {
-		let engine = Spec::new_test_tendermint().engine;
-		let tap = AccountProvider::transient_provider();
-
-		// Currently not a proposer.
-		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(propose_default(&engine, 0, not_proposer_addr).is_err());
-
-		sleep(Duration::from_millis(TendermintParams::default().timeouts.propose as u64));
-
-		// Becomes proposer after timeout.
-		assert_eq!(default_block(), propose_default(&engine, 0, not_proposer_addr).unwrap());
+		assert!(propose_default(&engine, &db, proposer_addr).is_none());
+		assert!(propose_default(&engine, &db, not_proposer_addr).is_none());
 	}
 
 	#[test]
 	fn prevote_step() {
+		let spec = Spec::new_test_tendermint();
 		let engine = Spec::new_test_tendermint().engine;
 		let tap = AccountProvider::transient_provider();
-		let r = 0;
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db).unwrap();
 
 		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
 		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
 
-		// Propose.
-		assert!(propose_default(&engine, r, v1.clone()).is_ok());
+		// Propose
+		assert!(propose_default(&engine, &db, v1.clone()).is_some());
 
-		// Prevote.
-		assert_eq!(default_block(), vote_default(&engine, r, v0.clone()).unwrap());
-
-		assert!(vote_default(&engine, r, v0).is_err());
-		assert!(vote_default(&engine, r, v1).is_err());
-	}
-
-	#[test]
-	fn precommit_step() {
-		let engine = Spec::new_test_tendermint().engine;
-		let tap = AccountProvider::transient_provider();
+		let h = 0;
 		let r = 0;
 
-		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
-		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
-
-		// Propose.
-		assert!(propose_default(&engine, r, v1.clone()).is_ok());
-
 		// Prevote.
-		assert_eq!(default_block(), vote_default(&engine, r, v0.clone()).unwrap());
+		vote_default(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote);
 
-		assert!(vote_default(&engine, r, v0).is_err());
-		assert!(vote_default(&engine, r, v1).is_err());
+		vote_default(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote);
+		vote_default(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote);
 	}
 
 	#[test]
@@ -703,24 +667,5 @@ mod tests {
 		};
 
 		println!("Waiting for timeout");
-		sleep(Duration::from_secs(10));
-	}
-
-	#[test]
-	fn increments_round() {
-		let spec = Spec::new_test_tendermint();
-		let ref engine = *spec.engine;
-		let def_params = TendermintParams::default();
-		let tender = Tendermint::new(engine.params().clone(), def_params.clone(), BTreeMap::new());
-		let header = Header::default();
-
-		tender.to_commit(header.bare_hash(), good_seal(&header));
-
-		sleep(Duration::from_millis(def_params.timeouts.commit as u64));
-
-		match propose_default(&(tender as Arc<Engine>), 0, Address::default()) {
-			Err(Error::Engine(EngineError::WrongRound)) => {},
-			_ => panic!("Should be EngineError::WrongRound"),
-		}
 	}
 }
