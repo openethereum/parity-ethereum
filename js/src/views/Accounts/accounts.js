@@ -38,7 +38,6 @@ class Accounts extends Component {
   }
 
   state = {
-    accountsNodes: null,
     addressBook: false,
     newDialog: false,
     sortOrder: '',
@@ -47,11 +46,10 @@ class Accounts extends Component {
     show: false
   }
 
-  componentDidMount () {
+  componentWillMount () {
     window.setTimeout(() => {
-      const accountsNodes = this.renderAccounts();
-      this.setState({ show: true, accountsNodes });
-    }, 0);
+      this.setState({ show: true });
+    }, 100);
   }
 
   render () {
@@ -60,7 +58,7 @@ class Accounts extends Component {
         { this.renderNewDialog() }
         { this.renderActionbar() }
 
-        { this.state.show ? this.state.accountsNodes : this.renderLoading() }
+        { this.state.show ? this.renderAccounts() : this.renderLoading() }
       </div>
     );
   }
