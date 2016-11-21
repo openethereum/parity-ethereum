@@ -19,7 +19,9 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
+
 import { txLink } from '../../3rdparty/etherscan/links';
+import Hash from '../Hash';
 
 import styles from './txHash.css';
 
@@ -76,7 +78,7 @@ class TxHash extends Component {
       <div className={ styles.details }>
         { header }
         <div className={ styles.hash }>
-          <a href={ txLink(hash, isTest) } target='_blank'>{ hash }</a>
+          <a href={ txLink(hash, isTest) } target='_blank'><Hash data={ hash } /></a>
         </div>
         { this.renderConfirmations() }
       </div>
