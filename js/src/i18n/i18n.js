@@ -18,6 +18,8 @@ import { I18n } from 'react-i18nify';
 
 import en from './en';
 
+let currentLocale = null;
+
 export function initLocales (defaultLocale = 'en') {
   I18n.setTranslations({
     en
@@ -26,6 +28,11 @@ export function initLocales (defaultLocale = 'en') {
   setLocale(defaultLocale);
 }
 
+export function getLocale () {
+  return currentLocale;
+}
+
 export function setLocale (locale) {
+  currentLocale = locale;
   I18n.setLocale(locale);
 }

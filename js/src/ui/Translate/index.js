@@ -14,10 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { initLocales, getLocale, setLocale } from './i18n';
-
-export {
-  initLocales,
-  getLocale,
-  setLocale
-};
+export default from './translate';

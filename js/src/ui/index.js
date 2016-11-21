@@ -32,6 +32,7 @@ import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
+import LanguageSelector from './LanguageSelector';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
@@ -40,6 +41,7 @@ import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
+import Translate from './Translate';
 import TxHash from './TxHash';
 
 export {
@@ -71,6 +73,7 @@ export {
   Select,
   IdentityIcon,
   IdentityName,
+  LanguageSelector,
   MethodDecoding,
   Modal,
   BusyStep,
@@ -83,5 +86,6 @@ export {
   Tags,
   Tooltip,
   Tooltips,
+  Translate,
   TxHash
 };

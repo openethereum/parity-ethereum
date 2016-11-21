@@ -14,8 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { PropTypes } from 'react';
-
-export default function (type) {
-  return PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
-}
+export default from './languageSelector';
