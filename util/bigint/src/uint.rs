@@ -683,6 +683,7 @@ macro_rules! construct_uint {
  					bytes[i] = (arr[pos] >> ((rev % 8) * 8)) as u8;
 				}
 			}
+
 			#[inline]
 			fn exp10(n: usize) -> Self {
 				match n {

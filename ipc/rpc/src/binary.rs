@@ -16,7 +16,7 @@
 
 //! Binary representation of types
 
-use util::{U256, U512, H256, H2048, Address};
+use util::{U256, U512, H256, H512, H2048, Address};
 use std::mem;
 use std::collections::{VecDeque, BTreeMap};
 use std::ops::Range;
@@ -800,6 +800,7 @@ binary_fixed_size!(bool);
 binary_fixed_size!(U256);
 binary_fixed_size!(U512);
 binary_fixed_size!(H256);
+binary_fixed_size!(H512);
 binary_fixed_size!(H2048);
 binary_fixed_size!(Address);
 binary_fixed_size!(BinHandshake);

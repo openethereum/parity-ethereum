@@ -21,7 +21,6 @@ use parity_dapps::WebApp;
 
 mod cache;
 mod fs;
-pub mod urlhint;
 pub mod fetcher;
 pub mod manifest;
 

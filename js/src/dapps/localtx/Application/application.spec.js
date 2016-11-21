@@ -14,16 +14,19 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
+import React from 'react';
+import { shallow } from 'enzyme';
 
-#[macro_use]
-extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
+import '../../../environment/tests';
 
+import Application from './application';
 
-pub mod client;
-pub mod fetch_file;
+describe('localtx/Application', () => {
+  describe('rendering', () => {
+    it('renders without crashing', () => {
+      const rendered = shallow(<Application />);
 
-pub use self::client::{Client, Fetch, FetchError, FetchResult};
+      expect(rendered).to.be.defined;
+    });
+  });
+});

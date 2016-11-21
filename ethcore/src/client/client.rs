@@ -287,7 +287,7 @@ impl Client {
 		self.registrar.lock()
 	}
 
-	/// Register an action to be done if a mode change happens. 
+	/// Register an action to be done if a mode change happens.
 	pub fn on_mode_change<F>(&self, f: F) where F: 'static + FnMut(&Mode) + Send {
 		*self.on_mode_change.lock() = Some(Box::new(f));
 	}
@@ -731,6 +731,10 @@ impl Client {
 			})
 	}
 
+	pub fn updater(&self) -> MutexGuard<Option<Updater>> {
+		self.updater.lock()
+	}
+
 	/// Look up the block number for the given block ID.
 	pub fn block_number(&self, id: BlockID) -> Option<BlockNumber> {
 		match id {
@@ -945,12 +949,9 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			match *self.on_mode_change.lock() {
-				Some(ref mut f) => {
-					trace!(target: "mode", "Making callback...");
-					f(&*mode)
-				},
-				_ => {} 
+			if let Some(ref mut f) = *self.on_mode_change.lock() {
+				trace!(target: "mode", "Making callback...");
+				f(&*mode)
 			}
 		}
 		match new_mode {

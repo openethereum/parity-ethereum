@@ -14,16 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
+const api = window.parent.secureApi;
 
-#[macro_use]
-extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
-
-
-pub mod client;
-pub mod fetch_file;
-
-pub use self::client::{Client, Fetch, FetchError, FetchResult};
+export {
+  api
+};

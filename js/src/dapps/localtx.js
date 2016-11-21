@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
+import ReactDOM from 'react-dom';
+import React from 'react';
 
-#[macro_use]
-extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
+import injectTapEventPlugin from 'react-tap-event-plugin';
+injectTapEventPlugin();
 
+import Application from './localtx/Application';
 
-pub mod client;
-pub mod fetch_file;
+import '../../assets/fonts/Roboto/font.css';
+import '../../assets/fonts/RobotoMono/font.css';
+import './style.css';
+import './localtx.html';
 
-pub use self::client::{Client, Fetch, FetchError, FetchResult};
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);

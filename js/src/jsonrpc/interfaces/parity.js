@@ -224,15 +224,6 @@ export default {
     }
   },
 
-  listGethAccounts: {
-    desc: 'Returns a list of the accounts available from Geth',
-    params: [],
-    returns: {
-      type: Array,
-      desc: '20 Bytes addresses owned by the client.'
-    }
-  },
-
   importGethAccounts: {
     desc: 'Imports a list of accounts from geth',
     params: [
@@ -244,6 +235,24 @@ export default {
     returns: {
       type: Array,
       desc: 'Array of the imported addresses'
+    }
+  },
+
+  listGethAccounts: {
+    desc: 'Returns a list of the accounts available from Geth',
+    params: [],
+    returns: {
+      type: Array,
+      desc: '20 Bytes addresses owned by the client.'
+    }
+  },
+
+  localTransactions: {
+    desc: 'Returns an object of current and past local transactions.',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'Mapping of `tx hash` into status object.'
     }
   },
 
@@ -376,6 +385,24 @@ export default {
     returns: {
       type: String,
       desc: 'Node name'
+    }
+  },
+
+  pendingTransactions: {
+    desc: 'Returns a list of transactions currently in the queue.',
+    params: [],
+    returns: {
+      type: Array,
+      desc: 'Transactions ordered by priority'
+    }
+  },
+
+  pendingTransactionsStats: {
+    desc: 'Returns propagation stats for transactions in the queue',
+    params: [],
+    returns: {
+      type: Object,
+      desc: 'mapping of `tx hash` into `stats`'
     }
   },
 

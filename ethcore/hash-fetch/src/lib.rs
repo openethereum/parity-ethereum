@@ -14,16 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-//! A service to fetch any HTTP / HTTPS content.
+//! Hash-addressed content resolver & fetcher.
+
+#![warn(missing_docs)]
 
 #[macro_use]
 extern crate log;
-extern crate hyper;
-extern crate https_fetch;
-extern crate rand;
+extern crate rustc_serialize;
+extern crate mime_guess;
+extern crate ethabi;
+extern crate ethcore_util as util;
+extern crate fetch;
 
+mod client;
 
-pub mod client;
-pub mod fetch_file;
+pub mod urlhint;
 
-pub use self::client::{Client, Fetch, FetchError, FetchResult};
+pub use client::{HashFetch, Client};
