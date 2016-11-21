@@ -102,7 +102,7 @@ fn import(i: ImportAccounts) -> Result<String, String> {
 		let from = DiskDirectory::at(path);
 		imported += try!(import_accounts(&from, &to).map_err(|_| "Importing accounts failed.")).len();
 	}
-	Ok(format!("{}", imported))
+	Ok(format!("{} account(s) imported", imported))
 }
 
 fn import_geth(i: ImportFromGethAccounts) -> Result<String, String> {
