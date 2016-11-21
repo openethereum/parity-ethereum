@@ -64,22 +64,23 @@ class TxHash extends Component {
 
   render () {
     const { hash, isTest, summary } = this.props;
-    let header = null;
 
-    if (!summary) {
-      header = (
-        <div className={ styles.header }>
-          The transaction has been posted to the network with a transaction hash of
-        </div>
-      );
+    const link = (
+      <a href={ txLink(hash, isTest) } target='_blank'>
+        <Hash data={ hash } />
+      </a>
+    );
+
+    let header = (
+      <p>The transaction has been posted to the network, with a hash of { link }.</p>
+    );
+    if (summary) {
+      header = (<p>{ link }</p>);
     }
 
     return (
-      <div className={ styles.details }>
+      <div>
         { header }
-        <div className={ styles.hash }>
-          <a href={ txLink(hash, isTest) } target='_blank'><Hash data={ hash } /></a>
-        </div>
         { this.renderConfirmations() }
       </div>
     );
