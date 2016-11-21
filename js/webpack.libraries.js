@@ -34,7 +34,9 @@ module.exports = {
   },
   output: {
     path: path.join(__dirname, DEST),
-    filename: '[name].js'
+    filename: '[name].js',
+    library: '[name].js',
+    libraryTarget: 'umd'
   },
   module: {
     loaders: [

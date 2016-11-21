@@ -27,6 +27,7 @@ time = "0.1"
 rand = "0.3"
 byteorder = "0.5"
 transient-hashmap = "0.1"
+linked-hash-map = "0.3.0"
 evmjit = { path = "../evmjit", optional = true }
 clippy = { version = "0.0.96", optional = true}
 ethash = { path = "../ethash" }

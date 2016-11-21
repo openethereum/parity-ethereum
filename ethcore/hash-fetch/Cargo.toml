@@ -1,0 +1,15 @@
+[package]
+description = "Fetching hash-addressed content."
+homepage = "https://ethcore.io"
+license = "GPL-3.0"
+name = "ethcore-hash-fetch"
+version = "1.5.0"
+authors = ["Ethcore <admin@ethcore.io>"]
+
+[dependencies]
+log = "0.3"
+rustc-serialize = "0.3"
+ethabi = "0.2.2"
+mime_guess = "1.6.1"
+fetch = { path = "../../util/fetch" }
+ethcore-util = { path = "../../util" }

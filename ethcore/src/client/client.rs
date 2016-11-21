@@ -892,12 +892,9 @@ impl BlockChainClient for Client {
 			let mut mode = self.mode.lock();
 			*mode = new_mode.clone().into();
 			trace!(target: "mode", "Mode now {:?}", &*mode);
-			match *self.on_mode_change.lock() {
-				Some(ref mut f) => {
-					trace!(target: "mode", "Making callback...");
-					f(&*mode)
-				},
-				_ => {}
+			if let Some(ref mut f) = *self.on_mode_change.lock() {
+				trace!(target: "mode", "Making callback...");
+				f(&*mode)
 			}
 		}
 		match new_mode {

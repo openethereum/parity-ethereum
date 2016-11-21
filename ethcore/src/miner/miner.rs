@@ -21,8 +21,10 @@ use util::*;
 use util::using_queue::{UsingQueue, GetAction};
 use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
+use header::Header;
 use state::{State, CleanupMode};
 use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
 use error::*;
@@ -33,8 +35,8 @@ use engines::Engine;
 use miner::{MinerService, MinerStatus, TransactionQueue, PrioritizationStrategy, AccountDetails, TransactionOrigin};
 use miner::banning_queue::{BanningTransactionQueue, Threshold};
 use miner::work_notify::WorkPoster;
-use client::TransactionImportResult;
 use miner::price_info::PriceInfo;
+use miner::local_transactions::{Status as LocalTransactionStatus};
 use header::BlockNumber;
 
 /// Different possible definitions for pending transaction set.
@@ -562,7 +564,7 @@ impl Miner {
 		prepare_new
 	}
 
-	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
+	fn add_transactions_to_queue(&self, chain: &MiningBlockChainClient, transactions: Vec<SignedTransaction>, default_origin: TransactionOrigin, transaction_queue: &mut BanningTransactionQueue) ->
 		Vec<Result<TransactionImportResult, Error>> {
 
 		let fetch_account = |a: &Address| AccountDetails {
@@ -570,15 +572,37 @@ impl Miner {
 			balance: chain.latest_balance(a),
 		};
 
+		let accounts = self.accounts.as_ref()
+			.and_then(|provider| provider.accounts().ok())
+			.map(|accounts| accounts.into_iter().collect::<HashSet<_>>());
+
 		let schedule = chain.latest_schedule();
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
+		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
-			.map(|tx| match origin {
-				TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-					transaction_queue.add(tx, origin, &fetch_account, &gas_required)
-				},
-				TransactionOrigin::External => {
-					transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
+					Ok(()) => true,
+					Err(e) => {
+						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
+						false
+					}
+				}
+			)
+			.map(|tx| {
+				let origin = accounts.as_ref().and_then(|accounts| {
+					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
+						true => Some(TransactionOrigin::Local),
+						false => None,
+					})
+				}).unwrap_or(default_origin);
+
+				match origin {
+					TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+						transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+					},
+					TransactionOrigin::External => {
+						transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+					}
 				}
 			})
 			.collect()
@@ -851,6 +875,14 @@ impl MinerService for Miner {
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		let queue = self.transaction_queue.lock();
 		queue.top_transactions()
+	}
+
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		let queue = self.transaction_queue.lock();
+		queue.local_transactions()
+			.iter()
+			.map(|(hash, status)| (*hash, status.clone()))
+			.collect()
 	}
 
 	fn pending_transactions(&self, best_block: BlockNumber) -> Vec<SignedTransaction> {

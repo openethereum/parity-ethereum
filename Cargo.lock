@@ -11,6 +11,7 @@ dependencies = [
  "ethcore 1.5.0",
  "ethcore-dapps 1.5.0",
  "ethcore-devtools 1.4.0",
+ "ethcore-hash-fetch 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-ipc 1.4.0",
  "ethcore-ipc-codegen 1.4.0",
@@ -298,6 +299,7 @@ dependencies = [
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
  "lazy_static 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "lru-cache 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "num_cpus 0.2.11 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -334,8 +336,8 @@ version = "1.5.0"
 dependencies = [
  "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
+ "ethcore-hash-fetch 1.5.0",
  "ethcore-rpc 1.5.0",
  "ethcore-util 1.5.0",
  "fetch 0.1.0",
@@ -364,6 +366,18 @@ name = "ethcore-devtools"
 version = "1.4.0"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-hash-fetch"
+version = "1.5.0"
+dependencies = [
+ "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-util 1.5.0",
+ "fetch 0.1.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1250,7 +1264,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#b2513e92603b473799d653583bd86771e0063c08"
+source = "git+https://github.com/ethcore/js-precompiled.git#587684374a12bf715151dd987a552a3d61e42972"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

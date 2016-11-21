@@ -86,7 +86,7 @@ impl SecretStore for EthStore {
 	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
 		let keypair = try!(KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed));
 		let id: [u8; 16] = Random::random();
-		let account = SafeAccount::create(&keypair, id, password, self.iterations, UUID::from(id).into(), "{}".to_owned());
+		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
 		let address = account.address.clone();
 		try!(self.save(account));
 		Ok(address)

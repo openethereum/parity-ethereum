@@ -34,6 +34,7 @@ use v1::traits::{EthSigning, ParitySigning};
 use v1::types::{
 	H160 as RpcH160, H256 as RpcH256, U256 as RpcU256, Bytes as RpcBytes, H520 as RpcH520,
 	Either as RpcEither,
+	RichRawTransaction as RpcRichRawTransaction,
 	TransactionRequest as RpcTransactionRequest,
 	ConfirmationPayload as RpcConfirmationPayload,
 	ConfirmationResponse as RpcConfirmationResponse
@@ -201,11 +202,11 @@ impl<C: 'static, M: 'static> EthSigning for SigningQueueClient<C, M> where
 		});
 	}
 
-	fn sign_transaction(&self, ready: Ready<RpcBytes>, request: RpcTransactionRequest) {
+	fn sign_transaction(&self, ready: Ready<RpcRichRawTransaction>, request: RpcTransactionRequest) {
 		let res = self.active().and_then(|_| self.dispatch(RpcConfirmationPayload::SignTransaction(request)));
 		self.handle_dispatch(res, |response| {
 			match response {
-				Ok(RpcConfirmationResponse::SignTransaction(rlp)) => ready.ready(Ok(rlp)),
+				Ok(RpcConfirmationResponse::SignTransaction(tx)) => ready.ready(Ok(tx)),
 				Err(e) => ready.ready(Err(e)),
 				e => ready.ready(Err(errors::internal("Unexpected result.", e))),
 			}

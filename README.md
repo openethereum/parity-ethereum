@@ -103,6 +103,14 @@ $ cargo build --release
 
 This will produce an executable in the `./target/release` subdirectory.
 
+----
+
+## Simple one-line installer for Mac and Ubuntu
+
+```bash
+bash <(curl https://get.parity.io -Lk)
+```
+
 ## Start Parity
 ### Manually
 To start Parity manually, just run

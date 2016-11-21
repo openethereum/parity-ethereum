@@ -23,6 +23,7 @@ import InputAddressSelect from './InputAddressSelect';
 import InputChip from './InputChip';
 import InputInline from './InputInline';
 import Select from './Select';
+import RadioButtons from './RadioButtons';
 
 export default from './form';
 export {
@@ -34,5 +35,6 @@ export {
   InputAddressSelect,
   InputChip,
   InputInline,
-  Select
+  Select,
+  RadioButtons
 };

@@ -42,6 +42,7 @@ extern crate ethcore_ipc_nano as nanoipc;
 extern crate serde;
 extern crate serde_json;
 extern crate rlp;
+extern crate ethcore_hash_fetch as hash_fetch;
 
 extern crate json_ipc_server as jsonipc;
 
