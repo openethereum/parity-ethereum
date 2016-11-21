@@ -30,8 +30,7 @@ use ethjson;
 use rlp::{Rlp, RlpStream, View, Stream};
 
 /// Parameters common to all engines.
-#[derive(Debug, PartialEq, Clone)]
-#[cfg_attr(test, derive(Default))]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct CommonParams {
 	/// Account start nonce.
 	pub account_start_nonce: U256,
