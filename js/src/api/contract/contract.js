@@ -341,7 +341,7 @@ export default class Contract {
         delete this._subscriptions[subscriptionId];
 
         if (Object.keys(this._subscriptions).length === 0) {
-          this._unsubscribeToChanges();
+          this._unsubscribeFromChanges();
         }
       })
       .catch((error) => {
@@ -358,7 +358,7 @@ export default class Contract {
     this._sendSubscriptionChanges();
   }
 
-  _unsubscribeToChanges = () => {
+  _unsubscribeFromChanges = () => {
     this._subscribedToChanges = false;
     clearTimeout(this._subscribedToChangesId);
   }
