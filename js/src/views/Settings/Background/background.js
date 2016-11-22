@@ -81,6 +81,7 @@ class Background extends Component {
   renderBackgrounds () {
     const { settings } = this.props;
     const { seeds } = this.state;
+    const { muiTheme } = this.context;
 
     return seeds.map((seed, index) => {
       return (
@@ -89,7 +90,9 @@ class Background extends Component {
             <ParityBackground
               className={ settings.backgroundSeed === seed ? styles.seedactive : styles.seed }
               seed={ seed }
-              onClick={ this.onSelect(seed) } />
+              onClick={ this.onSelect(seed) }
+              muiTheme={ muiTheme }
+            />
           </div>
         </div>
       );
