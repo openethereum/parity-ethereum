@@ -20,7 +20,6 @@ extern crate ethash;
 
 use std::io::{Write};
 use std::process::{Command, Stdio};
-use std::collections::BTreeSet;
 use std::thread;
 use std::time::{Instant, Duration};
 use std::sync::{Arc, Weak};
@@ -46,7 +45,7 @@ use self::ethash::SeedHashCompute;
 use v1::traits::Eth;
 use v1::types::{
 	RichBlock, Block, BlockTransactions, BlockNumber, Bytes, SyncStatus, SyncInfo,
-	Transaction, CallRequest, Index, Filter, Log, Receipt, Work,
+	Transaction, CallRequest, Index, Filter, Log, Receipt, Work, DappId,
 	H64 as RpcH64, H256 as RpcH256, H160 as RpcH160, U256 as RpcU256,
 };
 use v1::helpers::{CallRequest as CRequest, errors, limit_logs};
@@ -335,15 +334,15 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		Ok(RpcU256::from(default_gas_price(&*client, &*miner)))
 	}
 
-	fn accounts(&self) -> Result<Vec<RpcH160>, Error> {
+	fn accounts(&self, id: Trailing<DappId>) -> Result<Vec<RpcH160>, Error> {
 		try!(self.active());
 
-		let store = take_weak!(self.accounts);
-		let accounts = try!(store.accounts().map_err(|e| errors::internal("Could not fetch accounts.", e)));
-		let addresses = try!(store.addresses_info().map_err(|e| errors::internal("Could not fetch accounts.", e)));
+		let dapp = id.0;
 
-		let set: BTreeSet<Address> = accounts.into_iter().chain(addresses.keys().cloned()).collect();
-		Ok(set.into_iter().map(Into::into).collect())
+		let store = take_weak!(self.accounts);
+		let accounts = try!(store.dapps_addresses(dapp.into()).map_err(|e| errors::internal("Could not fetch accounts.", e)));
+
+		Ok(accounts.into_iter().map(Into::into).collect())
 	}
 
 	fn block_number(&self) -> Result<RpcU256, Error> {

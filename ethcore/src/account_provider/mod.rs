@@ -16,9 +16,12 @@
 
 //! Account management.
 
-use std::{fs, fmt};
+mod stores;
+
+use self::stores::{AddressBook, DappsSettingsStore};
+
+use std::fmt;
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::time::{Instant, Duration};
 use util::{Mutex, RwLock};
 use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
@@ -91,84 +94,16 @@ impl KeyDirectory for NullDir {
 	}
 }
 
-/// Disk-backed map from Address to String. Uses JSON.
-struct AddressBook {
-	path: PathBuf,
-	cache: HashMap<Address, AccountMeta>,
-	transient: bool,
-}
-
-impl AddressBook {
-	pub fn new(path: String) -> Self {
-		trace!(target: "addressbook", "new({})", path);
-		let mut path: PathBuf = path.into();
-		path.push("address_book.json");
-		trace!(target: "addressbook", "path={:?}", path);
-		let mut r = AddressBook {
-			path: path,
-			cache: HashMap::new(),
-			transient: false,
-		};
-		r.revert();
-		r
-	}
-
-	pub fn transient() -> Self {
-		let mut book = AddressBook::new(Default::default());
-		book.transient = true;
-		book
-	}
-
-	pub fn get(&self) -> HashMap<Address, AccountMeta> {
-		self.cache.clone()
-	}
-
-	pub fn set_name(&mut self, a: Address, name: String) {
-		let mut x = self.cache.get(&a)
-			.cloned()
-			.unwrap_or_else(|| AccountMeta {name: Default::default(), meta: "{}".to_owned(), uuid: None});
-		x.name = name;
-		self.cache.insert(a, x);
-		self.save();
-	}
-
-	pub fn set_meta(&mut self, a: Address, meta: String) {
-		let mut x = self.cache.get(&a)
-			.cloned()
-			.unwrap_or_else(|| AccountMeta {name: "Anonymous".to_owned(), meta: Default::default(), uuid: None});
-		x.meta = meta;
-		self.cache.insert(a, x);
-		self.save();
-	}
-
-	fn revert(&mut self) {
-		if self.transient { return; }
-		trace!(target: "addressbook", "revert");
-		let _ = fs::File::open(self.path.clone())
-			.map_err(|e| trace!(target: "addressbook", "Couldn't open address book: {}", e))
-			.and_then(|f| AccountMeta::read_address_map(&f)
-				.map_err(|e| warn!(target: "addressbook", "Couldn't read address book: {}", e))
-				.and_then(|m| { self.cache = m; Ok(()) })
-			);
-	}
-
-	fn save(&mut self) {
-		if self.transient { return; }
-		trace!(target: "addressbook", "save");
-		let _ = fs::File::create(self.path.clone())
-			.map_err(|e| warn!(target: "addressbook", "Couldn't open address book for writing: {}", e))
-			.and_then(|mut f| AccountMeta::write_address_map(&self.cache, &mut f)
-				.map_err(|e| warn!(target: "addressbook", "Couldn't write to address book: {}", e))
-			);
-	}
-}
+/// Dapp identifier
+pub type DappId = String;
 
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
 	unlocked: Mutex<HashMap<Address, AccountData>>,
 	sstore: Box<SecretStore>,
-	address_book: Mutex<AddressBook>,
+	address_book: RwLock<AddressBook>,
+	dapps_settings: RwLock<DappsSettingsStore>,
 }
 
 impl AccountProvider {
@@ -176,7 +111,8 @@ impl AccountProvider {
 	pub fn new(sstore: Box<SecretStore>) -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
-			address_book: Mutex::new(AddressBook::new(sstore.local_path().into())),
+			address_book: RwLock::new(AddressBook::new(sstore.local_path().into())),
+			dapps_settings: RwLock::new(DappsSettingsStore::new(sstore.local_path().into())),
 			sstore: sstore,
 		}
 	}
@@ -185,7 +121,8 @@ impl AccountProvider {
 	pub fn transient_provider() -> Self {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
-			address_book: Mutex::new(AddressBook::transient()),
+			address_book: RwLock::new(AddressBook::transient()),
+			dapps_settings: RwLock::new(DappsSettingsStore::transient()),
 			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
 				.expect("NullDir load always succeeds; qed"))
 		}
@@ -230,19 +167,31 @@ impl AccountProvider {
 		Ok(accounts)
 	}
 
+	/// Gets addresses visile for dapp.
+	pub fn dapps_addresses(&self, dapp: DappId) -> Result<Vec<Address>, Error> {
+		let accounts = self.dapps_settings.read().get();
+		Ok(accounts.get(&dapp).map(|settings| settings.accounts.clone()).unwrap_or_else(Vec::new))
+	}
+
+	/// Sets addresses visile for dapp.
+	pub fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<Address>) -> Result<(), Error> {
+		self.dapps_settings.write().set_accounts(dapp, addresses);
+		Ok(())
+	}
+
 	/// Returns each address along with metadata.
 	pub fn addresses_info(&self) -> Result<HashMap<Address, AccountMeta>, Error> {
-		Ok(self.address_book.lock().get())
+		Ok(self.address_book.read().get())
 	}
 
 	/// Returns each address along with metadata.
 	pub fn set_address_name(&self, account: Address, name: String) -> Result<(), Error> {
-		Ok(self.address_book.lock().set_name(account, name))
+		Ok(self.address_book.write().set_name(account, name))
 	}
 
 	/// Returns each address along with metadata.
 	pub fn set_address_meta(&self, account: Address, meta: String) -> Result<(), Error> {
-		Ok(self.address_book.lock().set_meta(account, meta))
+		Ok(self.address_book.write().set_meta(account, meta))
 	}
 
 	/// Returns each account along with name and meta.
@@ -373,23 +322,9 @@ impl AccountProvider {
 
 #[cfg(test)]
 mod tests {
-	use super::{AccountProvider, AddressBook, Unlock};
-	use std::collections::HashMap;
+	use super::{AccountProvider, Unlock};
 	use std::time::Instant;
-	use ethjson::misc::AccountMeta;
 	use ethstore::ethkey::{Generator, Random};
-	use devtools::RandomTempPath;
-
-	#[test]
-	fn should_save_and_reload_address_book() {
-		let temp = RandomTempPath::create_dir();
-		let path = temp.as_str().to_owned();
-		let mut b = AddressBook::new(path.clone());
-		b.set_name(1.into(), "One".to_owned());
-		b.set_meta(1.into(), "{1:1}".to_owned());
-		let b = AddressBook::new(path);
-		assert_eq!(b.get(), hash_map![1.into() => AccountMeta{name: "One".to_owned(), meta: "{1:1}".to_owned(), uuid: None}]);
-	}
 
 	#[test]
 	fn unlock_account_temp() {
@@ -426,5 +361,18 @@ mod tests {
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+	}
+
+	#[test]
+	fn should_set_dapps_addresses() {
+		// given
+		let ap = AccountProvider::transient_provider();
+		let app = "app1".to_owned();
+
+		// when
+		ap.set_dapps_addresses(app.clone(), vec![1.into(), 2.into()]).unwrap();
+
+		// then
+		assert_eq!(ap.dapps_addresses(app.clone()).unwrap(), vec![1.into(), 2.into()]);
 	}
 }

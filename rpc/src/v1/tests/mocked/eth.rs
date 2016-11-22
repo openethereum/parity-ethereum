@@ -31,7 +31,7 @@ use ethcore::transaction::{Transaction, Action};
 use ethcore::miner::{ExternalMiner, MinerService};
 use ethsync::SyncState;
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{Eth, EthClient, EthClientOptions, EthFilter, EthFilterClient, EthSigning, SigningUnsafeClient};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService, TestSnapshotService};
 
@@ -357,15 +357,15 @@ fn rpc_eth_accounts() {
 	let address = tester.accounts_provider.new_account("").unwrap();
 	let address2 = Address::default();
 
-	tester.accounts_provider.set_address_name(address2, "Test Account".into()).unwrap();
-
+	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
-	let response = r#"{"jsonrpc":"2.0","result":[""#.to_owned()
-		+ &format!("0x{:?}", address2)
-		+ r#"",""#
-		+ &format!("0x{:?}", address)
-		+ r#""],"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":[],"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 
+	// when we add visible address it should return that.
+	tester.accounts_provider.set_dapps_addresses("app1".into(), vec![10.into()]).unwrap();
+	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": ["app1"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":["0x000000000000000000000000000000000000000a"],"id":1}"#;
 	assert_eq!(tester.io.handle_request_sync(request), Some(response.to_owned()));
 }
 

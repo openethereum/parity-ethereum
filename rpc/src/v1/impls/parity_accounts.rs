@@ -25,7 +25,7 @@ use ethcore::client::MiningBlockChainClient;
 
 use jsonrpc_core::{Value, Error, to_value};
 use v1::traits::ParityAccounts;
-use v1::types::{H160 as RpcH160, H256 as RpcH256};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, DappId};
 use v1::helpers::errors;
 
 /// Account management (personal) rpc implementation.
@@ -141,6 +141,15 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 
 	fn set_account_visibility(&self, _address: RpcH160, _dapp: RpcH256, _visible: bool) -> Result<bool, Error> {
 		Ok(false)
+	}
+
+	fn set_dapps_addresses(&self, dapp: DappId, addresses: Vec<RpcH160>) -> Result<bool, Error> {
+		let store = take_weak!(self.accounts);
+		let addresses = addresses.into_iter().map(Into::into).collect();
+
+		store.set_dapps_addresses(dapp.into(), addresses)
+			.map_err(|e| errors::account("Couldn't set dapps addresses.", e))
+			.map(|_| true)
 	}
 
 	fn import_geth_accounts(&self, addresses: Vec<RpcH160>) -> Result<Vec<RpcH160>, Error> {

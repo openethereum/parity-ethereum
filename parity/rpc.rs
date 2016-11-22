@@ -19,14 +19,12 @@ use std::sync::Arc;
 use std::net::SocketAddr;
 use std::io;
 use io::PanicHandler;
-use ethcore_rpc::{RpcServerError, RpcServer as Server};
-use jsonipc;
+use ethcore_rpc::{RpcServerError, RpcServer as Server, IpcServerError};
 use rpc_apis;
 use rpc_apis::ApiSet;
 use helpers::parity_ipc_path;
 
-pub use jsonipc::Server as IpcServer;
-pub use ethcore_rpc::Server as HttpServer;
+pub use ethcore_rpc::{IpcServer, Server as HttpServer};
 
 #[derive(Debug, PartialEq)]
 pub struct HttpConfiguration {
@@ -126,7 +124,7 @@ pub fn new_ipc(conf: IpcConfiguration, deps: &Dependencies) -> Result<Option<Ipc
 pub fn setup_ipc_rpc_server(dependencies: &Dependencies, addr: &str, apis: ApiSet) -> Result<IpcServer, String> {
 	let server = try!(setup_rpc_server(apis, dependencies));
 	match server.start_ipc(addr) {
-		Err(jsonipc::Error::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
+		Err(IpcServerError::Io(io_error)) => Err(format!("RPC io error: {}", io_error)),
 		Err(any_error) => Err(format!("Rpc error: {:?}", any_error)),
 		Ok(server) => Ok(server)
 	}

@@ -23,7 +23,7 @@ use ethcore::miner::MinerService;
 use ethcore::client::TestBlockChainClient;
 use ethsync::ManageNetwork;
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{ParitySet, ParitySetClient};
 use v1::tests::helpers::{TestMinerService, TestFetch};
 use super::manage_network::TestManageNetwork;

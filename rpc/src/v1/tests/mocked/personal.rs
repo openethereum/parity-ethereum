@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
 use v1::{PersonalClient, Personal};

@@ -23,7 +23,7 @@ use ethcore::client::{TestBlockChainClient};
 use ethcore::miner::LocalTransactionStatus;
 use ethstore::ethkey::{Generator, Random};
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{Parity, ParityClient};
 use v1::helpers::{SignerService, NetworkSettings};
 use v1::tests::helpers::{TestSyncProvider, Config, TestMinerService};

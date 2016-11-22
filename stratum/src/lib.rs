@@ -16,7 +16,7 @@
 
 //! Stratum protocol implementation for parity ethereum/bitcoin clients
 
-extern crate json_tcp_server;
+extern crate jsonrpc_tcp_server;
 extern crate jsonrpc_core;
 #[macro_use] extern crate log;
 extern crate ethcore_util as util;
@@ -44,7 +44,7 @@ pub use traits::{
 	RemoteWorkHandler, RemoteJobDispatcher,
 };
 
-use json_tcp_server::Server as JsonRpcServer;
+use jsonrpc_tcp_server::Server as JsonRpcServer;
 use jsonrpc_core::{IoHandler, Params, IoDelegate, to_value, from_params};
 use std::sync::Arc;
 

@@ -23,7 +23,7 @@ use ethcore::client::TestBlockChainClient;
 use ethcore::transaction::{Transaction, Action};
 use rlp::encode;
 
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use v1::{SignerClient, Signer};
 use v1::tests::helpers::TestMinerService;
 use v1::helpers::{SigningQueue, SignerService, FilledTransactionRequest, ConfirmationPayload};
