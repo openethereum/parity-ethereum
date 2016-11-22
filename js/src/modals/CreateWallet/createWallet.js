@@ -97,6 +97,7 @@ export default class CreateWallet extends Component {
             owners={ this.store.wallet.owners.slice() }
             required={ this.store.wallet.required }
             daylimit={ this.store.wallet.daylimit }
+            name={ this.store.wallet.name }
           />
         );
 

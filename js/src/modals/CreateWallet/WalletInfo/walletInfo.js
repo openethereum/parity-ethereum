@@ -24,18 +24,19 @@ export default class WalletInfo extends Component {
   static propTypes = {
     accounts: PropTypes.object.isRequired,
     account: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
     address: PropTypes.string.isRequired,
     owners: PropTypes.array.isRequired,
-    required: PropTypes.number.isRequired,
-    daylimit: PropTypes.number.isRequired
+    required: PropTypes.string.isRequired,
+    daylimit: PropTypes.string.isRequired
   };
 
   render () {
-    const { address, required, daylimit } = this.props;
+    const { address, required, daylimit, name } = this.props;
 
     return (
       <CompletedStep>
-        <div>Your wallet has been deployed at</div>
+        <div><code>{ name }</code> has been deployed at</div>
         <div>
           <CopyToClipboard data={ address } label='copy address to clipboard' />
           <IdentityIcon address={ address } inline center className={ styles.identityicon } />

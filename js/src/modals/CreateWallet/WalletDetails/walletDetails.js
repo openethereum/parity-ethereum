@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, TypedInput, AddressSelect } from '../../../ui';
+import { Form, TypedInput, Input, AddressSelect } from '../../../ui';
 import { parseAbiType } from '../../../util/abi';
 
 export default class WalletDetails extends Component {
@@ -39,6 +39,21 @@ export default class WalletDetails extends Component {
           error={ errors.account }
           onChange={ this.onAccoutChange }
           accounts={ accounts }
+        />
+
+        <Input
+          label='wallet name'
+          hint='the local name for this wallet'
+          value={ wallet.name }
+          error={ errors.name }
+          onChange={ this.onNameChange }
+        />
+
+        <Input
+          label='wallet description (optional)'
+          hint='the local description for this wallet'
+          value={ wallet.description }
+          onChange={ this.onDescriptionChange }
         />
 
         <TypedInput
@@ -72,6 +87,14 @@ export default class WalletDetails extends Component {
 
   onAccoutChange = (_, account) => {
     this.props.onChange({ account });
+  }
+
+  onNameChange = (_, name) => {
+    this.props.onChange({ name });
+  }
+
+  onDescriptionChange = (_, description) => {
+    this.props.onChange({ description });
   }
 
   onOwnersChange = (owners) => {

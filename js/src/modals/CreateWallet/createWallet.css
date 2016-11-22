@@ -27,4 +27,13 @@
 .owner {
   height: 40px;
   color: lightgrey;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .identityicon {
+    width: 24px;
+    height: 24px;
+  }
 }

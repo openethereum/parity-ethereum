@@ -16,7 +16,7 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 
-import { validateUint, validateAddress } from '../../util/validation';
+import { ERRORS, validateUint, validateAddress, validateName } from '../../util/validation';
 import { ERROR_CODES } from '../../api/transport/error';
 
 import { wallet as walletAbi } from '../../contracts/abi';
@@ -44,14 +44,19 @@ export default class CreateWalletStore {
     address: '',
     owners: [],
     required: 1,
-    daylimit: 0
+    daylimit: 0,
+
+    name: '',
+    description: ''
   };
 
   @observable errors = {
     account: null,
     owners: null,
     required: null,
-    daylimit: null
+    daylimit: null,
+
+    name: ERRORS.invalidName
   };
 
   @computed get stage () {
@@ -92,7 +97,7 @@ export default class CreateWalletStore {
 
     this.step = 'DEPLOYMENT';
 
-    const { account, owners, required, daylimit } = this.wallet;
+    const { account, owners, required, daylimit, name, description } = this.wallet;
 
     const options = {
       data: walletCode,
@@ -108,12 +113,11 @@ export default class CreateWalletStore {
             this.api.parity.setAccountName(address, name),
             this.api.parity.setAccountMeta(address, {
               abi: walletAbi,
-              contract: true,
               wallet: true,
               timestamp: Date.now(),
               deleted: false,
-              description: '',
-              name: ''
+              description,
+              name
             })
           ])
           .then(() => {
@@ -173,18 +177,21 @@ export default class CreateWalletStore {
     const accountValidation = validateAddress(_wallet.account);
     const requiredValidation = validateUint(_wallet.required);
     const daylimitValidation = validateUint(_wallet.daylimit);
+    const nameValidation = validateName(_wallet.name);
 
     const errors = {
       account: accountValidation.addressError,
       required: requiredValidation.valueError,
-      daylimit: daylimitValidation.valueError
+      daylimit: daylimitValidation.valueError,
+      name: nameValidation.nameError
     };
 
     const wallet = {
       ..._wallet,
       account: accountValidation.address,
       required: requiredValidation.value,
-      daylimit: daylimitValidation.value
+      daylimit: daylimitValidation.value,
+      name: nameValidation.name
     };
 
     return { errors, wallet };
