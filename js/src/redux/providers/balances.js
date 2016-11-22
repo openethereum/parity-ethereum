@@ -40,8 +40,8 @@ export default class Balances {
     this._fetchingTokens = false;
     this._fetchedTokens = false;
 
-    this._tokenregSub = null;
-    this._tokenregMetaSub = null;
+    this._tokenregSubId = null;
+    this._tokenregMetaSubId = null;
   }
 
   start () {
@@ -73,7 +73,6 @@ export default class Balances {
         }
 
         this._retrieveTokens();
-        this.fetchTokensChanges();
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
@@ -168,32 +167,23 @@ export default class Balances {
       });
   }
 
-  fetchTokensChanges () {
-    if (this._tokenregMetaSub) {
-      this._tokenregMetaSub.fetch();
-    }
-
-    if (this._tokenregSub) {
-      this._tokenregSub.fetch();
-    }
-  }
-
   attachToTokens () {
     this.attachToTokenMetaChange();
     this.attachToNewToken();
   }
 
   attachToNewToken () {
-    if (this._tokenregSub) {
+    if (this._tokenregSubId) {
       return;
     }
 
     this._tokenreg
       .instance
       .Registered
-      .register({
+      .subscribe({
         fromBlock: 0,
-        toBlock: 'latest'
+        toBlock: 'latest',
+        skipInitFetch: true
       }, (error, logs) => {
         if (error) {
           return console.error('balances::attachToNewToken', 'failed to attach to tokenreg Registered', error.toString(), error.stack);
@@ -206,8 +196,8 @@ export default class Balances {
 
         return Promise.all(promises);
       })
-      .then((tokenregSub) => {
-        this._tokenregSub = tokenregSub;
+      .then((tokenregSubId) => {
+        this._tokenregSubId = tokenregSubId;
       })
       .catch((e) => {
         console.warn('balances::attachToNewToken', e);
@@ -215,17 +205,18 @@ export default class Balances {
   }
 
   attachToTokenMetaChange () {
-    if (this._tokenregMetaSub) {
+    if (this._tokenregMetaSubId) {
       return;
     }
 
     this._tokenreg
       .instance
       .MetaChanged
-      .register({
+      .subscribe({
         fromBlock: 0,
         toBlock: 'latest',
-        topics: [ null, this._api.util.asciiToHex('IMG') ]
+        topics: [ null, this._api.util.asciiToHex('IMG') ],
+        skipInitFetch: true
       }, (error, logs) => {
         if (error) {
           return console.error('balances::attachToTokenMetaChange', 'failed to attach to tokenreg MetaChanged', error.toString(), error.stack);
@@ -257,8 +248,8 @@ export default class Balances {
             }
           });
       })
-      .then((tokenregMetaSub) => {
-        this._tokenregMetaSub = tokenregMetaSub;
+      .then((tokenregMetaSubId) => {
+        this._tokenregMetaSubId = tokenregMetaSubId;
       })
       .catch((e) => {
         console.warn('balances::attachToTokenMetaChange', e);
