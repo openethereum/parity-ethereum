@@ -61,9 +61,9 @@ export function inTopics (_topics) {
     .filter((topic) => topic === null || topic)
     .map((topic) => topic === null ? null : pad(topic, 32));
 
-  while (topics.length < 4) {
-    topics.push(null);
-  }
+  // while (topics.length < 4) {
+  //   topics.push(null);
+  // }
 
   return topics;
 }

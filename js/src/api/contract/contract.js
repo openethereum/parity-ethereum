@@ -297,16 +297,19 @@ export default class Contract {
           filterId
         };
 
-        if (!skipInitFetch) {
-          this._api.eth
-            .getFilterLogs(filterId)
-            .then((logs) => {
-              callback(null, this.parseEventLogs(logs));
-            });
+        if (skipInitFetch) {
+          this._subscribeToChanges();
+          return subscriptionId;
         }
 
-        this._subscribeToChanges();
-        return subscriptionId;
+        return this._api.eth
+          .getFilterLogs(filterId)
+          .then((logs) => {
+            callback(null, this.parseEventLogs(logs));
+
+            this._subscribeToChanges();
+            return subscriptionId;
+          });
       });
   }
 
