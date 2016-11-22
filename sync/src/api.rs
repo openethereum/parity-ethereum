@@ -41,6 +41,8 @@ pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
 pub struct SyncConfig {
 	/// Max blocks to download ahead
 	pub max_download_ahead_blocks: usize,
+	/// Enable ancient block download.
+	pub download_old_blocks: bool,
 	/// Network ID
 	pub network_id: usize,
 	/// Main "eth" subprotocol name.
@@ -55,6 +57,7 @@ impl Default for SyncConfig {
 	fn default() -> SyncConfig {
 		SyncConfig {
 			max_download_ahead_blocks: 20000,
+			download_old_blocks: true,
 			network_id: 1,
 			subprotocol_name: *b"eth",
 			fork_block: None,
