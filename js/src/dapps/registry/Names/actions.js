@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { sha3, toWei } from '../parity.js';
+import { sha3 } from '../parity.js';
 
 const alreadyQueued = (queue, action, name) =>
   !!queue.find((entry) => entry.action === action && entry.name === name);
@@ -29,6 +29,8 @@ export const reserve = (name) => (dispatch, getState) => {
   const state = getState();
   const account = state.accounts.selected;
   const contract = state.contract;
+  const fee = state.fee;
+
   if (!contract || !account) return;
   if (alreadyQueued(state.names.queue, 'reserve', name)) return;
   const reserve = contract.functions.find((f) => f.name === 'reserve');
@@ -36,7 +38,7 @@ export const reserve = (name) => (dispatch, getState) => {
   name = name.toLowerCase();
   const options = {
     from: account.address,
-    value: toWei(1).toString()
+    value: fee
   };
   const values = [ sha3(name) ];
 

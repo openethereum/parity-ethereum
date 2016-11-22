@@ -31,7 +31,7 @@ const initialState = {
   gasLimit: new BigNumber(0),
   hashrate: new BigNumber(0),
   minGasPrice: new BigNumber(0),
-  netChain: 'morden',
+  netChain: 'ropsten',
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),

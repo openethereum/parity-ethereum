@@ -619,6 +619,10 @@ impl<C, SN: ?Sized, S: ?Sized, M, EM> Eth for EthClient<C, SN, S, M, EM> where
 		}
 	}
 
+	fn submit_transaction(&self, raw: Bytes) -> Result<RpcH256, Error> {
+		self.send_raw_transaction(raw)
+	}
+
 	fn call(&self, request: CallRequest, num: Trailing<BlockNumber>) -> Result<Bytes, Error> {
 		try!(self.active());
 
