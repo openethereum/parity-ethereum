@@ -24,6 +24,7 @@ import { checkIfVerified, checkIfRequested } from '../../contracts/sms-verificat
 import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
+import isTestnet from '../../util/is-testnet';
 
 const validCode = /^[A-Z\s]+$/i;
 
@@ -188,8 +189,13 @@ export default class VerificationStore {
 
     chain
       .then(() => {
+        return api.parity.netChain();
+      })
+      .then((chain) => {
+        const isTest = isTestnet(chain);
+
         this.step = REQUESTING_SMS;
-        return postToServer({ number, address: account });
+        return postToServer({ number, address: account }, isTest);
       })
       .then(() => {
         this.step = REQUESTED_SMS;
