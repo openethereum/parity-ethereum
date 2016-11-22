@@ -58,7 +58,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 }
 
 impl BasicAuthority {

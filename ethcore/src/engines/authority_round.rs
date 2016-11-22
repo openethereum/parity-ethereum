@@ -68,9 +68,9 @@ pub struct AuthorityRound {
 	builtins: BTreeMap<Address, Builtin>,
 	transition_service: IoService<BlockArrived>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
-	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -102,9 +102,9 @@ impl AuthorityRound {
 				builtins: builtins,
 				transition_service: try!(IoService::<BlockArrived>::start()),
 				message_channel: Mutex::new(None),
-				account_provider: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
-				proposed: AtomicBool::new(false)
+				proposed: AtomicBool::new(false),
+				account_provider: Mutex::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.transition_service.register_handler(Arc::new(handler)));

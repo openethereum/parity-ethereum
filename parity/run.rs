@@ -203,8 +203,14 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	sync_config.fork_block = spec.fork_block();
 	sync_config.warp_sync = cmd.warp_sync;
 
+	// prepare account provider
+	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
+
+	// let the Engine access the accounts
+	spec.engine.register_account_provider(account_provider);
+
 	// create miner
-	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec);
+	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));
 	miner.set_author(cmd.miner_extras.author);
 	miner.set_gas_floor_target(cmd.miner_extras.gas_floor_target);
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
@@ -237,9 +243,6 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// create supervisor
 	let mut hypervisor = modules::hypervisor(&cmd.dirs.ipc_path());
-
-	// prepare account provider
-	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
 
 	// create client service.
 	let service = try!(ClientService::start(

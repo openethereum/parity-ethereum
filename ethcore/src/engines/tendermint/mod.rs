@@ -202,26 +202,22 @@ impl Tendermint {
 		}
 	}
 
-	fn nonce_proposer(&self, proposer_nonce: usize) -> &Address {
-		let ref p = self.our_params;
-		p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
-	}
-
-	fn is_nonce_proposer(&self, proposer_nonce: usize, address: &Address) -> bool {
-		self.nonce_proposer(proposer_nonce) == address
-	}
-
 	fn is_authority(&self, address: &Address) -> bool {
 		self.our_params.authorities.contains(address)
 	}
 
-	fn threshold(&self) -> usize {
-		self.our_params.authority_n * 2/3
+	fn is_above_threshold(&self, n: usize) -> bool {
+		n > self.our_params.authority_n * 2/3
 	}
 
 	/// Round proposer switching.
 	fn is_proposer(&self, address: &Address) -> bool {
-		self.is_nonce_proposer(self.proposer_nonce.load(AtomicOrdering::SeqCst), address)
+		let ref p = self.our_params;
+		let proposer_nonce = self.proposer_nonce.load(AtomicOrdering::SeqCst);
+		let proposer = p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed");
+		println!("{:?}", &proposer);
+		println!("{:?}", &address);
+		proposer == address
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
@@ -251,16 +247,22 @@ impl Tendermint {
 
 
 	fn has_enough_any_votes(&self) -> bool {
-		self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), *self.step.read()) > self.threshold()	
+		let step_votes = self.votes.count_step_votes(self.height.load(AtomicOrdering::SeqCst), self.round.load(AtomicOrdering::SeqCst), *self.step.read());
+		self.is_above_threshold(step_votes)
 	}
 
 	fn has_enough_future_step_votes(&self, message: &ConsensusMessage) -> bool {
-		message.round > self.round.load(AtomicOrdering::SeqCst)
-			&& self.votes.count_step_votes(message.height, message.round, message.step) > self.threshold()	
+		if message.round > self.round.load(AtomicOrdering::SeqCst) {
+			let step_votes = self.votes.count_step_votes(message.height, message.round, message.step);
+			self.is_above_threshold(step_votes)	
+		} else {
+			false
+		}
 	}
 
 	fn has_enough_aligned_votes(&self, message: &ConsensusMessage) -> bool {
-		self.votes.aligned_votes(&message).len() > self.threshold()
+		let aligned_votes = self.votes.aligned_votes(&message).len();
+		self.is_above_threshold(aligned_votes)
 	}
 }
 
@@ -476,6 +478,13 @@ mod tests {
 	use super::params::TendermintParams;
 	use super::message::*;
 
+	fn setup() -> (Spec, Arc<AccountProvider>) {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let spec = Spec::new_test_tendermint();
+		spec.engine.register_account_provider(tap.clone());
+		(spec, tap)
+	}
+
 	fn propose_default(engine: &Arc<Engine>, db: &StateDB, proposer: Address) -> Option<Vec<Bytes>> {
 		let mut header = Header::default();
 		let last_hashes = Arc::new(vec![]);
@@ -489,9 +498,7 @@ mod tests {
 		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
 	}
 
-	fn proposal_seal(header: &Header, round: Round) -> Vec<Bytes> {
-		let tap = AccountProvider::transient_provider();
-
+	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, round: Round) -> Vec<Bytes> {
 		let author = header.author();
 		let vote_info = message_info_rlp(header.number() as Height, round, Step::Propose, Some(header.bare_hash()));
 		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
@@ -500,6 +507,12 @@ mod tests {
 			::rlp::encode(&H520::from(signature)).to_vec(),
 			Vec::new()
 		]
+	}
+
+	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
+		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
+		tap.unlock_account_permanently(addr, acc.into()).unwrap();
+		addr
 	}
 
 	fn default_seal() -> Vec<Bytes> {
@@ -544,21 +557,44 @@ mod tests {
 	}
 
 	#[test]
-	fn verification_fails_on_wrong_signatures() {
-		let engine = Spec::new_test_tendermint().engine;
-		let mut header = Header::default();
-		let tap = AccountProvider::transient_provider();
+	fn allows_correct_proposer() {
+		::env_logger::init().unwrap();
+		let (spec, tap) = setup();
+		let engine = spec.engine;
 
-		let mut seal = Vec::new();
+		let mut header = Header::default();
+		let validator = insert_and_unlock(&tap, "0");
+		header.set_author(validator);
+		let seal = proposal_seal(&tap, &header, 0);
+		header.set_seal(seal);
+		// Good proposer.
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
+
+		let mut header = Header::default();
+		let random = insert_and_unlock(&tap, "101");
+		header.set_author(random);
+		let seal = proposal_seal(&tap, &header, 0);
+		header.set_seal(seal);
+		// Bad proposer.
+		assert!(engine.verify_block_unordered(&header, None).is_err());
+	}
+
+	#[test]
+	fn verification_fails_on_wrong_signatures() {
+		let (spec, tap) = setup();
+		let engine = spec.engine;
+		let mut header = Header::default();
+
 
 		let v1 = tap.insert_account("0".sha3(), "0").unwrap();
-		let sig1 = tap.sign(v1, Some("0".into()), header.bare_hash()).unwrap();
-		seal.push(::rlp::encode(&(&*sig1 as &[u8])).to_vec());
+
+		header.set_author(v1);
+		let mut seal = proposal_seal(&tap, &header, 0);
 
 		header.set_seal(seal.clone());
 
 		// Not enough signatures.
-		assert!(engine.verify_block_basic(&header, None).is_err());
+		assert!(engine.verify_block_unordered(&header, None).is_err());
 
 		let v2 = tap.insert_account("101".sha3(), "101").unwrap();
 		let sig2 = tap.sign(v2, Some("101".into()), header.bare_hash()).unwrap();
@@ -567,7 +603,7 @@ mod tests {
 		header.set_seal(seal);
 
 		// Enough signatures.
-		assert!(engine.verify_block_basic(&header, None).is_ok());
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
 		let verify_result = engine.verify_block_unordered(&header, None);
 
@@ -581,10 +617,11 @@ mod tests {
 
 	#[test]
 	fn seal_with_enough_signatures_is_ok() {
-		let engine = Spec::new_test_tendermint().engine;
+		let (spec, tap) = setup();
+		let engine = spec.engine;
 		let mut header = Header::default();
 
-		let seal = proposal_seal(&header, 0);
+		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 
 		// Enough signatures.
@@ -596,20 +633,18 @@ mod tests {
 
 	#[test]
 	fn can_generate_seal() {
-		let spec = Spec::new_test_tendermint();
-		let ref engine = *spec.engine;
-		let tender = Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new()).unwrap();
+		let (spec, _) = setup();
 
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 
-		let seal = tender.generate_seal(b.block()).unwrap();
-		assert!(b.try_seal(engine, seal).is_ok());
+		let seal = spec.engine.generate_seal(b.block()).unwrap();
+		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
 	}
 
 	#[test]
