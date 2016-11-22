@@ -14,8 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { stringify } from 'querystring';
-
 export const checkIfVerified = (contract, account) => {
   return contract.instance.certified.call({}, [account]);
 };
@@ -50,20 +48,5 @@ export const checkIfRequested = (contract, account) => {
           contract.unsubscribe(subId);
         }
       });
-  });
-};
-
-export const postToServer = (query) => {
-  query = stringify(query);
-  return fetch('https://sms-verification.parity.io/?' + query, {
-    method: 'POST', mode: 'cors', cache: 'no-store'
-  })
-  .then((res) => {
-    return res.json().then((data) => {
-      if (res.ok) {
-        return data.message;
-      }
-      throw new Error(data.message || 'unknown error');
-    });
   });
 };
