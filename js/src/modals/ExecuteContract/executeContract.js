@@ -15,17 +15,21 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { MAX_GAS_ESTIMATION } from '../../util/constants';
 import { validateAddress, validateUint } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
+import ERRORS from '../Transfer/errors';
 import { ERROR_CODES } from '../../api/transport/error';
 
-export default class ExecuteContract extends Component {
+class ExecuteContract extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     store: PropTypes.object.isRequired
@@ -36,6 +40,7 @@ export default class ExecuteContract extends Component {
     fromAddress: PropTypes.string,
     accounts: PropTypes.object,
     contract: PropTypes.object,
+    gasLimit: PropTypes.object.isRequired,
     onClose: PropTypes.func.isRequired,
     onFromAddressChange: PropTypes.func.isRequired
   }
@@ -46,6 +51,8 @@ export default class ExecuteContract extends Component {
     fromAddressError: null,
     func: null,
     funcError: null,
+    gas: null,
+    gasLimitError: null,
     values: [],
     valuesError: [],
     step: 0,
@@ -62,6 +69,12 @@ export default class ExecuteContract extends Component {
       .sort((a, b) => a.name.localeCompare(b.name));
 
     this.onFuncChange(null, functions[0]);
+  }
+
+  componentWillReceiveProps (newProps) {
+    if (newProps.fromAddress !== this.props.fromAddress) {
+      this.estimateGas(newProps.fromAddress);
+    }
   }
 
   render () {
@@ -119,7 +132,7 @@ export default class ExecuteContract extends Component {
 
   renderStep () {
     const { onFromAddressChange } = this.props;
-    const { step, busyState, txhash, rejected } = this.state;
+    const { step, busyState, gasLimitError, txhash, rejected } = this.state;
 
     if (rejected) {
       return (
@@ -135,6 +148,7 @@ export default class ExecuteContract extends Component {
         <DetailsStep
           { ...this.props }
           { ...this.state }
+          warning={ gasLimitError }
           onAmountChange={ this.onAmountChange }
           onFromAddressChange={ onFromAddressChange }
           onFuncChange={ this.onFuncChange }
@@ -156,7 +170,7 @@ export default class ExecuteContract extends Component {
   }
 
   onAmountChange = (amount) => {
-    this.setState({ amount });
+    this.setState({ amount }, this.estimateGas);
   }
 
   onFuncChange = (event, func) => {
@@ -182,7 +196,7 @@ export default class ExecuteContract extends Component {
     this.setState({
       func,
       values
-    });
+    }, this.estimateGas);
   }
 
   onValueChange = (event, index, _value) => {
@@ -211,7 +225,47 @@ export default class ExecuteContract extends Component {
     this.setState({
       values: [].concat(values),
       valuesError: [].concat(valuesError)
+    }, () => {
+      if (!valueError) {
+        this.estimateGas();
+      }
     });
+  }
+
+  estimateGas = (_fromAddress) => {
+    const { api } = this.context;
+    const { fromAddress, gasLimit } = this.props;
+    const { amount, func, values } = this.state;
+    const options = {
+      gas: MAX_GAS_ESTIMATION,
+      from: _fromAddress || fromAddress,
+      value: api.util.toWei(amount || 0)
+    };
+
+    if (!func) {
+      return;
+    }
+
+    func
+      .estimateGas(options, values)
+      .then((gasEst) => {
+        const gas = gasEst.mul(1.2);
+        let gasLimitError = null;
+
+        if (gas.gte(MAX_GAS_ESTIMATION)) {
+          gasLimitError = ERRORS.gasException;
+        } else if (gas.gt(gasLimit)) {
+          gasLimitError = ERRORS.gasBlockLimit;
+        }
+
+        this.setState({
+          gas,
+          gasLimitError
+        });
+      })
+      .catch((error) => {
+        console.warn('estimateGas', error);
+      });
   }
 
   postTransaction = () => {
@@ -219,6 +273,7 @@ export default class ExecuteContract extends Component {
     const { fromAddress } = this.props;
     const { amount, func, values } = this.state;
     const options = {
+      gas: MAX_GAS_ESTIMATION,
       from: fromAddress,
       value: api.util.toWei(amount || 0)
     };
@@ -237,13 +292,13 @@ export default class ExecuteContract extends Component {
 
         return api
           .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+          .catch((error) => {
+            if (error.code === ERROR_CODES.REQUEST_REJECTED) {
               this.setState({ rejected: true });
               return false;
             }
 
-            throw e;
+            throw error;
           });
       })
       .then((txhash) => {
@@ -255,3 +310,18 @@ export default class ExecuteContract extends Component {
       });
   }
 }
+
+function mapStateToProps (state) {
+  const { gasLimit } = state.nodeStatus;
+
+  return { gasLimit };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({}, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(ExecuteContract);
