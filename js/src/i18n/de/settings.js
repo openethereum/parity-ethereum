@@ -46,7 +46,7 @@ export default {
       mode_active: 'Parity synchronisiert kontinuierlich die Blockchain',
       mode_passive: 'Parity synchronisiert zunächst, schläft dann und wacht regelmäßig zum Synchronisieren auf',
       mode_dark: 'Parity synchronisiert nur, falls erforderlich - beim Aufruf einer fernen Prozedur (RPC)',
-      mode_offline: "Parity synchronisiert nicht"
+      mode_offline: 'Parity synchronisiert nicht'
     }
   },
 
