@@ -78,7 +78,7 @@ export default class Input extends Component {
   }
 
   state = {
-    value: this.props.value || ''
+    value: typeof this.props.value === 'undefined' ? '' : this.props.value
   }
 
   componentWillReceiveProps (newProps) {

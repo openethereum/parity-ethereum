@@ -21,7 +21,7 @@ import ContentAdd from 'material-ui/svg-icons/content/add';
 import { uniq } from 'lodash';
 
 import List from './List';
-import { CreateAccount } from '../../modals';
+import { CreateAccount, CreateWallet } from '../../modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
 
 import styles from './accounts.css';
@@ -40,6 +40,7 @@ class Accounts extends Component {
   state = {
     addressBook: false,
     newDialog: false,
+    newWalletDialog: false,
     sortOrder: '',
     searchValues: [],
     searchTokens: []
@@ -52,6 +53,7 @@ class Accounts extends Component {
     return (
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
+        { this.renderNewWalletDialog() }
         { this.renderActionbar() }
         <Page>
           <List
@@ -106,6 +108,12 @@ class Accounts extends Component {
         label='new account'
         onClick={ this.onNewAccountClick } />,
 
+      <Button
+        key='newWallet'
+        icon={ <ContentAdd /> }
+        label='new wallet'
+        onClick={ this.onNewWalletClick } />,
+
       <ActionbarExport
         key='exportAccounts'
         content={ accounts }
@@ -144,6 +152,22 @@ class Accounts extends Component {
     );
   }
 
+  renderNewWalletDialog () {
+    const { accounts } = this.props;
+    const { newWalletDialog } = this.state;
+
+    if (!newWalletDialog) {
+      return null;
+    }
+
+    return (
+      <CreateWallet
+        accounts={ accounts }
+        onClose={ this.onNewWalletClose }
+      />
+    );
+  }
+
   onAddSearchToken = (token) => {
     const { searchTokens } = this.state;
     const newSearchTokens = uniq([].concat(searchTokens, token));
@@ -156,8 +180,18 @@ class Accounts extends Component {
     });
   }
 
+  onNewWalletClick = () => {
+    this.setState({
+      newWalletDialog: !this.state.newWalletDialog
+    });
+  }
+
   onNewAccountClose = () => {
     this.onNewAccountClick();
+  }
+
+  onNewWalletClose = () => {
+    this.onNewWalletClick();
   }
 
   onNewAccountUpdate = () => {

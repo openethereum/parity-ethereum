@@ -31,12 +31,13 @@ export default class TypedInput extends Component {
 
   static propTypes = {
     onChange: PropTypes.func.isRequired,
-    accounts: PropTypes.object.isRequired,
     param: PropTypes.object.isRequired,
 
+    accounts: PropTypes.object,
     error: PropTypes.any,
     value: PropTypes.any,
-    label: PropTypes.string
+    label: PropTypes.string,
+    hint: PropTypes.string
   };
 
   render () {
@@ -141,11 +142,12 @@ export default class TypedInput extends Component {
   }
 
   renderNumber () {
-    const { label, value, error, param } = this.props;
+    const { label, value, error, param, hint } = this.props;
 
     return (
       <Input
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
         onSubmit={ this.onSubmit }
@@ -156,11 +158,12 @@ export default class TypedInput extends Component {
   }
 
   renderDefault () {
-    const { label, value, error } = this.props;
+    const { label, value, error, hint } = this.props;
 
     return (
       <Input
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
         onSubmit={ this.onSubmit }
@@ -169,12 +172,13 @@ export default class TypedInput extends Component {
   }
 
   renderAddress () {
-    const { accounts, label, value, error } = this.props;
+    const { accounts, label, value, error, hint } = this.props;
 
     return (
       <InputAddressSelect
         accounts={ accounts }
         label={ label }
+        hint={ hint }
         value={ value }
         error={ error }
         onChange={ this.onChange }
@@ -184,7 +188,7 @@ export default class TypedInput extends Component {
   }
 
   renderBoolean () {
-    const { label, value, error } = this.props;
+    const { label, value, error, hint } = this.props;
 
     const boolitems = ['false', 'true'].map((bool) => {
       return (
@@ -201,6 +205,7 @@ export default class TypedInput extends Component {
     return (
       <Select
         label={ label }
+        hint={ hint }
         value={ value ? 'true' : 'false' }
         error={ error }
         onChange={ this.onChangeBool }

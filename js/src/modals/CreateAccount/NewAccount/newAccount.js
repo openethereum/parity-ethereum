@@ -192,8 +192,6 @@ export default class CreateAccount extends Component {
               };
             });
 
-            console.log(accounts);
-
             this.setState({
               selectedAddress: addresses[0],
               accounts: accounts
@@ -201,8 +199,7 @@ export default class CreateAccount extends Component {
           });
       })
       .catch((error) => {
-        console.log('createIdentities', error);
-
+        console.error('createIdentities', error);
         setTimeout(this.createIdentities, 1000);
         this.newError(error);
       });
