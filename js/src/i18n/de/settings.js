@@ -20,8 +20,8 @@ export default {
   background: {
     label: 'Hintergrund',
 
-    overview_0: 'Dein Hintergrundmuster ist einzigartig und beruht auf deiner Parity Installation. Es ändert sich jedes Mal dann, wenn du einen neuen Signer token erstellst. Dies stellt sicher, dass dezentrale Applicationen keine Vertrauenswürdigkeit vortäuschen können.',
-    overview_1: 'Such dir ein Muster aus und merke es dir. Dieses Muster wird dir nun immer angezeigt, ausser du löschst deinen Browser Cache oder benutzt einen neuen Signer token.',
+    overview_0: 'Dein Hintergrundmuster ist einzigartig und beruht auf deiner Parity-Installation. Es ändert sich immer dann, wenn du ein neues Signer-Token erstellst. So können dezentrale Applicationen keine Vertrauenswürdigkeit vortäuschen.',
+    overview_1: 'Such dir ein Muster aus und merke es dir. Dieses Muster wird dir von nun an immer angezeigt, es sei denn du löschst deinen Browser-Cache oder benutzt ein neues Signer-Token.',
 
     button_more: 'weitere generieren'
   },
@@ -33,7 +33,7 @@ export default {
 
     languages: {
       label: 'Anzeigesprache',
-      hint: 'die Sprache, in der dir diese Obefläche angezeigt wird',
+      hint: 'Die Sprache, in der dir diese Obefläche angezeigt wird',
 
       language_en: 'English',
       language_de: 'Deutsch'
@@ -41,11 +41,11 @@ export default {
 
     modes: {
       label: 'Betriebsmodus',
-      hint: 'der Synchronisations-Modus deines Parity Knotens',
+      hint: 'Der Synchronisations-Modus deines Parity-Knotens',
 
       mode_active: 'Parity synchronisiert kontinuierlich die Blockchain',
-      mode_passive: 'Parity synchronisiert zunächst, schläft dann und wacht regelmäßig zum Synchronisieren auf',
-      mode_dark: 'Parity synchronisiert nur, falls erforderlich - beim Aufruf einer fernen Prozedur (RPC)',
+      mode_passive: 'Parity synchronisiert zu Beginn, schläft dann und wacht regelmäßig zum Synchronisieren auf',
+      mode_dark: 'Parity synchronisiert nur falls erforderlich, etwa wenn es aus der Ferne aufgerufen wird',
       mode_offline: 'Parity synchronisiert nicht'
     }
   },
@@ -53,9 +53,9 @@ export default {
   proxy: {
     label: 'Proxy',
 
-    overview_0: 'Die Proxy-Einstellungen ermöglichen dir einfachen Zugriff auf die Parity-Oberfläche mit all ihren dezentralen Anwendungen über einprägsame Adressen.',
+    overview_0: 'Die Proxy-Einstellungen ermöglichen dir einen einfachen Zugriff über einprägsame Adressen, auf die Oberfläche mit all ihren dezentralen Anwendungen.',
 
-    details_0: 'Anstelle des Zugriffs über IP-Adresse und Port wirst du über die .parity Subdomain auf die Parity Oberfläche zugreifen können, indem du ',
+    details_0: 'Anstelle des Zugriffs über IP-Adresse und Port wirst du über die .parity-Subdomain auf die Parity-Oberfläche zugreifen können, indem du ',
     details_1: 'besuchst. Dafür musst du folgenden Eintrag in den Proxy-Einstellungen deines Browsers hinzufügen:',
     details_2: 'Hier findest du Anleitungen zum Anpassen der Proxy-Einstellungen in ',
     details_windows: 'Windows',
@@ -68,38 +68,38 @@ export default {
   views: {
     label: 'Ansicht',
 
-    overview_0: 'Hier kannst du einstellen, welche Teile der Parity-Oberfläche dir angezeigt werden sollen.',
-    overview_1: 'Bist du Endnutzer? Die Standardeinstellungen sind gleichermaßen für Einsteiger als auch fortgeschrittene Nutzer gedacht.',
-    overview_2: 'Bist du Entwickler? Füge z.B. den Verträge-Reiter zu deiner Ansicht hinzu.',
-    overview_3: 'Bist du Miner oder betreibst du einen großangelegten Knoten? Füge den Status-Reiter hinzu, um alle Information über den Betrieb deines Knotens im Blick zu halten.',
+    overview_0: 'Hier kannst du entscheiden, welche Teile der Parity-Oberfläche dir angezeigt werden sollen.',
+    overview_1: 'Benutzt du Parity ganz normal? Die Standardeinstellungen sind gleichermaßen für Einsteigende als auch für Fortgeschrittene gedacht.',
+    overview_2: 'Entwickelst du mit Parity? Füge zum Beispiel den Reiter "Contracts" zu deiner Ansicht hinzu.',
+    overview_3: 'Bist du Miner oder betreibst du einen großen Knoten? Füge den Reiter "Status" hinzu, um alle Information über den Betrieb deines Knotens im Blick zu halten.',
 
     accounts: {
       label: 'Konten',
-      description: 'Eine Liste aller Konten, die mit dieser Instanz von Parity verbunden sind. Sende Transaktionen, empfange eingehende Beträge, verwalte deinen Kontostand oder lade dein Konto auf.'
+      description: 'Eine Liste aller Konten, die mit dieser Parity-Installation verbunden sind. Sende Transaktionen, empfange eingehende Beträge, verwalte deine Kontostände oder lade deine Konten auf.'
     },
     addresses: {
       label: 'Adressbuch',
-      description: 'Eine Liste all deiner Kontakte und Adressbucheinträge, die von dieser Instanz von Parity verwaltet werden. Überwache Konten und gelange mit nur einem Klick zu Details deiner Transaktionen.'
+      description: 'Eine Liste all deiner Kontakte und der Adressen, die von dieser Parity-Installation verwaltet werden. Überwache Konten und gelange mit nur einem Klick zu Details deiner Transaktionen.'
     },
     apps: {
       label: 'Anwendungen',
-      description: 'Dezentrale Anwendungen, die mit dem Netzwerk interagieren. Füge Anwendungen hinzu oder verwalte und interagiere mit bestehenden Anwendungen.'
+      description: 'Dezentrale Anwendungen, die mit dem Netzwerk interagieren. Füge Anwendungen hinzu, entferne oder öffne Anwendungen.'
     },
     contracts: {
-      label: 'Verträge',
-      description: 'Überwache und interagiere mit Verträgen, die im Netzwerk installiert wurden. Dies ist eine technisch fokussierte Umgebung, die auf fortgeschrittene Benutzer mit gutem Verständnis der Fuktionsweise von Verträgen zugeschnitten ist.'
+      label: 'Contracts',
+      description: 'Interagiere mit Smart Contracts im Netzwerk. Diese Umgebung ist auf Fortgeschrittene mit gutem Verständnis der Fuktionsweise von Smart Contracts zugeschnitten.'
     },
     status: {
       label: 'Status',
-      description: 'Schau dir an, wie sich dein Parity Knoten schlägt. Hier findest du z.B. die Anzahl der aktuellen Verbindungen zum Netzwerk, Logs deiner laufenden Instanz und Mining Details (sofern eingeschaltet and konfiguriert).'
+      description: 'Schau dir an, wie sich dein Parity-Knoten schlägt. Hier findest du zum Beispiel die Anzahl der aktuellen Verbindungen zum Netzwerk, Logs deiner laufenden Instanz und (sofern konfiguriert) Details zum Mining.'
     },
     signer: {
       label: 'Signer',
-      description: 'Dies ist der sichere Bereich zum Verwalten deiner Transaktionen. Hier kannst du Transaktionen, die von dir oder deinen Anwendungen angestoßen wurden, prüfen und dann genehmigen oder ablehnen.'
+      description: 'In diesem sicheren Bereich kannst du Transaktionen, die von dir oder von dezentralen Anwendungen erstellt wurden, prüfen und dann genehmigen oder ablehnen.'
     },
     settings: {
       label: 'Einstellungen',
-      description: 'Die aktuelle Seite, die dir erlaubt, die Parity Oberfläche nach deinen Wünschen anzupassen.'
+      description: 'Diese Seite. Pass die Parity-Oberfläche nach deinen Wünschen an.'
     }
   }
 };
