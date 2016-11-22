@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
 
-import { Badge, Tooltip } from '../../../ui';
+import { Badge, Tooltip, Translate } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
@@ -66,29 +66,25 @@ class Tab extends Component {
   }
 
   getLabel (view) {
-    const { label } = view;
+    const { id } = view;
 
-    if (view.id === 'signer') {
-      return this.renderSignerLabel(label);
+    if (id === 'signer') {
+      return this.renderSignerLabel(id);
     }
 
-    if (view.id === 'status') {
-      return this.renderStatusLabel(label);
-    }
-
-    return this.renderLabel(label);
+    return this.renderLabel(id);
   }
 
-  renderLabel (name, bubble) {
+  renderLabel (id, bubble) {
     return (
       <div className={ styles.label }>
-        { name }
+        <Translate value={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );
   }
 
-  renderSignerLabel (label) {
+  renderSignerLabel (id) {
     const { pendings } = this.props;
 
     if (pendings) {
@@ -99,22 +95,10 @@ class Tab extends Component {
           value={ pendings } />
       );
 
-      return this.renderLabel(label, bubble);
+      return this.renderLabel(id, bubble);
     }
 
-    return this.renderLabel(label);
-  }
-
-  renderStatusLabel (label) {
-    // const { isTest, netChain } = this.props;
-    // const bubble = (
-    //   <Badge
-    //     color={ isTest ? 'red' : 'default' }
-    //     className={ styles.labelBubble }
-    //     value={ isTest ? 'TEST' : netChain } />
-    //   );
-
-    return this.renderLabel(label, null);
+    return this.renderLabel(id);
   }
 
   handleClick = () => {
