@@ -11,6 +11,7 @@ dependencies = [
  "ethcore 1.5.0",
  "ethcore-dapps 1.5.0",
  "ethcore-devtools 1.4.0",
+ "ethcore-hash-fetch 1.5.0",
  "ethcore-io 1.5.0",
  "ethcore-ipc 1.4.0",
  "ethcore-ipc-codegen 1.4.0",
@@ -334,8 +335,8 @@ version = "1.5.0"
 dependencies = [
  "clippy 0.0.96 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethcore-devtools 1.4.0",
+ "ethcore-hash-fetch 1.5.0",
  "ethcore-rpc 1.5.0",
  "ethcore-util 1.5.0",
  "fetch 0.1.0",
@@ -364,6 +365,18 @@ name = "ethcore-devtools"
 version = "1.4.0"
 dependencies = [
  "rand 0.3.14 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "ethcore-hash-fetch"
+version = "1.5.0"
+dependencies = [
+ "ethabi 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethcore-util 1.5.0",
+ "fetch 0.1.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "mime_guess 1.6.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.19 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1250,7 +1263,7 @@ dependencies = [
 [[package]]
 name = "parity-ui-precompiled"
 version = "1.4.0"
-source = "git+https://github.com/ethcore/js-precompiled.git#20e50a56709fbe3e39d0fea6cf31f48bd1da4bff"
+source = "git+https://github.com/ethcore/js-precompiled.git#e005d40a1049dd1fd5d5543075f1fb66008c431c"
 dependencies = [
  "parity-dapps-glue 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

@@ -35,7 +35,8 @@ class Embedded extends Component {
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
-    }).isRequired
+    }).isRequired,
+    isTest: PropTypes.bool.isRequired
   };
 
   render () {
@@ -70,7 +71,7 @@ class Embedded extends Component {
   }
 
   renderPending = (data) => {
-    const { actions } = this.props;
+    const { actions, isTest } = this.props;
     const { payload, id, isSending, date } = data;
 
     return (
@@ -83,6 +84,7 @@ class Embedded extends Component {
         id={ id }
         payload={ payload }
         date={ date }
+        isTest={ isTest }
       />
     );
   }
@@ -93,11 +95,13 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
+  const { isTest } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
-    signer
+    signer,
+    isTest
   };
 }
 

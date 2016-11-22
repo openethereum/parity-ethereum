@@ -51,13 +51,13 @@ extern crate serde;
 extern crate serde_json;
 extern crate zip;
 extern crate rand;
-extern crate ethabi;
 extern crate jsonrpc_core;
 extern crate jsonrpc_http_server;
 extern crate mime_guess;
 extern crate rustc_serialize;
 extern crate ethcore_rpc;
 extern crate ethcore_util as util;
+extern crate ethcore_hash_fetch as hash_fetch;
 extern crate linked_hash_map;
 extern crate fetch;
 extern crate parity_dapps_glue as parity_dapps;
@@ -84,12 +84,11 @@ mod url;
 #[cfg(test)]
 mod tests;
 
-pub use self::apps::urlhint::ContractClient;
-
 use std::sync::{Arc, Mutex};
 use std::net::SocketAddr;
 use std::collections::HashMap;
 
+use hash_fetch::urlhint::ContractClient;
 use jsonrpc_core::{IoHandler, IoDelegate};
 use router::auth::{Authorization, NoAuth, HttpBasicAuth};
 use ethcore_rpc::Extendable;
@@ -219,7 +218,7 @@ impl Server {
 	) -> Result<Server, ServerError> {
 		let panic_handler = Arc::new(Mutex::new(None));
 		let authorization = Arc::new(authorization);
-		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(apps::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
+		let content_fetcher = Arc::new(apps::fetcher::ContentFetcher::new(hash_fetch::urlhint::URLHintContract::new(registrar), sync_status, signer_address.clone()));
 		let endpoints = Arc::new(apps::all_endpoints(dapps_path, signer_address.clone()));
 		let cors_domains = Self::cors_domains(signer_address.clone());
 

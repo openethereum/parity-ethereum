@@ -20,20 +20,20 @@ url = "1.0"
 rustc-serialize = "0.3"
 serde = "0.8"
 serde_json = "0.8"
-ethabi = "0.2.2"
 linked-hash-map = "0.3"
 parity-dapps-glue = "1.4"
 mime = "0.2"
+mime_guess = "1.6.1"
 time = "0.1.35"
 serde_macros = { version = "0.8", optional = true }
 zip = { version = "0.1", default-features = false }
 ethcore-devtools = { path = "../devtools" }
 ethcore-rpc = { path = "../rpc" }
 ethcore-util = { path = "../util" }
+ethcore-hash-fetch = { path = "../ethcore/hash-fetch" }
 fetch = { path = "../util/fetch" }
 parity-ui = { path = "./ui" }
 
-mime_guess = { version = "1.6.1" }
 clippy = { version = "0.0.96", optional = true}
 
 [build-dependencies]
