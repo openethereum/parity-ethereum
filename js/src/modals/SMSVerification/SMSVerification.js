@@ -16,8 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
-import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
-import ContentClear from 'material-ui/svg-icons/content/clear';
+import DoneIcon from 'material-ui/svg-icons/action/done-all';
+import CancelIcon from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '../../ui';
 
@@ -77,7 +77,7 @@ export default class SMSVerification extends Component {
     const cancel = (
       <Button
         key='cancel' label='Cancel'
-        icon={ <ContentClear /> }
+        icon={ <CancelIcon /> }
         onClick={ onClose }
       />
     );
@@ -92,7 +92,7 @@ export default class SMSVerification extends Component {
           <Button
             key='done' label='Done'
             disabled={ !isStepValid }
-            icon={ <ActionDoneAll /> }
+            icon={ <DoneIcon /> }
             onClick={ onClose }
           />
         </div>
@@ -140,37 +140,47 @@ export default class SMSVerification extends Component {
       setNumber, setConsentGiven, setCode
     } = this.props.store;
 
-    if (phase === 5) {
-      return (<Done />);
-    }
-    if (phase === 4) {
-      return (<SendConfirmation step={ step } tx={ confirmationTx } />);
-    }
-    if (phase === 3) {
-      return (
-        <QueryCode
-          number={ number } fee={ fee } isCodeValid={ isCodeValid }
-          setCode={ setCode }
-        />
-      );
-    }
-    if (phase === 2) {
-      return (<SendRequest step={ step } tx={ requestTx } />);
-    }
-    if (phase === 1) {
-      const { setNumber, setConsentGiven } = this.props.store;
-      return (
-        <GatherData
-          fee={ fee } isNumberValid={ isNumberValid }
-          isVerified={ isVerified } hasRequested={ hasRequested }
-          setNumber={ setNumber } setConsentGiven={ setConsentGiven }
-        />
-      );
-    }
-    if (phase === 0) {
-      return (<p>Preparing awesomeness!</p>);
-    }
+    switch (phase) {
+      case 0:
+        return (
+          <p>Loading SMS Verification.</p>
+        );
 
-    return null;
+      case 1:
+        const { setNumber, setConsentGiven } = this.props.store;
+        return (
+          <GatherData
+            fee={ fee } isNumberValid={ isNumberValid }
+            isVerified={ isVerified } hasRequested={ hasRequested }
+            setNumber={ setNumber } setConsentGiven={ setConsentGiven }
+          />
+        );
+
+      case 2:
+        return (
+          <SendRequest step={ step } tx={ requestTx } />
+        );
+
+      case 3:
+        return (
+          <QueryCode
+            number={ number } fee={ fee } isCodeValid={ isCodeValid }
+            setCode={ setCode }
+          />
+        );
+
+      case 4:
+        return (
+          <SendConfirmation step={ step } tx={ confirmationTx } />
+        );
+
+      case 5:
+        return (
+          <Done />
+        );
+
+      default:
+        return null;
+    }
   }
 }
