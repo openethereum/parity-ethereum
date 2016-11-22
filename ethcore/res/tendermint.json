@@ -5,8 +5,8 @@
 			"params": {
 				"gasLimitBoundDivisor": "0x0400",
 				"authorities" : [
-					"0x7d577a597b2742b498cb5cf0c26cdcd726d39e6e",
-					"0x82a978b3f5962a5b0957d9ee9eef472ee55b42f1"
+					"0xff7b8b40a1ec83e2955a0a8a008c73acae282ae7",
+					"0x4cabfe78ad6c38d87c00046b98c7957f5c523577"
 				]
 			}
 		}
