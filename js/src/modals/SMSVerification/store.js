@@ -24,7 +24,20 @@ import { checkIfVerified, checkIfRequested } from '../../contracts/sms-verificat
 import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
+import subscribeToEvent from '../../util/subscribe-to-event';
 import isTestnet from '../../util/is-testnet';
+
+const awaitPuzzle = (contract, who) => {
+  return new Promise((resolve, reject) => {
+    const subscription = subscribeToEvent(contract, 'Puzzled', {
+      filter: (log) => log.params.who.value === who,
+      timeout: 30000
+    });
+    subscription.once('error', reject);
+    subscription.once('log', subscription.unsubscribe);
+    subscription.once('log', resolve);
+  });
+};
 
 const validCode = /^[A-Z\s]+$/i;
 
@@ -196,6 +209,9 @@ export default class VerificationStore {
 
         this.step = REQUESTING_SMS;
         return postToServer({ number, address: account }, isTest);
+      })
+      .then(() => {
+        return awaitPuzzle(contract, account);
       })
       .then(() => {
         this.step = REQUESTED_SMS;
