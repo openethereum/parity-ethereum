@@ -21,7 +21,9 @@ import Select from '../Form/Select';
 import Translate from '../Translate';
 import { getLocale, setLocale } from '../../i18n';
 
-const LOCALES = ['en'];
+const LOCALES = [
+  'en', 'de'
+];
 
 export default class LanguageSelector extends Component {
   state = {
