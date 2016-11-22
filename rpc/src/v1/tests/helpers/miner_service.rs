@@ -24,7 +24,7 @@ use ethcore::block::{ClosedBlock, IsBlock};
 use ethcore::header::BlockNumber;
 use ethcore::transaction::SignedTransaction;
 use ethcore::receipt::{Receipt, RichReceipt};
-use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult};
+use ethcore::miner::{MinerService, MinerStatus, TransactionImportResult, LocalTransactionStatus};
 
 /// Test miner service.
 pub struct TestMinerService {
@@ -34,6 +34,8 @@ pub struct TestMinerService {
 	pub latest_closed_block: Mutex<Option<ClosedBlock>>,
 	/// Pre-existed pending transactions
 	pub pending_transactions: Mutex<HashMap<H256, SignedTransaction>>,
+	/// Pre-existed local transactions
+	pub local_transactions: Mutex<BTreeMap<H256, LocalTransactionStatus>>,
 	/// Pre-existed pending receipts
 	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
 	/// Last nonces.
@@ -53,6 +55,7 @@ impl Default for TestMinerService {
 			imported_transactions: Mutex::new(Vec::new()),
 			latest_closed_block: Mutex::new(None),
 			pending_transactions: Mutex::new(HashMap::new()),
+			local_transactions: Mutex::new(BTreeMap::new()),
 			pending_receipts: Mutex::new(BTreeMap::new()),
 			last_nonces: RwLock::new(HashMap::new()),
 			min_gas_price: RwLock::new(U256::from(20_000_000)),
@@ -193,6 +196,10 @@ impl MinerService for TestMinerService {
 
 	fn all_transactions(&self) -> Vec<SignedTransaction> {
 		self.pending_transactions.lock().values().cloned().collect()
+	}
+
+	fn local_transactions(&self) -> BTreeMap<H256, LocalTransactionStatus> {
+		self.local_transactions.lock().iter().map(|(hash, stats)| (*hash, stats.clone())).collect()
 	}
 
 	fn pending_transactions(&self, _best_block: BlockNumber) -> Vec<SignedTransaction> {

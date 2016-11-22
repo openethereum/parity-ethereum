@@ -57,7 +57,7 @@ export default class CallsToolbar extends Component {
         <div className={ styles.callActions } { ...this._test('button-container') }>
           <IconButton
             className={ styles.callAction }
-            onClick={ this.setCall }
+            onTouchTap={ this.setCall }
             tooltip='Set'
             tooltipPosition='top-left'
             { ...this._test('button-setCall') }
@@ -66,7 +66,7 @@ export default class CallsToolbar extends Component {
           </IconButton>
           <IconButton
             className={ styles.callAction }
-            onClick={ this.makeCall }
+            onTouchTap={ this.makeCall }
             tooltip='Fire again'
             tooltipPosition='top-left'
             { ...this._test('button-makeCall') }

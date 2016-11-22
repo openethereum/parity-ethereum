@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { stringify } from 'querystring';
 import React from 'react';
 
-export default (
+export const termsOfService = (
   <ul>
     <li>This privacy notice relates to your use of the Parity SMS verification service. We take your privacy seriously and deal in an honest, direct and transparent way when it comes to your data.</li>
     <li>We collect your phone number when you use this service. This is temporarily kept in memory, and then encrypted and stored in our EU servers. We only retain the cryptographic hash of the number to prevent duplicated accounts. You consent to this use.</li>
@@ -25,3 +26,18 @@ export default (
     <li><i>Parity Technology Limited</i> is registered in England and Wales under company number <code>09760015</code> and complies with the Data Protection Act 1998 (UK). You may contact us via email at <a href={ 'mailto:admin@parity.io' }>admin@parity.io</a>. Our general privacy policy can be found here: <a href={ 'https://ethcore.io/legal.html' }>https://ethcore.io/legal.html</a>.</li>
   </ul>
 );
+
+export const postToServer = (query) => {
+  query = stringify(query);
+  return fetch('https://sms-verification.parity.io/?' + query, {
+    method: 'POST', mode: 'cors', cache: 'no-store'
+  })
+  .then((res) => {
+    return res.json().then((data) => {
+      if (res.ok) {
+        return data.message;
+      }
+      throw new Error(data.message || 'unknown error');
+    });
+  });
+};

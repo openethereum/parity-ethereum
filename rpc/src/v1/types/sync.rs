@@ -14,9 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethsync::PeerInfo as SyncPeerInfo;
+use std::collections::BTreeMap;
+use ethsync::{PeerInfo as SyncPeerInfo, TransactionStats as SyncTransactionStats};
 use serde::{Serialize, Serializer};
-use v1::types::U256;
+use v1::types::{U256, H512};
 
 /// Sync info
 #[derive(Default, Debug, Serialize, PartialEq)]
@@ -117,8 +118,19 @@ impl Serialize for SyncStatus {
 	}
 }
 
+/// Propagation statistics for pending transaction.
+#[derive(Default, Debug, Serialize)]
+pub struct TransactionStats {
+	/// Block no this transaction was first seen.
+	#[serde(rename="firstSeen")]
+	pub first_seen: u64,
+	/// Peers this transaction was propagated to with count.
+	#[serde(rename="propagatedTo")]
+	pub propagated_to: BTreeMap<H512, usize>,
+}
+
 impl From<SyncPeerInfo> for PeerInfo {
-	fn from(p: SyncPeerInfo) -> PeerInfo {
+	fn from(p: SyncPeerInfo) -> Self {
 		PeerInfo {
 			id: p.id,
 			name: p.client_version,
@@ -138,10 +150,23 @@ impl From<SyncPeerInfo> for PeerInfo {
 	}
 }
 
+impl From<SyncTransactionStats> for TransactionStats {
+	fn from(s: SyncTransactionStats) -> Self {
+		TransactionStats {
+			first_seen: s.first_seen,
+			propagated_to: s.propagated_to
+				.into_iter()
+				.map(|(id, count)| (id.into(), count))
+				.collect()
+		}
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use serde_json;
-	use super::{SyncInfo, SyncStatus, Peers};
+	use std::collections::BTreeMap;
+	use super::{SyncInfo, SyncStatus, Peers, TransactionStats};
 
 	#[test]
 	fn test_serialize_sync_info() {
@@ -175,5 +200,18 @@ mod tests {
 
 		let serialized = serde_json::to_string(&t).unwrap();
 		assert_eq!(serialized, r#"{"startingBlock":"0x0","currentBlock":"0x0","highestBlock":"0x0","warpChunksAmount":null,"warpChunksProcessed":null,"blockGap":["0x1","0x5"]}"#)
+	}
+
+	#[test]
+	fn test_serialize_transaction_stats() {
+		let stats = TransactionStats {
+			first_seen: 100,
+			propagated_to: map![
+				10.into() => 50
+			]
+		};
+
+		let serialized = serde_json::to_string(&stats).unwrap();
+		assert_eq!(serialized, r#"{"firstSeen":100,"propagatedTo":{"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a":50}}"#)
 	}
 }

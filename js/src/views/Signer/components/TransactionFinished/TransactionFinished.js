@@ -47,13 +47,12 @@ export default class TransactionFinished extends Component {
     txHash: PropTypes.string, // undefined if transacation is rejected
     className: PropTypes.string,
     data: PropTypes.string,
-    chain: nullable(PropTypes.object),
+    isTest: PropTypes.bool.isRequired,
     fromBalance: nullable(PropTypes.object),
     toBalance: nullable(PropTypes.object)
   };
 
   state = {
-    chain: null,
     fromBalance: null,
     toBalance: null
   };
@@ -64,14 +63,6 @@ export default class TransactionFinished extends Component {
     const totalValue = tUtil.getTotalValue(fee, value);
     this.setState({ totalValue });
 
-    this.context.api.parity.netChain()
-      .then((chain) => {
-        this.setState({ chain });
-      })
-      .catch((err) => {
-        console.error('could not fetch chain', err);
-      });
-
     this.fetchBalance(from, 'fromBalance');
     if (to) {
       this.fetchBalance(to, 'toBalance');
@@ -79,8 +70,9 @@ export default class TransactionFinished extends Component {
   }
 
   render () {
-    const { chain, fromBalance, toBalance } = this.state;
-    if (!chain || !fromBalance || !toBalance) {
+    const { fromBalance, toBalance } = this.state;
+
+    if (!fromBalance || !toBalance) {
       return (
         <div className={ `${styles.container} ${className}` }>
           <CircularProgress size={ 60 } />
@@ -130,16 +122,19 @@ export default class TransactionFinished extends Component {
   }
 
   renderTxHash () {
-    const { txHash } = this.props;
-    const { chain } = this.state;
-    if (!txHash || !chain) {
+    const { txHash, isTest } = this.props;
+
+    if (!txHash) {
       return;
     }
 
     return (
       <div>
         Transaction hash:
-        <TxHashLink chain={ chain } txHash={ txHash } className={ styles.txHash } />
+        <TxHashLink
+          isTest={ isTest }
+          txHash={ txHash }
+          className={ styles.txHash } />
       </div>
     );
   }
