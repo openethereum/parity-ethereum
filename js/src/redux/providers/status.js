@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { statusBlockNumber, statusCollection, statusLogs } from './statusActions';
+import isTestnet from '../../util/is-testnet';
 import { isEqual } from 'lodash';
 
 export default class Status {
@@ -247,7 +248,7 @@ export default class Status {
       .then(([
         clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
       ]) => {
-        const isTest = netChain === 'morden' || netChain === 'ropsten' || netChain === 'testnet';
+        const isTest = isTestnet(netChain);
 
         const longStatus = {
           clientVersion,
