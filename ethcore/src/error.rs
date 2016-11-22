@@ -170,6 +170,10 @@ pub enum BlockError {
 	UnknownUncleParent(H256),
 	/// The same author issued different votes at the same step.
 	DoubleVote(H160),
+	/// The received block is from an incorrect proposer.
+	NotProposer(H160),
+	/// Signature does not belong to an authority.
+	NotAuthority(H160)
 }
 
 impl fmt::Display for BlockError {
@@ -204,6 +208,8 @@ impl fmt::Display for BlockError {
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
 			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
+			NotProposer(ref address) => format!("Author {} is not a current proposer.", address),
+			NotAuthority(ref address) => format!("Signer {} is not authorized.", address),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))
