@@ -196,7 +196,7 @@ export default class Balances {
         toBlock: 'latest'
       }, (error, logs) => {
         if (error) {
-          return console.error('balances::attachToNewToken', 'failed to attacht to tokenreg Registered', error.toString(), error.stack);
+          return console.error('balances::attachToNewToken', 'failed to attach to tokenreg Registered', error.toString(), error.stack);
         }
 
         const promises = logs.map((log) => {
@@ -228,7 +228,7 @@ export default class Balances {
         topics: [ null, this._api.util.asciiToHex('IMG') ]
       }, (error, logs) => {
         if (error) {
-          return console.error('balances::attachToTokenMetaChange', 'failed to attacht to tokenreg MetaChanged', error.toString(), error.stack);
+          return console.error('balances::attachToTokenMetaChange', 'failed to attach to tokenreg MetaChanged', error.toString(), error.stack);
         }
 
         // In case multiple logs for same token
