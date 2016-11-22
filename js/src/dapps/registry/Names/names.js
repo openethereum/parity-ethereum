@@ -86,6 +86,22 @@ export default class Names extends Component {
     name: ''
   };
 
+  componentWillReceiveProps (nextProps) {
+    const nextQueue = nextProps.queue;
+    const prevQueue = this.props.queue;
+
+    if (nextQueue.length > prevQueue.length) {
+      const newQueued = nextQueue[nextQueue.length - 1];
+      const newName = newQueued.name;
+
+      if (newName !== this.state.name) {
+        return;
+      }
+
+      this.setState({ name: '' });
+    }
+  }
+
   render () {
     const { action, name } = this.state;
     const { fee, pending, queue } = this.props;
@@ -120,7 +136,7 @@ export default class Names extends Component {
             label={ action === 'reserve' ? 'Reserve' : 'Drop' }
             primary
             icon={ <CheckIcon /> }
-            onClick={ this.onSubmitClick }
+            onTouchTap={ this.onSubmitClick }
           />
           { queue.length > 0
             ? (<div>{ useSignerText }{ renderQueue(queue) }</div>)

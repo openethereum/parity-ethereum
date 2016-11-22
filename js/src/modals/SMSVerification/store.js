@@ -20,7 +20,8 @@ import { sha3 } from '../../api/util/sha3';
 
 import Contracts from '../../contracts';
 
-import { checkIfVerified, checkIfRequested, postToServer } from '../../contracts/sms-verification';
+import { checkIfVerified, checkIfRequested } from '../../contracts/sms-verification';
+import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
 
@@ -87,7 +88,7 @@ export default class VerificationStore {
     this.account = account;
 
     this.step = LOADING;
-    Contracts.create(api).registry.getContract('smsVerification')
+    Contracts.create(api).registry.getContract('smsverification')
       .then((contract) => {
         this.contract = contract;
         this.load();
