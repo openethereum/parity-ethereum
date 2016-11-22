@@ -52,7 +52,7 @@ use log_entry::LocalizedLogEntry;
 use verification::queue::BlockQueue;
 use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
-	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
+	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
 	ChainNotify,
 };
@@ -594,13 +594,13 @@ impl Client {
 
 	/// Attempt to get a copy of a specific block's final state.
 	///
-	/// This will not fail if given BlockID::Latest.
+	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at(&self, id: BlockID) -> Option<State> {
+	pub fn state_at(&self, id: BlockId) -> Option<State> {
 		// fast path for latest state.
 		match id.clone() {
-			BlockID::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
-			BlockID::Latest => return Some(self.state()),
+			BlockId::Pending => return self.miner.pending_state().or_else(|| Some(self.state())),
+			BlockId::Latest => return Some(self.state()),
 			_ => {},
 		}
 
@@ -625,15 +625,15 @@ impl Client {
 
 	/// Attempt to get a copy of a specific block's beginning state.
 	///
-	/// This will not fail if given BlockID::Latest.
+	/// This will not fail if given BlockId::Latest.
 	/// Otherwise, this can fail (but may not) if the DB prunes state.
-	pub fn state_at_beginning(&self, id: BlockID) -> Option<State> {
+	pub fn state_at_beginning(&self, id: BlockId) -> Option<State> {
 		// fast path for latest state.
 		match id {
-			BlockID::Pending => self.state_at(BlockID::Latest),
+			BlockId::Pending => self.state_at(BlockId::Latest),
 			id => match self.block_number(id) {
 				None | Some(0) => None,
-				Some(n) => self.state_at(BlockID::Number(n - 1)),
+				Some(n) => self.state_at(BlockId::Number(n - 1)),
 			}
 		}
 	}
@@ -724,30 +724,31 @@ impl Client {
 			data: data,
 		}.fake_sign(from);
 
-		self.call(&transaction, BlockID::Latest, Default::default())
+		self.call(&transaction, BlockId::Latest, Default::default())
 			.map_err(|e| format!("{:?}", e))
 			.map(|executed| {
 				executed.output
 			})
 	}
 
+	/// Get the updater object.
 	pub fn updater(&self) -> MutexGuard<Option<Updater>> {
 		self.updater.lock()
 	}
 
-	/// Look up the block number for the given block ID.
-	pub fn block_number(&self, id: BlockID) -> Option<BlockNumber> {
+	/// Look up the block number for the given block Id.
+	pub fn block_number(&self, id: BlockId) -> Option<BlockNumber> {
 		match id {
-			BlockID::Number(number) => Some(number),
-			BlockID::Hash(ref hash) => self.chain.read().block_number(hash),
-			BlockID::Earliest => Some(0),
-			BlockID::Latest | BlockID::Pending => Some(self.chain.read().best_block_number()),
+			BlockId::Number(number) => Some(number),
+			BlockId::Hash(ref hash) => self.chain.read().block_number(hash),
+			BlockId::Earliest => Some(0),
+			BlockId::Latest | BlockId::Pending => Some(self.chain.read().best_block_number()),
 		}
 	}
 
 	/// Take a snapshot at the given block.
-	/// If the ID given is "latest", this will default to 1000 blocks behind.
-	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockID, p: &snapshot::Progress) -> Result<(), EthcoreError> {
+	/// If the Id given is "latest", this will default to 1000 blocks behind.
+	pub fn take_snapshot<W: snapshot_io::SnapshotWriter + Send>(&self, writer: W, at: BlockId, p: &snapshot::Progress) -> Result<(), EthcoreError> {
 		let db = self.state_db.lock().journal_db().boxed_clone();
 		let best_block_number = self.chain_info().best_block_number;
 		let block_number = try!(self.block_number(at).ok_or(snapshot::Error::InvalidStartingBlock(at)));
@@ -759,13 +760,13 @@ impl Client {
 		let history = ::std::cmp::min(self.history, 1000);
 
 		let start_hash = match at {
-			BlockID::Latest => {
+			BlockId::Latest => {
 				let start_num = match db.earliest_era() {
 					Some(era) => ::std::cmp::max(era, best_block_number - history),
 					None => best_block_number - history,
 				};
 
-				match self.block_hash(BlockID::Number(start_num)) {
+				match self.block_hash(BlockId::Number(start_num)) {
 					Some(h) => h,
 					None => return Err(snapshot::Error::InvalidStartingBlock(at).into()),
 				}
@@ -786,19 +787,19 @@ impl Client {
 		self.history
 	}
 
-	fn block_hash(chain: &BlockChain, id: BlockID) -> Option<H256> {
+	fn block_hash(chain: &BlockChain, id: BlockId) -> Option<H256> {
 		match id {
-			BlockID::Hash(hash) => Some(hash),
-			BlockID::Number(number) => chain.block_hash(number),
-			BlockID::Earliest => chain.block_hash(0),
-			BlockID::Latest | BlockID::Pending => Some(chain.best_block_hash()),
+			BlockId::Hash(hash) => Some(hash),
+			BlockId::Number(number) => chain.block_hash(number),
+			BlockId::Earliest => chain.block_hash(0),
+			BlockId::Latest | BlockId::Pending => Some(chain.best_block_hash()),
 		}
 	}
 
-	fn transaction_address(&self, id: TransactionID) -> Option<TransactionAddress> {
+	fn transaction_address(&self, id: TransactionId) -> Option<TransactionAddress> {
 		match id {
-			TransactionID::Hash(ref hash) => self.chain.read().transaction_address(hash),
-			TransactionID::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
+			TransactionId::Hash(ref hash) => self.chain.read().transaction_address(hash),
+			TransactionId::Location(id, index) => Self::block_hash(&self.chain.read(), id).map(|hash| TransactionAddress {
 				block_hash: hash,
 				index: index,
 			})
@@ -852,7 +853,7 @@ impl snapshot::DatabaseRestore for Client {
 
 
 impl BlockChainClient for Client {
-	fn call(&self, t: &SignedTransaction, block: BlockID, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, t: &SignedTransaction, block: BlockId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let header = try!(self.block_header(block).ok_or(CallError::StatePruned));
 		let view = HeaderView::new(&header);
 		let last_hashes = self.build_last_hashes(view.parent_hash());
@@ -888,11 +889,11 @@ impl BlockChainClient for Client {
 		Ok(ret)
 	}
 
-	fn replay(&self, id: TransactionID, analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn replay(&self, id: TransactionId, analytics: CallAnalytics) -> Result<Executed, CallError> {
 		let address = try!(self.transaction_address(id).ok_or(CallError::TransactionNotFound));
-		let header_data = try!(self.block_header(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
-		let body_data = try!(self.block_body(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
-		let mut state = try!(self.state_at_beginning(BlockID::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let header_data = try!(self.block_header(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let body_data = try!(self.block_body(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
+		let mut state = try!(self.state_at_beginning(BlockId::Hash(address.block_hash)).ok_or(CallError::StatePruned));
 		let txs = BodyView::new(&body_data).transactions();
 
 		if address.index >= txs.len() {
@@ -965,18 +966,18 @@ impl BlockChainClient for Client {
 		self.chain.read().best_block_header()
 	}
 
-	fn block_header(&self, id: BlockID) -> Option<Bytes> {
+	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_header_data(&hash))
 	}
 
-	fn block_body(&self, id: BlockID) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<Bytes> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_body(&hash))
 	}
 
-	fn block(&self, id: BlockID) -> Option<Bytes> {
-		if let BlockID::Pending = id {
+	fn block(&self, id: BlockId) -> Option<Bytes> {
+		if let BlockId::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
 				return Some(block.rlp_bytes(Seal::Without));
 			}
@@ -987,7 +988,7 @@ impl BlockChainClient for Client {
 		})
 	}
 
-	fn block_status(&self, id: BlockID) -> BlockStatus {
+	fn block_status(&self, id: BlockId) -> BlockStatus {
 		let chain = self.chain.read();
 		match Self::block_hash(&chain, id) {
 			Some(ref hash) if chain.is_known(hash) => BlockStatus::InChain,
@@ -996,38 +997,38 @@ impl BlockChainClient for Client {
 		}
 	}
 
-	fn block_total_difficulty(&self, id: BlockID) -> Option<U256> {
-		if let BlockID::Pending = id {
+	fn block_total_difficulty(&self, id: BlockId) -> Option<U256> {
+		if let BlockId::Pending = id {
 			if let Some(block) = self.miner.pending_block() {
-				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockID::Latest).expect("blocks in chain have details; qed"));
+				return Some(*block.header.difficulty() + self.block_total_difficulty(BlockId::Latest).expect("blocks in chain have details; qed"));
 			}
 		}
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id).and_then(|hash| chain.block_details(&hash)).map(|d| d.total_difficulty)
 	}
 
-	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		self.state_at(id).map(|s| s.nonce(address))
 	}
 
-	fn block_hash(&self, id: BlockID) -> Option<H256> {
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id)
 	}
 
-	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
+	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		self.state_at(id).map(|s| s.code(address).map(|c| (*c).clone()))
 	}
 
-	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
 		self.state_at(id).map(|s| s.balance(address))
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
+	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
 		self.state_at(id).map(|s| s.storage_at(address, position))
 	}
 
-	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>> {
+	fn list_accounts(&self, id: BlockId) -> Option<Vec<Address>> {
 		if !self.factories.trie.is_fat() {
 			trace!(target: "fatdb", "list_accounts: Not a fat DB");
 			return None;
@@ -1059,16 +1060,16 @@ impl BlockChainClient for Client {
 		Some(accounts)
 	}
 
-	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction> {
+	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {
 		self.transaction_address(id).and_then(|address| self.chain.read().transaction(&address))
 	}
 
-	fn uncle(&self, id: UncleID) -> Option<Bytes> {
+	fn uncle(&self, id: UncleId) -> Option<Bytes> {
 		let index = id.position;
 		self.block_body(id.block).and_then(|body| BodyView::new(&body).uncle_rlp_at(index))
 	}
 
-	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		let chain = self.chain.read();
 		self.transaction_address(id)
 			.and_then(|address| chain.block_number(&address.block_hash).and_then(|block_number| {
@@ -1152,7 +1153,7 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&unverified.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockID::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
+			if self.block_status(BlockId::Hash(unverified.parent_hash())) == BlockStatus::Unknown {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(unverified.parent_hash())));
 			}
 		}
@@ -1166,7 +1167,7 @@ impl BlockChainClient for Client {
 			if self.chain.read().is_known(&header.hash()) {
 				return Err(BlockImportError::Import(ImportError::AlreadyInChain));
 			}
-			if self.block_status(BlockID::Hash(header.parent_hash())) == BlockStatus::Unknown {
+			if self.block_status(BlockId::Hash(header.parent_hash())) == BlockStatus::Unknown {
 				return Err(BlockImportError::Block(BlockError::UnknownParent(header.parent_hash())));
 			}
 		}
@@ -1189,7 +1190,7 @@ impl BlockChainClient for Client {
 		self.engine.additional_params().into_iter().collect()
 	}
 
-	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockID, to_block: BlockID) -> Option<Vec<BlockNumber>> {
+	fn blocks_with_bloom(&self, bloom: &H2048, from_block: BlockId, to_block: BlockId) -> Option<Vec<BlockNumber>> {
 		match (self.block_number(from_block), self.block_number(to_block)) {
 			(Some(from), Some(to)) => Some(self.chain.read().blocks_with_bloom(bloom, from, to)),
 			_ => None
@@ -1231,20 +1232,20 @@ impl BlockChainClient for Client {
 		let trace_address = trace.address;
 		self.transaction_address(trace.transaction)
 			.and_then(|tx_address| {
-				self.block_number(BlockID::Hash(tx_address.block_hash))
+				self.block_number(BlockId::Hash(tx_address.block_hash))
 					.and_then(|number| self.tracedb.read().trace(number, tx_address.index, trace_address))
 			})
 	}
 
-	fn transaction_traces(&self, transaction: TransactionID) -> Option<Vec<LocalizedTrace>> {
+	fn transaction_traces(&self, transaction: TransactionId) -> Option<Vec<LocalizedTrace>> {
 		self.transaction_address(transaction)
 			.and_then(|tx_address| {
-				self.block_number(BlockID::Hash(tx_address.block_hash))
+				self.block_number(BlockId::Hash(tx_address.block_hash))
 					.and_then(|number| self.tracedb.read().transaction_traces(number, tx_address.index))
 			})
 	}
 
-	fn block_traces(&self, block: BlockID) -> Option<Vec<LocalizedTrace>> {
+	fn block_traces(&self, block: BlockId) -> Option<Vec<LocalizedTrace>> {
 		self.block_number(block)
 			.and_then(|number| self.tracedb.read().block_traces(number))
 	}
@@ -1279,13 +1280,13 @@ impl BlockChainClient for Client {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
 
-	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>> {
+	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
 		self.block_header(id)
 			.map(|block| decode(&block))
 			.map(|header| self.engine.extra_info(&header))
 	}
 
-	fn uncle_extra_info(&self, id: UncleID) -> Option<BTreeMap<String, String>> {
+	fn uncle_extra_info(&self, id: UncleId) -> Option<BTreeMap<String, String>> {
 		self.uncle(id)
 			.map(|header| self.engine.extra_info(&decode(&header)))
 	}

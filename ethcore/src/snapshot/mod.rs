@@ -27,7 +27,7 @@ use account_db::{AccountDB, AccountDBMut};
 use blockchain::{BlockChain, BlockProvider};
 use engines::Engine;
 use header::Header;
-use ids::BlockID;
+use ids::BlockId;
 use views::BlockView;
 
 use util::{Bytes, Hashable, HashDB, DBValue, snappy, U256, Uint};
@@ -129,7 +129,7 @@ pub fn take_snapshot<W: SnapshotWriter + Send>(
 	p: &Progress
 ) -> Result<(), Error> {
 	let start_header = try!(chain.block_header(&block_at)
-		.ok_or(Error::InvalidStartingBlock(BlockID::Hash(block_at))));
+		.ok_or(Error::InvalidStartingBlock(BlockId::Hash(block_at))));
 	let state_root = start_header.state_root();
 	let number = start_header.number();
 

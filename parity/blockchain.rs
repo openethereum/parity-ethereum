@@ -25,7 +25,7 @@ use io::{PanicHandler, ForwardPanic};
 use util::{ToPretty, Uint};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
+use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockId};
 use ethcore::error::ImportError;
 use ethcore::miner::Miner;
 use cache::CacheConfig;
@@ -98,8 +98,8 @@ pub struct ExportBlockchain {
 	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
-	pub from_block: BlockID,
-	pub to_block: BlockID,
+	pub from_block: BlockId,
+	pub to_block: BlockId,
 	pub check_seal: bool,
 }
 
@@ -329,7 +329,7 @@ fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	let to = try!(client.block_number(cmd.to_block).ok_or("To block could not be found"));
 
 	for i in from..(to + 1) {
-		let b = try!(client.block(BlockID::Number(i)).ok_or("Error exporting incomplete chain"));
+		let b = try!(client.block(BlockId::Number(i)).ok_or("Error exporting incomplete chain"));
 		match format {
 			DataFormat::Binary => { out.write(&b).expect("Couldn't write to stream."); }
 			DataFormat::Hex => { out.write_fmt(format_args!("{}", b.pretty())).expect("Couldn't write to stream."); }

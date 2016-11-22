@@ -24,6 +24,14 @@ Operating Options:
                            wakes regularly to resync.
                            dark - Parity syncs only when the RPC is active.
                            offline - Parity doesn't sync. (default: {flag_mode}).
+  --updates POLICY         Set the client updating policy. POLICY specifies
+                           which updates Parity will auto-install:
+                           track - All updates in the current release track. 
+                           patch - All updates of the current minor version.
+                           critical - Only consensus/security updates. 
+                           none - No updates. Not recommended.
+  --no-consensus           Force the binary to run even if there are known
+                           issues regarding consensus. Not recommended.
   --mode-timeout SECS      Specify the number of seconds before inactivity
                            timeout occurs when mode is dark or passive
                            (default: {flag_mode_timeout}).

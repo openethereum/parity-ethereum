@@ -23,7 +23,7 @@ use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
-use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockID, CallAnalytics};
+use client::{MiningBlockChainClient, Executive, Executed, EnvInfo, TransactOptions, BlockId, CallAnalytics};
 use client::TransactionImportResult;
 use executive::contract_address;
 use block::{ClosedBlock, SealedBlock, IsBlock, Block};
@@ -693,7 +693,7 @@ impl MinerService for Miner {
 				Ok(ret)
 			},
 			None => {
-				chain.call(t, BlockID::Latest, analytics)
+				chain.call(t, BlockId::Latest, analytics)
 			}
 		}
 	}
@@ -1073,7 +1073,7 @@ impl MinerService for Miner {
 
 		fn fetch_transactions(chain: &MiningBlockChainClient, hash: &H256) -> Vec<SignedTransaction> {
 			let block = chain
-				.block(BlockID::Hash(*hash))
+				.block(BlockId::Hash(*hash))
 				// Client should send message after commit to db and inserting to chain.
 				.expect("Expected in-chain blocks.");
 			let block = BlockView::new(&block);

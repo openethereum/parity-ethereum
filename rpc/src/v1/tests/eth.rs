@@ -19,7 +19,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use ethcore::client::{BlockChainClient, Client, ClientConfig};
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::spec::{Genesis, Spec};
 use ethcore::block::Block;
 use ethcore::views::BlockView;
@@ -424,7 +424,7 @@ fn verify_transaction_counts(name: String, chain: BlockChain) {
 		assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 
 		// uncles can share block numbers, so skip them.
-		if tester.client.block_hash(BlockID::Number(number)) == Some(hash) {
+		if tester.client.block_hash(BlockId::Number(number)) == Some(hash) {
 			let (req, res) = by_number(number, count, &mut id);
 			assert_eq!(tester.handler.handle_request_sync(&req), Some(res));
 		}

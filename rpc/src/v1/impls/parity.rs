@@ -28,7 +28,7 @@ use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
-use ethcore::ids::BlockID;
+use ethcore::ids::BlockId;
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 
@@ -238,7 +238,7 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		try!(self.active());
 
 		Ok(take_weak!(self.client)
-			.list_accounts(BlockID::Latest)
+			.list_accounts(BlockId::Latest)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 

@@ -24,8 +24,8 @@ use devtools::*;
 use transaction::{Transaction, LocalizedTransaction, SignedTransaction, Action};
 use blockchain::TreeRoute;
 use client::{
-	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockID,
-	TransactionID, UncleID, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
+	BlockChainClient, MiningBlockChainClient, BlockChainInfo, BlockStatus, BlockId,
+	TransactionId, UncleId, TraceId, TraceFilter, LastHashes, CallAnalytics, BlockImportError,
 };
 use db::{NUM_COLUMNS, COL_STATE};
 use header::{Header as BlockHeader, BlockNumber};
@@ -72,7 +72,7 @@ pub struct TestBlockChainClient {
 	/// Execution result.
 	pub execution_result: RwLock<Option<Result<Executed, CallError>>>,
 	/// Transaction receipts.
-	pub receipts: RwLock<HashMap<TransactionID, LocalizedReceipt>>,
+	pub receipts: RwLock<HashMap<TransactionId, LocalizedReceipt>>,
 	/// Logs
 	pub logs: RwLock<Vec<LocalizedLogEntry>>,
 	/// Block queue size.
@@ -157,7 +157,7 @@ impl TestBlockChainClient {
 	}
 
 	/// Set the transaction receipt result
-	pub fn set_transaction_receipt(&self, id: TransactionID, receipt: LocalizedReceipt) {
+	pub fn set_transaction_receipt(&self, id: TransactionId, receipt: LocalizedReceipt) {
 		self.receipts.write().insert(id, receipt);
 	}
 
@@ -255,8 +255,8 @@ impl TestBlockChainClient {
 
 	/// Make a bad block by setting invalid extra data.
 	pub fn corrupt_block(&mut self, n: BlockNumber) {
-		let hash = self.block_hash(BlockID::Number(n)).unwrap();
-		let mut header: BlockHeader = decode(&self.block_header(BlockID::Number(n)).unwrap());
+		let hash = self.block_hash(BlockId::Number(n)).unwrap();
+		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
 		header.set_extra_data(b"This extra data is way too long to be considered valid".to_vec());
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -267,8 +267,8 @@ impl TestBlockChainClient {
 
 	/// Make a bad block by setting invalid parent hash.
 	pub fn corrupt_block_parent(&mut self, n: BlockNumber) {
-		let hash = self.block_hash(BlockID::Number(n)).unwrap();
-		let mut header: BlockHeader = decode(&self.block_header(BlockID::Number(n)).unwrap());
+		let hash = self.block_hash(BlockId::Number(n)).unwrap();
+		let mut header: BlockHeader = decode(&self.block_header(BlockId::Number(n)).unwrap());
 		header.set_parent_hash(H256::from(42));
 		let mut rlp = RlpStream::new_list(3);
 		rlp.append(&header);
@@ -284,12 +284,12 @@ impl TestBlockChainClient {
 		blocks_read[&index].clone()
 	}
 
-	fn block_hash(&self, id: BlockID) -> Option<H256> {
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		match id {
-			BlockID::Hash(hash) => Some(hash),
-			BlockID::Number(n) => self.numbers.read().get(&(n as usize)).cloned(),
-			BlockID::Earliest => self.numbers.read().get(&0).cloned(),
-			BlockID::Latest | BlockID::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
+			BlockId::Hash(hash) => Some(hash),
+			BlockId::Number(n) => self.numbers.read().get(&(n as usize)).cloned(),
+			BlockId::Earliest => self.numbers.read().get(&0).cloned(),
+			BlockId::Latest | BlockId::Pending => self.numbers.read().get(&(self.numbers.read().len() - 1)).cloned()
 		}
 	}
 
@@ -362,42 +362,42 @@ impl MiningBlockChainClient for TestBlockChainClient {
 }
 
 impl BlockChainClient for TestBlockChainClient {
-	fn call(&self, _t: &SignedTransaction, _block: BlockID, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn call(&self, _t: &SignedTransaction, _block: BlockId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn replay(&self, _id: TransactionID, _analytics: CallAnalytics) -> Result<Executed, CallError> {
+	fn replay(&self, _id: TransactionId, _analytics: CallAnalytics) -> Result<Executed, CallError> {
 		self.execution_result.read().clone().unwrap()
 	}
 
-	fn block_total_difficulty(&self, _id: BlockID) -> Option<U256> {
+	fn block_total_difficulty(&self, _id: BlockId) -> Option<U256> {
 		Some(U256::zero())
 	}
 
-	fn block_hash(&self, id: BlockID) -> Option<H256> {
+	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		Self::block_hash(self, id)
 	}
 
-	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256> {
+	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256> {
 		match id {
-			BlockID::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
+			BlockId::Latest => Some(self.nonces.read().get(address).cloned().unwrap_or(self.spec.params.account_start_nonce)),
 			_ => None,
 		}
 	}
 
 	fn latest_nonce(&self, address: &Address) -> U256 {
-		self.nonce(address, BlockID::Latest).unwrap()
+		self.nonce(address, BlockId::Latest).unwrap()
 	}
 
-	fn code(&self, address: &Address, id: BlockID) -> Option<Option<Bytes>> {
+	fn code(&self, address: &Address, id: BlockId) -> Option<Option<Bytes>> {
 		match id {
-			BlockID::Latest => Some(self.code.read().get(address).cloned()),
+			BlockId::Latest => Some(self.code.read().get(address).cloned()),
 			_ => None,
 		}
 	}
 
-	fn balance(&self, address: &Address, id: BlockID) -> Option<U256> {
-		if let BlockID::Latest = id {
+	fn balance(&self, address: &Address, id: BlockId) -> Option<U256> {
+		if let BlockId::Latest = id {
 			Some(self.balances.read().get(address).cloned().unwrap_or_else(U256::zero))
 		} else {
 			None
@@ -405,38 +405,38 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn latest_balance(&self, address: &Address) -> U256 {
-		self.balance(address, BlockID::Latest).unwrap()
+		self.balance(address, BlockId::Latest).unwrap()
 	}
 
-	fn storage_at(&self, address: &Address, position: &H256, id: BlockID) -> Option<H256> {
-		if let BlockID::Latest = id {
+	fn storage_at(&self, address: &Address, position: &H256, id: BlockId) -> Option<H256> {
+		if let BlockId::Latest = id {
 			Some(self.storage.read().get(&(address.clone(), position.clone())).cloned().unwrap_or_else(H256::new))
 		} else {
 			None
 		}
 	}
 
-	fn list_accounts(&self, _id: BlockID) -> Option<Vec<Address>> {
+	fn list_accounts(&self, _id: BlockId) -> Option<Vec<Address>> {
 		None
 	}
 
-	fn transaction(&self, _id: TransactionID) -> Option<LocalizedTransaction> {
+	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
 		None	// Simple default.
 	}
 
-	fn uncle(&self, _id: UncleID) -> Option<Bytes> {
+	fn uncle(&self, _id: UncleId) -> Option<Bytes> {
 		None	// Simple default.
 	}
 
-	fn uncle_extra_info(&self, _id: UncleID) -> Option<BTreeMap<String, String>> {
+	fn uncle_extra_info(&self, _id: UncleId) -> Option<BTreeMap<String, String>> {
 		None
 	}
 
-	fn transaction_receipt(&self, id: TransactionID) -> Option<LocalizedReceipt> {
+	fn transaction_receipt(&self, id: TransactionId) -> Option<LocalizedReceipt> {
 		self.receipts.read().get(&id).cloned()
 	}
 
-	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockID, _to_block: BlockID) -> Option<Vec<BlockNumber>> {
+	fn blocks_with_bloom(&self, _bloom: &H2048, _from_block: BlockId, _to_block: BlockId) -> Option<Vec<BlockNumber>> {
 		unimplemented!();
 	}
 
@@ -454,14 +454,14 @@ impl BlockChainClient for TestBlockChainClient {
 	}
 
 	fn best_block_header(&self) -> Bytes {
-		self.block_header(BlockID::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
+		self.block_header(BlockId::Hash(self.chain_info().best_block_hash)).expect("Best block always have header.")
 	}
 
-	fn block_header(&self, id: BlockID) -> Option<Bytes> {
+	fn block_header(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| Rlp::new(r).at(0).as_raw().to_vec()))
 	}
 
-	fn block_body(&self, id: BlockID) -> Option<Bytes> {
+	fn block_body(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).map(|r| {
 			let mut stream = RlpStream::new_list(2);
 			stream.append_raw(Rlp::new(r).at(1).as_raw(), 1);
@@ -470,21 +470,21 @@ impl BlockChainClient for TestBlockChainClient {
 		}))
 	}
 
-	fn block(&self, id: BlockID) -> Option<Bytes> {
+	fn block(&self, id: BlockId) -> Option<Bytes> {
 		self.block_hash(id).and_then(|hash| self.blocks.read().get(&hash).cloned())
 	}
 
-	fn block_extra_info(&self, id: BlockID) -> Option<BTreeMap<String, String>> {
+	fn block_extra_info(&self, id: BlockId) -> Option<BTreeMap<String, String>> {
 		self.block(id)
 			.map(|block| BlockView::new(&block).header())
 			.map(|header| self.spec.engine.extra_info(&header))
 	}
 
 
-	fn block_status(&self, id: BlockID) -> BlockStatus {
+	fn block_status(&self, id: BlockId) -> BlockStatus {
 		match id {
-			BlockID::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
-			BlockID::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
+			BlockId::Number(number) if (number as usize) < self.blocks.read().len() => BlockStatus::InChain,
+			BlockId::Hash(ref hash) if self.blocks.read().get(hash).is_some() => BlockStatus::InChain,
 			_ => BlockStatus::Unknown
 		}
 	}
@@ -637,11 +637,11 @@ impl BlockChainClient for TestBlockChainClient {
 		unimplemented!();
 	}
 
-	fn transaction_traces(&self, _trace: TransactionID) -> Option<Vec<LocalizedTrace>> {
+	fn transaction_traces(&self, _trace: TransactionId) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
 
-	fn block_traces(&self, _trace: BlockID) -> Option<Vec<LocalizedTrace>> {
+	fn block_traces(&self, _trace: BlockId) -> Option<Vec<LocalizedTrace>> {
 		unimplemented!();
 	}
 

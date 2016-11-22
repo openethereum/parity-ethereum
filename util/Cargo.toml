@@ -37,6 +37,7 @@ tiny-keccak= "1.0"
 ethcore-bloom-journal = { path = "bloom" }
 regex = "0.1"
 lru-cache = "0.1.0"
+semver = "0.5"
 
 [features]
 default = []

@@ -18,11 +18,11 @@ use std::io::{Read, Write};
 use serde::{Deserialize, Deserializer, Error};
 use serde::de::{Visitor, MapVisitor};
 use serde_json;
-use super::{UUID, Version, Crypto, H160};
+use super::{Uuid, Version, Crypto, H160};
 
 #[derive(Debug, PartialEq, Serialize)]
 pub struct KeyFile {
-	pub id: UUID,
+	pub id: Uuid,
 	pub version: Version,
 	pub crypto: Crypto,
 	pub address: H160,
@@ -153,7 +153,7 @@ impl KeyFile {
 mod tests {
 	use std::str::FromStr;
 	use serde_json;
-	use json::{KeyFile, UUID, Version, Crypto, Cipher, Aes128Ctr, Kdf, Scrypt};
+	use json::{KeyFile, Uuid, Version, Crypto, Cipher, Aes128Ctr, Kdf, Scrypt};
 
 	#[test]
 	fn basic_keyfile() {
@@ -183,7 +183,7 @@ mod tests {
 		}"#;
 
 		let expected = KeyFile {
-			id: UUID::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
+			id: Uuid::from_str("8777d9f6-7860-4b9b-88b7-0b57ee6b3a73").unwrap(),
 			version: Version::V3,
 			address: "6edddfc6349aff20bc6467ccf276c5b52487f7a8".into(),
 			crypto: Crypto {

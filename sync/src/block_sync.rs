@@ -22,7 +22,7 @@ use util::*;
 use rlp::*;
 use ethcore::views::{BlockView};
 use ethcore::header::{BlockNumber, Header as BlockHeader};
-use ethcore::client::{BlockStatus, BlockID, BlockImportError};
+use ethcore::client::{BlockStatus, BlockId, BlockImportError};
 use ethcore::block::Block;
 use ethcore::error::{ImportError, BlockError};
 use sync_io::SyncIo;
@@ -225,7 +225,7 @@ impl BlockDownloader {
 				trace!(target: "sync", "Error decoding block header RLP: {:?}", e);
 				BlockDownloaderImportError::Invalid
 			}));
-			match io.chain().block_status(BlockID::Hash(hash.clone())) {
+			match io.chain().block_status(BlockId::Hash(hash.clone())) {
 				BlockStatus::InChain | BlockStatus::Queued => {
 					match self.state {
 						State::Blocks => trace!(target: "sync", "Header already in chain {} ({})", number, hash),
@@ -347,7 +347,7 @@ impl BlockDownloader {
 						debug!(target: "sync", "Could not revert to previous ancient block, last: {} ({})", self.last_imported_block, self.last_imported_hash);
 						self.reset();
 					} else {
-						match io.chain().block_hash(BlockID::Number(self.last_imported_block - 1)) {
+						match io.chain().block_hash(BlockId::Number(self.last_imported_block - 1)) {
 							Some(h) => {
 								self.last_imported_block -= 1;
 								self.last_imported_hash = h;
