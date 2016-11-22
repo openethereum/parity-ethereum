@@ -238,6 +238,24 @@ export default {
     }
   },
 
+  killAccount: {
+    desc: 'Permanently an account',
+    params: [
+      {
+        type: Address,
+        desc: 'The account to remove'
+      },
+      {
+        type: String,
+        desc: 'Account password'
+      }
+    ],
+    returns: {
+      type: Boolean,
+      desc: 'true on success'
+    }
+  },
+
   listGethAccounts: {
     desc: 'Returns a list of the accounts available from Geth',
     params: [],
