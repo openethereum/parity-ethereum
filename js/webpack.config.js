@@ -37,6 +37,7 @@ module.exports = {
   entry: {
     // dapps
     'basiccoin': ['./dapps/basiccoin.js'],
+    'dappreg': ['./dapps/dappreg.js'],
     'githubhint': ['./dapps/githubhint.js'],
     'registry': ['./dapps/registry.js'],
     'signaturereg': ['./dapps/signaturereg.js'],

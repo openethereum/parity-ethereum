@@ -1,6 +1,6 @@
 {
   "name": "parity.js",
-  "version": "0.2.58",
+  "version": "0.2.63",
   "main": "release/index.js",
   "jsnext:main": "src/index.js",
   "author": "Parity Team <admin@parity.io>",
@@ -102,6 +102,7 @@
     "postcss-nested": "^1.0.0",
     "postcss-simple-vars": "^3.0.0",
     "raw-loader": "^0.5.1",
+    "react-addons-perf": "~15.3.2",
     "react-addons-test-utils": "~15.3.2",
     "react-copy-to-clipboard": "^4.2.3",
     "react-dom": "~15.3.2",

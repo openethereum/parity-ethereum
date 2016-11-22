@@ -36,6 +36,7 @@ export default class DetailsStep extends Component {
     onFuncChange: PropTypes.func,
     values: PropTypes.array.isRequired,
     valuesError: PropTypes.array.isRequired,
+    warning: PropTypes.string,
     onValueChange: PropTypes.func.isRequired
   }
 
@@ -44,6 +45,7 @@ export default class DetailsStep extends Component {
 
     return (
       <Form>
+        { this.renderWarning() }
         <AddressSelect
           label='from account'
           hint='the account to transact with'
@@ -176,6 +178,20 @@ export default class DetailsStep extends Component {
         </div>
       );
     });
+  }
+
+  renderWarning () {
+    const { warning } = this.props;
+
+    if (!warning) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.warning }>
+        { warning }
+      </div>
+    );
   }
 
   onFuncChange = (event, index, signature) => {

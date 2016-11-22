@@ -155,24 +155,20 @@ export default class Status {
 
     const { refreshStatus } = this._store.getState().nodeStatus;
 
-    const statusPromises = [ this._api.eth.syncing() ];
+    const statusPromises = [ this._api.eth.syncing(), this._api.parity.netPeers() ];
 
     if (refreshStatus) {
       statusPromises.push(this._api.eth.hashrate());
-      statusPromises.push(this._api.parity.netPeers());
     }
 
     Promise
       .all(statusPromises)
-      .then((statusResults) => {
-        const status = statusResults.length === 1
-          ? {
-            syncing: statusResults[0]
-          }
+      .then(([ syncing, netPeers, ...statusResults ]) => {
+        const status = statusResults.length === 0
+          ? { syncing, netPeers }
           : {
-            syncing: statusResults[0],
-            hashrate: statusResults[1],
-            netPeers: statusResults[2]
+            syncing, netPeers,
+            hashrate: statusResults[0]
           };
 
         if (!isEqual(status, this._status)) {
