@@ -41,7 +41,7 @@ export default class Store {
   fetchBalances (addresses) {
     addresses.forEach((address) => {
       if (address) {
-        this.fetBalance(address);
+        this.fetchBalance(address);
       }
     });
   }
