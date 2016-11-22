@@ -14,14 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const ERRORS = {
-  requireRecipient: 'a recipient network address is required for the transaction',
-  invalidAddress: 'the supplied address is an invalid network address',
-  invalidAmount: 'the supplied amount should be a valid positive number',
-  invalidDecimals: 'the supplied amount exceeds the allowed decimals',
-  largeAmount: 'the transaction total is higher than the available balance',
-  gasException: 'the transaction will throw an exception with the current values',
-  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
-};
+const DEFAULT_GAS = '21000';
+const DEFAULT_GASPRICE = '20000000000';
 
-export default ERRORS;
+const MAX_GAS_ESTIMATION = '50000000';
+
+export {
+  DEFAULT_GAS,
+  DEFAULT_GASPRICE,
+  MAX_GAS_ESTIMATION
+};

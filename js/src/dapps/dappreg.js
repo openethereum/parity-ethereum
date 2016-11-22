@@ -14,14 +14,22 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const ERRORS = {
-  requireRecipient: 'a recipient network address is required for the transaction',
-  invalidAddress: 'the supplied address is an invalid network address',
-  invalidAmount: 'the supplied amount should be a valid positive number',
-  invalidDecimals: 'the supplied amount exceeds the allowed decimals',
-  largeAmount: 'the transaction total is higher than the available balance',
-  gasException: 'the transaction will throw an exception with the current values',
-  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
-};
+import React from 'react';
+import ReactDOM from 'react-dom';
+import injectTapEventPlugin from 'react-tap-event-plugin';
+import { useStrict } from 'mobx';
 
-export default ERRORS;
+injectTapEventPlugin();
+useStrict(true);
+
+import Application from './dappreg/Application';
+
+import '../../assets/fonts/Roboto/font.css';
+import '../../assets/fonts/RobotoMono/font.css';
+import './style.css';
+import './dappreg.html';
+
+ReactDOM.render(
+  <Application />,
+  document.querySelector('#container')
+);

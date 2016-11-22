@@ -14,14 +14,34 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const ERRORS = {
-  requireRecipient: 'a recipient network address is required for the transaction',
-  invalidAddress: 'the supplied address is an invalid network address',
-  invalidAmount: 'the supplied amount should be a valid positive number',
-  invalidDecimals: 'the supplied amount exceeds the allowed decimals',
-  largeAmount: 'the transaction total is higher than the available balance',
-  gasException: 'the transaction will throw an exception with the current values',
-  gasBlockLimit: 'the transaction execution will exceed the block gas limit'
-};
+import React, { Component, PropTypes } from 'react';
 
-export default ERRORS;
+import styles from './input.css';
+
+export default class Input extends Component {
+  static propTypes = {
+    children: PropTypes.node.isRequired,
+    hint: PropTypes.string,
+    label: PropTypes.string.isRequired,
+    overlay: PropTypes.node
+  }
+
+  render () {
+    const { children, hint, label, overlay } = this.props;
+
+    return (
+      <div className={ styles.input }>
+        <label>
+          { label }
+        </label>
+        { children }
+        <div className={ styles.hint }>
+          { hint }
+        </div>
+        <div className={ styles.overlay }>
+          { overlay }
+        </div>
+      </div>
+    );
+  }
+}

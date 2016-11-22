@@ -14,41 +14,8 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.accounts {
-}
 
-.accountTooltip {
-  top: 13.3em;
-  left: 7em;
-}
-
-.toolbar {
-  position: relative;
-}
-
-.toolbarTooltip {
-  right: 1em;
-  top: 4em;
-}
-
-.loadings {
-  display: flex;
-  flex-wrap: wrap;
-
-  .loading {
-    flex: 0 1 50%;
-    width: 50%;
-    height: 150px;
-    display: flex;
-    padding: 0.25em;
-    box-sizing: border-box;
-
-    > div {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      justify-content: center;
-      background-color: rgba(0, 0, 0, 0.8);
-    }
-  }
+.buttonbar {
+  text-align: center;
+  margin: 1em 0 0 0;
 }

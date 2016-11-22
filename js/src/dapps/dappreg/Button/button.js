@@ -16,35 +16,37 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun } from '../../../modals';
-import { Errors, ParityBackground, Tooltips } from '../../../ui';
+import styles from './button.css';
 
-import styles from '../application.css';
-
-export default class Container extends Component {
-  static contextTypes = {
-    muiTheme: PropTypes.object.isRequired
-  };
-
+export default class Button extends Component {
   static propTypes = {
-    children: PropTypes.node.isRequired,
-    showFirstRun: PropTypes.bool,
-    onCloseFirstRun: PropTypes.func
-  };
+    className: PropTypes.string,
+    disabled: PropTypes.bool,
+    label: PropTypes.string.isRequired,
+    warning: PropTypes.bool,
+    onClick: PropTypes.func.isRequired
+  }
 
   render () {
-    const { children, showFirstRun, onCloseFirstRun } = this.props;
-    const { muiTheme } = this.context;
+    const { className, disabled, label, warning } = this.props;
+    const classes = `${styles.button} ${className}`;
 
     return (
-      <ParityBackground className={ styles.container } muiTheme={ muiTheme }>
-        <FirstRun
-          visible={ showFirstRun }
-          onClose={ onCloseFirstRun } />
-        <Tooltips />
-        <Errors />
-        { children }
-      </ParityBackground>
+      <button
+        className={ classes }
+        data-warning={ warning }
+        disabled={ disabled }
+        onClick={ this.onClick }>
+        { label }
+      </button>
     );
+  }
+
+  onClick = (event) => {
+    if (this.props.disabled) {
+      return;
+    }
+
+    this.props.onClick(event);
   }
 }

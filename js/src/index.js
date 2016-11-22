@@ -46,6 +46,12 @@ import './index.html';
 
 injectTapEventPlugin();
 
+if (process.env.NODE_ENV === 'development') {
+  // Expose the React Performance Tools on the`window` object
+  const Perf = require('react-addons-perf');
+  window.Perf = Perf;
+}
+
 const AUTH_HASH = '#/auth?';
 const parityUrl = process.env.PARITY_URL ||
   (
