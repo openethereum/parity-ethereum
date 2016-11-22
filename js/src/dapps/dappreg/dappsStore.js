@@ -136,7 +136,10 @@ export default class DappsStore {
         .sort((a, b) => a.name.localeCompare(b.name));
 
       this.apps = ownApps.concat(otherApps);
-      this.currentApp = this.apps[0];
+
+      if (this.apps.length) {
+        this.currentApp = this.apps[0];
+      }
     });
   }
 
@@ -328,7 +331,7 @@ export default class DappsStore {
       })
       .then(() => {
         this.sortApps();
-        this.setLoading(this.count === 0);
+        this.setLoading(false);
       })
       .catch((error) => {
         console.error('Store:loadDapps', error);
