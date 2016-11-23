@@ -134,9 +134,7 @@ fn should_be_able_to_kill_account() {
 	let res = tester.io.handle_request_sync(&request);
 	assert_eq!(res, Some(response.into()));
 
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_accountsInfo", "params": [], "id": 1}"#;
-	let res = tester.io.handle_request_sync(request);
-	let response = format!("{{\"jsonrpc\":\"2.0\",\"result\":{{}},\"id\":1}}");
-	assert_eq!(res, Some(response));
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 0);
 }
 
