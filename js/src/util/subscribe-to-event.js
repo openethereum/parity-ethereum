@@ -40,12 +40,15 @@ const subscribeToEvent = (contract, name, opt = {}) => {
     }
   };
 
-  if (typeof opt.timeout === 'number') {
-    timeout = setTimeout(unsubscribe, opt.timeout);
-  }
-
   const emitter = new EventEmitter();
   emitter.unsubscribe = unsubscribe;
+
+  if (typeof opt.timeout === 'number') {
+    timeout = setTimeout(() => {
+      unsubscribe();
+      emitter.emit('timeout');
+    }, opt.timeout);
+  }
 
   const callback = (err, logs) => {
     if (err) {

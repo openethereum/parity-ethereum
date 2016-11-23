@@ -20,24 +20,11 @@ import { sha3 } from '../../api/util/sha3';
 
 import Contracts from '../../contracts';
 
-import { checkIfVerified, checkIfRequested } from '../../contracts/sms-verification';
+import { checkIfVerified, checkIfRequested, awaitPuzzle } from '../../contracts/sms-verification';
 import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
-import subscribeToEvent from '../../util/subscribe-to-event';
 import isTestnet from '../../util/is-testnet';
-
-const awaitPuzzle = (contract, who) => {
-  return new Promise((resolve, reject) => {
-    const subscription = subscribeToEvent(contract, 'Puzzled', {
-      filter: (log) => log.params.who.value === who,
-      timeout: 30000
-    });
-    subscription.once('error', reject);
-    subscription.once('log', subscription.unsubscribe);
-    subscription.once('log', resolve);
-  });
-};
 
 const validCode = /^[A-Z\s]+$/i;
 
@@ -46,7 +33,6 @@ export const QUERY_DATA = 'query-data';
 export const POSTING_REQUEST = 'posting-request';
 export const POSTED_REQUEST = 'posted-request';
 export const REQUESTING_SMS = 'requesting-sms';
-export const REQUESTED_SMS = 'requested-sms';
 export const QUERY_CODE = 'query-code';
 export const POSTING_CONFIRMATION = 'posting-confirmation';
 export const POSTED_CONFIRMATION = 'posted-confirmation';
@@ -86,12 +72,10 @@ export default class VerificationStore {
         return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
       case QUERY_DATA:
         return this.isNumberValid && this.consentGiven;
-      case REQUESTED_SMS:
-        return this.requestTx;
       case QUERY_CODE:
-        return this.isCodeValid;
+        return this.requestTx && this.isCodeValid === true;
       case POSTED_CONFIRMATION:
-        return this.confirmationTx;
+        return !!this.confirmationTx;
       default:
         return false;
     }
@@ -210,11 +194,9 @@ export default class VerificationStore {
         this.step = REQUESTING_SMS;
         return postToServer({ number, address: account }, isTest);
       })
+      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
-        return awaitPuzzle(contract, account);
-      })
-      .then(() => {
-        this.step = REQUESTED_SMS;
+        this.step = QUERY_CODE;
       })
       .catch((err) => {
         this.error = 'Failed to request a confirmation SMS: ' + err.message;
