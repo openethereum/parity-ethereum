@@ -580,29 +580,29 @@ impl Miner {
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
-			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
-					Ok(()) => true,
+			.map(|tx| {
+				match self.engine.verify_transaction_basic(&tx, &best_block_header) {
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
-						false
-					}
-				}
-			)
-			.map(|tx| {
-				let origin = accounts.as_ref().and_then(|accounts| {
-					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
-						true => Some(TransactionOrigin::Local),
-						false => None,
-					})
-				}).unwrap_or(default_origin);
-
-				match origin {
-					TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-						transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+						Err(e)
 					},
-					TransactionOrigin::External => {
-						transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
-					}
+					Ok(()) => {
+						let origin = accounts.as_ref().and_then(|accounts| {
+							tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
+								true => Some(TransactionOrigin::Local),
+								false => None,
+							})
+						}).unwrap_or(default_origin);
+
+						match origin {
+							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+								transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+							},
+							TransactionOrigin::External => {
+								transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+							}
+						}
+					},
 				}
 			})
 			.collect()
