@@ -31,7 +31,7 @@ linux-stable:
     - md5sum "parity_"$VER"_amd64.deb" > "parity_"$VER"_amd64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -98,6 +98,8 @@ linux-centos:
     - md5sum target/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
+    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity --body target/release/parity
     - aws s3api put-object --bucket builds-parity --key $CI_BUILD_REF_NAME/x86_64-unknown-centos-gnu/parity.md5 --body parity.md5
   tags:
@@ -128,7 +130,7 @@ linux-i686:
     - md5sum "parity_"$VER"_i386.deb" > "parity_"$VER"_i386.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/i686-unknown-linux-gnu
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity --body target/i686-unknown-linux-gnu/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/i686-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -170,7 +172,7 @@ linux-armv7:
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity --body target/armv7-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/armv7-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -212,7 +214,7 @@ linux-arm:
     - md5sum "parity_"$VER"_armhf.deb" > "parity_"$VER"_armhf.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity --body target/arm-unknown-linux-gnueabihf/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabihf/parity.md5 --body parity.md5
@@ -249,7 +251,7 @@ linux-armv6:
     - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity --body target/arm-unknown-linux-gnueabi/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/arm-unknown-linux-gnueabi/parity.md5 --body parity.md5
@@ -289,7 +291,7 @@ linux-aarch64:
     - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
@@ -316,7 +318,7 @@ darwin:
     - md5sum target/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
-    - [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]] && export S3_BUCKET=parity-builds-published || export S3_BUCKET=parity-builds
+    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-apple-darwin
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
@@ -365,6 +367,7 @@ windows:
     - aws configure set aws_secret_access_key %s3_secret%
     - if "%CI_BUILD_REF_NAME% =~ ^(master|beta|stable)$" then (set S3_BUCKET=parity-builds-published) else (set S3_BUCKET=parity-builds)
     - echo %S3_BUCKET%
+    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-pc-windows-msvc
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe.md5 --body target\release\parity.exe.md5
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.zip --body target\release\parity.zip
