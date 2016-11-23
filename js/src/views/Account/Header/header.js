@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '../../../ui';
 import CopyToClipboard from '../../../ui/CopyToClipboard';
+import Certifications from '../../../ui/Certifications';
 
 import styles from './header.css';
 
@@ -28,11 +29,14 @@ export default class Header extends Component {
 
   static propTypes = {
     account: PropTypes.object,
-    balance: PropTypes.object
+    balance: PropTypes.object,
+    certifications: PropTypes.array.isRequired,
+    isTest: PropTypes.bool
   }
 
   render () {
-    const { account, balance } = this.props;
+    const { api } = this.context;
+    const { account, balance, certifications } = this.props;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -67,6 +71,10 @@ export default class Header extends Component {
             <Balance
               account={ account }
               balance={ balance } />
+            <Certifications
+              certifications={ certifications }
+              dappsUrl={ api.dappsUrl }
+            />
           </div>
         </Container>
       </div>
