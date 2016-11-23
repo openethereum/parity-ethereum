@@ -316,12 +316,10 @@ linux-alpine:
   script:
     - export HOST_CC=gcc
     - export HOST_CXX=g++
-    - rm -rf .cargo
-    - mkdir -p .cargo
     - cargo build --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
-    - sh scripts/deb-build.sh arm64
+#    - sh scripts/deb-build.sh arm64
 #    - cp target/aarch64-unknown-linux-gnu/release/parity deb/usr/bin/parity
 #    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
 #    - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
@@ -336,11 +334,11 @@ linux-alpine:
 #    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb.md5" --body "parity_"$VER"_arm64.deb.md5"
   tags:
     - rust
-    - rust-arm
-  artifacts:
-    paths:
-    - target/aarch64-unknown-linux-gnu/release/parity
-    name: "aarch64-unknown-linux-gnu_parity"
+    - rust-alpine
+#  artifacts:
+#    paths:
+#    - target/aarch64-unknown-linux-gnu/release/parity
+#    name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
 darwin:
   stage: build
