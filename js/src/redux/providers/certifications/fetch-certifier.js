@@ -27,10 +27,13 @@ export default (api) => {
       return Promise.resolve(cache[name]);
     }
     return registry.instance.fromName.call({}, [name])
-    .then((data) => { // id, address, name
-      const address = data[1];
-      cache[name] = address;
-      return address;
+    .then(([ id, address ]) => {
+      return registry.instance.meta.call({}, [id, 'IMG'])
+      .then((img) => {
+        const data = { address, name, icon: img };
+        cache[name] = data;
+        return data;
+      });
     });
   };
 };

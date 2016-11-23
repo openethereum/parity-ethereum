@@ -16,6 +16,8 @@
 
 import React, { Component, PropTypes } from 'react';
 
+import { hashToImageUrl } from '../../redux/providers/imagesReducer';
+
 import styles from './certifications.css';
 
 export default class Certifications extends Component {
@@ -41,11 +43,10 @@ export default class Certifications extends Component {
   renderCertification = (certification) => {
     const { name, icon } = certification;
     const { dappsUrl } = this.props;
-    const url = dappsUrl + '/api/content/' + icon;
 
     return (
       <div className={ styles.certification } key={ name }>
-        <img className={ styles.icon } src={ url } />
+        <img className={ styles.icon } src={ dappsUrl + hashToImageUrl(icon) } />
         { name }
       </div>
     );

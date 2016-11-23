@@ -33,17 +33,19 @@ export default (api) => {
 
     knownCertifiers.forEach((name) => {
       fetch(name)
-      .then((certifier) => check(certifier, address))
-      .then((isCertified) => {
-        if (isCertified) {
-          store.dispatch(addCertification(address, name));
-        }
-      })
-      .catch((err) => {
-        if (err) {
-          console.error(`Failed to check if ${address} certified by ${name}:`, err);
-        }
-      });
+        .then((data) => {
+          return check(data.address, address)
+            .then((isCertified) => {
+              if (isCertified) {
+                store.dispatch(addCertification(address, data.name, data.icon));
+              }
+            });
+        })
+        .catch((err) => {
+          if (err) {
+            console.error(`Failed to check if ${address} certified by ${name}:`, err);
+          }
+        });
     });
   };
 };
