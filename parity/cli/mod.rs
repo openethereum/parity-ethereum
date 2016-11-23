@@ -133,6 +133,7 @@ usage! {
 			or |c: &Config| otry!(c.network).reserved_peers.clone().map(Some),
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
+		flag_no_ancient_blocks: bool = false, or |_| None,
 
 		// -- API and Console Options
 		// RPC
@@ -535,6 +536,7 @@ mod tests {
 			flag_node_key: None,
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
+			flag_no_ancient_blocks: false,
 
 			// -- API and Console Options
 			// RPC

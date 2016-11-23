@@ -106,6 +106,8 @@ Networking Options:
                            all - connect to any IP address.
                            (default: {flag_allow_ips})
   --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
+  --no-ancient-blocks      Disable downloading old blocks after snapshot restoration
+                           or warp sync. (default: {flag_no_ancient_blocks})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
