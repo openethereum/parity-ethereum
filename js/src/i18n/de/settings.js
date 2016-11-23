@@ -33,10 +33,7 @@ export default {
 
     languages: {
       label: 'Anzeigesprache',
-      hint: 'Die Sprache, in der dir diese Obefläche angezeigt wird',
-
-      language_en: 'English',
-      language_de: 'Deutsch'
+      hint: 'Die Sprache, in der dir diese Obefläche angezeigt wird'
     },
 
     modes: {

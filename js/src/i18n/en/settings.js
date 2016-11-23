@@ -33,10 +33,7 @@ export default {
 
     languages: {
       label: 'UI language',
-      hint: 'the language this interface is displayed with',
-
-      language_en: 'English',
-      language_de: 'German'
+      hint: 'the language this interface is displayed with'
     },
 
     modes: {

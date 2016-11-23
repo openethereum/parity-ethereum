@@ -48,7 +48,7 @@ export default class LanguageSelector extends Component {
 
   renderOptions () {
     return LOCALES.map((locale) => {
-      const label = <Translate value={ `settings.parity.languages.language_${locale}` } />;
+      const label = <Translate value={ `languages.${locale}` } />;
 
       return (
         <MenuItem
