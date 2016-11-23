@@ -470,14 +470,17 @@ impl Miner {
 
 		let best_block_header: Header = ::util::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
-			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
-				Ok(()) => true,
-				Err(e) => {
-					debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
-					false
+			.map(|tx| {
+				match self.engine.verify_transaction_basic(&tx, &best_block_header) {
+					Err(e) => {
+						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
+						Err(e)
+					},
+					Ok(()) => {
+						transaction_queue.add(tx, &fetch_account, origin)
+					},
 				}
 			})
-			.map(|tx| transaction_queue.add(tx, &fetch_account, origin))
 			.collect()
 	}
 
