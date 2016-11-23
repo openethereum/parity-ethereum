@@ -41,6 +41,15 @@ export default class SecureApi extends Api {
     console.log('SecureApi:setToken', this._transport.token);
   }
 
+  _checkNodeUp () {
+    return fetch('/', { method: 'HEAD' })
+      .then(
+        (r) => r.status === 200,
+        () => false
+      )
+      .catch(() => false);
+  }
+
   _followConnection = () => {
     const nextTick = () => {
       if (this._followConnectionTimeoutId) {
@@ -65,17 +74,23 @@ export default class SecureApi extends Api {
         if (isConnected) {
           return this.connectSuccess();
         } else if (lastError) {
-          const nextToken = this._tokensToTry[0] || 'initial';
-          const nextState = nextToken !== 'initial' ? 0 : 1;
+          return this
+            ._checkNodeUp()
+            .then((isNodeUp) => {
+              const nextToken = this._tokensToTry[0] || 'initial';
+              const nextState = nextToken !== 'initial' ? 0 : 1;
 
-          // If previous token was wrong, delete it
-          if (lastError.status === 403) {
-            this._tokensToTry = this._tokensToTry.slice(1);
-          }
+              // If previous token was wrong (error while node up), delete it
+              if (isNodeUp) {
+                this._tokensToTry = this._tokensToTry.slice(1);
+              }
 
-          if (nextToken !== this._transport.token) {
-            this.updateToken(nextToken, nextState);
-          }
+              if (nextToken !== this._transport.token) {
+                this.updateToken(nextToken, nextState);
+              }
+
+              nextTick();
+            });
         }
         break;
 

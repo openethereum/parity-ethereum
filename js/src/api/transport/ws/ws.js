@@ -101,16 +101,6 @@ export default class Ws extends JsonRpcBase {
     }
   }
 
-  _checkNodeUp () {
-    return fetch('/', { method: 'HEAD' })
-      .then((r) => {
-        return r.status === 200;
-      }, () => {
-        return false;
-      })
-      .catch(() => false);
-  }
-
   _onOpen = (event) => {
     console.log('ws:onOpen', event);
     this._connected = true;
@@ -127,36 +117,25 @@ export default class Ws extends JsonRpcBase {
     this._connected = false;
     this._connecting = false;
 
-    this._checkNodeUp()
-      .then((up) => {
-        // If the connection has been closed and the node
-        // is up, it means we have a wrong token
-        // Event code 1006 for WS means there is an error
-        // (not just closed by server)
-        if (up && event.code === 1006) {
-          event.status = 403;
-        }
+    this._lastError = event;
 
-        this._lastError = event;
+    if (this._autoConnect) {
+      const timeout = this.retryTimeout;
 
-        if (this._autoConnect) {
-          const timeout = this.retryTimeout;
+      const time = timeout < 1000
+        ? Math.round(timeout) + 'ms'
+        : (Math.round(timeout / 10) / 100) + 's';
 
-          const time = timeout < 1000
-            ? Math.round(timeout) + 'ms'
-            : (Math.round(timeout / 10) / 100) + 's';
+      console.log('ws:onClose', `trying again in ${time}...`);
 
-          console.log('ws:onClose', `trying again in ${time}...`);
+      this._reconnectTimeoutId = setTimeout(() => {
+        this._connect();
+      }, timeout);
 
-          this._reconnectTimeoutId = setTimeout(() => {
-            this._connect();
-          }, timeout);
+      return;
+    }
 
-          return;
-        }
-
-        console.log('ws:onClose', event);
-      });
+    console.log('ws:onClose', event);
   }
 
   _onError = (event) => {
