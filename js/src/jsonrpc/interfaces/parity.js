@@ -239,7 +239,7 @@ export default {
   },
 
   killAccount: {
-    desc: 'Permanently an account',
+    desc: 'Deletes an account',
     params: [
       {
         type: Address,
