@@ -197,20 +197,31 @@ module.exports = {
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
-    proxy: {
-      '/api/*': {
+    proxy: [
+      {
+        context: (pathname, req) => {
+          return pathname === '/' && req.method === 'HEAD';
+        },
+        target: 'http://127.0.0.1:8180',
+        changeOrigin: true,
+        autoRewrite: true
+      },
+      {
+        context: '/api/*',
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         autoRewrite: true
       },
-      '/app/*': {
+      {
+        context: '/app/*',
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         pathRewrite: {
           '^/app': ''
         }
       },
-      '/parity-utils/*': {
+      {
+        context: '/parity-utils/*',
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         pathRewrite: {
@@ -221,6 +232,6 @@ module.exports = {
         target: 'http://127.0.0.1:8080',
         changeOrigin: true
       }
-    }
+    ]
   }
 };
