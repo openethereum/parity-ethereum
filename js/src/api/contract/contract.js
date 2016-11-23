@@ -48,7 +48,11 @@ export default class Contract {
       this._instance[fn.signature] = fn;
     });
 
-    this._sendSubscriptionChanges();
+    this._subscribedToPendings = false;
+    this._pendingsSubscriptionId = null;
+
+    this._subscribedToBlock = false;
+    this._blockSubscriptionId = null;
   }
 
   get address () {
@@ -239,44 +243,71 @@ export default class Contract {
     return event;
   }
 
-  subscribe (eventName = null, options = {}, callback) {
-    return new Promise((resolve, reject) => {
-      let event = null;
+  _findEvent (eventName = null) {
+    const event = eventName
+      ? this._events.find((evt) => evt.name === eventName)
+      : null;
 
-      if (eventName) {
-        event = this._events.find((evt) => evt.name === eventName);
+    if (eventName && !event) {
+      const events = this._events.map((evt) => evt.name).join(', ');
+      throw new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`);
+    }
 
-        if (!event) {
-          const events = this._events.map((evt) => evt.name).join(', ');
-          reject(new Error(`${eventName} is not a valid eventName, subscribe using one of ${events} (or null to include all)`));
-          return;
-        }
-      }
+    return event;
+  }
 
-      return this._subscribe(event, options, callback).then(resolve).catch(reject);
+  _createEthFilter (event = null, _options) {
+    const optionTopics = _options.topics || [];
+    const signature = event && event.signature || null;
+
+    // If event provided, remove the potential event signature
+    // as the first element of the topics
+    const topics = signature
+      ? [ signature ].concat(optionTopics.filter((t, idx) => idx > 0 || t !== signature))
+      : optionTopics;
+
+    const options = Object.assign({}, _options, {
+      address: this._address,
+      topics
     });
+
+    return this._api.eth.newFilter(options);
+  }
+
+  subscribe (eventName = null, options = {}, callback) {
+    try {
+      const event = this._findEvent(eventName);
+      return this._subscribe(event, options, callback);
+    } catch (e) {
+      return Promise.reject(e);
+    }
   }
 
   _subscribe (event = null, _options, callback) {
     const subscriptionId = nextSubscriptionId++;
-    const options = Object.assign({}, _options, {
-      address: this._address,
-      topics: [event ? event.signature : null]
-    });
+    const { skipInitFetch } = _options;
+    delete _options['skipInitFetch'];
 
-    return this._api.eth
-      .newFilter(options)
+    return this
+      ._createEthFilter(event, _options)
       .then((filterId) => {
+        this._subscriptions[subscriptionId] = {
+          options: _options,
+          callback,
+          filterId
+        };
+
+        if (skipInitFetch) {
+          this._subscribeToChanges();
+          return subscriptionId;
+        }
+
         return this._api.eth
           .getFilterLogs(filterId)
           .then((logs) => {
             callback(null, this.parseEventLogs(logs));
-            this._subscriptions[subscriptionId] = {
-              options,
-              callback,
-              filterId
-            };
 
+            this._subscribeToChanges();
             return subscriptionId;
           });
       });
@@ -285,19 +316,89 @@ export default class Contract {
   unsubscribe (subscriptionId) {
     return this._api.eth
       .uninstallFilter(this._subscriptions[subscriptionId].filterId)
-      .then(() => {
-        delete this._subscriptions[subscriptionId];
-      })
       .catch((error) => {
         console.error('unsubscribe', error);
+      })
+      .then(() => {
+        delete this._subscriptions[subscriptionId];
+        this._unsubscribeFromChanges();
       });
   }
 
-  _sendSubscriptionChanges = () => {
+  _subscribeToChanges = () => {
     const subscriptions = Object.values(this._subscriptions);
-    const timeout = () => setTimeout(this._sendSubscriptionChanges, 1000);
 
-    Promise
+    const pendingSubscriptions = subscriptions
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const otherSubscriptions = subscriptions
+      .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+    if (pendingSubscriptions.length > 0 && !this._subscribedToPendings) {
+      this._subscribedToPendings = true;
+      this._subscribeToPendings();
+    }
+
+    if (otherSubscriptions.length > 0 && !this._subscribedToBlock) {
+      this._subscribedToBlock = true;
+      this._subscribeToBlock();
+    }
+  }
+
+  _unsubscribeFromChanges = () => {
+    const subscriptions = Object.values(this._subscriptions);
+
+    const pendingSubscriptions = subscriptions
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const otherSubscriptions = subscriptions
+      .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+    if (pendingSubscriptions.length === 0 && this._subscribedToPendings) {
+      this._subscribedToPendings = false;
+      clearTimeout(this._pendingsSubscriptionId);
+    }
+
+    if (otherSubscriptions.length === 0 && this._subscribedToBlock) {
+      this._subscribedToBlock = false;
+      this._api.unsubscribe(this._blockSubscriptionId);
+    }
+  }
+
+  _subscribeToBlock = () => {
+    this._api
+      .subscribe('eth_blockNumber', (error) => {
+        if (error) {
+          console.error('::_subscribeToBlock', error, error && error.stack);
+        }
+
+        const subscriptions = Object.values(this._subscriptions)
+          .filter((s) => !(s.options.toBlock && s.options.toBlock === 'pending'));
+
+        this._sendSubscriptionChanges(subscriptions);
+      })
+      .then((blockSubId) => {
+        this._blockSubscriptionId = blockSubId;
+      })
+      .catch((e) => {
+        console.error('::_subscribeToBlock', e, e && e.stack);
+      });
+  }
+
+  _subscribeToPendings = () => {
+    const subscriptions = Object.values(this._subscriptions)
+      .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
+
+    const timeout = () => setTimeout(() => this._subscribeFromPendings(), 1000);
+
+    this._sendSubscriptionChanges(subscriptions)
+      .then(() => {
+        this._pendingsSubscriptionId = timeout();
+      });
+  }
+
+  _sendSubscriptionChanges = (subscriptions) => {
+    return Promise
       .all(
         subscriptions.map((subscription) => {
           return this._api.eth.getFilterChanges(subscription.filterId);
@@ -315,12 +416,9 @@ export default class Contract {
             console.error('_sendSubscriptionChanges', error);
           }
         });
-
-        timeout();
       })
       .catch((error) => {
         console.error('_sendSubscriptionChanges', error);
-        timeout();
       });
   }
 }

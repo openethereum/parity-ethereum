@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
+import { range } from 'lodash';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
 
@@ -50,14 +51,19 @@ export function inHash (hash) {
   return inHex(hash);
 }
 
+export function pad (input, length) {
+  const value = inHex(input).substr(2, length * 2);
+  return '0x' + value + range(length * 2 - value.length).map(() => '0').join('');
+}
+
 export function inTopics (_topics) {
   let topics = (_topics || [])
-    .filter((topic) => topic)
-    .map(inHex);
+    .filter((topic) => topic === null || topic)
+    .map((topic) => topic === null ? null : pad(topic, 32));
 
-  while (topics.length < 4) {
-    topics.push(null);
-  }
+  // while (topics.length < 4) {
+  //   topics.push(null);
+  // }
 
   return topics;
 }

@@ -29,3 +29,7 @@ export function hex2Ascii (_hex) {
 
   return str;
 }
+
+export function asciiToHex (string) {
+  return '0x' + string.split('').map((s) => s.charCodeAt(0).toString(16)).join('');
+}
