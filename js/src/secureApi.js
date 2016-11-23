@@ -31,7 +31,7 @@ export default class SecureApi extends Api {
     this._followConnectionTimeoutId = null;
 
     // Try tokens from hash, then from localstorage
-    this._tokensToTry = [ nextToken, sysuiToken ].filter((t) => t && t.length);
+    this._tokensToTry = [ sysuiToken, nextToken ].filter((t) => t && t.length);
 
     this._followConnection();
   }
