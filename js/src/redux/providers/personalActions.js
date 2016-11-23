@@ -20,3 +20,10 @@ export function personalAccountsInfo (accountsInfo) {
     accountsInfo
   };
 }
+
+export function setVisibleAccounts (addresses) {
+  return {
+    type: 'setVisibleAccounts',
+    addresses
+  };
+}

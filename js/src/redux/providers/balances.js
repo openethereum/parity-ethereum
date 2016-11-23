@@ -165,12 +165,14 @@ export default class Balances {
 
     this._fetchingBalances = true;
 
-    const addresses = Object
-      .keys(this._accountsInfo)
-      .filter((address) => {
-        const account = this._accountsInfo[address];
-        return !account.meta || !account.meta.deleted;
-      });
+    // const addresses = Object
+    //   .keys(this._accountsInfo)
+    //   .filter((address) => {
+    //     const account = this._accountsInfo[address];
+    //     return !account.meta || !account.meta.deleted;
+    //   });
+
+    const addresses = this._store.getState().personal.visibleAccounts;
 
     this._balances = {};
 
