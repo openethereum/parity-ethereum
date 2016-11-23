@@ -17,6 +17,7 @@
 import { getBalances, getTokens } from './balancesActions';
 import { setAddressImage } from './imagesActions';
 
+import Contracts from '../../contracts';
 import * as abis from '../../contracts/abi';
 
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
@@ -84,15 +85,9 @@ export default class Balances {
       return Promise.resolve(this._tokenreg);
     }
 
-    return this._api.parity
-      .registryAddress()
-      .then((registryAddress) => {
-        const registry = this._api.newContract(abis.registry, registryAddress);
-
-        return registry.instance.getAddress.call({}, [this._api.util.sha3('tokenreg'), 'A']);
-      })
-      .then((tokenregAddress) => {
-        const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
+    return Contracts.get().tokenReg
+      .getContract()
+      .then((tokenreg) => {
         this._tokenreg = tokenreg;
         this.attachToTokens();
 
