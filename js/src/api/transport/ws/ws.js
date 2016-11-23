@@ -102,12 +102,7 @@ export default class Ws extends JsonRpcBase {
   }
 
   _checkNodeUp () {
-    const url = process.env.PARITY_URL || window.location.host;
-
-    return fetch(
-        `http://${url}/api/ping`,
-        { method: 'HEAD' }
-      )
+    return fetch('/', { method: 'HEAD' })
       .then((r) => {
         return r.status === 200;
       }, () => {

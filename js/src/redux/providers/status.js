@@ -102,7 +102,7 @@ export default class Status {
       }, timeout);
     };
 
-    fetch('/api/ping', { method: 'HEAD' })
+    fetch('/', { method: 'HEAD' })
       .then((response) => dispatch(!!response.ok))
       .catch(() => dispatch(false));
   }
