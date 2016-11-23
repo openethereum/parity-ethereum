@@ -31,8 +31,8 @@ class DeleteAccount extends Component {
 
   static propTypes = {
     account: PropTypes.object.isRequired,
-    onClose: PropTypes.func,
-    newError: PropTypes.func
+    onClose: PropTypes.func.isRequired,
+    newError: PropTypes.func.isRequired
   }
 
   state = {
@@ -51,7 +51,7 @@ class DeleteAccount extends Component {
         onDeny={ this.closeDeleteDialog }
         onConfirm={ this.onDeleteConfirmed }>
         <div className={ styles.hero }>
-          Are you sure you want to remove permanently delete the following account?
+          Are you sure you want to permanently delete the following account?
         </div>
         <div className={ styles.info }>
           <IdentityIcon
@@ -95,16 +95,14 @@ class DeleteAccount extends Component {
       .then((result) => {
         if (result === true) {
           router.push('/accounts');
+          this.closeDeleteDialog();
         } else {
           newError(new Error('Deletion failed.'));
         }
-
-        this.closeDeleteDialog();
       })
       .catch((error) => {
         console.error('onDeleteConfirmed', error);
         newError(new Error(`Deletion failed: ${error.message}`));
-        this.closeDeleteDialog();
       });
   }
 
