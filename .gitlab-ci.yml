@@ -423,7 +423,7 @@ windows:
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-darwin:
-  stage: build
+  stage: test
   only:
     - triggers
   before_script:
@@ -435,7 +435,7 @@ test-darwin:
     - osx
   allow_failure: true
 test-windows:
-  stage: build
+  stage: test
   only:
     - triggers
   before_script:
@@ -447,7 +447,7 @@ test-windows:
     - rust-windows
   allow_failure: true
 test-rust-stable:
-  stage: build
+  stage: test
   image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
@@ -462,7 +462,7 @@ test-rust-stable:
     - rust
     - rust-stable
 test-rust-beta:
-  stage: build
+  stage: test
   only:
     - triggers
   image: ethcore/rust:beta
@@ -480,7 +480,7 @@ test-rust-beta:
     - rust-beta
   allow_failure: true
 test-rust-nightly:
-  stage: build
+  stage: test
   only:
     - triggers
   image: ethcore/rust:nightly
@@ -498,7 +498,7 @@ test-rust-nightly:
     - rust-nightly
   allow_failure: true
 js-tests:
-  stage: build
+  stage: test
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -509,7 +509,7 @@ js-tests:
   tags:
     - javascript-test
 js-release:
-  stage: build
+  stage: js-build
   only:
     - master
     - beta
