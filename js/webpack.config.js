@@ -207,13 +207,13 @@ module.exports = {
         autoRewrite: true
       },
       {
-        context: '/api/*',
+        context: '/api',
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         autoRewrite: true
       },
       {
-        context: '/app/*',
+        context: '/app',
         target: 'http://127.0.0.1:8080',
         changeOrigin: true,
         pathRewrite: {
@@ -221,14 +221,15 @@ module.exports = {
         }
       },
       {
-        context: '/parity-utils/*',
+        context: '/parity-utils',
         target: 'http://127.0.0.1:3000',
         changeOrigin: true,
         pathRewrite: {
           '^/parity-utils': ''
         }
       },
-      '/rpc/*': {
+      {
+        context: '/rpc',
         target: 'http://127.0.0.1:8080',
         changeOrigin: true
       }
