@@ -305,6 +305,43 @@ linux-aarch64:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
+linux-alpine:
+  stage: build
+  image: ethcore/rust-alpine:latest
+  only:
+    - beta
+    - tags
+    - stable
+    - triggers
+  script:
+    - export HOST_CC=gcc
+    - export HOST_CXX=g++
+    - rm -rf .cargo
+    - mkdir -p .cargo
+    - cargo build --release $CARGOFLAGS
+    - strip target/release/parity
+    - md5sum target/release/parity > parity.md5
+    - sh scripts/deb-build.sh arm64
+#    - cp target/aarch64-unknown-linux-gnu/release/parity deb/usr/bin/parity
+#    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
+#    - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
+#    - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
+#    - aws configure set aws_access_key_id $s3_key
+#    - aws configure set aws_secret_access_key $s3_secret
+#    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=parity-builds-published; else export S3_BUCKET=parity-builds; fi
+#    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu
+#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
+#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
+#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb" --body "parity_"$VER"_arm64.deb"
+#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb.md5" --body "parity_"$VER"_arm64.deb.md5"
+  tags:
+    - rust
+    - rust-arm
+  artifacts:
+    paths:
+    - target/aarch64-unknown-linux-gnu/release/parity
+    name: "aarch64-unknown-linux-gnu_parity"
+  allow_failure: true
 darwin:
   stage: build
   only:
@@ -365,7 +402,10 @@ windows:
     - cd ..\..
     - aws configure set aws_access_key_id %s3_key%
     - aws configure set aws_secret_access_key %s3_secret%
-    - if "%CI_BUILD_REF_NAME% =~ ^(master|beta|stable)$" then (set S3_BUCKET=parity-builds-published) else (set S3_BUCKET=parity-builds)
+    - echo %CI_BUILD_REF_NAME%
+    - if %CI_BUILD_REF_NAME% == "master" set S3_BUCKET=parity-builds-published else (set S3_BUCKET=parity-builds)
+    - if %CI_BUILD_REF_NAME% == "beta" set S3_BUCKET=parity-builds-published else (set S3_BUCKET=parity-builds)
+    - if %CI_BUILD_REF_NAME% == "stable" set S3_BUCKET=parity-builds-published else (set S3_BUCKET=parity-builds)
     - echo %S3_BUCKET%
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-pc-windows-msvc
     - aws s3api put-object --bucket %S3_BUCKET% --key %CI_BUILD_REF_NAME%/x86_64-pc-windows-msvc/parity.exe --body target\release\parity.exe
@@ -385,7 +425,7 @@ windows:
     - nsis/InstallParity.exe
     name: "x86_64-pc-windows-msvc_parity"
 test-darwin:
-  stage: test
+  stage: build
   only:
     - triggers
   before_script:
@@ -397,7 +437,7 @@ test-darwin:
     - osx
   allow_failure: true
 test-windows:
-  stage: test
+  stage: build
   only:
     - triggers
   before_script:
@@ -409,11 +449,11 @@ test-windows:
     - rust-windows
   allow_failure: true
 test-rust-stable:
-  stage: test
+  stage: build
   image: ethcore/rust:stable
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF $CI_BUILD_REF@{1} | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
@@ -424,13 +464,13 @@ test-rust-stable:
     - rust
     - rust-stable
 test-rust-beta:
-  stage: test
+  stage: build
   only:
     - triggers
   image: ethcore/rust:beta
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF $CI_BUILD_REF@{1} | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
@@ -442,13 +482,13 @@ test-rust-beta:
     - rust-beta
   allow_failure: true
 test-rust-nightly:
-  stage: test
+  stage: build
   only:
     - triggers
   image: ethcore/rust:nightly
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF CI_BUILD_REF@{1} | grep \.js | wc -l)
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF $CI_BUILD_REF@{1} | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
     - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
   script:
@@ -460,7 +500,7 @@ test-rust-nightly:
     - rust-nightly
   allow_failure: true
 js-tests:
-  stage: test
+  stage: build
   image: ethcore/rust:stable
   before_script:
     - ./js/scripts/install-deps.sh
@@ -471,7 +511,7 @@ js-tests:
   tags:
     - javascript-test
 js-release:
-  stage: js-build
+  stage: build
   only:
     - master
     - beta
