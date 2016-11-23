@@ -66,6 +66,35 @@ impl FromStr for DatabaseCompactionProfile {
 	}
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum UpdateFilter {
+	All,
+	Patch,
+	Critical,
+	None,
+}
+
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct UpdatePolicy {
+	download_only: bool,
+	track: Track,
+}
+
+/// Operating mode for the client.
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum UpdatePolicy {
+	/// Always on.
+	Active,
+	/// Goes offline after RLP is inactive for some (given) time, but
+	/// comes back online after a while of inactivity.
+	Passive(Duration, Duration),
+	/// Goes offline after RLP is inactive for some (given) time and
+	/// stays inactive.
+	Dark(Duration),
+	/// Always off.
+	Off,
+}
+
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {

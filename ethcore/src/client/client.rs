@@ -54,7 +54,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify,
+	ChainNotify, UpdatePolicy,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -129,6 +129,7 @@ impl SleepState {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
 	mode: Mutex<Mode>,
+	update_policy: UpdatePolicy, 
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<Engine>,

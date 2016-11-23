@@ -34,6 +34,8 @@ pub struct Updater {
 	client: Weak<Client>,
 	operations: Operations,
 
+	
+
 	pub this: VersionInfo,
 	pub release_info: Option<ReleaseInfo>,
 	

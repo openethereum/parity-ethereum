@@ -23,7 +23,7 @@ use cli::{Args, ArgsError};
 use util::{Hashable, U256, Uint, Bytes, version_data, Secret, Address};
 use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
-use ethcore::client::VMType;
+use ethcore::client::{VMType, UpdatePolicy};
 use ethcore::miner::{MinerOptions, Banning};
 
 use rpc::{IpcConfiguration, HttpConfiguration};
@@ -583,6 +583,10 @@ impl Configuration {
 			rpc_interface: self.args.flag_rpcaddr.clone().unwrap_or(self.args.flag_jsonrpc_interface.clone()),
 			rpc_port: self.args.flag_rpcport.unwrap_or(self.args.flag_jsonrpc_port),
 		}
+	}
+
+	fn update_policy(&self) -> UpdatePolicy {
+
 	}
 
 	fn directories(&self) -> Directories {
