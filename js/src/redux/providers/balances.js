@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { throttle } from 'lodash';
+
 import { getBalances, getTokens } from './balancesActions';
 import { setAddressImage } from './imagesActions';
 
@@ -38,11 +40,20 @@ export default class Balances {
 
     this._accountsInfo = null;
     this._tokenreg = null;
+    this._fetchingBalances = false;
     this._fetchingTokens = false;
     this._fetchedTokens = false;
 
     this._tokenregSubId = null;
     this._tokenregMetaSubId = null;
+
+    // Throttled `retrieveTokens` function
+    // that gets called max once every 20s
+    this._throttledRetrieveTokens = throttle(
+      this._retrieveTokens,
+      20 * 1000,
+      { trailing: true }
+    );
   }
 
   start () {
@@ -73,6 +84,15 @@ export default class Balances {
           return console.warn('_subscribeBlockNumber', error);
         }
 
+        const { syncing } = this._store.getState().nodeStatus;
+
+        // If syncing, only retrieve balances once every
+        // few seconds
+        if (syncing) {
+          return this._throttledRetrieveTokens();
+        }
+
+        this._throttledRetrieveTokens.cancel();
         this._retrieveTokens();
       })
       .catch((error) => {
@@ -135,9 +155,15 @@ export default class Balances {
   }
 
   _retrieveBalances () {
+    if (this._fetchingBalances) {
+      return;
+    }
+
     if (!this._accountsInfo) {
       return;
     }
+
+    this._fetchingBalances = true;
 
     const addresses = Object
       .keys(this._accountsInfo)
@@ -156,9 +182,11 @@ export default class Balances {
         });
 
         this._store.dispatch(getBalances(this._balances));
+        this._fetchingBalances = false;
       })
       .catch((error) => {
         console.warn('_retrieveBalances', error);
+        this._fetchingBalances = false;
       });
   }
 
