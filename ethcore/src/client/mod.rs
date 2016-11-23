@@ -26,7 +26,7 @@ mod client;
 mod updater;
 
 pub use self::client::*;
-pub use self::config::{Mode, ClientConfig, UpdatePolicy, Automation, DatabaseCompactionProfile, BlockChainConfig, VMType};
+pub use self::config::{Mode, ClientConfig, UpdatePolicy, UpdateFilter, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
 pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};

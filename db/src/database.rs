@@ -270,8 +270,7 @@ impl DatabaseService for Database {
 		Ok(next_iterator)
 	}
 
-	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue>
-	{
+	fn iter_next(&self, handle: IteratorHandle) -> Option<KeyValue> {
 		let mut iterators = self.iterators.write();
 		let mut iterator = match iterators.get_mut(&handle) {
 			Some(some_iterator) => some_iterator,

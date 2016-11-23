@@ -18,8 +18,7 @@ use std::sync::Weak;
 use util::misc::{VersionInfo, ReleaseTrack, platform};
 use util::{Address, H160, H256, FixedHash};
 use client::operations::Operations;
-use client::client::Client;
-use client::BlockId;
+use client::{Client, UpdatePolicy, BlockId};
 
 pub struct ReleaseInfo {
 	fork_supported: usize,
@@ -34,15 +33,13 @@ pub struct Updater {
 	client: Weak<Client>,
 	operations: Operations,
 
-	
-
 	pub this: VersionInfo,
 	pub release_info: Option<ReleaseInfo>,
 	
 }
 
 impl Updater {
-	pub fn new(client: Weak<Client>, operations: Address) -> Self {
+	pub fn new(client: Weak<Client>, operations: Address, _update_policy: UpdatePolicy) -> Self {
 		let mut u = Updater {
 			client: client.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),

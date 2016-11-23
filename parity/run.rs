@@ -23,7 +23,7 @@ use ethsync::NetworkConfiguration;
 use util::{Colour, version, RotatingLogger};
 use io::{MayPanic, ForwardPanic, PanicHandler};
 use ethcore_logger::{Config as LogConfig};
-use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
+use ethcore::client::{Mode, UpdatePolicy, DatabaseCompactionProfile, VMType, ChainNotify, BlockChainClient};
 use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
@@ -75,6 +75,7 @@ pub struct RunCmd {
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
 	pub miner_extras: MinerExtras,
+	pub update_policy: UpdatePolicy,
 	pub mode: Option<Mode>,
 	pub tracing: Switch,
 	pub fat_db: Switch,
@@ -92,6 +93,7 @@ pub struct RunCmd {
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
+	pub require_consensus: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -158,6 +160,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	trace!(target: "mode", "mode is {:?}", mode);
 	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
 
+	// get the update policy
+	let update_policy = cmd.update_policy;
+
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
 	let snapshot_path = db_dirs.snapshot_path();
@@ -219,6 +224,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
+		update_policy, 
 		mode,
 		tracing,
 		fat_db,

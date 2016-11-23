@@ -38,9 +38,11 @@ Operating Options:
                            none - No updates will be auto-installed. 
                            (default: {flag_auto_update}).
   --no-download            Normally new releases will be downloaded ready for
-                           updating. This disables it. Not recommended.    
+                           updating. This disables it. Not recommended.
+                           (default: {flag_no_download}).
   --no-consensus           Force the binary to run even if there are known
                            issues regarding consensus. Not recommended.
+                           (default: {flag_no_consensus}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
                            homestead, mainnet, morden, ropsten, classic, expanse,

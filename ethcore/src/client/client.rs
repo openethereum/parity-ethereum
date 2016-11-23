@@ -129,7 +129,6 @@ impl SleepState {
 /// Call `import_block()` to import a block asynchronously; `flush_queue()` flushes the queue.
 pub struct Client {
 	mode: Mutex<Mode>,
-	update_policy: UpdatePolicy, 
 	chain: RwLock<Arc<BlockChain>>,
 	tracedb: RwLock<TraceDB<BlockChain>>,
 	engine: Arc<Engine>,
@@ -227,6 +226,8 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
+
+
 		let client = Arc::new(Client {
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
@@ -262,7 +263,7 @@ impl Client {
 			if let Ok(ops_addr) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
 				if !ops_addr.is_zero() { 
 					trace!(target: "client", "Found operations at {}", ops_addr);
-					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), ops_addr));
+					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), ops_addr, client.config.update_policy.clone()));
 				}
 			}
 			*client.registrar.lock() = Some(registrar);

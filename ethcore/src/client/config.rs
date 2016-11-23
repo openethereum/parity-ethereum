@@ -66,33 +66,39 @@ impl FromStr for DatabaseCompactionProfile {
 	}
 }
 
+/// Filter for releases.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UpdateFilter {
+	/// All releases following the same track.
 	All,
+	/// Only those of the same minor version potentially changing tracks.
 	Patch,
+	/// As with `All`, but only those which are known to be critical. 
 	Critical,
+	/// None.
 	None,
 }
 
+/// The policy for auto-updating.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct UpdatePolicy {
-	download_only: bool,
-	track: Track,
+	/// Download potential updates.
+	pub enable_downloading: bool,
+	/// Which of those downloaded should be automatically installed.
+	pub filter: UpdateFilter,
 }
 
-/// Operating mode for the client.
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum UpdatePolicy {
-	/// Always on.
-	Active,
-	/// Goes offline after RLP is inactive for some (given) time, but
-	/// comes back online after a while of inactivity.
-	Passive(Duration, Duration),
-	/// Goes offline after RLP is inactive for some (given) time and
-	/// stays inactive.
-	Dark(Duration),
-	/// Always off.
-	Off,
+impl Default for UpdatePolicy {
+	fn default() -> Self {
+		UpdatePolicy {
+			enable_downloading: false,
+			filter: UpdateFilter::None,
+		}
+	}
+}
+
+impl UpdatePolicy {
+	pub fn new() -> Self { Default::default() }
 }
 
 /// Operating mode for the client.
@@ -130,6 +136,8 @@ impl Display for Mode {
 /// Client configuration. Includes configs for all sub-systems.
 #[derive(Debug, PartialEq, Default)]
 pub struct ClientConfig {
+	/// Updater policy.
+	pub update_policy: UpdatePolicy,
 	/// Block queue configuration.
 	pub queue: QueueConfig,
 	/// Blockchain configuration.
