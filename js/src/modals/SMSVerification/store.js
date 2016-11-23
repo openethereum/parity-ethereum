@@ -26,8 +26,6 @@ import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
 import isTestnet from '../../util/is-testnet';
 
-const validCode = /^[A-Z\s]+$/i;
-
 export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';
 export const POSTING_REQUEST = 'posting-request';
@@ -50,11 +48,9 @@ export default class VerificationStore {
   @observable number = '';
   @observable requestTx = null;
   @observable code = '';
+  @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  @computed get isCodeValid () {
-    return validCode.test(this.code);
-  }
   @computed get isNumberValid () {
     return phone.isValidNumber(this.number);
   }
@@ -149,7 +145,26 @@ export default class VerificationStore {
   }
 
   @action setCode = (code) => {
+    const { contract, account } = this;
+    if (!contract || !account || code.length === 0) return;
+
+    const confirm = contract.functions.find((fn) => fn.name === 'confirm');
+    const options = { from: account };
+    const values = [ sha3(code) ];
+
     this.code = code;
+    this.isCodeValid = null;
+    confirm.estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas.mul(1.2).toFixed(0);
+        return confirm.call(options, values);
+      })
+      .then((result) => {
+        this.isCodeValid = result === true;
+      })
+      .catch((err) => {
+        this.error = 'Failed to check if the code is valid: ' + err.message;
+      });
   }
 
   @action sendRequest = () => {
