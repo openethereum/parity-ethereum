@@ -109,7 +109,7 @@ class TxHash extends Component {
     if (confirmations.gt(maxConfirmations)) {
       count = confirmations.toFormat(0);
     } else {
-      count = confirmations.toFormat(0) + '/' + maxConfirmations;
+      count = confirmations.toFormat(0) + `/${maxConfirmations}`;
     }
     const unit = value === 1 ? 'confirmation' : 'confirmations';
 
