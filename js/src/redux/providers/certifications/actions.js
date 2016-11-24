@@ -18,6 +18,6 @@ export const fetchCertifications = (address) => ({
   type: 'fetchCertifications', address
 });
 
-export const addCertification = (address, name, icon) => ({
-  type: 'addCertification', address, name, icon
+export const addCertification = (address, name, title, icon) => ({
+  type: 'addCertification', address, name, title, icon
 });

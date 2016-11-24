@@ -41,13 +41,13 @@ export default class Certifications extends Component {
   }
 
   renderCertification = (certification) => {
-    const { name, icon } = certification;
+    const { name, title, icon } = certification;
     const { dappsUrl } = this.props;
 
     return (
       <div className={ styles.certification } key={ name }>
         <img className={ styles.icon } src={ dappsUrl + hashToImageUrl(icon) } />
-        { name }
+        { title || name }
       </div>
     );
   }

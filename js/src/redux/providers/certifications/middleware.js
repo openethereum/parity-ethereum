@@ -37,7 +37,7 @@ export default (api) => {
           return check(data.address, address)
             .then((isCertified) => {
               if (isCertified) {
-                store.dispatch(addCertification(address, data.name, data.icon));
+                store.dispatch(addCertification(address, data.name, data.title, data.icon));
               }
             });
         })

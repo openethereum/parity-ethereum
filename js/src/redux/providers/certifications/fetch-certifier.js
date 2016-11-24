@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { bytesToHex, hex2Ascii } from '../../../api/util/format';
+
 import ABI from '../../../contracts/abi/badgereg.json';
 
 const address = '0xcF5A62987294fd2087252FD812443508528C52bF';
+const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 export default (api) => {
   const registry = api.newContract(ABI, address);
@@ -28,12 +31,19 @@ export default (api) => {
     }
     return registry.instance.fromName.call({}, [name])
     .then(([ id, address ]) => {
-      return registry.instance.meta.call({}, [id, 'IMG'])
-      .then((img) => {
-        const data = { address, name, icon: img };
-        cache[name] = data;
-        return data;
-      });
+      return Promise.all([
+        registry.instance.meta.call({}, [id, 'TITLE']),
+        registry.instance.meta.call({}, [id, 'IMG'])
+      ])
+        .then(([title, img]) => {
+          title = bytesToHex(title);
+          title = title === ZERO ? null : hex2Ascii(title);
+          if (bytesToHex(img) === ZERO) img = null;
+
+          const data = { address, name, title, icon: img };
+          cache[name] = data;
+          return data;
+        });
     });
   };
 };
