@@ -18,12 +18,9 @@
 @import '../../_layout.css';
 
 .container {
-  width: $statusWidth;
-  padding: 20px 0 0 0;
-  position: absolute;
-  top: 0;
-  right: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
+  padding: 1em 1em 0 1em;
+  flex: 0 0 $statusWidth;
 }
 
 .rejectToggle {

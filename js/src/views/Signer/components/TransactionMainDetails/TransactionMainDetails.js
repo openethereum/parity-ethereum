@@ -33,7 +33,6 @@ export default class TransactionMainDetails extends Component {
     isTest: PropTypes.bool.isRequired,
     to: PropTypes.string, // undefined if it's a contract
     toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
-    className: PropTypes.string,
     children: PropTypes.node
   };
 
@@ -60,23 +59,15 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { className, children } = this.props;
+    const { to } = this.props;
 
-    return (
-      <div className={ className }>
-        { this.renderTransfer() }
-        { this.renderContract() }
-        { children }
-      </div>
-    );
+    return to
+      ? this.renderTransfer()
+      : this.renderContract();
   }
 
   renderTransfer () {
-    const { from, fromBalance, to, toBalance, isTest } = this.props;
-
-    if (!to) {
-      return;
-    }
+    const { children, from, fromBalance, to, toBalance, isTest } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -101,16 +92,13 @@ export default class TransactionMainDetails extends Component {
               isTest={ isTest } />
           </div>
         </div>
+        { children }
       </div>
     );
   }
 
   renderContract () {
-    const { from, fromBalance, to, isTest } = this.props;
-
-    if (to) {
-      return;
-    }
+    const { children, from, fromBalance, isTest } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -134,6 +122,7 @@ export default class TransactionMainDetails extends Component {
             Contract
           </div>
         </div>
+        { children }
       </div>
     );
   }

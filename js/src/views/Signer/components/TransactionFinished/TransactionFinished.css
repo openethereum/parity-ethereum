@@ -18,29 +18,23 @@
 @import '../../_layout.css';
 
 .container {
-  padding: 25px 0 15px;
-}
+  display: flex;
+  padding: 1.5em 0 1em;
 
-.mainContainer {
-  position: relative;
-}
-
-.mainContainer > * {
-  vertical-align: middle;
-  min-height: 120px;
+  & > * {
+    vertical-align: middle;
+    min-height: $finishedHeight;
+  }
 }
 
 .statusContainer {
-  width: $statusWidth;
-  padding: 0;
-  position: absolute;
-  top: 0;
-  right: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
+  float: right;
+  padding: 0 1em;
+  flex: 0 0 $statusWidth;
 }
 
 .transactionDetails {
-  padding-right: $statusMargin;
   width: 100%;
   box-sizing: border-box;
 }

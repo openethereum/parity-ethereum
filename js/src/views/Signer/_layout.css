@@ -15,5 +15,10 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-$statusWidth: 240px;
-$statusMargin: 280px;
+$pendingHeight: 190px;
+$finishedHeight: 120px;
+
+$embedWidth: 920px;
+$statusWidth: 260px;
+
+$accountPadding: 75px;
