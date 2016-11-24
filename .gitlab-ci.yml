@@ -464,7 +464,7 @@ test-rust-stable:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; else echo "skip js test"./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -481,7 +481,7 @@ test-rust-beta:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; else echo "skip js test"./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-beta
@@ -499,7 +499,7 @@ test-rust-nightly:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; else echo "skip js test"./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-nightly
@@ -512,9 +512,11 @@ js-release:
     - stable
   image: ethcore/rust:stable
   before_script:
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/install-deps.sh; fi
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js build"; else ./js/scripts/install-deps.sh;fi
   script:
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/build.sh; fi
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/release.sh; fi
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&./js/scripts/release.sh; fi
   tags:
     - javascript
