@@ -18,11 +18,13 @@ import { handleActions } from 'redux-actions';
 
 const initialState = {
   balances: {},
-  tokens: {}
+  tokens: {},
+
+  tokenreg: null
 };
 
 export default handleActions({
-  getBalances (state, action) {
+  setBalances (state, action) {
     const nextBalances = action.balances;
     const prevBalances = state.balances;
 
@@ -34,9 +36,13 @@ export default handleActions({
     return Object.assign({}, state, { balances });
   },
 
-  getTokens (state, action) {
+  setTokens (state, action) {
     const { tokens } = action;
-
     return Object.assign({}, state, { tokens });
+  },
+
+  setTokenReg (state, action) {
+    const { tokenreg } = action;
+    return Object.assign({}, state, { tokenreg });
   }
 }, initialState);
