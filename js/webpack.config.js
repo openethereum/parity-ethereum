@@ -24,38 +24,53 @@ const rucksack = require('rucksack-css');
 const webpack = require('webpack');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
+
+const FAVICON = path.resolve(__dirname, 'assets/images/parity-logo-black-no-text.png');
+
+const DAPPS = [
+  { name: 'basiccoin', entry: './dapps/basiccoin.js', title: 'Basic Token Deployment' },
+  { name: 'dappreg', entry: './dapps/dappreg.js', title: 'Dapp Registry' },
+  { name: 'githubhint', entry: './dapps/githubhint.js', title: 'GitHub Hint', secure: true },
+  { name: 'localtx', entry: './dapps/localtx.js', title: 'Local transactions Viewer', secure: true },
+  { name: 'registry', entry: './dapps/registry.js', title: 'Registry' },
+  { name: 'signaturereg', entry: './dapps/signaturereg.js', title: 'Method Signature Registry' },
+  { name: 'tokenreg', entry: './dapps/tokenreg.js', title: 'Token Registry' }
+];
+
+// dapps
+const entry = DAPPS.reduce((_entry, dapp) => {
+  _entry[dapp.name] = dapp.entry;
+  return _entry;
+}, {});
+
+// main UI
+entry.index = './index.js';
 
 module.exports = {
   debug: !isProd,
   cache: !isProd,
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
   context: path.join(__dirname, './src'),
-  entry: {
-    // dapps
-    'basiccoin': ['./dapps/basiccoin.js'],
-    'dappreg': ['./dapps/dappreg.js'],
-    'githubhint': ['./dapps/githubhint.js'],
-    'registry': ['./dapps/registry.js'],
-    'signaturereg': ['./dapps/signaturereg.js'],
-    'localtx': ['./dapps/localtx.js'],
-    'tokenreg': ['./dapps/tokenreg.js'],
-    // app
-    'index': ['./index.js']
-  },
+  entry: entry,
   output: {
     path: path.join(__dirname, DEST),
-    filename: '[name].js'
+    filename: '[name].[hash].js'
   },
   module: {
     loaders: [
       {
         test: /\.js$/,
-        exclude: /node_modules/,
+        exclude: [ /node_modules/, /vendor\.js$/ ],
         loaders: [ 'happypack/loader?id=js' ]
+      },
+      {
+        test: /vendor\.js$/,
+        loaders: [ 'file?name=[name].[hash].[ext]' ]
       },
       {
         test: /\.js$/,
@@ -157,8 +172,27 @@ module.exports = {
       new webpack.DllReferencePlugin({
         context: '.',
         manifest: require(`./${DEST}/vendor-manifest.json`)
+      }),
+
+      new HtmlWebpackPlugin({
+        title: 'Parity',
+        filename: 'index.html',
+        template: './index.ejs',
+        favicon: FAVICON,
+        chunks: [ 'commons', 'index' ]
       })
     ];
+
+    DAPPS.map((dapp) => {
+      return new HtmlWebpackPlugin({
+        title: dapp.title,
+        filename: dapp.name + '.html',
+        template: './dapps/index.ejs',
+        favicon: FAVICON,
+        secure: dapp.secure,
+        chunks: [ 'commons', dapp.name ]
+      });
+    }).forEach((plugin) => plugins.push(plugin));
 
     if (!isProd) {
       plugins.push(
