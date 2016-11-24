@@ -96,7 +96,6 @@ class Address extends Component {
           onClose={ this.closeDeleteDialog } />
         <Page>
           <Header
-            isTest={ isTest }
             account={ contact }
             balance={ balance } />
           <Transactions

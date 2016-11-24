@@ -131,7 +131,6 @@ class Contract extends Component {
         { this.renderExecuteDialog() }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
             balance={ balance } />
           <Queries

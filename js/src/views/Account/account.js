@@ -110,7 +110,6 @@ class Account extends Component {
         { this.renderActionbar() }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
             balance={ balance } />
           <Transactions

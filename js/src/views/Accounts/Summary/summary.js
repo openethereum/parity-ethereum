@@ -38,10 +38,6 @@ export default class Summary extends Component {
     noLink: false
   };
 
-  state = {
-    name: 'Unnamed'
-  };
-
   shouldComponentUpdate (nextProps) {
     const prev = {
       link: this.props.link, name: this.props.name,

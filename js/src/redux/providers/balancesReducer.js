@@ -27,11 +27,38 @@ export default handleActions({
   setBalances (state, action) {
     const nextBalances = action.balances;
     const prevBalances = state.balances;
+    const balances = { ...prevBalances };
 
-    const balances = {
-      ...prevBalances,
-      ...nextBalances
-    };
+    Object.keys(nextBalances).forEach((address) => {
+      if (!balances[address]) {
+        balances[address] = Object.assign({}, nextBalances[address]);
+        return;
+      }
+
+      const balance = Object.assign({}, balances[address]);
+
+      const { tokens, txCount = balance.txCount } = nextBalances[address];
+
+      const nextTokens = [].concat(balance.tokens);
+
+      tokens.forEach((t) => {
+        const { token, value } = t;
+        const { name, tag, image, id, format } = token;
+
+        const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
+
+        if (tokenIndex === -1) {
+          nextTokens.push({
+            token: { name, tag, image, id, format },
+            value
+          });
+        } else {
+          nextTokens[tokenIndex] = { token, value };
+        }
+      });
+
+      balances[address] = Object.assign({}, { txCount, tokens: nextTokens });
+    });
 
     return Object.assign({}, state, { balances });
   },

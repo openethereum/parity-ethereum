@@ -104,8 +104,22 @@ export function fetchBalances (_addresses) {
 
     const addresses = uniq(_addresses || visibleAccounts || []);
 
+    const fullFetch = addresses.length === 1;
+
     return Promise
-      .all(addresses.map((addr) => fetchAccount(addr, tokens, api)))
+      .all(addresses.map((addr) => fetchAccount(addr, api, fullFetch)))
+      .then((_balances) => {
+        const balances = {};
+
+        addresses.forEach((addr, idx) => {
+          balances[addr] = _balances[idx];
+        });
+
+        dispatch(setBalances(balances));
+
+        return Promise
+          .all(addresses.map((addr) => fetchTokensBalance(addr, tokens, api)));
+      })
       .then((_balances) => {
         const balances = {};
 
@@ -121,34 +135,50 @@ export function fetchBalances (_addresses) {
   };
 }
 
-function fetchAccount (address, _tokens, api) {
+function fetchAccount (address, api, full = false) {
+  const promises = [ api.eth.getBalance(address) ];
+
+  if (full) {
+    promises.push(api.eth.getTransactionCount(address));
+  }
+
+  return Promise
+    .all(promises)
+    .then(([ ethBalance, txCount ]) => {
+      const tokens = [ { token: ETH, value: ethBalance } ];
+      const balance = { tokens };
+
+      if (full) {
+        balance.txCount = txCount;
+      }
+
+      return balance;
+    })
+    .catch((error) => {
+      console.warn('balances::fetchAccountBalance', `couldn't fetch balance for account #${address}`, error);
+    });
+}
+
+function fetchTokensBalance (address, _tokens, api) {
   const tokensPromises = _tokens
     .map((token) => {
       return token.contract.instance.balanceOf.call({}, [ address ]);
     });
 
   return Promise
-    .all([
-      api.eth.getTransactionCount(address),
-      api.eth.getBalance(address)
-    ].concat(tokensPromises))
-    .then(([ txCount, ethBalance, ...tokensBalance ]) => {
-      const tokens = []
-        .concat(
-          { token: ETH, value: ethBalance },
+    .all(tokensPromises)
+    .then((tokensBalance) => {
+      const tokens = _tokens
+        .map((token, index) => ({
+          token,
+          value: tokensBalance[index]
+        }));
 
-          _tokens
-            .map((token, index) => ({
-              token,
-              value: tokensBalance[index]
-            }))
-        );
-
-      const balance = { txCount, tokens };
+      const balance = { tokens };
       return balance;
     })
     .catch((error) => {
-      console.warn('balances::fetchAccountBalance', `couldn't fetch balance for account #${address}`, error);
+      console.warn('balances::fetchTokensBalance', `couldn't fetch tokens balance for account #${address}`, error);
     });
 }
 
