@@ -354,16 +354,16 @@ darwin:
     - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
     - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-    - mv target/release/Parity\ Ethereum.pkg parity-$VER-osx-installer-EXPERIMENTAL.pkg
-    - md5sum parity-$VER-osx-installer-EXPERIMENTAL.pkg >> parity-&VER-osx-installer-EXPERIMENTAL.pkg.md5
+    - mv target/release/Parity\ Ethereum.pkg "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
+    - md5sum "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" >> "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
     - aws configure set aws_access_key_id $s3_key
     - aws configure set aws_secret_access_key $s3_secret
     - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
     - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/x86_64-apple-darwin
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-$VER-osx-installer-EXPERIMENTAL.pkg --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity-$VER-osx-installer-EXPERIMENTAL.pkg.md5 --body parity-1.4.0-osx-installer-EXPERIMENTAL.pkg.md5
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/"parity-$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
   tags:
     - osx
   artifacts:
