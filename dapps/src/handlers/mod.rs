@@ -58,7 +58,7 @@ pub fn extract_url(req: &server::Request<net::HttpStream>) -> Option<Url> {
 				_ => None,
 			}
 		},
-		uri::RequestUri::AbsolutePath(ref path) => {
+		uri::RequestUri::AbsolutePath { ref path, .. } => {
 			// Attempt to prepend the Host header (mandatory in HTTP/1.1)
 			let url_string = match req.headers().get::<header::Host>() {
 				Some(ref host) => {
