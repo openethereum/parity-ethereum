@@ -20,7 +20,7 @@ use nibbleslice::*;
 use rlp::*;
 use super::node::Node;
 use super::recorder::{Recorder, NoOp};
-use super::{Trie, TrieItem, TrieError};
+use super::{Trie, TrieItem, TrieError, TrieIterator};
 
 /// A `Trie` implementation using a generic `HashDB` backing database.
 ///
@@ -295,6 +295,61 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
+	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
+	/// value exists for the key.
+	///
+	/// Note: Not a public API; use Trie trait functions.
+	fn seek_recurse<'key> (
+		&mut self,
+		node: &[u8],
+		key: &NibbleSlice<'key>,
+		d: u32
+	) -> super::Result<()> {
+		let n = Node::decoded(node);
+		match Node::decoded(node) {
+			Node::Leaf(_, ref item) => {
+				self.descend(node);
+				Ok(())
+			},
+			Node::Extension(ref slice, ref item) => {
+				let slice = &NibbleSlice::from_encoded(slice).0;
+				if key.starts_with(slice) {
+					let mut r = NoOp;
+					self.trail.push(Crumb {
+						status: Status::At,
+						node: n,
+					});
+					self.key_nibbles.extend(slice.iter());
+					let data = try!(self.db.get_raw_or_lookup(&*item, &mut r, d));
+					self.seek_recurse(&data, &key.mid(slice.len()), d + 1)
+				} else {
+					self.descend(node);
+					Ok(())
+				}
+			},
+			Node::Branch(ref nodes, _) => match key.is_empty() {
+				true => {
+					self.trail.push(Crumb {
+						status: Status::Entering,
+						node: n,
+					});
+					Ok(())
+				},
+				false => {
+					let mut r = NoOp;
+					let node = try!(self.db.get_raw_or_lookup(&*nodes[key.at(0) as usize], &mut r, d));
+					self.trail.push(Crumb {
+						status: Status::AtChild(key.at(0) as usize),
+						node: n,
+					});
+					self.key_nibbles.push(key.at(0));
+					self.seek_recurse(&node, &key.mid(1), d + 1)
+				}
+			},
+			_ => Ok(())
+		}
+	}
+
 	/// Descend into a payload.
 	fn descend(&mut self, d: &[u8]) -> super::Result<()> {
 		self.trail.push(Crumb {
@@ -313,6 +368,17 @@ impl<'a> TrieDBIterator<'a> {
 	fn key(&self) -> Bytes {
 		// collapse the key_nibbles down to bytes.
 		self.key_nibbles.iter().step(2).zip(self.key_nibbles.iter().skip(1).step(2)).map(|(h, l)| h * 16 + l).collect()
+	}
+}
+
+impl<'a> TrieIterator for TrieDBIterator<'a> {
+	/// Position the iterator on the first element with key >= `key`
+	fn seek(&mut self, key: &[u8]) -> super::Result<()> {
+		self.trail.clear();
+		self.key_nibbles.clear();
+		let mut r = NoOp;
+		let root_rlp = try!(self.db.root_data(&mut r));
+		self.seek_recurse(&root_rlp, &NibbleSlice::new(key), 1)
 	}
 }
 
@@ -372,7 +438,7 @@ impl<'a> Iterator for TrieDBIterator<'a> {
 }
 
 impl<'db> Trie for TrieDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
 		TrieDBIterator::new(self).map(|iter| Box::new(iter) as Box<_>)
 	}
 
@@ -414,4 +480,31 @@ fn iterator() {
 	let t = TrieDB::new(&memdb, &root).unwrap();
 	assert_eq!(d.iter().map(|i| i.clone().to_vec()).collect::<Vec<_>>(), t.iter().unwrap().map(|x| x.unwrap().0).collect::<Vec<_>>());
 	assert_eq!(d, t.iter().unwrap().map(|x| x.unwrap().1).collect::<Vec<_>>());
+}
+
+#[test]
+fn iterator_seek() {
+	use memorydb::*;
+	use super::TrieMut;
+	use super::triedbmut::*;
+
+	let d = vec![ DBValue::from_slice(b"A"), DBValue::from_slice(b"AA"), DBValue::from_slice(b"AB"), DBValue::from_slice(b"B") ];
+
+	let mut memdb = MemoryDB::new();
+	let mut root = H256::new();
+	{
+		let mut t = TrieDBMut::new(&mut memdb, &mut root);
+		for x in &d {
+			t.insert(x, x).unwrap();
+		}
+	}
+
+	let t = TrieDB::new(&memdb, &root).unwrap();
+	let mut iter = t.iter().unwrap();
+	//assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
+	//iter.seek(b"!").unwrap();
+	//assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"A").unwrap();
+	assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
 }

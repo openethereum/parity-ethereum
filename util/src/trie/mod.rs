@@ -102,7 +102,7 @@ pub trait Trie {
 		where 'a: 'b, R: Recorder;
 
 	/// Returns an iterator over elements of trie.
-	fn iter<'a>(&'a self) -> Result<Box<Iterator<Item = TrieItem> + 'a>>;
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Item = TrieItem> + 'a>>;
 }
 
 /// A key-value datastore implemented as a database-backed modified Merkle tree.
@@ -128,6 +128,12 @@ pub trait TrieMut {
 	/// Remove a `key` from the trie. Equivalent to making it equal to the empty
 	/// value.
 	fn remove(&mut self, key: &[u8]) -> Result<()>;
+}
+
+/// A trie iterator that also supports random access.
+pub trait TrieIterator : Iterator {
+	/// Position the iterator on the first element with key >= `key`
+	fn seek(&mut self, key: &[u8]) -> Result<()>;
 }
 
 /// Trie types
@@ -193,7 +199,7 @@ impl<'db> Trie for TrieKinds<'db> {
 		wrapper!(self, get_recorded, key, r)
 	}
 
-	fn iter<'a>(&'a self) -> Result<Box<Iterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
 		wrapper!(self, iter,)
 	}
 }
