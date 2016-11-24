@@ -14,6 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { isEqual } from 'lodash';
+
+import { fetchBalances } from './balancesActions';
+
 export function personalAccountsInfo (accountsInfo) {
   return {
     type: 'personalAccountsInfo',
@@ -21,9 +25,22 @@ export function personalAccountsInfo (accountsInfo) {
   };
 }
 
-export function setVisibleAccounts (addresses) {
+export function _setVisibleAccounts (addresses) {
   return {
     type: 'setVisibleAccounts',
     addresses
+  };
+}
+
+export function setVisibleAccounts (addresses) {
+  return (dispatch, getState) => {
+    const { visibleAccounts } = getState().personal;
+
+    if (isEqual(addresses.sort(), visibleAccounts.sort())) {
+      return;
+    }
+
+    dispatch(fetchBalances(addresses));
+    dispatch(_setVisibleAccounts(addresses));
   };
 }
