@@ -26,6 +26,7 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
 const Shared = require('./shared');
+const DAPPS = require('../src/dapps');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
@@ -33,21 +34,8 @@ const DEST = process.env.BUILD_DEST || '.build';
 
 const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
-const DAPPS = [
-  { name: 'basiccoin', entry: './dapps/basiccoin.js', title: 'Basic Token Deployment' },
-  { name: 'dappreg', entry: './dapps/dappreg.js', title: 'Dapp Registry' },
-  { name: 'githubhint', entry: './dapps/githubhint.js', title: 'GitHub Hint', secure: true },
-  { name: 'localtx', entry: './dapps/localtx.js', title: 'Local transactions Viewer', secure: true },
-  { name: 'registry', entry: './dapps/registry.js', title: 'Registry' },
-  { name: 'signaturereg', entry: './dapps/signaturereg.js', title: 'Method Signature Registry' },
-  { name: 'tokenreg', entry: './dapps/tokenreg.js', title: 'Token Registry' }
-];
-
 // dapps
-const entry = DAPPS.reduce((_entry, dapp) => {
-  _entry[dapp.name] = dapp.entry;
-  return _entry;
-}, {});
+const entry = Shared.dappsEntry;
 
 // main UI
 entry.index = './index.js';

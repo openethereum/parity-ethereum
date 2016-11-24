@@ -68,6 +68,15 @@ function getPlugins (_isProd = isProd) {
   return plugins;
 }
 
+function getDappsEntry () {
+  const DAPPS = require('../src/dapps');
+
+  return DAPPS.reduce((_entry, dapp) => {
+    _entry[dapp.name] = './dapps/' + dapp.entry;
+    return _entry;
+  }, {});
+}
+
 const proxies = [
   {
     context: (pathname, req) => {
@@ -108,5 +117,6 @@ const proxies = [
 
 module.exports = {
   getPlugins: getPlugins,
+  dappsEntry: getDappsEntry(),
   proxies: proxies
 };
