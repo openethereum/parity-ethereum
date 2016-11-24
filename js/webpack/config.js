@@ -56,22 +56,20 @@ module.exports = {
   debug: !isProd,
   cache: !isProd,
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
+
   context: path.join(__dirname, '../src'),
   entry: entry,
   output: {
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash].js'
   },
+
   module: {
     loaders: [
       {
         test: /\.js$/,
-        exclude: [ /node_modules/, /vendor\.js$/ ],
+        exclude: /node_modules/,
         loaders: [ 'happypack/loader?id=js' ]
-      },
-      {
-        test: /vendor\.js$/,
-        loaders: [ 'file?name=[name].[hash].[ext]' ]
       },
       {
         test: /\.js$/,
@@ -110,6 +108,7 @@ module.exports = {
       /node_modules\/sinon/
     ]
   },
+
   resolve: {
     root: path.join(__dirname, '../node_modules'),
     fallback: path.join(__dirname, '../node_modules'),
@@ -140,6 +139,7 @@ module.exports = {
       autoprefixer: true
     })
   ],
+
   plugins: (function () {
     const plugins = Shared.getPlugins().concat([
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
@@ -171,7 +171,7 @@ module.exports = {
     if (!isProd) {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
-          filename: 'commons.js',
+          filename: 'commons.[hash].js',
           name: 'commons'
         })
       );
@@ -179,47 +179,12 @@ module.exports = {
 
     return plugins;
   }()),
+
   devServer: {
     contentBase: path.resolve(__dirname, `../${DEST}`),
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
-    proxy: [
-      {
-        context: (pathname, req) => {
-          return pathname === '/' && req.method === 'HEAD';
-        },
-        target: 'http://127.0.0.1:8180',
-        changeOrigin: true,
-        autoRewrite: true
-      },
-      {
-        context: '/api',
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true,
-        autoRewrite: true
-      },
-      {
-        context: '/app',
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/app': ''
-        }
-      },
-      {
-        context: '/parity-utils',
-        target: 'http://127.0.0.1:3000',
-        changeOrigin: true,
-        pathRewrite: {
-          '^/parity-utils': ''
-        }
-      },
-      {
-        context: '/rpc',
-        target: 'http://127.0.0.1:8080',
-        changeOrigin: true
-      }
-    ]
+    proxy: Shared.proxies
   }
 };
