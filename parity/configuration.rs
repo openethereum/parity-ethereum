@@ -250,6 +250,7 @@ impl Configuration {
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
+				download_old_blocks: !self.args.flag_no_ancient_blocks,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -871,6 +872,7 @@ mod tests {
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
 			check_seal: true,
+			download_old_blocks: true,
 		}));
 	}
 

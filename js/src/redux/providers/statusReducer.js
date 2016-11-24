@@ -39,7 +39,7 @@ const initialState = {
   },
   netPort: new BigNumber(0),
   rpcSettings: {},
-  syncing: false,
+  syncing: true,
   isConnected: false,
   isConnecting: false,
   isPingable: false,
