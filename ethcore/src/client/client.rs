@@ -54,7 +54,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockId, TransactionId, UncleId, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, UpdatePolicy,
+	ChainNotify,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;

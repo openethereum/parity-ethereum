@@ -97,10 +97,6 @@ impl Default for UpdatePolicy {
 	}
 }
 
-impl UpdatePolicy {
-	pub fn new() -> Self { Default::default() }
-}
-
 /// Operating mode for the client.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Mode {

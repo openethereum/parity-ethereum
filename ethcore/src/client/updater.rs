@@ -21,47 +21,84 @@ use client::operations::Operations;
 use client::{Client, UpdatePolicy, BlockId};
 
 pub struct ReleaseInfo {
-	fork_supported: usize,
-	latest_known_fork: usize,
+	pub latest_known_fork: usize,
 
-	latest: VersionInfo,
-	latest_fork: usize,
-	latest_binary: Option<H256>,
+	pub latest: VersionInfo,
+	pub latest_fork: usize,
+	pub latest_binary: Option<H256>,
 }
 
 pub struct Updater {
 	client: Weak<Client>,
 	operations: Operations,
+	update_policy: UpdatePolicy,
 
 	pub this: VersionInfo,
+	pub this_fork: Option<usize>,
 	pub release_info: Option<ReleaseInfo>,
-	
 }
 
 impl Updater {
-	pub fn new(client: Weak<Client>, operations: Address, _update_policy: UpdatePolicy) -> Self {
+	pub fn new(client: Weak<Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
 		let mut u = Updater {
 			client: client.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),
+			update_policy: update_policy,
 			this: VersionInfo::this(),
+			this_fork: None,
 			release_info: None,
 		};
+
+		let (fork, track, _, _) = self.operations.release(client_id, &v.hash.into())?;
+		u.this_fork = if track > 0 { Some(fork) } else { None };
+
 		u.release_info = u.get_release_info().ok();
+
+		// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if u.this.track == ReleaseTrack::Unknown {
 			u.this.track = ReleaseTrack::Nightly;
-		} 
+		}
+
 		u
 	}
 
+	/// Is the currently running client capable of supporting the current chain?
+	/// `Some` answer or `None` if information on the running client is not available.  
+	pub fn is_capable(&self) -> Option<bool> {
+		self.release_info.and_then(|relinfo| {
+			relinfo.fork_supported.map(|fork_supported| {
+				let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
+				fork_supported >= relinfo.latest_fork || current_number < relinfo.latest_fork  
+			})
+		})
+	}
+
+	/// The release which is ready to be upgraded to, if any. If this returns `Some`, then
+	/// `execute_upgrade` may be called.
+	pub fn upgrade_ready(&self) -> Option<VersionInfo> {
+		unimplemented!()
+	}
+
+	/// Actually upgrades the client. Assumes that the binary has been downloaded.
+	/// @returns `true` on success. 
+	pub fn execute_upgrade(&mut self) -> bool {
+		unimplemented!()
+	}
+
+	/// Our version info. 
+	pub fn version_info() -> &VersionInfo { &self.this }
+
+	/// Information gathered concerning the release. 
+	pub fn release_info() -> &Option<ReleaseInfo> { &self.release_info }
+
 	fn get_release_info(&mut self) -> Result<ReleaseInfo, String> {
-		//601e0fb0fd7e9e1cec18f8872e8713117cab4e84
 		if self.this.track == ReleaseTrack::Unknown {
 			return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
 		}
 
 		let client_id = "parity";
-		let latest_known_fork = self.operations.latest_fork()?;
-		let our_fork = self.operations.release(client_id, &self.this.hash.into())?.0;
+
+
 		let latest_release = self.operations.latest_in_track(client_id, self.this.track.into())?;
 		let (fork, track, semver, _critical) = self.operations.release(client_id, &latest_release)?;
 		let maybe_latest_binary = self.operations.checksum(client_id, &latest_release, &platform())?;

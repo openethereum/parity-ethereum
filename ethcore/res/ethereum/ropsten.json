@@ -14,7 +14,8 @@
 				"eip155Transition": 10,
 				"eip160Transition": 10,
 				"eip161abcTransition": 10,
-				"eip161dTransition": 10
+				"eip161dTransition": 10,
+				"maxCodeSize": 24576
 			}
 		}
 	},
