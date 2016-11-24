@@ -211,13 +211,15 @@ impl Tendermint {
 	}
 
 	/// Round proposer switching.
-	fn is_proposer(&self, address: &Address) -> bool {
+	fn is_proposer(&self, address: &Address) -> Result<(), BlockError> {
 		let ref p = self.our_params;
 		let proposer_nonce = self.proposer_nonce.load(AtomicOrdering::SeqCst);
 		let proposer = p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed");
-		println!("{:?}", &proposer);
-		println!("{:?}", &address);
-		proposer == address
+		if proposer == address {
+			Ok(())
+		} else {
+			Err(BlockError::NotProposer(Mismatch { expected: proposer.clone(), found: address.clone() }))
+		}
 	}
 
 	fn is_height(&self, message: &ConsensusMessage) -> bool {
@@ -310,7 +312,7 @@ impl Engine for Tendermint {
 
 	/// Round proposer switching.
 	fn is_sealer(&self, address: &Address) -> Option<bool> {
-		Some(self.is_proposer(address))
+		Some(self.is_proposer(address).is_ok())
 	}
 
 	/// Attempt to seal the block internally using all available signatures.
@@ -318,6 +320,7 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
+			println!("author: {:?}", author);
 			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(header.bare_hash()));
 			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()) {
 				*self.proposal.write() = Some(header.bare_hash());
@@ -341,7 +344,7 @@ impl Engine for Tendermint {
 		let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
 		// TODO: Do not admit old messages.
 		if !self.is_authority(&sender) {
-			try!(Err(BlockError::InvalidSeal));
+			try!(Err(BlockError::NotAuthorized(sender)));
 		}
 
 		// Check if the message is known.
@@ -403,17 +406,22 @@ impl Engine for Tendermint {
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let proposal = try!(ConsensusMessage::new_proposal(header));	
 		let proposer = try!(proposal.verify());
-		if !self.is_proposer(&proposer) {
-			try!(Err(BlockError::InvalidSeal))
-		}
+		try!(self.is_proposer(&proposer));
 		self.votes.vote(proposal, proposer);
 		let block_info_hash = try!(message_info_rlp_from_header(header)).sha3();
+
+		let mut signature_count = 0;
 		for rlp in UntrustedRlp::new(&header.seal()[2]).iter() {
 			let signature: H520 = try!(rlp.as_val());
 			let address = public_to_address(&try!(recover(&signature.into(), &block_info_hash)));
 			if !self.our_params.authorities.contains(&address) {
-				try!(Err(BlockError::InvalidSeal))
+				try!(Err(BlockError::NotAuthorized(address)))
 			}
+
+			signature_count += 1;
+		}
+		if signature_count > self.our_params.authority_n {
+			try!(Err(BlockError::InvalidSealArity(Mismatch { expected: self.our_params.authority_n, found: signature_count })))
 		}
 		Ok(())
 	}
@@ -478,6 +486,7 @@ mod tests {
 	use super::params::TendermintParams;
 	use super::message::*;
 
+	/// Accounts inserted with "1" and "2" are authorities. First proposer is "0".
 	fn setup() -> (Spec, Arc<AccountProvider>) {
 		let tap = Arc::new(AccountProvider::transient_provider());
 		let spec = Spec::new_test_tendermint();
@@ -500,6 +509,7 @@ mod tests {
 
 	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, round: Round) -> Vec<Bytes> {
 		let author = header.author();
+		println!("author: {:?}", author);
 		let vote_info = message_info_rlp(header.number() as Height, round, Step::Propose, Some(header.bare_hash()));
 		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
 		vec![
@@ -545,7 +555,7 @@ mod tests {
 	#[test]
 	fn verification_fails_on_short_seal() {
 		let engine = Spec::new_test_tendermint().engine;
-		let header: Header = Header::default();
+		let header = Header::default();
 
 		let verify_result = engine.verify_block_basic(&header, None);
 
@@ -558,16 +568,17 @@ mod tests {
 
 	#[test]
 	fn allows_correct_proposer() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine;
 
 		let mut header = Header::default();
 		let validator = insert_and_unlock(&tap, "0");
+		println!("validator: {:?}", &validator);
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
+		println!("{:?}", engine.verify_block_unordered(&header, None));
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
 		let mut header = Header::default();
@@ -576,75 +587,64 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Bad proposer.
-		assert!(engine.verify_block_unordered(&header, None).is_err());
-	}
-
-	#[test]
-	fn verification_fails_on_wrong_signatures() {
-		let (spec, tap) = setup();
-		let engine = spec.engine;
-		let mut header = Header::default();
-
-
-		let v1 = tap.insert_account("0".sha3(), "0").unwrap();
-
-		header.set_author(v1);
-		let mut seal = proposal_seal(&tap, &header, 0);
-
-		header.set_seal(seal.clone());
-
-		// Not enough signatures.
-		assert!(engine.verify_block_unordered(&header, None).is_err());
-
-		let v2 = tap.insert_account("101".sha3(), "101").unwrap();
-		let sig2 = tap.sign(v2, Some("101".into()), header.bare_hash()).unwrap();
-		seal.push(::rlp::encode(&(&*sig2 as &[u8])).to_vec());
-
-		header.set_seal(seal);
-
-		// Enough signatures.
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
-
-		let verify_result = engine.verify_block_unordered(&header, None);
-
-		// But wrong signatures.
-		match verify_result {
-			Err(Error::Block(BlockError::InvalidSeal)) => (),
-			Err(_) => panic!("should be block seal-arity mismatch error (got {:?})", verify_result),
-			_ => panic!("Should be error, got Ok"),
+		match engine.verify_block_unordered(&header, None) {
+			Err(Error::Block(BlockError::NotProposer(_))) => {},
+			_ => panic!(),
 		}
 	}
 
 	#[test]
-	fn seal_with_enough_signatures_is_ok() {
+	fn seal_signatures_checking() {
 		let (spec, tap) = setup();
 		let engine = spec.engine;
-		let mut header = Header::default();
 
-		let seal = proposal_seal(&tap, &header, 0);
+		let mut header = Header::default();
+		let proposer = insert_and_unlock(&tap, "0");
+		header.set_author(proposer);
+		let mut seal = proposal_seal(&tap, &header, 0);
+
+		let voter = insert_and_unlock(&tap, "1");
+		let vote_info = message_info_rlp(0, 0, Step::Prevote, Some(header.bare_hash()));
+		let signature = tap.sign(voter, None, vote_info.sha3()).unwrap();
+
+		seal[2] = ::rlp::encode(&vec![H520::from(signature)]).to_vec();
+
+		header.set_seal(seal.clone());
+
+		// One good signature.
+		assert!(engine.verify_block_unordered(&header, None).is_ok());
+
+		let bad_voter = insert_and_unlock(&tap, "101");
+		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
+		seal.push(::rlp::encode(&(&*bad_signature as &[u8])).to_vec());
+
 		header.set_seal(seal);
 
-		// Enough signatures.
-		assert!(engine.verify_block_basic(&header, None).is_ok());
-
-		// And they are ok.
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
+		// One good and one bad signature.
+		match engine.verify_block_unordered(&header, None) {
+			Err(Error::Block(BlockError::NotAuthorized(_))) => {},
+			_ => panic!(),
+		}
 	}
 
 	#[test]
 	fn can_generate_seal() {
-		let (spec, _) = setup();
+		let (spec, tap) = setup();
 
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db, &genesis_header, last_hashes, Address::default(), (3141562.into(), 31415620.into()), vec![]).unwrap();
+		let validator = insert_and_unlock(&tap, "0");
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db, &genesis_header, last_hashes, validator, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
 
 		let seal = spec.engine.generate_seal(b.block()).unwrap();
-		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
+		println!("{:?}", seal.clone());
+		if let Err(e) = b.try_seal(spec.engine.as_ref(), seal) {
+			println!("{:?}", e.0);
+		}
 	}
 
 	#[test]
