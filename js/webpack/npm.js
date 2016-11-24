@@ -17,17 +17,19 @@
 const path = require('path');
 const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const packageJson = require('./package.json');
+const packageJson = require('../package.json');
+
+const Shared = require('./shared');
 
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
 module.exports = {
-  context: path.join(__dirname, './src'),
+  context: path.join(__dirname, '../src'),
   target: 'node',
   entry: 'library.js',
   output: {
-    path: path.join(__dirname, '.npmjs'),
+    path: path.join(__dirname, '../.npmjs'),
     filename: 'library.js',
     library: 'Parity',
     libraryTarget: 'umd',
@@ -44,7 +46,7 @@ module.exports = {
     loaders: [
       {
         test: /(\.jsx|\.js)$/,
-        loader: 'babel',
+        loaders: [ 'happypack/loader?id=js' ],
         exclude: /node_modules/
       }
     ]
@@ -53,40 +55,24 @@ module.exports = {
     root: path.resolve('./src'),
     extensions: ['', '.js']
   },
-  plugins: (function () {
-    const plugins = [
-      new CopyWebpackPlugin([
-        {
-          from: '../parity.package.json',
-          to: 'package.json',
-          transform: function (content, path) {
-            const json = JSON.parse(content.toString());
-            json.version = packageJson.version;
-            return new Buffer(JSON.stringify(json, null, '  '), 'utf-8');
-          }
-        },
-        {
-          from: '../LICENSE'
-        },
-        {
-          from: '../parity.md',
-          to: 'README.md'
+  plugins: Shared.getPlugins().concat([
+    new CopyWebpackPlugin([
+      {
+        from: '../parity.package.json',
+        to: 'package.json',
+        transform: function (content, path) {
+          const json = JSON.parse(content.toString());
+          json.version = packageJson.version;
+          return new Buffer(JSON.stringify(json, null, '  '), 'utf-8');
         }
-      ], { copyUnmodified: true })
-    ];
-
-    if (isProd) {
-      plugins.push(new webpack.optimize.UglifyJsPlugin({
-        screwIe8: true,
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments: false
-        }
-      }));
-    }
-
-    return plugins;
-  }())
+      },
+      {
+        from: '../LICENSE'
+      },
+      {
+        from: '../parity.md',
+        to: 'README.md'
+      }
+    ], { copyUnmodified: true })
+  ])
 };

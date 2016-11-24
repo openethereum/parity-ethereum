@@ -16,16 +16,14 @@
 
 // Run with `webpack --config webpack.libraries.js --progress`
 
-const HappyPack = require('happypack');
 const path = require('path');
-const webpack = require('webpack');
 
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
+const Shared = require('./shared');
+
 const DEST = process.env.BUILD_DEST || '.build';
 
 module.exports = {
-  context: path.join(__dirname, './src'),
+  context: path.join(__dirname, '../src'),
   entry: {
     // library
     'inject': ['./web3.js'],
@@ -33,7 +31,7 @@ module.exports = {
     'parity': ['./parity.js']
   },
   output: {
-    path: path.join(__dirname, DEST),
+    path: path.join(__dirname, '../', DEST),
     filename: '[name].js',
     library: '[name].js',
     libraryTarget: 'umd'
@@ -55,37 +53,5 @@ module.exports = {
       }
     ]
   },
-  plugins: (function () {
-    const plugins = [
-      new HappyPack({
-        id: 'js',
-        threads: 4,
-        loaders: [ 'babel' ]
-      }),
-      new webpack.DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify(ENV),
-          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-          LOGGING: JSON.stringify(!isProd)
-        }
-      })
-    ];
-
-    if (isProd) {
-      plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
-      plugins.push(new webpack.optimize.DedupePlugin());
-      plugins.push(new webpack.optimize.UglifyJsPlugin({
-        screwIe8: true,
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments: false
-        }
-      }));
-    }
-
-    return plugins;
-  }())
+  plugins: Shared.getPlugins()
 };

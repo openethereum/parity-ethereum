@@ -15,7 +15,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const HappyPack = require('happypack');
 const path = require('path');
 const postcssImport = require('postcss-import');
 const postcssNested = require('postcss-nested');
@@ -26,11 +25,13 @@ const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
+const Shared = require('./shared');
+
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
 
-const FAVICON = path.resolve(__dirname, 'assets/images/parity-logo-black-no-text.png');
+const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
 const DAPPS = [
   { name: 'basiccoin', entry: './dapps/basiccoin.js', title: 'Basic Token Deployment' },
@@ -55,10 +56,10 @@ module.exports = {
   debug: !isProd,
   cache: !isProd,
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
-  context: path.join(__dirname, './src'),
+  context: path.join(__dirname, '../src'),
   entry: entry,
   output: {
-    path: path.join(__dirname, DEST),
+    path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash].js'
   },
   module: {
@@ -110,18 +111,18 @@ module.exports = {
     ]
   },
   resolve: {
-    root: path.join(__dirname, 'node_modules'),
-    fallback: path.join(__dirname, 'node_modules'),
+    root: path.join(__dirname, '../node_modules'),
+    fallback: path.join(__dirname, '../node_modules'),
     extensions: ['', '.js', '.jsx'],
     unsafeCache: true
   },
   resolveLoaders: {
-    root: path.join(__dirname, 'node_modules'),
-    fallback: path.join(__dirname, 'node_modules')
+    root: path.join(__dirname, '../node_modules'),
+    fallback: path.join(__dirname, '../node_modules')
   },
 
   htmlLoader: {
-    root: path.resolve(__dirname, 'assets/images'),
+    root: path.resolve(__dirname, '../assets/images'),
     attrs: ['img:src', 'link:href']
   },
 
@@ -140,38 +141,13 @@ module.exports = {
     })
   ],
   plugins: (function () {
-    const plugins = [
-      new HappyPack({
-        id: 'css',
-        threads: 4,
-        loaders: [
-          'style',
-          'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-          'postcss'
-        ]
-      }),
-      new HappyPack({
-        id: 'js',
-        threads: 4,
-        loaders: isProd ? ['babel'] : [
-          'react-hot',
-          'babel?cacheDirectory=true'
-        ]
-      }),
+    const plugins = Shared.getPlugins().concat([
       new CopyWebpackPlugin([{ from: './error_pages.css', to: 'styles.css' }], {}),
       new WebpackErrorNotificationPlugin(),
-      new webpack.DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify(ENV),
-          RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
-          PARITY_URL: JSON.stringify(process.env.PARITY_URL),
-          LOGGING: JSON.stringify(!isProd)
-        }
-      }),
 
       new webpack.DllReferencePlugin({
         context: '.',
-        manifest: require(`./${DEST}/vendor-manifest.json`)
+        manifest: require(`../${DEST}/vendor-manifest.json`)
       }),
 
       new HtmlWebpackPlugin({
@@ -181,9 +157,7 @@ module.exports = {
         favicon: FAVICON,
         chunks: [ isProd ? null : 'commons', 'index' ]
       })
-    ];
-
-    DAPPS.map((dapp) => {
+    ], DAPPS.map((dapp) => {
       return new HtmlWebpackPlugin({
         title: dapp.title,
         filename: dapp.name + '.html',
@@ -192,7 +166,7 @@ module.exports = {
         secure: dapp.secure,
         chunks: [ isProd ? null : 'commons', dapp.name ]
       });
-    }).forEach((plugin) => plugins.push(plugin));
+    }));
 
     if (!isProd) {
       plugins.push(
@@ -203,24 +177,10 @@ module.exports = {
       );
     }
 
-    if (isProd) {
-      plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
-      plugins.push(new webpack.optimize.DedupePlugin());
-      plugins.push(new webpack.optimize.UglifyJsPlugin({
-        screwIe8: true,
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments: false
-        }
-      }));
-    }
-
     return plugins;
   }()),
   devServer: {
-    contentBase: `./${DEST}`,
+    contentBase: path.resolve(__dirname, `../${DEST}`),
     historyApiFallback: false,
     quiet: false,
     hot: !isProd,
