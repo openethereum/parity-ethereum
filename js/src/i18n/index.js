@@ -14,10 +14,26 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { initLocales, getLocale, setLocale } from './i18n';
+import { I18n } from 'react-i18nify';
 
-export {
-  initLocales,
-  getLocale,
-  setLocale
-};
+import de from './de';
+import en from './en';
+
+let currentLocale = null;
+
+export function initLocales (defaultLocale = 'en') {
+  I18n.setTranslations({
+    de, en
+  });
+
+  setLocale(defaultLocale);
+}
+
+export function getLocale () {
+  return currentLocale;
+}
+
+export function setLocale (locale) {
+  currentLocale = locale;
+  I18n.setLocale(locale);
+}
