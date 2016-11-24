@@ -184,7 +184,7 @@ export function updateTokensFilter (_addresses, _tokens) {
 
     const optionsTo = {
       ...options,
-      topics: topicsFrom
+      topics: topicsTo
     };
 
     const newFilters = Promise.all([
