@@ -84,10 +84,11 @@ export function fetchTokens (_tokenIds) {
               return;
             }
 
-            dispatch(setAddressImage(address, image));
+            dispatch(setAddressImage(address, image, true));
           });
 
         dispatch(setTokens(tokens));
+        dispatch(fetchBalances());
       })
       .catch((error) => {
         console.warn('balances::fetchTokens', error);
