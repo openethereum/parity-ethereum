@@ -149,8 +149,6 @@ class Transactions extends Component {
       return;
     }
 
-  console.warn('getTransactions', isTest, address);
-
     return this
       .fetchTransactions(isTest, address, traceMode)
       .then(transactions => {
