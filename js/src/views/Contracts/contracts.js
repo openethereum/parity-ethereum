@@ -52,6 +52,10 @@ class Contracts extends Component {
     searchTokens: []
   }
 
+  componentWillMount () {
+    this.setVisibleAccounts();
+  }
+
   componentWillReceiveProps (nextProps) {
     const prevAddresses = Object.keys(this.props.contracts);
     const nextAddresses = Object.keys(nextProps.contracts);
