@@ -26,6 +26,7 @@ import { Actionbar, Button, Page } from '../../ui';
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import Delete from './Delete';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './address.css';
 
@@ -36,6 +37,8 @@ class Address extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     contacts: PropTypes.object,
     balances: PropTypes.object,
     isTest: PropTypes.bool,
@@ -45,6 +48,29 @@ class Address extends Component {
   state = {
     showDeleteDialog: false,
     showEditDialog: false
+  }
+
+  componentDidMount () {
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts } = props;
+    const addresses = [ params.address ];
+    setVisibleAccounts(addresses);
   }
 
   render () {
@@ -144,7 +170,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(
