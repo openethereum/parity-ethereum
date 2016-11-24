@@ -127,7 +127,7 @@ export const subscribeEvents = () => (dispatch, getState) => {
         const params = log.params;
 
         if (event === 'Registered' && type === 'pending') {
-          return dispatch(setTokenData(params.id.toNumber(), {
+          return dispatch(setTokenData(params.id.value.toNumber(), {
             tla: '...',
             base: -1,
             address: params.addr.value,
