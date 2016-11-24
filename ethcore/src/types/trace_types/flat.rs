@@ -119,7 +119,7 @@ impl Into<Vec<FlatTrace>> for FlatTransactionTraces {
 }
 
 /// Represents all traces produced by transactions in a single block.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct FlatBlockTraces(Vec<FlatTransactionTraces>);
 
 impl HeapSizeOf for FlatBlockTraces {
