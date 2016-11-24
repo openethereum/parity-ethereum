@@ -320,7 +320,6 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
-			println!("author: {:?}", author);
 			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(header.bare_hash()));
 			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()) {
 				*self.proposal.write() = Some(header.bare_hash());
@@ -472,7 +471,8 @@ impl Engine for Tendermint {
 #[cfg(test)]
 mod tests {
 	use util::*;
-	use rlp::{UntrustedRlp, RlpStream, Stream, View};
+	use rlp::{UntrustedRlp, View};
+	use io::{IoContext, IoHandler};
 	use block::*;
 	use state_db::StateDB;
 	use error::{Error, BlockError};
@@ -480,6 +480,8 @@ mod tests {
 	use env_info::EnvInfo;
 	use tests::helpers::*;
 	use account_provider::AccountProvider;
+	use io::IoService;
+	use service::ClientIoMessage;
 	use spec::Spec;
 	use engines::{Engine, EngineError};
 	use super::*;
@@ -494,12 +496,16 @@ mod tests {
 		(spec, tap)
 	}
 
-	fn propose_default(engine: &Arc<Engine>, db: &StateDB, proposer: Address) -> Option<Vec<Bytes>> {
-		let mut header = Header::default();
-		let last_hashes = Arc::new(vec![]);
-		let b = OpenBlock::new(engine.as_ref(), Default::default(), false, db.boxed_clone(), &header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
+	fn propose_default(spec: &Spec, proposer: Address) -> (LockedBlock, Vec<Bytes>) {
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db).unwrap();
+		let genesis_header = spec.genesis_header();
+		let last_hashes = Arc::new(vec![genesis_header.hash()]);
+		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		engine.generate_seal(b.block())
+		let seal = spec.engine.generate_seal(b.block()).unwrap();
+		(b, seal)
 	}
 
 	fn vote_default<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step) where F: FnOnce(H256) -> Option<H520> {
@@ -525,8 +531,17 @@ mod tests {
 		addr
 	}
 
-	fn default_seal() -> Vec<Bytes> {
-		vec![vec![160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101]]
+	struct TestIo;
+
+	impl IoHandler<ClientIoMessage> for TestIo {
+		fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
+			match *net_message {
+				ClientIoMessage::UpdateSealing => {},
+				ClientIoMessage::SubmitSeal(ref block_hash, ref seal) => {},
+				ClientIoMessage::BroadcastMessage(ref message) => {},
+				_ => {} // ignore other messages
+			}
+		}
 	}
 
 	#[test]
@@ -604,19 +619,21 @@ mod tests {
 		let mut seal = proposal_seal(&tap, &header, 0);
 
 		let voter = insert_and_unlock(&tap, "1");
-		let vote_info = message_info_rlp(0, 0, Step::Prevote, Some(header.bare_hash()));
+		println!("voter: {:?}", &voter);
+		let vote_info = message_info_rlp(0, 0, Step::Precommit, Some(header.bare_hash()));
 		let signature = tap.sign(voter, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature)]).to_vec();
+		seal[2] = ::rlp::encode(&vec![H520::from(signature.clone())]).to_vec();
 
 		header.set_seal(seal.clone());
 
+		println!("{:?}", engine.verify_block_unordered(&header, None));
 		// One good signature.
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
-		seal.push(::rlp::encode(&(&*bad_signature as &[u8])).to_vec());
+		seal[2] = ::rlp::encode(&vec![H520::from(signature), H520::from(bad_signature)]).to_vec();
 
 		header.set_seal(seal);
 
@@ -630,59 +647,30 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let (spec, tap) = setup();
+		
+		let proposer = insert_and_unlock(&tap, "0");
 
-		let genesis_header = spec.genesis_header();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
-		let last_hashes = Arc::new(vec![genesis_header.hash()]);
-		let validator = insert_and_unlock(&tap, "0");
-		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db, &genesis_header, last_hashes, validator, (3141562.into(), 31415620.into()), vec![]).unwrap();
-		let b = b.close_and_lock();
-
-		let seal = spec.engine.generate_seal(b.block()).unwrap();
-		println!("{:?}", seal.clone());
-		if let Err(e) = b.try_seal(spec.engine.as_ref(), seal) {
-			println!("{:?}", e.0);
-		}
-	}
-
-	#[test]
-	fn propose_step() {
-		let spec = Spec::new_test_tendermint();
-		let engine = spec.engine.clone();
-		let tap = AccountProvider::transient_provider();
-		let mut db_result = get_temp_state_db();
-		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
-
-		let not_authority_addr = tap.insert_account("101".sha3(), "101").unwrap();
-		assert!(propose_default(&engine, &db, not_authority_addr).is_none());
-
-		let not_proposer_addr = tap.insert_account("0".sha3(), "0").unwrap();
-		assert!(propose_default(&engine, &db, not_proposer_addr).is_none());
-
-		let proposer_addr = tap.insert_account("1".sha3(), "1").unwrap();
-		assert_eq!(default_seal(), propose_default(&engine, &db, proposer_addr).unwrap());
-
-		assert!(propose_default(&engine, &db, proposer_addr).is_none());
-		assert!(propose_default(&engine, &db, not_proposer_addr).is_none());
+		let (b, seal) = propose_default(&spec, proposer);
+		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
 	}
 
 	#[test]
 	fn prevote_step() {
-		let spec = Spec::new_test_tendermint();
-		let engine = Spec::new_test_tendermint().engine;
-		let tap = AccountProvider::transient_provider();
+		let (spec, tap) = setup();
+		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db).unwrap();
+		
+		let io_service = IoService::<ClientIoMessage>::start().unwrap();
+		io_service.register_handler(Arc::new(TestIo));
+		engine.register_message_channel(io_service.channel());
 
-		let v0 = tap.insert_account("0".sha3(), "0").unwrap();
-		let v1 = tap.insert_account("1".sha3(), "1").unwrap();
+		let v0 = insert_and_unlock(&tap, "0");
+		let v1 = insert_and_unlock(&tap, "1");
 
 		// Propose
-		assert!(propose_default(&engine, &db, v1.clone()).is_some());
+		propose_default(&spec, v0.clone());
 
 		let h = 0;
 		let r = 0;
@@ -692,6 +680,19 @@ mod tests {
 
 		vote_default(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote);
 		vote_default(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote);
+	}
+
+	#[test]
+	fn precommit_step() {
+		let (spec, tap) = setup();
+		let engine = spec.engine.clone();
+
+		let not_authority_addr = insert_and_unlock(&tap, "101");
+		let proposer_addr = insert_and_unlock(&tap, "0");
+		propose_default(&spec, proposer_addr);
+
+		let not_proposer_addr = insert_and_unlock(&tap, "1");
+
 	}
 
 	#[test]
