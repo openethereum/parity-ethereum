@@ -17,6 +17,7 @@
 import { throttle } from 'lodash';
 
 import { loadTokens, setTokenReg, fetchBalances, fetchTokens } from './balancesActions';
+import { padRight } from '../../api/format/input';
 
 import Contracts from '../../contracts';
 
@@ -148,7 +149,7 @@ export default class Balances {
       .subscribe({
         fromBlock: 0,
         toBlock: 'latest',
-        topics: [ null, this._api.util.asciiToHex('IMG') ],
+        topics: [ null, padRight(this._api.util.asciiToHex('IMG'), 32) ],
         skipInitFetch: true
       }, (error, logs) => {
         if (error) {

@@ -56,6 +56,13 @@ export function setTokensFilter (tokensFilter) {
   };
 }
 
+export function setTokenImage (tokenAddress, image) {
+  return {
+    type: 'setTokenImage',
+    tokenAddress, image
+  };
+}
+
 export function loadTokens () {
   return (dispatch, getState) => {
     const { tokenreg } = getState().balances;
@@ -74,7 +81,6 @@ export function loadTokens () {
 
 export function fetchTokens (_tokenIds) {
   const tokenIds = uniq(_tokenIds || []);
-
   return (dispatch, getState) => {
     const { api, images, balances } = getState();
     const { tokenreg } = balances;
@@ -91,6 +97,7 @@ export function fetchTokens (_tokenIds) {
               return;
             }
 
+            dispatch(setTokenImage(address, image));
             dispatch(setAddressImage(address, image, true));
           });
 
