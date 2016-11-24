@@ -51,15 +51,30 @@ export function inHash (hash) {
   return inHex(hash);
 }
 
-export function pad (input, length) {
+export function padRight (input, length) {
   const value = inHex(input).substr(2, length * 2);
   return '0x' + value + range(length * 2 - value.length).map(() => '0').join('');
+}
+
+export function padLeft (input, length) {
+  const value = inHex(input).substr(2, length * 2);
+  return '0x' + range(length * 2 - value.length).map(() => '0').join('') + value;
 }
 
 export function inTopics (_topics) {
   let topics = (_topics || [])
     .filter((topic) => topic === null || topic)
-    .map((topic) => topic === null ? null : pad(topic, 32));
+    .map((topic) => {
+      if (topic === null) {
+        return null;
+      }
+
+      if (Array.isArray(topic)) {
+        return inTopics(topic);
+      }
+
+      return padLeft(topic, 32);
+    });
 
   // while (topics.length < 4) {
   //   topics.push(null);

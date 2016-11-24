@@ -15,12 +15,14 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
+import BigNumber from 'bignumber.js';
 
 const initialState = {
   balances: {},
   tokens: {},
 
-  tokenreg: null
+  tokenreg: null,
+  tokensFilter: {}
 };
 
 export default handleActions({
@@ -43,13 +45,13 @@ export default handleActions({
 
       tokens.forEach((t) => {
         const { token, value } = t;
-        const { name, tag, image, id, format } = token;
+        const { tag } = token;
 
         const tokenIndex = nextTokens.findIndex((tok) => tok.token.tag === tag);
 
         if (tokenIndex === -1) {
           nextTokens.push({
-            token: { name, tag, image, id, format },
+            token,
             value
           });
         } else {
@@ -57,7 +59,7 @@ export default handleActions({
         }
       });
 
-      balances[address] = Object.assign({}, { txCount, tokens: nextTokens });
+      balances[address] = Object.assign({}, { txCount: txCount || new BigNumber(0), tokens: nextTokens });
     });
 
     return Object.assign({}, state, { balances });
@@ -71,5 +73,10 @@ export default handleActions({
   setTokenReg (state, action) {
     const { tokenreg } = action;
     return Object.assign({}, state, { tokenreg });
+  },
+
+  setTokensFilter (state, action) {
+    const { tokensFilter } = action;
+    return Object.assign({}, state, { tokensFilter });
   }
 }, initialState);

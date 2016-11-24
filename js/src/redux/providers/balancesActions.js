@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { range, uniq } from 'lodash';
+import { range, uniq, isEqual } from 'lodash';
 
 import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
@@ -46,6 +46,13 @@ export function setTokenReg (tokenreg) {
   return {
     type: 'setTokenReg',
     tokenreg
+  };
+}
+
+export function setTokensFilter (tokensFilter) {
+  return {
+    type: 'setTokensFilter',
+    tokensFilter
   };
 }
 
@@ -98,39 +105,178 @@ export function fetchTokens (_tokenIds) {
 
 export function fetchBalances (_addresses) {
   return (dispatch, getState) => {
-    const { api, balances, personal } = getState();
+    const { api, personal } = getState();
     const { visibleAccounts } = personal;
-    const tokens = Object.values(balances.tokens) || [];
 
     const addresses = uniq(_addresses || visibleAccounts || []);
+
+    if (addresses.length === 0) {
+      return Promise.resolve();
+    }
 
     const fullFetch = addresses.length === 1;
 
     return Promise
       .all(addresses.map((addr) => fetchAccount(addr, api, fullFetch)))
-      .then((_balances) => {
+      .then((accountsBalances) => {
         const balances = {};
 
         addresses.forEach((addr, idx) => {
-          balances[addr] = _balances[idx];
+          balances[addr] = accountsBalances[idx];
         });
 
         dispatch(setBalances(balances));
-
-        return Promise
-          .all(addresses.map((addr) => fetchTokensBalance(addr, tokens, api)));
+        updateTokensFilter(addresses)(dispatch, getState);
       })
-      .then((_balances) => {
+      .catch((error) => {
+        console.warn('balances::fetchBalances', error);
+      });
+  };
+}
+
+export function updateTokensFilter (_addresses, _tokens) {
+  return (dispatch, getState) => {
+    const { api, balances, personal } = getState();
+    const { visibleAccounts } = personal;
+    const { tokensFilter } = balances;
+
+    const addresses = uniq(_addresses || visibleAccounts || []).sort();
+    const tokens = _tokens || Object.values(balances.tokens) || [];
+    const tokenAddresses = tokens.map((t) => t.address).sort();
+
+    if (tokensFilter.filterFromId || tokensFilter.filterToId) {
+      const sameTokens = isEqual(tokenAddresses, tokensFilter.tokenAddresses);
+      const sameAddresses = isEqual(addresses, tokensFilter.addresses);
+
+      if (sameTokens && sameAddresses) {
+        return queryTokensFilter(tokensFilter)(dispatch, getState);
+      }
+    }
+
+    let promise = Promise.resolve();
+
+    if (tokensFilter.filterFromId) {
+      promise = promise.then(() => api.eth.uninstallFilter(tokensFilter.filterFromId));
+    }
+
+    if (tokensFilter.filterToId) {
+      promise = promise.then(() => api.eth.uninstallFilter(tokensFilter.filterToId));
+    }
+
+    if (tokenAddresses.length === 0 || addresses.length === 0) {
+      return promise;
+    }
+
+    const TRANSFER_SIGNATURE = api.util.sha3('Transfer(address,address,uint256)');
+    const topicsFrom = [ TRANSFER_SIGNATURE, addresses, null ];
+    const topicsTo = [ TRANSFER_SIGNATURE, null, addresses ];
+
+    const options = {
+      fromBlock: 0,
+      toBlock: 'pending',
+      address: tokenAddresses
+    };
+
+    const optionsFrom = {
+      ...options,
+      topics: topicsFrom
+    };
+
+    const optionsTo = {
+      ...options,
+      topics: topicsFrom
+    };
+
+    const newFilters = Promise.all([
+      api.eth.newFilter(optionsFrom),
+      api.eth.newFilter(optionsTo)
+    ]);
+
+    promise
+      .then(() => newFilters)
+      .then(([ filterFromId, filterToId ]) => {
+        const nextTokensFilter = {
+          filterFromId, filterToId,
+          addresses, tokenAddresses
+        };
+
+        dispatch(setTokensFilter(nextTokensFilter));
+        fetchTokensBalances(addresses, tokens)(dispatch, getState);
+      })
+      .catch((error) => {
+        console.warn('balances::updateTokensFilter', error);
+      });
+  };
+}
+
+export function queryTokensFilter (tokensFilter) {
+  return (dispatch, getState) => {
+    const { api, personal, balances } = getState();
+    const { visibleAccounts } = personal;
+    const visibleAddresses = visibleAccounts.map((a) => a.toLowerCase());
+
+    Promise
+      .all([
+        api.eth.getFilterChanges(tokensFilter.filterFromId),
+        api.eth.getFilterChanges(tokensFilter.filterToId)
+      ])
+      .then(([ logsFrom, logsTo ]) => {
+        const addresses = [];
+        const tokenAddresses = [];
+
+        logsFrom
+          .concat(logsTo)
+          .forEach((log) => {
+            const tokenAddress = log.address;
+            const fromAddress = '0x' + log.topics[1].slice(-40);
+            const toAddress = '0x' + log.topics[2].slice(-40);
+
+            const fromIdx = visibleAddresses.indexOf(fromAddress);
+            const toIdx = visibleAddresses.indexOf(toAddress);
+
+            if (fromIdx > -1) {
+              addresses.push(visibleAccounts[fromIdx]);
+            }
+
+            if (toIdx > -1) {
+              addresses.push(visibleAccounts[toIdx]);
+            }
+
+            tokenAddresses.push(tokenAddress);
+          });
+
+        if (addresses.length === 0) {
+          return;
+        }
+
+        const tokens = balances.tokens.filter((t) => tokenAddresses.includes(t.address));
+
+        fetchTokensBalances(uniq(addresses), tokens)(dispatch, getState);
+      });
+  };
+}
+
+export function fetchTokensBalances (addresses, tokens) {
+  return (dispatch, getState) => {
+    const { api } = getState();
+
+    if (addresses.length === 0) {
+      return Promise.resolve();
+    }
+
+    return Promise
+      .all(addresses.map((addr) => fetchTokensBalance(addr, tokens, api)))
+      .then((tokensBalances) => {
         const balances = {};
 
         addresses.forEach((addr, idx) => {
-          balances[addr] = _balances[idx];
+          balances[addr] = tokensBalances[idx];
         });
 
         dispatch(setBalances(balances));
       })
       .catch((error) => {
-        console.warn('balances::fetchBalances', error);
+        console.warn('balances::fetchTokensBalances', error);
       });
   };
 }
