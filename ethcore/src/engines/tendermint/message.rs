@@ -18,7 +18,7 @@
 
 use util::*;
 use super::{Height, Round, BlockHash, Step};
-use error::Error;
+use error::{Error, BlockError};
 use header::Header;
 use rlp::*;
 use ethkey::{recover, public_to_address};
@@ -34,7 +34,8 @@ pub struct ConsensusMessage {
 
 
 fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
-	UntrustedRlp::new(header.seal()[0].as_slice()).as_val()
+	let round_rlp = header.seal().get(0).expect("seal passed basic verification; seal has 3 fields; qed");
+	UntrustedRlp::new(round_rlp.as_slice()).as_val()
 }
 
 impl ConsensusMessage {
@@ -80,7 +81,7 @@ impl PartialOrd for ConsensusMessage {
 }
 
 impl Step {
-	fn number(&self) -> i8 {
+	fn number(&self) -> u8 {
 		match *self {
 			Step::Propose => 0,
 			Step::Prevote => 1,
@@ -107,17 +108,17 @@ impl Ord for ConsensusMessage {
 impl Decodable for Step {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		match try!(decoder.as_rlp().as_val()) {
-			0u8 => Ok(Step::Prevote),
-			1 => Ok(Step::Precommit),
+			0u8 => Ok(Step::Propose),
+			1 => Ok(Step::Prevote),
+			2 => Ok(Step::Precommit),
 			_ => Err(DecoderError::Custom("Invalid step.")),
 		}
 	}
 }
 
-
 impl Encodable for Step {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.append(&(self.number() as u8));
+		s.append(&self.number());
 	}
 }
 
@@ -125,9 +126,6 @@ impl Encodable for Step {
 impl Decodable for ConsensusMessage {
 	fn decode<D>(decoder: &D) -> Result<Self, DecoderError> where D: Decoder {
 		let rlp = decoder.as_rlp();
-		if decoder.as_raw().len() != try!(rlp.payload_info()).total() {
-			return Err(DecoderError::RlpIsTooBig);
-		}
 		let m = try!(rlp.at(1));
 		let block_message: H256 = try!(m.val_at(3));
 		Ok(ConsensusMessage {
@@ -141,23 +139,25 @@ impl Decodable for ConsensusMessage {
 			}
 		})
   }
-}
-
+} 
 impl Encodable for ConsensusMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
-		s.begin_list(2);
-		s.append(&self.signature);
-		s.begin_list(4);
-		s.append(&self.height);
-		s.append(&self.round);
-		s.append(&self.step);
-		s.append(&self.block_hash.unwrap_or(H256::zero()));
+		s.begin_list(2)
+			.append(&self.signature)
+			// TODO: figure out whats wrong with nested list encoding
+			.begin_list(5)
+			.append(&self.height)
+			.append(&self.round)
+			.append(&self.step)
+			.append(&self.block_hash.unwrap_or(H256::zero()));
 	}
 }
 
 pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Bytes {
-	let mut s = RlpStream::new_list(4);
+	// TODO: figure out whats wrong with nested list encoding
+	let mut s = RlpStream::new_list(5);
 	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or(H256::zero()));
+	println!("{:?}, {:?}, {:?}, {:?}", &height, &round, &step, &block_hash);
 	s.out()
 }
 
@@ -170,7 +170,95 @@ pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, 
 	let vote_info = message_info_rlp(height, round, step, block_hash);
 	signer(vote_info.sha3()).map(|ref signature| {
 		let mut s = RlpStream::new_list(2);
-		s.append(signature).append(&vote_info);
+		s.append(signature).append_raw(&vote_info, 1);
 		s.out()
 	})
+}
+
+#[cfg(test)]
+mod tests {
+	use util::*;
+	use rlp::*;
+	use super::super::Step;
+	use super::*;
+	use account_provider::AccountProvider;
+	use header::Header;
+
+	#[test]
+	fn encode_decode() {
+		let message = ConsensusMessage {
+			signature: H520::default(),	
+			height: 10,
+			round: 123,
+			step: Step::Precommit,
+			block_hash: Some("1".sha3())
+		};
+		let raw_rlp = ::rlp::encode(&message).to_vec();
+		let rlp = Rlp::new(&raw_rlp);
+		assert_eq!(message, rlp.as_val());
+
+		let message = ConsensusMessage {
+			signature: H520::default(),	
+			height: 1314,
+			round: 0,
+			step: Step::Prevote,
+			block_hash: None
+		};
+		let raw_rlp = ::rlp::encode(&message);
+		let rlp = Rlp::new(&raw_rlp);
+		assert_eq!(message, rlp.as_val());
+	}
+
+	#[test]
+	fn generate_and_verify() {
+		let tap = Arc::new(AccountProvider::transient_provider());
+		let addr = tap.insert_account("0".sha3(), "0").unwrap();
+		tap.unlock_account_permanently(addr, "0".into()).unwrap();
+
+		let raw_rlp = message_full_rlp(
+			|mh| tap.sign(addr, None, mh).ok().map(H520::from),
+			123,
+			2,
+			Step::Precommit,
+			Some(H256::default())
+		).unwrap();
+
+		let rlp = UntrustedRlp::new(&raw_rlp);
+		let message: ConsensusMessage = rlp.as_val().unwrap();
+		match message.verify() { Ok(a) if a == addr => {}, _ => panic!(), };
+	}
+
+	#[test]
+	fn proposal_message() {
+		let mut header = Header::default();
+		let seal = vec![
+			::rlp::encode(&0u8).to_vec(),
+			::rlp::encode(&H520::default()).to_vec(),
+			Vec::new()
+		];
+		header.set_seal(seal);
+		let message = ConsensusMessage::new_proposal(&header).unwrap();
+		assert_eq!(
+			message,
+			ConsensusMessage {
+				signature: Default::default(),
+				height: 0,
+				round: 0,
+				step: Step::Propose,
+				block_hash: Some(header.bare_hash())
+			}
+		);
+	}
+
+	#[test]
+	fn message_info_from_header() {
+		let mut header = Header::default();
+		let seal = vec![
+			::rlp::encode(&0u8).to_vec(),
+			::rlp::encode(&H520::default()).to_vec(),
+			Vec::new()
+		];
+		header.set_seal(seal);
+		assert_eq!(message_info_rlp_from_header(&header).unwrap().to_vec(), vec![228, 128, 128, 2, 160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101]);
+	}
 }
