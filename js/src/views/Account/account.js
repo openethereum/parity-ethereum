@@ -17,12 +17,13 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
+import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
@@ -52,6 +53,7 @@ class Account extends Component {
   propName = null
 
   state = {
+    showDeleteDialog: false,
     showEditDialog: false,
     showFundDialog: false,
     showVerificationDialog: false,
@@ -64,8 +66,8 @@ class Account extends Component {
     const { api } = this.context;
     const { address } = this.props.params;
 
-    const store = new VerificationStore(api, address);
-    this.setState({ verificationStore: store });
+    const verificationStore = new VerificationStore(api, address);
+    this.setState({ verificationStore });
     this.setVisibleAccounts();
   }
 
@@ -101,6 +103,7 @@ class Account extends Component {
 
     return (
       <div className={ styles.account }>
+        { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
         { this.renderVerificationDialog() }
@@ -152,13 +155,32 @@ class Account extends Component {
         key='passwordManager'
         icon={ <LockIcon /> }
         label='password'
-        onClick={ this.onPasswordClick } />
+        onClick={ this.onPasswordClick } />,
+      <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete account'
+        onClick={ this.onDeleteClick } />
     ];
 
     return (
       <Actionbar
         title='Account Management'
         buttons={ buttons } />
+    );
+  }
+
+  renderDeleteDialog (account) {
+    const { showDeleteDialog } = this.state;
+
+    if (!showDeleteDialog) {
+      return null;
+    }
+
+    return (
+      <DeleteAccount
+        account={ account }
+        onClose={ this.onDeleteClose } />
     );
   }
 
@@ -247,6 +269,14 @@ class Account extends Component {
         account={ account }
         onClose={ this.onPasswordClose } />
     );
+  }
+
+  onDeleteClick = () => {
+    this.setState({ showDeleteDialog: true });
+  }
+
+  onDeleteClose = () => {
+    this.setState({ showDeleteDialog: false });
   }
 
   onEditClick = () => {
