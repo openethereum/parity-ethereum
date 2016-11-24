@@ -18,7 +18,7 @@
 
 use util::*;
 use super::{Height, Round, BlockHash, Step};
-use error::{Error, BlockError};
+use error::Error;
 use header::Header;
 use rlp::*;
 use ethkey::{recover, public_to_address};
@@ -48,7 +48,6 @@ impl ConsensusMessage {
 			block_hash: Some(header.bare_hash())
 		})
 	}
-
 
 	pub fn is_height(&self, height: Height) -> bool {
 		self.height == height
@@ -140,16 +139,13 @@ impl Decodable for ConsensusMessage {
 		})
   }
 } 
+
 impl Encodable for ConsensusMessage {
 	fn rlp_append(&self, s: &mut RlpStream) {
+		let info = message_info_rlp(self.height, self.round, self.step, self.block_hash);
 		s.begin_list(2)
 			.append(&self.signature)
-			// TODO: figure out whats wrong with nested list encoding
-			.begin_list(5)
-			.append(&self.height)
-			.append(&self.round)
-			.append(&self.step)
-			.append(&self.block_hash.unwrap_or(H256::zero()));
+			.append_raw(&info, 1);
 	}
 }
 
