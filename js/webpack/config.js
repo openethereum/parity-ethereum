@@ -15,12 +15,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const path = require('path');
-const postcssImport = require('postcss-import');
-const postcssNested = require('postcss-nested');
-const postcssVars = require('postcss-simple-vars');
-const rucksack = require('rucksack-css');
 const webpack = require('webpack');
+const path = require('path');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -28,17 +24,11 @@ const HtmlWebpackPlugin = require('html-webpack-plugin');
 const Shared = require('./shared');
 const DAPPS = require('../src/dapps');
 
-const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
-const DEST = process.env.BUILD_DEST || '.build';
-
 const FAVICON = path.resolve(__dirname, '../assets/images/parity-logo-black-no-text.png');
 
-// dapps
-const entry = Shared.dappsEntry;
-
-// main UI
-entry.index = './index.js';
+const DEST = process.env.BUILD_DEST || '.build';
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 
 module.exports = {
   debug: !isProd,
@@ -46,7 +36,9 @@ module.exports = {
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
 
   context: path.join(__dirname, '../src'),
-  entry: entry,
+  entry: Object.assign({}, Shared.dappsEntry, {
+    index: './index.js'
+  }),
   output: {
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash].js'
@@ -113,20 +105,7 @@ module.exports = {
     attrs: ['img:src', 'link:href']
   },
 
-  postcss: [
-    postcssImport({
-      addDependencyTo: webpack
-    }),
-    postcssNested({}),
-    postcssVars({
-      unknown: function (node, name, result) {
-        node.warn(result, `Unknown variable ${name}`);
-      }
-    }),
-    rucksack({
-      autoprefixer: true
-    })
-  ],
+  postcss: Shared.postcss,
 
   plugins: (function () {
     const plugins = Shared.getPlugins().concat([

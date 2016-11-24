@@ -17,6 +17,11 @@
 const webpack = require('webpack');
 const HappyPack = require('happypack');
 
+const postcssImport = require('postcss-import');
+const postcssNested = require('postcss-nested');
+const postcssVars = require('postcss-simple-vars');
+const rucksack = require('rucksack-css');
+
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
@@ -77,6 +82,21 @@ function getDappsEntry () {
   }, {});
 }
 
+const postcss = [
+  postcssImport({
+    addDependencyTo: webpack
+  }),
+  postcssNested({}),
+  postcssVars({
+    unknown: function (node, name, result) {
+      node.warn(result, `Unknown variable ${name}`);
+    }
+  }),
+  rucksack({
+    autoprefixer: true
+  })
+];
+
 const proxies = [
   {
     context: (pathname, req) => {
@@ -118,5 +138,6 @@ const proxies = [
 module.exports = {
   getPlugins: getPlugins,
   dappsEntry: getDappsEntry(),
+  postcss: postcss,
   proxies: proxies
 };
