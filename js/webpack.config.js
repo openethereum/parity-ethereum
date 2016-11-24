@@ -179,7 +179,7 @@ module.exports = {
         filename: 'index.html',
         template: './index.ejs',
         favicon: FAVICON,
-        chunks: [ 'commons', 'index' ]
+        chunks: [ isProd ? null : 'commons', 'index' ]
       })
     ];
 
@@ -190,7 +190,7 @@ module.exports = {
         template: './dapps/index.ejs',
         favicon: FAVICON,
         secure: dapp.secure,
-        chunks: [ 'commons', dapp.name ]
+        chunks: [ isProd ? null : 'commons', dapp.name ]
       });
     }).forEach((plugin) => plugins.push(plugin));
 
@@ -204,13 +204,6 @@ module.exports = {
     }
 
     if (isProd) {
-      plugins.push(
-        new webpack.optimize.CommonsChunkPlugin({
-          chunks: ['index'],
-          name: 'commons'
-        })
-      );
-
       plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
       plugins.push(new webpack.optimize.DedupePlugin());
       plugins.push(new webpack.optimize.UglifyJsPlugin({
