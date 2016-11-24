@@ -41,7 +41,6 @@ class Address extends Component {
 
     contacts: PropTypes.object,
     balances: PropTypes.object,
-    isTest: PropTypes.bool,
     params: PropTypes.object
   }
 
@@ -74,7 +73,7 @@ class Address extends Component {
   }
 
   render () {
-    const { contacts, balances, isTest } = this.props;
+    const { contacts, balances } = this.props;
     const { address } = this.props.params;
     const { showDeleteDialog } = this.state;
 
@@ -159,10 +158,8 @@ class Address extends Component {
 function mapStateToProps (state) {
   const { contacts } = state.personal;
   const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     contacts,
     balances
   };

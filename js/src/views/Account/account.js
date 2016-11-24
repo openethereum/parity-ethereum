@@ -46,8 +46,7 @@ class Account extends Component {
 
     params: PropTypes.object,
     accounts: PropTypes.object,
-    balances: PropTypes.object,
-    isTest: PropTypes.bool
+    balances: PropTypes.object
   }
 
   propName = null
@@ -90,7 +89,7 @@ class Account extends Component {
   }
 
   render () {
-    const { accounts, balances, isTest } = this.props;
+    const { accounts, balances } = this.props;
     const { address } = this.props.params;
 
     const account = (accounts || {})[address];
@@ -299,10 +298,8 @@ function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
   const { images } = state;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
     balances,
     images
