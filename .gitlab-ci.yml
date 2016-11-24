@@ -8,7 +8,6 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
-  NIGHTLY: "nigtly"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -363,7 +362,7 @@ darwin:
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity --body target/release/parity
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/parity.md5 --body parity.md5
     - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg"
-    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/"parity-$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
+    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/x86_64-apple-darwin/"parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5" --body "parity-"$VER"-osx-installer-EXPERIMENTAL.pkg.md5"
   tags:
     - osx
   artifacts:
@@ -460,11 +459,11 @@ test-rust-stable:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -477,11 +476,11 @@ test-rust-beta:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-beta
@@ -495,26 +494,15 @@ test-rust-nightly:
     - git submodule update --init --recursive
     - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; fi
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ -z $JS_FILES_MODIFIED ]; then echo "skip js test"; else ./test.sh $CARGOFLAGS --no-release; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-nightly
   allow_failure: true
-js-tests:
-  stage: test
-  image: ethcore/rust:stable
-  before_script:
-    - ./js/scripts/install-deps.sh
-  script:
-    - ./js/scripts/lint.sh
-    - ./js/scripts/test.sh
-    - ./js/scripts/build.sh
-  tags:
-    - javascript-test
 js-release:
   stage: js-build
   only:
@@ -523,9 +511,11 @@ js-release:
     - stable
   image: ethcore/rust:stable
   before_script:
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/install-deps.sh; fi
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js build"; else ./js/scripts/install-deps.sh;fi
   script:
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/build.sh; fi
-    - if [[ $NIGHTLY != "master" ]]; then ./js/scripts/release.sh; fi
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&./js/scripts/release.sh; fi
   tags:
     - javascript
