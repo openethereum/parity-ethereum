@@ -105,7 +105,7 @@ export function attachInstances () {
     ])
     .then(([registryAddress, netChain]) => {
       const registry = api.newContract(abis.registry, registryAddress).instance;
-      isTest = netChain === 'morden' || netChain === 'testnet';
+      isTest = netChain === 'ropsten' || netChain === 'morden' || netChain === 'testnet';
 
       console.log(`contract was found at registry=${registryAddress}`);
       console.log(`running on ${netChain}, isTest=${isTest}`);

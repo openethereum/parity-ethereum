@@ -32,7 +32,7 @@ export default class TxHashLink extends Component {
 
     return (
       <a
-        href={ txLink(txHash, chain === 'morden' || chain === 'testnet') }
+        href={ txLink(txHash, chain === 'ropsten' || chain === 'morden' || chain === 'testnet') }
         target='_blank'
         className={ className }>
         { children || txHash }
