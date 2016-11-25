@@ -40,6 +40,7 @@ module.exports = {
     index: './index.js'
   }),
   output: {
+    publicPath: '/',
     path: path.join(__dirname, '../', DEST),
     filename: '[name].[hash].js'
   },
@@ -145,13 +146,5 @@ module.exports = {
     }
 
     return plugins;
-  }()),
-
-  devServer: {
-    contentBase: path.resolve(__dirname, `../${DEST}`),
-    historyApiFallback: false,
-    quiet: false,
-    hot: !isProd,
-    proxy: Shared.proxies
-  }
+  }())
 };

@@ -29,6 +29,7 @@ let modules = [
   'brace',
   'browserify-aes',
   'chart.js',
+  'ethereumjs-tx',
   'lodash',
   'material-ui',
   'mobx',
@@ -57,7 +58,8 @@ module.exports = {
       },
       {
         test: /\.js$/,
-        loaders: [ 'happypack/loader?id=js' ]
+        include: /(ethereumjs-tx)/,
+        loaders: [ 'happypack/loader?id=babel' ]
       }
     ]
   },

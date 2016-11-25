@@ -46,18 +46,26 @@ function getPlugins (_isProd = isProd) {
       ]
     }),
 
+    new HappyPack({
+      id: 'babel',
+      threads: 4,
+      loaders: ['babel']
+    }),
+
     new webpack.DefinePlugin({
       'process.env': {
         NODE_ENV: JSON.stringify(ENV),
         RPC_ADDRESS: JSON.stringify(process.env.RPC_ADDRESS),
         PARITY_URL: JSON.stringify(process.env.PARITY_URL),
+        DAPPS_URL: JSON.stringify(process.env.DAPPS_URL),
         LOGGING: JSON.stringify(!isProd)
       }
-    })
+    }),
+
+    new webpack.optimize.OccurrenceOrderPlugin(!_isProd)
   ];
 
   if (_isProd) {
-    plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
     plugins.push(new webpack.optimize.DedupePlugin());
     plugins.push(new webpack.optimize.UglifyJsPlugin({
       screwIe8: true,
@@ -97,47 +105,48 @@ const postcss = [
   })
 ];
 
-const proxies = [
-  {
-    context: (pathname, req) => {
-      return pathname === '/' && req.method === 'HEAD';
-    },
+function addProxies (app) {
+  const proxy = require('http-proxy-middleware');
+
+  app.use(proxy((pathname, req) => {
+    return pathname === '/' && req.method === 'HEAD';
+  }, {
     target: 'http://127.0.0.1:8180',
     changeOrigin: true,
     autoRewrite: true
-  },
-  {
-    context: '/api',
+  }));
+
+  app.use('/api', proxy({
     target: 'http://127.0.0.1:8080',
     changeOrigin: true,
     autoRewrite: true
-  },
-  {
-    context: '/app',
+  }));
+
+  app.use('/app', proxy({
     target: 'http://127.0.0.1:8080',
     changeOrigin: true,
     pathRewrite: {
       '^/app': ''
     }
-  },
-  {
-    context: '/parity-utils',
+  }));
+
+  app.use('/parity-utils', proxy({
     target: 'http://127.0.0.1:3000',
     changeOrigin: true,
     pathRewrite: {
       '^/parity-utils': ''
     }
-  },
-  {
-    context: '/rpc',
+  }));
+
+  app.use('/rpc', proxy({
     target: 'http://127.0.0.1:8080',
     changeOrigin: true
-  }
-];
+  }));
+}
 
 module.exports = {
   getPlugins: getPlugins,
   dappsEntry: getDappsEntry(),
-  postcss: postcss,
-  proxies: proxies
+  addProxies: addProxies,
+  postcss: postcss
 };
