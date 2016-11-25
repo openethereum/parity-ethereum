@@ -140,8 +140,6 @@ impl Tendermint {
 					Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
 				}
 			}
-		} else {
-			warn!(target: "poa", "broadcast_message: Message could not be generated.");
 		}
 	}
 
@@ -155,6 +153,7 @@ impl Tendermint {
 				block_hash
 			)
 		} else {
+			warn!(target: "poa", "generate_message: No AccountProvider available.");
 			None
 		}
 	}
@@ -163,10 +162,12 @@ impl Tendermint {
 		*self.step.write() = step;
 		match step {
 			Step::Propose => {
+				trace!(target: "poa", "to_step: Transitioning to Propose.");
 				*self.proposal.write() = None;
 				self.update_sealing()
 			},
 			Step::Prevote => {
+				trace!(target: "poa", "to_step: Transitioning to Prevote.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.should_unlock(m.round) => self.proposal.read().clone(),
 					Some(ref m) => m.block_hash,
@@ -175,6 +176,7 @@ impl Tendermint {
 				self.broadcast_message(block_hash)
 			},
 			Step::Precommit => {
+				trace!(target: "poa", "to_step: Transitioning to Precommit.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.is_round(m) => {
 						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
@@ -185,6 +187,7 @@ impl Tendermint {
 				self.broadcast_message(block_hash);
 			},
 			Step::Commit => {
+				trace!(target: "poa", "to_step: Transitioning to Commit.");
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
 				if let Some(seal) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, *self.proposal.read()) {
@@ -348,6 +351,7 @@ impl Engine for Tendermint {
 
 		// Check if the message is known.
 		if self.votes.vote(message.clone(), sender).is_none() {
+			trace!(target: "poa", "handle_message: Processing new authorized message: {:?}", &message);
 			let is_newer_than_lock = match *self.lock_change.read() {
 				Some(ref lock) => &message > lock,
 				None => true,
@@ -355,6 +359,7 @@ impl Engine for Tendermint {
 			if is_newer_than_lock
 				&& message.step == Step::Prevote
 				&& self.has_enough_aligned_votes(&message) {
+				trace!(target: "poa", "handle_message: Lock change.");
 				*self.lock_change.write()	= Some(message.clone());
 			}
 			// Check if it can affect the step transition.
@@ -409,6 +414,7 @@ impl Engine for Tendermint {
 		self.votes.vote(proposal, proposer);
 		let block_info_hash = try!(message_info_rlp_from_header(header)).sha3();
 
+		// TODO: use addresses recovered during precommit vote
 		let mut signature_count = 0;
 		for rlp in UntrustedRlp::new(&header.seal()[2]).iter() {
 			let signature: H520 = try!(rlp.as_val());
@@ -508,8 +514,8 @@ mod tests {
 		(b, seal)
 	}
 
-	fn vote_default<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step) where F: FnOnce(H256) -> Option<H520> {
-		let m = message_full_rlp(signer, height, round, step, Some(Default::default())).unwrap();
+	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) where F: FnOnce(H256) -> Option<H520> {
+		let m = message_full_rlp(signer, height, round, step, block_hash).unwrap();
 		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
 	}
 
@@ -531,15 +537,13 @@ mod tests {
 		addr
 	}
 
-	struct TestIo;
+	struct TestIo(ClientIoMessage);
 
 	impl IoHandler<ClientIoMessage> for TestIo {
 		fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
-			match *net_message {
-				ClientIoMessage::UpdateSealing => {},
-				ClientIoMessage::SubmitSeal(ref block_hash, ref seal) => {},
-				ClientIoMessage::BroadcastMessage(ref message) => {},
-				_ => {} // ignore other messages
+			let TestIo(ref expected) = *self;
+			if net_message == expected {
+				panic!()
 			}
 		}
 	}
@@ -655,31 +659,35 @@ mod tests {
 	}
 
 	#[test]
+	#[should_panic]
 	fn prevote_step() {
+		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db).unwrap();
 		
-		let io_service = IoService::<ClientIoMessage>::start().unwrap();
-		io_service.register_handler(Arc::new(TestIo));
-		engine.register_message_channel(io_service.channel());
-
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
 
 		// Propose
-		propose_default(&spec, v0.clone());
+		let (b, seal) = propose_default(&spec, v0.clone());
+		let proposal = Some(b.header().bare_hash());
 
-		let h = 0;
+		// Register IoHandler that panics on correct message.
+		let io_service = IoService::<ClientIoMessage>::start().unwrap();
+		io_service.register_handler(Arc::new(TestIo(ClientIoMessage::SubmitSeal(Default::default(), seal)))).unwrap();
+		engine.register_message_channel(io_service.channel());
+
+		let h = 1;
 		let r = 0;
 
 		// Prevote.
-		vote_default(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote);
+		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
 
-		vote_default(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote);
-		vote_default(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote);
+		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
+		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
 	}
 
 	#[test]
