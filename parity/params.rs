@@ -28,6 +28,7 @@ use dir::Directories;
 pub enum SpecType {
 	Mainnet,
 	Testnet,
+	Ropsten,
 	Olympic,
 	Classic,
 	Custom(String),
@@ -47,6 +48,7 @@ impl FromStr for SpecType {
 			"frontier" | "homestead" | "mainnet" => SpecType::Mainnet,
 			"frontier-dogmatic" | "homestead-dogmatic" | "classic" => SpecType::Classic,
 			"morden" | "testnet" => SpecType::Testnet,
+			"ropsten" => SpecType::Ropsten,
 			"olympic" => SpecType::Olympic,
 			other => SpecType::Custom(other.into()),
 		};
@@ -59,6 +61,7 @@ impl SpecType {
 		match *self {
 			SpecType::Mainnet => Ok(ethereum::new_frontier()),
 			SpecType::Testnet => Ok(ethereum::new_morden()),
+			SpecType::Ropsten => Ok(ethereum::new_ropsten()),
 			SpecType::Olympic => Ok(ethereum::new_olympic()),
 			SpecType::Classic => Ok(ethereum::new_classic()),
 			SpecType::Custom(ref file) => Ok(Spec::load(&try!(contents(file).map_err(|_| "Could not load specification file."))))
@@ -232,6 +235,7 @@ mod tests {
 		assert_eq!(SpecType::Mainnet, "mainnet".parse().unwrap());
 		assert_eq!(SpecType::Testnet, "testnet".parse().unwrap());
 		assert_eq!(SpecType::Testnet, "morden".parse().unwrap());
+		assert_eq!(SpecType::Ropsten, "ropsten".parse().unwrap());
 		assert_eq!(SpecType::Olympic, "olympic".parse().unwrap());
 	}
 

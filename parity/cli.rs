@@ -50,7 +50,7 @@ Operating Options:
                            [default: 3600].
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic or testnet
+                           homestead, mainnet, ropsten, morden, classic or testnet
                            [default: homestead].
   -d --db-path PATH        Specify the database & configuration directory path
                            [default: $HOME/.parity].
