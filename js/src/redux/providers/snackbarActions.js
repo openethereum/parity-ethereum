@@ -14,17 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export Balances from './balances';
-export Personal from './personal';
-export Signer from './signer';
-export Status from './status';
+export function showSnackbar (message, cooldown) {
+  return (dispatch, getState) => {
+    dispatch(openSnackbar(message, cooldown));
+  };
+}
 
-export apiReducer from './apiReducer';
-export balancesReducer from './balancesReducer';
-export imagesReducer from './imagesReducer';
-export personalReducer from './personalReducer';
-export signerReducer from './signerReducer';
-export statusReducer from './statusReducer';
-export blockchainReducer from './blockchainReducer';
-export compilerReducer from './compilerReducer';
-export snackbarReducer from './snackbarReducer';
+function openSnackbar (message, cooldown) {
+  return {
+    type: 'openSnackbar',
+    message, cooldown
+  };
+}
+
+export function closeSnackbar () {
+  return {
+    type: 'closeSnackbar'
+  };
+}
