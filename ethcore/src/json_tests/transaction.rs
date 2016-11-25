@@ -34,7 +34,7 @@ fn do_json_test(json_data: &[u8]) -> Vec<String> {
 			Some(x) if x < 1_150_000 => &old_schedule,
 			Some(_) => &new_schedule
 		};
-		let allow_network_id_of_one = number.map_or(false, |n| n >= 3_500_000); 
+		let allow_network_id_of_one = number.map_or(false, |n| n >= 2_675_000); 
 
 		let rlp: Vec<u8> = test.rlp.into();
 		let res = UntrustedRlp::new(&rlp)
