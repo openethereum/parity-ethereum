@@ -256,7 +256,7 @@ export default class DappsStore {
     }
 
     if (this._manifests[manifestHash]) {
-      return this._manifests[manifestHash];
+      return Promise.resolve(this._manifests[manifestHash]);
     }
 
     return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })

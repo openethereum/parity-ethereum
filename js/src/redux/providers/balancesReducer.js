@@ -20,7 +20,6 @@ import BigNumber from 'bignumber.js';
 const initialState = {
   balances: {},
   tokens: {},
-
   tokenreg: null,
   tokensFilter: {}
 };
@@ -38,9 +37,7 @@ export default handleActions({
       }
 
       const balance = Object.assign({}, balances[address]);
-
       const { tokens, txCount = balance.txCount } = nextBalances[address];
-
       const nextTokens = [].concat(balance.tokens);
 
       tokens.forEach((t) => {

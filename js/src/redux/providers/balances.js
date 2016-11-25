@@ -17,7 +17,7 @@
 import { throttle } from 'lodash';
 
 import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
-import { padRight } from '../../api/format/input';
+import { padRight } from '../../api/util/format';
 
 import Contracts from '../../contracts';
 
@@ -46,7 +46,7 @@ export default class Balances {
     // Fetch all tokens every 2 minutes
     this.throttledTokensFetch = throttle(
       this.fetchTokens,
-      2 * 60 * 1000,
+      60 * 1000,
       { trailing: true }
     );
   }

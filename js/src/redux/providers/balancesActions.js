@@ -353,7 +353,6 @@ function fetchTokenInfo (tokenreg, tokenId, api, dispatch) {
         format: format.toString(),
         id: tokenId,
         image: hashToImageUrl(image),
-
         address,
         tag,
         name,
