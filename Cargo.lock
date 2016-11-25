@@ -349,8 +349,8 @@ dependencies = [
  "ethcore-util 1.5.0",
  "fetch 0.1.0",
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc-http-server.git)",
+ "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
+ "jsonrpc-http-server 6.1.1 (git+https://github.com/ethcore/jsonrpc.git)",
  "linked-hash-map 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "mime 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -840,7 +840,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "4.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#59919f9f0a2ebb675670b72430803605d868904c"
+source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -852,9 +852,9 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "6.1.1"
-source = "git+https://github.com/ethcore/jsonrpc.git#59919f9f0a2ebb675670b72430803605d868904c"
+source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
 dependencies = [
- "hyper 0.9.4 (git+https://github.com/ethcore/hyper)",
+ "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -863,7 +863,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/jsonrpc.git#59919f9f0a2ebb675670b72430803605d868904c"
+source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -878,7 +878,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#59919f9f0a2ebb675670b72430803605d868904c"
+source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -888,17 +888,6 @@ dependencies = [
  "mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.8.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "jsonrpc-http-server"
-version = "6.1.1"
-source = "git+https://github.com/ethcore/jsonrpc-http-server.git#cd6d4cb37d672cc3057aecd0692876f9e85f3ba5"
-dependencies = [
- "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
- "jsonrpc-core 3.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "unicase 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1045,6 +1034,22 @@ dependencies = [
 name = "mio"
 version = "0.6.1"
 source = "git+https://github.com/carllerche/mio#56f8663510196fdca04bdf7c5f4d60b24297826f"
+dependencies = [
+ "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.2.16 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "net2 0.2.23 (registry+https://github.com/rust-lang/crates.io-index)",
+ "nix 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winapi 0.2.6 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "mio"
+version = "0.6.1"
+source = "git+https://github.com/ethcore/mio.git#ef182bae193a9c7457cd2cf661fcaffb226e3eef"
 dependencies = [
  "kernel32-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazycell 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1524,7 +1529,7 @@ version = "0.6.3"
 source = "git+https://github.com/ethcore/rotor#c1a2dd0046c5ea2517a5b637fca8ee2e77021e82"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.1 (git+https://github.com/ethcore/mio)",
+ "mio 0.6.1 (git+https://github.com/ethcore/mio.git)",
  "quick-error 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slab 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "void 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -2074,6 +2079,7 @@ dependencies = [
 "checksum mio 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "a637d1ca14eacae06296a008fa7ad955347e34efcb5891cfd8ba05491a37907e"
 "checksum mio 0.6.0-dev (git+https://github.com/ethcore/mio?branch=timer-fix)" = "<none>"
 "checksum mio 0.6.1 (git+https://github.com/carllerche/mio)" = "<none>"
+"checksum mio 0.6.1 (git+https://github.com/ethcore/mio.git)" = "<none>"
 "checksum miow 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "d5bfc6782530ac8ace97af10a540054a37126b63b0702ddaaa243b73b5745b9a"
 "checksum msdos_time 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)" = "c04b68cc63a8480fb2550343695f7be72effdec953a9d4508161c3e69041c7d8"
 "checksum nanomsg 0.5.1 (git+https://github.com/ethcore/nanomsg.rs.git)" = "<none>"

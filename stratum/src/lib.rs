@@ -72,7 +72,7 @@ impl Stratum {
 		addr: &SocketAddr,
 		dispatcher: Arc<JobDispatcher>,
 		secret: Option<H256>,
-	) -> Result<Arc<Stratum>, json_tcp_server::Error> {
+	) -> Result<Arc<Stratum>, jsonrpc_tcp_server::Error> {
 		let handler = Arc::new(IoHandler::new());
 		let server = try!(JsonRpcServer::new(addr, &handler));
 		let stratum = Arc::new(Stratum {

@@ -354,8 +354,7 @@ fn rpc_eth_gas_price() {
 #[test]
 fn rpc_eth_accounts() {
 	let tester = EthTester::default();
-	let address = tester.accounts_provider.new_account("").unwrap();
-	let address2 = Address::default();
+	let _address = tester.accounts_provider.new_account("").unwrap();
 
 	// even with some account it should return empty list (no dapp detected)
 	let request = r#"{"jsonrpc": "2.0", "method": "eth_accounts", "params": [], "id": 1}"#;
