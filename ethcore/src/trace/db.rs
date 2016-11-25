@@ -128,6 +128,9 @@ impl<T> TraceDB<T> where T: DatabaseExtras {
 	/// Creates new instance of `TraceDB`.
 	pub fn new(config: Config, tracesdb: Arc<Database>, extras: Arc<T>) -> Self {
 		let mut batch = DBTransaction::new(&tracesdb);
+		let genesis = extras.block_hash(0)
+			.expect("Genesis block is always inserted upon extras db creation qed");
+		batch.write(db::COL_TRACE, &genesis, &FlatBlockTraces::default());
 		batch.put(db::COL_TRACE, b"version", TRACE_DB_VER);
 		tracesdb.write(batch).expect("failed to update version");
 
@@ -413,8 +416,12 @@ mod tests {
 	struct NoopExtras;
 
 	impl DatabaseExtras for NoopExtras {
-		fn block_hash(&self, _block_number: BlockNumber) -> Option<H256> {
-			unimplemented!();
+		fn block_hash(&self, block_number: BlockNumber) -> Option<H256> {
+			if block_number == 0 {
+				Some(H256::default())
+			} else {
+				unimplemented!()
+			}
 		}
 
 		fn transaction_hash(&self, _block_number: BlockNumber, _tx_position: usize) -> Option<H256> {
@@ -581,34 +588,20 @@ mod tests {
 		let db = Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), temp.as_str()).unwrap());
 		let mut config = Config::default();
 		config.enabled = true;
-		let block_0 = H256::from(0xa1);
-		let block_1 = H256::from(0xa2);
-		let tx_0 = H256::from(0xff);
-		let tx_1 = H256::from(0xaf);
+		let block_1 = H256::from(0xa1);
+		let block_2 = H256::from(0xa2);
+		let tx_1 = H256::from(0xff);
+		let tx_2 = H256::from(0xaf);
 
 		let mut extras = Extras::default();
-		extras.block_hashes.insert(0, block_0.clone());
+		extras.block_hashes.insert(0, H256::default());
+
 		extras.block_hashes.insert(1, block_1.clone());
-		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+		extras.block_hashes.insert(2, block_2.clone());
 		extras.transaction_hashes.insert(1, vec![tx_1.clone()]);
+		extras.transaction_hashes.insert(2, vec![tx_2.clone()]);
 
 		let tracedb = TraceDB::new(config, db.clone(), Arc::new(extras));
-
-		// import block 0
-		let request = create_simple_import_request(0, block_0.clone());
-		let mut batch = DBTransaction::new(&db);
-		tracedb.import(&mut batch, request);
-		db.write(batch).unwrap();
-
-		let filter = Filter {
-			range: (0..0),
-			from_address: AddressesFilter::from(vec![Address::from(1)]),
-			to_address: AddressesFilter::from(vec![]),
-		};
-
-		let traces = tracedb.filter(&filter);
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
 
 		// import block 1
 		let request = create_simple_import_request(1, block_1.clone());
@@ -617,38 +610,56 @@ mod tests {
 		db.write(batch).unwrap();
 
 		let filter = Filter {
-			range: (0..1),
+			range: (1..1),
+			from_address: AddressesFilter::from(vec![Address::from(1)]),
+			to_address: AddressesFilter::from(vec![]),
+		};
+
+		let traces = tracedb.filter(&filter);
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+
+		// import block 2
+		let request = create_simple_import_request(2, block_2.clone());
+		let mut batch = DBTransaction::new(&db);
+		tracedb.import(&mut batch, request);
+		db.write(batch).unwrap();
+
+		let filter = Filter {
+			range: (1..2),
 			from_address: AddressesFilter::from(vec![Address::from(1)]),
 			to_address: AddressesFilter::from(vec![]),
 		};
 
 		let traces = tracedb.filter(&filter);
 		assert_eq!(traces.len(), 2);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
-		assert_eq!(traces[1], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		assert_eq!(traces[1], create_simple_localized_trace(2, block_2.clone(), tx_2.clone()));
 
-		let traces = tracedb.block_traces(0).unwrap();
-		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert!(tracedb.block_traces(0).is_some(), "Genesis trace should be always present.");
 
 		let traces = tracedb.block_traces(1).unwrap();
 		assert_eq!(traces.len(), 1);
 		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
-		assert_eq!(None, tracedb.block_traces(2));
-
-		let traces = tracedb.transaction_traces(0, 0).unwrap();
+		let traces = tracedb.block_traces(2).unwrap();
 		assert_eq!(traces.len(), 1);
-		assert_eq!(traces[0], create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert_eq!(traces[0], create_simple_localized_trace(2, block_2.clone(), tx_2.clone()));
+
+		assert_eq!(None, tracedb.block_traces(3));
 
 		let traces = tracedb.transaction_traces(1, 0).unwrap();
 		assert_eq!(traces.len(), 1);
 		assert_eq!(traces[0], create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
 
-		assert_eq!(None, tracedb.transaction_traces(1, 1));
+		let traces = tracedb.transaction_traces(2, 0).unwrap();
+		assert_eq!(traces.len(), 1);
+		assert_eq!(traces[0], create_simple_localized_trace(2, block_2.clone(), tx_2.clone()));
 
-		assert_eq!(tracedb.trace(0, 0, vec![]).unwrap(), create_simple_localized_trace(0, block_0.clone(), tx_0.clone()));
+		assert_eq!(None, tracedb.transaction_traces(2, 1));
+
 		assert_eq!(tracedb.trace(1, 0, vec![]).unwrap(), create_simple_localized_trace(1, block_1.clone(), tx_1.clone()));
+		assert_eq!(tracedb.trace(2, 0, vec![]).unwrap(), create_simple_localized_trace(2, block_2.clone(), tx_2.clone()));
 	}
 
 	#[test]
@@ -660,8 +671,10 @@ mod tests {
 		let block_0 = H256::from(0xa1);
 		let tx_0 = H256::from(0xff);
 
-		extras.block_hashes.insert(0, block_0.clone());
-		extras.transaction_hashes.insert(0, vec![tx_0.clone()]);
+		extras.block_hashes.insert(0, H256::default());
+		extras.transaction_hashes.insert(0, vec![]);
+		extras.block_hashes.insert(1, block_0.clone());
+		extras.transaction_hashes.insert(1, vec![tx_0.clone()]);
 
 		// set tracing on
 		config.enabled = true;
@@ -669,8 +682,8 @@ mod tests {
 		{
 			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
 
-			// import block 0
-			let request = create_simple_import_request(0, block_0.clone());
+			// import block 1
+			let request = create_simple_import_request(1, block_0.clone());
 			let mut batch = DBTransaction::new(&db);
 			tracedb.import(&mut batch, request);
 			db.write(batch).unwrap();
@@ -678,8 +691,28 @@ mod tests {
 
 		{
 			let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras));
-			let traces = tracedb.transaction_traces(0, 0);
-			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(0, block_0, tx_0)]);
+			let traces = tracedb.transaction_traces(1, 0);
+			assert_eq!(traces.unwrap(), vec![create_simple_localized_trace(1, block_0, tx_0)]);
 		}
+	}
+
+	#[test]
+	fn query_genesis() {
+		let temp = RandomTempPath::new();
+		let db = new_db(temp.as_str());
+		let mut config = Config::default();
+		let mut extras = Extras::default();
+		let block_0 = H256::from(0xa1);
+
+		extras.block_hashes.insert(0, block_0.clone());
+		extras.transaction_hashes.insert(0, vec![]);
+
+		// set tracing on
+		config.enabled = true;
+
+		let tracedb = TraceDB::new(config.clone(), db.clone(), Arc::new(extras.clone()));
+		let traces = tracedb.block_traces(0).unwrap();
+
+		assert_eq!(traces.len(), 0);
 	}
 }
