@@ -631,9 +631,13 @@ impl ChainSync {
 			self.highest_block = Some(header.number());
 		}
 		let mut unknown = false;
+		let difficulty: U256 = try!(r.val_at(1));
 		{
 			if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
 				peer.latest_hash = header.hash();
+				if peer.difficulty.map_or(true, |pd| difficulty > pd) {
+					peer.difficulty = Some(difficulty);
+				}
 			}
 		}
 		if self.last_imported_block > header.number() && self.last_imported_block - header.number() > MAX_NEW_BLOCK_AGE {
@@ -670,11 +674,9 @@ impl ChainSync {
 			} else {
 				trace!(target: "sync", "New unknown block {:?}", h);
 				//TODO: handle too many unknown blocks
-				let difficulty: U256 = try!(r.val_at(1));
 				if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
 					if peer.difficulty.map_or(true, |pd| difficulty > pd) {
 						//self.state = SyncState::ChainHead;
-						peer.difficulty = Some(difficulty);
 						trace!(target: "sync", "Received block {:?}  with no known parent. Peer needs syncing...", h);
 					}
 				}
@@ -729,6 +731,7 @@ impl ChainSync {
 						trace!(target: "sync", "New unknown block hash {:?}", hash);
 						if let Some(ref mut peer) = self.peers.get_mut(&peer_id) {
 							peer.latest_hash = hash.clone();
+							peer.difficulty = None;
 						}
 						max_height = number;
 					}
@@ -974,6 +977,7 @@ impl ChainSync {
 				},
 				Err(BlockImportError::Block(BlockError::UnknownParent(_))) if self.state == SyncState::NewBlocks => {
 					trace!(target: "sync", "Unknown new block parent, restarting sync");
+					restart = true;
 					break;
 				},
 				Err(e) => {
@@ -994,6 +998,11 @@ impl ChainSync {
 		if self.blocks.is_empty() {
 			// complete sync round
 			trace!(target: "sync", "Sync round complete");
+			for (_, ref mut p) in &mut self.peers {
+				if p.difficulty.is_none() {
+					p.difficulty = Some(self.syncing_difficulty.clone());
+				}
+			}
 			self.restart(io);
 		}
 	}
