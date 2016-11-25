@@ -57,7 +57,7 @@ export default class AccountLink extends Component {
   }
 
   updateLink (address, chain) {
-    const link = addressLink(address, chain === 'morden' || chain === 'testnet');
+    const link = addressLink(address, chain === 'ropsten' || chain === 'morden' || chain === 'testnet');
 
     this.setState({
       link

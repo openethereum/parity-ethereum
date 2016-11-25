@@ -109,7 +109,7 @@ export default class Status {
         this._api.eth.syncing()
       ])
       .then(([clientVersion, coinbase, defaultExtraData, extraData, gasFloorTarget, hashrate, minGasPrice, netChain, netPeers, netPort, nodeName, rpcSettings, syncing, traceMode]) => {
-        const isTest = netChain === 'morden' || netChain === 'testnet';
+        const isTest = netChain === 'ropsten' || netChain === 'morden' || netChain === 'testnet';
 
         this._store.dispatch(statusCollection({
           clientVersion,
