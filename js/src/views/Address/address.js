@@ -26,6 +26,7 @@ import { Actionbar, Button, Page } from '../../ui';
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import Delete from './Delete';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './address.css';
 
@@ -36,9 +37,10 @@ class Address extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     contacts: PropTypes.object,
     balances: PropTypes.object,
-    isTest: PropTypes.bool,
     params: PropTypes.object
   }
 
@@ -47,8 +49,31 @@ class Address extends Component {
     showEditDialog: false
   }
 
+  componentDidMount () {
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts } = props;
+    const addresses = [ params.address ];
+    setVisibleAccounts(addresses);
+  }
+
   render () {
-    const { contacts, balances, isTest } = this.props;
+    const { contacts, balances } = this.props;
     const { address } = this.props.params;
     const { showDeleteDialog } = this.state;
 
@@ -70,7 +95,6 @@ class Address extends Component {
           onClose={ this.closeDeleteDialog } />
         <Page>
           <Header
-            isTest={ isTest }
             account={ contact }
             balance={ balance } />
           <Transactions
@@ -134,17 +158,17 @@ class Address extends Component {
 function mapStateToProps (state) {
   const { contacts } = state.personal;
   const { balances } = state.balances;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     contacts,
     balances
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

@@ -43,7 +43,7 @@ const initialState = {
   isConnected: false,
   isConnecting: false,
   isPingable: false,
-  isTest: false,
+  isTest: undefined,
   refreshStatus: false,
   traceMode: undefined
 };

@@ -32,6 +32,8 @@ export default class DappsStore {
   @observable modalOpen = false;
   @observable externalOverlayVisible = true;
 
+  _manifests = {};
+
   constructor (api) {
     this._api = api;
 
@@ -249,11 +251,26 @@ export default class DappsStore {
   }
 
   _fetchManifest (manifestHash) {
+    if (/^(0x)?0+/.test(manifestHash)) {
+      return Promise.resolve(null);
+    }
+
+    if (this._manifests[manifestHash]) {
+      return Promise.resolve(this._manifests[manifestHash]);
+    }
+
     return fetch(`${this._getHost()}/api/content/${manifestHash}/`, { redirect: 'follow', mode: 'cors' })
       .then((response) => {
         return response.ok
           ? response.json()
           : null;
+      })
+      .then((manifest) => {
+        if (manifest) {
+          this._manifests[manifestHash] = manifest;
+        }
+
+        return manifest;
       })
       .catch((error) => {
         console.warn('DappsStore:fetchManifest', error);
