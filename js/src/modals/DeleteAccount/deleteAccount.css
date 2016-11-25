@@ -15,13 +15,40 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  position: relative;
-}
+.body {
+  .hero {
+    padding-bottom: 1em;
+  }
 
-.copy {
-  margin-right: 0.5em;
+  .info {
+    display: inline-block;
+  }
+
+  .icon {
+    display: inline-block;
+  }
+
+  .nameinfo {
+    display: inline-block;
+    text-align: left;
+  }
+
+  .header {
+    text-transform: uppercase;
+    font-size: 1.25em;
+    padding-bottom: 0.25em;
+  }
+
+  .address {
+  }
+
+  .description {
+    padding-top: 1em;
+    font-size: 0.75em;
+    color: #aaa;
+  }
+
+  .password {
+    padding: 1em 5em;
+  }
 }

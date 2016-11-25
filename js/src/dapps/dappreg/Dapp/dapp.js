@@ -33,6 +33,10 @@ export default class Dapp extends Component {
       ? this.dappsStore.wipApp
       : this.dappsStore.currentApp;
 
+    if (!app) {
+      return null;
+    }
+
     return (
       <div className={ styles.app }>
         { this.dappsStore.isNew ? this.renderOwnerSelect(app) : this.renderOwnerStatic(app) }

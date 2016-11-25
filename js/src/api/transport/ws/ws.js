@@ -79,7 +79,7 @@ export default class Ws extends JsonRpcBase {
     this._ws.onclose = this._onClose;
     this._ws.onmessage = this._onMessage;
 
-    // Get counts in dev mode
+    // Get counts in dev mode only
     if (process.env.NODE_ENV === 'development') {
       this._count = 0;
       this._lastCount = {
@@ -93,8 +93,13 @@ export default class Ws extends JsonRpcBase {
         const s = Math.round(1000 * n / t) / 1000;
 
         if (this._debug) {
-          console.log('::parityWS', `speed: ${s} req/s`, `count: ${this._count}`);
+          console.log('::parityWS', `speed: ${s} req/s`, `count: ${this._count}`, `(+${n})`);
         }
+
+        this._lastCount = {
+          timestamp: Date.now(),
+          count: this._count
+        };
       }, 5000);
 
       window._parityWS = this;
@@ -117,6 +122,7 @@ export default class Ws extends JsonRpcBase {
     this._connected = false;
     this._connecting = false;
 
+    event.timestamp = Date.now();
     this._lastError = event;
 
     if (this._autoConnect) {
@@ -144,6 +150,8 @@ export default class Ws extends JsonRpcBase {
     window.setTimeout(() => {
       if (this._connected) {
         console.error('ws:onError', event);
+
+        event.timestamp = Date.now();
         this._lastError = event;
       }
     }, 50);

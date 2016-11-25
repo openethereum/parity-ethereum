@@ -38,10 +38,6 @@ export default class Summary extends Component {
     noLink: false
   };
 
-  state = {
-    name: 'Unnamed'
-  };
-
   shouldComponentUpdate (nextProps) {
     const prev = {
       link: this.props.link, name: this.props.name,
@@ -66,8 +62,8 @@ export default class Summary extends Component {
       return true;
     }
 
-    const prevValues = prevTokens.map((t) => t.value.toNumber());
-    const nextValues = nextTokens.map((t) => t.value.toNumber());
+    const prevValues = prevTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
+    const nextValues = nextTokens.map((t) => ({ value: t.value.toNumber(), image: t.token.image }));
 
     if (!isEqual(prevValues, nextValues)) {
       return true;

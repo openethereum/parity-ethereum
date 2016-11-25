@@ -116,3 +116,25 @@ fn should_be_able_to_set_meta() {
 	assert_eq!(res, Some(response));
 }
 
+#[test]
+fn should_be_able_to_kill_account() {
+	let tester = setup();
+	tester.accounts.new_account("password").unwrap();
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 1);
+	let address = accounts[0];
+
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0xf00baba2f00baba2f00baba2f00baba2f00baba2"], "id": 1}}"#);
+	let response = r#"{"jsonrpc":"2.0","error":{"code":-32602,"message":"Invalid params","data":null},"id":1}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+
+	let request = format!(r#"{{"jsonrpc": "2.0", "method": "parity_killAccount", "params": ["0x{}", "password"], "id": 1}}"#, address.hex());
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	let res = tester.io.handle_request_sync(&request);
+	assert_eq!(res, Some(response.into()));
+
+	let accounts = tester.accounts.accounts().unwrap();
+	assert_eq!(accounts.len(), 0);
+}
+

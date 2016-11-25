@@ -143,6 +143,12 @@ class Transactions extends Component {
   getTransactions = (props) => {
     const { isTest, address, traceMode } = props;
 
+    // Don't fetch the transactions if we don't know in which
+    // network we are yet...
+    if (isTest === undefined) {
+      return;
+    }
+
     return this
       .fetchTransactions(isTest, address, traceMode)
       .then(transactions => {

@@ -54,8 +54,6 @@ export default class RecoveryPhrase extends Component {
         <Input
           hint='the account recovery phrase'
           label='account recovery phrase'
-          multiLine
-          rows={ 1 }
           value={ recoveryPhrase }
           onChange={ this.onEditPhrase } />
         <Input
@@ -112,17 +110,23 @@ export default class RecoveryPhrase extends Component {
   }
 
   onEditPhrase = (event) => {
-    const value = event.target.value;
-    let error = null;
+    const recoveryPhrase = event.target.value
+      .toLowerCase() // wordlists are lowercase
+      .trim() // remove whitespace at both ends
+      .replace(/\s/g, ' ') // replace any whitespace with single space
+      .replace(/ +/g, ' '); // replace multiple spaces with a single space
 
-    if (!value || value.trim().length < 25) {
-      error = ERRORS.noPhrase;
+    const parts = recoveryPhrase.split(' ');
+    let recoveryPhraseError = null;
+
+    if (!recoveryPhrase || recoveryPhrase.length < 25 || parts.length < 8) {
+      recoveryPhraseError = ERRORS.noPhrase;
     }
 
     this.setState({
-      recoveryPhrase: value,
-      recoveryPhraseError: error,
-      isValidPhrase: !error
+      recoveryPhrase,
+      recoveryPhraseError,
+      isValidPhrase: !recoveryPhraseError
     }, this.updateParent);
   }
 
