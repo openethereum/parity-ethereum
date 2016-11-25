@@ -263,9 +263,13 @@ export function queryTokensFilter (tokensFilter) {
   };
 }
 
-export function fetchTokensBalances (addresses, tokens) {
+export function fetchTokensBalances (_addresses = null, _tokens = null) {
   return (dispatch, getState) => {
-    const { api } = getState();
+    const { api, personal, balances } = getState();
+    const { visibleAccounts } = personal;
+
+    const addresses = _addresses || visibleAccounts;
+    const tokens = _tokens || Object.values(balances.tokens);
 
     if (addresses.length === 0) {
       return Promise.resolve();

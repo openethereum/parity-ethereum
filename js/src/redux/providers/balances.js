@@ -16,7 +16,7 @@
 
 import { throttle } from 'lodash';
 
-import { loadTokens, setTokenReg, fetchBalances, fetchTokens } from './balancesActions';
+import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
 import { padRight } from '../../api/format/input';
 
 import Contracts from '../../contracts';
@@ -30,10 +30,10 @@ export default class Balances {
     this._tokenregMetaSubId = null;
 
     // Throttled `retrieveTokens` function
-    // that gets called max once every 20s
+    // that gets called max once every 40s
     this.longThrottledFetch = throttle(
       this.fetchBalances,
-      20 * 1000,
+      40 * 1000,
       { trailing: true }
     );
 
@@ -42,11 +42,19 @@ export default class Balances {
       2 * 1000,
       { trailing: true }
     );
+
+    // Fetch all tokens every 2 minutes
+    this.throttledTokensFetch = throttle(
+      this.fetchTokens,
+      2 * 60 * 1000,
+      { trailing: true }
+    );
   }
 
   start () {
     this.subscribeBlockNumber();
     this.subscribeAccountsInfo();
+
     this.loadTokens();
   }
 
@@ -73,6 +81,8 @@ export default class Balances {
 
         const { syncing } = this._store.getState().nodeStatus;
 
+        this.throttledTokensFetch();
+
         // If syncing, only retrieve balances once every
         // few seconds
         if (syncing) {
@@ -90,6 +100,10 @@ export default class Balances {
 
   fetchBalances () {
     this._store.dispatch(fetchBalances());
+  }
+
+  fetchTokens () {
+    this._store.dispatch(fetchTokensBalances());
   }
 
   getTokenRegistry () {
