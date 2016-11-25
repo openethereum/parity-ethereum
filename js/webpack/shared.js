@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const webpack = require('webpack');
-const HappyPack = require('happypack');
+const path = require('path');
+// const HappyPack = require('happypack');
 
 const postcssImport = require('postcss-import');
 const postcssNested = require('postcss-nested');
@@ -26,31 +27,46 @@ const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
 function getPlugins (_isProd = isProd) {
+  const postcss = [
+    postcssImport({
+      addDependencyTo: webpack
+    }),
+    postcssNested({}),
+    postcssVars({
+      unknown: function (node, name, result) {
+        node.warn(result, `Unknown variable ${name}`);
+      }
+    }),
+    rucksack({
+      autoprefixer: true
+    })
+  ];
+
   const plugins = [
-    new HappyPack({
-      id: 'css',
-      threads: 4,
-      loaders: [
-        'style',
-        'css?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
-        'postcss'
-      ]
-    }),
+    // new HappyPack({
+    //   id: 'css',
+    //   threads: 4,
+    //   loaders: [
+    //     'style-loader',
+    //     'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+    //     'postcss-loader'
+    //   ]
+    // }),
 
-    new HappyPack({
-      id: 'js',
-      threads: 4,
-      loaders: _isProd ? ['babel'] : [
-        'react-hot',
-        'babel?cacheDirectory=true'
-      ]
-    }),
+    // new HappyPack({
+    //   id: 'js',
+    //   threads: 4,
+    //   loaders: _isProd ? ['babel'] : [
+    //     'react-hot-loader',
+    //     'babel-loader?cacheDirectory=true'
+    //   ]
+    // }),
 
-    new HappyPack({
-      id: 'babel',
-      threads: 4,
-      loaders: ['babel']
-    }),
+    // new HappyPack({
+    //   id: 'babel',
+    //   threads: 4,
+    //   loaders: ['babel-loader']
+    // }),
 
     new webpack.DefinePlugin({
       'process.env': {
@@ -62,11 +78,19 @@ function getPlugins (_isProd = isProd) {
       }
     }),
 
+    new webpack.LoaderOptionsPlugin({
+      minimize: isProd,
+      debug: !isProd,
+      options: {
+        context: path.join(__dirname, '../src'),
+        postcss: postcss
+      }
+    }),
+
     new webpack.optimize.OccurrenceOrderPlugin(!_isProd)
   ];
 
   if (_isProd) {
-    plugins.push(new webpack.optimize.DedupePlugin());
     plugins.push(new webpack.optimize.UglifyJsPlugin({
       screwIe8: true,
       compress: {
@@ -89,21 +113,6 @@ function getDappsEntry () {
     return _entry;
   }, {});
 }
-
-const postcss = [
-  postcssImport({
-    addDependencyTo: webpack
-  }),
-  postcssNested({}),
-  postcssVars({
-    unknown: function (node, name, result) {
-      node.warn(result, `Unknown variable ${name}`);
-    }
-  }),
-  rucksack({
-    autoprefixer: true
-  })
-];
 
 function addProxies (app) {
   const proxy = require('http-proxy-middleware');
@@ -147,6 +156,5 @@ function addProxies (app) {
 module.exports = {
   getPlugins: getPlugins,
   dappsEntry: getDappsEntry(),
-  addProxies: addProxies,
-  postcss: postcss
+  addProxies: addProxies
 };

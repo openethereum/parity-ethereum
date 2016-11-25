@@ -20,11 +20,13 @@ const webpackHotMiddleware = require('webpack-hot-middleware');
 
 const http = require('http');
 const express = require('express');
+const ProgressBar = require('progress');
 
 const webpackConfig = require('./config');
 const Shared = require('./shared');
 
 const hotMiddlewareScript = 'webpack-hot-middleware/client';
+let progressBar = { update: () => {} };
 
 /**
  * Add webpack hot middleware to each entry in the config
@@ -39,6 +41,9 @@ const hotMiddlewareScript = 'webpack-hot-middleware/client';
 
   webpackConfig.plugins.push(new webpack.HotModuleReplacementPlugin());
   webpackConfig.plugins.push(new webpack.NoErrorsPlugin());
+  webpackConfig.plugins.push(new webpack.ProgressPlugin(
+    (percentage) => progressBar.update(percentage)
+  ));
 })();
 
 const app = express();
@@ -47,6 +52,7 @@ const compiler = webpack(webpackConfig);
 app.use(webpackDevMiddleware(compiler, {
   noInfo: false,
   quiet: false,
+  progress: true,
   publicPath: webpackConfig.output.publicPath,
   stats: {
     colors: true
@@ -65,4 +71,5 @@ Shared.addProxies(app);
 const server = http.createServer(app);
 server.listen(process.env.PORT || 3000, function () {
   console.log('Listening on port', server.address().port);
+  progressBar = new ProgressBar('[:bar] :percent :etas', { total: 50 });
 });

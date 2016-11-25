@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 const path = require('path');
-const webpack = require('webpack');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const packageJson = require('../package.json');
 
@@ -43,18 +42,27 @@ module.exports = {
     noParse: [
       /babel-polyfill/
     ],
-    loaders: [
+    rules: [
       {
         test: /(\.jsx|\.js)$/,
-        loaders: [ 'happypack/loader?id=js' ],
+        // use: [ 'happypack/loader?id=js' ],
+        use: isProd ? ['babel-loader'] : [
+          // 'react-hot-loader',
+          'babel-loader?cacheDirectory=true'
+        ],
         exclude: /node_modules/
       }
     ]
   },
+
   resolve: {
-    root: path.resolve('./src'),
-    extensions: ['', '.js']
+    modules: [
+      path.resolve('./src'),
+      path.join(__dirname, '../node_modules')
+    ],
+    extensions: ['.json', '.js', '.jsx']
   },
+
   plugins: Shared.getPlugins().concat([
     new CopyWebpackPlugin([
       {

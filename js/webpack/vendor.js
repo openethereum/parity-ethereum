@@ -51,15 +51,15 @@ module.exports = {
     vendor: modules
   },
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.json$/,
-        loaders: ['json']
+        use: [ 'json-loader' ]
       },
       {
         test: /\.js$/,
         include: /(ethereumjs-tx)/,
-        loaders: [ 'happypack/loader?id=babel' ]
+        use: [ 'babel-loader' ]
       }
     ]
   },

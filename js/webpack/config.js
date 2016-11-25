@@ -31,7 +31,6 @@ const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
 module.exports = {
-  debug: !isProd,
   cache: !isProd,
   devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
 
@@ -46,43 +45,61 @@ module.exports = {
   },
 
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loaders: [ 'happypack/loader?id=js' ]
+        // use: [ 'happypack/loader?id=js' ]
+        use: isProd ? ['babel-loader'] : [
+          // 'react-hot-loader',
+          'babel-loader?cacheDirectory=true'
+        ]
       },
       {
         test: /\.js$/,
         include: /node_modules\/material-ui-chip-input/,
-        loader: 'babel'
+        use: [ 'babel-loader' ]
       },
       {
         test: /\.json$/,
-        loaders: ['json']
+        use: [ 'json-loader' ]
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[name].[ext]!extract-loader!html-loader'
+        use: [
+          'file-loader?name=[name].[ext]!extract-loader',
+          {
+            loader: 'html-loader',
+            options: {
+              root: path.resolve(__dirname, '../assets/images'),
+              attrs: ['img:src', 'link:href']
+            }
+          }
+        ]
       },
 
       {
         test: /\.css$/,
-        include: [/src/],
-        loaders: [ 'happypack/loader?id=css' ]
+        include: [ /src/ ],
+        // use: [ 'happypack/loader?id=css' ]
+        use: [
+          'style-loader',
+          'css-loader?modules&sourceMap&importLoaders=1&localIdentName=[name]__[local]___[hash:base64:5]',
+          'postcss-loader'
+        ]
       },
       {
         test: /\.css$/,
-        exclude: [/src/],
-        loader: 'style!css'
+        exclude: [ /src/ ],
+        use: [ 'style-loader', 'css-loader' ]
       },
       {
         test: /\.(png|jpg)$/,
-        loader: 'file-loader?name=[name].[hash].[ext]'
+        use: [ 'file-loader?name=[name].[hash].[ext]' ]
       },
       {
         test: /\.(woff(2)|ttf|eot|svg|otf)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'file-loader'
+        use: [ 'file-loader' ]
       }
     ],
     noParse: [
@@ -91,22 +108,12 @@ module.exports = {
   },
 
   resolve: {
-    root: path.join(__dirname, '../node_modules'),
-    fallback: path.join(__dirname, '../node_modules'),
-    extensions: ['', '.js', '.jsx'],
+    modules: [
+      path.join(__dirname, '../node_modules')
+    ],
+    extensions: ['.json', '.js', '.jsx'],
     unsafeCache: true
   },
-  resolveLoaders: {
-    root: path.join(__dirname, '../node_modules'),
-    fallback: path.join(__dirname, '../node_modules')
-  },
-
-  htmlLoader: {
-    root: path.resolve(__dirname, '../assets/images'),
-    attrs: ['img:src', 'link:href']
-  },
-
-  postcss: Shared.postcss,
 
   plugins: (function () {
     const plugins = Shared.getPlugins().concat([

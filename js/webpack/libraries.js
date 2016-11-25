@@ -21,6 +21,8 @@ const path = require('path');
 const Shared = require('./shared');
 
 const DEST = process.env.BUILD_DEST || '.build';
+const ENV = process.env.NODE_ENV || 'development';
+const isProd = ENV === 'production';
 
 module.exports = {
   context: path.join(__dirname, '../src'),
@@ -37,19 +39,23 @@ module.exports = {
     libraryTarget: 'umd'
   },
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.js$/,
         exclude: /node_modules/,
-        loader: 'happypack/loader?id=js'
+        // use: [ 'happypack/loader?id=js' ]
+        use: isProd ? ['babel-loader'] : [
+          // 'react-hot-loader',
+          'babel-loader?cacheDirectory=true'
+        ]
       },
       {
         test: /\.json$/,
-        loaders: ['json']
+        use: [ 'json-loader' ]
       },
       {
         test: /\.html$/,
-        loader: 'file?name=[name].[ext]'
+        use: [ 'file-loader?name=[name].[ext]' ]
       }
     ]
   },
