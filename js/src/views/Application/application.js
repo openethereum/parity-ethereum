@@ -17,6 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import { observer } from 'mobx-react';
 
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
@@ -25,13 +26,14 @@ import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
 import Status from './Status';
+import Store from './store';
 import TabBar from './TabBar';
 
 import styles from './application.css';
 
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
-const showFirstRun = window.localStorage.getItem('showFirstRun') === '1';
 
+@observer
 class Application extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
@@ -46,13 +48,7 @@ class Application extends Component {
     blockNumber: PropTypes.object
   }
 
-  state = {
-    showFirstRun: false
-  }
-
-  componentWillMount () {
-    this.checkAccounts();
-  }
+  store = new Store(this.context.api);
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');
@@ -75,12 +71,11 @@ class Application extends Component {
 
   renderApp () {
     const { children, pending, netChain, isTest, blockNumber } = this.props;
-    const { showFirstRun } = this.state;
 
     return (
       <Container
-        showFirstRun={ showFirstRun }
-        onCloseFirstRun={ this.onCloseFirstRun }>
+        showFirstRun={ this.store.firstrunVisible }
+        onCloseFirstRun={ this.store.closeFirstrun }>
         <TabBar
           netChain={ netChain }
           isTest={ isTest }
@@ -99,28 +94,6 @@ class Application extends Component {
         { children }
       </DappContainer>
     );
-  }
-
-  checkAccounts () {
-    const { api } = this.context;
-
-    api.eth
-      .accounts()
-      .then((accounts) => {
-        this.setState({
-          showFirstRun: showFirstRun || accounts.length === 0
-        });
-      })
-      .catch((error) => {
-        console.error('checkAccounts', error);
-      });
-  }
-
-  onCloseFirstRun = () => {
-    window.localStorage.setItem('showFirstRun', '0');
-    this.setState({
-      showFirstRun: false
-    });
   }
 }
 
