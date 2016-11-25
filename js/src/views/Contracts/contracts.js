@@ -20,10 +20,11 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import FileIcon from 'material-ui/svg-icons/action/description';
-import { uniq } from 'lodash';
+import { uniq, isEqual } from 'lodash';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
 import { AddContract, DeployContract } from '../../modals';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import List from '../Accounts/List';
 
@@ -35,6 +36,8 @@ class Contracts extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     balances: PropTypes.object,
     accounts: PropTypes.object,
     contracts: PropTypes.object,
@@ -47,6 +50,29 @@ class Contracts extends Component {
     sortOrder: 'timestamp',
     searchValues: [],
     searchTokens: []
+  }
+
+  componentWillMount () {
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddresses = Object.keys(this.props.contracts);
+    const nextAddresses = Object.keys(nextProps.contracts);
+
+    if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { contracts, setVisibleAccounts } = props;
+    const addresses = Object.keys(contracts);
+    setVisibleAccounts(addresses);
   }
 
   render () {
@@ -205,7 +231,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(
