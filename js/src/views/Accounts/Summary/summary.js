@@ -16,6 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
+import { isEqual } from 'lodash';
 
 import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
 
@@ -30,7 +31,6 @@ export default class Summary extends Component {
     link: PropTypes.string,
     name: PropTypes.string,
     noLink: PropTypes.bool,
-    children: PropTypes.node,
     handleAddSearchToken: PropTypes.func
   };
 
@@ -42,8 +42,42 @@ export default class Summary extends Component {
     name: 'Unnamed'
   };
 
+  shouldComponentUpdate (nextProps) {
+    const prev = {
+      link: this.props.link, name: this.props.name,
+      noLink: this.props.noLink,
+      meta: this.props.account.meta, address: this.props.account.address
+    };
+
+    const next = {
+      link: nextProps.link, name: nextProps.name,
+      noLink: nextProps.noLink,
+      meta: nextProps.account.meta, address: nextProps.account.address
+    };
+
+    if (!isEqual(next, prev)) {
+      return true;
+    }
+
+    const prevTokens = this.props.balance.tokens || [];
+    const nextTokens = nextProps.balance.tokens || [];
+
+    if (prevTokens.length !== nextTokens.length) {
+      return true;
+    }
+
+    const prevValues = prevTokens.map((t) => t.value.toNumber());
+    const nextValues = nextTokens.map((t) => t.value.toNumber());
+
+    if (!isEqual(prevValues, nextValues)) {
+      return true;
+    }
+
+    return false;
+  }
+
   render () {
-    const { account, children, handleAddSearchToken } = this.props;
+    const { account, handleAddSearchToken } = this.props;
     const { tags } = account.meta;
 
     if (!account) {
@@ -71,7 +105,6 @@ export default class Summary extends Component {
           byline={ addressComponent } />
 
         { this.renderBalance() }
-        { children }
       </Container>
     );
   }

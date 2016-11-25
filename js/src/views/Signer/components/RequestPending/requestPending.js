@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import TransactionPending from '../TransactionPending';
 import SignRequest from '../SignRequest';
 
-export default class RequestPendingWeb3 extends Component {
+export default class RequestPending extends Component {
   static propTypes = {
     id: PropTypes.object.isRequired,
     onConfirm: PropTypes.func.isRequired,
@@ -30,7 +30,9 @@ export default class RequestPendingWeb3 extends Component {
       PropTypes.shape({ transaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
     ]).isRequired,
-    className: PropTypes.string
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired
   };
 
   onConfirm = data => {
@@ -41,10 +43,11 @@ export default class RequestPendingWeb3 extends Component {
   };
 
   render () {
-    const { payload, id, className, isSending, date, onReject } = this.props;
+    const { payload, id, className, isSending, date, onReject, isTest, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
+
       return (
         <SignRequest
           className={ className }
@@ -55,12 +58,15 @@ export default class RequestPendingWeb3 extends Component {
           id={ id }
           address={ sign.address }
           hash={ sign.hash }
+          isTest={ isTest }
+          store={ store }
           />
       );
     }
 
     if (payload.transaction) {
       const { transaction } = payload;
+
       return (
         <TransactionPending
           className={ className }
@@ -75,6 +81,8 @@ export default class RequestPendingWeb3 extends Component {
           to={ transaction.to }
           value={ transaction.value }
           date={ date }
+          isTest={ isTest }
+          store={ store }
           />
       );
     }

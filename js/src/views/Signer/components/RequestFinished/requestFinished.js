@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import TransactionFinished from '../TransactionFinished';
 import SignRequest from '../SignRequest';
 
-export default class RequestFinishedWeb3 extends Component {
+export default class RequestFinished extends Component {
   static propTypes = {
     id: PropTypes.object.isRequired,
     result: PropTypes.any.isRequired,
@@ -31,14 +31,17 @@ export default class RequestFinishedWeb3 extends Component {
     msg: PropTypes.string,
     status: PropTypes.string,
     error: PropTypes.string,
-    className: PropTypes.string
+    className: PropTypes.string,
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired
   }
 
   render () {
-    const { payload, id, result, msg, status, error, date, className } = this.props;
+    const { payload, id, result, msg, status, error, date, className, isTest, store } = this.props;
 
     if (payload.sign) {
       const { sign } = payload;
+
       return (
         <SignRequest
           className={ className }
@@ -49,12 +52,15 @@ export default class RequestFinishedWeb3 extends Component {
           msg={ msg }
           status={ status }
           error={ error }
+          isTest={ isTest }
+          store={ store }
           />
       );
     }
 
     if (payload.transaction) {
       const { transaction } = payload;
+
       return (
         <TransactionFinished
           className={ className }
@@ -69,6 +75,8 @@ export default class RequestFinishedWeb3 extends Component {
           date={ date }
           status={ status }
           error={ error }
+          isTest={ isTest }
+          store={ store }
         />
       );
     }

@@ -14,5 +14,5 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export RequestFinishedWeb3 from './RequestFinishedWeb3';
-export RequestPendingWeb3 from './RequestPendingWeb3';
+export RequestFinished from './RequestFinished';
+export RequestPending from './RequestPending';

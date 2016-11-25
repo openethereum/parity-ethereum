@@ -250,6 +250,7 @@ impl Configuration {
 				custom_bootnodes: self.args.flag_bootnodes.is_some(),
 				no_periodic_snapshot: self.args.flag_no_periodic_snapshot,
 				check_seal: !self.args.flag_no_seal_check,
+				download_old_blocks: !self.args.flag_no_ancient_blocks,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -313,7 +314,7 @@ impl Configuration {
 
 	fn chain(&self) -> String {
 		if self.args.flag_testnet {
-			"morden".to_owned()
+			"ropsten".to_owned()
 		} else {
 			self.args.flag_chain.clone()
 		}
@@ -871,6 +872,7 @@ mod tests {
 			fat_db: Default::default(),
 			no_periodic_snapshot: false,
 			check_seal: true,
+			download_old_blocks: true,
 		}));
 	}
 
@@ -905,7 +907,7 @@ mod tests {
 		// then
 		assert_eq!(conf.network_settings(), NetworkSettings {
 			name: "testname".to_owned(),
-			chain: "morden".to_owned(),
+			chain: "ropsten".to_owned(),
 			network_port: 30303,
 			rpc_enabled: true,
 			rpc_interface: "local".to_owned(),

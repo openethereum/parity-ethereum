@@ -74,7 +74,7 @@ class TransactionPendingFormConfirm extends Component {
             data-effect='solid'
           >
             <RaisedButton
-              onClick={ this.onConfirm }
+              onTouchTap={ this.onConfirm }
               className={ styles.confirmButton }
               fullWidth
               primary

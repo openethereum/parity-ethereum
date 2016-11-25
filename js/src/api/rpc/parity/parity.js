@@ -123,6 +123,11 @@ export default class Parity {
       .then((accounts) => (accounts || []).map(outAddress));
   }
 
+  killAccount (account, password) {
+    return this._transport
+      .execute('parity_killAccount', inAddress(account), password);
+  }
+
   listGethAccounts () {
     return this._transport
       .execute('parity_listGethAccounts')

@@ -352,6 +352,8 @@ pub struct ChainSync {
 	sync_start_time: Option<u64>,
 	/// Transactions propagation statistics
 	transactions_stats: TransactionsStats,
+	/// Enable ancient block downloading
+	download_old_blocks: bool,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -372,6 +374,7 @@ impl ChainSync {
 			last_sent_block_number: 0,
 			network_id: config.network_id,
 			fork_block: config.fork_block,
+			download_old_blocks: config.download_old_blocks,
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
@@ -539,17 +542,18 @@ impl ChainSync {
 		// Do not assume that the block queue/chain still has our last_imported_block
 		let chain = chain.chain_info();
 		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
-		if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
+		self.old_blocks = None;
+		if self.download_old_blocks {
+			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
-			trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-			let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number);
-			if let Some(hash) = chain.first_block_hash {
-				trace!(target: "sync", "Downloader target set to {:?}", hash);
-				downloader.set_target(&hash);
+				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
+				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number);
+				if let Some(hash) = chain.first_block_hash {
+					trace!(target: "sync", "Downloader target set to {:?}", hash);
+					downloader.set_target(&hash);
+				}
+				self.old_blocks = Some(downloader);
 			}
-			self.old_blocks = Some(downloader);
-		} else {
-			self.old_blocks = None;
 		}
 	}
 

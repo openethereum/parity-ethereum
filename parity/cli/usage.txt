@@ -32,7 +32,7 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic, expanse,
+                           homestead, mainnet, morden, ropsten, classic, expanse,
                            testnet or dev (default: {flag_chain}).
   -d --db-path PATH        Specify the database & configuration directory path
                            (default: {flag_db_path}).
@@ -95,6 +95,8 @@ Networking Options:
                            all - connect to any IP address.
                            (default: {flag_allow_ips})
   --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
+  --no-ancient-blocks      Disable downloading old blocks after snapshot restoration
+                           or warp sync. (default: {flag_no_ancient_blocks})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})

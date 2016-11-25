@@ -91,6 +91,7 @@ pub struct RunCmd {
 	pub custom_bootnodes: bool,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
+	pub download_old_blocks: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -202,6 +203,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	}
 	sync_config.fork_block = spec.fork_block();
 	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.download_old_blocks = cmd.download_old_blocks;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
