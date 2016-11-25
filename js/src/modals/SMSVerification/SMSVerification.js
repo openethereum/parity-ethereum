@@ -137,7 +137,7 @@ export default class SMSVerification extends Component {
       step,
       fee, number, isNumberValid, isVerified, hasRequested,
       requestTx, isCodeValid, confirmationTx,
-      setNumber, setConsentGiven, setCode
+      setCode
     } = this.props.store;
 
     switch (phase) {
