@@ -99,7 +99,7 @@ impl Ord for ConsensusMessage {
 		} else if self.step != m.step {
 			self.step.number().cmp(&m.step.number())
 		} else {
-			self.block_hash.cmp(&m.block_hash)
+			self.signature.cmp(&m.signature)
 		}
 	}
 }
