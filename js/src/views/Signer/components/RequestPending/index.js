@@ -14,30 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { isAddress as isAddressValid, toChecksumAddress } from '../../abi/util/address';
-import { decodeCallData, decodeMethodInput, methodToAbi } from './decode';
-import { bytesToHex, hex2Ascii, asciiToHex } from './format';
-import { fromWei, toWei } from './wei';
-import { sha3 } from './sha3';
-import { isArray, isFunction, isHex, isInstanceOf, isString } from './types';
-import { createIdentityImg } from './identity';
-
-export default {
-  isAddressValid,
-  isArray,
-  isFunction,
-  isHex,
-  isInstanceOf,
-  isString,
-  bytesToHex,
-  hex2Ascii,
-  asciiToHex,
-  createIdentityImg,
-  decodeCallData,
-  decodeMethodInput,
-  methodToAbi,
-  fromWei,
-  toChecksumAddress,
-  toWei,
-  sha3
-};
+export default from './requestPending';

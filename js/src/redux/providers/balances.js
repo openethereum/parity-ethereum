@@ -14,9 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { throttle } from 'lodash';
+
 import { getBalances, getTokens } from './balancesActions';
 import { setAddressImage } from './imagesActions';
 
+import Contracts from '../../contracts';
 import * as abis from '../../contracts/abi';
 
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
@@ -31,13 +34,32 @@ export default class Balances {
   constructor (store, api) {
     this._api = api;
     this._store = store;
+
+    this._tokens = {};
+    this._images = {};
+
     this._accountsInfo = null;
-    this._tokens = [];
+    this._tokenreg = null;
+    this._fetchingBalances = false;
+    this._fetchingTokens = false;
+    this._fetchedTokens = false;
+
+    this._tokenregSubId = null;
+    this._tokenregMetaSubId = null;
+
+    // Throttled `retrieveTokens` function
+    // that gets called max once every 20s
+    this._throttledRetrieveTokens = throttle(
+      this._retrieveTokens,
+      20 * 1000,
+      { trailing: true }
+    );
   }
 
   start () {
     this._subscribeBlockNumber();
     this._subscribeAccountsInfo();
+    this._retrieveTokens();
   }
 
   _subscribeAccountsInfo () {
@@ -48,10 +70,7 @@ export default class Balances {
         }
 
         this._accountsInfo = accountsInfo;
-        this._retrieveBalances();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeAccountsInfo', 'subscriptionId', subscriptionId);
+        this._retrieveTokens();
       })
       .catch((error) => {
         console.warn('_subscribeAccountsInfo', error);
@@ -62,139 +81,269 @@ export default class Balances {
     this._api
       .subscribe('eth_blockNumber', (error) => {
         if (error) {
-          return;
+          return console.warn('_subscribeBlockNumber', error);
         }
 
+        const { syncing } = this._store.getState().nodeStatus;
+
+        // If syncing, only retrieve balances once every
+        // few seconds
+        if (syncing) {
+          return this._throttledRetrieveTokens();
+        }
+
+        this._throttledRetrieveTokens.cancel();
         this._retrieveTokens();
-      })
-      .then((subscriptionId) => {
-        console.log('_subscribeBlockNumber', 'subscriptionId', subscriptionId);
       })
       .catch((error) => {
         console.warn('_subscribeBlockNumber', error);
       });
   }
 
+  getTokenRegistry () {
+    if (this._tokenreg) {
+      return Promise.resolve(this._tokenreg);
+    }
+
+    return Contracts.get().tokenReg
+      .getContract()
+      .then((tokenreg) => {
+        this._tokenreg = tokenreg;
+        this.attachToTokens();
+
+        return tokenreg;
+      });
+  }
+
   _retrieveTokens () {
-    this._api.parity
-      .registryAddress()
-      .then((registryAddress) => {
-        const registry = this._api.newContract(abis.registry, registryAddress);
+    if (this._fetchingTokens) {
+      return;
+    }
 
-        return registry.instance.getAddress.call({}, [this._api.util.sha3('tokenreg'), 'A']);
-      })
-      .then((tokenregAddress) => {
-        const tokenreg = this._api.newContract(abis.tokenreg, tokenregAddress);
+    if (this._fetchedTokens) {
+      return this._retrieveBalances();
+    }
 
+    this._fetchingTokens = true;
+    this._fetchedTokens = false;
+
+    this
+      .getTokenRegistry()
+      .then((tokenreg) => {
         return tokenreg.instance.tokenCount
           .call()
           .then((numTokens) => {
-            const promisesTokens = [];
-            const promisesImages = [];
+            const promises = [];
 
-            while (promisesTokens.length < numTokens.toNumber()) {
-              const index = promisesTokens.length;
-
-              promisesTokens.push(tokenreg.instance.token.call({}, [index]));
-              promisesImages.push(tokenreg.instance.meta.call({}, [index, 'IMG']));
+            for (let i = 0; i < numTokens.toNumber(); i++) {
+              promises.push(this.fetchTokenInfo(tokenreg, i));
             }
 
-            return Promise.all([
-              Promise.all(promisesTokens),
-              Promise.all(promisesImages)
-            ]);
+            return Promise.all(promises);
           });
       })
-      .then(([_tokens, images]) => {
-        const tokens = {};
-        this._tokens = _tokens
-          .map((_token, index) => {
-            const [address, tag, format, name] = _token;
+      .then(() => {
+        this._fetchingTokens = false;
+        this._fetchedTokens = true;
 
-            const token = {
-              address,
-              name,
-              tag,
-              format: format.toString(),
-              contract: this._api.newContract(abis.eip20, address)
-            };
-            tokens[address] = token;
-            this._store.dispatch(setAddressImage(address, images[index]));
-
-            return token;
-          })
-          .sort((a, b) => {
-            if (a.tag < b.tag) {
-              return -1;
-            } else if (a.tag > b.tag) {
-              return 1;
-            }
-
-            return 0;
-          });
-
-        this._store.dispatch(getTokens(tokens));
+        this._store.dispatch(getTokens(this._tokens));
         this._retrieveBalances();
       })
       .catch((error) => {
-        console.warn('_retrieveTokens', error);
-        this._retrieveBalances();
+        console.warn('balances::_retrieveTokens', error);
       });
   }
 
   _retrieveBalances () {
+    if (this._fetchingBalances) {
+      return;
+    }
+
     if (!this._accountsInfo) {
       return;
     }
 
-    const addresses = Object.keys(this._accountsInfo);
+    this._fetchingBalances = true;
+
+    const addresses = Object
+      .keys(this._accountsInfo)
+      .filter((address) => {
+        const account = this._accountsInfo[address];
+        return !account.meta || !account.meta.deleted;
+      });
+
     this._balances = {};
 
     Promise
-      .all(
-        addresses.map((address) => Promise.all([
-          this._api.eth.getBalance(address),
-          this._api.eth.getTransactionCount(address)
-        ]))
-      )
-      .then((balanceTxCount) => {
-        return Promise.all(
-          balanceTxCount.map(([value, txCount], idx) => {
-            const address = addresses[idx];
-
-            this._balances[address] = {
-              txCount,
-              tokens: [{
-                token: ETH,
-                value
-              }]
-            };
-
-            return Promise.all(
-              this._tokens.map((token) => {
-                return token.contract.instance.balanceOf.call({}, [address]);
-              })
-            );
-          })
-        );
-      })
-      .then((tokenBalances) => {
-        addresses.forEach((address, idx) => {
-          const balanceOf = tokenBalances[idx];
-          const balance = this._balances[address];
-
-          this._tokens.forEach((token, tidx) => {
-            balance.tokens.push({
-              token,
-              value: balanceOf[tidx]
-            });
-          });
+      .all(addresses.map((a) => this.fetchAccountBalance(a)))
+      .then((balances) => {
+        addresses.forEach((a, idx) => {
+          this._balances[a] = balances[idx];
         });
 
         this._store.dispatch(getBalances(this._balances));
+        this._fetchingBalances = false;
       })
       .catch((error) => {
         console.warn('_retrieveBalances', error);
+        this._fetchingBalances = false;
+      });
+  }
+
+  attachToTokens () {
+    this.attachToTokenMetaChange();
+    this.attachToNewToken();
+  }
+
+  attachToNewToken () {
+    if (this._tokenregSubId) {
+      return;
+    }
+
+    this._tokenreg
+      .instance
+      .Registered
+      .subscribe({
+        fromBlock: 0,
+        toBlock: 'latest',
+        skipInitFetch: true
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToNewToken', 'failed to attach to tokenreg Registered', error.toString(), error.stack);
+        }
+
+        const promises = logs.map((log) => {
+          const id = log.params.id.value.toNumber();
+          return this.fetchTokenInfo(this._tokenreg, id);
+        });
+
+        return Promise.all(promises);
+      })
+      .then((tokenregSubId) => {
+        this._tokenregSubId = tokenregSubId;
+      })
+      .catch((e) => {
+        console.warn('balances::attachToNewToken', e);
+      });
+  }
+
+  attachToTokenMetaChange () {
+    if (this._tokenregMetaSubId) {
+      return;
+    }
+
+    this._tokenreg
+      .instance
+      .MetaChanged
+      .subscribe({
+        fromBlock: 0,
+        toBlock: 'latest',
+        topics: [ null, this._api.util.asciiToHex('IMG') ],
+        skipInitFetch: true
+      }, (error, logs) => {
+        if (error) {
+          return console.error('balances::attachToTokenMetaChange', 'failed to attach to tokenreg MetaChanged', error.toString(), error.stack);
+        }
+
+        // In case multiple logs for same token
+        // in one block. Take the last value.
+        const tokens = logs
+          .filter((log) => log.type === 'mined')
+          .reduce((_tokens, log) => {
+            const id = log.params.id.value.toNumber();
+            const image = log.params.value.value;
+
+            const token = Object.values(this._tokens).find((c) => c.id === id);
+            const { address } = token;
+
+            _tokens[address] = { address, id, image };
+            return _tokens;
+          }, {});
+
+        Object
+          .values(tokens)
+          .forEach((token) => {
+            const { address, image } = token;
+
+            if (this._images[address] !== image.toString()) {
+              this._store.dispatch(setAddressImage(address, image));
+              this._images[address] = image.toString();
+            }
+          });
+      })
+      .then((tokenregMetaSubId) => {
+        this._tokenregMetaSubId = tokenregMetaSubId;
+      })
+      .catch((e) => {
+        console.warn('balances::attachToTokenMetaChange', e);
+      });
+  }
+
+  fetchTokenInfo (tokenreg, tokenId) {
+    return Promise
+      .all([
+        tokenreg.instance.token.call({}, [tokenId]),
+        tokenreg.instance.meta.call({}, [tokenId, 'IMG'])
+      ])
+      .then(([ tokenData, image ]) => {
+        const [ address, tag, format, name ] = tokenData;
+        const contract = this._api.newContract(abis.eip20, address);
+
+        if (this._images[address] !== image.toString()) {
+          this._store.dispatch(setAddressImage(address, image));
+          this._images[address] = image.toString();
+        }
+
+        const token = {
+          format: format.toString(),
+          id: tokenId,
+
+          address,
+          tag,
+          name,
+          contract
+        };
+
+        this._tokens[address] = token;
+
+        return token;
+      })
+      .catch((e) => {
+        console.warn('balances::fetchTokenInfo', `couldn't fetch token #${tokenId}`, e);
+      });
+  }
+
+  /**
+   * TODO?: txCount is only shown on an address page, so we
+   * might not need to fetch it for each address for each block,
+   * but only for one address when the user is on the account
+   * view.
+   */
+  fetchAccountBalance (address) {
+    const _tokens = Object.values(this._tokens);
+    const tokensPromises = _tokens
+      .map((token) => {
+        return token.contract.instance.balanceOf.call({}, [ address ]);
+      });
+
+    return Promise
+      .all([
+        this._api.eth.getTransactionCount(address),
+        this._api.eth.getBalance(address)
+      ].concat(tokensPromises))
+      .then(([ txCount, ethBalance, ...tokensBalance ]) => {
+        const tokens = []
+          .concat(
+            { token: ETH, value: ethBalance },
+            _tokens
+              .map((token, index) => ({
+                token,
+                value: tokensBalance[index]
+              }))
+          );
+
+        const balance = { txCount, tokens };
+        return balance;
       });
   }
 }

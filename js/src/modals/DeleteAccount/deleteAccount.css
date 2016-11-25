@@ -15,45 +15,40 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.container {
-  padding: 25px 0 15px;
-}
+.body {
+  .hero {
+    padding-bottom: 1em;
+  }
 
-.mainContainer {
-  position: relative;
-}
+  .info {
+    display: inline-block;
+  }
 
-.mainContainer > * {
-  vertical-align: middle;
-  min-height: 120px;
-}
+  .icon {
+    display: inline-block;
+  }
 
-.statusContainer {
-  width: 220px;
-  padding: 0 40px 0 40px;
-  /*border-left: 1px solid #aaa;*/
-  position: absolute;
-  top: 0;
-  right: 0;
-  box-sizing: content-box;
-}
+  .nameinfo {
+    display: inline-block;
+    text-align: left;
+  }
 
-.transactionDetails {
-  padding-right: 321px;
-  width: 100%;
-  box-sizing: border-box;
-}
+  .header {
+    text-transform: uppercase;
+    font-size: 1.25em;
+    padding-bottom: 0.25em;
+  }
 
-.isConfirmed {
-  color: green;
-}
+  .address {
+  }
 
-.isRejected {
-  opacity: 0.5;
-  padding-top: 2em;
-}
+  .description {
+    padding-top: 1em;
+    font-size: 0.75em;
+    color: #aaa;
+  }
 
-.txHash {
-  display: block;
-  word-break: break-all;
+  .password {
+    padding: 1em 5em;
+  }
 }

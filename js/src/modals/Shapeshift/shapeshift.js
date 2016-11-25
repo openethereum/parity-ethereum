@@ -63,6 +63,16 @@ export default class Shapeshift extends Component {
     this.retrieveCoins();
   }
 
+  componentWillUnmount () {
+    this.unsubscribe();
+  }
+
+  unsubscribe () {
+    // Unsubscribe from Shapeshit
+    const { depositAddress } = this.state;
+    shapeshift.unsubscribe(depositAddress);
+  }
+
   render () {
     const { error, stage } = this.state;
 
@@ -204,6 +214,10 @@ export default class Shapeshift extends Component {
       .then((result) => {
         console.log('onShift', result);
         const depositAddress = result.deposit;
+
+        if (this.state.depositAddress) {
+          this.unsubscribe();
+        }
 
         shapeshift.subscribe(depositAddress, this.onExchangeInfo);
         this.setState({ depositAddress });
