@@ -242,6 +242,7 @@ export default class Status {
     Promise
       .all([
         this._api.web3.clientVersion(),
+        this._api.net.version(),
         this._api.parity.defaultExtraData(),
         this._api.parity.netChain(),
         this._api.parity.netPort(),
@@ -249,9 +250,11 @@ export default class Status {
         newConnection ? Promise.resolve(null) : this._api.parity.enode()
       ])
       .then(([
-        clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+        clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
       ]) => {
-        const isTest = netChain === 'morden' || netChain === 'ropsten' || netChain === 'testnet';
+        const isTest =
+          netVersion === '2' || // morden
+          netVersion === '3'; // ropsten
 
         const longStatus = {
           clientVersion,
