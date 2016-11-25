@@ -32,7 +32,7 @@ use nanoipc;
 use client::BlockChainClient;
 
 /// Message type for external and internal events
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum ClientIoMessage {
 	/// Best Block Hash in chain has been changed
 	NewChainHead,
