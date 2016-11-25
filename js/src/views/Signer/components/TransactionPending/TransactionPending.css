@@ -23,6 +23,5 @@
 
   & > * {
     vertical-align: middle;
-    min-height: $pendingHeight;
   }
 }

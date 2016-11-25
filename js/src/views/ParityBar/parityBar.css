@@ -43,7 +43,7 @@
 
 .expanded {
   right: 16px;
-  height: 300px;
+  max-height: 300px;
   border-radius: 4px 4px 0 0;
   overflow-y: auto;
   display: flex;
