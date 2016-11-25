@@ -20,10 +20,12 @@ import { MenuItem } from 'material-ui';
 import Select from '../Form/Select';
 import Translate from '../Translate';
 import { getLocale, setLocale } from '../../i18n';
+import languages from '../../i18n/languages';
 
-const LOCALES = [
-  'en', 'de'
-];
+const isProduction = process.env.NODE_ENV === 'production';
+
+const PRODUCTION_LOCALES = ['en'];
+const LOCALES = isProduction ? PRODUCTION_LOCALES : Object.keys(languages);
 
 export default class LanguageSelector extends Component {
   state = {
@@ -34,6 +36,10 @@ export default class LanguageSelector extends Component {
     const { locale } = this.state;
     const hint = <Translate value='settings.parity.languages.hint' />;
     const label = <Translate value='settings.parity.languages.label' />;
+
+    if (isProduction) {
+      return null;
+    }
 
     return (
       <Select

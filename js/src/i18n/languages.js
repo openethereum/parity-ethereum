@@ -15,8 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default {
-  af: 'Afrikaans',
   de: 'Deutsch',
-  en: 'English',
-  fr: 'Français'
+  en: 'English'
 };
