@@ -122,6 +122,7 @@ export default class Ws extends JsonRpcBase {
     this._connected = false;
     this._connecting = false;
 
+    event.timestamp = Date.now();
     this._lastError = event;
 
     if (this._autoConnect) {
@@ -149,6 +150,8 @@ export default class Ws extends JsonRpcBase {
     window.setTimeout(() => {
       if (this._connected) {
         console.error('ws:onError', event);
+
+        event.timestamp = Date.now();
         this._lastError = event;
       }
     }, 50);
