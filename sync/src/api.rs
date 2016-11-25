@@ -180,7 +180,7 @@ impl SyncProvider for EthSync {
 	}
 
 	fn transactions_stats(&self) -> BTreeMap<H256, TransactionStats> {
-		let sync = self.handler.sync.read();
+		let sync = self.eth_handler.sync.read();
 		sync.transactions_stats()
 			.iter()
 			.map(|(hash, stats)| (*hash, stats.into()))
