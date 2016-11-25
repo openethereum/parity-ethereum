@@ -96,7 +96,7 @@ export default class TypedInput extends Component {
         <IconButton
           iconStyle={ iconStyle }
           style={ style }
-          onClick={ this.onAddField }
+          onTouchTap={ this.onAddField }
         >
           <AddIcon />
         </IconButton>
@@ -104,7 +104,7 @@ export default class TypedInput extends Component {
         <IconButton
           iconStyle={ iconStyle }
           style={ style }
-          onClick={ this.onRemoveField }
+          onTouchTap={ this.onRemoveField }
         >
           <RemoveIcon />
         </IconButton>

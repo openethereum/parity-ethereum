@@ -32,8 +32,13 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    const poll = () => this.fetchTransactionData().then(poll).catch(poll);
-    this._timeout = setTimeout(poll, 2000);
+    const poll = () => {
+      this._timeout = window.setTimeout(() => {
+        this.fetchTransactionData().then(poll).catch(poll);
+      }, 1000);
+    };
+
+    poll();
   }
 
   componentWillUnmount () {

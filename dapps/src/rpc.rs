@@ -105,7 +105,7 @@ impl RpcHandler for RpcMiddleware {
 	type Metadata = Meta;
 
 	fn read_metadata(&self, request: &hyper::server::Request<hyper::net::HttpStream>) -> Option<Self::Metadata> {
-		let meta = request.headers().get::<hyper::header::Referer>()
+		request.headers().get::<hyper::header::Referer>()
 			.and_then(|referer| hyper::Url::parse(referer).ok())
 			.and_then(|url| {
 				url.path_segments()
@@ -113,9 +113,7 @@ impl RpcHandler for RpcMiddleware {
 					.map(|app_id| Meta {
 						app_id: app_id.to_owned(),
 					})
-			});
-		println!("{:?}, {:?}", meta, request.headers());
-		meta
+			})
 	}
 
 	fn handle_request<H>(&self, request_str: &str, response_handler: H, meta: Option<Self::Metadata>) where

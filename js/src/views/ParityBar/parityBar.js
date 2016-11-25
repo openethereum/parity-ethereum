@@ -28,6 +28,10 @@ import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text
 import styles from './parityBar.css';
 
 class ParityBar extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     pending: PropTypes.array,
     dapp: PropTypes.bool
@@ -62,6 +66,7 @@ class ParityBar extends Component {
 
   renderBar () {
     const { dapp } = this.props;
+    const { muiTheme } = this.context;
 
     if (!dapp) {
       return null;
@@ -75,7 +80,7 @@ class ParityBar extends Component {
 
     return (
       <div className={ styles.bar }>
-        <ParityBackground className={ styles.corner }>
+        <ParityBackground className={ styles.corner } muiTheme={ muiTheme }>
           <div className={ styles.cornercolor }>
             <Link to='/apps'>
               <Button
@@ -95,9 +100,11 @@ class ParityBar extends Component {
   }
 
   renderExpanded () {
+    const { muiTheme } = this.context;
+
     return (
       <div className={ styles.overlay }>
-        <ParityBackground className={ styles.expanded }>
+        <ParityBackground className={ styles.expanded } muiTheme={ muiTheme }>
           <div className={ styles.header }>
             <div className={ styles.title }>
               <ContainerTitle title='Parity Signer: Pending' />

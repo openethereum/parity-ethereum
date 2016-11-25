@@ -19,14 +19,19 @@ import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
 
+import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, ContainerTitle } from '../../../../ui';
 
-import { RequestPendingWeb3, RequestFinishedWeb3 } from '../../components';
+import { RequestPending, RequestFinished } from '../../components';
 
 import styles from './RequestsPage.css';
 
 class RequestsPage extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
@@ -35,8 +40,11 @@ class RequestsPage extends Component {
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
-    }).isRequired
+    }).isRequired,
+    isTest: PropTypes.bool.isRequired
   };
+
+  store = new Store(this.context.api);
 
   render () {
     const { pending, finished } = this.props.signer;
@@ -96,11 +104,11 @@ class RequestsPage extends Component {
   }
 
   renderPending = (data) => {
-    const { actions } = this.props;
+    const { actions, isTest } = this.props;
     const { payload, id, isSending, date } = data;
 
     return (
-      <RequestPendingWeb3
+      <RequestPending
         className={ styles.request }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
@@ -109,15 +117,18 @@ class RequestsPage extends Component {
         id={ id }
         payload={ payload }
         date={ date }
+        isTest={ isTest }
+        store={ this.store }
       />
     );
   }
 
   renderFinished = (data) => {
+    const { isTest } = this.props;
     const { payload, id, result, msg, status, error, date } = data;
 
     return (
-      <RequestFinishedWeb3
+      <RequestFinished
         className={ styles.request }
         result={ result }
         key={ id }
@@ -127,6 +138,8 @@ class RequestsPage extends Component {
         error={ error }
         payload={ payload }
         date={ date }
+        isTest={ isTest }
+        store={ this.store }
         />
     );
   }
@@ -143,7 +156,14 @@ class RequestsPage extends Component {
 }
 
 function mapStateToProps (state) {
-  return state;
+  const { isTest } = state.nodeStatus;
+  const { actions, signer } = state;
+
+  return {
+    actions,
+    signer,
+    isTest
+  };
 }
 
 function mapDispatchToProps (dispatch) {

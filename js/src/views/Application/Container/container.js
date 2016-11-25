@@ -22,6 +22,10 @@ import { Errors, ParityBackground, Tooltips } from '../../../ui';
 import styles from '../application.css';
 
 export default class Container extends Component {
+  static contextTypes = {
+    muiTheme: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     children: PropTypes.node.isRequired,
     showFirstRun: PropTypes.bool,
@@ -30,9 +34,10 @@ export default class Container extends Component {
 
   render () {
     const { children, showFirstRun, onCloseFirstRun } = this.props;
+    const { muiTheme } = this.context;
 
     return (
-      <ParityBackground className={ styles.container }>
+      <ParityBackground className={ styles.container } muiTheme={ muiTheme }>
         <FirstRun
           visible={ showFirstRun }
           onClose={ onCloseFirstRun } />

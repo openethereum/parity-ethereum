@@ -77,7 +77,7 @@ export default class Lookup extends Component {
             label='Lookup'
             primary
             icon={ <SearchIcon /> }
-            onClick={ this.onLookupClick }
+            onTouchTap={ this.onLookupClick }
           />
         </div>
         <CardText>{ output }</CardText>

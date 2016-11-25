@@ -37,7 +37,7 @@ export default class TransactionPendingFormReject extends Component {
           <strong>This cannot be undone</strong>
         </div>
         <RaisedButton
-          onClick={ onReject }
+          onTouchTap={ onReject }
           className={ styles.rejectButton }
           fullWidth
           label={ 'Reject Transaction' }

@@ -104,7 +104,7 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 		let account: Address = account.into();
 
 		take_weak!(self.accounts)
-			.test_password(&account, password)
+			.test_password(&account, &password)
 			.map_err(|e| errors::account("Could not fetch account info.", e))
 	}
 
@@ -115,6 +115,15 @@ impl<C: 'static> ParityAccounts for ParityAccountsClient<C> where C: MiningBlock
 			.change_password(&account, password, new_password)
 			.map(|_| true)
 			.map_err(|e| errors::account("Could not fetch account info.", e))
+	}
+
+	fn kill_account(&self, account: RpcH160, password: String) -> Result<bool, Error> {
+		try!(self.active());
+		let account: Address = account.into();
+		take_weak!(self.accounts)
+			.kill_account(&account, &password)
+			.map(|_| true)
+			.map_err(|e| errors::account("Could not delete account.", e))
 	}
 
 	fn set_account_name(&self, addr: RpcH160, name: String) -> Result<bool, Error> {

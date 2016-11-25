@@ -53,6 +53,11 @@ build_rpc_trait! {
 		#[rpc(name = "parity_changePassword")]
 		fn change_password(&self, H160, String, String) -> Result<bool, Error>;
 
+		/// Permanently deletes an account.
+		/// Arguments: `account`, `password`.
+		#[rpc(name = "parity_killAccount")]
+		fn kill_account(&self, H160, String) -> Result<bool, Error>;
+
 		/// Set an account's name.
 		#[rpc(name = "parity_setAccountName")]
 		fn set_account_name(&self, H160, String) -> Result<bool, Error>;

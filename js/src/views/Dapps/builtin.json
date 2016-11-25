@@ -52,6 +52,7 @@
     "description": "Have a peak on internals of transaction queue of your node.",
     "author": "Parity Team <admin@ethcore.io>",
     "version": "1.0.0",
+    "visible": true,
     "secure": true
   }
 ]
