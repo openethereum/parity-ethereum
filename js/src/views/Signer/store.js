@@ -14,13 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import BigNumber from 'bignumber.js';
+import { isEqual } from 'lodash';
 import { action, observable } from 'mobx';
 
 export default class Store {
   @observable balances = {};
+  @observable localTransactions = [];
 
-  constructor (api) {
+  constructor (api, withLocalTransactions = false) {
     this._api = api;
+
+    if (withLocalTransactions) {
+      this.fetchLocalTransactions();
+    }
   }
 
   @action setBalance = (address, balance) => {
@@ -29,6 +36,12 @@ export default class Store {
 
   @action setBalances = (balances) => {
     this.balances = Object.assign({}, this.balances, balances);
+  }
+
+  @action setLocalTransactions = (localTransactions) => {
+    if (!isEqual(localTransactions, this.localTransactions)) {
+      this.localTransactions = localTransactions;
+    }
   }
 
   fetchBalance (address) {
@@ -62,5 +75,54 @@ export default class Store {
       .catch((error) => {
         console.warn('Store:fetchBalances', error);
       });
+  }
+
+  fetchLocalTransactions = () => {
+    const nextTimeout = () => {
+      setTimeout(this.fetchLocalTransactions, 1500);
+    };
+
+    Promise
+      .all([
+        this._api.parity.pendingTransactions(),
+        this._api.parity.pendingTransactionsStats(),
+        this._api.parity.localTransactions()
+      ])
+      .then(([pending, stats, local]) => {
+        pending
+          .filter((transaction) => local[transaction.hash])
+          .forEach((transaction) => {
+            local[transaction.hash].transaction = transaction;
+            local[transaction.hash].stats = stats[transaction.hash].stats;
+          });
+
+        const localTransactions = Object
+          .keys(local)
+          .map((hash) => {
+            const data = local[hash];
+
+            data.txHash = hash;
+            return data;
+          });
+
+        localTransactions.sort((a, b) => {
+          a = a.transaction || {};
+          b = b.transaction || {};
+
+          if (a.from && b.from && a.from !== b.from) {
+            return a.from < b.from;
+          }
+
+          if (!a.nonce || !b.nonce) {
+            return !a.nonce ? 1 : -1;
+          }
+
+          return new BigNumber(a.nonce || 0).cmp(new BigNumber(b.nonce || 0));
+        });
+
+        this.setLocalTransactions(localTransactions);
+      })
+      .then(nextTimeout)
+      .catch(nextTimeout);
   }
 }

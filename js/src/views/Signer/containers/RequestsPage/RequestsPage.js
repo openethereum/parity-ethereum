@@ -44,7 +44,7 @@ class RequestsPage extends Component {
     isTest: PropTypes.bool.isRequired
   };
 
-  store = new Store(this.context.api);
+  store = new Store(this.context.api, true);
 
   render () {
     const { pending, finished } = this.props.signer;
