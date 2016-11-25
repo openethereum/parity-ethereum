@@ -21,6 +21,7 @@ import { bindActionCreators } from 'redux';
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
 
+import Snackbar from './Snackbar';
 import Container from './Container';
 import DappContainer from './DappContainer';
 import FrameError from './FrameError';
@@ -87,6 +88,7 @@ class Application extends Component {
           pending={ pending } />
         { children }
         { blockNumber ? (<Status />) : null }
+        <Snackbar />
       </Container>
     );
   }
