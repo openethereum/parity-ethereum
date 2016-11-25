@@ -90,7 +90,7 @@ export default class RecoveryPhrase extends Component {
           </div>
           <Checkbox
             className={ styles.checkbox }
-            label='Key was created with Parity <1.4.4 on Windows'
+            label='Key was created with Parity <1.4.5 on Windows'
             checked={ windowsPhrase }
             onCheck={ this.onToggleWindowsPhrase } />
         </div>
