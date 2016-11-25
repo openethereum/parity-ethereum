@@ -91,7 +91,7 @@ impl Into<u8> for ReleaseTrack {
 }
 
 /// Version information of a particular release. 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct VersionInfo {
 	/// The track on which it was released.
 	pub track: ReleaseTrack,

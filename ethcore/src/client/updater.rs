@@ -20,12 +20,20 @@ use util::{Address, H160, H256, FixedHash};
 use client::operations::Operations;
 use client::{Client, UpdatePolicy, BlockId};
 
+#[derive(Debug, Clone, PartialEq)]
 pub struct ReleaseInfo {
-	pub latest_known_fork: usize,
+	pub version: VersionInfo,
+	pub is_critical: bool,
+	pub fork: u64,
+	pub binary: Option<H256>,
+}
 
-	pub latest: VersionInfo,
-	pub latest_fork: usize,
-	pub latest_binary: Option<H256>,
+#[derive(Debug, Clone, PartialEq)]
+pub struct OperationsInfo {
+	pub fork: u64,
+
+	pub track: ReleaseInfo,
+	pub minor: Option<ReleaseInfo>,
 }
 
 pub struct Updater {
@@ -33,10 +41,15 @@ pub struct Updater {
 	operations: Operations,
 	update_policy: UpdatePolicy,
 
+	// These don't change
 	pub this: VersionInfo,
-	pub this_fork: Option<usize>,
-	pub release_info: Option<ReleaseInfo>,
+	pub this_fork: Option<u64>,
+
+	// This does change
+	pub latest: Option<OperationsInfo>,
 }
+
+const CLIENT_ID: &'static str = "parity";
 
 impl Updater {
 	pub fn new(client: Weak<Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
@@ -46,18 +59,18 @@ impl Updater {
 			update_policy: update_policy,
 			this: VersionInfo::this(),
 			this_fork: None,
-			release_info: None,
+			latest: None,
 		};
 
-		let (fork, track, _, _) = self.operations.release(client_id, &v.hash.into())?;
-		u.this_fork = if track > 0 { Some(fork) } else { None };
-
-		u.release_info = u.get_release_info().ok();
+		u.this_fork = u.operations.release(CLIENT_ID, &u.this.hash.into()).ok()
+			.and_then(|(fork, track, _, _)| if track > 0 {Some(fork as u64)} else {None});
 
 		// TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! REMOVE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 		if u.this.track == ReleaseTrack::Unknown {
 			u.this.track = ReleaseTrack::Nightly;
 		}
+
+		u.latest = u.collect_latest().ok();
 
 		u
 	}
@@ -65,10 +78,10 @@ impl Updater {
 	/// Is the currently running client capable of supporting the current chain?
 	/// `Some` answer or `None` if information on the running client is not available.  
 	pub fn is_capable(&self) -> Option<bool> {
-		self.release_info.and_then(|relinfo| {
-			relinfo.fork_supported.map(|fork_supported| {
+		self.latest.as_ref().and_then(|latest| {
+			self.this_fork.map(|this_fork| {
 				let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-				fork_supported >= relinfo.latest_fork || current_number < relinfo.latest_fork  
+				this_fork >= latest.fork || current_number < latest.fork  
 			})
 		})
 	}
@@ -86,46 +99,65 @@ impl Updater {
 	}
 
 	/// Our version info. 
-	pub fn version_info() -> &VersionInfo { &self.this }
+	pub fn version_info(&self) -> &VersionInfo { &self.this }
 
 	/// Information gathered concerning the release. 
-	pub fn release_info() -> &Option<ReleaseInfo> { &self.release_info }
+	pub fn info(&self) -> &Option<OperationsInfo> { &self.latest }
 
-	fn get_release_info(&mut self) -> Result<ReleaseInfo, String> {
+	fn collect_release_info(&self, release_id: &H256) -> Result<ReleaseInfo, String> {
+		let (fork, track, semver, is_critical) = self.operations.release(CLIENT_ID, release_id)?;
+		let latest_binary = self.operations.checksum(CLIENT_ID, release_id, &platform())?;
+		Ok(ReleaseInfo {
+			version: VersionInfo::from_raw(semver, track, release_id.clone().into()),
+			is_critical: is_critical,
+			fork: fork as u64,
+			binary: if latest_binary.is_zero() { None } else { Some(latest_binary) },
+		})
+	}
+
+	fn collect_latest(&self) -> Result<OperationsInfo, String> {
 		if self.this.track == ReleaseTrack::Unknown {
 			return Err(format!("Current executable ({}) is unreleased.", H160::from(self.this.hash)));
 		}
 
-		let client_id = "parity";
+		let latest_in_track = self.operations.latest_in_track(CLIENT_ID, self.this.track.into())?;
+		let in_track = self.collect_release_info(&latest_in_track)?;
+		let mut in_minor = Some(in_track.clone());
+		const PROOF: &'static str = "in_minor initialised and assigned with Some; loop breaks if None assigned; qed";
+		while in_minor.as_ref().expect(PROOF).version.track != self.this.track {
+			let track = match in_minor.as_ref().expect(PROOF).version.track {
+				ReleaseTrack::Beta => ReleaseTrack::Stable,
+				ReleaseTrack::Nightly => ReleaseTrack::Beta,
+				_ => { in_minor = None; break; }
+			};
+			in_minor = Some(self.collect_release_info(&self.operations.latest_in_track(CLIENT_ID, track.into())?)?);
+		}
 
-
-		let latest_release = self.operations.latest_in_track(client_id, self.this.track.into())?;
-		let (fork, track, semver, _critical) = self.operations.release(client_id, &latest_release)?;
-		let maybe_latest_binary = self.operations.checksum(client_id, &latest_release, &platform())?;
-		Ok(ReleaseInfo {
-			fork_supported: our_fork as usize,
-			latest_known_fork: latest_known_fork as usize,
-			latest: VersionInfo::from_raw(semver, track, latest_release.into()),
-			latest_fork: fork as usize,
-			latest_binary: if maybe_latest_binary.is_zero() { None } else { Some(maybe_latest_binary) },
+		Ok(OperationsInfo {
+			fork: self.operations.latest_fork()? as u64,
+			track: in_track,
+			minor: in_minor,
 		})
 	}
 
 	pub fn tick(&mut self) {
-		self.release_info = self.get_release_info().ok();
-		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
 		info!(target: "updater", "Current release is {}", self.this);
-		if let Some(ref relinfo) = self.release_info {
-			info!(target: "updater", "Latest release in our track is {} ({} binary is {})",
-				relinfo.latest,
+
+		self.latest = self.collect_latest().ok();
+		let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
+
+		if let Some(ref latest) = self.latest {
+			info!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
+				latest.track.version,
+				if latest.track.is_critical {""} else {"non-"}, 
 				platform(),
-				if let Some(ref b) = relinfo.latest_binary {
+				if let Some(ref b) = latest.track.binary {
 					format!("{}", b)
 				 } else {
 					 "unreleased".into()
 				 }
 			);
-			info!(target: "updater", "Fork: this/current/latest/latest-known: #{}/#{}/#{}/#{}", relinfo.fork_supported, current_number, relinfo.latest_fork, relinfo.latest_known_fork);
+			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match self.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
 		}
 	}
 }
