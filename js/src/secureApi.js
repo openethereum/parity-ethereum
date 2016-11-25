@@ -77,6 +77,12 @@ export default class SecureApi extends Api {
           return this
             ._checkNodeUp()
             .then((isNodeUp) => {
+              const { timestamp } = lastError;
+
+              if ((Date.now() - timestamp) > 250) {
+                return nextTick();
+              }
+
               const nextToken = this._tokensToTry[0] || 'initial';
               const nextState = nextToken !== 'initial' ? 0 : 1;
 
@@ -89,7 +95,7 @@ export default class SecureApi extends Api {
                 this.updateToken(nextToken, nextState);
               }
 
-              nextTick();
+              return nextTick();
             });
         }
         break;

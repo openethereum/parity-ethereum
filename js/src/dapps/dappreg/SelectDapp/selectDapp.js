@@ -36,6 +36,10 @@ export default class SelectDapp extends Component {
       );
     }
 
+    if (!this.dappsStore.currentApp) {
+      return null;
+    }
+
     let overlayImg = null;
     if (this.dappsStore.currentApp.imageHash) {
       overlayImg = (

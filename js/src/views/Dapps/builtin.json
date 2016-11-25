@@ -54,5 +54,15 @@
     "version": "1.0.0",
     "visible": true,
     "secure": true
+  },
+  {
+    "id": "0x7bbc4f1a27628781b96213e781a1b8eec6982c1db8fac739af6e4c5a55862c03",
+    "url": "dappreg",
+    "name": "Dapp Registration",
+    "description": "Enables the registration and content management of dapps on the network",
+    "author": "Parity Team <admin@ethcore.io>",
+    "version": "1.0.0",
+    "visible": false,
+    "secure": true
   }
 ]

@@ -50,12 +50,12 @@ export default class ButtonBar extends Component {
           key='delete'
           label='Delete'
           warning
-          disabled={ !this.dappsStore.currentApp.isOwner && !this.dappsStore.isContractOwner }
+          disabled={ !this.dappsStore.currentApp || (!this.dappsStore.currentApp.isOwner && !this.dappsStore.isContractOwner) }
           onClick={ this.onDeleteClick } />,
         <Button
           key='edit'
           label='Edit'
-          disabled={ !this.dappsStore.currentApp.isOwner }
+          disabled={ !this.dappsStore.currentApp || !this.dappsStore.currentApp.isOwner }
           onClick={ this.onEditClick } />,
         <Button
           key='new'

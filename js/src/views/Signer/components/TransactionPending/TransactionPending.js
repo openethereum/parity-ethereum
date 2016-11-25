@@ -70,29 +70,27 @@ export default class TransactionPending extends Component {
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>
-        <div className={ styles.mainContainer }>
-          <TransactionMainDetails
-            { ...this.props }
-            { ...this.state }
-            fromBalance={ fromBalance }
-            toBalance={ toBalance }
-            className={ styles.transactionDetails }
-            totalValue={ totalValue }>
-            <TransactionSecondaryDetails
-              id={ id }
-              date={ date }
-              data={ data }
-              gasPriceEthmDisplay={ gasPriceEthmDisplay }
-              gasToDisplay={ gasToDisplay }
-            />
-          </TransactionMainDetails>
-          <TransactionPendingForm
-            address={ from }
-            isSending={ this.props.isSending }
-            onConfirm={ this.onConfirm }
-            onReject={ this.onReject }
+        <TransactionMainDetails
+          { ...this.props }
+          { ...this.state }
+          fromBalance={ fromBalance }
+          toBalance={ toBalance }
+          className={ styles.transactionDetails }
+          totalValue={ totalValue }>
+          <TransactionSecondaryDetails
+            id={ id }
+            date={ date }
+            data={ data }
+            gasPriceEthmDisplay={ gasPriceEthmDisplay }
+            gasToDisplay={ gasToDisplay }
           />
-        </div>
+        </TransactionMainDetails>
+        <TransactionPendingForm
+          address={ from }
+          isSending={ this.props.isSending }
+          onConfirm={ this.onConfirm }
+          onReject={ this.onReject }
+        />
       </div>
     );
   }
