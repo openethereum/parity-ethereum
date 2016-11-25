@@ -323,7 +323,7 @@ Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME      Specify a filename into which logging should be
-                           directed. (default: {flag_log_file:?})
+                           appended. (default: {flag_log_file:?})
   --no-config              Don't load a configuration file.
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.
