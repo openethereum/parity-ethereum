@@ -64,6 +64,16 @@ export default handleActions({
 
   setTokens (state, action) {
     const { tokens } = action;
+
+    if (Array.isArray(tokens)) {
+      const objTokens = tokens.reduce((_tokens, token) => {
+        _tokens[token.address] = token;
+        return _tokens;
+      }, {});
+
+      return Object.assign({}, state, { tokens: objTokens });
+    }
+
     return Object.assign({}, state, { tokens });
   },
 
