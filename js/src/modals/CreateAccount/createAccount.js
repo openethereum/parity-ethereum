@@ -213,7 +213,7 @@ export default class CreateAccount extends Component {
       if (createType === 'fromPhrase' && windowsPhrase) {
         phrase = phrase
           .split(' ') // get the words
-          .map((w) => ['zoom', 'misjudged'].includes(w) ? w : `${w}\r`) // add \r after each (except last in dicts)
+          .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
           .join(' '); // re-create string
       }
 
