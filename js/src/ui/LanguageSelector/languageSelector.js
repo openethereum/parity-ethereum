@@ -16,36 +16,29 @@
 
 import React, { Component } from 'react';
 import { MenuItem } from 'material-ui';
+import { observer } from 'mobx-react';
 
 import Select from '../Form/Select';
 import Translate from '../Translate';
-import { getLocale, setLocale } from '../../i18n';
-import languages from '../../i18n/languages';
+import { LocaleStore } from '../../i18n';
 
-const isProduction = process.env.NODE_ENV === 'production';
-
-const PRODUCTION_LOCALES = ['en'];
-const LOCALES = isProduction ? PRODUCTION_LOCALES : Object.keys(languages);
-
+@observer
 export default class LanguageSelector extends Component {
-  state = {
-    locale: getLocale()
-  }
+  store = LocaleStore.get();
 
   render () {
-    const { locale } = this.state;
-    const hint = <Translate value='settings.parity.languages.hint' />;
-    const label = <Translate value='settings.parity.languages.label' />;
-
-    if (isProduction) {
+    if (!this.store.isDevelopment) {
       return null;
     }
+
+    const hint = <Translate id='settings.parity.languages.hint' />;
+    const label = <Translate id='settings.parity.languages.label' />;
 
     return (
       <Select
         hint={ hint }
         label={ label }
-        value={ locale }
+        value={ this.store.language }
         onChange={ this.onChange }>
         { this.renderOptions() }
       </Select>
@@ -53,8 +46,8 @@ export default class LanguageSelector extends Component {
   }
 
   renderOptions () {
-    return LOCALES.map((locale) => {
-      const label = <Translate value={ `languages.${locale}` } />;
+    return this.store.locales.map((locale) => {
+      const label = <Translate id={ `languages.${locale}` } />;
 
       return (
         <MenuItem
@@ -68,8 +61,6 @@ export default class LanguageSelector extends Component {
   }
 
   onChange = (event, index, locale) => {
-    this.setState({ locale }, () => {
-      setLocale(locale);
-    });
+    this.store.setLocale(locale);
   }
 }

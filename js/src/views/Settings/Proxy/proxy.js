@@ -29,43 +29,43 @@ export default class Proxy extends Component {
   render () {
     const { dappsUrl } = this.context.api;
     const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
-    const title = <Translate value='settings.proxy.label' />;
+    const title = <Translate id='settings.proxy.label' />;
 
     return (
       <Container>
         <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate value='settings.proxy.overview_0' /></div>
+            <div><Translate id='settings.proxy.overview_0' /></div>
           </div>
           <div className={ layout.details }>
             <div className={ styles.details }>
               <div>
-                <Translate value='settings.proxy.details_0' />
+                <Translate id='settings.proxy.details_0' />
                 <span className={ layout.console }>http://home.parity/</span>
-                <Translate value='settings.proxy.details_1' />
+                <Translate id='settings.proxy.details_1' />
               </div>
               <div className={ layout.center }>
                 <a href={ proxyurl } target='_blank'>{ proxyurl }</a>
               </div>
               <div>
-                <Translate value='settings.proxy.details_2' />
+                <Translate id='settings.proxy.details_2' />
                 <a
                   href='https://blogs.msdn.microsoft.com/ieinternals/2013/10/11/understanding-web-proxy-configuration/'
                   target='_blank'>
-                  <Translate value='settings.proxy.details_windows' />
+                  <Translate id='settings.proxy.details_windows' />
                 </a>
-                <Translate value='settings.proxy.details_3' />
+                <Translate id='settings.proxy.details_3' />
                 <a
                   href='https://support.apple.com/kb/PH18553?locale=en_US'
                   target='_blank'>
-                  <Translate value='settings.proxy.details_macos' />
+                  <Translate id='settings.proxy.details_macos' />
                 </a>
-                <Translate value='settings.proxy.details_4' />
+                <Translate id='settings.proxy.details_4' />
                 <a
                   href='http://xmodulo.com/how-to-set-up-proxy-auto-config-on-ubuntu-desktop.html'
                   target='_blank'>
-                  <Translate value='settings.proxy.details_ubuntu' />
+                  <Translate id='settings.proxy.details_ubuntu' />
                 </a>
               </div>
             </div>

@@ -78,7 +78,7 @@ class Tab extends Component {
   renderLabel (id, bubble) {
     return (
       <div className={ styles.label }>
-        <Translate value={ `settings.views.${id}.label` } />
+        <Translate id={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );

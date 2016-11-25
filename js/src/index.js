@@ -29,9 +29,6 @@ import qs from 'querystring';
 
 import SecureApi from './secureApi';
 import ContractInstances from './contracts';
-import { initLocales } from './i18n';
-
-initLocales('en');
 
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';

@@ -37,14 +37,14 @@ export default class Parity extends Component {
   }
 
   render () {
-    const title = <Translate value='settings.parity.label' />;
+    const title = <Translate id='settings.parity.label' />;
 
     return (
       <Container>
         <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate value='settings.parity.overview_0' /></div>
+            <div><Translate id='settings.parity.overview_0' /></div>
           </div>
           <div className={ layout.details }>
             <LanguageSelector />
@@ -57,7 +57,7 @@ export default class Parity extends Component {
 
   renderModes () {
     const modes = MODES.map((mode) => {
-      const label = <Translate value={ `settings.parity.modes.${mode}` } />;
+      const label = <Translate id={ `settings.parity.modes.mode_${mode}` } />;
 
       return (
         <MenuItem
@@ -69,8 +69,8 @@ export default class Parity extends Component {
       );
     });
     const { mode } = this.state;
-    const label = <Translate value='settings.parity.modes.label' />;
-    const hint = <Translate value='settings.parity.modes.hint' />;
+    const label = <Translate id='settings.parity.modes.label' />;
+    const hint = <Translate id='settings.parity.modes.hint' />;
 
     return (
       <Select

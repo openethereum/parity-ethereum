@@ -15,16 +15,24 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import { Translate as I18NTranslate } from 'react-i18nify';
+import { FormattedMessage } from 'react-intl';
 
 export default class Translate extends Component {
   static propTypes = {
-    value: PropTypes.string.isRequired
+    children: PropTypes.node,
+    id: PropTypes.string.isRequired,
+    default: PropTypes.string,
+    values: PropTypes.object
   }
 
   render () {
     return (
-      <I18NTranslate { ...this.props } />
+      <FormattedMessage
+        id={ this.props.id }
+        defaultMessage={ this.props.default }
+        values={ this.props.values }>
+        { this.props.children }
+      </FormattedMessage>
     );
   }
 }

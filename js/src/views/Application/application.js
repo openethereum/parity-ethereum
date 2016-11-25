@@ -19,6 +19,8 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
 
+import { LocaleStore } from '../../i18n';
+
 import Connection from '../Connection';
 import ParityBar from '../ParityBar';
 
@@ -50,6 +52,7 @@ class Application extends Component {
   }
 
   store = new Store(this.context.api);
+  localeStore = LocaleStore.get();
 
   render () {
     const [root] = (window.location.hash || '').replace('#/', '').split('/');

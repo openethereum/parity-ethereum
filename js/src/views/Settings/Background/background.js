@@ -54,16 +54,16 @@ class Background extends Component {
   }
 
   render () {
-    const title = <Translate value='settings.background.label' />;
-    const labelMore = <Translate value='settings.background.button_more' />;
+    const title = <Translate id='settings.background.label' />;
+    const labelMore = <Translate id='settings.background.button_more' />;
 
     return (
       <Container>
         <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate value='settings.background.overview_0' /></div>
-            <div><Translate value='settings.background.overview_1' /></div>
+            <div><Translate id='settings.background.overview_0' /></div>
+            <div><Translate id='settings.background.overview_1' /></div>
             <div>
               <Button
                 icon={ <NavigationRefresh /> }

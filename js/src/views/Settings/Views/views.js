@@ -33,17 +33,17 @@ class Views extends Component {
   }
 
   render () {
-    const title = <Translate value='settings.views.label' />;
+    const title = <Translate id='settings.views.label' />;
 
     return (
       <Container>
         <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate value='settings.views.overview_0' /></div>
-            <div><Translate value='settings.views.overview_1' /></div>
-            <div><Translate value='settings.views.overview_2' /></div>
-            <div><Translate value='settings.views.overview_3' /></div>
+            <div><Translate id='settings.views.overview_0' /></div>
+            <div><Translate id='settings.views.overview_1' /></div>
+            <div><Translate id='settings.views.overview_2' /></div>
+            <div><Translate id='settings.views.overview_3' /></div>
           </div>
           <div className={ layout.details }>
             { this.renderViews() }
@@ -65,7 +65,7 @@ class Views extends Component {
             { view.icon }
           </div>
           <div className={ styles.label }>
-            <Translate value={ `settings.views.${id}.label` } />
+            <Translate id={ `settings.views.${id}.label` } />
           </div>
         </div>
       );
@@ -79,7 +79,7 @@ class Views extends Component {
             checked={ view.active }
             value={ view.active } />
           <div className={ styles.info }>
-            <Translate value={ `settings.views.${id}.description` } />
+            <Translate id={ `settings.views.${id}.description` } />
           </div>
         </div>
       );

@@ -40,7 +40,7 @@ export default class Settings extends Component {
     const isProxied = window.location.hostname.indexOf('.parity') !== -1;
     let proxy = null;
 
-    const title = <Translate value='settings.label' />;
+    const title = <Translate id='settings.label' />;
 
     if (!isProxied) {
       proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
@@ -66,7 +66,7 @@ export default class Settings extends Component {
   renderTab (hash, section, icon) {
     const label = (
       <div className={ styles.menu }>
-        <Translate value={ `settings.${section}.label` } />
+        <Translate id={ `settings.${section}.label` } />
       </div>
     );
 
