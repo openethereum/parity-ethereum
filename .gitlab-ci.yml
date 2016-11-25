@@ -467,6 +467,21 @@ test-rust-stable:
   tags:
     - rust
     - rust-stable
+js-test:
+  stage: test
+  image: ethcore/rust:stable
+  before_script:
+    - git submodule update --init --recursive
+    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
+  script:
+    - export RUST_BACKTRACE=1
+    - echo $JS_FILES_MODIFIED
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+  tags:
+    - rust
+    - rust-stable
 test-rust-beta:
   stage: test
   only:
@@ -474,13 +489,10 @@ test-rust-beta:
   image: ethcore/rust:beta
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - rust
     - rust-beta
@@ -492,13 +504,9 @@ test-rust-nightly:
   image: ethcore/rust:nightly
   before_script:
     - git submodule update --init --recursive
-    - export JS_FILES_MODIFIED=$(git --no-pager diff --name-only $CI_BUILD_REF^ $CI_BUILD_REF | grep \.js | wc -l)
-    - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js test"; else ./js/scripts/install-deps.sh;fi
   script:
     - export RUST_BACKTRACE=1
-    - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - ./test.sh $CARGOFLAGS --no-release
   tags:
     - rust
     - rust-nightly
