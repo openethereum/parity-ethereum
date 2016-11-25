@@ -464,7 +464,7 @@ test-rust-stable:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-stable
@@ -481,7 +481,7 @@ test-rust-beta:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-beta
@@ -499,7 +499,7 @@ test-rust-nightly:
   script:
     - export RUST_BACKTRACE=1
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js test"&./test.sh $CARGOFLAGS --no-release; else echo "skip rust test"&./js/scripts/lint.sh&./js/scripts/test.sh&./js/scripts/build.sh; fi
   tags:
     - rust
     - rust-nightly
