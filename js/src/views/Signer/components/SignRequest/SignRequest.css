@@ -14,31 +14,35 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+@import '../../_layout.css';
+
 .container {
-  position: relative;
-  padding: 25px 0 15px;
+  display: flex;
+  padding: 1.5em 0 1em;
 }
 
 .actions, .signDetails {
-  display: inline-block;
   vertical-align: middle;
-  min-height: 120px;
+  min-height: $pendingHeight;
 }
 
 .signDetails {
-  border-right: 1px solid #eee;
-  margin-right: 2rem;
-  /* TODO [todr] mess - just to align with transaction */
-  width:  430px;
+  flex: 1;
 }
 
 .address, .info {
+  box-sizing: border-box;
   display: inline-block;
+  width: 50%;
+}
+
+.address {
+  padding-right: $accountPadding;
 }
 
 .info {
   padding: 0 30px;
-  width: 250px;
   color: #E53935;
   vertical-align: top;
 }
@@ -63,7 +67,7 @@
 
 .actions {
   display: inline-block;
-  min-height: 120px;
+  min-height: $finishedHeight;
 }
 
 .signDetails img {
