@@ -524,6 +524,6 @@ js-release:
     - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js build"; else ./js/scripts/install-deps.sh;fi
   script:
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&./js/scripts/release.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&&./js/scripts/release.sh; fi
   tags:
     - javascript
