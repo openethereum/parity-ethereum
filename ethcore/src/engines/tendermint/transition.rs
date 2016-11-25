@@ -76,19 +76,23 @@ impl IoHandler<Step> for TransitionHandler {
 			if let Some(engine) = self.engine.upgrade() {
 				let next_step = match *engine.step.read() {
 					Step::Propose => {
+						trace!(target: "poa", "timeout: Propose timeout.");
 						set_timeout(io, engine.our_params.timeouts.prevote);
 						Some(Step::Prevote)
 					},
 					Step::Prevote if engine.has_enough_any_votes() => {
+						trace!(target: "poa", "timeout: Prevote timeout.");
 						set_timeout(io, engine.our_params.timeouts.precommit);
 						Some(Step::Precommit)
 					},
 					Step::Precommit if engine.has_enough_any_votes() => {
+						trace!(target: "poa", "timeout: Precommit timeout.");
 						set_timeout(io, engine.our_params.timeouts.propose);
 						engine.increment_round(1);
 						Some(Step::Propose)
 					},
 					Step::Commit => {
+						trace!(target: "poa", "timeout: Commit timeout.");
 						set_timeout(io, engine.our_params.timeouts.propose);
 						engine.reset_round();
 						Some(Step::Propose)
