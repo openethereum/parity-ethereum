@@ -30,4 +30,4 @@ mod client;
 
 pub mod urlhint;
 
-pub use client::{HashFetch, Client};
+pub use client::{HashFetch, Client, Error};

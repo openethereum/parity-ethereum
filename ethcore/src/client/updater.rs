@@ -14,11 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::Weak;
+use std::sync::{Mutex, Weak, Arc};
+use std::path::PathBuf;
 use util::misc::{VersionInfo, ReleaseTrack, platform};
-use util::{Address, H160, H256, FixedHash};
+use std::str::FromStr;
+use util::{Bytes, Address, H160, H256, FixedHash};
 use client::operations::Operations;
-use client::{Client, UpdatePolicy, BlockId};
+use client::{Client, BlockChainClient, UpdatePolicy, BlockId};
+use fetch::HashFetch;
+use fetch;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct ReleaseInfo {
@@ -40,6 +44,7 @@ pub struct Updater {
 	client: Weak<Client>,
 	operations: Operations,
 	update_policy: UpdatePolicy,
+	fetch_handler: Mutex<Option<fetch::Client>>,
 
 	// These don't change
 	pub this: VersionInfo,
@@ -51,12 +56,38 @@ pub struct Updater {
 
 const CLIENT_ID: &'static str = "parity";
 
+struct FetchHandler {
+	client: Weak<Client>,
+}
+
+impl fetch::urlhint::ContractClient for FetchHandler {
+	fn registrar(&self) -> Result<Address, String> {
+		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
+			.additional_params()
+			.get("registrar")
+			.and_then(|s| Address::from_str(s).ok())
+			.ok_or_else(|| "Registrar not available".into())
+	}
+
+	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
+		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
+			.call_contract(address, data)
+	}
+}
+
+fn start_fetch(client: Weak<Client>, hash: H256, on_done: Box<Fn(Result<PathBuf, fetch::Error>) + Send>) -> Result<fetch::Client, fetch::Error> {
+	let f = fetch::Client::new(Arc::new(FetchHandler { client: client, }));
+	let r = f.fetch(hash, on_done);
+	r.map(|_| f)
+}
+
 impl Updater {
 	pub fn new(client: Weak<Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
 		let mut u = Updater {
 			client: client.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),
 			update_policy: update_policy,
+			fetch_handler: Mutex::new(None),
 			this: VersionInfo::this(),
 			this_fork: None,
 			latest: None,
@@ -140,6 +171,12 @@ impl Updater {
 		})
 	}
 
+	fn fetch_done(&self, _r: Result<PathBuf, fetch::Error>) {
+		if let Ok(mut x) = self.fetch_handler.lock() {
+			*x = None;
+		}
+	}
+
 	pub fn tick(&mut self) {
 		info!(target: "updater", "Current release is {}", self.this);
 
@@ -157,6 +194,15 @@ impl Updater {
 					 "unreleased".into()
 				 }
 			);
+			if let Some(b) = latest.track.binary {
+				if let Ok(mut fetch_handler) = self.fetch_handler.lock() {
+					if fetch_handler.is_none() {
+						let c = self.client.clone();
+						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); }; 
+						*fetch_handler = start_fetch(self.client.clone(), b, Box::new(f)).ok();
+					}
+				}
+			}
 			info!(target: "updater", "Fork: this/current/latest/latest-known: {}/#{}/#{}/#{}", match self.this_fork { Some(f) => format!("#{}", f), None => "unknown".into(), }, current_number, latest.track.fork, latest.fork);
 		}
 	}
