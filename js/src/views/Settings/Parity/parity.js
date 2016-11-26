@@ -15,9 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container, ContainerTitle, LanguageSelector, Translate } from '../../../ui';
+import { Select, Container, ContainerTitle, LanguageSelector } from '../../../ui';
 
 import layout from '../layout.css';
 
@@ -40,14 +41,14 @@ export default class Parity extends Component {
     return (
       <Container>
         <ContainerTitle title={
-          <Translate id='settings.parity.label' />
+          <FormattedMessage id='settings.parity.label' />
         } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.parity.overview_0'
-                default='Control the Parity node settings and mode of operation via this interface.' />
+                defaultMessage='Control the Parity node settings and mode of operation via this interface.' />
             </div>
           </div>
           <div className={ layout.details }>
@@ -61,7 +62,7 @@ export default class Parity extends Component {
 
   renderModes () {
     const modes = MODES.map((mode) => {
-      const label = <Translate id={ `settings.parity.modes.mode_${mode}` } />;
+      const label = <FormattedMessage id={ `settings.parity.modes.mode_${mode}` } />;
 
       return (
         <MenuItem
@@ -78,14 +79,14 @@ export default class Parity extends Component {
     return (
       <Select
         label={
-          <Translate
+          <FormattedMessage
             id='settings.parity.modes.label'
-            default='mode of operation' />
+            defaultMessage='mode of operation' />
         }
         hint={
-          <Translate
+          <FormattedMessage
             id='settings.parity.modes.hint'
-            default='the syning mode for the Parity node' />
+            defaultMessage='the syning mode for the Parity node' />
         }
         value={ mode }
         onChange={ this.onChangeMode }>

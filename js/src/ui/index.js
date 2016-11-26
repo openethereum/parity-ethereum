@@ -41,7 +41,6 @@ import ParityBackground from './ParityBackground';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
-import Translate from './Translate';
 import TxHash from './TxHash';
 
 export {
@@ -86,6 +85,5 @@ export {
   Tags,
   Tooltip,
   Tooltips,
-  Translate,
   TxHash
 };

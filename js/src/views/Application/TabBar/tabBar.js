@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
 
-import { Badge, Tooltip, Translate } from '../../../ui';
+import { Badge, Tooltip } from '../../../ui';
 
 import styles from './tabBar.css';
 import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-text.svg';
@@ -78,7 +79,7 @@ class Tab extends Component {
   renderLabel (id, bubble) {
     return (
       <div className={ styles.label }>
-        <Translate id={ `settings.views.${id}.label` } />
+        <FormattedMessage id={ `settings.views.${id}.label` } />
         { bubble }
       </div>
     );

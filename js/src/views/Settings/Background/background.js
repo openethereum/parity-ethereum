@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ContainerTitle, ParityBackground, Translate } from '../../../ui';
+import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
 
 import { updateBackground } from '../actions';
 
@@ -57,27 +58,27 @@ class Background extends Component {
     return (
       <Container>
         <ContainerTitle title={
-          <Translate id='settings.background.label' />
+          <FormattedMessage id='settings.background.label' />
         } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.background.overview_0'
-                default='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.' />
+                defaultMessage='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.' />
             </div>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.background.overview_1'
-                default='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.' />
+                defaultMessage='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.' />
             </div>
             <div>
               <Button
                 icon={ <NavigationRefresh /> }
                 label={
-                  <Translate
+                  <FormattedMessage
                     id='settings.background.button_more'
-                    default='generate more' />
+                    defaultMessage='generate more' />
                 }
                 onClick={ this.generateSeeds } />
             </div>

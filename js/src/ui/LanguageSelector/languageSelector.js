@@ -15,11 +15,11 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 import { observer } from 'mobx-react';
 
 import Select from '../Form/Select';
-import Translate from '../Translate';
 import { LocaleStore } from '../../i18n';
 
 @observer
@@ -34,14 +34,14 @@ export default class LanguageSelector extends Component {
     return (
       <Select
         hint={
-          <Translate
+          <FormattedMessage
             id='settings.parity.languages.hint'
-            default='the language this interface is displayed with' />
+            defaultMessage='the language this interface is displayed with' />
         }
         label={
-          <Translate
+          <FormattedMessage
             id='settings.parity.languages.label'
-            default='UI language' />
+            defaultMessage='UI language' />
         }
         value={ this.store.locale }
         onChange={ this.onChange }>
@@ -52,7 +52,7 @@ export default class LanguageSelector extends Component {
 
   renderOptions () {
     return this.store.locales.map((locale) => {
-      const label = <Translate id={ `languages.${locale}` } />;
+      const label = <FormattedMessage id={ `languages.${locale}` } />;
 
       return (
         <MenuItem

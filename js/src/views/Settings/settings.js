@@ -15,12 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { Tab, Tabs } from 'material-ui';
 import ActionSettingsEthernet from 'material-ui/svg-icons/action/settings-ethernet';
 import ImageBlurOn from 'material-ui/svg-icons/image/blur-on';
 import ImageRemoveRedEye from 'material-ui/svg-icons/image/remove-red-eye';
 
-import { Actionbar, Page, Translate } from '../../ui';
+import { Actionbar, Page } from '../../ui';
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';
 
 import styles from './settings.css';
@@ -49,7 +50,7 @@ export default class Settings extends Component {
         <Actionbar
           className={ styles.bar }
           title={
-            <Translate id='settings.label' />
+            <FormattedMessage id='settings.label' />
           }>
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
@@ -74,7 +75,7 @@ export default class Settings extends Component {
         icon={ icon }
         label={
           <div className={ styles.menu }>
-            <Translate id={ `settings.${section}.label` } />
+            <FormattedMessage id={ `settings.${section}.label` } />
           </div>
         }
         onActive={ this.onActivate(section) } />

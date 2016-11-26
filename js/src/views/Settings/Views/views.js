@@ -15,11 +15,12 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { FormattedMessage } from 'react-intl';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
-import { Container, ContainerTitle, Translate } from '../../../ui';
+import { Container, ContainerTitle } from '../../../ui';
 
 import { toggleView } from '../actions';
 
@@ -36,29 +37,29 @@ class Views extends Component {
     return (
       <Container>
         <ContainerTitle title={
-          <Translate id='settings.views.label' />
+          <FormattedMessage id='settings.views.label' />
         } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.views.overview_0'
-                default='Manage the available application views, using only the parts of the application that is applicable to you.' />
+                defaultMessage='Manage the available application views, using only the parts of the application that is applicable to you.' />
             </div>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.views.overview_1'
-                default='Are you an end-user? The defaults are setups for both beginner and advanced users alike.' />
+                defaultMessage='Are you an end-user? The defaults are setups for both beginner and advanced users alike.' />
             </div>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.views.overview_2'
-                default='Are you a developer? Add some features to manage contracts are interact with application deployments.' />
+                defaultMessage='Are you a developer? Add some features to manage contracts are interact with application deployments.' />
             </div>
             <div>
-              <Translate
+              <FormattedMessage
                 id='settings.views.overview_3'
-                default='Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.' />
+                defaultMessage='Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.' />
             </div>
           </div>
           <div className={ layout.details }>
@@ -86,7 +87,7 @@ class Views extends Component {
                   { view.icon }
                 </div>
                 <div className={ styles.label }>
-                  <Translate id={ `settings.views.${id}.label` } />
+                  <FormattedMessage id={ `settings.views.${id}.label` } />
                 </div>
               </div>
             }
@@ -94,7 +95,7 @@ class Views extends Component {
             checked={ view.active }
             value={ view.active } />
           <div className={ styles.info }>
-            <Translate id={ `settings.views.${id}.description` } />
+            <FormattedMessage id={ `settings.views.${id}.description` } />
           </div>
         </div>
       );
