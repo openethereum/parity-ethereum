@@ -20,7 +20,6 @@ const path = require('path');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const CircularDependencyPlugin = require('circular-dependency-plugin');
 
 const Shared = require('./shared');
 const DAPPS = require('../src/dapps');
@@ -132,13 +131,6 @@ module.exports = {
         template: './index.ejs',
         favicon: FAVICON,
         chunks: [ isProd ? null : 'commons', 'index' ]
-      }),
-
-      new CircularDependencyPlugin({
-        // exclude detection of files based on a RegExp
-        exclude: /node_modules/,
-        // add errors to webpack instead of warnings
-        failOnError: true
       })
     ], DAPPS.map((dapp) => {
       return new HtmlWebpackPlugin({
@@ -155,7 +147,8 @@ module.exports = {
       plugins.push(
         new webpack.optimize.CommonsChunkPlugin({
           filename: 'commons.[hash].js',
-          name: 'commons'
+          name: 'commons',
+          minChunks: Infinity
         })
       );
     }

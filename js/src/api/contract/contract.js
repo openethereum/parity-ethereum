@@ -24,7 +24,9 @@ export default class Contract {
   constructor (api, abi) {
     if (!isInstanceOf(api, Api)) {
       throw new Error('API instance needs to be provided to Contract');
-    } else if (!abi) {
+    }
+
+    if (!abi) {
       throw new Error('ABI needs to be provided to Contract instance');
     }
 
