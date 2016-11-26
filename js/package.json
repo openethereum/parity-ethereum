@@ -68,6 +68,7 @@
     "chai": "~3.5.0",
     "chai-enzyme": "0.4.2",
     "cheerio": "0.20.0",
+    "circular-dependency-plugin": "^2.0.0",
     "copy-webpack-plugin": "~4.0.0",
     "core-js": "~2.4.1",
     "coveralls": "~2.11.11",
