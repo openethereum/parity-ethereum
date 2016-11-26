@@ -33,11 +33,11 @@ class Views extends Component {
   }
 
   render () {
-    const title = <Translate id='settings.views.label' />;
-
     return (
       <Container>
-        <ContainerTitle title={ title } />
+        <ContainerTitle title={
+          <Translate id='settings.views.label' />
+        } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>
@@ -75,22 +75,21 @@ class Views extends Component {
     return Object.keys(settings.views).map((id) => {
       const toggle = () => toggleView(id);
       const view = settings.views[id];
-      const label = (
-        <div className={ styles.header }>
-          <div className={ styles.labelicon }>
-            { view.icon }
-          </div>
-          <div className={ styles.label }>
-            <Translate id={ `settings.views.${id}.label` } />
-          </div>
-        </div>
-      );
 
       return (
         <div className={ styles.view } key={ id }>
           <Checkbox
             disabled={ view.fixed }
-            label={ label }
+            label={
+              <div className={ styles.header }>
+                <div className={ styles.labelicon }>
+                  { view.icon }
+                </div>
+                <div className={ styles.label }>
+                  <Translate id={ `settings.views.${id}.label` } />
+                </div>
+              </div>
+            }
             onCheck={ toggle }
             checked={ view.active }
             value={ view.active } />

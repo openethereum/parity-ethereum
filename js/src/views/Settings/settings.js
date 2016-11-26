@@ -40,15 +40,17 @@ export default class Settings extends Component {
     const isProxied = window.location.hostname.indexOf('.parity') !== -1;
     let proxy = null;
 
-    const title = <Translate id='settings.label' />;
-
     if (!isProxied) {
       proxy = this.renderTab(hash, 'proxy', <ActionSettingsEthernet />);
     }
 
     return (
       <div className={ styles.layout }>
-        <Actionbar title={ title } className={ styles.bar }>
+        <Actionbar
+          className={ styles.bar }
+          title={
+            <Translate id='settings.label' />
+          }>
           <Tabs className={ styles.tabs } value={ hash }>
             { this.renderTab(hash, 'views', <ImageRemoveRedEye />) }
             { this.renderTab(hash, 'background', <ImageBlurOn />) }
@@ -64,19 +66,17 @@ export default class Settings extends Component {
   }
 
   renderTab (hash, section, icon) {
-    const label = (
-      <div className={ styles.menu }>
-        <Translate id={ `settings.${section}.label` } />
-      </div>
-    );
-
     return (
       <Tab
         className={ hash === section ? styles.tabactive : styles.tab }
         value={ section }
         key={ section }
         icon={ icon }
-        label={ label }
+        label={
+          <div className={ styles.menu }>
+            <Translate id={ `settings.${section}.label` } />
+          </div>
+        }
         onActive={ this.onActivate(section) } />
     );
   }
