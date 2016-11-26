@@ -31,14 +31,19 @@ export default class LanguageSelector extends Component {
       return null;
     }
 
-    const hint = <Translate id='settings.parity.languages.hint' />;
-    const label = <Translate id='settings.parity.languages.label' />;
-
     return (
       <Select
-        hint={ hint }
-        label={ label }
-        value={ this.store.language }
+        hint={
+          <Translate
+            id='settings.parity.languages.hint'
+            default='the language this interface is displayed with' />
+        }
+        label={
+          <Translate
+            id='settings.parity.languages.label'
+            default='UI language' />
+        }
+        value={ this.store.locale }
         onChange={ this.onChange }>
         { this.renderOptions() }
       </Select>

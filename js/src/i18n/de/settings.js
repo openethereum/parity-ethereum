@@ -52,14 +52,8 @@ export default {
 
     overview_0: 'Die Proxy-Einstellungen ermöglichen dir einen einfachen Zugriff über einprägsame Adressen, auf die Oberfläche mit all ihren dezentralen Anwendungen.',
 
-    details_0: 'Anstelle des Zugriffs über IP-Adresse und Port wirst du über die .parity-Subdomain auf die Parity-Oberfläche zugreifen können, indem du ',
-    details_1: 'besuchst. Dafür musst du folgenden Eintrag in den Proxy-Einstellungen deines Browsers hinzufügen:',
-    details_2: 'Hier findest du Anleitungen zum Anpassen der Proxy-Einstellungen in ',
-    details_windows: 'Windows',
-    details_3: ', ',
-    details_macos: 'macOS',
-    details_4: ' oder ',
-    details_ubuntu: 'Ubuntu'
+    details_0: 'Anstelle des Zugriffs über IP-Adresse und Port wirst du über die .parity-Subdomain auf die Parity-Oberfläche zugreifen können, indem du {homeProxy} besuchst. Dafür musst du folgenden Eintrag in den Proxy-Einstellungen deines Browsers hinzufügen:',
+    details_1: 'Hier findest du Anleitungen zum Anpassen der Proxy-Einstellungen in {windowsLink}, {macOSLink} oder {ubuntuLink}.'
   },
 
   views: {

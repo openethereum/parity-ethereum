@@ -15,10 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable, transaction } from 'mobx';
+import { addLocaleData } from 'react-intl';
+import de from 'react-intl/locale-data/de';
+import en from 'react-intl/locale-data/en';
 
 import languages from './languages';
-import de from './de';
-import en from './en';
+import deMessages from './de';
+import enMessages from './en';
 
 function flattenObject (localeObject) {
   return Object
@@ -48,24 +51,26 @@ const isProduction = process.env.NODE_ENV === 'production';
 const DEFAULT = 'en';
 const LANGUAGES = flattenObject({ languages });
 const MESSAGES = {
-  de: Object.assign(flattenObject(de), LANGUAGES),
-  en: Object.assign(flattenObject(en), LANGUAGES)
+  de: Object.assign(flattenObject(deMessages), LANGUAGES),
+  en: Object.assign(flattenObject(enMessages), LANGUAGES)
 };
 const LOCALES = isProduction
   ? ['en']
   : ['en', 'de'];
 
 export default class Store {
-  @observable language = DEFAULT;
   @observable locale = DEFAULT;
   @observable locales = LOCALES;
   @observable messages = MESSAGES[DEFAULT];
   @observable isDevelopment = !isProduction;
 
+  constructor () {
+    addLocaleData([...de, ...en]);
+  }
+
   @action setLocale (locale) {
     transaction(() => {
-      // this.locale = locale; // [TODO] need to load react-intl locales first (plurals, etc.)
-      this.language = locale;
+      this.locale = locale;
       this.messages = MESSAGES[locale];
     });
   }

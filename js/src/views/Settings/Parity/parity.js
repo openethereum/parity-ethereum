@@ -37,14 +37,18 @@ export default class Parity extends Component {
   }
 
   render () {
-    const title = <Translate id='settings.parity.label' />;
-
     return (
       <Container>
-        <ContainerTitle title={ title } />
+        <ContainerTitle title={
+          <Translate id='settings.parity.label' />
+        } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate id='settings.parity.overview_0' /></div>
+            <div>
+              <Translate
+                id='settings.parity.overview_0'
+                default='Control the Parity node settings and mode of operation via this interface.' />
+            </div>
           </div>
           <div className={ layout.details }>
             <LanguageSelector />
@@ -68,14 +72,21 @@ export default class Parity extends Component {
         </MenuItem>
       );
     });
+
     const { mode } = this.state;
-    const label = <Translate id='settings.parity.modes.label' />;
-    const hint = <Translate id='settings.parity.modes.hint' />;
 
     return (
       <Select
-        label={ label }
-        hint={ hint }
+        label={
+          <Translate
+            id='settings.parity.modes.label'
+            default='mode of operation' />
+        }
+        hint={
+          <Translate
+            id='settings.parity.modes.hint'
+            default='the syning mode for the Parity node' />
+        }
         value={ mode }
         onChange={ this.onChangeMode }>
         { modes }

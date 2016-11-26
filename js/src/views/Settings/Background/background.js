@@ -54,20 +54,31 @@ class Background extends Component {
   }
 
   render () {
-    const title = <Translate id='settings.background.label' />;
-    const labelMore = <Translate id='settings.background.button_more' />;
-
     return (
       <Container>
-        <ContainerTitle title={ title } />
+        <ContainerTitle title={
+          <Translate id='settings.background.label' />
+        } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate id='settings.background.overview_0' /></div>
-            <div><Translate id='settings.background.overview_1' /></div>
+            <div>
+              <Translate
+                id='settings.background.overview_0'
+                default='The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.' />
+            </div>
+            <div>
+              <Translate
+                id='settings.background.overview_1'
+                default='Pick a pattern you like and memorize it. This Pattern will always be shown from now on, unless you clear your browser cache or use a new Signer token.' />
+            </div>
             <div>
               <Button
                 icon={ <NavigationRefresh /> }
-                label={ labelMore }
+                label={
+                  <Translate
+                    id='settings.background.button_more'
+                    default='generate more' />
+                }
                 onClick={ this.generateSeeds } />
             </div>
           </div>

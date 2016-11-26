@@ -40,10 +40,26 @@ class Views extends Component {
         <ContainerTitle title={ title } />
         <div className={ layout.layout }>
           <div className={ layout.overview }>
-            <div><Translate id='settings.views.overview_0' /></div>
-            <div><Translate id='settings.views.overview_1' /></div>
-            <div><Translate id='settings.views.overview_2' /></div>
-            <div><Translate id='settings.views.overview_3' /></div>
+            <div>
+              <Translate
+                id='settings.views.overview_0'
+                default='Manage the available application views, using only the parts of the application that is applicable to you.' />
+            </div>
+            <div>
+              <Translate
+                id='settings.views.overview_1'
+                default='Are you an end-user? The defaults are setups for both beginner and advanced users alike.' />
+            </div>
+            <div>
+              <Translate
+                id='settings.views.overview_2'
+                default='Are you a developer? Add some features to manage contracts are interact with application deployments.' />
+            </div>
+            <div>
+              <Translate
+                id='settings.views.overview_3'
+                default='Are you a miner or run a large-scale node? Add the features to give you all the information needed to watch the node operation.' />
+            </div>
           </div>
           <div className={ layout.details }>
             { this.renderViews() }
