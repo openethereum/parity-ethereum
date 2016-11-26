@@ -26,6 +26,13 @@ const rucksack = require('rucksack-css');
 const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
+function getBabelrc () {
+  const babelrc = require('../.babelrc');
+  const es2015Index = babelrc.presets.findIndex((p) => p === 'es2015');
+  babelrc.preset[es2015Index] = [ 'es2015', { modules: false } ];
+  return babelrc;
+}
+
 function getPlugins (_isProd = isProd) {
   const postcss = [
     postcssImport({
@@ -154,6 +161,7 @@ function addProxies (app) {
 }
 
 module.exports = {
+  getBabelrc: getBabelrc,
   getPlugins: getPlugins,
   dappsEntry: getDappsEntry(),
   addProxies: addProxies
