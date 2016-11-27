@@ -14,29 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { handleActions } from 'redux-actions';
-import { bytesToHex } from '../../api/util/format';
-
-const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
-
-const initialState = {
-  images: {}
-};
-
-export function hashToImageUrl (hashArray) {
-  const hash = hashArray ? bytesToHex(hashArray) : ZERO;
-
-  return hash === ZERO ? null : `/api/content/${hash.substr(2)}`;
+export function showSnackbar (message, cooldown) {
+  return (dispatch, getState) => {
+    dispatch(openSnackbar(message, cooldown));
+  };
 }
 
-export default handleActions({
-  setAddressImage (state, action) {
-    const { address, hashArray, converted } = action;
+function openSnackbar (message, cooldown) {
+  return {
+    type: 'openSnackbar',
+    message, cooldown
+  };
+}
 
-    const image = converted ? hashArray : hashToImageUrl(hashArray);
-
-    return Object.assign({}, state, {
-      [address]: image
-    });
-  }
-}, initialState);
+export function closeSnackbar () {
+  return {
+    type: 'closeSnackbar'
+  };
+}

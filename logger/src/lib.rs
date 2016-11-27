@@ -26,9 +26,8 @@ extern crate time;
 #[macro_use]
 extern crate lazy_static;
 
-use std::{env, thread};
+use std::{env, thread, fs};
 use std::sync::Arc;
-use std::fs::File;
 use std::io::Write;
 use isatty::{stderr_isatty, stdout_isatty};
 use env_logger::LogBuilder;
@@ -80,9 +79,13 @@ pub fn setup_log(config: &Config) -> Result<Arc<RotatingLogger>, String> {
 	let enable_color = config.color && isatty;
 	let logs = Arc::new(RotatingLogger::new(levels));
 	let logger = logs.clone();
+	let mut open_options = fs::OpenOptions::new();
 
 	let maybe_file = match config.file.as_ref() {
-		Some(f) => Some(try!(File::create(f).map_err(|_| format!("Cannot write to log file given: {}", f)))),
+		Some(f) => Some(try!(open_options
+			.append(true).create(true).open(f)
+			.map_err(|_| format!("Cannot write to log file given: {}", f))
+		)),
 		None => None,
 	};
 

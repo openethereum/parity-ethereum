@@ -117,14 +117,14 @@ export default class List extends Component {
       if (balanceA && !balanceB) return -1;
       if (!balanceA && balanceB) return 1;
 
-      const ethA = balanceA.tokens
-        .find(token => token.token.tag.toLowerCase() === 'eth')
-        .value;
-      const ethB = balanceB.tokens
-        .find(token => token.token.tag.toLowerCase() === 'eth')
-        .value;
+      const ethA = balanceA.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
+      const ethB = balanceB.tokens.find(token => token.token.tag.toLowerCase() === 'eth');
 
-      return -1 * ethA.comparedTo(ethB);
+      if (!ethA && !ethB) return 0;
+      if (ethA && !ethB) return -1;
+      if (!ethA && ethB) return 1;
+
+      return -1 * ethA.value.comparedTo(ethB.value);
     }
 
     if (key === 'tags') {

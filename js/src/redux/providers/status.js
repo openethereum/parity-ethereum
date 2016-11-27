@@ -30,6 +30,8 @@ export default class Status {
 
     this._pollPingTimeoutId = null;
     this._longStatusTimeoutId = null;
+
+    this._timestamp = Date.now();
   }
 
   start () {
@@ -131,10 +133,10 @@ export default class Status {
       secureToken
     };
 
-    const gotReconnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+    const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
 
-    if (gotReconnected) {
-      this._pollLongStatus(true);
+    if (gotConnected) {
+      this._pollLongStatus();
       this._store.dispatch(statusCollection({ isPingable: true }));
     }
 
@@ -156,20 +158,22 @@ export default class Status {
 
     const { refreshStatus } = this._store.getState().nodeStatus;
 
-    const statusPromises = [ this._api.eth.syncing(), this._api.parity.netPeers() ];
+    const statusPromises = [ this._api.eth.syncing() ];
 
     if (refreshStatus) {
+      statusPromises.push(this._api.parity.netPeers());
       statusPromises.push(this._api.eth.hashrate());
     }
 
     Promise
       .all(statusPromises)
-      .then(([ syncing, netPeers, ...statusResults ]) => {
+      .then(([ syncing, ...statusResults ]) => {
         const status = statusResults.length === 0
-          ? { syncing, netPeers }
+          ? { syncing }
           : {
-            syncing, netPeers,
-            hashrate: statusResults[0]
+            syncing,
+            netPeers: statusResults[0],
+            hashrate: statusResults[1]
           };
 
         if (!isEqual(status, this._status)) {
@@ -223,7 +227,7 @@ export default class Status {
    * fetched every 30s just in case, and whenever
    * the client got reconnected.
    */
-  _pollLongStatus = (newConnection = false) => {
+  _pollLongStatus = () => {
     if (!this._api.isConnected) {
       return;
     }
@@ -241,30 +245,32 @@ export default class Status {
 
     Promise
       .all([
+        this._api.parity.netPeers(),
         this._api.web3.clientVersion(),
+        this._api.net.version(),
         this._api.parity.defaultExtraData(),
         this._api.parity.netChain(),
         this._api.parity.netPort(),
         this._api.parity.rpcSettings(),
-        newConnection ? Promise.resolve(null) : this._api.parity.enode()
+        this._api.parity.enode()
       ])
       .then(([
-        clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
       ]) => {
-        const isTest = netChain === 'morden' || netChain === 'ropsten' || netChain === 'testnet';
+        const isTest =
+          netVersion === '2' || // morden
+          netVersion === '3'; // ropsten
 
         const longStatus = {
+          netPeers,
           clientVersion,
           defaultExtraData,
           netChain,
           netPort,
           rpcSettings,
-          isTest
+          isTest,
+          enode
         };
-
-        if (enode) {
-          longStatus.enode = enode;
-        }
 
         if (!isEqual(longStatus, this._longStatus)) {
           this._store.dispatch(statusCollection(longStatus));
@@ -275,7 +281,7 @@ export default class Status {
         console.error('_pollLongStatus', error);
       });
 
-    nextTimeout(newConnection ? 5000 : 30000);
+    nextTimeout(60000);
   }
 
   _pollLogs = () => {

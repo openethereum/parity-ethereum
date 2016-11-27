@@ -30,6 +30,7 @@ import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import VerificationStore from '../../modals/SMSVerification/store';
 
@@ -41,11 +42,12 @@ class Account extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+    images: PropTypes.object.isRequired,
+
     params: PropTypes.object,
     accounts: PropTypes.object,
-    balances: PropTypes.object,
-    images: PropTypes.object.isRequired,
-    isTest: PropTypes.bool
+    balances: PropTypes.object
   }
 
   propName = null
@@ -66,10 +68,30 @@ class Account extends Component {
 
     const verificationStore = new VerificationStore(api, address);
     this.setState({ verificationStore });
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts } = props;
+    const addresses = [ params.address ];
+    setVisibleAccounts(addresses);
   }
 
   render () {
-    const { accounts, balances, isTest } = this.props;
+    const { accounts, balances } = this.props;
     const { address } = this.props.params;
 
     const account = (accounts || {})[address];
@@ -90,7 +112,6 @@ class Account extends Component {
         { this.renderActionbar() }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
             balance={ balance } />
           <Transactions
@@ -307,10 +328,8 @@ function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { balances } = state.balances;
   const { images } = state;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
     balances,
     images
@@ -318,7 +337,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

@@ -47,7 +47,7 @@ impl Random for [u8; 32] {
 pub fn random_phrase(words: usize) -> String {
 	lazy_static! {
 		static ref WORDS: Vec<String> = String::from_utf8_lossy(include_bytes!("../res/wordlist.txt"))
-			.split("\n")
+			.lines()
 			.map(|s| s.to_owned())
 			.collect();
 	}
@@ -55,8 +55,19 @@ pub fn random_phrase(words: usize) -> String {
 	(0..words).map(|_| rng.choose(&WORDS).unwrap()).join(" ")
 }
 
-#[test]
-fn should_produce_right_number_of_words() {
-	let p = random_phrase(10);
-	assert_eq!(p.split(" ").count(), 10);
+#[cfg(test)]
+mod tests {
+	use super::random_phrase;
+
+	#[test]
+	fn should_produce_right_number_of_words() {
+		let p = random_phrase(10);
+		assert_eq!(p.split(" ").count(), 10);
+	}
+
+	#[test]
+	fn should_not_include_carriage_return() {
+		let p = random_phrase(10);
+		assert!(!p.contains('\r'), "Carriage return should be trimmed.");
+	}
 }
