@@ -37,18 +37,18 @@ class TxList extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    txhashes: PropTypes.array.isRequired,
+    hashes: PropTypes.array.isRequired,
     isTest: PropTypes.bool.isRequired
   }
 
   store = new Store(this.context.api);
 
   componentWillMount () {
-    this.store.loadTransactions(this.props.txhashes);
+    this.store.loadTransactions(this.props.hashes);
   }
 
   componentWillReceiveProps (newProps) {
-    this.store.loadTransactions(newProps.txhashes);
+    this.store.loadTransactions(newProps.hashes);
   }
 
   render () {
@@ -64,7 +64,7 @@ class TxList extends Component {
   renderRows () {
     const { address, isTest } = this.props;
 
-    const rows = this.store.transactions.map((transaction) => {
+    return this.store.transactions.map((transaction) => {
       return (
         <tr key={ transaction.hash }>
           <td className={ styles.timestamp }>
@@ -94,9 +94,6 @@ class TxList extends Component {
         </tr>
       );
     });
-
-    console.log(rows);
-    return rows;
   }
 
   renderAddress (address) {

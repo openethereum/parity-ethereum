@@ -35,7 +35,7 @@ class Transactions extends Component {
   }
 
   state = {
-    txhashes: [],
+    hashes: [],
     loading: true,
     callInfo: {}
   }
@@ -61,13 +61,13 @@ class Transactions extends Component {
 
   render () {
     const { address } = this.props;
-    const { txhashes } = this.state;
+    const { hashes } = this.state;
 
     return (
       <Container title='transactions'>
         <TxList
           address={ address }
-          txhashes={ txhashes } />
+          hashes={ hashes } />
         { this.renderEtherscanFooter() }
       </Container>
     );
@@ -100,7 +100,7 @@ class Transactions extends Component {
       .fetchTransactions(isTest, address, traceMode)
       .then((transactions) => {
         this.setState({
-          txhashes: transactions.map((transaction) => transaction.hash),
+          hashes: transactions.map((transaction) => transaction.hash),
           loading: false
         });
       });

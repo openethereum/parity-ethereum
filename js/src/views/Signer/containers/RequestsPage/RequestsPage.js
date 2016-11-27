@@ -18,15 +18,17 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
 import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
-import { Container, ContainerTitle } from '../../../../ui';
+import { Container, Page, TxList } from '../../../../ui';
 
 import { RequestPending, RequestFinished } from '../../components';
 
 import styles from './RequestsPage.css';
 
+@observer
 class RequestsPage extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -46,23 +48,45 @@ class RequestsPage extends Component {
 
   store = new Store(this.context.api, true);
 
+  componentWillUnmount () {
+    this.store.unsubscribe();
+  }
+
   render () {
     const { pending, finished } = this.props.signer;
+    const { localTransactions } = this.store;
 
-    if (!pending.length && !finished.length) {
+    if (!pending.length && !finished.length && !localTransactions.length) {
       return this.renderNoRequestsMsg();
     }
 
     return (
-      <div>
-        { this.renderPendingRequests() }
-        { this.renderFinishedRequests() }
-      </div>
+      <Page>
+        <div>{ this.renderPendingRequests() }</div>
+        <div>{ this.renderLocalQueue() }</div>
+        <div>{ this.renderFinishedRequests() }</div>
+      </Page>
     );
   }
 
   _sortRequests = (a, b) => {
     return new BigNumber(b.id).cmp(a.id);
+  }
+
+  renderLocalQueue () {
+    const { localTransactions } = this.store;
+
+    if (!localTransactions.length) {
+      return null;
+    }
+
+    return (
+      <Container title='Local Transactions'>
+        <TxList
+          address=''
+          hashes={ localTransactions.map((tx) => tx.transaction.hash) } />
+      </Container>
+    );
   }
 
   renderPendingRequests () {
@@ -75,8 +99,7 @@ class RequestsPage extends Component {
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <Container>
-        <ContainerTitle title='Pending Requests' />
+      <Container title='Pending Requests'>
         <div className={ styles.items }>
           { items }
         </div>
@@ -94,8 +117,7 @@ class RequestsPage extends Component {
     const items = finished.sort(this._sortRequests).map(this.renderFinished);
 
     return (
-      <Container>
-        <ContainerTitle title='Finished Requests' />
+      <Container title='Finished Requests'>
         <div className={ styles.items }>
           { items }
         </div>

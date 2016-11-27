@@ -21,6 +21,7 @@ import { action, observable } from 'mobx';
 export default class Store {
   @observable balances = {};
   @observable localTransactions = [];
+  @observable doPolling = true;
 
   constructor (api, withLocalTransactions = false) {
     this._api = api;
@@ -28,6 +29,10 @@ export default class Store {
     if (withLocalTransactions) {
       this.fetchLocalTransactions();
     }
+  }
+
+  @action unsubscribe () {
+    this.doPolling = false;
   }
 
   @action setBalance = (address, balance) => {
@@ -79,7 +84,9 @@ export default class Store {
 
   fetchLocalTransactions = () => {
     const nextTimeout = () => {
-      setTimeout(this.fetchLocalTransactions, 1500);
+      if (this.doPolling) {
+        setTimeout(this.fetchLocalTransactions, 1500);
+      }
     };
 
     Promise
