@@ -120,6 +120,8 @@ pub struct ExportState {
 	pub at: BlockID,
 	pub storage: bool,
 	pub code: bool,
+	pub min_balance: Option<U256>,
+	pub max_balance: Option<U256>,
 }
 
 pub fn execute(cmd: BlockchainCmd) -> Result<String, String> {
@@ -402,10 +404,17 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 		}
 
 		for account in accounts.into_iter() {
+
+			let balance = client.balance(&account, at).unwrap_or_else(U256::zero);
+
+			if cmd.min_balance.map_or(false, |m| balance < m) || cmd.max_balance.map_or(false, |m| balance > m) {
+				continue; //filtered out
+			}
+
 			if i != 0 {
 				out.write(b",").expect("Write error");
 			}
-			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), client.balance(&account, at).unwrap_or_else(U256::zero), client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
+			out.write_fmt(format_args!("\n\"0x{}\": {{\"balance\": \"{:x}\", \"nonce\": \"{:x}\"", account.hex(), balance, client.nonce(&account, at).unwrap_or_else(U256::zero))).expect("Write error");
 			let code = client.code(&account, at).unwrap_or(None).unwrap_or_else(Vec::new);
 			if !code.is_empty() {
 				out.write_fmt(format_args!(", \"code_hash\": \"0x{}\"", code.sha3().hex())).expect("Write error");
@@ -441,7 +450,7 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 			out.write(b"}").expect("Write error");
 			i += 1;
 			if i % 10000 == 0 {
-				info!("#{}", i);
+				info!("Account #{}", i);
 			}
 			last = Some(account);
 		}

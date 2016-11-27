@@ -250,6 +250,8 @@ usage! {
 		flag_no_seal_check: bool = false, or |_| None,
 		flag_no_storage: bool = false, or |_| None,
 		flag_no_code: bool = false, or |_| None,
+		flag_min_balance: Option<String> = None, or |_| None,
+		flag_max_balance: Option<String> = None, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -606,6 +608,10 @@ mod tests {
 			flag_to: "latest".into(),
 			flag_format: None,
 			flag_no_seal_check: false,
+			flag_no_code: false,
+			flag_no_storage: false,
+			flag_min_balance: None,
+			flag_max_balance: None,
 
 			// -- Snapshot Optons
 			flag_at: "latest".into(),

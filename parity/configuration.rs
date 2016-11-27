@@ -195,6 +195,8 @@ impl Configuration {
 					at: try!(to_block_id(&self.args.flag_at)),
 					storage: !self.args.flag_no_storage,
 					code: !self.args.flag_no_code,
+					min_balance: self.args.flag_min_balance.and_then(|s| to_u256(&s).ok()),
+					max_balance: self.args.flag_max_balance.and_then(|s| to_u256(&s).ok()),
 				};
 				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
 			} else {
