@@ -219,7 +219,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		mode,
+		mode.clone(),
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -354,6 +354,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
+	user_defaults.fat_db = fat_db;
+	user_defaults.mode = mode;
 	try!(user_defaults.save(&user_defaults_path));
 
 	let on_mode_change = move |mode: &Mode| {

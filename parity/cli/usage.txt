@@ -10,7 +10,7 @@ Usage:
   parity account import <path>... [options]
   parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
-  parity export [ <file> ] [options]
+  parity export (blocks | state) [ <file> ] [options]
   parity signer new-token [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
@@ -271,6 +271,12 @@ Import/Export Options:
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
   --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
+  --at BLOCK               Export state at the given block, which may be an
+                           index, hash, or 'latest'. Note that taking snapshots at
+                           non-recent blocks will only work with --pruning archive
+                           (default: {flag_at})
+  --no-storage             Don't export account storge. (default: {flag_no_storage})
+  --no-code                Don't export account code. (default: {flag_no_code})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an

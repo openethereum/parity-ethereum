@@ -132,7 +132,7 @@ pub trait TrieMut {
 
 /// A trie iterator that also supports random access.
 pub trait TrieIterator : Iterator {
-	/// Position the iterator on the first element with key >= `key`
+	/// Position the iterator on the first element with key > `key`
 	fn seek(&mut self, key: &[u8]) -> Result<()>;
 }
 

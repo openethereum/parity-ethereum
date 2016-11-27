@@ -37,7 +37,7 @@ use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -161,23 +161,45 @@ impl Configuration {
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
-			let export_cmd = ExportBlockchain {
-				spec: spec,
-				cache_config: cache_config,
-				dirs: dirs,
-				file_path: self.args.arg_file.clone(),
-				format: format,
-				pruning: pruning,
-				pruning_history: pruning_history,
-				compaction: compaction,
-				wal: wal,
-				tracing: tracing,
-				fat_db: fat_db,
-				from_block: try!(to_block_id(&self.args.flag_from)),
-				to_block: try!(to_block_id(&self.args.flag_to)),
-				check_seal: !self.args.flag_no_seal_check,
-			};
-			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+			if self.args.cmd_blocks {
+				let export_cmd = ExportBlockchain {
+					spec: spec,
+					cache_config: cache_config,
+					dirs: dirs,
+					file_path: self.args.arg_file.clone(),
+					format: format,
+					pruning: pruning,
+					pruning_history: pruning_history,
+					compaction: compaction,
+					wal: wal,
+					tracing: tracing,
+					fat_db: fat_db,
+					from_block: try!(to_block_id(&self.args.flag_from)),
+					to_block: try!(to_block_id(&self.args.flag_to)),
+					check_seal: !self.args.flag_no_seal_check,
+				};
+				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+			} else if self.args.cmd_state {
+				let export_cmd = ExportState {
+					spec: spec,
+					cache_config: cache_config,
+					dirs: dirs,
+					file_path: self.args.arg_file.clone(),
+					format: format,
+					pruning: pruning,
+					pruning_history: pruning_history,
+					compaction: compaction,
+					wal: wal,
+					tracing: tracing,
+					fat_db: fat_db,
+					at: try!(to_block_id(&self.args.flag_at)),
+					storage: !self.args.flag_no_storage,
+					code: !self.args.flag_no_code,
+				};
+				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
+			} else {
+				unreachable!();
+			}
 		} else if self.args.cmd_snapshot {
 			let snapshot_cmd = SnapshotCommand {
 				cache_config: cache_config,

@@ -26,6 +26,8 @@ usage! {
 		cmd_new: bool,
 		cmd_list: bool,
 		cmd_export: bool,
+		cmd_blocks: bool,
+		cmd_state: bool,
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
@@ -246,6 +248,8 @@ usage! {
 		flag_to: String = "latest", or |_| None,
 		flag_format: Option<String> = None, or |_| None,
 		flag_no_seal_check: bool = false, or |_| None,
+		flag_no_storage: bool = false, or |_| None,
+		flag_no_code: bool = false, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -484,6 +488,8 @@ mod tests {
 			cmd_new: false,
 			cmd_list: false,
 			cmd_export: false,
+			cmd_state: false,
+			cmd_blocks: false,
 			cmd_import: false,
 			cmd_signer: false,
 			cmd_new_token: false,

@@ -295,20 +295,23 @@ impl<'a> TrieDBIterator<'a> {
 		Ok(r)
 	}
 
-	/// Recursible function to retrieve the value given a `node` and a partial `key`. `None` if no
-	/// value exists for the key.
-	///
-	/// Note: Not a public API; use Trie trait functions.
-	fn seek_recurse<'key> (
-		&mut self,
-		node: &[u8],
-		key: &NibbleSlice<'key>,
-		d: u32
-	) -> super::Result<()> {
-		let n = Node::decoded(node);
+	fn seek_descend<'key> ( &mut self, node: &[u8], key: &NibbleSlice<'key>, d: u32) -> super::Result<()> {
 		match Node::decoded(node) {
-			Node::Leaf(_, ref item) => {
-				self.descend(node);
+			Node::Leaf(ref slice, _) => {
+				let slice = &NibbleSlice::from_encoded(slice).0;
+				if slice == key {
+					self.trail.push(Crumb {
+						status: Status::At,
+						node: Node::decoded(node),
+					});
+					self.key_nibbles.extend(slice.iter());
+				} else {
+					self.trail.push(Crumb {
+						status: Status::Exiting,
+						node: Node::decoded(node),
+					});
+					self.key_nibbles.extend(slice.iter());
+				}
 				Ok(())
 			},
 			Node::Extension(ref slice, ref item) => {
@@ -317,33 +320,34 @@ impl<'a> TrieDBIterator<'a> {
 					let mut r = NoOp;
 					self.trail.push(Crumb {
 						status: Status::At,
-						node: n,
+						node: Node::decoded(node),
 					});
 					self.key_nibbles.extend(slice.iter());
 					let data = try!(self.db.get_raw_or_lookup(&*item, &mut r, d));
-					self.seek_recurse(&data, &key.mid(slice.len()), d + 1)
+					self.seek_descend(&data, &key.mid(slice.len()), d + 1)
 				} else {
-					self.descend(node);
+					try!(self.descend(node));
 					Ok(())
 				}
 			},
 			Node::Branch(ref nodes, _) => match key.is_empty() {
 				true => {
 					self.trail.push(Crumb {
-						status: Status::Entering,
-						node: n,
+						status: Status::At,
+						node: Node::decoded(node),
 					});
 					Ok(())
 				},
 				false => {
 					let mut r = NoOp;
-					let node = try!(self.db.get_raw_or_lookup(&*nodes[key.at(0) as usize], &mut r, d));
+					let i = key.at(0);
 					self.trail.push(Crumb {
-						status: Status::AtChild(key.at(0) as usize),
-						node: n,
+						status: Status::AtChild(i as usize),
+						node: Node::decoded(node),
 					});
-					self.key_nibbles.push(key.at(0));
-					self.seek_recurse(&node, &key.mid(1), d + 1)
+					self.key_nibbles.push(i);
+					let child = try!(self.db.get_raw_or_lookup(&*nodes[i as usize], &mut r, d));
+					self.seek_descend(&child, &key.mid(1), d + 1)
 				}
 			},
 			_ => Ok(())
@@ -378,7 +382,7 @@ impl<'a> TrieIterator for TrieDBIterator<'a> {
 		self.key_nibbles.clear();
 		let mut r = NoOp;
 		let root_rlp = try!(self.db.root_data(&mut r));
-		self.seek_recurse(&root_rlp, &NibbleSlice::new(key), 1)
+		self.seek_descend(&root_rlp, &NibbleSlice::new(key), 1)
 	}
 }
 
@@ -501,10 +505,28 @@ fn iterator_seek() {
 
 	let t = TrieDB::new(&memdb, &root).unwrap();
 	let mut iter = t.iter().unwrap();
-	//assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
-	//iter.seek(b"!").unwrap();
-	//assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
+	assert_eq!(iter.next(), Some(Ok((b"A".to_vec(), DBValue::from_slice(b"A")))));
+	iter.seek(b"!").unwrap();
+	assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
 	let mut iter = t.iter().unwrap();
 	iter.seek(b"A").unwrap();
-	assert_eq!(d, iter.map(|x| x.unwrap().1).collect::<Vec<_>>());
+	assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"AA").unwrap();
+	assert_eq!(&d[2..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"A!").unwrap();
+	assert_eq!(&d[1..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"AB").unwrap();
+	assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"AB!").unwrap();
+	assert_eq!(&d[3..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"B").unwrap();
+	assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
+	let mut iter = t.iter().unwrap();
+	iter.seek(b"C").unwrap();
+	assert_eq!(&d[4..], &iter.map(|x| x.unwrap().1).collect::<Vec<_>>()[..]);
 }

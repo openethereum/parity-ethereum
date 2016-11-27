@@ -314,11 +314,10 @@ impl Account {
 		self.code_hash == SHA3_EMPTY
 	}
 
-	#[cfg(test)]
-	/// return the storage root associated with this account or None if it has been altered via the overlay.
+	/// Return the storage root associated with this account or None if it has been altered via the overlay.
 	pub fn storage_root(&self) -> Option<&H256> { if self.storage_is_clean() {Some(&self.storage_root)} else {None} }
 
-	/// return the storage overlay.
+	/// Return the storage overlay.
 	pub fn storage_changes(&self) -> &HashMap<H256, H256> { &self.storage_changes }
 
 	/// Increment the nonce of the account by one.

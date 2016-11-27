@@ -234,19 +234,20 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error> {
+	fn list_accounts(&self, after: Option<H160>, count: u64) -> Result<Option<Vec<H160>>, Error> {
 		try!(self.active());
 
 		Ok(take_weak!(self.client)
-			.list_accounts(BlockID::Latest)
+			.list_accounts(BlockID::Latest, after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
-	fn list_storage_keys(&self, _address: H160) -> Result<Option<Vec<H256>>, Error> {
+	fn list_storage_keys(&self, address: H160, after: Option<H256>, count: u64) -> Result<Option<Vec<H256>>, Error> {
 		try!(self.active());
 
-		// TODO: implement this
-		Ok(None)
+		Ok(take_weak!(self.client)
+			.list_storage(BlockID::Latest, &address.into(), after.map(Into::into).as_ref(), count)
+			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {

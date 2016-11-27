@@ -265,7 +265,7 @@ pub fn fatdb_switch_to_bool(switch: Switch, user_defaults: &UserDefaults, algori
 		(_, Switch::Auto, def) => Ok(def),
 	};
 
-	if result.clone().unwrap_or(false) && algorithm != Algorithm::Archive {
+	if result.clone().unwrap_or(false) && algorithm != Algorithm::Archive && algorithm != Algorithm::OverlayRecent {
 		return Err("Fat DB is not supported with the chosen pruning option. Please rerun with `--pruning=archive`".into());
 	}
 	result
