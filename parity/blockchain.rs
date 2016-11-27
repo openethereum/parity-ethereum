@@ -22,7 +22,7 @@ use std::thread::sleep;
 use std::sync::Arc;
 use rustc_serialize::hex::FromHex;
 use io::{PanicHandler, ForwardPanic};
-use util::{ToPretty, Uint, U256, Address, Hashable};
+use util::{ToPretty, Uint, U256, H256, Address, Hashable};
 use rlp::PayloadInfo;
 use ethcore::service::ClientService;
 use ethcore::client::{Mode, DatabaseCompactionProfile, VMType, BlockImportError, BlockChainClient, BlockID};
@@ -393,7 +393,7 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 	let at = cmd.at;
 	let mut i = 0usize;
 
-	out.write_fmt(format_args!("{{\n\"state\": [", )).expect("Couldn't write to stream.");
+	out.write_fmt(format_args!("{{ "state\": [", )).expect("Couldn't write to stream.");
 	loop {
 		let accounts = try!(client.list_accounts(at, last.as_ref(), 1000).ok_or("Specified block not found"));
 		if accounts.is_empty() {
@@ -416,7 +416,25 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 			if storage_root != ::util::SHA3_NULL_RLP {
 				out.write_fmt(format_args!(", \"storage_root\": \"0x{}\"", storage_root.hex())).expect("Write error");
 				if cmd.storage {
-					//out.write_fmt(format_args!(", \"storage\": {\n", client.code(at, &account).hex()));
+					out.write_fmt(format_args!(", \"storage\": {{")).expect("Write error");
+					let mut last_storage: Option<H256> = None;
+					loop {
+						let keys = try!(client.list_storage(at, &account, last_storage.as_ref(), 1000).ok_or("Specified block not found"));
+						if keys.is_empty() {
+							break;
+						}
+
+						let mut si = 0;
+						for key in keys.into_iter() {
+							if si != 0 {
+								out.write(b",").expect("Write error");
+							}
+							out.write_fmt(format_args!("\n\t\"0x{}\": \"0x{}\"", key.hex(), client.storage_at(&account, &key, at).unwrap_or_else(Default::default).hex())).expect("Write error");
+							si += 1;
+							last_storage = Some(key);
+						}
+					}
+					out.write(b"\n}").expect("Write error");
 				}
 			}
 			out.write(b"}").expect("Write error");
