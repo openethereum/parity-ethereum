@@ -265,6 +265,7 @@ fn execute_import(cmd: ImportBlockchain) -> Result<String, String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
+	user_defaults.fat_db = fat_db;
 	try!(user_defaults.save(&user_defaults_path));
 
 	let report = client.report();
@@ -393,7 +394,7 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 	let at = cmd.at;
 	let mut i = 0usize;
 
-	out.write_fmt(format_args!("{{ "state\": [", )).expect("Couldn't write to stream.");
+	out.write_fmt(format_args!("{{ \"state\": [", )).expect("Couldn't write to stream.");
 	loop {
 		let accounts = try!(client.list_accounts(at, last.as_ref(), 1000).ok_or("Specified block not found"));
 		if accounts.is_empty() {
