@@ -335,18 +335,17 @@ fn start_client(
 	let client_config = to_client_config(&cache_config, Mode::Active, tracing, fat_db, compaction, wal, VMType::default(), "".into(), algorithm, pruning_history, true);
 
 	let service = try!(ClientService::start(
-			client_config,
-			&spec,
-			&client_path,
-			&snapshot_path,
-			&dirs.ipc_path(),
-			Arc::new(Miner::with_spec(&spec)),
-			).map_err(|e| format!("Client service error: {:?}", e)));
+		client_config,
+		&spec,
+		&client_path,
+		&snapshot_path,
+		&dirs.ipc_path(),
+		Arc::new(Miner::with_spec(&spec)),
+	).map_err(|e| format!("Client service error: {:?}", e)));
 
 	drop(spec);
 	Ok(service)
 }
-
 
 fn execute_export(cmd: ExportBlockchain) -> Result<String, String> {
 	// Setup panic handler

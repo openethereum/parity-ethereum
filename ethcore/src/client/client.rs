@@ -173,7 +173,6 @@ impl Client {
 		};
 
 		let trie_factory = TrieFactory::new(trie_spec);
-
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
 		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db, &trie_factory)) {

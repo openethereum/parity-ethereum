@@ -304,14 +304,13 @@ impl<'a> TrieDBIterator<'a> {
 						status: Status::At,
 						node: Node::decoded(node),
 					});
-					self.key_nibbles.extend(slice.iter());
 				} else {
 					self.trail.push(Crumb {
 						status: Status::Exiting,
 						node: Node::decoded(node),
 					});
-					self.key_nibbles.extend(slice.iter());
 				}
+				self.key_nibbles.extend(slice.iter());
 				Ok(())
 			},
 			Node::Extension(ref slice, ref item) => {
