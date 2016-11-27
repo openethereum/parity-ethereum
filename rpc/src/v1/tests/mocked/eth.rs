@@ -495,7 +495,7 @@ fn rpc_eth_pending_transaction_by_hash() {
 		tester.miner.pending_transactions.lock().insert(H256::zero(), tx);
 	}
 
-	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":0,"value":"0xa"},"id":1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"blockHash":null,"blockNumber":null,"creates":null,"from":"0x0f65fe9276bc9a24ae7083ae28e2660ef72df99e","gas":"0x5208","gasPrice":"0x1","hash":"0x41df922fd0d4766fcc02e161f8295ec28522f329ae487f14d811e4b64c8d6e31","input":"0x","networkId":null,"nonce":"0x0","publicKey":"0x7ae46da747962c2ee46825839c1ef9298e3bd2e70ca2938495c3693a485ec3eaa8f196327881090ff64cf4fbb0a48485d4f83098e189ed3b7a87d5941b59f789","r":"0x48b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353","raw":"0xf85f800182520894095e7baea6a6c7c4c2dfeb977efac326af552d870a801ba048b55bfa915ac795c431978d8a6a992b628d557da5ff759b307d495a36649353a0efffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","s":"0xefffd310ac743f371de3b9f7f9cb56c0b28ad43601b4ab949f53faa07bd2c804","standardV":0,"to":"0x095e7baea6a6c7c4c2dfeb977efac326af552d87","transactionIndex":null,"v":27,"value":"0xa"},"id":1}"#;
 	let request = r#"{
 		"jsonrpc": "2.0",
 		"method": "eth_getTransactionByHash",
@@ -810,13 +810,16 @@ fn rpc_eth_sign_transaction() {
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
-		r#""input":"0x","nonce":"0x1","# +
+		r#""input":"0x","# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", signature.r().to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{}\",", signature.s().to_hex()) +
+		&format!("\"standardV\":{},", t.standard_v()) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
-		&format!("\"v\":{},", signature.v()) +
+		&format!("\"v\":{},", t.original_v()) +
 		r#""value":"0x9184e72a""# +
 		r#"}},"id":1}"#;
 

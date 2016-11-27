@@ -278,13 +278,16 @@ fn should_add_sign_transaction_to_the_queue() {
 		&format!("\"from\":\"0x{:?}\",", &address) +
 		r#""gas":"0x76c0","gasPrice":"0x9184e72a000","# +
 		&format!("\"hash\":\"0x{:?}\",", t.hash()) +
-		r#""input":"0x","nonce":"0x1","# +
+		r#""input":"0x","# +
+		&format!("\"networkId\":{},", t.network_id().map_or("null".to_owned(), |n| format!("{}", n))) +
+		r#""nonce":"0x1","# +
 		&format!("\"publicKey\":\"0x{:?}\",", t.public_key().unwrap()) +
 		&format!("\"r\":\"0x{}\",", signature.r().to_hex()) +
 		&format!("\"raw\":\"0x{}\",", rlp.to_hex()) +
 		&format!("\"s\":\"0x{}\",", signature.s().to_hex()) +
+		&format!("\"standardV\":{},", t.standard_v()) +
 		r#""to":"0xd46e8dd67c5d32be8058bb8eb970870f07244567","transactionIndex":null,"# +
-		&format!("\"v\":{},", signature.v()) +
+		&format!("\"v\":{},", t.original_v()) +
 		r#""value":"0x9184e72a""# +
 		r#"}},"id":1}"#;
 
