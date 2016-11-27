@@ -41,6 +41,7 @@ import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
+import TxList from './TxList';
 
 export {
   Actionbar,
@@ -83,5 +84,6 @@ export {
   Tags,
   Tooltip,
   Tooltips,
-  TxHash
+  TxHash,
+  TxList
 };
