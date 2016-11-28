@@ -24,7 +24,6 @@ import { checkIfVerified, checkIfRequested, awaitPuzzle } from '../../contracts/
 import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
-import isTestnet from '../../util/is-testnet';
 
 export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';
@@ -77,9 +76,10 @@ export default class VerificationStore {
     }
   }
 
-  constructor (api, account) {
+  constructor (api, account, isTestnet) {
     this.api = api;
     this.account = account;
+    this.isTestnet = isTestnet;
 
     this.step = LOADING;
     Contracts.create(api).registry.getContract('smsverification')
@@ -204,10 +204,8 @@ export default class VerificationStore {
         return api.parity.netChain();
       })
       .then((chain) => {
-        const isTest = isTestnet(chain);
-
         this.step = REQUESTING_SMS;
-        return postToServer({ number, address: account }, isTest);
+        return postToServer({ number, address: account }, this.isTestnet);
       })
       .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
