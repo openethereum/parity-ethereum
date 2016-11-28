@@ -53,17 +53,6 @@ class RequestsPage extends Component {
   }
 
   render () {
-    const { pending, finished } = this.props.signer;
-    const { localHashes } = this.store;
-
-    if (!pending.length && !finished.length && !localHashes.length) {
-      return (
-        <Page>
-          <div>{ this.renderNoRequestsMsg() }</div>
-        </Page>
-      );
-    }
-
     return (
       <Page>
         <div>{ this.renderPendingRequests() }</div>
@@ -97,7 +86,13 @@ class RequestsPage extends Component {
     const { pending } = this.props.signer;
 
     if (!pending.length) {
-      return;
+      return (
+        <Container>
+          <div className={ styles.noRequestsMsg }>
+            There are no requests requiring your confirmation.
+          </div>
+        </Container>
+      );
     }
 
     const items = pending.sort(this._sortRequests).map(this.renderPending);
@@ -167,16 +162,6 @@ class RequestsPage extends Component {
         isTest={ isTest }
         store={ this.store }
         />
-    );
-  }
-
-  renderNoRequestsMsg () {
-    return (
-      <Container>
-        <div className={ styles.noRequestsMsg }>
-          There are no requests requiring your confirmation.
-        </div>
-      </Container>
     );
   }
 }
