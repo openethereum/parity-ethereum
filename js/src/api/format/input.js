@@ -17,6 +17,7 @@
 import BigNumber from 'bignumber.js';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
+import { padLeft } from '../util/format';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -52,12 +53,18 @@ export function inHash (hash) {
 
 export function inTopics (_topics) {
   let topics = (_topics || [])
-    .filter((topic) => topic)
-    .map(inHex);
+    .filter((topic) => topic === null || topic)
+    .map((topic) => {
+      if (topic === null) {
+        return null;
+      }
 
-  while (topics.length < 4) {
-    topics.push(null);
-  }
+      if (Array.isArray(topic)) {
+        return inTopics(topic);
+      }
+
+      return padLeft(topic, 32);
+    });
 
   return topics;
 }

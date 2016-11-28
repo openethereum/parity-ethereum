@@ -14,4 +14,21 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './RequestPendingWeb3';
+export function showSnackbar (message, cooldown) {
+  return (dispatch, getState) => {
+    dispatch(openSnackbar(message, cooldown));
+  };
+}
+
+function openSnackbar (message, cooldown) {
+  return {
+    type: 'openSnackbar',
+    message, cooldown
+  };
+}
+
+export function closeSnackbar () {
+  return {
+    type: 'closeSnackbar'
+  };
+}

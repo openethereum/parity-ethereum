@@ -21,25 +21,39 @@ export default class Registry {
     this._api = api;
     this._contracts = [];
     this._instance = null;
+    this._fetching = false;
+    this._queue = [];
 
     this.getInstance();
   }
 
   getInstance () {
-    return new Promise((resolve, reject) => {
-      if (this._instance) {
-        resolve(this._instance);
-        return;
-      }
+    if (this._instance) {
+      return Promise.resolve(this._instance);
+    }
 
-      this._api.parity
-        .registryAddress()
-        .then((address) => {
-          this._instance = this._api.newContract(abis.registry, address).instance;
-          resolve(this._instance);
-        })
-        .catch(reject);
-    });
+    if (this._fetching) {
+      return new Promise((resolve) => {
+        this._queue.push({ resolve });
+      });
+    }
+
+    this._fetching = true;
+
+    return this._api.parity
+      .registryAddress()
+      .then((address) => {
+        this._fetching = false;
+        this._instance = this._api.newContract(abis.registry, address).instance;
+
+        this._queue.forEach((queued) => {
+          queued.resolve(this._instance);
+        });
+
+        this._queue = [];
+
+        return this._instance;
+      });
   }
 
   getContract (_name) {

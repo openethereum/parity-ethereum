@@ -144,35 +144,17 @@ export default class Input extends Component {
   }
 
   renderCopyButton () {
-    const { allowCopy, label, hint, floatCopy } = this.props;
+    const { allowCopy, hideUnderline } = this.props;
     const { value } = this.state;
 
     if (!allowCopy) {
       return null;
     }
-
-    const style = {
-      marginBottom: 13
-    };
-
     const text = typeof allowCopy === 'string'
       ? allowCopy
       : value;
 
-    if (!label) {
-      style.marginBottom = 2;
-    } else if (label && !hint) {
-      style.marginBottom = 4;
-    } else if (label && hint) {
-      style.marginBottom = 10;
-    }
-
-    if (floatCopy) {
-      style.position = 'absolute';
-      style.left = -24;
-      style.bottom = style.marginBottom;
-      style.marginBottom = 0;
-    }
+    const style = hideUnderline ? {} : { position: 'relative', top: '2px' };
 
     return (
       <div className={ styles.copy } style={ style }>

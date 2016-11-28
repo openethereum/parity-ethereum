@@ -16,26 +16,17 @@
 
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
-import { bindActionCreators } from 'redux';
 
 class ParityBackground extends Component {
-  static contextTypes = {
-    muiTheme: PropTypes.object.isRequired
-  }
-
   static propTypes = {
+    style: PropTypes.object.isRequired,
     children: PropTypes.node,
     className: PropTypes.string,
-    gradient: PropTypes.string,
-    seed: PropTypes.any,
-    settings: PropTypes.object.isRequired,
     onClick: PropTypes.func
-  }
+  };
 
   render () {
-    const { muiTheme } = this.context;
-    const { children, className, gradient, seed, settings, onClick } = this.props;
-    const style = muiTheme.parity.getBackgroundStyle(gradient, seed || settings.backgroundSeed);
+    const { children, className, style, onClick } = this.props;
 
     return (
       <div
@@ -48,17 +39,29 @@ class ParityBackground extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { settings } = state;
+function mapStateToProps (_, initProps) {
+  const { gradient, seed, muiTheme } = initProps;
 
-  return { settings };
-}
+  let _seed = seed;
+  let _props = { style: muiTheme.parity.getBackgroundStyle(gradient, seed) };
 
-function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return (state, props) => {
+    const { backgroundSeed } = state.settings;
+    const { seed } = props;
+
+    const newSeed = seed || backgroundSeed;
+
+    if (newSeed === _seed) {
+      return _props;
+    }
+
+    _seed = newSeed;
+    _props = { style: muiTheme.parity.getBackgroundStyle(gradient, newSeed) };
+
+    return _props;
+  };
 }
 
 export default connect(
-  mapStateToProps,
-  mapDispatchToProps
+  mapStateToProps
 )(ParityBackground);
