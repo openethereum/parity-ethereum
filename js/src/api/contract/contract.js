@@ -15,14 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Abi from '../../abi';
-import Api from '../api';
 import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
 export default class Contract {
   constructor (api, abi) {
-    if (!isInstanceOf(api, Api)) {
+    if (!api) {
       throw new Error('API instance needs to be provided to Contract');
     }
 
