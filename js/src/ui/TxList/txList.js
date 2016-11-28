@@ -72,10 +72,7 @@ class TxList extends Component {
 
       return (
         <tr key={ tx.hash }>
-          <td className={ styles.timestamp }>
-            <div>{ this.formatBlockTimestamp(tx.blockNumber) }</div>
-            <div>{ tx.blockNumber.toFormat() }</div>
-          </td>
+          { this.renderBlockNumber(tx.bloxkNumber) }
           { this.renderAddress(tx.from) }
           <td className={ styles.transaction }>
             { this.renderEtherValue(tx.value) }
@@ -146,14 +143,16 @@ class TxList extends Component {
     );
   }
 
-  formatBlockTimestamp (blockNumber) {
-    const block = this.store.blocks[blockNumber.toNumber()];
+  renderBlockNumber (_blockNumber) {
+    const blockNumber = _blockNumber.toNumber();
+    const block = this.store.blocks[blockNumber];
 
-    if (!block) {
-      return null;
-    }
-
-    return moment(block.timestamp).fromNow();
+    return (
+      <td className={ styles.timestamp }>
+        <div>{ block ? moment(block.timestamp).fromNow() : null }</div>
+        <div>{ blockNumber === 0 ? 'Pending' : _blockNumber.toFormat() }</div>
+      </td>
+    );
   }
 }
 

@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { action, observable, transaction } from 'mobx';
+import { uniq } from 'lodash';
 
 export default class Store {
   @observable blocks = {};
@@ -37,6 +38,10 @@ export default class Store {
         .sort((ahash, bhash) => {
           const bnA = this.transactions[ahash].blockNumber;
           const bnB = this.transactions[bhash].blockNumber;
+
+          if (bnA.eq(0)) {
+            return bnA.eq(bnB) ? 0 : 1;
+          }
 
           return bnB.comparedTo(bnA);
         });
@@ -68,17 +73,9 @@ export default class Store {
   }
 
   loadBlocks (_blockNumbers) {
-    const blockNumbers = Object.keys(
-      _blockNumbers.reduce((blockNumbers, bn) => {
-        if (!this.blocks[bn]) {
-          blockNumbers[bn] = true;
-        }
+    const blockNumbers = uniq(_blockNumbers).filter((bn) => !this.blocks[bn]);
 
-        return blockNumbers;
-      }, {})
-    );
-
-    if (!blockNumbers.length) {
+    if (!blockNumbers || !blockNumbers.length) {
       return;
     }
 
