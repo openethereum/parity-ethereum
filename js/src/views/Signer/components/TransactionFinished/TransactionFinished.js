@@ -63,22 +63,20 @@ export default class TransactionFinished extends Component {
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>
-        <div className={ styles.mainContainer }>
-          <TransactionMainDetails
-            { ...this.props }
-            { ...this.state }
-            fromBalance={ fromBalance }
-            toBalance={ toBalance }
-            className={ styles.transactionDetails }
-          >
-            <TransactionSecondaryDetails
-              id={ id }
-              date={ date }
-            />
-          </TransactionMainDetails>
-          <div className={ styles.statusContainer }>
-            { this.renderStatus() }
-          </div>
+        <TransactionMainDetails
+          { ...this.props }
+          { ...this.state }
+          fromBalance={ fromBalance }
+          toBalance={ toBalance }
+          className={ styles.transactionDetails }
+        >
+          <TransactionSecondaryDetails
+            id={ id }
+            date={ date }
+          />
+        </TransactionMainDetails>
+        <div className={ styles.statusContainer }>
+          { this.renderStatus() }
         </div>
       </div>
     );

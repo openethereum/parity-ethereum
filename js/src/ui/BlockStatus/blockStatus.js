@@ -44,7 +44,7 @@ class BlockStatus extends Component {
       );
     }
 
-    if (!syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
+    if (syncing.warpChunksAmount && syncing.warpChunksProcessed && !syncing.warpChunksAmount.eq(syncing.warpChunksProcessed)) {
       return (
         <div className={ styles.syncStatus }>
           { syncing.warpChunksProcessed.mul(100).div(syncing.warpChunksAmount).toFormat(2) }% warp restore

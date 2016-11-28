@@ -59,6 +59,7 @@ export default class CreateAccount extends Component {
     passwordHint: null,
     password: null,
     phrase: null,
+    windowsPhrase: false,
     rawKey: null,
     json: null,
     canCreate: false,
@@ -200,7 +201,7 @@ export default class CreateAccount extends Component {
   }
 
   onCreate = () => {
-    const { createType } = this.state;
+    const { createType, windowsPhrase } = this.state;
     const { api } = this.context;
 
     this.setState({
@@ -208,8 +209,16 @@ export default class CreateAccount extends Component {
     });
 
     if (createType === 'fromNew' || createType === 'fromPhrase') {
+      let phrase = this.state.phrase;
+      if (createType === 'fromPhrase' && windowsPhrase) {
+        phrase = phrase
+          .split(' ') // get the words
+          .map((word) => word === 'misjudged' ? word : `${word}\r`) // add \r after each (except last in dict)
+          .join(' '); // re-create string
+      }
+
       return api.parity
-        .newAccountFromPhrase(this.state.phrase, this.state.password)
+        .newAccountFromPhrase(phrase, this.state.password)
         .then((address) => {
           this.setState({ address });
           return api.parity
@@ -326,7 +335,7 @@ export default class CreateAccount extends Component {
     });
   }
 
-  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey }) => {
+  onChangeDetails = (canCreate, { name, passwordHint, address, password, phrase, rawKey, windowsPhrase }) => {
     this.setState({
       canCreate,
       name,
@@ -334,6 +343,7 @@ export default class CreateAccount extends Component {
       address,
       password,
       phrase,
+      windowsPhrase: windowsPhrase || false,
       rawKey
     });
   }

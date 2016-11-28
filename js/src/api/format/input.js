@@ -15,9 +15,9 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import BigNumber from 'bignumber.js';
-import { range } from 'lodash';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
+import { padLeft } from '../util/format';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -51,19 +51,20 @@ export function inHash (hash) {
   return inHex(hash);
 }
 
-export function pad (input, length) {
-  const value = inHex(input).substr(2, length * 2);
-  return '0x' + value + range(length * 2 - value.length).map(() => '0').join('');
-}
-
 export function inTopics (_topics) {
   let topics = (_topics || [])
     .filter((topic) => topic === null || topic)
-    .map((topic) => topic === null ? null : pad(topic, 32));
+    .map((topic) => {
+      if (topic === null) {
+        return null;
+      }
 
-  // while (topics.length < 4) {
-  //   topics.push(null);
-  // }
+      if (Array.isArray(topic)) {
+        return inTopics(topic);
+      }
+
+      return padLeft(topic, 32);
+    });
 
   return topics;
 }

@@ -15,28 +15,30 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { handleActions } from 'redux-actions';
-import { bytesToHex } from '../../api/util/format';
-
-const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
 const initialState = {
-  images: {}
+  open: false,
+  message: '',
+  cooldown: 1000
 };
 
-export function hashToImageUrl (hashArray) {
-  const hash = hashArray ? bytesToHex(hashArray) : ZERO;
-
-  return hash === ZERO ? null : `/api/content/${hash.substr(2)}`;
-}
-
 export default handleActions({
-  setAddressImage (state, action) {
-    const { address, hashArray, converted } = action;
+  openSnackbar (state, action) {
+    const { message, cooldown } = action;
 
-    const image = converted ? hashArray : hashToImageUrl(hashArray);
+    return {
+      ...state,
+      open: true,
+      cooldown: cooldown || state.cooldown,
+      message
+    };
+  },
 
-    return Object.assign({}, state, {
-      [address]: image
-    });
+  closeSnackbar (state) {
+    return {
+      ...state,
+      open: false,
+      cooldown: initialState.cooldown
+    };
   }
 }, initialState);
