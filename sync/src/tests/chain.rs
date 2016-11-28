@@ -250,3 +250,14 @@ fn high_td_attach() {
 	assert_eq!(net.peer(0).chain.chain_info().best_block_number, 5);
 }
 
+
+#[test]
+fn disconnect_on_unrelated_chain() {
+	::env_logger::init().ok();
+	let mut net = TestNet::new(2);
+	net.peer_mut(0).chain.add_blocks(200, EachBlockWith::Uncle);
+	net.peer_mut(1).chain.add_blocks(100, EachBlockWith::Nothing);
+	net.sync();
+	assert_eq!(net.disconnect_events, vec![(0, 0)]);
+}
+
