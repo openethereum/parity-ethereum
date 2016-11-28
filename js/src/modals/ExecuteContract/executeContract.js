@@ -70,6 +70,7 @@ export default class ExecuteContract extends Component {
         title='execute function'
         busy={ sending }
         waiting={ [1] }
+        scroll
         visible>
         { this.renderStep() }
       </Modal>

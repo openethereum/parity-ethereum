@@ -67,6 +67,7 @@ export default class DeployContract extends Component {
         steps={ deployError ? null : steps }
         title={ deployError ? 'deployment failed' : null }
         waiting={ [1] }
+        scroll
         visible>
         { this.renderStep() }
       </Modal>
