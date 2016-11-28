@@ -18,11 +18,12 @@
 use jsonrpc_core::Error;
 
 use std::collections::BTreeMap;
-use v1::helpers::auto_args::Wrap;
+use v1::helpers::auto_args::{Wrap, Trailing};
 use v1::types::{
 	H160, H256, H512, U256, Bytes,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
+	BlockNumber
 };
 
 build_rpc_trait! {
@@ -103,12 +104,12 @@ build_rpc_trait! {
 
 		/// Returns all addresses if Fat DB is enabled (`--fat-db`), or null if not.
 		#[rpc(name = "parity_listAccounts")]
-		fn list_accounts(&self, Option<H160>, u64) -> Result<Option<Vec<H160>>, Error>;
+		fn list_accounts(&self, u64, Option<H160>, Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error>;
 
 		/// Returns all storage keys of the given address (first parameter) if Fat DB is enabled (`--fat-db`),
 		/// or null if not.
 		#[rpc(name = "parity_listStorageKeys")]
-		fn list_storage_keys(&self, H160, Option<H256>, u64) -> Result<Option<Vec<H256>>, Error>;
+		fn list_storage_keys(&self, H160, u64, Option<H256>, Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error>;
 
 		/// Encrypt some data with a public key under ECIES.
 		/// First parameter is the 512-byte destination public key, second is the message.

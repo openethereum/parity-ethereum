@@ -403,10 +403,9 @@ fn execute_export_state(cmd: ExportState) -> Result<String, String> {
 		}
 
 		for account in accounts.into_iter() {
-
 			let balance = client.balance(&account, at).unwrap_or_else(U256::zero);
-
 			if cmd.min_balance.map_or(false, |m| balance < m) || cmd.max_balance.map_or(false, |m| balance > m) {
+				last = Some(account);
 				continue; //filtered out
 			}
 
