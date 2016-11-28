@@ -65,7 +65,7 @@ export default class Store {
           }, {})
         );
 
-        this.loadBlocks(transactions.map((tx) => tx.blockNumber.toNumber()));
+        this.loadBlocks(transactions.map((tx) => tx.blockNumber ? tx.blockNumber.toNumber() : 0));
       })
       .catch((error) => {
         console.warn('loadTransactions', error);

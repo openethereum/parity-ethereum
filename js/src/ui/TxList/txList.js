@@ -72,7 +72,7 @@ class TxList extends Component {
 
       return (
         <tr key={ tx.hash }>
-          { this.renderBlockNumber(tx.bloxkNumber) }
+          { this.renderBlockNumber(tx.blockNumber) }
           { this.renderAddress(tx.from) }
           <td className={ styles.transaction }>
             { this.renderEtherValue(tx.value) }
@@ -149,8 +149,8 @@ class TxList extends Component {
 
     return (
       <td className={ styles.timestamp }>
-        <div>{ block ? moment(block.timestamp).fromNow() : null }</div>
-        <div>{ blockNumber === 0 ? 'Pending' : _blockNumber.toFormat() }</div>
+        <div>{ blockNumber && block ? moment(block.timestamp).fromNow() : null }</div>
+        <div>{ blockNumber ? _blockNumber.toFormat() : 'Pending' }</div>
       </td>
     );
   }
