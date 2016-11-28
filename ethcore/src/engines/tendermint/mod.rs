@@ -98,7 +98,7 @@ impl Tendermint {
 				builtins: builtins,
 				step_service: try!(IoService::<Step>::start()),
 				authority: RwLock::new(Address::default()),
-				height: AtomicUsize::new(0),
+				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
 				proposer_nonce: AtomicUsize::new(0),
@@ -386,6 +386,7 @@ impl Engine for Tendermint {
 				};
 
 				if let Some(step) = next_step {
+					trace!(target: "poa", "handle_message: Transition triggered.");
 					if let Err(io_err) = self.step_service.send_message(step) {
 						warn!(target: "poa", "Could not proceed to next step {}.", io_err)
 					}
@@ -531,6 +532,14 @@ mod tests {
 		]
 	}
 
+	fn precommit_signatures(tap: &Arc<AccountProvider>, height: Height, round: Round, bare_hash: Option<H256>) -> Bytes {
+		let vote_info = message_info_rlp(height, round, Step::Precommit, bare_hash);
+		::rlp::encode(&vec![
+			tap.sign("0".sha3(), Some("0"), vote_info.sha3()).unwrap(),
+			tap.sign("1".sha3(), Some("1"), vote_info.sha3()).unwrap()
+		]).to_vec()
+	}
+
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
 		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
@@ -660,7 +669,7 @@ mod tests {
 
 	#[test]
 	#[should_panic]
-	fn prevote_step() {
+	fn step_transitioning() {
 		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
@@ -671,23 +680,25 @@ mod tests {
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
 
+		let h = 1;
+		let r = 0;
+
 		// Propose
-		let (b, seal) = propose_default(&spec, v0.clone());
+		let (b, mut seal) = propose_default(&spec, v0.clone());
 		let proposal = Some(b.header().bare_hash());
 
 		// Register IoHandler that panics on correct message.
+		seal[2] = precommit_signatures(&tap, h, r, b.header().bare_hash());
 		let io_service = IoService::<ClientIoMessage>::start().unwrap();
-		io_service.register_handler(Arc::new(TestIo(ClientIoMessage::SubmitSeal(Default::default(), seal)))).unwrap();
+		io_service.register_handler(Arc::new(TestIo(ClientIoMessage::SubmitSeal(proposal, seal)))).unwrap();
 		engine.register_message_channel(io_service.channel());
-
-		let h = 1;
-		let r = 0;
 
 		// Prevote.
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
 
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
+		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
+		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 	}
 
 	#[test]
