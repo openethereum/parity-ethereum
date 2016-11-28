@@ -53,7 +53,9 @@ pub enum ClientIoMessage {
 	/// Submit seal (useful for internal sealing).
 	SubmitSeal(H256, Vec<Bytes>),
 	/// Broadcast a message to the network.
-	BroadcastMessage(Bytes)
+	BroadcastMessage(Bytes),
+	/// New consensus message received.
+	NewMessage(Bytes)
 }
 
 /// Client service setup. Creates and registers client and network services with the IO subsystem.
@@ -233,6 +235,9 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 			ClientIoMessage::BroadcastMessage(ref message) => {
 				trace!(target: "poa", "message: BroadcastMessage");
 				self.client.broadcast_message(message.clone());
+			},
+			ClientIoMessage::NewMessage(ref message) => {
+				self.client.handle_queued_message(message);
 			},
 			_ => {} // ignore other messages
 		}

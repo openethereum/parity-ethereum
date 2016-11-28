@@ -562,6 +562,13 @@ impl Client {
 		results.len()
 	}
 
+	/// Handle messages from the IO queue
+	pub fn handle_queued_message(&self, message: &Bytes) {
+		if let Err(e) = self.engine.handle_message(UntrustedRlp::new(message)) {
+			trace!(target: "poa", "Invalid message received: {}", e);
+		}
+	}
+
 	/// Used by PoA to try sealing on period change.
 	pub fn update_sealing(&self) {
 		self.miner.update_sealing(self)
@@ -1229,9 +1236,10 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
-	// TODO: Make it an actual queue, return errors.
 	fn queue_infinity_message(&self, message: Bytes) {
-		self.engine.handle_message(UntrustedRlp::new(&message));
+		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::NewMessage(message)) {
+			debug!("Ignoring the message, error queueing: {}", e);
+		}
 	}
 
 	fn signing_network_id(&self) -> Option<u8> {
