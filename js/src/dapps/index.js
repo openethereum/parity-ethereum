@@ -14,16 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { newError } from '../ui/Errors/actions';
-import { setAddressImage } from './providers/imagesActions';
-import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '../views/Settings/actions';
-
-export {
-  newError,
-  clearStatusLogs,
-  setAddressImage,
-  toggleStatusLogs,
-  toggleStatusRefresh,
-  toggleView
-};
+module.exports = [
+  { name: 'basiccoin', entry: 'basiccoin.js', title: 'Basic Token Deployment' },
+  { name: 'dappreg', entry: 'dappreg.js', title: 'Dapp Registry' },
+  { name: 'githubhint', entry: 'githubhint.js', title: 'GitHub Hint', secure: true },
+  { name: 'localtx', entry: 'localtx.js', title: 'Local transactions Viewer', secure: true },
+  { name: 'registry', entry: 'registry.js', title: 'Registry' },
+  { name: 'signaturereg', entry: 'signaturereg.js', title: 'Method Signature Registry' },
+  { name: 'tokenreg', entry: 'tokenreg.js', title: 'Token Registry' }
+];

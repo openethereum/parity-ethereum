@@ -98,10 +98,10 @@ export default class PasswordManager extends Component {
 
     const passwordHint = meta && meta.passwordHint
       ? (
-      <span className={ styles.passwordHint }>
-        <span className={ styles.hintLabel }>Hint </span>
-        { meta.passwordHint }
-      </span>
+        <span className={ styles.passwordHint }>
+          <span className={ styles.hintLabel }>Hint </span>
+          { meta.passwordHint }
+        </span>
       )
       : null;
 
