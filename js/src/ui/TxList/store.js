@@ -39,8 +39,8 @@ export default class Store {
           const bnA = this.transactions[ahash].blockNumber;
           const bnB = this.transactions[bhash].blockNumber;
 
-          if (bnA.eq(0)) {
-            return bnA.eq(bnB) ? 0 : 1;
+          if (bnB.eq(0)) {
+            return bnB.eq(bnA) ? 0 : 1;
           }
 
           return bnB.comparedTo(bnA);
