@@ -376,7 +376,7 @@ class PasswordManager extends Component {
             .changePassword(account.address, currentPass, newPass)
         ])
           .then(() => {
-            showSnackbar(<div>Your password has been changed successfully.</div>);
+            showSnackbar(<div>Your password has been successfully changed.</div>);
             this.setState({ waiting: false, showMessage: false });
             onClose();
           });
