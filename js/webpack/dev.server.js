@@ -37,8 +37,7 @@ let progressBar = { update: () => {} };
 
     webpackConfig.entry[key] = [].concat(
       'react-hot-loader/patch',
-      'webpack-hot-middleware/client',
-      'webpack/hot/only-dev-server',
+      'webpack-hot-middleware/client?reload=true',
       entry
     );
   });
