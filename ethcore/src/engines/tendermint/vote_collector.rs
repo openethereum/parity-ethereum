@@ -41,15 +41,16 @@ impl VoteCollector {
 		self.votes.write().insert(message, voter)
 	}
 
-	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Option<SealSignatures> {
+	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: H256) -> Option<SealSignatures> {
 		let guard = self.votes.read();
+		let bh = Some(block_hash);
 		let mut current_signatures = guard.keys()
-			.skip_while(|m| !m.is_block_hash(height, round, Step::Propose, block_hash));
+			.skip_while(|m| !m.is_block_hash(height, round, Step::Propose, bh));
 		current_signatures.next().map(|proposal| SealSignatures {
 			proposal: proposal.signature,
 			votes: current_signatures
-				.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, block_hash))
-				.filter(|m| m.is_block_hash(height, round, Step::Precommit, block_hash))
+				.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, bh))
+				.filter(|m| m.is_block_hash(height, round, Step::Precommit, bh))
 				.map(|m| m.signature.clone())
 				.collect()
 		})
@@ -125,7 +126,7 @@ mod tests {
 			proposal: signatures[0],
 			votes: signatures[1..3].to_vec()
 		};
-		assert_eq!(seal, collector.seal_signatures(h, r, bh).unwrap());
+		assert_eq!(seal, collector.seal_signatures(h, r, bh.unwrap()).unwrap());
 	}
 
 	#[test]
