@@ -26,6 +26,7 @@ pub struct VoteCollector {
 	votes: RwLock<BTreeMap<ConsensusMessage, Address>>
 }
 
+#[derive(Debug, PartialEq, Eq)]
 pub struct SealSignatures {
 	pub proposal: H520,
 	pub votes: Vec<H520>
@@ -48,7 +49,7 @@ impl VoteCollector {
 			proposal: proposal.signature,
 			votes: current_signatures
 				.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, block_hash))
-				.take_while(|m| m.is_block_hash(height, round, Step::Precommit, block_hash))
+				.filter(|m| m.is_block_hash(height, round, Step::Precommit, block_hash))
 				.map(|m| m.signature.clone())
 				.collect()
 		})
@@ -90,13 +91,41 @@ mod tests {
 		let bh = Some("1".sha3());
 		let h = 1;
 		let r = 2;
-		let proposal = H520::random();
-		simple_vote(&collector, proposal.clone(), h, r, Step::Propose, Some("0".sha3()));
+		let mut signatures = Vec::new();
+		for _ in 0..5 {
+			signatures.push(H520::random());
+		}
+		// Wrong height proposal.
+		simple_vote(&collector, signatures[4].clone(), h - 1, r, Step::Propose, bh.clone());
+		// Good proposal.
+		simple_vote(&collector, signatures[0].clone(), h, r, Step::Propose, bh.clone());
+		// Wrong block proposal.
+		simple_vote(&collector, signatures[0].clone(), h, r, Step::Propose, Some("0".sha3()));
+		// Wrong block precommit.
+		simple_vote(&collector, signatures[3].clone(), h, r, Step::Precommit, Some("0".sha3()));
+		// Wrong round proposal.
+		simple_vote(&collector, signatures[0].clone(), h, r - 1, Step::Propose, bh.clone());
+		// Prevote.
+		simple_vote(&collector, signatures[0].clone(), h, r, Step::Prevote, bh.clone());
+		// Relevant precommit.
+		simple_vote(&collector, signatures[2].clone(), h, r, Step::Precommit, bh.clone());
+		// Replcated vote.
+		simple_vote(&collector, signatures[2].clone(), h, r, Step::Precommit, bh.clone());
+		// Wrong round precommit.
+		simple_vote(&collector, signatures[4].clone(), h, r + 1, Step::Precommit, bh.clone());
+		// Wrong height precommit.
+		simple_vote(&collector, signatures[3].clone(), h + 1, r, Step::Precommit, bh.clone());
+		// Relevant precommit.
+		simple_vote(&collector, signatures[1].clone(), h, r, Step::Precommit, bh.clone());
+		// Wrong round precommit, same signature.
+		simple_vote(&collector, signatures[1].clone(), h, r + 1, Step::Precommit, bh.clone());
+		// Wrong round precommit.
+		simple_vote(&collector, signatures[4].clone(), h, r - 1, Step::Precommit, bh.clone());
 		let seal = SealSignatures {
-			proposal: proposal,
-			votes: Vec::new()
+			proposal: signatures[0],
+			votes: signatures[1..3].to_vec()
 		};
-		collector.seal_signatures(h, r, bh);
+		assert_eq!(seal, collector.seal_signatures(h, r, bh).unwrap());
 	}
 
 	#[test]
@@ -111,7 +140,9 @@ mod tests {
 		// good prevote
 		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
 		// good prevote
-		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
+		let same_sig = H520::random();
+		simple_vote(&collector, same_sig.clone(), 3, 2, Step::Prevote, Some("1".sha3()));
+		simple_vote(&collector, same_sig, 3, 2, Step::Prevote, Some("1".sha3()));
 		// good precommit
 		simple_vote(&collector, H520::random(), 3, 2, Step::Precommit, Some("1".sha3()));
 		// good prevote
