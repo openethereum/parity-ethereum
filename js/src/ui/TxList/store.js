@@ -24,6 +24,10 @@ export default class Store {
 
   constructor (api) {
     this._api = api;
+    this._subscriptionId = 0;
+    this._pendingHashes = [];
+
+    this.subscribe();
   }
 
   @action addBlocks = (blocks) => {
@@ -45,11 +49,42 @@ export default class Store {
 
           return bnB.comparedTo(bnA);
         });
+      this._pendingHashes = this.sortedHashes.filter((hash) => this.transactions[hash].blockNumber.eq(0));
     });
   }
 
+  @action clearPending () {
+    this._pendingHashes = [];
+  }
+
+  subscribe () {
+    this._api
+      .subscribe('eth_blockNumber', (error, blockNumber) => {
+        if (error) {
+          return;
+        }
+
+        if (this._pendingHashes.length) {
+          this.loadTransactions(this._pendingHashes);
+          this.clearPending();
+        }
+      })
+      .then((subscriptionId) => {
+        this._subscriptionId = subscriptionId;
+      });
+  }
+
+  unsubscribe () {
+    if (!this._subscriptionId) {
+      return;
+    }
+
+    this._api.unsubscribe(this._subscriptionId);
+    this._subscriptionId = 0;
+  }
+
   loadTransactions (_txhashes) {
-    const txhashes = _txhashes.filter((txhash) => !this.transactions[txhash]);
+    const txhashes = _txhashes.filter((hash) => !this.transactions[hash] || this._pendingHashes.includes(hash));
 
     if (!txhashes || !txhashes.length) {
       return;
