@@ -358,8 +358,6 @@ pub fn is_valid_node_url(url: &str) -> bool {
 mod tests {
 	use super::*;
 	use std::str::FromStr;
-	use std::net::*;
-	use util::hash::*;
 	use devtools::*;
 	use AllowIP;
 

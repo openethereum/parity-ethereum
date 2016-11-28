@@ -422,7 +422,6 @@ mod tests {
 
 	use common::*;
 	use super::*;
-	use hashdb::*;
 	use log::init_log;
 	use journaldb::JournalDB;
 	use kvdb::Database;

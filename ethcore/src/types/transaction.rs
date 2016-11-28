@@ -73,7 +73,7 @@ pub struct Transaction {
 impl Transaction {
 	/// Append object with a without signature into RLP stream
 	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u8>) {
-		s.begin_list(if let None = network_id { 6 } else { 9 });
+		s.begin_list(if network_id.is_none() { 6 } else { 9 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -210,7 +210,7 @@ pub struct SignedTransaction {
 	/// Plain Transaction.
 	unsigned: Transaction,
 	/// The V field of the signature; the LS bit described which half of the curve our point falls
-	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.  
+	/// in. The MS bits describe which network this transaction is for. If 27/28, its for all networks.
 	v: u8,
 	/// The R field of the signature; helps describe the point on the curve.
 	r: U256,
@@ -304,7 +304,7 @@ impl SignedTransaction {
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
 	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => (v - 1) % 2, _ => 4 } }
 
-	/// The network ID, or `None` if this is a global transaction. 
+	/// The network ID, or `None` if this is a global transaction.
 	pub fn network_id(&self) -> Option<u8> {
 		match self.v {
 			v if v > 36 => Some((v - 35) / 2),
@@ -461,7 +461,7 @@ fn should_agree_with_vitalik() {
 		let signed: SignedTransaction = decode(&FromHex::from_hex(tx_data).unwrap());
 		signed.check_low_s().unwrap();
 		assert_eq!(signed.sender().unwrap(), address.into());
-		flushln!("networkid: {:?}", signed.network_id()); 
+		flushln!("networkid: {:?}", signed.network_id());
 	};
 
 	test_vector("f864808504a817c800825208943535353535353535353535353535353535353535808025a0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116da0044852b2a670ade5407e78fb2863c51de9fcb96542a07186fe3aeda6bb8a116d", "0xf0f6f18bca1b28cd68e4357452947e021241e9ce")

@@ -236,7 +236,6 @@ mod tests {
 
 	use common::*;
 	use super::*;
-	use hashdb::*;
 	use journaldb::traits::JournalDB;
 	use kvdb::Database;
 

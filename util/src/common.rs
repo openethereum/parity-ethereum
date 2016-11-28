@@ -34,6 +34,13 @@ macro_rules! vec_into {
 }
 
 #[macro_export]
+macro_rules! slice_into {
+	( $( $x:expr ),* ) => {
+		&[ $( $x.into() ),* ]
+	}
+}
+
+#[macro_export]
 macro_rules! hash_map {
 	() => { HashMap::new() };
 	( $( $x:expr => $y:expr ),* ) => {{

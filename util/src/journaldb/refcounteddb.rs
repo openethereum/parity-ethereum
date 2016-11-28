@@ -217,7 +217,6 @@ mod tests {
 	use common::*;
 	use super::*;
 	use super::super::traits::JournalDB;
-	use hashdb::*;
 
 	#[test]
 	fn long_history() {

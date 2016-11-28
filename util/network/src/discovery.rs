@@ -555,10 +555,6 @@ impl Discovery {
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use util::hash::*;
-	use util::sha3::*;
-	use std::net::*;
-	use node_table::*;
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use ethkey::{Random, Generator};

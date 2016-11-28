@@ -507,7 +507,6 @@ mod tests {
 	use std::io::{Read, Write, Error, Cursor, ErrorKind};
 	use mio::{Ready};
 	use std::collections::VecDeque;
-	use util::bytes::*;
 	use devtools::*;
 	use io::*;
 

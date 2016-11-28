@@ -449,7 +449,6 @@ mod tests {
 	use util::*;
 	use super::*;
 	use account_db::*;
-	use rlp::*;
 
 	#[test]
 	fn account_compress() {
