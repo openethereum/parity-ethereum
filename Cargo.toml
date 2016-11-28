@@ -47,7 +47,7 @@ ethcore-hash-fetch = { path = "ethcore/hash-fetch" }
 rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
-clippy = { version = "0.0.96", optional = true}
+clippy = { version = "0.0.103", optional = true}
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
