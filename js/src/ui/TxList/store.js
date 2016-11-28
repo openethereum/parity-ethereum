@@ -14,12 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import BigNumber from 'bignumber.js';
 import { action, observable, transaction } from 'mobx';
 
 export default class Store {
   @observable blocks = {};
-  @observable transactions = [];
+  @observable sortedHashes = [];
+  @observable transactions = {};
 
   constructor (api) {
     this._api = api;
@@ -30,71 +30,45 @@ export default class Store {
     this.blocks = Object.assign({}, this.blocks, blocks);
   }
 
-  @action addTransactions = (transactionsArray) => {
+  @action addTransaction = (tx) => {
     transaction(() => {
-      this._transactions = Object.assign(this._transactions, transactionsArray.reduce((txs, tx) => {
-        txs[tx.hash] = tx;
-        return txs;
-      }, {}));
-
-      this.transactions = Object
-        .keys(this._transactions)
+      this.transactions[tx.hash] = tx;
+      this.sortedHashes = Object
+        .keys(this.transactions)
         .sort((ahash, bhash) => {
-          const bnA = this._transactions[ahash].blockNumber || new BigNumber(0);
-          const bnB = this._transactions[bhash].blockNumber || new BigNumber(0);
+          const bnA = this.transactions[ahash].blockNumber;
+          const bnB = this.transactions[bhash].blockNumber;
 
           return bnB.comparedTo(bnA);
-        })
-        .map((txhash) => this._transactions[txhash]);
+        });
     });
   }
 
   loadTransactions (_hashes) {
-    const hashes = _hashes.filter((txhash) => !this._transactions[txhash]);
+    _hashes.forEach((txhash) => {
+      if (this._transactions[txhash]) {
+        return;
+      }
 
-    if (!hashes || !hashes.length) {
-      return;
-    }
+      this._api.eth
+        .getTransactionByHash(txhash)
+        .then((transaction) => {
+          const blockNumber = transaction.blockNumber.toNumber();
+          this.addTransaction(transaction);
 
-    Promise
-      .all(hashes.map((txhash) => this._api.eth.getTransactionByHash(txhash)))
-      .then((transactions) => {
-        this.loadBlocks(transactions.map((transaction) => transaction.blockNumber));
-        this.addTransactions(transactions);
-      })
-      .catch((error) => {
-        console.warn('loadTransactions', error);
-      });
-  }
+          if (this.blocks[blockNumber]) {
+            return;
+          }
 
-  loadBlocks (_blockNumbers) {
-    const blockNumbers = Object
-      .keys(
-        _blockNumbers
-          .filter((blockNumber) => blockNumber)
-          .reduce((blockNumbers, blockNumber) => {
-            blockNumbers[blockNumber.toNumber()] = true;
-            return blockNumbers;
-          }, {})
-      )
-      .filter((bn) => !this.blocks[bn]);
-
-    if (!blockNumbers || !blockNumbers.length) {
-      return;
-    }
-
-    Promise
-      .all(blockNumbers.map((blockNumber) => this._api.eth.getBlockByNumber(blockNumber)))
-      .then((_blocks) => {
-        this.addBlocks(
-          blockNumbers.reduce((blocks, blockNumber, index) => {
-            blocks[blockNumber] = _blocks[index];
-            return blocks;
-          }, {})
-        );
-      })
-      .catch((error) => {
-        console.warn('loadBlocks', error);
-      });
+          return this._api.eth
+            .getBlockByNumber(blockNumber)
+            .then((block) => {
+              this.addBlocks({ [blockNumber]: block });
+            });
+        })
+        .catch((error) => {
+          console.warn('loadTransaction', txhash, error);
+        });
+    });
   }
 }

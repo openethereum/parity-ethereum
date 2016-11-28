@@ -64,32 +64,34 @@ class TxList extends Component {
   renderRows () {
     const { address, isTest } = this.props;
 
-    return this.store.transactions.map((transaction) => {
+    return this.store.sortedHashes.map((txhash) => {
+      const tx = this.store.transactions[txhash];
+
       return (
-        <tr key={ transaction.hash }>
+        <tr key={ tx.hash }>
           <td className={ styles.timestamp }>
-            <div>{ this.formatBlockTimestamp(transaction.blockNumber) }</div>
-            <div>{ transaction.blockNumber.toFormat() }</div>
+            <div>{ this.formatBlockTimestamp(tx.blockNumber) }</div>
+            <div>{ tx.blockNumber.toFormat() }</div>
           </td>
-          { this.renderAddress(transaction.from) }
+          { this.renderAddress(tx.from) }
           <td className={ styles.transaction }>
-            { this.renderEtherValue(transaction.value) }
+            { this.renderEtherValue(tx.value) }
             <div>⇒</div>
             <div>
               <a
                 className={ styles.link }
-                href={ txLink(transaction.hash, isTest) }
+                href={ txLink(tx.hash, isTest) }
                 target='_blank'>
-                { `${transaction.hash.substr(2, 6)}...${transaction.hash.slice(-6)}` }
+                { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
               </a>
             </div>
           </td>
-          { this.renderAddress(transaction.to) }
+          { this.renderAddress(tx.to) }
           <td className={ styles.method }>
             <MethodDecoding
               historic
               address={ address }
-              transaction={ transaction } />
+              transaction={ tx } />
           </td>
         </tr>
       );
