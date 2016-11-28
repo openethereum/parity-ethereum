@@ -194,14 +194,16 @@ impl Tendermint {
 				trace!(target: "poa", "to_step: Transitioning to Commit.");
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
-				if let Some(seal) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, *self.proposal.read()) {
-					let seal = vec![
-						::rlp::encode(&round).to_vec(),
-						::rlp::encode(&seal.proposal).to_vec(),
-						::rlp::encode(&seal.votes).to_vec()
-					];
-					if let Some(block_hash) = *self.proposal.read() {
+				if let Some(block_hash) = *self.proposal.read() {
+					if let Some(seal) = self.votes.seal_signatures(self.height.load(AtomicOrdering::SeqCst), round, block_hash) {
+						let seal = vec![
+							::rlp::encode(&round).to_vec(),
+							::rlp::encode(&seal.proposal).to_vec(),
+							::rlp::encode(&seal.votes).to_vec()
+						];
 						self.submit_seal(block_hash, seal);
+					} else {
+						warn!(target: "poa", "Proposal was not found!");
 					}
 				}
 				*self.lock_change.write() = None;
@@ -327,12 +329,16 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
-			let vote_info = message_info_rlp(header.number() as Height, self.round.load(AtomicOrdering::SeqCst), Step::Propose, Some(header.bare_hash()));
-			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()) {
+			let height = header.number() as Height;
+			let round = self.round.load(AtomicOrdering::SeqCst);
+			let bh = Some(header.bare_hash());
+			let vote_info = message_info_rlp(height, round, Step::Propose, bh);
+			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()).map(H520::from) {
+				self.votes.vote(ConsensusMessage { signature: signature, height: height, round: round, step: Step::Propose, block_hash: bh }, *author);
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
 					::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
-					::rlp::encode(&H520::from(signature)).to_vec(),
+					::rlp::encode(&signature).to_vec(),
 					Vec::new()
 				])
 			} else {
@@ -551,16 +557,16 @@ mod tests {
 	}
 
 	struct TestIo {
-		received: Mutex<Option<ClientIoMessage>>
+		received: RwLock<Vec<ClientIoMessage>>
 	}
 
 	impl TestIo {
-		fn new() -> Arc<Self> { Arc::new(TestIo { received: Mutex::new(None) }) }
+		fn new() -> Arc<Self> { Arc::new(TestIo { received: RwLock::new(Vec::new()) }) }
 	}
 
 	impl IoHandler<ClientIoMessage> for TestIo {
 		fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
-			*self.received.lock() = Some(net_message.clone());
+			self.received.write().push(net_message.clone());
 		}
 	}
 
@@ -671,7 +677,6 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic]
 	fn step_transitioning() {
 		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
@@ -704,8 +709,8 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 
-		::std::thread::sleep(::std::time::Duration::from_millis(50));
-		assert_eq!(*test_io.received.lock(), Some(ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
+		::std::thread::sleep(::std::time::Duration::from_millis(500));
+		assert_eq!(test_io.received.read()[5], ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
 	}
 
 	#[test]
