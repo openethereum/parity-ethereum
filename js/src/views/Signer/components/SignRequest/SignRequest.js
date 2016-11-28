@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../../util/nullable-proptype';
+import { observer } from 'mobx-react';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
@@ -23,12 +23,8 @@ import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
 
+@observer
 export default class SignRequest extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  }
-
-  // TODO [todr] re-use proptypes?
   static propTypes = {
     id: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
@@ -40,21 +36,13 @@ export default class SignRequest extends Component {
     status: PropTypes.string,
     className: PropTypes.string,
     isTest: PropTypes.bool.isRequired,
-    balance: nullable(PropTypes.object)
+    store: PropTypes.object.isRequired
   };
 
-  state = {
-    balance: null
-  }
-
   componentWillMount () {
-    this.context.api.eth.getBalance(this.props.address)
-      .then((balance) => {
-        this.setState({ balance });
-      })
-      .catch((err) => {
-        console.error('could not fetch balance', err);
-      });
+    const { address, store } = this.props;
+
+    store.fetchBalance(address);
   }
 
   render () {
@@ -69,8 +57,8 @@ export default class SignRequest extends Component {
   }
 
   renderDetails () {
-    const { address, hash, isTest } = this.props;
-    const { balance } = this.state;
+    const { address, hash, isTest, store } = this.props;
+    const balance = store.balances[address];
 
     if (!balance) {
       return <div />;
@@ -133,11 +121,11 @@ export default class SignRequest extends Component {
 
   onConfirm = password => {
     const { id } = this.props;
+
     this.props.onConfirm({ id, password });
   }
 
   onReject = () => {
     this.props.onReject(this.props.id);
   }
-
 }

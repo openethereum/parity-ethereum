@@ -389,7 +389,7 @@ export default class Contract {
     const subscriptions = Object.values(this._subscriptions)
       .filter((s) => s.options.toBlock && s.options.toBlock === 'pending');
 
-    const timeout = () => setTimeout(() => this._subscribeFromPendings(), 1000);
+    const timeout = () => setTimeout(() => this._subscribeToPendings(), 1000);
 
     this._sendSubscriptionChanges(subscriptions)
       .then(() => {

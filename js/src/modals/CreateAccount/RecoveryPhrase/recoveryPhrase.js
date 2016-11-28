@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { Checkbox } from 'material-ui';
 
 import { Form, Input } from '../../../ui';
 
@@ -37,6 +38,7 @@ export default class RecoveryPhrase extends Component {
     password1Error: ERRORS.invalidPassword,
     password2: '',
     password2Error: ERRORS.noMatchPassword,
+    windowsPhrase: false,
     isValidPass: false,
     isValidName: false,
     isValidPhrase: false
@@ -47,15 +49,13 @@ export default class RecoveryPhrase extends Component {
   }
 
   render () {
-    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase } = this.state;
+    const { accountName, accountNameError, passwordHint, password1, password1Error, password2, password2Error, recoveryPhrase, windowsPhrase } = this.state;
 
     return (
       <Form>
         <Input
           hint='the account recovery phrase'
           label='account recovery phrase'
-          multiLine
-          rows={ 1 }
           value={ recoveryPhrase }
           onChange={ this.onEditPhrase } />
         <Input
@@ -88,20 +88,26 @@ export default class RecoveryPhrase extends Component {
               value={ password2 }
               onChange={ this.onEditPassword2 } />
           </div>
+          <Checkbox
+            className={ styles.checkbox }
+            label='Key was created with Parity <1.4.5 on Windows'
+            checked={ windowsPhrase }
+            onCheck={ this.onToggleWindowsPhrase } />
         </div>
       </Form>
     );
   }
 
   updateParent = () => {
-    const { isValidName, isValidPass, isValidPhrase, accountName, passwordHint, password1, recoveryPhrase } = this.state;
+    const { isValidName, isValidPass, isValidPhrase, accountName, passwordHint, password1, recoveryPhrase, windowsPhrase } = this.state;
     const isValid = isValidName && isValidPass && isValidPhrase;
 
     this.props.onChange(isValid, {
       name: accountName,
       passwordHint,
       password: password1,
-      phrase: recoveryPhrase
+      phrase: recoveryPhrase,
+      windowsPhrase
     });
   }
 
@@ -111,18 +117,33 @@ export default class RecoveryPhrase extends Component {
     });
   }
 
-  onEditPhrase = (event) => {
-    const value = event.target.value;
-    let error = null;
+  onToggleWindowsPhrase = (event) => {
+    this.setState({
+      windowsPhrase: !this.state.windowsPhrase
+    }, this.updateParent);
+  }
 
-    if (!value || value.trim().length < 25) {
-      error = ERRORS.noPhrase;
+  onEditPhrase = (event) => {
+    const recoveryPhrase = event.target.value
+      .toLowerCase() // wordlists are lowercase
+      .trim() // remove whitespace at both ends
+      .replace(/\s/g, ' ') // replace any whitespace with single space
+      .replace(/ +/g, ' '); // replace multiple spaces with a single space
+
+    const phraseParts = recoveryPhrase
+      .split(' ')
+      .map((part) => part.trim())
+      .filter((part) => part.length);
+    let recoveryPhraseError = null;
+
+    if (!recoveryPhrase || recoveryPhrase.length < 25 || phraseParts.length < 8) {
+      recoveryPhraseError = ERRORS.noPhrase;
     }
 
     this.setState({
-      recoveryPhrase: value,
-      recoveryPhraseError: error,
-      isValidPhrase: !error
+      recoveryPhrase: phraseParts.join(' '),
+      recoveryPhraseError,
+      isValidPhrase: !recoveryPhraseError
     }, this.updateParent);
   }
 
