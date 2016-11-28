@@ -25,7 +25,8 @@ export default class RequestFinished extends Component {
     result: PropTypes.any.isRequired,
     date: PropTypes.instanceOf(Date).isRequired,
     payload: PropTypes.oneOfType([
-      PropTypes.shape({ transaction: PropTypes.object.isRequired }),
+      PropTypes.shape({ signTransaction: PropTypes.object.isRequired }),
+      PropTypes.shape({ sendTransaction: PropTypes.object.isRequired }),
       PropTypes.shape({ sign: PropTypes.object.isRequired })
     ]).isRequired,
     msg: PropTypes.string,
@@ -58,8 +59,8 @@ export default class RequestFinished extends Component {
       );
     }
 
-    if (payload.transaction) {
-      const { transaction } = payload;
+    if (payload.sendTransaction || payload.signTransaction) {
+      const transaction = payload.sendTransaction || payload.signTransaction;
 
       return (
         <TransactionFinished

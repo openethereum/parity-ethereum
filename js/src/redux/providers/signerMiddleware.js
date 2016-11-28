@@ -72,8 +72,8 @@ export default class SignerMiddleware {
     };
 
     // Sign request in-browser
-    if (wallet && payload.transaction) {
-      const { transaction } = payload;
+    if (wallet && (payload.sendTransaction || payload.signTransaction)) {
+      const transaction = payload.sendTransaction || payload.signTransaction;
 
       (transaction.nonce.isZero()
         ? this._api.parity.nextNonce(transaction.from)
