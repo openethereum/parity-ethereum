@@ -23,16 +23,15 @@ export default class Store {
 
   constructor (api) {
     this._api = api;
-    this._transactions = {};
   }
 
   @action addBlocks = (blocks) => {
     this.blocks = Object.assign({}, this.blocks, blocks);
   }
 
-  @action addTransaction = (tx) => {
+  @action addTransactions = (transactions) => {
     transaction(() => {
-      this.transactions[tx.hash] = tx;
+      this.transactions = Object.assign({}, this.transactions, transactions);
       this.sortedHashes = Object
         .keys(this.transactions)
         .sort((ahash, bhash) => {
@@ -44,31 +43,57 @@ export default class Store {
     });
   }
 
-  loadTransactions (_hashes) {
-    _hashes.forEach((txhash) => {
-      if (this._transactions[txhash]) {
-        return;
-      }
+  loadTransactions (_txhashes) {
+    const txhashes = _txhashes.filter((txhash) => !this.transactions[txhash]);
 
-      this._api.eth
-        .getTransactionByHash(txhash)
-        .then((transaction) => {
-          const blockNumber = transaction.blockNumber.toNumber();
-          this.addTransaction(transaction);
+    if (!txhashes || !txhashes.length) {
+      return;
+    }
 
-          if (this.blocks[blockNumber]) {
-            return;
-          }
+    Promise
+      .all(txhashes.map((txhash) => this._api.eth.getTransactionByHash(txhash)))
+      .then((transactions) => {
+        this.addTransactions(
+          transactions.reduce((transactions, tx, index) => {
+            transactions[txhashes[index]] = tx;
+            return transactions;
+          }, {})
+        );
 
-          return this._api.eth
-            .getBlockByNumber(blockNumber)
-            .then((block) => {
-              this.addBlocks({ [blockNumber]: block });
-            });
-        })
-        .catch((error) => {
-          console.warn('loadTransaction', txhash, error);
-        });
-    });
+        this.loadBlocks(transactions.map((tx) => tx.blockNumber.toNumber()));
+      })
+      .catch((error) => {
+        console.warn('loadTransactions', error);
+      });
+  }
+
+  loadBlocks (_blockNumbers) {
+    const blockNumbers = Object.keys(
+      _blockNumbers.reduce((blockNumbers, bn) => {
+        if (!this.blocks[bn]) {
+          blockNumbers[bn] = true;
+        }
+
+        return blockNumbers;
+      }, {})
+    );
+
+    if (!blockNumbers.length) {
+      return;
+    }
+
+    Promise
+      .all(blockNumbers.map((blockNumber) => this._api.eth.getBlockByNumber(blockNumber)))
+      .then((blocks) => {
+        this.addBlocks(
+          blocks.reduce((blocks, block, index) => {
+            blocks[blockNumbers[index]] = block;
+            return blocks;
+          }, {})
+        );
+      })
+      .catch((error) => {
+        console.warn('loadBlocks', error);
+      });
   }
 }

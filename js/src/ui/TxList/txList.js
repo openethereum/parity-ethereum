@@ -37,7 +37,10 @@ class TxList extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    hashes: PropTypes.array.isRequired,
+    hashes: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.object
+    ]).isRequired,
     isTest: PropTypes.bool.isRequired
   }
 

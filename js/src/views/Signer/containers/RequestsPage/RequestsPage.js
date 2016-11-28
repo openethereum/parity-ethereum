@@ -54,10 +54,14 @@ class RequestsPage extends Component {
 
   render () {
     const { pending, finished } = this.props.signer;
-    const { localTransactions } = this.store;
+    const { localHashes } = this.store;
 
-    if (!pending.length && !finished.length && !localTransactions.length) {
-      return this.renderNoRequestsMsg();
+    if (!pending.length && !finished.length && !localHashes.length) {
+      return (
+        <Page>
+          <div>{ this.renderNoRequestsMsg() }</div>
+        </Page>
+      );
     }
 
     return (
@@ -74,9 +78,9 @@ class RequestsPage extends Component {
   }
 
   renderLocalQueue () {
-    const { localTransactions } = this.store;
+    const { localHashes } = this.store;
 
-    if (!localTransactions.length) {
+    if (!localHashes.length) {
       return null;
     }
 
@@ -84,7 +88,7 @@ class RequestsPage extends Component {
       <Container title='Local Transactions'>
         <TxList
           address=''
-          hashes={ localTransactions.map((tx) => tx.transaction.hash) } />
+          hashes={ localHashes } />
       </Container>
     );
   }
