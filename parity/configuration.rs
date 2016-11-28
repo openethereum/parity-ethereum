@@ -714,7 +714,7 @@ mod tests {
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
 	use signer::{Configuration as SignerConfiguration};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
 	use devtools::{RandomTempPath};
@@ -803,7 +803,7 @@ mod tests {
 
 	#[test]
 	fn test_command_blockchain_export() {
-		let args = vec!["parity", "export", "blockchain.json"];
+		let args = vec!["parity", "export", "blocks", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
@@ -824,8 +824,32 @@ mod tests {
 	}
 
 	#[test]
+	fn test_command_state_export() {
+		let args = vec!["parity", "export", "state", "state.json"];
+		let conf = parse(&args);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
+			spec: Default::default(),
+			cache_config: Default::default(),
+			dirs: Default::default(),
+			file_path: Some("state.json".into()),
+			pruning: Default::default(),
+			pruning_history: 64,
+			format: Default::default(),
+			compaction: Default::default(),
+			wal: true,
+			tracing: Default::default(),
+			fat_db: Default::default(),
+			at: BlockID::Latest,
+			storage: true,
+			code: true,
+			min_balance: None,
+			max_balance: None,
+		})));
+	}
+
+	#[test]
 	fn test_command_blockchain_export_with_custom_format() {
-		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
+		let args = vec!["parity", "export", "blocks", "--format", "hex", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
