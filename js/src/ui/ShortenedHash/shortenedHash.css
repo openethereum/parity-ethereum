@@ -15,63 +15,7 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-@import '../../_layout.css';
-
-.transaction {
-  flex: 1;
-  overflow: auto;
-}
-
-.transaction > * {
+.hash {
   display: inline-block;
-}
-
-.account {
-  text-align: center;
-}
-
-.from, .to {
-  width: 50%;
-}
-
-.from .account {
-  padding-right: $accountPadding;
-}
-
-.to .account {
-  padding-left: $accountPadding;
-}
-
-.from img, .to img {
-  display: inline-block;
-  width: 50px;
-  height: 50px;
-  margin: 5px;
-}
-
-.from span, .to span {
-  display: block;
-}
-
-.tx {
-  position: relative;
-  text-align: center;
-  margin: 0 -75px;
-  width: 150px;
-  top: -20px;
-  white-space: nowrap;
-}
-
-.total {
-  font-size: 0.6em;
-  opacity: .5;
-}
-
-.contractIcon {
-  background: #eee;
-  width: 50px !important;
-  height: 50px !important;
-  box-sizing: border-box;
-  border-radius: 50%;
-  padding: 13px;
+  word-break: break-all;
 }

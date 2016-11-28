@@ -19,6 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
+import { isEqual } from 'lodash';
 
 import { Badge, Tooltip } from '../../../ui';
 
@@ -162,9 +163,13 @@ class TabBar extends Component {
   }
 
   shouldComponentUpdate (nextProps, nextState) {
+    const prevViews = this.props.views.map((v) => v.id).sort();
+    const nextViews = nextProps.views.map((v) => v.id).sort();
+
     return (nextProps.hash !== this.props.hash) ||
       (nextProps.pending.length !== this.props.pending.length) ||
-      (nextState.activeViewId !== this.state.activeViewId);
+      (nextState.activeViewId !== this.state.activeViewId) ||
+      (!isEqual(prevViews, nextViews));
   }
 
   render () {
@@ -217,7 +222,7 @@ class TabBar extends Component {
             active={ active }
             view={ view }
             onChange={ this.onChange }
-            key={ index }
+            key={ view.id }
             pendings={ pending.length }
           >
             { body }
