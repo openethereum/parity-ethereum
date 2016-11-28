@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Abi from '../../abi';
-import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
