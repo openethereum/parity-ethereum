@@ -15,7 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 export default function (rpc) {
-  const subscriptions = [];
+  let subscriptions = [];
+  let pollStatusIntervalId = null;
 
   function getCoins () {
     return rpc.get('getcoins');
@@ -45,6 +46,24 @@ export default function (rpc) {
       callback,
       idx
     });
+
+    // Only poll if there are subscriptions...
+    if (!pollStatusIntervalId) {
+      pollStatusIntervalId = setInterval(_pollStatus, 2000);
+    }
+  }
+
+  function unsubscribe (depositAddress) {
+    const newSubscriptions = []
+      .concat(subscriptions)
+      .filter((sub) => sub.depositAddress !== depositAddress);
+
+    subscriptions = newSubscriptions;
+
+    if (subscriptions.length === 0) {
+      clearInterval(pollStatusIntervalId);
+      pollStatusIntervalId = null;
+    }
   }
 
   function _getSubscriptionStatus (subscription) {
@@ -81,13 +100,12 @@ export default function (rpc) {
     subscriptions.forEach(_getSubscriptionStatus);
   }
 
-  setInterval(_pollStatus, 2000);
-
   return {
     getCoins,
     getMarketInfo,
     getStatus,
     shift,
-    subscribe
+    subscribe,
+    unsubscribe
   };
 }

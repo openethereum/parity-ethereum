@@ -132,6 +132,7 @@ usage! {
 			or |c: &Config| otry!(c.network).reserved_peers.clone().map(Some),
 		flag_reserved_only: bool = false,
 			or |c: &Config| otry!(c.network).reserved_only.clone(),
+		flag_no_ancient_blocks: bool = false, or |_| None,
 
 		// -- API and Console Options
 		// RPC
@@ -189,7 +190,7 @@ usage! {
 			or |c: &Config| otry!(c.mining).tx_time_limit.clone().map(Some),
 		flag_relay_set: String = "cheap",
 			or |c: &Config| otry!(c.mining).relay_set.clone(),
-		flag_usd_per_tx: String = "0",
+		flag_usd_per_tx: String = "0.0025",
 			or |c: &Config| otry!(c.mining).usd_per_tx.clone(),
 		flag_usd_per_eth: String = "auto",
 			or |c: &Config| otry!(c.mining).usd_per_eth.clone(),
@@ -533,6 +534,7 @@ mod tests {
 			flag_node_key: None,
 			flag_reserved_peers: Some("./path_to_file".into()),
 			flag_reserved_only: false,
+			flag_no_ancient_blocks: false,
 
 			// -- API and Console Options
 			// RPC
@@ -566,7 +568,7 @@ mod tests {
 			flag_tx_gas_limit: Some("6283184".into()),
 			flag_tx_time_limit: Some(100u64),
 			flag_relay_set: "cheap".into(),
-			flag_usd_per_tx: "0".into(),
+			flag_usd_per_tx: "0.0025".into(),
 			flag_usd_per_eth: "auto".into(),
 			flag_price_update_period: "hourly".into(),
 			flag_gas_floor_target: "4700000".into(),

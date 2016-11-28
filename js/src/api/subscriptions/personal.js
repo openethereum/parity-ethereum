@@ -59,6 +59,7 @@ export default class Personal {
       }
 
       switch (data.method) {
+        case 'parity_killAccount':
         case 'parity_importGethAccounts':
         case 'personal_newAccount':
         case 'parity_newAccountFromPhrase':

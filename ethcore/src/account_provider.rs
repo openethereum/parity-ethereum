@@ -276,12 +276,18 @@ impl AccountProvider {
 	}
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
-	pub fn test_password(&self, account: &Address, password: String) -> Result<bool, Error> {
-		match self.sstore.sign(account, &password, &Default::default()) {
+	pub fn test_password(&self, account: &Address, password: &str) -> Result<bool, Error> {
+		match self.sstore.sign(account, password, &Default::default()) {
 			Ok(_) => Ok(true),
 			Err(SSError::InvalidPassword) => Ok(false),
 			Err(e) => Err(Error::SStore(e)),
 		}
+	}
+
+	/// Permanently removes an account.
+	pub fn kill_account(&self, account: &Address, password: &str) -> Result<(), Error> {
+		try!(self.sstore.remove_account(account, &password));
+		Ok(())
 	}
 
 	/// Changes the password of `account` from `password` to `new_password`. Fails if incorrect `password` given.

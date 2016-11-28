@@ -24,7 +24,11 @@ export default class Store {
   }
 
   @action setBalance = (address, balance) => {
-    this.balances = Object.assign({}, this.balances, { [address]: balance });
+    this.setBalances({ [address]: balance });
+  }
+
+  @action setBalances = (balances) => {
+    this.balances = Object.assign({}, this.balances, balances);
   }
 
   fetchBalance (address) {
@@ -38,11 +42,25 @@ export default class Store {
       });
   }
 
-  fetchBalances (addresses) {
-    addresses.forEach((address) => {
-      if (address) {
-        this.fetchBalance(address);
-      }
-    });
+  fetchBalances (_addresses) {
+    const addresses = _addresses.filter((address) => address) || [];
+
+    if (!addresses.length) {
+      return;
+    }
+
+    Promise
+      .all(addresses.map((address) => this._api.eth.getBalance(address)))
+      .then((_balances) => {
+        this.setBalances(
+          addresses.reduce((balances, address, index) => {
+            balances[address] = _balances[index];
+            return balances;
+          }, {})
+        );
+      })
+      .catch((error) => {
+        console.warn('Store:fetchBalances', error);
+      });
   }
 }

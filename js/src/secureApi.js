@@ -25,12 +25,13 @@ export default class SecureApi extends Api {
     this._isConnecting = true;
     this._connectState = sysuiToken === 'initial' ? 1 : 0;
     this._needsToken = false;
-    this._nextToken = nextToken;
     this._dappsPort = 8080;
     this._dappsInterface = null;
     this._signerPort = 8180;
+    this._followConnectionTimeoutId = null;
 
-    console.log('SecureApi:constructor', sysuiToken);
+    // Try tokens from localstorage, then from hash
+    this._tokensToTry = [ sysuiToken, nextToken ].filter((t) => t && t.length);
 
     this._followConnection();
   }
@@ -40,15 +41,30 @@ export default class SecureApi extends Api {
     console.log('SecureApi:setToken', this._transport.token);
   }
 
+  _checkNodeUp () {
+    return fetch('/', { method: 'HEAD' })
+      .then(
+        (r) => r.status === 200,
+        () => false
+      )
+      .catch(() => false);
+  }
+
   _followConnection = () => {
     const nextTick = () => {
-      setTimeout(() => this._followConnection(), 250);
+      if (this._followConnectionTimeoutId) {
+        clearTimeout(this._followConnectionTimeoutId);
+      }
+
+      this._followConnectionTimeoutId = setTimeout(() => this._followConnection(), 250);
     };
+
     const setManual = () => {
       this._connectState = 100;
       this._needsToken = true;
       this._isConnecting = false;
     };
+
     const lastError = this._transport.lastError;
     const isConnected = this._transport.isConnected;
 
@@ -58,11 +74,29 @@ export default class SecureApi extends Api {
         if (isConnected) {
           return this.connectSuccess();
         } else if (lastError) {
-          const nextToken = this._nextToken || 'initial';
-          const nextState = this._nextToken ? 0 : 1;
+          return this
+            ._checkNodeUp()
+            .then((isNodeUp) => {
+              const { timestamp } = lastError;
 
-          this._nextToken = null;
-          this.updateToken(nextToken, nextState);
+              if ((Date.now() - timestamp) > 250) {
+                return nextTick();
+              }
+
+              const nextToken = this._tokensToTry[0] || 'initial';
+              const nextState = nextToken !== 'initial' ? 0 : 1;
+
+              // If previous token was wrong (error while node up), delete it
+              if (isNodeUp) {
+                this._tokensToTry = this._tokensToTry.slice(1);
+              }
+
+              if (nextToken !== this._transport.token) {
+                this.updateToken(nextToken, nextState);
+              }
+
+              return nextTick();
+            });
         }
         break;
 
