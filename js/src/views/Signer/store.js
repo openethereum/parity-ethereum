@@ -20,10 +20,10 @@ import { action, observable } from 'mobx';
 export default class Store {
   @observable balances = {};
   @observable localHashes = [];
-  @observable doPolling = true;
 
   constructor (api, withLocalTransactions = false) {
     this._api = api;
+    this._timeoutId = 0;
 
     if (withLocalTransactions) {
       this.fetchLocalTransactions();
@@ -31,7 +31,9 @@ export default class Store {
   }
 
   @action unsubscribe () {
-    this.doPolling = false;
+    if (this._timeoutId) {
+      clearTimeout(this._timeoutId);
+    }
   }
 
   @action setBalance = (address, balance) => {
@@ -83,9 +85,7 @@ export default class Store {
 
   fetchLocalTransactions = () => {
     const nextTimeout = () => {
-      if (this.doPolling) {
-        setTimeout(this.fetchLocalTransactions, 1500);
-      }
+      this._timeoutId = setTimeout(this.fetchLocalTransactions, 1500);
     };
 
     this._api.parity
