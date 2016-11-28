@@ -117,8 +117,8 @@ impl Tendermint {
 	fn update_sealing(&self) {
 		if let Some(ref channel) = *self.message_channel.lock() {
 			match channel.send(ClientIoMessage::UpdateSealing) {
-				Ok(_) => trace!(target: "poa", "timeout: UpdateSealing message sent."),
-				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+				Ok(_) => trace!(target: "poa", "update_sealing: UpdateSealing message sent."),
+				Err(err) => warn!(target: "poa", "update_sealing: Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -126,8 +126,8 @@ impl Tendermint {
 	fn submit_seal(&self, block_hash: H256, seal: Vec<Bytes>) {
 		if let Some(ref channel) = *self.message_channel.lock() {
 			match channel.send(ClientIoMessage::SubmitSeal(block_hash, seal)) {
-				Ok(_) => trace!(target: "poa", "timeout: SubmitSeal message sent."),
-				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+				Ok(_) => trace!(target: "poa", "submit_seal: SubmitSeal message sent."),
+				Err(err) => warn!(target: "poa", "submit_seal: Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -135,8 +135,8 @@ impl Tendermint {
 	fn broadcast_message(&self, message: Bytes) {
 		if let Some(ref channel) = *self.message_channel.lock() {
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
-				Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
-				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
+				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
+				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -527,7 +527,6 @@ mod tests {
 
 	fn proposal_seal(tap: &Arc<AccountProvider>, header: &Header, round: Round) -> Vec<Bytes> {
 		let author = header.author();
-		println!("author: {:?}", author);
 		let vote_info = message_info_rlp(header.number() as Height, round, Step::Propose, Some(header.bare_hash()));
 		let signature = tap.sign(*author, None, vote_info.sha3()).unwrap();
 		vec![
@@ -609,12 +608,10 @@ mod tests {
 
 		let mut header = Header::default();
 		let validator = insert_and_unlock(&tap, "0");
-		println!("validator: {:?}", &validator);
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
-		println!("{:?}", engine.verify_block_unordered(&header, None));
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
 		let mut header = Header::default();
@@ -640,7 +637,6 @@ mod tests {
 		let mut seal = proposal_seal(&tap, &header, 0);
 
 		let voter = insert_and_unlock(&tap, "1");
-		println!("voter: {:?}", &voter);
 		let vote_info = message_info_rlp(0, 0, Step::Precommit, Some(header.bare_hash()));
 		let signature = tap.sign(voter, None, vote_info.sha3()).unwrap();
 
@@ -648,7 +644,6 @@ mod tests {
 
 		header.set_seal(seal.clone());
 
-		println!("{:?}", engine.verify_block_unordered(&header, None));
 		// One good signature.
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
@@ -709,7 +704,7 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 
-		::std::thread::sleep(::std::time::Duration::from_millis(5));
+		::std::thread::sleep(::std::time::Duration::from_millis(50));
 		assert_eq!(*test_io.received.lock(), Some(ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
 	}
 

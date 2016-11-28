@@ -157,7 +157,6 @@ pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Op
 	// TODO: figure out whats wrong with nested list encoding
 	let mut s = RlpStream::new_list(5);
 	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or(H256::zero()));
-	println!("{:?}, {:?}, {:?}, {:?}", &height, &round, &step, &block_hash);
 	s.out()
 }
 
