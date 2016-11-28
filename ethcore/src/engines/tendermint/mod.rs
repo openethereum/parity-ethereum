@@ -132,13 +132,11 @@ impl Tendermint {
 		}
 	}
 
-	fn broadcast_message(&self, block_hash: Option<BlockHash>) {
-		if let Some(message) = self.generate_message(block_hash) {
-			if let Some(ref channel) = *self.message_channel.lock() {
-				match channel.send(ClientIoMessage::BroadcastMessage(message)) {
-					Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
-					Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
-				}
+	fn broadcast_message(&self, message: Bytes) {
+		if let Some(ref channel) = *self.message_channel.lock() {
+			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
+				Ok(_) => trace!(target: "poa", "timeout: BroadcastMessage message sent."),
+				Err(err) => warn!(target: "poa", "timeout: Could not send a sealing message {}.", err),
 			}
 		}
 	}
@@ -158,6 +156,12 @@ impl Tendermint {
 		}
 	}
 
+	fn generate_and_broadcast_message(&self, block_hash: Option<BlockHash>) {
+		if let Some(message) = self.generate_message(block_hash) {
+			self.broadcast_message(message);
+		}
+	}
+
 	fn to_step(&self, step: Step) {
 		*self.step.write() = step;
 		match step {
@@ -173,7 +177,7 @@ impl Tendermint {
 					Some(ref m) => m.block_hash,
 					None => None,
 				};
-				self.broadcast_message(block_hash)
+				self.generate_and_broadcast_message(block_hash)
 			},
 			Step::Precommit => {
 				trace!(target: "poa", "to_step: Transitioning to Precommit.");
@@ -184,7 +188,7 @@ impl Tendermint {
 					},
 					_ => None,
 				};
-				self.broadcast_message(block_hash);
+				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Commit => {
 				trace!(target: "poa", "to_step: Transitioning to Commit.");
@@ -352,6 +356,7 @@ impl Engine for Tendermint {
 		// Check if the message is known.
 		if self.votes.vote(message.clone(), sender).is_none() {
 			trace!(target: "poa", "handle_message: Processing new authorized message: {:?}", &message);
+			self.broadcast_message(rlp.as_raw().to_vec());
 			let is_newer_than_lock = match *self.lock_change.read() {
 				Some(ref lock) => &message > lock,
 				None => true,
@@ -704,7 +709,7 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 
-		::std::thread::sleep(::std::time::Duration::from_millis(40));
+		::std::thread::sleep(::std::time::Duration::from_millis(5));
 		assert_eq!(*test_io.received.lock(), Some(ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
 	}
 
