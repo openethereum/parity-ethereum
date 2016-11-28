@@ -532,11 +532,11 @@ mod tests {
 		]
 	}
 
-	fn precommit_signatures(tap: &Arc<AccountProvider>, height: Height, round: Round, bare_hash: Option<H256>) -> Bytes {
+	fn precommit_signatures(tap: &Arc<AccountProvider>, height: Height, round: Round, bare_hash: Option<H256>, v1: H160, v2: H160) -> Bytes {
 		let vote_info = message_info_rlp(height, round, Step::Precommit, bare_hash);
 		::rlp::encode(&vec![
-			tap.sign("0".sha3(), Some("0"), vote_info.sha3()).unwrap(),
-			tap.sign("1".sha3(), Some("1"), vote_info.sha3()).unwrap()
+			H520::from(tap.sign(v1, None, vote_info.sha3()).unwrap()),
+			H520::from(tap.sign(v2, None, vote_info.sha3()).unwrap())
 		]).to_vec()
 	}
 
@@ -546,14 +546,17 @@ mod tests {
 		addr
 	}
 
-	struct TestIo(ClientIoMessage);
+	struct TestIo {
+		received: Mutex<Option<ClientIoMessage>>
+	}
+
+	impl TestIo {
+		fn new() -> Arc<Self> { Arc::new(TestIo { received: Mutex::new(None) }) }
+	}
 
 	impl IoHandler<ClientIoMessage> for TestIo {
 		fn message(&self, _io: &IoContext<ClientIoMessage>, net_message: &ClientIoMessage) {
-			let TestIo(ref expected) = *self;
-			if net_message == expected {
-				panic!()
-			}
+			*self.received.lock() = Some(net_message.clone());
 		}
 	}
 
@@ -687,10 +690,11 @@ mod tests {
 		let (b, mut seal) = propose_default(&spec, v0.clone());
 		let proposal = Some(b.header().bare_hash());
 
-		// Register IoHandler that panics on correct message.
-		seal[2] = precommit_signatures(&tap, h, r, b.header().bare_hash());
+		// Register IoHandler remembers messages.
+		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
 		let io_service = IoService::<ClientIoMessage>::start().unwrap();
-		io_service.register_handler(Arc::new(TestIo(ClientIoMessage::SubmitSeal(proposal, seal)))).unwrap();
+		let test_io = TestIo::new();
+		io_service.register_handler(test_io.clone()).unwrap();
 		engine.register_message_channel(io_service.channel());
 
 		// Prevote.
@@ -699,6 +703,9 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
+
+		::std::thread::sleep(::std::time::Duration::from_millis(40));
+		assert_eq!(*test_io.received.lock(), Some(ClientIoMessage::SubmitSeal(proposal.unwrap(), seal)));
 	}
 
 	#[test]
