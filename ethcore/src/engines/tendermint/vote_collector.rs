@@ -42,34 +42,92 @@ impl VoteCollector {
 
 	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: Option<H256>) -> Option<SealSignatures> {
 		let guard = self.votes.read();
-			// Get only Propose and Precommits.
-		let mut correct_signatures = guard.keys()
-			.filter(|m| m.is_aligned(height, round, block_hash) && m.step != Step::Prevote)
-			.map(|m| m.signature.clone());
-		correct_signatures.next().map(|proposal| SealSignatures {
-			proposal: proposal,
-			votes: correct_signatures.collect()
+		let mut current_signatures = guard.keys()
+			.skip_while(|m| !m.is_block_hash(height, round, Step::Propose, block_hash));
+		current_signatures.next().map(|proposal| SealSignatures {
+			proposal: proposal.signature,
+			votes: current_signatures
+				.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, block_hash))
+				.take_while(|m| m.is_block_hash(height, round, Step::Precommit, block_hash))
+				.map(|m| m.signature.clone())
+				.collect()
 		})
 	}
 
-	pub fn aligned_votes(&self, message: &ConsensusMessage) -> Vec<ConsensusMessage> {
+	pub fn count_aligned_votes(&self, message: &ConsensusMessage) -> usize {
 		let guard = self.votes.read();
 		guard.keys()
-			// Get only Propose and Precommits.
-			.filter(|m| m.is_aligned(message.height, message.round, message.block_hash) && m.step == message.step)
-			.cloned()
-			.collect()
-	}
-
-	pub fn aligned_signatures(&self, message: &ConsensusMessage) -> Vec<H520> {
-		self.seal_signatures(message.height, message.round, message.block_hash).map_or(Vec::new(), |s| s.votes)
+			.skip_while(|m| !m.is_aligned(message))
+			// sorted by signature so might not be continuous
+			.filter(|m| m.is_aligned(message))
+			.count()
 	}
 
 	pub fn count_step_votes(&self, height: Height, round: Round, step: Step) -> usize {
 		self.votes
 			.read()
 			.keys()
-			.filter(|m| m.is_step(height, round, step))
+			.skip_while(|m| !m.is_step(height, round, step))
+			.take_while(|m| m.is_step(height, round, step))
 			.count()	
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use util::*;
+	use super::*;
+	use super::super::{Height, Round, BlockHash, Step};
+	use super::super::message::ConsensusMessage;
+
+	fn simple_vote(collector: &VoteCollector, signature: H520, h: Height, r: Round, step: Step, block_hash: Option<BlockHash>) -> Option<H160> {
+		collector.vote(ConsensusMessage { signature: signature, height: h, round: r, step: step, block_hash: block_hash }, H160::default())
+	}
+
+	#[test]
+	fn seal_retrieval() {
+		let collector = VoteCollector::new();	
+		let bh = Some("1".sha3());
+		let h = 1;
+		let r = 2;
+		let proposal = H520::random();
+		simple_vote(&collector, proposal.clone(), h, r, Step::Propose, Some("0".sha3()));
+		let seal = SealSignatures {
+			proposal: proposal,
+			votes: Vec::new()
+		};
+		collector.seal_signatures(h, r, bh);
+	}
+
+	#[test]
+	fn count_votes() {
+		let collector = VoteCollector::new();	
+		// good prevote
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 3, 1, Step::Prevote, Some("0".sha3()));
+		// good precommit
+		simple_vote(&collector, H520::random(), 3, 2, Step::Precommit, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 3, 3, Step::Precommit, Some("0".sha3()));
+		// good prevote
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
+		// good prevote
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
+		// good precommit
+		simple_vote(&collector, H520::random(), 3, 2, Step::Precommit, Some("1".sha3()));
+		// good prevote
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 2, 2, Step::Precommit, Some("2".sha3()));
+
+		assert_eq!(collector.count_step_votes(3, 2, Step::Prevote), 4);
+		assert_eq!(collector.count_step_votes(3, 2, Step::Precommit), 2);
+
+		let message = ConsensusMessage {
+			signature: H520::default(),
+			height: 3,
+			round: 2,
+			step: Step::Prevote,
+			block_hash: Some("1".sha3())
+		};
+		assert_eq!(collector.count_aligned_votes(&message), 2);
 	}
 }

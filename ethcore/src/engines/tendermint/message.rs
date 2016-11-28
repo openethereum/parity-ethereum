@@ -61,8 +61,12 @@ impl ConsensusMessage {
 		self.height == height && self.round == round && self.step == step
 	}
 
-	pub fn is_aligned(&self, height: Height, round: Round, block_hash: Option<H256>) -> bool {
-		self.height == height && self.round == round && self.block_hash == block_hash
+	pub fn is_block_hash(&self, h: Height, r: Round, s: Step, block_hash: Option<BlockHash>) -> bool {
+		self.height == h && self.round == r && self.step == s && self.block_hash == block_hash
+	}
+
+	pub fn is_aligned(&self, m: &ConsensusMessage) -> bool {
+		self.is_block_hash(m.height, m.round, m.step, m.block_hash)
 	}
 
 	pub fn verify(&self) -> Result<Address, Error> {
