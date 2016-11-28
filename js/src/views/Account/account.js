@@ -72,12 +72,6 @@ class Account extends Component {
   }
 
   componentDidMount () {
-    const { api } = this.context;
-    const { address } = this.props.params;
-    const { isTestnet } = this.props;
-
-    const verificationStore = new VerificationStore(api, address, isTestnet);
-    this.setState({ verificationStore });
     this.setVisibleAccounts();
   }
 
@@ -87,6 +81,15 @@ class Account extends Component {
 
     if (prevAddress !== nextAddress) {
       this.setVisibleAccounts(nextProps);
+    }
+
+    const { isTestnet } = nextProps;
+    if (typeof isTestnet === 'boolean' && !this.state.verificationStore) {
+      const { api } = this.context;
+      const { address } = nextProps.params;
+      this.setState({
+        verificationStore: new VerificationStore(api, address, isTestnet)
+      });
     }
   }
 

@@ -46,7 +46,7 @@ export default class Certifications extends Component {
     const { name, title, icon } = certification;
     const { dappsUrl } = this.props;
 
-    const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`
+    const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`;
     const img = dappsUrl + (icon ? hashToImageUrl(icon) : defaultIcon);
     return (
       <div className={ classNames } key={ name }>
