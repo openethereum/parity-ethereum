@@ -16,6 +16,7 @@
 
 const webpack = require('webpack');
 const path = require('path');
+const fs = require('fs');
 // const HappyPack = require('happypack');
 
 const postcssImport = require('postcss-import');
@@ -27,9 +28,13 @@ const ENV = process.env.NODE_ENV || 'development';
 const isProd = ENV === 'production';
 
 function getBabelrc () {
-  const babelrc = require('../.babelrc');
+  const babelrc = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../.babelrc')));
+
   const es2015Index = babelrc.presets.findIndex((p) => p === 'es2015');
-  babelrc.preset[es2015Index] = [ 'es2015', { modules: false } ];
+
+  // [ "es2015", { "modules": false } ]
+  babelrc.presets[es2015Index] = [ 'es2015', { modules: false } ];
+  babelrc['babelrc'] = false;
   return babelrc;
 }
 
@@ -50,6 +55,8 @@ function getPlugins (_isProd = isProd) {
   ];
 
   const plugins = [
+    // NB: HappyPack is not yet working with Webpack 2... (as of Nov. 26)
+
     // new HappyPack({
     //   id: 'css',
     //   threads: 4,
@@ -90,7 +97,8 @@ function getPlugins (_isProd = isProd) {
       debug: !isProd,
       options: {
         context: path.join(__dirname, '../src'),
-        postcss: postcss
+        postcss: postcss,
+        babel: getBabelrc()
       }
     }),
 

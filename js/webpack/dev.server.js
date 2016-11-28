@@ -25,7 +25,6 @@ const ProgressBar = require('progress');
 const webpackConfig = require('./config');
 const Shared = require('./shared');
 
-const hotMiddlewareScript = 'webpack-hot-middleware/client';
 let progressBar = { update: () => {} };
 
 /**
@@ -36,11 +35,18 @@ let progressBar = { update: () => {} };
   Object.keys(webpackConfig.entry).forEach((key) => {
     const entry = webpackConfig.entry[key];
 
-    webpackConfig.entry[key] = [].concat(entry, hotMiddlewareScript);
+    webpackConfig.entry[key] = [].concat(
+      'react-hot-loader/patch',
+      'webpack-hot-middleware/client',
+      'webpack/hot/only-dev-server',
+      entry
+    );
   });
 
   webpackConfig.plugins.push(new webpack.HotModuleReplacementPlugin());
+  webpackConfig.plugins.push(new webpack.NamedModulesPlugin());
   webpackConfig.plugins.push(new webpack.NoErrorsPlugin());
+
   webpackConfig.plugins.push(new webpack.ProgressPlugin(
     (percentage) => progressBar.update(percentage)
   ));
@@ -48,6 +54,10 @@ let progressBar = { update: () => {} };
 
 const app = express();
 const compiler = webpack(webpackConfig);
+
+app.use(webpackHotMiddleware(compiler, {
+  log: console.log
+}));
 
 app.use(webpackDevMiddleware(compiler, {
   noInfo: false,
@@ -57,10 +67,6 @@ app.use(webpackDevMiddleware(compiler, {
   stats: {
     colors: true
   }
-}));
-
-app.use(webpackHotMiddleware(compiler, {
-  log: console.log
 }));
 
 app.use(express.static(webpackConfig.output.path));

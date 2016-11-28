@@ -51,9 +51,9 @@ module.exports = {
         exclude: /node_modules/,
         // use: [ 'happypack/loader?id=js' ]
         use: isProd ? ['babel-loader'] : [
-          // 'react-hot-loader',
           'babel-loader?cacheDirectory=true'
-        ]
+        ],
+        options: Shared.getBabelrc()
       },
       {
         test: /\.js$/,

@@ -13,6 +13,9 @@
   "env": {
     "production": {
       "plugins": ["transform-react-remove-prop-types"]
+    },
+    "development": {
+      "plugins": ["react-hot-loader/babel"]
     }
   }
 }
