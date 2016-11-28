@@ -37,6 +37,7 @@ import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
+import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
@@ -80,6 +81,7 @@ export {
   Page,
   ParityBackground,
   RadioButtons,
+  ShortenedHash,
   SignerIcon,
   Tags,
   Tooltip,
