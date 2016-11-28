@@ -22,7 +22,7 @@ const http = require('http');
 const express = require('express');
 const ProgressBar = require('progress');
 
-const webpackConfig = require('./config');
+const webpackConfig = require('./app');
 const Shared = require('./shared');
 
 let progressBar = { update: () => {} };

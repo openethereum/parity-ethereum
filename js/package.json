@@ -26,11 +26,11 @@
   ],
   "scripts": {
     "build": "npm run build:lib && npm run build:dll && npm run build:app",
-    "build:app": "webpack --config webpack/config --progress",
+    "build:app": "webpack --config webpack/app --progress",
     "build:lib": "webpack --config webpack/libraries --progress",
     "build:dll": "webpack --config webpack/vendor --progress",
     "ci:build": "npm run ci:build:lib && npm run ci:build:dll && npm run ci:build:app",
-    "ci:build:app": "NODE_ENV=production webpack --config webpack/config",
+    "ci:build:app": "NODE_ENV=production webpack --config webpack/app",
     "ci:build:lib": "NODE_ENV=production webpack --config webpack/libraries",
     "ci:build:dll": "NODE_ENV=production webpack --config webpack/vendor",
     "ci:build:npm": "NODE_ENV=production webpack --config webpack/npm",
