@@ -555,6 +555,11 @@ impl Discovery {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::net::{SocketAddr};
+	use util::sha3::Hashable;
+	use util::FixedHash;
+	use node_table::{Node, NodeId, NodeEndpoint};
+
 	use std::str::FromStr;
 	use rustc_serialize::hex::FromHex;
 	use ethkey::{Random, Generator};

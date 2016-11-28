@@ -1141,9 +1141,12 @@ impl MinerService for Miner {
 #[cfg(test)]
 mod tests {
 
+	use std::sync::Arc;
 	use std::time::Duration;
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
+	use block::IsBlock;
+	use util::{U256, Uint, FromHex};
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;

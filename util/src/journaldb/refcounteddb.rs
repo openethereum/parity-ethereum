@@ -215,6 +215,7 @@ mod tests {
 	#![cfg_attr(feature="dev", allow(similar_names))]
 
 	use common::*;
+	use hashdb::{HashDB, DBValue};
 	use super::*;
 	use super::super::traits::JournalDB;
 

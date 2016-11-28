@@ -333,6 +333,7 @@ mod test {
 	use std::sync::Arc;
 	use rustc_serialize::hex::FromHex;
 	use super::*;
+	use util::hash::{H256, FixedHash};
 	use io::*;
 	use mio::tcp::TcpStream;
 	use stats::NetworkStats;

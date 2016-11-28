@@ -1217,6 +1217,7 @@ mod test {
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 	use miner::local_transactions::LocalTransactionsList;
 	use client::TransactionImportResult;
+	use transaction::{SignedTransaction, Transaction, Action};
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {

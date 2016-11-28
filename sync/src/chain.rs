@@ -1998,8 +1998,14 @@ impl ChainSync {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::{HashSet, VecDeque};
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
+	use util::{U256, RwLock};
+	use util::sha3::Hashable;
+	use util::hash::{H256, FixedHash};
+	use util::bytes::Bytes;
+	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
 	use super::*;
 	use ::SyncConfig;
 	use super::{PeerInfo, PeerAsking};
