@@ -29,6 +29,7 @@ use header::{BlockNumber, Header};
 use rlp::{UntrustedRlp, View};
 use transaction::SignedTransaction;
 use views::BlockView;
+use time::get_time;
 
 /// Preprocessed block data gathered in `verify_block_unordered` call
 pub struct PreverifiedBlock {
@@ -209,6 +210,10 @@ pub fn verify_header_params(header: &Header, engine: &Engine) -> Result<(), Erro
 	if header.number() != 0 && header.extra_data().len() > maximum_extra_data_size {
 		return Err(From::from(BlockError::ExtraDataOutOfBounds(OutOfBounds { min: None, max: Some(maximum_extra_data_size), found: header.extra_data().len() })));
 	}
+	let max_time = get_time().sec as u64 + 30;
+	if header.timestamp() > max_time {
+		return Err(From::from(BlockError::InvalidTimestamp(OutOfBounds { max: Some(max_time), min: None, found: header.timestamp() })))
+	}
 	Ok(())
 }
 
@@ -258,6 +263,7 @@ mod tests {
 	use tests::helpers::*;
 	use types::log_entry::{LogEntry, LocalizedLogEntry};
 	use rlp::View;
+	use time::get_time;
 
 	fn check_ok(result: Result<(), Error>) {
 		result.unwrap_or_else(|e| panic!("Block verification failed: {:?}", e));
@@ -514,6 +520,16 @@ mod tests {
 		header.set_timestamp(10);
 		check_fail(family_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine, &bc),
 			InvalidTimestamp(OutOfBounds { max: None, min: Some(parent.timestamp() + 1), found: header.timestamp() }));
+
+		header = good.clone();
+		header.set_timestamp(2450000000);
+		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
+				   InvalidTimestamp(OutOfBounds { max: Some(get_time().sec as u64 + 30), min: None, found: header.timestamp() }));
+
+		header = good.clone();
+		header.set_timestamp(get_time().sec as u64 + 31);
+		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
+				   InvalidTimestamp(OutOfBounds { max: Some(get_time().sec as u64 + 30), min: None, found: header.timestamp() }));
 
 		header = good.clone();
 		header.set_number(9);
