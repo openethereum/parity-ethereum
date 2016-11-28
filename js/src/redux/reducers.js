@@ -17,7 +17,7 @@
 import { combineReducers } from 'redux';
 import { routerReducer } from 'react-router-redux';
 
-import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer } from './providers';
+import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer, snackbarReducer } from './providers';
 
 import errorReducer from '../ui/Errors/reducers';
 import settingsReducer from '../views/Settings/reducers';
@@ -37,6 +37,7 @@ export default function () {
     images: imagesReducer,
     nodeStatus: nodeStatusReducer,
     personal: personalReducer,
-    signer: signerReducer
+    signer: signerReducer,
+    snackbar: snackbarReducer
   });
 }

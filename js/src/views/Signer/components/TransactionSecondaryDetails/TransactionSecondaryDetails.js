@@ -27,7 +27,6 @@ import styles from './TransactionSecondaryDetails.css';
 import * as tUtil from '../util/transaction';
 
 export default class TransactionSecondaryDetails extends Component {
-
   static propTypes = {
     id: PropTypes.object.isRequired,
     date: PropTypes.instanceOf(Date),
@@ -45,7 +44,7 @@ export default class TransactionSecondaryDetails extends Component {
     const className = this.props.className || '';
 
     return (
-      <div className={ className }>
+      <div className={ `${styles.container} ${className}` }>
         <div className={ styles.iconsContainer }>
           { this.renderGasPrice() }
           { this.renderData() }

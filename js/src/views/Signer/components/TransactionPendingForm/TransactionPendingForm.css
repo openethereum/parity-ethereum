@@ -14,14 +14,13 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+@import '../../_layout.css';
+
 .container {
-  width: 220px;
-  padding: 20px 40px 0 40px;
-  /*border-left: 1px solid #aaa;*/
-  position: absolute;
-  top: 0;
-  right: 0;
-  box-sizing: content-box;
+  box-sizing: border-box;
+  padding: 1em 1em 0 1em;
+  flex: 0 0 $statusWidth;
 }
 
 .rejectToggle {
