@@ -66,7 +66,7 @@ export default class RpcCalls extends Component {
               </div>
             </div>
           </div>
-          <div style={ { clear: 'both' } }></div>
+          <div style={ { clear: 'both' } } />
           <div className='dapp-container'>
             <div className='row'>
               <div className='col col-6 mobile-full'>

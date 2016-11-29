@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 // test only
 /**
- * Run `PARITY_URL="127.0.0.1:8180" NODE_ENV="production" npm run build`
+ * Run `DAPPS_URL="/" PARITY_URL="127.0.0.1:8180" NODE_ENV="production" npm run build`
  * to build the project ; use this server to test that the minifed
  * version is working (this is a simple proxy server)
  */
@@ -23,39 +23,17 @@
 var express = require('express');
 var proxy = require('http-proxy-middleware');
 
+var Shared = require('./shared');
+
 var app = express();
 var wsProxy = proxy('ws://127.0.0.1:8180', { changeOrigin: true });
 
+Shared.addProxies(app);
+
 app.use(express.static('.build'));
-
-app.use('/api/*', proxy({
-  target: 'http://127.0.0.1:8080',
-  changeOrigin: true
-}));
-
-app.use('/app/*', proxy({
-  target: 'http://127.0.0.1:8080',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/app': ''
-  }
-}));
-
-app.use('/parity-utils/*', proxy({
-  target: 'http://127.0.0.1:3000',
-  changeOrigin: true,
-  pathRewrite: {
-    '^/parity-utils': ''
-  }
-}));
-
-app.use('/rpc/*', proxy({
-  target: 'http://127.0.0.1:8080',
-  changeOrigin: true
-}));
-
 app.use(wsProxy);
 
-var server = app.listen(3000);
-
+var server = app.listen(process.env.PORT || 3000, function () {
+  console.log('Listening on port', server.address().port);
+});
 server.on('upgrade', wsProxy.upgrade);

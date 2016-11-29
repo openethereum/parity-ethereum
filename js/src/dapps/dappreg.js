@@ -27,7 +27,6 @@ import Application from './dappreg/Application';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './dappreg.html';
 
 ReactDOM.render(
   <Application />,

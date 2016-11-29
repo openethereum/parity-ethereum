@@ -38,9 +38,9 @@ export default class Title extends Component {
 
     const byLine = typeof byline === 'string'
       ? (
-      <span title={ byline }>
-        { byline }
-      </span>
+        <span title={ byline }>
+          { byline }
+        </span>
       )
       : byline;
 

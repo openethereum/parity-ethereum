@@ -24,22 +24,22 @@ const SNIPPETS = {
   snippet0: {
     name: 'Token.sol',
     description: 'Standard ERP20 Token Contract',
-    id: 'snippet0', sourcecode: require('raw!../../contracts/snippets/token.sol')
+    id: 'snippet0', sourcecode: require('raw-loader!../../contracts/snippets/token.sol')
   },
   snippet1: {
     name: 'StandardToken.sol',
     description: 'Implementation of ERP20 Token Contract',
-    id: 'snippet1', sourcecode: require('raw!../../contracts/snippets/standard-token.sol')
+    id: 'snippet1', sourcecode: require('raw-loader!../../contracts/snippets/standard-token.sol')
   },
   snippet2: {
     name: 'HumanStandardToken.sol',
     description: 'Implementation of the Human Token Contract',
-    id: 'snippet2', sourcecode: require('raw!../../contracts/snippets/human-standard-token.sol')
+    id: 'snippet2', sourcecode: require('raw-loader!../../contracts/snippets/human-standard-token.sol')
   },
   snippet3: {
     name: 'Wallet.sol',
     description: 'Implementation of a multisig Wallet',
-    id: 'snippet3', sourcecode: require('raw!../../contracts/snippets/wallet.sol')
+    id: 'snippet3', sourcecode: require('raw-loader!../../contracts/snippets/wallet.sol')
   }
 };
 

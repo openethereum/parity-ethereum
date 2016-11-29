@@ -147,7 +147,7 @@ export const loadToken = (index) => (dispatch, getState) => {
       dispatch(setTokenData(index, null));
       dispatch(setTokenLoading(index, false));
 
-      if (!e instanceof TypeError) {
+      if (!(e instanceof TypeError)) {
         console.error(`loadToken #${index} error`, e);
       }
     });

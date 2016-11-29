@@ -158,18 +158,18 @@ export default class Application extends Component {
           { Transaction.renderHeader() }
         </thead>
         <tbody>
-        {
-          transactions.map((tx, idx) => (
-            <Transaction
-              key={ tx.transaction.hash }
-              idx={ idx + 1 }
-              isLocal={ tx.isLocal }
-              transaction={ tx.transaction }
-              stats={ tx.stats }
-              blockNumber={ blockNumber }
-              />
-          ))
-        }
+          {
+            transactions.map((tx, idx) => (
+              <Transaction
+                key={ tx.transaction.hash }
+                idx={ idx + 1 }
+                isLocal={ tx.isLocal }
+                transaction={ tx.transaction }
+                stats={ tx.stats }
+                blockNumber={ blockNumber }
+                />
+            ))
+          }
         </tbody>
       </table>
     );

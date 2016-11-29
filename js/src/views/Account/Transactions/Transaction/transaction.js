@@ -19,6 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 
 import { IdentityIcon, IdentityName, MethodDecoding } from '../../../../ui';
+import ShortenedHash from '../../../../ui/ShortenedHash';
 import { txLink, addressLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../transactions.css';
@@ -95,7 +96,7 @@ export default class Transaction extends Component {
             href={ txLink(transaction.hash, isTest) }
             target='_blank'
           >
-            { this.formatHash(transaction.hash) }
+            <ShortenedHash data={ transaction.hash } />
           </a>
         </div>
       </td>
@@ -148,14 +149,6 @@ export default class Transaction extends Component {
         { value.toFormat(5) }<small>ETH</small>
       </div>
     );
-  }
-
-  formatHash (hash) {
-    if (!hash || hash.length <= 16) {
-      return hash;
-    }
-
-    return `${hash.substr(2, 6)}...${hash.slice(-6)}`;
   }
 
   formatNumber (number) {

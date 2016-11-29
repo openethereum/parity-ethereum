@@ -198,7 +198,7 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.last }>
-          <div></div>
+          <div />
         </div>
       </ToolbarGroup>
     );
@@ -212,7 +212,7 @@ class TabBar extends Component {
       .map((view, index) => {
         const body = (view.id === 'accounts')
           ? (
-          <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           )
           : null;
 

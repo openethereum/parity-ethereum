@@ -17,7 +17,7 @@
 import BigNumber from 'bignumber.js';
 
 import { isArray, isHex, isInstanceOf, isString } from '../util/types';
-import { padLeft } from '../util/format';
+import { padLeft, toHex } from '../util/format';
 
 export function inAddress (address) {
   // TODO: address validation if we have upper-lower addresses
@@ -100,15 +100,7 @@ export function inFilter (options) {
 }
 
 export function inHex (str) {
-  if (str && str.toString) {
-    str = str.toString(16);
-  }
-
-  if (str && str.substr(0, 2) === '0x') {
-    return str.toLowerCase();
-  }
-
-  return `0x${(str || '').toLowerCase()}`;
+  return toHex(str);
 }
 
 export function inNumber10 (number) {
