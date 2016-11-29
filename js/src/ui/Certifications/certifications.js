@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import { hashToImageUrl } from '../../redux/providers/imagesReducer';
 import { fetchCertifications } from '../../redux/providers/certifications/actions';
 
-const defaultIcon = '/api/content/371b226f700d8577fe849d7b2729bc2e4be8c06c38159fb880a6a0cc276af012';
+import defaultIcon from '../../../assets/images/certifications/unknown.svg';
 
 import styles from './certifications.css';
 
@@ -59,7 +59,7 @@ class Certifications extends Component {
     const { dappsUrl } = this.props;
 
     const classNames = `${styles.certification} ${!icon ? styles.noIcon : ''}`;
-    const img = dappsUrl + (icon ? hashToImageUrl(icon) : defaultIcon);
+    const img = icon ? dappsUrl + hashToImageUrl(icon) : defaultIcon;
     return (
       <div className={ classNames } key={ name }>
         <img className={ styles.icon } src={ img } />
