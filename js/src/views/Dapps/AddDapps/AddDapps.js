@@ -50,7 +50,7 @@ export default class AddDapps extends Component {
           />
         ] }
         visible
-        scroll>
+      >
         <div className={ styles.warning } />
         { this.renderList(store.sortedLocal, 'Applications locally available', 'All applications installed locally on the machine by the user for access by the Parity client.') }
         { this.renderList(store.sortedBuiltin, 'Applications bundled with Parity', 'Experimental applications developed by the Parity team to show off dapp capabilities, integration, experimental features and to control certain network-wide client behaviour.') }

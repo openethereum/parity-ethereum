@@ -104,7 +104,6 @@ class Transfer extends Component {
         steps={ steps }
         waiting={ extras ? [2] : [1] }
         visible
-        scroll
       >
         { this.renderWarning() }
         { this.renderPage() }
