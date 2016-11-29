@@ -14,9 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp;
 use std::str::FromStr;
-use rustc_serialize::hex::ToHex;
 use serde;
 use util::{U256 as EthU256, Uint};
 
@@ -50,18 +48,7 @@ macro_rules! impl_uint {
 
 		impl serde::Serialize for $name {
 			fn serialize<S>(&self, serializer: &mut S) -> Result<(), S::Error> where S: serde::Serializer {
-				let mut hex = "0x".to_owned();
-				let mut bytes = [0u8; 8 * $size];
-				self.0.to_big_endian(&mut bytes);
-				let len = cmp::max((self.0.bits() + 7) / 8, 1);
-				let bytes_hex = bytes[bytes.len() - len..].to_hex();
-
-				if bytes_hex.starts_with('0') {
-					hex.push_str(&bytes_hex[1..]);
-				} else {
-					hex.push_str(&bytes_hex);
-				}
-				serializer.serialize_str(&hex)
+				serializer.serialize_str(&format!("0x{}", self.0.to_hex()))
 			}
 		}
 
