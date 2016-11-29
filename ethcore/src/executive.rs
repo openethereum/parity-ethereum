@@ -519,7 +519,6 @@ mod tests {
 	use super::*;
 	use util::{H256, U256, U512, Address, Uint, FixedHash, FromHex, FromStr};
 	use util::bytes::BytesRef;
-	use rlp::{UntrustedRlp, RlpType};
 	use action_params::{ActionParams, ActionValue};
 	use env_info::EnvInfo;
 	use evm::{Factory, VMType};
