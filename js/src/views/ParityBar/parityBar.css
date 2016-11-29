@@ -42,25 +42,26 @@
 }
 
 .expanded {
-  right: 16px;
+  right: 1em;
   border-radius: 4px 4px 0 0;
   display: flex;
   flex-direction: column;
-  max-height: 300px;
+  max-height: 19em;
 }
 
 .expanded .content {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   background: rgba(0, 0, 0, 0.8);
-  min-height: 248px
+  min-height: 16em;
 }
 
 .corner {
   position: absolute;
   bottom: 0;
-  right: 16px;
+  right: 1em;
   border-radius: 4px 4px 0 0;
 }
 
@@ -118,7 +119,7 @@
 }
 
 .header {
-  height: 36px;
+  height: 2em;
   padding: 0.5em 1em;
   background: rgba(0, 0, 0, 0.25);
   margin-bottom: 0;
@@ -148,6 +149,7 @@
 
 .actions {
   float: right;
+  margin-top: -2px;
 }
 
 .actions div {
