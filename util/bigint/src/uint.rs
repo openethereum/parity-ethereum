@@ -522,7 +522,7 @@ pub trait Uint: Sized + Default + FromStr + From<u64> + fmt::Debug + fmt::Displa
 	fn byte(&self, index: usize) -> u8;
 	/// Convert to the sequence of bytes with a big endian
 	fn to_big_endian(&self, bytes: &mut[u8]);
-	/// Convert to a non-zero-prefixed hex representation prefixed by `0x`. 
+	/// Convert to a non-zero-prefixed hex representation (not prefixed by `0x`). 
 	fn to_hex(&self) -> String;
 	/// Create `Uint(10**n)`
 	fn exp10(n: usize) -> Self;
