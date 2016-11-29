@@ -14,11 +14,12 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-const HappyPack = require('happypack');
 const webpack = require('webpack');
+const path = require('path');
+
+const Shared = require('./shared');
 
 const ENV = process.env.NODE_ENV || 'development';
-const isProd = ENV === 'production';
 const DEST = process.env.BUILD_DEST || '.build';
 
 let modules = [
@@ -45,69 +46,38 @@ let modules = [
   'scryptsy'
 ];
 
-if (!isProd) {
-  modules = modules.concat([
-    'webpack-dev-server/client?http://localhost:3000',
-    'react-hot-loader', 'core-js', 'core-js/library'
-  ]);
-}
-
 module.exports = {
   entry: {
     vendor: modules
   },
   module: {
-    loaders: [
+    rules: [
       {
         test: /\.json$/,
-        loaders: ['json']
+        use: [ 'json-loader' ]
       },
       {
         test: /\.js$/,
         include: /(ethereumjs-tx)/,
-        loaders: [ 'happypack/loader?id=js' ]
+        use: [ 'babel-loader' ]
       }
     ]
   },
   output: {
     filename: '[name].js',
-    path: `${DEST}/`,
+    path: path.resolve(__dirname, '../', `${DEST}/`),
     library: '[name]_lib'
   },
-  plugins: (function () {
-    const plugins = [
-      new webpack.DllPlugin({
-        name: '[name]_lib',
-        path: `${DEST}/[name]-manifest.json`
-      }),
+  plugins: Shared.getPlugins().concat([
+    new webpack.DllPlugin({
+      name: '[name]_lib',
+      path: path.resolve(__dirname, '../', `${DEST}/[name]-manifest.json`)
+    }),
 
-      new webpack.DefinePlugin({
-        'process.env': {
-          NODE_ENV: JSON.stringify(ENV)
-        }
-      }),
-
-      new HappyPack({
-        id: 'js',
-        threads: 4,
-        loaders: ['babel']
-      })
-    ];
-
-    if (isProd) {
-      plugins.push(new webpack.optimize.OccurrenceOrderPlugin(false));
-      plugins.push(new webpack.optimize.DedupePlugin());
-      plugins.push(new webpack.optimize.UglifyJsPlugin({
-        screwIe8: true,
-        compress: {
-          warnings: false
-        },
-        output: {
-          comments: false
-        }
-      }));
-    }
-
-    return plugins;
-  }())
+    new webpack.DefinePlugin({
+      'process.env': {
+        NODE_ENV: JSON.stringify(ENV)
+      }
+    })
+  ])
 };

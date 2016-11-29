@@ -53,7 +53,7 @@ export default class GatherData extends Component {
         { this.renderCertified() }
         { this.renderRequested() }
         <Input
-          label={ 'phone number' }
+          label={ 'phone number in international format' }
           hint={ 'the SMS will be sent to this number' }
           error={ isNumberValid ? null : 'invalid number' }
           disabled={ isVerified }

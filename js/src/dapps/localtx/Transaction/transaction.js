@@ -83,7 +83,7 @@ class BaseTransaction extends Component {
 
     return (
       <span className={ styles.nowrap }>
-       { noOfPropagations } ({ noOfPeers } peers)
+        { noOfPropagations } ({ noOfPeers } peers)
       </span>
     );
   }
@@ -110,7 +110,7 @@ export class Transaction extends BaseTransaction {
   static renderHeader () {
     return (
       <tr className={ styles.header }>
-        <th></th>
+        <th />
         <th>
           Transaction
         </th>
@@ -129,8 +129,7 @@ export class Transaction extends BaseTransaction {
         <th>
           # Propagated
         </th>
-        <th>
-        </th>
+        <th />
       </tr>
     );
   }
@@ -201,7 +200,7 @@ export class LocalTransaction extends BaseTransaction {
   static renderHeader () {
     return (
       <tr className={ styles.header }>
-        <th></th>
+        <th />
         <th>
           Transaction
         </th>

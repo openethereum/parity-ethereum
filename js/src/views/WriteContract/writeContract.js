@@ -118,8 +118,7 @@ class WriteContract extends Component {
               <span
                 className={ styles.slider }
                 onMouseDown={ this.handleStartResize }
-              >
-              </span>
+              />
             </div>
 
             <div

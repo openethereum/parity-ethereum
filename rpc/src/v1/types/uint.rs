@@ -16,7 +16,7 @@
 
 use std::str::FromStr;
 use serde;
-use util::{U256 as EthU256, Uint};
+use util::{U256 as EthU256, U128 as EthU128, Uint};
 
 macro_rules! impl_uint {
 	($name: ident, $other: ident, $size: expr) => {
@@ -85,6 +85,7 @@ macro_rules! impl_uint {
 	}
 }
 
+impl_uint!(U128, EthU128, 2);
 impl_uint!(U256, EthU256, 4);
 
 

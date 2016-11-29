@@ -165,7 +165,6 @@ class Contract extends Component {
         actions={ [ cancelBtn ] }
         title={ 'contract details' }
         visible
-        scroll
       >
         <div className={ styles.details }>
           { this.renderSource(contract) }

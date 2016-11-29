@@ -649,11 +649,12 @@ mod tests {
 	fn should_parse_config_and_return_errors() {
 		let config1 = Args::parse_config(include_str!("./config.invalid1.toml"));
 		let config2 = Args::parse_config(include_str!("./config.invalid2.toml"));
+		let config3 = Args::parse_config(include_str!("./config.invalid3.toml"));
 
-		match (config1, config2) {
-			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_))) => {},
-			(a, b) => {
-				assert!(false, "Got invalid error types: {:?}, {:?}", a, b);
+		match (config1, config2, config3) {
+			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_)), Err(ArgsError::UnknownFields(_))) => {},
+			(a, b, c) => {
+				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
 			}
 		}
 	}
