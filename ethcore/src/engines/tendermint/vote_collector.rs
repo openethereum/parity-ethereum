@@ -26,11 +26,20 @@ pub struct VoteCollector {
 	votes: RwLock<BTreeMap<ConsensusMessage, Address>>
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug)]
 pub struct SealSignatures {
 	pub proposal: H520,
 	pub votes: Vec<H520>
 }
+
+impl PartialEq for SealSignatures {
+	fn eq(&self, other: &SealSignatures) -> bool {
+		self.proposal == other.proposal
+			&& self.votes.iter().collect::<HashSet<_>>() == other.votes.iter().collect::<HashSet<_>>()
+	}
+}
+
+impl Eq for SealSignatures {}
 
 impl VoteCollector {
 	pub fn new() -> VoteCollector {
