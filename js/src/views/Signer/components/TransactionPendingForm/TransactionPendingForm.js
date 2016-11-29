@@ -80,7 +80,7 @@ export default class TransactionPendingForm extends Component {
         onClick={ this.onToggleReject }
         className={ styles.rejectToggle }
       >
-      { html }
+        { html }
       </a>
     );
   }

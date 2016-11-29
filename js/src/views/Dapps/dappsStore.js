@@ -130,9 +130,15 @@ export default class DappsStore {
   }
 
   _getHost (api) {
-    return process.env.NODE_ENV === 'production'
+    const host = process.env.DAPPS_URL || (process.env.NODE_ENV === 'production'
       ? this._api.dappsUrl
-      : '';
+      : '');
+
+    if (host === '/') {
+      return '';
+    }
+
+    return host;
   }
 
   _fetchBuiltinApps () {

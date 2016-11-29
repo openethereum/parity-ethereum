@@ -15,19 +15,12 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-.details {
-}
-
-.header {
-}
-
 .hash {
   padding-top: 1em;
   word-break: break-all;
 }
 
 .confirm {
-  padding-top: 1em;
   opacity: 0.5;
 }
 

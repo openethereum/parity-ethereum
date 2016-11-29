@@ -18,6 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import ShortenedHash from '../ShortenedHash';
+
 const defaultName = 'UNNAMED';
 
 class IdentityName extends Component {
@@ -41,7 +43,7 @@ class IdentityName extends Component {
       return null;
     }
 
-    const addressFallback = shorten ? this.formatHash(address) : address;
+    const addressFallback = shorten ? (<ShortenedHash data={ address } />) : address;
     const fallback = unknown ? defaultName : addressFallback;
     const isUuid = hasAccount && account.name === account.uuid;
     const displayName = (name && name.toUpperCase().trim()) ||
@@ -54,14 +56,6 @@ class IdentityName extends Component {
         { displayName && displayName.length ? displayName : fallback }
       </span>
     );
-  }
-
-  formatHash (hash) {
-    if (!hash || hash.length <= 16) {
-      return hash;
-    }
-
-    return `${hash.substr(2, 6)}...${hash.slice(-6)}`;
   }
 }
 
