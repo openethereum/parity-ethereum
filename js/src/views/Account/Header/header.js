@@ -29,14 +29,12 @@ export default class Header extends Component {
 
   static propTypes = {
     account: PropTypes.object,
-    balance: PropTypes.object,
-    certifications: PropTypes.array.isRequired,
-    isTest: PropTypes.bool
+    balance: PropTypes.object
   }
 
   render () {
     const { api } = this.context;
-    const { account, balance, certifications } = this.props;
+    const { account, balance } = this.props;
     const { address, meta, uuid } = account;
 
     if (!account) {
@@ -72,7 +70,7 @@ export default class Header extends Component {
               account={ account }
               balance={ balance } />
             <Certifications
-              certifications={ certifications }
+              account={ account.address }
               dappsUrl={ api.dappsUrl }
             />
           </div>

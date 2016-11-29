@@ -33,7 +33,6 @@ import Transactions from './Transactions';
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import VerificationStore from '../../modals/SMSVerification/store';
-import { fetchCertifications } from '../../redux/providers/certifications/actions';
 
 import styles from './account.css';
 
@@ -49,10 +48,7 @@ class Account extends Component {
     params: PropTypes.object,
     accounts: PropTypes.object,
     isTestnet: PropTypes.bool,
-    balances: PropTypes.object,
-    isTest: PropTypes.bool,
-    certifications: PropTypes.object.isRequired,
-    fetchCertifications: PropTypes.func.isRequired
+    balances: PropTypes.object
   }
 
   propName = null
@@ -65,10 +61,6 @@ class Account extends Component {
     verificationStore: null,
     showTransferDialog: false,
     showPasswordDialog: false
-  }
-
-  componentWillMount () {
-    this.props.fetchCertifications(this.props.params.address);
   }
 
   componentDidMount () {
@@ -104,12 +96,11 @@ class Account extends Component {
   }
 
   render () {
-    const { accounts, balances, certifications } = this.props;
+    const { accounts, balances } = this.props;
     const { address } = this.props.params;
 
     const account = (accounts || {})[address];
     const balance = (balances || {})[address];
-    const certificationsOfAccount = certifications[address] || [];
 
     if (!account) {
       return null;
@@ -128,7 +119,6 @@ class Account extends Component {
           <Header
             account={ account }
             balance={ balance }
-            certifications={ certificationsOfAccount }
           />
           <Transactions
             accounts={ accounts }
@@ -344,21 +334,19 @@ function mapStateToProps (state) {
   const { accounts } = state.personal;
   const { isTest } = state.nodeStatus;
   const { balances } = state.balances;
-  const { certifications, images } = state;
+  const { images } = state;
 
   return {
     accounts,
     isTestnet: isTest,
     balances,
-    certifications,
     images
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    setVisibleAccounts,
-    fetchCertifications
+    setVisibleAccounts
   }, dispatch);
 }
 
