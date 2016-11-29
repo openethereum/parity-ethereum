@@ -34,11 +34,40 @@ pub struct SealSignatures {
 
 impl VoteCollector {
 	pub fn new() -> VoteCollector {
-		VoteCollector { votes: RwLock::new(BTreeMap::new()) }
+		let mut collector = BTreeMap::new();
+		// Insert dummy message to fulfill invariant: "only messages newer than the oldest are inserted".
+		collector.insert(ConsensusMessage {
+			signature: H520::default(),
+			height: 0,
+			round: 0,
+			step: Step::Propose,
+			block_hash: None
+		},
+		Address::default());
+		VoteCollector { votes: RwLock::new(collector) }
 	}
 
+	/// Insert vote if it is newer than the oldest one.
 	pub fn vote(&self, message: ConsensusMessage, voter: Address) -> Option<Address> {
-		self.votes.write().insert(message, voter)
+		if {
+			let guard = self.votes.read();
+			guard.keys().next().map_or(true, |oldest| &message > oldest)
+		} {
+			self.votes.write().insert(message, voter)
+		} else {
+			None
+		}
+	}
+
+	pub fn is_known(&self, message: &ConsensusMessage) -> bool {
+		self.votes.read().contains_key(message)
+	}
+
+	/// Throws out messages older than message, leaves message as marker for the oldest.
+	pub fn throw_out_old(&self, message: &ConsensusMessage) {
+		let mut guard = self.votes.write();
+		let new_collector = guard.split_off(message);
+		*guard = new_collector;
 	}
 
 	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: H256) -> Option<SealSignatures> {
@@ -161,5 +190,27 @@ mod tests {
 			block_hash: Some("1".sha3())
 		};
 		assert_eq!(collector.count_aligned_votes(&message), 2);
+	}
+
+	#[test]
+	fn remove_old() {
+		let collector = VoteCollector::new();	
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 3, 1, Step::Prevote, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 3, 3, Step::Precommit, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("1".sha3()));
+		simple_vote(&collector, H520::random(), 3, 2, Step::Prevote, Some("0".sha3()));
+		simple_vote(&collector, H520::random(), 2, 2, Step::Precommit, Some("2".sha3()));
+
+		let message = ConsensusMessage {
+			signature: H520::default(),
+			height: 3,
+			round: 2,
+			step: Step::Precommit,
+			block_hash: Some("1".sha3())
+		};
+		collector.throw_out_old(&message);
+		assert_eq!(collector.votes.read().len(), 1);
 	}
 }
