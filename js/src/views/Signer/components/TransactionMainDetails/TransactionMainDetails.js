@@ -32,9 +32,7 @@ export default class TransactionMainDetails extends Component {
     value: PropTypes.object.isRequired, // wei hex
     totalValue: PropTypes.object.isRequired, // wei BigNumber
     isTest: PropTypes.bool.isRequired,
-    to: PropTypes.string, // undefined if it's a contract
     transaction: PropTypes.object.isRequired,
-    toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
     children: PropTypes.node
   };
 

@@ -65,11 +65,10 @@ export default class TransactionPending extends Component {
 
   render () {
     const { className, id, transaction, store } = this.props;
-    const { from, to, value } = transaction;
+    const { from, value } = transaction;
     const { totalValue } = this.state;
 
     const fromBalance = store.balances[from];
-    const toBalance = store.balances[to];
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>
@@ -78,8 +77,6 @@ export default class TransactionPending extends Component {
           value={ value }
           from={ from }
           fromBalance={ fromBalance }
-          to={ to }
-          toBalance={ toBalance }
           className={ styles.transactionDetails }
           transaction={ transaction }
           totalValue={ totalValue } />
