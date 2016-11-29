@@ -123,6 +123,7 @@ pub struct TestPeer {
 pub struct TestNet {
 	pub peers: Vec<TestPeer>,
 	pub started: bool,
+	pub disconnect_events: Vec<(PeerId, PeerId)>, //disconnected (initiated by, to)
 }
 
 impl TestNet {
@@ -140,6 +141,7 @@ impl TestNet {
 		let mut net = TestNet {
 			peers: Vec::new(),
 			started: false,
+			disconnect_events: Vec::new(),
 		};
 		for _ in 0..n {
 			let chain = TestBlockChainClient::new();
@@ -190,6 +192,7 @@ impl TestNet {
 						// notify this that disconnecting peers are disconnecting
 						let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(*d));
 						p.sync.write().on_peer_aborting(&mut io, *d);
+						self.disconnect_events.push((peer, *d));
 					}
 					to_disconnect
 				};
