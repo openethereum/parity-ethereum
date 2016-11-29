@@ -625,7 +625,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity, needless_borrow))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
@@ -1174,7 +1174,7 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotData => {
-					if let RestorationStatus::Ongoing { state_chunks: _, block_chunks: _, state_chunks_done, block_chunks_done, } = io.snapshot_service().status() {
+					if let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = io.snapshot_service().status() {
 						if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 							trace!(target: "sync", "Snapshot queue full, pausing sync");
 							self.state = SyncState::SnapshotWaiting;
@@ -1745,7 +1745,7 @@ impl ChainSync {
 					self.restart(io);
 					self.continue_sync(io);
 				},
-				RestorationStatus::Ongoing { state_chunks: _, block_chunks: _, state_chunks_done, block_chunks_done, } => {
+				RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 					if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 						trace!(target:"sync", "Resuming snapshot sync");
 						self.state = SyncState::SnapshotData;
@@ -1999,12 +1999,16 @@ impl ChainSync {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::{HashSet, VecDeque};
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
+	use util::{U256, RwLock};
+	use util::sha3::Hashable;
+	use util::hash::{H256, FixedHash};
+	use util::bytes::Bytes;
+	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
 	use super::*;
 	use ::SyncConfig;
-	use util::*;
-	use rlp::*;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::views::BlockView;
 	use ethcore::header::*;

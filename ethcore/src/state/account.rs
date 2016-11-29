@@ -444,11 +444,10 @@ impl fmt::Debug for Account {
 
 #[cfg(test)]
 mod tests {
-
+	use rlp::{UntrustedRlp, RlpType, View, Compressible};
 	use util::*;
 	use super::*;
 	use account_db::*;
-	use rlp::*;
 
 	#[test]
 	fn account_compress() {

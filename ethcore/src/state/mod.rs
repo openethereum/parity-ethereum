@@ -451,6 +451,7 @@ impl State {
 	}
 
 	/// Add `incr` to the balance of account `a`.
+	#[cfg_attr(feature="dev", allow(single_match))]
 	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
 		let is_value_transfer = !incr.is_zero();

@@ -263,7 +263,7 @@ pub fn get_test_client_with_blocks(blocks: Vec<Bytes>) -> GuardedTempResult<Arc<
 	).unwrap();
 
 	for block in &blocks {
-		if let Err(_) = client.import_block(block.clone()) {
+		if client.import_block(block.clone()).is_err() {
 			panic!("panic importing block which is well-formed");
 		}
 	}

@@ -124,7 +124,7 @@ impl AuthorityRound {
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
 	}
 
@@ -211,7 +211,7 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		Some(p.authorities.contains(author))
 	}
 
@@ -279,7 +279,7 @@ impl Engine for AuthorityRound {
 
 		let step = try!(header_step(header));
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) { 
+		if step == try!(header_step(parent)) {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}

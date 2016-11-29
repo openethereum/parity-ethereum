@@ -158,19 +158,19 @@ impl TestNet {
 	}
 
 	pub fn peer(&self, i: usize) -> &TestPeer {
-		self.peers.get(i).unwrap()
+		&self.peers[i]
 	}
 
 	pub fn peer_mut(&mut self, i: usize) -> &mut TestPeer {
-		self.peers.get_mut(i).unwrap()
+		&mut self.peers[i]
 	}
 
 	pub fn start(&mut self) {
 		for peer in 0..self.peers.len() {
 			for client in 0..self.peers.len() {
 				if peer != client {
-					let mut p = self.peers.get_mut(peer).unwrap();
-					p.sync.write().update_targets(&mut p.chain);
+					let mut p = &mut self.peers[peer];
+					p.sync.write().update_targets(&p.chain);
 					p.sync.write().on_peer_connected(&mut TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(client as PeerId)), client as PeerId);
 				}
 			}
@@ -181,7 +181,7 @@ impl TestNet {
 		for peer in 0..self.peers.len() {
 			if let Some(packet) = self.peers[peer].queue.pop_front() {
 				let disconnecting = {
-					let mut p = self.peers.get_mut(packet.recipient).unwrap();
+					let mut p = &mut self.peers[packet.recipient];
 					trace!("--- {} -> {} ---", peer, packet.recipient);
 					let to_disconnect = {
 						let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId));
@@ -198,7 +198,7 @@ impl TestNet {
 				};
 				for d in &disconnecting {
 					// notify other peers that this peer is disconnecting
-					let mut p = self.peers.get_mut(*d).unwrap();
+					let mut p = &mut self.peers[*d];
 					let mut io = TestIo::new(&mut p.chain, &p.snapshot_service, &mut p.queue, Some(peer as PeerId));
 					p.sync.write().on_peer_aborting(&mut io, peer as PeerId);
 				}

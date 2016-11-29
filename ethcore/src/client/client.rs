@@ -870,8 +870,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn keep_alive(&self) {
-		let should_wake = match &*self.mode.lock() {
-			&Mode::Dark(..) | &Mode::Passive(..) => true,
+		let should_wake = match *self.mode.lock() {
+			Mode::Dark(..) | Mode::Passive(..) => true,
 			_ => false,
 		};
 		if should_wake {
