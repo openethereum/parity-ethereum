@@ -59,9 +59,9 @@ pub struct Transaction {
 	pub network_id: Option<u8>,
 	/// The standardised V field of the signature (0 or 1).
 	#[serde(rename="standardV")]
-	pub standard_v: u8,
+	pub standard_v: U256,
 	/// The standardised V field of the signature.
-	pub v: u8,
+	pub v: U256,
 	/// The R field of the signature.
 	pub r: U256,
 	/// The S field of the signature.
@@ -93,8 +93,8 @@ impl From<LocalizedTransaction> for Transaction {
 			raw: ::rlp::encode(&t.signed).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
 			network_id: t.network_id(),
-			standard_v: t.standard_v(),
-			v: t.original_v(),
+			standard_v: t.standard_v().into(),
+			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
 		}
@@ -126,8 +126,8 @@ impl From<SignedTransaction> for Transaction {
 			raw: ::rlp::encode(&t).to_vec().into(),
 			public_key: t.public_key().ok().map(Into::into),
 			network_id: t.network_id(),
-			standard_v: t.standard_v(),
-			v: t.original_v(),
+			standard_v: t.standard_v().into(),
+			v: t.original_v().into(),
 			r: signature.r().into(),
 			s: signature.s().into(),
 		}
@@ -143,7 +143,53 @@ mod tests {
 	fn test_transaction_serialize() {
 		let t = Transaction::default();
 		let serialized = serde_json::to_string(&t).unwrap();
-		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"v":0,"r":"0x","s":"0x"}"#);
+		assert_eq!(serialized, r#"{"hash":"0x0000000000000000000000000000000000000000000000000000000000000000","nonce":"0x0","blockHash":null,"blockNumber":null,"transactionIndex":null,"from":"0x0000000000000000000000000000000000000000","to":null,"value":"0x0","gasPrice":"0x0","gas":"0x0","input":"0x","creates":null,"raw":"0x","publicKey":null,"networkId":null,"standardV":"0x0","v":"0x0","r":"0x0","s":"0x0"}"#);
+	}
+
+	#[test]
+	fn test_local_transaction_status_serialize() {
+		let tx_ser = serde_json::to_string(&Transaction::default()).unwrap();
+		let status1 = LocalTransactionStatus::Pending;
+		let status2 = LocalTransactionStatus::Future;
+		let status3 = LocalTransactionStatus::Mined(Transaction::default());
+		let status4 = LocalTransactionStatus::Dropped(Transaction::default());
+		let status5 = LocalTransactionStatus::Invalid(Transaction::default());
+		let status6 = LocalTransactionStatus::Rejected(Transaction::default(), "Just because".into());
+		let status7 = LocalTransactionStatus::Replaced(Transaction::default(), 5.into(), 10.into());
+
+		assert_eq!(
+			serde_json::to_string(&status1).unwrap(),
+			r#"{"status":"pending"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status2).unwrap(),
+			r#"{"status":"future"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status3).unwrap(),
+			r#"{"status":"mined","transaction":"#.to_owned() + &format!("{}", tx_ser) + r#"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status4).unwrap(),
+			r#"{"status":"dropped","transaction":"#.to_owned() + &format!("{}", tx_ser) + r#"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status5).unwrap(),
+			r#"{"status":"invalid","transaction":"#.to_owned() + &format!("{}", tx_ser) + r#"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status6).unwrap(),
+			r#"{"status":"rejected","transaction":"#.to_owned() +
+			&format!("{}", tx_ser) +
+			r#","error":"Just because"}"#
+		);
+		assert_eq!(
+			serde_json::to_string(&status7).unwrap(),
+			r#"{"status":"replaced","transaction":"#.to_owned() +
+			&format!("{}", tx_ser) +
+			r#","hash":"0x000000000000000000000000000000000000000000000000000000000000000a","gasPrice":"0x5"}"#
+		);
+>>>>>>> 436016e... Introduce to_hex() utility in bigint. Fix tests.
 	}
 }
 
