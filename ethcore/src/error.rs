@@ -168,12 +168,6 @@ pub enum BlockError {
 	UnknownParent(H256),
 	/// Uncle parent given is unknown.
 	UnknownUncleParent(H256),
-	/// The same author issued different votes at the same step.
-	DoubleVote(H160),
-	/// The received block is from an incorrect proposer.
-	NotProposer(Mismatch<H160>),
-	/// Signature does not belong to an authority.
-	NotAuthorized(H160)
 }
 
 impl fmt::Display for BlockError {
@@ -207,9 +201,6 @@ impl fmt::Display for BlockError {
 			RidiculousNumber(ref oob) => format!("Implausible block number. {}", oob),
 			UnknownParent(ref hash) => format!("Unknown parent: {}", hash),
 			UnknownUncleParent(ref hash) => format!("Unknown uncle parent: {}", hash),
-			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
-			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
-			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
 		};
 
 		f.write_fmt(format_args!("Block error ({})", msg))
@@ -294,8 +285,7 @@ impl fmt::Display for Error {
 			Error::StdIo(ref err) => err.fmt(f),
 			Error::Snappy(ref err) => err.fmt(f),
 			Error::Snapshot(ref err) => err.fmt(f),
-			Error::Engine(ref err) =>
-				f.write_fmt(format_args!("Bad vote: {:?}", err)),
+			Error::Engine(ref err) => err.fmt(f),
 			Error::Ethkey(ref err) => err.fmt(f),
 		}
 	}

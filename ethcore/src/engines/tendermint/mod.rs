@@ -220,14 +220,14 @@ impl Tendermint {
 	}
 
 	/// Round proposer switching.
-	fn is_proposer(&self, address: &Address) -> Result<(), BlockError> {
+	fn is_proposer(&self, address: &Address) -> Result<(), EngineError> {
 		let ref p = self.our_params;
 		let proposer_nonce = self.proposer_nonce.load(AtomicOrdering::SeqCst);
 		let proposer = p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed");
 		if proposer == address {
 			Ok(())
 		} else {
-			Err(BlockError::NotProposer(Mismatch { expected: proposer.clone(), found: address.clone() }))
+			Err(EngineError::NotProposer(Mismatch { expected: proposer.clone(), found: address.clone() }))
 		}
 	}
 
@@ -357,7 +357,7 @@ impl Engine for Tendermint {
 		if self.votes.is_known(&message) {
 			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
 			if !self.is_authority(&sender) {
-				try!(Err(BlockError::NotAuthorized(sender)));
+				try!(Err(EngineError::NotAuthorized(sender)));
 			}
 			self.votes.vote(message.clone(), sender);
 
@@ -434,7 +434,7 @@ impl Engine for Tendermint {
 			let signature: H520 = try!(rlp.as_val());
 			let address = public_to_address(&try!(recover(&signature.into(), &block_info_hash)));
 			if !self.our_params.authorities.contains(&address) {
-				try!(Err(BlockError::NotAuthorized(address)))
+				try!(Err(EngineError::NotAuthorized(address)))
 			}
 
 			signature_count += 1;
@@ -494,7 +494,6 @@ mod tests {
 	use rlp::{UntrustedRlp, View};
 	use io::{IoContext, IoHandler};
 	use block::*;
-	use state_db::StateDB;
 	use error::{Error, BlockError};
 	use header::Header;
 	use env_info::EnvInfo;
@@ -629,7 +628,7 @@ mod tests {
 		header.set_seal(seal);
 		// Bad proposer.
 		match engine.verify_block_unordered(&header, None) {
-			Err(Error::Block(BlockError::NotProposer(_))) => {},
+			Err(Error::Engine(EngineError::NotProposer(_))) => {},
 			_ => panic!(),
 		}
 	}
@@ -663,7 +662,7 @@ mod tests {
 
 		// One good and one bad signature.
 		match engine.verify_block_unordered(&header, None) {
-			Err(Error::Block(BlockError::NotAuthorized(_))) => {},
+			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		}
 	}
@@ -713,30 +712,5 @@ mod tests {
 
 		::std::thread::sleep(::std::time::Duration::from_millis(500));
 		assert_eq!(test_io.received.read()[5], ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
-	}
-
-	#[test]
-	#[ignore]
-	fn precommit_step() {
-		let (spec, tap) = setup();
-		let engine = spec.engine.clone();
-
-		let not_authority_addr = insert_and_unlock(&tap, "101");
-		let proposer_addr = insert_and_unlock(&tap, "0");
-		propose_default(&spec, proposer_addr);
-
-		let not_proposer_addr = insert_and_unlock(&tap, "1");
-
-	}
-
-	#[test]
-	#[ignore]
-	fn timeout_switching() {
-		let tender = {
-			let engine = Spec::new_test_tendermint().engine;
-			Tendermint::new(engine.params().clone(), TendermintParams::default(), BTreeMap::new())
-		};
-
-		println!("Waiting for timeout");
 	}
 }

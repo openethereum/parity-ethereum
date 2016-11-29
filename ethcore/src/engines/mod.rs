@@ -48,18 +48,28 @@ use views::HeaderView;
 /// Voting errors.
 #[derive(Debug)]
 pub enum EngineError {
-	/// Voter is not in the voters set.
-	UnauthorisedVoter,
-	/// Message pertaining incorrect consensus step.
-	WrongStep,
-	/// Message pertaining unknown consensus step.
-	UnknownStep,
+	/// Signature does not belong to an authority.
+	NotAuthorized(H160),
+	/// The same author issued different votes at the same step.
+	DoubleVote(H160),
+	/// The received block is from an incorrect proposer.
+	NotProposer(Mismatch<H160>),
 	/// Message was not expected.
 	UnexpectedMessage,
-	/// Received a vote for a different proposal.
-	WrongVote,
-	/// Received message is from a different consensus round.
-	WrongRound
+}
+
+impl fmt::Display for EngineError {
+	fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		use self::EngineError::*;
+		let msg = match *self {
+			DoubleVote(ref address) => format!("Author {} issued too many blocks.", address),
+			NotProposer(ref mis) => format!("Author is not a current proposer: {}", mis),
+			NotAuthorized(ref address) => format!("Signer {} is not authorized.", address),
+			UnexpectedMessage => "This Engine should not be fed messages.".into(),
+		};
+
+		f.write_fmt(format_args!("Engine error ({})", msg))
+	}
 }
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.

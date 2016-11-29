@@ -25,7 +25,7 @@ use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
-use engines::Engine;
+use engines::{Engine, EngineError};
 use header::Header;
 use error::{Error, BlockError};
 use evm::Schedule;
@@ -283,7 +283,7 @@ impl Engine for AuthorityRound {
 		// Check if parent is from a previous step.
 		if step == try!(header_step(parent)) { 
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
-			try!(Err(BlockError::DoubleVote(header.author().clone())));
+			try!(Err(EngineError::DoubleVote(header.author().clone())));
 		}
 
 		// Check difficulty is correct given the two timestamps.
