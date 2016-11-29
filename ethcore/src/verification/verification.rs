@@ -277,6 +277,14 @@ mod tests {
 		}
 	}
 
+	fn check_fail_timestamp(result: Result<(), Error>) {
+		match result {
+			Err(Error::Block(BlockError::InvalidTimestamp(_))) => (),
+			Err(other) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: {:?}", other),
+			Ok(_) => panic!("Block verification failed.\nExpected: InvalidTimestamp\nGot: Ok"),
+		}
+	}
+
 	struct TestBlockChain {
 		blocks: HashMap<H256, Bytes>,
 		numbers: HashMap<BlockNumber, H256>,
@@ -523,13 +531,11 @@ mod tests {
 
 		header = good.clone();
 		header.set_timestamp(2450000000);
-		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
-				   InvalidTimestamp(OutOfBounds { max: Some(get_time().sec as u64 + 30), min: None, found: header.timestamp() }));
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header = good.clone();
-		header.set_timestamp(get_time().sec as u64 + 31);
-		check_fail(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine),
-				   InvalidTimestamp(OutOfBounds { max: Some(get_time().sec as u64 + 30), min: None, found: header.timestamp() }));
+		header.set_timestamp(get_time().sec as u64 + 40);
+		check_fail_timestamp(basic_test(&create_test_block_with_data(&header, &good_transactions, &good_uncles), engine));
 
 		header = good.clone();
 		header.set_number(9);
