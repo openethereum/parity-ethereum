@@ -50,7 +50,6 @@ mod chain;
 mod blocks;
 mod block_sync;
 mod sync_io;
-mod infinity;
 mod snapshot;
 mod transactions_stats;
 

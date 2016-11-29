@@ -1236,7 +1236,7 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
-	fn queue_infinity_message(&self, message: Bytes) {
+	fn queue_consensus_message(&self, message: Bytes) {
 		if let Err(e) = self.io_channel.lock().send(ClientIoMessage::NewMessage(message)) {
 			debug!("Ignoring the message, error queueing: {}", e);
 		}

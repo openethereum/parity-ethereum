@@ -28,19 +28,16 @@ use ethcore::snapshot::SnapshotService;
 use ethcore::header::BlockNumber;
 use sync_io::NetSyncIo;
 use chain::{ChainSync, SyncStatus};
-use infinity::{InfinitySync};
 use std::net::{SocketAddr, AddrParseError};
 use ipc::{BinaryConvertable, BinaryConvertError, IpcConfig};
 use std::str::FromStr;
 use parking_lot::RwLock;
 use chain::{ETH_PACKET_COUNT, SNAPSHOT_SYNC_PACKET_COUNT};
 
+/// Parity sync protocol
 pub const WARP_SYNC_PROTOCOL_ID: ProtocolId = *b"par";
-
 /// Ethereum sync protocol
-pub const ETH_PROTOCOL: [u8; 3] = *b"eth";
-/// Infinity protocol
-pub const INF_PROTOCOL: [u8; 3] = *b"inf";
+pub const ETH_PROTOCOL: ProtocolId = *b"eth";
 
 /// Sync configuration
 #[derive(Debug, Clone, Copy)]
@@ -124,8 +121,6 @@ pub struct EthSync {
 	network: NetworkService,
 	/// Ethereum Protocol handler
 	eth_handler: Arc<SyncProtocolHandler>,
-	/// Infinity Protocol handler
-	inf_handler: Arc<InfProtocolHandler>,
 	/// The main subprotocol name
 	subprotocol_name: [u8; 3],
 	/// Configuration
@@ -135,7 +130,6 @@ pub struct EthSync {
 impl EthSync {
 	/// Creates and register protocol with the network service
 	pub fn new(config: SyncConfig, chain: Arc<BlockChainClient>, snapshot_service: Arc<SnapshotService>, network_config: NetworkConfiguration) -> Result<Arc<EthSync>, NetworkError> {
-		let inf_sync = InfinitySync::new(&config, chain.clone());
 		let chain_sync = ChainSync::new(config, &*chain);
 		let service = try!(NetworkService::new(try!(network_config.clone().into_basic())));
 		let sync = Arc::new(EthSync{
@@ -144,12 +138,6 @@ impl EthSync {
 				sync: RwLock::new(chain_sync),
 				chain: chain.clone(),
 				snapshot_service: snapshot_service.clone(),
-				overlay: RwLock::new(HashMap::new()),
-			}),
-			inf_handler: Arc::new(InfProtocolHandler {
-				sync: RwLock::new(inf_sync),
-				chain: chain,
-				snapshot_service: snapshot_service,
 				overlay: RwLock::new(HashMap::new()),
 			}),
 			subprotocol_name: config.subprotocol_name,
@@ -232,37 +220,6 @@ impl NetworkProtocolHandler for SyncProtocolHandler {
 	}
 }
 
-struct InfProtocolHandler {
-	/// Shared blockchain client.
-	chain: Arc<BlockChainClient>,
-	/// Shared snapshot service.
-	snapshot_service: Arc<SnapshotService>,
-	/// Sync strategy
-	sync: RwLock<InfinitySync>,
-	/// Chain overlay used to cache data such as fork block.
-	overlay: RwLock<HashMap<BlockNumber, Bytes>>,
-}
-
-impl NetworkProtocolHandler for InfProtocolHandler {
-	fn initialize(&self, _io: &NetworkContext) {
-	}
-
-	fn read(&self, io: &NetworkContext, peer: &PeerId, packet_id: u8, data: &[u8]) {
-		InfinitySync::dispatch_packet(&self.sync, &mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer, packet_id, data);
-	}
-
-	fn connected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_connected(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
-	}
-
-	fn disconnected(&self, io: &NetworkContext, peer: &PeerId) {
-		self.sync.write().on_peer_aborting(&mut NetSyncIo::new(io, &*self.chain, &*self.snapshot_service, &self.overlay), *peer);
-	}
-
-	fn timeout(&self, _io: &NetworkContext, _timer: TimerToken) {
-	}
-}
-
 impl ChainNotify for EthSync {
 	fn new_blocks(&self,
 		imported: Vec<H256>,
@@ -295,9 +252,6 @@ impl ChainNotify for EthSync {
 		// register the warp sync subprotocol
 		self.network.register_protocol(self.eth_handler.clone(), WARP_SYNC_PROTOCOL_ID, SNAPSHOT_SYNC_PACKET_COUNT, &[1u8])
 			.unwrap_or_else(|e| warn!("Error registering snapshot sync protocol: {:?}", e));
-		// register the inf sync subprotocol
-		self.network.register_protocol(self.inf_handler.clone(), INF_PROTOCOL, ETH_PACKET_COUNT, &[1u8])
-			.unwrap_or_else(|e| warn!("Error registering infinity protocol: {:?}", e));
 	}
 
 	fn stop(&self) {
@@ -308,7 +262,7 @@ impl ChainNotify for EthSync {
 	fn broadcast(&self, message: Vec<u8>) {
 		self.network.with_context(ETH_PROTOCOL, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
-			self.inf_handler.sync.write().propagate_packet(&mut sync_io, message.clone());
+			self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone());
 		});
 	}
 }

@@ -189,8 +189,8 @@ pub trait BlockChainClient : Sync + Send {
 	/// Queue transactions for importing.
 	fn queue_transactions(&self, transactions: Vec<Bytes>);
 
-	/// Queue packet
-	fn queue_infinity_message(&self, message: Bytes);
+	/// Queue conensus engine message.
+	fn queue_consensus_message(&self, message: Bytes);
 
 	/// list all transactions
 	fn pending_transactions(&self) -> Vec<SignedTransaction>;

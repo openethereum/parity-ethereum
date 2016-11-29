@@ -651,7 +651,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.import_external_transactions(self, txs);
 	}
 
-	fn queue_infinity_message(&self, _packet: Bytes) {
+	fn queue_consensus_message(&self, _packet: Bytes) {
 		unimplemented!();
 	}
 

@@ -112,6 +112,7 @@ type PacketDecodeError = DecoderError;
 
 const PROTOCOL_VERSION_63: u8 = 63;
 const PROTOCOL_VERSION_1: u8 = 1;
+const PROTOCOL_VERSION_2: u8 = 2;
 const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
 const MAX_NODE_DATA_TO_SEND: usize = 1024;
@@ -148,8 +149,9 @@ const GET_SNAPSHOT_MANIFEST_PACKET: u8 = 0x11;
 const SNAPSHOT_MANIFEST_PACKET: u8 = 0x12;
 const GET_SNAPSHOT_DATA_PACKET: u8 = 0x13;
 const SNAPSHOT_DATA_PACKET: u8 = 0x14;
+const CONSENSUS_DATA_PACKET: u8 = 0x15;
 
-pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x15;
+pub const SNAPSHOT_SYNC_PACKET_COUNT: u8 = 0x16;
 
 const MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD: usize = 3;
 
@@ -607,7 +609,7 @@ impl ChainSync {
 			trace!(target: "sync", "Peer {} network id mismatch (ours: {}, theirs: {})", peer_id, self.network_id, peer.network_id);
 			return Ok(());
 		}
-		if (warp_protocol && peer.protocol_version != PROTOCOL_VERSION_1) || (!warp_protocol && peer.protocol_version != PROTOCOL_VERSION_63) {
+		if (warp_protocol && peer.protocol_version != PROTOCOL_VERSION_1 && peer.protocol_version != PROTOCOL_VERSION_2) || (!warp_protocol && peer.protocol_version != PROTOCOL_VERSION_63) {
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
@@ -1416,8 +1418,9 @@ impl ChainSync {
 
 	/// Send Status message
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), NetworkError> {
-		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer) != 0;
-		let protocol = if warp_protocol { PROTOCOL_VERSION_1 } else { PROTOCOL_VERSION_63 };
+		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
+		let warp_protocol = warp_protocol_version != 0;
+		let protocol = if warp_protocol { warp_protocol_version } else { PROTOCOL_VERSION_63 };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
@@ -1663,7 +1666,7 @@ impl ChainSync {
 			GET_SNAPSHOT_DATA_PACKET => ChainSync::return_rlp(io, &rlp, peer,
 				ChainSync::return_snapshot_data,
 				|e| format!("Error sending snapshot data: {:?}", e)),
-
+			CONSENSUS_DATA_PACKET => ChainSync::on_consensus_packet(io, peer, &rlp),
 			_ => {
 				sync.write().on_packet(io, peer, packet_id, data);
 				Ok(())
@@ -1994,6 +1997,21 @@ impl ChainSync {
 		if !invalid.is_empty() {
 			trace!(target: "sync", "Bad blocks in the queue, restarting");
 			self.restart(io);
+		}
+	}
+
+	/// Called when peer sends us new consensus packet
+	fn on_consensus_packet(io: &mut SyncIo, _peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
+		io.chain().queue_consensus_message(r.as_raw().to_vec());
+		Ok(())
+	}
+
+	/// Broadcast consensus message to peers.
+	pub fn propagate_consensus_packet(&mut self, io: &mut SyncIo, packet: Bytes) {
+		let lucky_peers: Vec<_> = self.peers.iter().filter_map(|(id, p)| if p.protocol_version == PROTOCOL_VERSION_2 { Some(*id) } else { None }).collect();
+		trace!(target: "sync", "Sending consensus packet to {:?}", lucky_peers);
+		for peer_id in lucky_peers {
+			self.send_packet(io, peer_id, CONSENSUS_DATA_PACKET, packet.clone());
 		}
 	}
 }
