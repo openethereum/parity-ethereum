@@ -15,20 +15,26 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::ops::{Deref, DerefMut};
-use std::time;
+use std::thread;
+use std::time::{self, Duration};
 use std::sync::Arc;
-use devtools::{http_client, RandomTempPath};
+
+#[cfg(test)]
+use devtools::http_client;
+use devtools::RandomTempPath;
+
 use rpc::ConfirmationsQueue;
-use util::Hashable;
 use rand;
 
 use ServerBuilder;
 use Server;
 use AuthCodes;
 
+/// Struct representing authcodes
 pub struct GuardedAuthCodes {
 	authcodes: AuthCodes,
-	path: RandomTempPath,
+	/// The path to the mock authcodes
+	pub path: RandomTempPath,
 }
 impl Deref for GuardedAuthCodes {
 	type Target = AuthCodes;
@@ -42,6 +48,7 @@ impl DerefMut for GuardedAuthCodes {
 	}
 }
 
+/// Setup a mock signer for testsp
 pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 	let mut path = RandomTempPath::new();
 	path.panic_on_drop_failure = false;
@@ -54,10 +61,6 @@ pub fn serve() -> (Server, usize, GuardedAuthCodes) {
 		authcodes: AuthCodes::from_file(&path).unwrap(),
 		path: path,
 	})
-}
-
-pub fn request(server: Server, request: &str) -> http_client::Response {
-	http_client::request(server.addr(), request)
 }
 
 #[test]
@@ -246,4 +249,3 @@ fn should_allow_initial_connection_but_only_once() {
 	assert_eq!(response2.status, "HTTP/1.1 403 FORBIDDEN".to_owned());
 	http_client::assert_security_headers_present(&response2.headers, None);
 }
-

@@ -48,6 +48,8 @@ rlp = { path = "util/rlp" }
 ethcore-stratum = { path = "stratum" }
 ethcore-dapps = { path = "dapps", optional = true }
 clippy = { version = "0.0.96", optional = true}
+rpc-cli = { path = "rpc_cli" }
+parity-rpc-client = { path = "rpc_client" }
 
 [target.'cfg(windows)'.dependencies]
 winapi = "0.2"
@@ -89,4 +91,3 @@ name = "parity"
 [profile.release]
 debug = false
 lto = false
-

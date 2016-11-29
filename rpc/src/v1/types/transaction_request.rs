@@ -19,6 +19,8 @@
 use v1::types::{Bytes, H160, U256};
 use v1::helpers;
 
+use std::fmt;
+
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
 pub struct TransactionRequest {
@@ -37,6 +39,37 @@ pub struct TransactionRequest {
 	pub data: Option<Bytes>,
 	/// Transaction's nonce
 	pub nonce: Option<U256>,
+}
+
+pub fn format_ether(i: U256) -> String {
+	let mut string = format!("{}", i);
+	let idx = string.len() as isize - 18;
+	if idx <= 0 {
+		let mut prefix = String::from("0.");
+		for _ in 0..idx.abs() {
+			prefix.push('0');
+		}
+		string = prefix + &string;
+	} else {
+		string.insert(idx as usize, '.');
+	}
+	String::from(string.trim_right_matches('0')
+		.trim_right_matches('.'))
+}
+
+impl fmt::Display for TransactionRequest {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+		let eth = self.value.unwrap_or(U256::from(0));
+		match self.to {
+			Some(ref to) => write!(f, "{} Ether from {:?} to {:?}",
+								   format_ether(eth),
+								   self.from,
+								   to),
+			None => write!(f, "{} Ether from {:?}",
+						   format_ether(eth),
+						   self.from),
+		}
+	}
 }
 
 impl From<helpers::TransactionRequest> for TransactionRequest {
@@ -190,5 +223,15 @@ mod tests {
 
 		assert!(deserialized.is_err(), "Should be error because to is empty");
 	}
-}
 
+	#[test]
+	fn test_format_ether() {
+		assert_eq!(&format_ether(U256::from(1000000000000000000u64)), "1");
+		assert_eq!(&format_ether(U256::from(500000000000000000u64)), "0.5");
+		assert_eq!(&format_ether(U256::from(50000000000000000u64)), "0.05");
+		assert_eq!(&format_ether(U256::from(5000000000000000u64)), "0.005");
+		assert_eq!(&format_ether(U256::from(2000000000000000000u64)), "2");
+		assert_eq!(&format_ether(U256::from(2500000000000000000u64)), "2.5");
+		assert_eq!(&format_ether(U256::from(10000000000000000000u64)), "10");
+	}
+}

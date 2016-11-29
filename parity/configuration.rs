@@ -42,6 +42,8 @@ use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
 
+const AUTHCODE_FILENAME: &'static str = "authcodes";
+
 #[derive(Debug, PartialEq)]
 pub enum Cmd {
 	Run(RunCmd),
@@ -50,6 +52,21 @@ pub enum Cmd {
 	ImportPresaleWallet(ImportWallet),
 	Blockchain(BlockchainCmd),
 	SignerToken(SignerConfiguration),
+	SignerSign {
+		id: Option<usize>,
+		pwfile: Option<PathBuf>,
+		port: u16,
+		authfile: PathBuf,
+	},
+	SignerList {
+		port: u16,
+		authfile: PathBuf
+	},
+	SignerReject {
+		id: Option<usize>,
+		port: u16,
+		authfile: PathBuf
+	},
 	Snapshot(SnapshotCommand),
 	Hash(Option<String>),
 }
@@ -102,8 +119,36 @@ impl Configuration {
 
 		let cmd = if self.args.flag_version {
 			Cmd::Version
-		} else if self.args.cmd_signer && self.args.cmd_new_token {
-			Cmd::SignerToken(signer_conf)
+		} else if self.args.cmd_signer {
+			let mut authfile = PathBuf::from(signer_conf.signer_path.clone());
+			authfile.push(AUTHCODE_FILENAME);
+
+			if self.args.cmd_new_token {
+				Cmd::SignerToken(signer_conf)
+			} else if self.args.cmd_sign {
+				let pwfile = self.args.flag_password.get(0).map(|pwfile| {
+					PathBuf::from(pwfile)
+				});
+				Cmd::SignerSign {
+					id: self.args.arg_id,
+					pwfile: pwfile,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_reject  {
+				Cmd::SignerReject {
+					id: self.args.arg_id,
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else if self.args.cmd_list  {
+				Cmd::SignerList {
+					port: signer_conf.port,
+					authfile: authfile,
+				}
+			} else {
+				unreachable!();
+			}
 		} else if self.args.cmd_tools && self.args.cmd_hash {
 			Cmd::Hash(self.args.arg_file)
 		} else if self.args.cmd_account {
@@ -1056,4 +1101,3 @@ mod tests {
 		assert!(conf.init_reserved_nodes().is_ok());
 	}
 }
-
