@@ -59,9 +59,8 @@ export default class RequestFinished extends Component {
       );
     }
 
-    if (payload.sendTransaction || payload.signTransaction) {
-      const transaction = payload.sendTransaction || payload.signTransaction;
-
+    const transaction = payload.sendTransaction || payload.signTransaction;
+    if (transaction) {
       return (
         <TransactionFinished
           className={ className }

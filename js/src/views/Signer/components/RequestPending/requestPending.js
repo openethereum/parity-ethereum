@@ -65,9 +65,8 @@ export default class RequestPending extends Component {
       );
     }
 
-    if (payload.sendTransaction || payload.signTransaction) {
-      const transaction = payload.sendTransaction || payload.signTransaction;
-
+    const transaction = payload.sendTransaction || payload.signTransaction;
+    if (transaction) {
       return (
         <TransactionPending
           className={ className }
