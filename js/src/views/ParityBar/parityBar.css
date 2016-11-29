@@ -55,6 +55,7 @@
   overflow: auto;
   display: flex;
   background: rgba(0, 0, 0, 0.8);
+  min-height: 300px;
 }
 
 .corner {
