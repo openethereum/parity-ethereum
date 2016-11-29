@@ -64,13 +64,13 @@ impl PodAccount {
 	}
 
 	/// Place additional data into given hash DB.
-	pub fn insert_additional(&self, db: &mut AccountDBMut) {
+	pub fn insert_additional(&self, db: &mut AccountDBMut, factory: &TrieFactory) {
 		match self.code {
 			Some(ref c) if !c.is_empty() => { db.insert(c); }
 			_ => {}
 		}
 		let mut r = H256::new();
-		let mut t = SecTrieDBMut::new(db, &mut r);
+		let mut t = factory.create(db, &mut r);
 		for (k, v) in &self.storage {
 			if let Err(e) = t.insert(k, &rlp::encode(&U256::from(&**v))) {
 				warn!("Encountered potential DB corruption: {}", e);
