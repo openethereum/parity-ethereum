@@ -224,7 +224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "elastic-array"
 version = "0.6.0"
-source = "git+https://github.com/ethcore/elastic-array#70e4012e691b732c7c4cb04e9232799e6aa268bc"
+source = "git+https://github.com/ethcore/elastic-array#346f1ba5982576dab9d0b8fa178b50e1db0a21cd"
 dependencies = [
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
