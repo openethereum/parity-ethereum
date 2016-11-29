@@ -17,11 +17,10 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
-import { EditMeta, DeleteAccount, Transfer } from '../../modals';
+import { EditMeta, Transfer } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import Header from '../Account/Header';
