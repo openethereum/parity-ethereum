@@ -19,7 +19,7 @@ import Registry from './registry';
 import SignatureReg from './signaturereg';
 import TokenReg from './tokenreg';
 import GithubHint from './githubhint';
-import * as smsVerification from './smsverification';
+import * as smsVerification from './sms-verification';
 import BadgeReg from './badgereg';
 
 let instance = null;
