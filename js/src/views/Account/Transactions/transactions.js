@@ -33,10 +33,6 @@ class Transactions extends Component {
 
   static propTypes = {
     address: PropTypes.string.isRequired,
-    accounts: PropTypes.object,
-    contacts: PropTypes.object,
-    contracts: PropTypes.object,
-    tokens: PropTypes.object,
     isTest: PropTypes.bool,
     traceMode: PropTypes.bool
   }
@@ -117,7 +113,7 @@ class Transactions extends Component {
   }
 
   renderRows () {
-    const { address, accounts, contacts, contracts, tokens, isTest } = this.props;
+    const { address, isTest } = this.props;
     const { transactions } = this.state;
 
     return (transactions || [])
@@ -131,10 +127,6 @@ class Transactions extends Component {
             key={ index }
             transaction={ transaction }
             address={ address }
-            accounts={ accounts }
-            contacts={ contacts }
-            contracts={ contracts }
-            tokens={ tokens }
             isTest={ isTest } />
         );
       });
@@ -204,16 +196,10 @@ class Transactions extends Component {
 
 function mapStateToProps (state) {
   const { isTest, traceMode } = state.nodeStatus;
-  const { accounts, contacts, contracts } = state.personal;
-  const { tokens } = state.balances;
 
   return {
     isTest,
-    traceMode,
-    accounts,
-    contacts,
-    contracts,
-    tokens
+    traceMode
   };
 }
 

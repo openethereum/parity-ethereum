@@ -27,8 +27,14 @@ export default class WalletInfo extends Component {
     name: PropTypes.string.isRequired,
     address: PropTypes.string.isRequired,
     owners: PropTypes.array.isRequired,
-    required: PropTypes.string.isRequired,
-    daylimit: PropTypes.string.isRequired
+    required: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired,
+    daylimit: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.number
+    ]).isRequired
   };
 
   render () {

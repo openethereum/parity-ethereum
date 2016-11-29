@@ -25,6 +25,8 @@ const initialState = {
   hasContacts: false,
   contracts: {},
   hasContracts: false,
+  wallet: {},
+  hasWallets: false,
   visibleAccounts: []
 };
 
@@ -34,6 +36,7 @@ export default handleActions({
     const accounts = {};
     const contacts = {};
     const contracts = {};
+    const wallets = {};
 
     Object.keys(accountsInfo || {})
       .map((address) => Object.assign({}, accountsInfo[address], { address }))
@@ -41,6 +44,8 @@ export default handleActions({
       .forEach((account) => {
         if (account.uuid) {
           accounts[account.address] = account;
+        } else if (account.meta.wallet) {
+          wallets[account.address] = account;
         } else if (account.meta.contract) {
           contracts[account.address] = account;
         } else {
@@ -55,7 +60,9 @@ export default handleActions({
       contacts,
       hasContacts: Object.keys(contacts).length !== 0,
       contracts,
-      hasContracts: Object.keys(contracts).length !== 0
+      hasContracts: Object.keys(contracts).length !== 0,
+      wallets,
+      hasWallets: Object.keys(wallets).length !== 0
     });
   },
 

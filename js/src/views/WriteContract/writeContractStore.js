@@ -35,6 +35,11 @@ const SNIPPETS = {
     name: 'HumanStandardToken.sol',
     description: 'Implementation of the Human Token Contract',
     id: 'snippet2', sourcecode: require('raw!../../contracts/snippets/human-standard-token.sol')
+  },
+  snippet3: {
+    name: 'Wallet.sol',
+    description: 'Implementation of a multisig Wallet',
+    id: 'snippet3', sourcecode: require('raw!../../contracts/snippets/wallet.sol')
   }
 };
 

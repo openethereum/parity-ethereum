@@ -32,7 +32,7 @@ import ContractInstances from './contracts';
 
 import { initStore } from './redux';
 import { ContextProvider, muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
+import { Accounts, Account, Wallet, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
 
 import { setApi } from './redux/providers/apiActions';
 
@@ -85,6 +85,7 @@ ReactDOM.render(
       <Route path='/' component={ Application }>
         <Route path='accounts' component={ Accounts } />
         <Route path='account/:address' component={ Account } />
+        <Route path='wallet/:address' component={ Wallet } />
         <Route path='addresses' component={ Addresses } />
         <Route path='address/:address' component={ Address } />
         <Route path='apps' component={ Dapps } />
