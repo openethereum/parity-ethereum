@@ -19,7 +19,6 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use account_provider::AccountProvider;
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
@@ -224,14 +223,13 @@ pub struct Miner {
 	extra_data: RwLock<Bytes>,
 	engine: Arc<Engine>,
 
-	accounts: Option<Arc<AccountProvider>>,
 	work_poster: Option<WorkPoster>,
 	gas_pricer: Mutex<GasPricer>,
 }
 
 impl Miner {
 	/// Creates new instance of miner.
-	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
+	fn new_raw(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec) -> Miner {
 		let work_poster = match options.new_work_notify.is_empty() {
 			true => None,
 			false => Some(WorkPoster::new(&options.new_work_notify))
@@ -265,26 +263,20 @@ impl Miner {
 			author: RwLock::new(Address::default()),
 			extra_data: RwLock::new(Vec::new()),
 			options: options,
-			accounts: accounts,
 			engine: spec.engine.clone(),
 			work_poster: work_poster,
 			gas_pricer: Mutex::new(gas_pricer),
 		}
 	}
 
-	/// Creates new instance of miner with accounts and with given spec.
-	pub fn with_spec_and_accounts(spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Miner {
-		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, accounts)
-	}
-
-	/// Creates new instance of miner without accounts, but with given spec.
+	/// Creates new instance of miner with given spec.
 	pub fn with_spec(spec: &Spec) -> Miner {
-		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec, None)
+		Miner::new_raw(Default::default(), GasPricer::new_fixed(20_000_000_000u64.into()), spec)
 	}
 
 	/// Creates new instance of a miner Arc.
-	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec, accounts: Option<Arc<AccountProvider>>) -> Arc<Miner> {
-		Arc::new(Miner::new_raw(options, gas_pricer, spec, accounts))
+	pub fn new(options: MinerOptions, gas_pricer: GasPricer, spec: &Spec) -> Arc<Miner> {
+		Arc::new(Miner::new_raw(options, gas_pricer, spec))
 	}
 
 	fn forced_sealing(&self) -> bool {
@@ -465,10 +457,7 @@ impl Miner {
 	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
 	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
 		trace!(target: "miner", "seal_block_internally: block has transaction - attempting internal seal.");
-		let s = self.engine.generate_seal(block.block(), match self.accounts {
-			Some(ref x) => Some(&**x),
-			None => None,
-		});
+		let s = self.engine.generate_seal(block.block());
 		if let Some(seal) = s {
 			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
 			block.lock().try_seal(&*self.engine, seal).or_else(|_| {
@@ -1205,7 +1194,6 @@ mod tests {
 			},
 			GasPricer::new_fixed(0u64.into()),
 			&Spec::new_test(),
-			None, // accounts provider
 		)).ok().expect("Miner was just created.")
 	}
 

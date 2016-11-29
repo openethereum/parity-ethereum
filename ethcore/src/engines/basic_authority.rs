@@ -58,6 +58,7 @@ pub struct BasicAuthority {
 	params: CommonParams,
 	our_params: BasicAuthorityParams,
 	builtins: BTreeMap<Address, Builtin>,
+	account_provider: Mutex<Option<Arc<AccountProvider>>>
 }
 
 impl BasicAuthority {
@@ -67,6 +68,7 @@ impl BasicAuthority {
 			params: params,
 			our_params: our_params,
 			builtins: builtins,
+			account_provider: Mutex::new(None)
 		}
 	}
 }
@@ -113,8 +115,8 @@ impl Engine for BasicAuthority {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
-		if let Some(ap) = accounts {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
+		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let message = header.bare_hash();
 			// account should be pernamently unlocked, otherwise sealing will fail
@@ -178,6 +180,10 @@ impl Engine for BasicAuthority {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn register_account_provider(&self, ap: Arc<AccountProvider>) {
+		*self.account_provider.lock() = Some(ap);
 	}
 }
 
@@ -254,6 +260,7 @@ mod tests {
 
 		let spec = new_test_authority();
 		let engine = &*spec.engine;
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
@@ -261,7 +268,7 @@ mod tests {
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes, addr, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
-		let seal = engine.generate_seal(b.block(), Some(&tap)).unwrap();
+		let seal = engine.generate_seal(b.block()).unwrap();
 		assert!(b.try_seal(engine, seal).is_ok());
 	}
 
