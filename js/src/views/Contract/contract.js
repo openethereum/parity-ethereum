@@ -25,7 +25,6 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { newError } from '../../redux/actions';
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
-import { fetchCertifications } from '../../redux/providers/certifications/actions';
 
 import { EditMeta, ExecuteContract } from '../../modals';
 import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
@@ -50,9 +49,7 @@ class Contract extends Component {
     balances: PropTypes.object,
     contracts: PropTypes.object,
     isTest: PropTypes.bool,
-    params: PropTypes.object,
-    certifications: PropTypes.object.isRequired,
-    fetchCertifications: PropTypes.func.isRequired
+    params: PropTypes.object
   }
 
   state = {
@@ -68,10 +65,6 @@ class Contract extends Component {
     minedEvents: [],
     pendingEvents: [],
     queryValues: {}
-  }
-
-  componentWillMount () {
-    this.props.fetchCertifications(this.props.params.address);
   }
 
   componentDidMount () {
@@ -121,11 +114,10 @@ class Contract extends Component {
   }
 
   render () {
-    const { balances, certifications, contracts, params, isTest } = this.props;
+    const { balances, contracts, params, isTest } = this.props;
     const { allEvents, contract, queryValues } = this.state;
     const account = contracts[params.address];
     const balance = balances[params.address];
-    const certificationsOfAccount = certifications[params.address] || [];
 
     if (!account) {
       return null;
@@ -141,7 +133,6 @@ class Contract extends Component {
           <Header
             account={ account }
             balance={ balance }
-            certifications={ certificationsOfAccount }
           />
           <Queries
             contract={ contract }
@@ -447,23 +438,20 @@ class Contract extends Component {
 function mapStateToProps (state) {
   const { accounts, contracts } = state.personal;
   const { balances } = state.balances;
-  const { certifications } = state;
   const { isTest } = state.nodeStatus;
 
   return {
     isTest,
     accounts,
     contracts,
-    balances,
-    certifications
+    balances
   };
 }
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
     newError,
-    setVisibleAccounts,
-    fetchCertifications
+    setVisibleAccounts
   }, dispatch);
 }
 
