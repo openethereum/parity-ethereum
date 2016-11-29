@@ -15,29 +15,41 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
 import { hashToImageUrl } from '../../redux/providers/imagesReducer';
+import { fetchCertifications } from '../../redux/providers/certifications/actions';
 
 const defaultIcon = '/api/content/371b226f700d8577fe849d7b2729bc2e4be8c06c38159fb880a6a0cc276af012';
 
 import styles from './certifications.css';
 
-export default class Certifications extends Component {
+class Certifications extends Component {
   static propTypes = {
-    certifications: PropTypes.array.isRequired,
-    dappsUrl: PropTypes.string.isRequired
+    account: PropTypes.string.isRequired,
+    certifications: PropTypes.object.isRequired,
+    dappsUrl: PropTypes.string.isRequired,
+
+    fetchCertifications: PropTypes.func.isRequired
+  }
+
+  componentWillMount () {
+    const { account, fetchCertifications } = this.props;
+    fetchCertifications(account);
   }
 
   render () {
-    const { certifications } = this.props;
+    const { account, certifications } = this.props;
+    const certificationsOfAccount = certifications[account] || [];
 
-    if (certifications.length === 0) {
+    if (certificationsOfAccount.length === 0) {
       return null;
     }
 
     return (
       <div className={ styles.certifications }>
-        { certifications.map(this.renderCertification) }
+        { certificationsOfAccount.map(this.renderCertification) }
       </div>
     );
   }
@@ -56,3 +68,16 @@ export default class Certifications extends Component {
     );
   }
 }
+
+function mapStateToProps (state) {
+  return { certifications: state.certifications };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({ fetchCertifications }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(Certifications);
