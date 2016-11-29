@@ -58,12 +58,14 @@ impl VoteCollector {
 
 	/// Insert vote if it is newer than the oldest one.
 	pub fn vote(&self, message: ConsensusMessage, voter: Address) -> Option<Address> {
-		if {
+		let is_new = {
 			let guard = self.votes.read();
 			guard.keys().next().map_or(true, |oldest| &message > oldest)
-		} {
+		};
+		if is_new {
 			self.votes.write().insert(message, voter)
 		} else {
+			trace!(target: "poa", "vote: Old message ignored {:?}.", message);
 			None
 		}
 	}
@@ -80,17 +82,22 @@ impl VoteCollector {
 	}
 
 	pub fn seal_signatures(&self, height: Height, round: Round, block_hash: H256) -> Option<SealSignatures> {
-		let guard = self.votes.read();
 		let bh = Some(block_hash);
-		let mut current_signatures = guard.keys()
-			.skip_while(|m| !m.is_block_hash(height, round, Step::Propose, bh));
-		current_signatures.next().map(|proposal| SealSignatures {
-			proposal: proposal.signature,
-			votes: current_signatures
-				.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, bh))
-				.filter(|m| m.is_block_hash(height, round, Step::Precommit, bh))
-				.map(|m| m.signature.clone())
-				.collect()
+		let (proposal, votes) = {
+			let guard = self.votes.read();
+			let mut current_signatures = guard.keys().skip_while(|m| !m.is_block_hash(height, round, Step::Propose, bh));
+			let proposal = current_signatures.next().cloned();
+			let votes = current_signatures
+					.skip_while(|m| !m.is_block_hash(height, round, Step::Precommit, bh))
+					.filter(|m| m.is_block_hash(height, round, Step::Precommit, bh))
+					.cloned()
+					.collect::<Vec<_>>();
+			(proposal, votes)
+		};
+		votes.last().map(|m| self.throw_out_old(m));
+		proposal.map(|p| SealSignatures {
+			proposal: p.signature,
+			votes: votes.into_iter().map(|m| m.signature).collect()
 		})
 	}
 

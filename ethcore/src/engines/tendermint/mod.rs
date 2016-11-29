@@ -354,14 +354,15 @@ impl Engine for Tendermint {
 	fn handle_message(&self, rlp: UntrustedRlp) -> Result<(), Error> {
 		let message: ConsensusMessage = try!(rlp.as_val());
 		// Check if the message is known.
-		if self.votes.is_known(&message) {
+		if !self.votes.is_known(&message) {
 			let sender = public_to_address(&try!(recover(&message.signature.into(), &try!(rlp.at(1)).as_raw().sha3())));
 			if !self.is_authority(&sender) {
 				try!(Err(EngineError::NotAuthorized(sender)));
 			}
-			self.votes.vote(message.clone(), sender);
 
 			trace!(target: "poa", "handle_message: Processing new authorized message: {:?}", &message);
+			self.votes.vote(message.clone(), sender);
+
 			self.broadcast_message(rlp.as_raw().to_vec());
 			let is_newer_than_lock = match *self.lock_change.read() {
 				Some(ref lock) => &message > lock,
@@ -381,8 +382,6 @@ impl Engine for Tendermint {
 							self.increment_round(1);
 							Some(Step::Propose)
 						} else {
-							// Remove old messages.
-							self.votes.throw_out_old(&message);
 							Some(Step::Commit)
 						}
 					},
@@ -504,7 +503,6 @@ mod tests {
 	use spec::Spec;
 	use engines::{Engine, EngineError};
 	use super::*;
-	use super::params::TendermintParams;
 	use super::message::*;
 
 	/// Accounts inserted with "1" and "2" are authorities. First proposer is "0".
@@ -712,5 +710,6 @@ mod tests {
 
 		::std::thread::sleep(::std::time::Duration::from_millis(500));
 		assert_eq!(test_io.received.read()[5], ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
+		println!("{:?}", *test_io.received.read());
 	}
 }
