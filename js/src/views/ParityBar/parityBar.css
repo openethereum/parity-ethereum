@@ -43,11 +43,10 @@
 
 .expanded {
   right: 16px;
-  max-height: 300px;
   border-radius: 4px 4px 0 0;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
+  max-height: 300px;
 }
 
 .expanded .content {
@@ -55,7 +54,7 @@
   overflow: auto;
   display: flex;
   background: rgba(0, 0, 0, 0.8);
-  min-height: 300px;
+  min-height: 248px
 }
 
 .corner {
