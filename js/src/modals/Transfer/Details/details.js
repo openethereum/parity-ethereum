@@ -139,12 +139,27 @@ export default class Details extends Component {
     totalError: PropTypes.string,
     value: PropTypes.string,
     valueError: PropTypes.string,
-    onChange: PropTypes.func.isRequired
-  }
+    onChange: PropTypes.func.isRequired,
+    wallet: PropTypes.bool
+  };
+
+  static defaultProps = {
+    wallet: false
+  };
 
   render () {
-    const { all, extras, tag, total, totalError, value, valueError } = this.props;
+    const { all, extras, tag, total, totalError, value, valueError, wallet } = this.props;
     const label = `amount to transfer (in ${tag})`;
+
+    const extrasOptions = wallet ? null : (
+      <div>
+        <Checkbox
+          checked={ extras }
+          label='advanced sending options'
+          onCheck={ this.onCheckExtras }
+          style={ CHECK_STYLE } />
+      </div>
+    );
 
     return (
       <Form>
@@ -179,13 +194,7 @@ export default class Details extends Component {
               </div>
             </Input>
           </div>
-          <div>
-            <Checkbox
-              checked={ extras }
-              label='advanced sending options'
-              onCheck={ this.onCheckExtras }
-              style={ CHECK_STYLE } />
-          </div>
+          { extrasOptions }
         </div>
       </Form>
     );
@@ -207,7 +216,11 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { balance, images, tag } = this.props;
+    const { balance, images, tag, wallet } = this.props;
+
+    if (wallet) {
+      return null;
+    }
 
     return (
       <TokenSelect

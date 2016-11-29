@@ -32,26 +32,7 @@ const initialState = {
 
 export default handleActions({
   personalAccountsInfo (state, action) {
-    const { accountsInfo } = action;
-    const accounts = {};
-    const contacts = {};
-    const contracts = {};
-    const wallets = {};
-
-    Object.keys(accountsInfo || {})
-      .map((address) => Object.assign({}, accountsInfo[address], { address }))
-      .filter((account) => !account.meta.deleted)
-      .forEach((account) => {
-        if (account.uuid) {
-          accounts[account.address] = account;
-        } else if (account.meta.wallet) {
-          wallets[account.address] = account;
-        } else if (account.meta.contract) {
-          contracts[account.address] = account;
-        } else {
-          contacts[account.address] = account;
-        }
-      });
+    const { accountsInfo, accounts, contacts, contracts, wallets } = action;
 
     return Object.assign({}, state, {
       accountsInfo,

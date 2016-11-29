@@ -39,6 +39,7 @@ class Wallet extends Component {
     images: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     wallets: PropTypes.object.isRequired,
+    wallet: PropTypes.object.isRequired,
     balances: PropTypes.object.isRequired
   }
 
@@ -89,6 +90,22 @@ class Wallet extends Component {
           <Header
             account={ wallet }
             balance={ balance } />
+          {
+            this.props.wallet && this.props.wallet.owners
+            ? (
+              <div>
+                <p>Got { this.props.wallet.owners.length } owners</p>
+                <li>
+                  {
+                    this.props.wallet.owners.map((owner) => (
+                      <ul key={ owner }><code>{ owner }</code></ul>
+                    ))
+                  }
+                </li>
+              </div>
+            )
+            : null
+          }
           <Transactions
             accounts={ wallets }
             address={ address } />
@@ -184,12 +201,14 @@ function mapStateToProps (_, initProps) {
     const { wallets } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
+    const wallet = state.wallets.wallets[address] || {};
 
     return {
       wallets,
       balances,
       images,
-      address
+      address,
+      wallet
     };
   };
 }

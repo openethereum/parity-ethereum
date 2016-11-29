@@ -154,7 +154,9 @@ class Transfer extends Component {
         totalError={ totalError }
         value={ value }
         valueError={ valueError }
-        onChange={ this.store.onUpdateDetails } />
+        onChange={ this.store.onUpdateDetails }
+        wallet={ account.wallet }
+      />
     );
   }
 

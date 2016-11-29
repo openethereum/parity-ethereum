@@ -28,3 +28,4 @@ export statusReducer from './statusReducer';
 export blockchainReducer from './blockchainReducer';
 export compilerReducer from './compilerReducer';
 export snackbarReducer from './snackbarReducer';
+export walletsReducer from './walletsReducer';
