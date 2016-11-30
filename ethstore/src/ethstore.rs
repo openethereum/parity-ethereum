@@ -22,7 +22,7 @@ use random::Random;
 use ethkey::{Signature, Address, Message, Secret, Public};
 use dir::KeyDirectory;
 use account::SafeAccount;
-use {Error, SecretStore};
+use {Error, SimpleSecretStore, SecretStore};
 use json;
 use json::UUID;
 use parking_lot::RwLock;
@@ -30,9 +30,7 @@ use presale::PresaleWallet;
 use import;
 
 pub struct EthStore {
-	dir: Box<KeyDirectory>,
-	iterations: u32,
-	cache: RwLock<BTreeMap<Address, SafeAccount>>,
+	store: EthMultiStore,
 }
 
 impl EthStore {
@@ -41,57 +39,46 @@ impl EthStore {
 	}
 
 	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
-		let accounts = try!(directory.load());
-		let cache = accounts.into_iter().map(|account| (account.address.clone(), account)).collect();
-		let store = EthStore {
-			dir: directory,
-			iterations: iterations,
-			cache: RwLock::new(cache),
-		};
-		Ok(store)
-	}
-
-	fn save(&self, account: SafeAccount) -> Result<(), Error> {
-		// save to file
-		let account = try!(self.dir.insert(account));
-
-		// update cache
-		let mut cache = self.cache.write();
-		cache.insert(account.address.clone(), account);
-		Ok(())
-	}
-
-	fn reload_accounts(&self) -> Result<(), Error> {
-		let mut cache = self.cache.write();
-		let accounts = try!(self.dir.load());
-		let new_accounts: BTreeMap<_, _> = accounts.into_iter().map(|account| (account.address.clone(), account)).collect();
-		mem::replace(&mut *cache, new_accounts);
-		Ok(())
+		Ok(EthStore {
+			store: try!(EthMultiStore::open_with_iterations(directory, iterations)),
+		})
 	}
 
 	fn get(&self, address: &Address) -> Result<SafeAccount, Error> {
-		{
-			let cache = self.cache.read();
-			if let Some(account) = cache.get(address) {
-				return Ok(account.clone())
-			}
-		}
-		try!(self.reload_accounts());
-		let cache = self.cache.read();
-		cache.get(address).cloned().ok_or(Error::InvalidAccount)
+		let mut accounts = try!(self.store.get(address)).into_iter();
+		accounts.next().ok_or(Error::InvalidAccount)
+	}
+}
+
+impl SimpleSecretStore for EthStore {
+	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
+		self.store.insert_account(secret, password)
+	}
+
+	fn accounts(&self) -> Result<Vec<Address>, Error> {
+		self.store.accounts()
+	}
+
+	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
+		self.store.change_password(address, old_password, new_password)
+	}
+
+	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
+		self.store.remove_account(address, password)
+	}
+
+	fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
+		let account = try!(self.get(address));
+		account.sign(password, message)
+	}
+
+	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let account = try!(self.get(account));
+		account.decrypt(password, shared_mac, message)
 	}
 }
 
 impl SecretStore for EthStore {
-	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
-		let keypair = try!(KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed));
-		let id: [u8; 16] = Random::random();
-		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
-		let address = account.address.clone();
-		try!(self.save(account));
-		Ok(address)
-	}
-
 	fn import_presale(&self, json: &[u8], password: &str) -> Result<Address, Error> {
 		let json_wallet = try!(json::PresaleWallet::load(json).map_err(|_| Error::InvalidKeyFile("Invalid JSON format".to_owned())));
 		let wallet = PresaleWallet::from(json_wallet);
@@ -105,46 +92,20 @@ impl SecretStore for EthStore {
 		let secret = try!(safe_account.crypto.secret(password).map_err(|_| Error::InvalidPassword));
 		safe_account.address = try!(KeyPair::from_secret(secret)).address();
 		let address = safe_account.address.clone();
-		try!(self.save(safe_account));
+		try!(self.store.save(safe_account));
 		Ok(address)
 	}
 
-	fn accounts(&self) -> Result<Vec<Address>, Error> {
-		try!(self.reload_accounts());
-		Ok(self.cache.read().keys().cloned().collect())
-	}
-
-	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
-		// change password
+	fn test_password(&self, address: &Address, password: &str) -> Result<bool, Error> {
 		let account = try!(self.get(address));
-		let account = try!(account.change_password(old_password, new_password, self.iterations));
-
-		// save to file
-		self.save(account)
+		Ok(account.check_password(password))
 	}
 
-	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
+	fn copy_account(&self, new_store: &SimpleSecretStore, address: &Address, password: &str, new_password: &str) -> Result<(), Error> {
 		let account = try!(self.get(address));
-		let can_remove = account.check_password(password);
-
-		if can_remove {
-			try!(self.dir.remove(&account));
-			let mut cache = self.cache.write();
-			cache.remove(address);
-			Ok(())
-		} else {
-			Err(Error::InvalidPassword)
-		}
-	}
-
-	fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
-		let account = try!(self.get(address));
-		account.sign(password, message)
-	}
-
-	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
-		let account = try!(self.get(account));
-		account.decrypt(password, shared_mac, message)
+		let secret = try!(account.crypto.secret(password));
+		try!(new_store.insert_account(secret, new_password));
+		Ok(())
 	}
 
 	fn public(&self, account: &Address, password: &str) -> Result<Public, Error> {
@@ -172,7 +133,7 @@ impl SecretStore for EthStore {
 		account.name = name;
 
 		// save to file
-		self.save(account)
+		self.store.save(account)
 	}
 
 	fn set_meta(&self, address: &Address, meta: String) -> Result<(), Error> {
@@ -180,11 +141,11 @@ impl SecretStore for EthStore {
 		account.meta = meta;
 
 		// save to file
-		self.save(account)
+		self.store.save(account)
 	}
 
 	fn local_path(&self) -> String {
-		self.dir.path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| String::new())
+		self.store.dir.path().map(|p| p.to_string_lossy().into_owned()).unwrap_or_else(|| String::new())
 	}
 
 	fn list_geth_accounts(&self, testnet: bool) -> Vec<Address> {
@@ -192,7 +153,7 @@ impl SecretStore for EthStore {
 	}
 
 	fn import_geth_accounts(&self, desired: Vec<Address>, testnet: bool) -> Result<Vec<Address>, Error> {
-		import::import_geth_accounts(&*self.dir, desired.into_iter().collect(), testnet)
+		import::import_geth_accounts(&*self.store.dir, desired.into_iter().collect(), testnet)
 	}
 }
 
@@ -210,7 +171,7 @@ impl EthMultiStore {
 	}
 
 	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
-		let mut store = EthMultiStore {
+		let store = EthMultiStore {
 			dir: directory,
 			iterations: iterations,
 			cache: Default::default(),
@@ -252,7 +213,7 @@ impl EthMultiStore {
 		}
 	}
 
-	pub fn insert_account(&self, account: SafeAccount) -> Result<(), Error> {
+	fn save(&self, account: SafeAccount) -> Result<(), Error> {
 		//save to file
 		let account = try!(self.dir.insert(account));
 
@@ -263,7 +224,24 @@ impl EthMultiStore {
 		Ok(())
 	}
 
-	pub fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
+}
+
+impl SimpleSecretStore for EthMultiStore {
+	fn insert_account(&self, secret: Secret, password: &str) -> Result<Address, Error> {
+		let keypair = try!(KeyPair::from_secret(secret).map_err(|_| Error::CreationFailed));
+		let id: [u8; 16] = Random::random();
+		let account = SafeAccount::create(&keypair, id, password, self.iterations, "".to_owned(), "{}".to_owned());
+		let address = account.address.clone();
+		try!(self.save(account));
+		Ok(address)
+	}
+
+	fn accounts(&self) -> Result<Vec<Address>, Error> {
+		try!(self.reload_accounts());
+		Ok(self.cache.read().keys().cloned().collect())
+	}
+
+	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
 		let accounts = try!(self.get(address));
 
 		for account in accounts {
@@ -294,19 +272,19 @@ impl EthMultiStore {
 		Err(Error::InvalidPassword)
 	}
 
-	pub fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
+	fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
 		let accounts = try!(self.get(address));
 		for account in accounts {
 			// First remove
 			try!(self.remove_account(&address, old_password));
 			// Then insert back with new password
 			let new_account = try!(account.change_password(old_password, new_password, self.iterations));
-			try!(self.insert_account(new_account));
+			try!(self.save(new_account));
 		}
 		Ok(())
 	}
 
-	pub fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
+	fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
 		let accounts = try!(self.get(address));
 		for account in accounts {
 			if account.check_password(password) {
@@ -317,7 +295,7 @@ impl EthMultiStore {
 		Err(Error::InvalidPassword)
 	}
 
-	pub fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+	fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let accounts = try!(self.get(account));
 		for account in accounts {
 			if account.check_password(password) {
@@ -328,3 +306,9 @@ impl EthMultiStore {
 	}
 }
 
+#[cfg(test)]
+mod tests {
+	fn should_have_some_tests() {
+		assert_eq!(true, false)
+	}
+}

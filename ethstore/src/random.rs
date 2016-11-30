@@ -51,8 +51,14 @@ pub fn random_phrase(words: usize) -> String {
 			.map(|s| s.to_owned())
 			.collect();
 	}
-	let mut rng = OsRng::new().unwrap();
+	let mut rng = OsRng::new().expect("Not able to operate without random source.");
 	(0..words).map(|_| rng.choose(&WORDS).unwrap()).join(" ")
+}
+
+/// Generate a random string of given length.
+pub fn random_string(length: usize) -> String {
+	let mut rng = OsRng::new().expect("Not able to operate without random source.");
+	rng.gen_ascii_chars().take(length).collect()
 }
 
 #[cfg(test)]

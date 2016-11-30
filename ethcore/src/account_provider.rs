@@ -20,8 +20,8 @@ use std::{fs, fmt};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::{Instant, Duration};
-use util::{Mutex, RwLock};
-use ethstore::{SecretStore, Error as SSError, SafeAccount, EthStore};
+use util::{Mutex, RwLock, Itertools};
+use ethstore::{SimpleSecretStore, SecretStore, Error as SSError, SafeAccount, EthStore, EthMultiStore, random_string};
 use ethstore::dir::{KeyDirectory};
 use ethstore::ethkey::{Address, Message, Public, Secret, Random, Generator};
 use ethjson::misc::AccountMeta;
@@ -72,21 +72,35 @@ impl From<SSError> for Error {
 
 #[derive(Default)]
 struct NullDir {
-	accounts: RwLock<HashMap<Address, SafeAccount>>,
+	accounts: RwLock<HashMap<Address, Vec<SafeAccount>>>,
 }
 
 impl KeyDirectory for NullDir {
 	fn load(&self) -> Result<Vec<SafeAccount>, SSError> {
-		Ok(self.accounts.read().values().cloned().collect())
+		Ok(self.accounts.read().values().cloned().flatten().collect())
 	}
 
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
-		self.accounts.write().insert(account.address.clone(), account.clone());
+		self.accounts.write()
+			.entry(account.address.clone())
+			.or_insert_with(Vec::new)
+			.push(account.clone());
 		Ok(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), SSError> {
-		self.accounts.write().remove(address);
+	fn remove(&self, account: &SafeAccount) -> Result<(), SSError> {
+		let mut accounts = self.accounts.write();
+		let is_empty = if let Some(mut accounts) = accounts.get_mut(&account.address) {
+			if let Some(position) = accounts.iter().position(|acc| acc == account) {
+				accounts.remove(position);
+			}
+			accounts.is_empty()
+		} else {
+			false
+		};
+		if is_empty {
+			accounts.remove(&account.address);
+		}
 		Ok(())
 	}
 }
@@ -163,9 +177,11 @@ impl AddressBook {
 	}
 }
 
-fn transient_sstore() -> Box<SecretStore> {
-	Box::new(EthStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")))
+fn transient_sstore() -> EthMultiStore {
+	EthMultiStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")
 }
+
+type AccountToken = String;
 
 /// Account management.
 /// Responsible for unlocking accounts.
@@ -175,7 +191,7 @@ pub struct AccountProvider {
 	/// Accounts on disk
 	sstore: Box<SecretStore>,
 	/// Accounts unlocked with rolling tokens
-	transient_sstore: Box<SecretStore>,
+	transient_sstore: EthMultiStore,
 }
 
 impl AccountProvider {
@@ -194,7 +210,7 @@ impl AccountProvider {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
 			address_book: Mutex::new(AddressBook::transient()),
-			sstore: transient_sstore(),
+			sstore: Box::new(EthStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")),
 			transient_sstore: transient_sstore(),
 		}
 	}
@@ -285,11 +301,8 @@ impl AccountProvider {
 
 	/// Returns `true` if the password for `account` is `password`. `false` if not.
 	pub fn test_password(&self, account: &Address, password: &str) -> Result<bool, Error> {
-		match self.sstore.sign(account, password, &Default::default()) {
-			Ok(_) => Ok(true),
-			Err(SSError::InvalidPassword) => Ok(false),
-			Err(e) => Err(Error::SStore(e)),
-		}
+		self.sstore.test_password(account, password)
+			.map_err(Into::into)
 	}
 
 	/// Permanently removes an account.
@@ -366,6 +379,26 @@ impl AccountProvider {
 	pub fn sign(&self, account: Address, password: Option<String>, message: Message) -> Result<Signature, Error> {
 		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
 		Ok(try!(self.sstore.sign(&account, &password, &message)))
+	}
+
+	/// Signs given message with supplied token. Returns a token to use in next signing within this session.
+	pub fn sign_with_token(&self, account: Address, token: AccountToken, message: Message) -> Result<(Signature, AccountToken), Error> {
+		let is_std_password = try!(self.sstore.test_password(&account, &token));
+
+		let new_token = random_string(16);
+		let signature = if is_std_password {
+			// Insert to transient store
+			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			// sign
+			try!(self.sstore.sign(&account, &token, &message))
+		} else {
+			// check transient store
+			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			// and sign
+			try!(self.transient_sstore.sign(&account, &new_token, &message))
+		};
+
+		Ok((signature, new_token))
 	}
 
 	/// Decrypts a message. If password is not provided the account must be unlocked.
@@ -450,6 +483,11 @@ mod tests {
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 
 		// when
-		let (_signature, token) = ap.sign_with_token(kp.address(), "test", Default::default()).unwrap();
+		let (_signature, token) = ap.sign_with_token(kp.address(), "test".into(), Default::default()).unwrap();
+
+		// then
+		ap.sign_with_token(kp.address(), token.clone(), Default::default())
+			.expect("First usage of token should be correct.");
+		assert!(ap.sign_with_token(kp.address(), token, Default::default()).is_err(), "Second usage of the same token should fail.");
 	}
 }
