@@ -76,6 +76,9 @@ pub trait MinerService : Send + Sync {
 	/// Set the author that we will seal blocks as.
 	fn set_author(&self, author: Address);
 
+	/// Set info necessary to sign consensus messages.
+	fn set_signer(&self, address: Address, password: String) -> Result<(), ::account_provider::Error>;
+
 	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes;
 

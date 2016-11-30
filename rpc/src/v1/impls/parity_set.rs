@@ -116,6 +116,12 @@ impl<C, M, F> ParitySet for ParitySetClient<C, M, F> where
 		Ok(true)
 	}
 
+	fn set_sealer(&self, address: H160, password: String) -> Result<bool, Error> {
+		try!(self.active());
+		try!(take_weak!(self.miner).set_signer(address.into(), password).map_err(Into::into).map_err(errors::from_password_error));
+		Ok(true)
+	}
+
 	fn set_transactions_limit(&self, limit: usize) -> Result<bool, Error> {
 		try!(self.active());
 

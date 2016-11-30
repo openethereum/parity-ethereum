@@ -187,6 +187,9 @@ pub trait Engine : Sync + Send {
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
 
+	/// Register an account which signs consensus messages.
+	fn set_signer(&self, _address: Address, _password: String) {}
+
 	/// Check if new block should be chosen as the one  in chain.
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)

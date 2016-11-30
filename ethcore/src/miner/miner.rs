@@ -19,7 +19,7 @@ use std::time::{Instant, Duration};
 
 use util::*;
 use util::using_queue::{UsingQueue, GetAction};
-use account_provider::AccountProvider;
+use account_provider::{AccountProvider, Error as AccountError};
 use views::{BlockView, HeaderView};
 use header::Header;
 use state::{State, CleanupMode};
@@ -733,6 +733,19 @@ impl MinerService for Miner {
 			sealing_work.enabled = self.engine.is_sealer(&author).unwrap_or(false);
 		}
 		*self.author.write() = author;
+	}
+
+	fn set_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+		if self.seals_internally {
+			if let Some(ref ap) = self.accounts {
+				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
+			}
+			let mut sealing_work = self.sealing_work.lock();
+			sealing_work.enabled = self.engine.is_sealer(&address).unwrap_or(false);
+			*self.author.write() = address;
+			self.engine.set_signer(address, password);
+		}
+		Ok(())
 	}
 
 	fn set_extra_data(&self, extra_data: Bytes) {

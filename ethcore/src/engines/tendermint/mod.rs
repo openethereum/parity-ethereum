@@ -66,6 +66,8 @@ pub struct Tendermint {
 	step_service: IoService<Step>,
 	/// Address to be used as authority.
 	authority: RwLock<Address>,
+	/// Password used for signing messages.
+	password: RwLock<Option<String>>,
 	/// Blockchain height.
 	height: AtomicUsize,
 	/// Consensus round.
@@ -98,6 +100,7 @@ impl Tendermint {
 				builtins: builtins,
 				step_service: try!(IoService::<Step>::start()),
 				authority: RwLock::new(Address::default()),
+				password: RwLock::new(None),
 				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
@@ -144,7 +147,7 @@ impl Tendermint {
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			message_full_rlp(
-				|mh| ap.sign(*self.authority.read(), None, mh).ok().map(H520::from),
+				|mh| ap.sign(*self.authority.read(), self.password.read().clone(), mh).ok().map(H520::from),
 				self.height.load(AtomicOrdering::SeqCst),
 				self.round.load(AtomicOrdering::SeqCst),
 				*self.step.read(),
@@ -333,7 +336,7 @@ impl Engine for Tendermint {
 			let round = self.round.load(AtomicOrdering::SeqCst);
 			let bh = Some(header.bare_hash());
 			let vote_info = message_info_rlp(height, round, Step::Propose, bh);
-			if let Ok(signature) = ap.sign(*author, None, vote_info.sha3()).map(H520::from) {
+			if let Ok(signature) = ap.sign(*author, self.password.read().clone(), vote_info.sha3()).map(H520::from) {
 				self.votes.vote(ConsensusMessage { signature: signature, height: height, round: round, step: Step::Propose, block_hash: bh }, *author);
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
@@ -470,6 +473,11 @@ impl Engine for Tendermint {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn set_signer(&self, address: Address, password: String) {
+		*self.authority.write()	= address;
+		*self.password.write() = Some(password);
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
@@ -695,7 +703,6 @@ mod tests {
 		let proposal = Some(b.header().bare_hash());
 
 		// Register IoHandler remembers messages.
-		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
 		let io_service = IoService::<ClientIoMessage>::start().unwrap();
 		let test_io = TestIo::new();
 		io_service.register_handler(test_io.clone()).unwrap();
@@ -708,8 +715,12 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 
+		// Wait a bit for async stuff.
 		::std::thread::sleep(::std::time::Duration::from_millis(500));
-		assert_eq!(test_io.received.read()[5], ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
-		println!("{:?}", *test_io.received.read());
+		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
+		let first = test_io.received.read()[5] == ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone());
+		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
+		let second = test_io.received.read()[5] == ClientIoMessage::SubmitSeal(proposal.unwrap(), seal);
+		assert!(first ^ second);
 	}
 }
