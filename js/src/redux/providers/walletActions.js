@@ -244,6 +244,17 @@ function fetchWalletConfirmations (contract, owners = null) {
     .ConfirmationNeeded
     .getAll()
     .then((logs) => {
+      return logs.sort((logA, logB) => {
+        const comp = logA.blockNumber.comparedTo(logB.blockNumber);
+
+        if (comp !== 0) {
+          return comp;
+        }
+
+        return logA.transactionIndex.comparedTo(logB.transactionIndex);
+      });
+    })
+    .then((logs) => {
       return logs.map((log) => ({
         initiator: log.params.initiator.value,
         to: log.params.to.value,
