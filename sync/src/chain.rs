@@ -1419,14 +1419,9 @@ impl ChainSync {
 
 	/// Send Status message
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), NetworkError> {
-<<<<<<< HEAD
 		let warp_protocol_version = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer);
 		let warp_protocol = warp_protocol_version != 0;
 		let protocol = if warp_protocol { warp_protocol_version } else { PROTOCOL_VERSION_63 };
-=======
-		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer) != 0;
-		let protocol = if warp_protocol { PROTOCOL_VERSION_1 } else { io.eth_protocol_version(peer) };
->>>>>>> master
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
