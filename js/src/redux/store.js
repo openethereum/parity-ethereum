@@ -19,7 +19,7 @@ import { applyMiddleware, createStore } from 'redux';
 import initMiddleware from './middleware';
 import initReducers from './reducers';
 
-import { load as loadWallet } from './providers/walletsActions';
+import { load as loadWallet } from './providers/walletActions';
 
 import {
   Balances as BalancesProvider,

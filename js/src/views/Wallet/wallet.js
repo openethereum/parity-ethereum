@@ -25,6 +25,8 @@ import { Actionbar, Button, Page } from '../../ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
+import WalletDetails from './Details';
+
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './wallet.css';
@@ -32,7 +34,7 @@ import styles from './wallet.css';
 class Wallet extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
@@ -41,12 +43,12 @@ class Wallet extends Component {
     wallets: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
     balances: PropTypes.object.isRequired
-  }
+  };
 
   state = {
     showEditDialog: false,
     showTransferDialog: false
-  }
+  };
 
   componentDidMount () {
     this.setVisibleAccounts();
@@ -73,6 +75,7 @@ class Wallet extends Component {
 
   render () {
     const { wallets, balances, address } = this.props;
+    const { owners, require, dailylimit } = this.props.wallet;
 
     const wallet = (wallets || {})[address];
     const balance = (balances || {})[address];
@@ -89,26 +92,17 @@ class Wallet extends Component {
         <Page>
           <Header
             account={ wallet }
-            balance={ balance } />
-          {
-            this.props.wallet && this.props.wallet.owners
-            ? (
-              <div>
-                <p>Got { this.props.wallet.owners.length } owners</p>
-                <li>
-                  {
-                    this.props.wallet.owners.map((owner) => (
-                      <ul key={ owner }><code>{ owner }</code></ul>
-                    ))
-                  }
-                </li>
-              </div>
-            )
-            : null
-          }
+            balance={ balance }
+          />
+          <WalletDetails
+            owners={ owners }
+            require={ require }
+            dailylimit={ dailylimit }
+          />
           <Transactions
             accounts={ wallets }
-            address={ address } />
+            address={ address }
+          />
         </Page>
       </div>
     );
@@ -201,7 +195,7 @@ function mapStateToProps (_, initProps) {
     const { wallets } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
-    const wallet = state.wallets.wallets[address] || {};
+    const wallet = state.wallet.wallets[address] || {};
 
     return {
       wallets,

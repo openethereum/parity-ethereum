@@ -19,19 +19,23 @@ import { isEqual, uniq, range } from 'lodash';
 import Contract from '../../api/contract';
 import { wallet as WALLET_ABI } from '../../contracts/abi';
 
+const UPDATE_OWNERS = 'owners';
+const UPDATE_REQUIRE = 'require';
+const UPDATE_DAILYLIMIT = 'dailylimit';
+
 export function attachWallets (_wallets) {
   return (dispatch, getState) => {
-    const { wallets, api } = getState();
+    const { wallet, api } = getState();
 
-    const prevAddresses = wallets.walletsAddresses;
+    const prevAddresses = wallet.walletsAddresses;
     const nextAddresses = Object.keys(_wallets).map((a) => a.toLowerCase()).sort();
 
     if (isEqual(prevAddresses, nextAddresses)) {
       return;
     }
 
-    if (wallets.filterSubId) {
-      api.eth.uninstallFilter(wallets.filterSubId);
+    if (wallet.filterSubId) {
+      api.eth.uninstallFilter(wallet.filterSubId);
     }
 
     if (nextAddresses.length === 0) {
@@ -51,7 +55,7 @@ export function attachWallets (_wallets) {
       })
       .catch((error) => {
         if (process.env.NODE_ENV === 'production') {
-          console.error('walletsActions::attachWallets', error);
+          console.error('walletActions::attachWallets', error);
         } else {
           throw error;
         }
@@ -69,13 +73,13 @@ export function load (api) {
     api.subscribe('eth_blockNumber', (error) => {
       if (error) {
         if (process.env.NODE_ENV === 'production') {
-          return console.error('[eth_blockNumber] walletsActions::load', error);
+          return console.error('[eth_blockNumber] walletActions::load', error);
         } else {
           throw error;
         }
       }
 
-      const { filterSubId } = getState().wallets;
+      const { filterSubId } = getState().wallet;
 
       if (!filterSubId) {
         return;
@@ -88,7 +92,7 @@ export function load (api) {
         })
         .catch((error) => {
           if (process.env.NODE_ENV === 'production') {
-            return console.error('[getFilterChanges] walletsActions::load', error);
+            return console.error('[getFilterChanges] walletActions::load', error);
           } else {
             throw error;
           }
@@ -102,8 +106,9 @@ function fetchWalletsInfo (updates) {
     if (Array.isArray(updates)) {
       const _updates = updates.reduce((updates, address) => {
         updates[address] = {
-          owners: true,
-          require: true,
+          [ UPDATE_OWNERS ]: true,
+          [ UPDATE_REQUIRE ]: true,
+          [ UPDATE_DAILYLIMIT ]: true,
           transactions: true,
           address
         };
@@ -114,7 +119,7 @@ function fetchWalletsInfo (updates) {
       return fetchWalletsInfo(_updates)(dispatch, getState);
     }
 
-    const { contract } = getState().wallets;
+    const { contract } = getState().wallet;
     const _updates = Object.values(updates);
 
     Promise
@@ -124,7 +129,7 @@ function fetchWalletsInfo (updates) {
       })
       .catch((error) => {
         if (process.env.NODE_ENV === 'production') {
-          return console.error('walletsActions::fetchWalletsInfo', error);
+          return console.error('walletAction::fetchWalletsInfo', error);
         } else {
           throw error;
         }
@@ -135,8 +140,17 @@ function fetchWalletsInfo (updates) {
 function fetchWalletInfo (contract, update) {
   const promises = [];
 
-  if (update.owners) {
+  if (update[UPDATE_OWNERS]) {
     promises.push(fetchWalletOwners(contract, update.address));
+  }
+
+  if (update[UPDATE_REQUIRE]) {
+    promises.push(fetchWalletRequire(contract, update.address));
+  }
+
+
+  if (update[UPDATE_DAILYLIMIT]) {
+    promises.push(fetchWalletDailylimit(contract, update.address));
   }
 
   return Promise
@@ -160,18 +174,56 @@ function fetchWalletOwners (contract, address) {
     .then((mNumOwners) => {
       return Promise.all(range(mNumOwners.toNumber()).map((idx) => walletInstance.getOwner.call({}, [ idx ])));
     })
-    .then((owners) => {
+    .then((value) => {
       return {
-        key: 'owners',
-        value: owners
+        key: UPDATE_OWNERS,
+        value
+      };
+    });
+}
+
+function fetchWalletRequire (contract, address) {
+  const walletInstance = contract.at(address).instance;
+
+  return walletInstance
+    .m_required.call()
+    .then((value) => {
+      return {
+        key: UPDATE_REQUIRE,
+        value
+      };
+    });
+}
+
+function fetchWalletDailylimit (contract, address) {
+  const walletInstance = contract.at(address).instance;
+
+  return Promise
+    .all([
+      walletInstance.m_dailyLimit.call(),
+      walletInstance.m_spentToday.call(),
+      walletInstance.m_lastDay.call()
+    ])
+    .then((values) => {
+      return {
+        key: UPDATE_DAILYLIMIT,
+        value: {
+          limit: values[0],
+          spent: values[1],
+          last: values[2]
+        }
       };
     });
 }
 
 function parseLogs (logs) {
   return (dispatch, getState) => {
-    const { wallets } = getState();
-    const { contract } = wallets;
+    if (!logs || logs.length === 0) {
+      return;
+    }
+
+    const { wallet } = getState();
+    const { contract } = wallet;
 
     const updates = {};
 
@@ -186,14 +238,14 @@ function parseLogs (logs) {
         case [ contract.OwnerRemoved.signature ]:
           updates[address] = {
             ...prev,
-            owners: true
+            [ UPDATE_OWNERS ]: true
           };
           return;
 
         case [ contract.RequirementChanged.signature ]:
           updates[address] = {
             ...prev,
-            require: true
+            [ UPDATE_REQUIRE ]: true
           };
           return;
 

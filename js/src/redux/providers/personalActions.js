@@ -17,7 +17,7 @@
 import { isEqual } from 'lodash';
 
 import { fetchBalances } from './balancesActions';
-import { attachWallets } from './walletsActions';
+import { attachWallets } from './walletActions';
 
 export function personalAccountsInfo (accountsInfo) {
   const accounts = {};

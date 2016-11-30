@@ -43,7 +43,7 @@ class InputAddress extends Component {
     const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
 
     const account = accountsInfo[value] || tokens[value];
-    const hasAccount = account && (!account.meta || !account.meta.deleted);
+    const hasAccount = account && !(account.meta && account.meta.deleted);
 
     const icon = this.renderIcon();
 

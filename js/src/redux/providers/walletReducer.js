@@ -41,11 +41,10 @@ export default handleActions({
 
     Object.values(wallets).forEach((wallet) => {
       const prevWallet = prevWallets[wallet.address] || {};
-      const nextWallet = nextWallets[wallet.address];
 
       nextWallets[wallet.address] = {
         ...prevWallet,
-        ...nextWallet
+        ...wallet
       };
     });
 
