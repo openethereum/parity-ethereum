@@ -73,7 +73,7 @@ class Status extends Component {
 
     return (
       <div className={ styles.enode }>
-        <CopyToClipboard data={ enode } />
+        <CopyToClipboard data={ enode } size={ 12 } />
         <div>{ abbreviated }</div>
       </div>
     );
