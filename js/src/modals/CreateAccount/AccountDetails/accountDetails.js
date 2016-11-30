@@ -15,8 +15,13 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import PrintIcon from 'material-ui/svg-icons/action/print';
 
 import { Form, Input, InputAddress } from '../../../ui';
+import Button from '../../../ui/Button';
+
+import print from './print';
+import recoveryPage from './recovery-page.ejs';
 
 export default class AccountDetails extends Component {
   static propTypes = {
@@ -42,6 +47,7 @@ export default class AccountDetails extends Component {
           label='address'
           value={ address } />
         { this.renderPhrase() }
+        { this.renderPhraseCopyButton() }
       </Form>
     );
   }
@@ -61,5 +67,25 @@ export default class AccountDetails extends Component {
         label='owner recovery phrase (keep private and secure, it allows full and unlimited access to the account)'
         value={ phrase } />
     );
+  }
+
+  renderPhraseCopyButton () {
+    const { phrase } = this.props;
+    if (!phrase) {
+      return null;
+    }
+
+    return (
+      <Button
+        icon={ <PrintIcon /> }
+        label={ 'print recovery phrase' }
+        onClick={ this.printPhrase }
+      />
+    );
+  }
+
+  printPhrase = () => {
+    const { phrase, name } = this.props;
+    print(recoveryPage({ phrase, name }));
   }
 }
