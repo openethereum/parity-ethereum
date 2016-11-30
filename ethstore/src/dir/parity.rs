@@ -16,7 +16,6 @@
 
 use std::env;
 use std::path::PathBuf;
-use ethkey::Address;
 use {SafeAccount, Error};
 use super::{KeyDirectory, DiskDirectory, DirectoryType};
 
@@ -68,7 +67,7 @@ impl KeyDirectory for ParityDirectory {
 		self.dir.insert(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
-		self.dir.remove(address)
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
+		self.dir.remove(account)
 	}
 }

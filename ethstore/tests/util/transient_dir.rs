@@ -18,7 +18,6 @@ use std::path::PathBuf;
 use std::{env, fs};
 use rand::{Rng, OsRng};
 use ethstore::dir::{KeyDirectory, DiskDirectory};
-use ethstore::ethkey::Address;
 use ethstore::{Error, SafeAccount};
 
 pub fn random_dir() -> PathBuf {
@@ -68,7 +67,7 @@ impl KeyDirectory for TransientDir {
 		self.dir.insert(account)
 	}
 
-	fn remove(&self, address: &Address) -> Result<(), Error> {
-		self.dir.remove(address)
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error> {
+		self.dir.remove(account)
 	}
 }

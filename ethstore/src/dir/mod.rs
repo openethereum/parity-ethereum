@@ -14,7 +14,6 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use ethkey::Address;
 use std::path::{PathBuf};
 use {SafeAccount, Error};
 
@@ -30,7 +29,7 @@ pub enum DirectoryType {
 pub trait KeyDirectory: Send + Sync {
 	fn load(&self) -> Result<Vec<SafeAccount>, Error>;
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, Error>;
-	fn remove(&self, address: &Address) -> Result<(), Error>;
+	fn remove(&self, account: &SafeAccount) -> Result<(), Error>;
 	fn path(&self) -> Option<&PathBuf> { None }
 }
 

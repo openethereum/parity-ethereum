@@ -163,12 +163,19 @@ impl AddressBook {
 	}
 }
 
+fn transient_sstore() -> Box<SecretStore> {
+	Box::new(EthStore::open(Box::new(NullDir::default())).expect("NullDir load always succeeds; qed")))
+}
+
 /// Account management.
 /// Responsible for unlocking accounts.
 pub struct AccountProvider {
-	unlocked: Mutex<HashMap<Address, AccountData>>,
-	sstore: Box<SecretStore>,
 	address_book: Mutex<AddressBook>,
+	unlocked: Mutex<HashMap<Address, AccountData>>,
+	/// Accounts on disk
+	sstore: Box<SecretStore>,
+	/// Accounts unlocked with rolling tokens
+	transient_sstore: Box<SecretStore>,
 }
 
 impl AccountProvider {
@@ -178,6 +185,7 @@ impl AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
 			address_book: Mutex::new(AddressBook::new(sstore.local_path().into())),
 			sstore: sstore,
+			transient_sstore: transient_sstore(),
 		}
 	}
 
@@ -186,8 +194,8 @@ impl AccountProvider {
 		AccountProvider {
 			unlocked: Mutex::new(HashMap::new()),
 			address_book: Mutex::new(AddressBook::transient()),
-			sstore: Box::new(EthStore::open(Box::new(NullDir::default()))
-				.expect("NullDir load always succeeds; qed"))
+			sstore: transient_sstore(),
+			transient_sstore: transient_sstore(),
 		}
 	}
 
@@ -432,5 +440,16 @@ mod tests {
 		assert!(ap.sign(kp.address(), None, Default::default()).is_ok());
 		ap.unlocked.lock().get_mut(&kp.address()).unwrap().unlock = Unlock::Timed(Instant::now());
 		assert!(ap.sign(kp.address(), None, Default::default()).is_err());
+	}
+
+	#[test]
+	fn should_sign_and_return_token() {
+	let kp = Random.generate().unwrap();
+		// given
+		let ap = AccountProvider::transient_provider();
+		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
+
+		// when
+		let (_signature, token) = ap.sign_with_token(kp.address(), "test", Default::default()).unwrap();
 	}
 }

@@ -53,7 +53,7 @@ impl EthStore {
 
 	fn save(&self, account: SafeAccount) -> Result<(), Error> {
 		// save to file
-		let account = try!(self.dir.insert(account.clone()));
+		let account = try!(self.dir.insert(account));
 
 		// update cache
 		let mut cache = self.cache.write();
@@ -124,13 +124,11 @@ impl SecretStore for EthStore {
 	}
 
 	fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
-		let can_remove = {
-			let account = try!(self.get(address));
-			account.check_password(password)
-		};
+		let account = try!(self.get(address));
+		let can_remove = account.check_password(password);
 
 		if can_remove {
-			try!(self.dir.remove(address));
+			try!(self.dir.remove(&account));
 			let mut cache = self.cache.write();
 			cache.remove(address);
 			Ok(())
@@ -197,3 +195,136 @@ impl SecretStore for EthStore {
 		import::import_geth_accounts(&*self.dir, desired.into_iter().collect(), testnet)
 	}
 }
+
+/// Similar to `EthStore` but may store many accounts (with different passwords) for the same `Address`
+pub struct EthMultiStore {
+	dir: Box<KeyDirectory>,
+	iterations: u32,
+	cache: RwLock<BTreeMap<Address, Vec<SafeAccount>>>,
+}
+
+impl EthMultiStore {
+
+	pub fn open(directory: Box<KeyDirectory>) -> Result<Self, Error> {
+		Self::open_with_iterations(directory, KEY_ITERATIONS as u32)
+	}
+
+	pub fn open_with_iterations(directory: Box<KeyDirectory>, iterations: u32) -> Result<Self, Error> {
+		let mut store = EthMultiStore {
+			dir: directory,
+			iterations: iterations,
+			cache: Default::default(),
+		};
+		try!(store.reload_accounts());
+		Ok(store)
+	}
+
+	fn reload_accounts(&self) -> Result<(), Error> {
+		let mut cache = self.cache.write();
+		let accounts = try!(self.dir.load());
+
+		let mut new_accounts = BTreeMap::new();
+		for account in accounts {
+			let mut entry = new_accounts.entry(account.address.clone()).or_insert_with(Vec::new);
+			entry.push(account);
+		}
+		mem::replace(&mut *cache, new_accounts);
+		Ok(())
+	}
+
+	fn get(&self, address: &Address) -> Result<Vec<SafeAccount>, Error> {
+		{
+			let cache = self.cache.read();
+			if let Some(accounts) = cache.get(address) {
+				if !accounts.is_empty() {
+					return Ok(accounts.clone())
+				}
+			}
+		}
+
+		try!(self.reload_accounts());
+		let cache = self.cache.read();
+		let accounts = try!(cache.get(address).cloned().ok_or(Error::InvalidAccount));
+		if accounts.is_empty() {
+			Err(Error::InvalidAccount)
+		} else {
+			Ok(accounts)
+		}
+	}
+
+	pub fn insert_account(&self, account: SafeAccount) -> Result<(), Error> {
+		//save to file
+		let account = try!(self.dir.insert(account));
+
+		// update cache
+		let mut cache = self.cache.write();
+		let mut accounts = cache.entry(account.address.clone()).or_insert_with(Vec::new);
+		accounts.push(account);
+		Ok(())
+	}
+
+	pub fn remove_account(&self, address: &Address, password: &str) -> Result<(), Error> {
+		let accounts = try!(self.get(address));
+
+		for account in accounts {
+			// Skip if password is invalid
+			if !account.check_password(password) {
+				continue;
+			}
+
+			// Remove from dir
+			try!(self.dir.remove(&account));
+
+			// Remove from cache
+			let mut cache = self.cache.write();
+			let is_empty = {
+				let mut accounts = cache.get_mut(address).expect("Entry exists, because it was returned by `get`; qed");
+				if let Some(position) = accounts.iter().position(|acc| acc == &account) {
+					accounts.remove(position);
+				}
+				accounts.is_empty()
+			};
+
+			if is_empty {
+				cache.remove(address);
+			}
+
+			return Ok(());
+		}
+		Err(Error::InvalidPassword)
+	}
+
+	pub fn change_password(&self, address: &Address, old_password: &str, new_password: &str) -> Result<(), Error> {
+		let accounts = try!(self.get(address));
+		for account in accounts {
+			// First remove
+			try!(self.remove_account(&address, old_password));
+			// Then insert back with new password
+			let new_account = try!(account.change_password(old_password, new_password, self.iterations));
+			try!(self.insert_account(new_account));
+		}
+		Ok(())
+	}
+
+	pub fn sign(&self, address: &Address, password: &str, message: &Message) -> Result<Signature, Error> {
+		let accounts = try!(self.get(address));
+		for account in accounts {
+			if account.check_password(password) {
+				return account.sign(password, message);
+			}
+		}
+
+		Err(Error::InvalidPassword)
+	}
+
+	pub fn decrypt(&self, account: &Address, password: &str, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
+		let accounts = try!(self.get(account));
+		for account in accounts {
+			if account.check_password(password) {
+				return account.decrypt(password, shared_mac, message);
+			}
+		}
+		Err(Error::InvalidPassword)
+	}
+}
+
