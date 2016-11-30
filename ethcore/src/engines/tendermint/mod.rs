@@ -498,6 +498,7 @@ impl Engine for Tendermint {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use util::trie::TrieSpec;
 	use rlp::{UntrustedRlp, View};
 	use io::{IoContext, IoHandler};
 	use block::*;
@@ -524,7 +525,7 @@ mod tests {
 	fn propose_default(spec: &Spec, proposer: Address) -> (LockedBlock, Vec<Bytes>) {
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let genesis_header = spec.genesis_header();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(spec.engine.as_ref(), Default::default(), false, db.boxed_clone(), &genesis_header, last_hashes, proposer, (3141562.into(), 31415620.into()), vec![]).unwrap();
@@ -560,6 +561,12 @@ mod tests {
 	fn insert_and_unlock(tap: &Arc<AccountProvider>, acc: &str) -> Address {
 		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
 		tap.unlock_account_permanently(addr, acc.into()).unwrap();
+		addr
+	}
+
+	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Arc<Engine>, acc: &str) -> Address {
+		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
+		engine.set_signer(addr.clone(), acc.into());
 		addr
 	}
 
@@ -676,8 +683,8 @@ mod tests {
 	#[test]
 	fn can_generate_seal() {
 		let (spec, tap) = setup();
-		
-		let proposer = insert_and_unlock(&tap, "0");
+
+		let proposer = insert_and_register(&tap, &spec.engine, "0");
 
 		let (b, seal) = propose_default(&spec, proposer);
 		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
@@ -685,12 +692,11 @@ mod tests {
 
 	#[test]
 	fn step_transitioning() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
 		let v0 = insert_and_unlock(&tap, "0");
 		let v1 = insert_and_unlock(&tap, "1");
