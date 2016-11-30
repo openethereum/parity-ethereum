@@ -85,8 +85,19 @@ impl IoHandler<Step> for TransitionHandler {
 						set_timeout(io, engine.our_params.timeouts.precommit);
 						Some(Step::Precommit)
 					},
+					Step::Prevote => {
+						trace!(target: "poa", "timeout: Prevote timeout without enough votes.");
+						set_timeout(io, engine.our_params.timeouts.precommit);
+						Some(Step::Prevote)
+					},
 					Step::Precommit if engine.has_enough_any_votes() => {
 						trace!(target: "poa", "timeout: Precommit timeout.");
+						set_timeout(io, engine.our_params.timeouts.propose);
+						engine.increment_round(1);
+						Some(Step::Propose)
+					},
+					Step::Precommit => {
+						trace!(target: "poa", "timeout: Precommit timeout without enough votes.");
 						set_timeout(io, engine.our_params.timeouts.propose);
 						engine.increment_round(1);
 						Some(Step::Propose)
