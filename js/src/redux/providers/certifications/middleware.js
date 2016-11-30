@@ -19,31 +19,33 @@ import { addCertification } from './actions';
 
 const knownCertifiers = [ 'smsverification' ];
 
-export default (api) => {
-  return (store) => (next) => (action) => {
-    if (action.type !== 'fetchCertifications') {
-      return next(action);
-    }
+export default class CertificationsMiddleware {
+  toMiddleware () {
+    return (store) => (next) => (action) => {
+      if (action.type !== 'fetchCertifications') {
+        return next(action);
+      }
 
-    const { address } = action;
-    const badgeReg = Contracts.get().badgeReg;
+      const { address } = action;
+      const badgeReg = Contracts.get().badgeReg;
 
-    knownCertifiers.forEach((name) => {
-      badgeReg.fetchCertifier(name)
-        .then((cert) => {
-          return badgeReg.checkIfCertified(cert.address, address)
-            .then((isCertified) => {
-              if (isCertified) {
-                const { name, title, icon } = cert;
-                store.dispatch(addCertification(address, name, title, icon));
-              }
-            });
-        })
-        .catch((err) => {
-          if (err) {
-            console.error(`Failed to check if ${address} certified by ${name}:`, err);
-          }
-        });
-    });
-  };
-};
+      knownCertifiers.forEach((name) => {
+        badgeReg.fetchCertifier(name)
+          .then((cert) => {
+            return badgeReg.checkIfCertified(cert.address, address)
+              .then((isCertified) => {
+                if (isCertified) {
+                  const { name, title, icon } = cert;
+                  store.dispatch(addCertification(address, name, title, icon));
+                }
+              });
+          })
+          .catch((err) => {
+            if (err) {
+              console.error(`Failed to check if ${address} certified by ${name}:`, err);
+            }
+          });
+      });
+    };
+  }
+}
