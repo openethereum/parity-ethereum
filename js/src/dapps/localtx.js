@@ -25,7 +25,6 @@ import Application from './localtx/Application';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './localtx.html';
 
 ReactDOM.render(
   <Application />,

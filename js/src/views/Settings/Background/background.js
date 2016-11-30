@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
+import { Button, Container, ParityBackground } from '../../../ui';
 
 import { updateBackground } from '../actions';
 
@@ -55,8 +55,7 @@ class Background extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title='Background Pattern' />
+      <Container title='Background Pattern'>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>The background pattern you can see right now is unique to your Parity installation. It will change every time you create a new Signer token. This is so that decentralized applications cannot pretend to be trustworthy.</div>

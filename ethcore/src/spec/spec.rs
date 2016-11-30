@@ -244,13 +244,13 @@ impl Spec {
 	}
 
 	/// Ensure that the given state DB has the trie nodes in for the genesis state.
-	pub fn ensure_db_good(&self, db: &mut StateDB) -> Result<bool, Box<TrieError>> {
+	pub fn ensure_db_good(&self, db: &mut StateDB, factory: &TrieFactory) -> Result<bool, Box<TrieError>> {
 		if !db.as_hashdb().contains(&self.state_root()) {
 			trace!(target: "spec", "ensure_db_good: Fresh database? Cannot find state root {}", self.state_root());
 			let mut root = H256::new();
 
 			{
-				let mut t = SecTrieDBMut::new(db.as_hashdb_mut(), &mut root);
+				let mut t = factory.create(db.as_hashdb_mut(), &mut root);
 				for (address, account) in self.genesis_state.get().iter() {
 					try!(t.insert(&**address, &account.rlp()));
 				}
@@ -258,7 +258,7 @@ impl Spec {
 			trace!(target: "spec", "ensure_db_good: Populated sec trie; root is {}", root);
 			for (address, account) in self.genesis_state.get().iter() {
 				db.note_non_null_account(address);
-				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address));
+				account.insert_additional(&mut AccountDBMut::new(db.as_hashdb_mut(), address), factory);
 			}
 			assert!(db.as_hashdb().contains(&self.state_root()));
 			Ok(true)

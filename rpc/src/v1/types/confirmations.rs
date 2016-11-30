@@ -137,6 +137,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransactionModification {
 	/// Modified gas price
 	#[serde(rename="gasPrice")]

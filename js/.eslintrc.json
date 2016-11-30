@@ -15,6 +15,7 @@
     "no-debugger": "error",
     "no-alert": "error",
     "jsx-quotes": ["error", "prefer-single"],
-    "react/jsx-curly-spacing": ["error", "always"]
+    "react/jsx-curly-spacing": ["error", "always"],
+    "object-property-newline": 0
   }
 }

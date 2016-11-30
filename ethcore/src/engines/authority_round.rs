@@ -126,7 +126,7 @@ impl AuthorityRound {
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
 	}
 
@@ -213,7 +213,7 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		Some(p.authorities.contains(author))
 	}
 
@@ -281,7 +281,7 @@ impl Engine for AuthorityRound {
 
 		let step = try!(header_step(header));
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) { 
+		if step == try!(header_step(parent)) {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(EngineError::DoubleVote(header.author().clone())));
 		}
@@ -320,6 +320,7 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use util::trie::TrieSpec;
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -390,9 +391,9 @@ mod tests {
 		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db1 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db1).unwrap();
+		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let mut db2 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db2).unwrap();
+		spec.ensure_db_good(&mut db2, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();

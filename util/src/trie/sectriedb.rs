@@ -18,7 +18,7 @@ use hash::H256;
 use sha3::Hashable;
 use hashdb::{HashDB, DBValue};
 use super::triedb::TrieDB;
-use super::{Trie, TrieItem, Recorder};
+use super::{Trie, TrieItem, Recorder, TrieIterator};
 
 /// A `Trie` implementation which hashes keys and uses a generic `HashDB` backing database.
 ///
@@ -49,7 +49,7 @@ impl<'db> SecTrieDB<'db> {
 }
 
 impl<'db> Trie for SecTrieDB<'db> {
-	fn iter<'a>(&'a self) -> super::Result<Box<Iterator<Item = TrieItem> + 'a>> {
+	fn iter<'a>(&'a self) -> super::Result<Box<TrieIterator<Item = TrieItem> + 'a>> {
 		TrieDB::iter(&self.raw)
 	}
 

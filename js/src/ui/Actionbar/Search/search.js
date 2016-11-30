@@ -17,7 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import ActionSearch from 'material-ui/svg-icons/action/search';
 
-import { Button, InputChip } from '../../';
+import Button from '../../Button';
+import InputChip from '../../Form/InputChip';
 
 import styles from './search.css';
 

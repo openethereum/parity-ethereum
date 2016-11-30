@@ -26,6 +26,8 @@ usage! {
 		cmd_new: bool,
 		cmd_list: bool,
 		cmd_export: bool,
+		cmd_blocks: bool,
+		cmd_state: bool,
 		cmd_import: bool,
 		cmd_signer: bool,
 		cmd_new_token: bool,
@@ -246,6 +248,10 @@ usage! {
 		flag_to: String = "latest", or |_| None,
 		flag_format: Option<String> = None, or |_| None,
 		flag_no_seal_check: bool = false, or |_| None,
+		flag_no_storage: bool = false, or |_| None,
+		flag_no_code: bool = false, or |_| None,
+		flag_min_balance: Option<String> = None, or |_| None,
+		flag_max_balance: Option<String> = None, or |_| None,
 
 		// -- Snapshot Optons
 		flag_at: String = "latest", or |_| None,
@@ -484,6 +490,8 @@ mod tests {
 			cmd_new: false,
 			cmd_list: false,
 			cmd_export: false,
+			cmd_state: false,
+			cmd_blocks: false,
 			cmd_import: false,
 			cmd_signer: false,
 			cmd_new_token: false,
@@ -600,6 +608,10 @@ mod tests {
 			flag_to: "latest".into(),
 			flag_format: None,
 			flag_no_seal_check: false,
+			flag_no_code: false,
+			flag_no_storage: false,
+			flag_min_balance: None,
+			flag_max_balance: None,
 
 			// -- Snapshot Optons
 			flag_at: "latest".into(),
@@ -649,11 +661,12 @@ mod tests {
 	fn should_parse_config_and_return_errors() {
 		let config1 = Args::parse_config(include_str!("./config.invalid1.toml"));
 		let config2 = Args::parse_config(include_str!("./config.invalid2.toml"));
+		let config3 = Args::parse_config(include_str!("./config.invalid3.toml"));
 
-		match (config1, config2) {
-			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_))) => {},
-			(a, b) => {
-				assert!(false, "Got invalid error types: {:?}, {:?}", a, b);
+		match (config1, config2, config3) {
+			(Err(ArgsError::Parsing(_)), Err(ArgsError::Decode(_)), Err(ArgsError::UnknownFields(_))) => {},
+			(a, b, c) => {
+				assert!(false, "Got invalid error types: {:?}, {:?}, {:?}", a, b, c);
 			}
 		}
 	}

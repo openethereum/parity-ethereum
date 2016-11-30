@@ -397,6 +397,7 @@ impl StateDB {
 	}
 
 	/// Get cached code based on hash.
+	#[cfg_attr(feature="dev", allow(map_clone))]
 	pub fn get_cached_code(&self, hash: &H256) -> Option<Arc<Vec<u8>>> {
 		let mut cache = self.code_cache.lock();
 

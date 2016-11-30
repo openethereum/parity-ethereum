@@ -19,6 +19,7 @@ use v1::types::{Bytes, H160, U256};
 
 /// Call request
 #[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct CallRequest {
 	/// From
 	pub from: Option<H160>,

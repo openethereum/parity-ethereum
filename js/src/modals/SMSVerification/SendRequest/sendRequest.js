@@ -47,7 +47,7 @@ export default class SendRequest extends Component {
 
       case REQUESTING_SMS:
         return (
-          <p>Requesting an SMS from the Parity server.</p>
+          <p>Requesting an SMS from the Parity server and waiting for the puzzle to be put into the contract.</p>
         );
 
       default:
