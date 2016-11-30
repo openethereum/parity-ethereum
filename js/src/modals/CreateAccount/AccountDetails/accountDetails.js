@@ -20,6 +20,7 @@ import PrintIcon from 'material-ui/svg-icons/action/print';
 import { Form, Input, InputAddress } from '../../../ui';
 import Button from '../../../ui/Button';
 
+import { createIdentityImg } from '../../../api/util/identity';
 import print from './print';
 import recoveryPage from './recovery-page.ejs';
 
@@ -85,7 +86,9 @@ export default class AccountDetails extends Component {
   }
 
   printPhrase = () => {
-    const { phrase, name } = this.props;
-    print(recoveryPage({ phrase, name }));
+    const { address, phrase, name } = this.props;
+    const identity = createIdentityImg(address);
+
+    print(recoveryPage({ phrase, name, identity, address }));
   }
 }

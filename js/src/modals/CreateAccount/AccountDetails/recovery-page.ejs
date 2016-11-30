@@ -15,9 +15,14 @@
         font-family: sans-serif;
         font-weight: 300;
       }
-      h1 {
-        font-weight: 300;
-        font-size: inherit;
+      p {
+        margin-bottom: 1rem;
+      }
+      figure {
+        margin-bottom: 1rem;
+      }
+      figure.address img {
+        border-radius: 100%;
       }
       pre code {
         display: inline-block;
@@ -28,7 +33,12 @@
     </style>
   </head>
   <body>
-    <h1>Recovery phrase for your Parity account <em><%= name %></em></h1>
+    <p>This is your account <em><%= name %></em>:</p>
+    <figure class="address">
+      <img src="<%= identity %>" alt="symbol for the address of the account">
+      <figcaption><code><%= address %></code></figcaption>
+    </figure>
+    <p>This is the recovery phrase:</p>
     <pre><code><%= phrase %></code></pre>
   </body>
 </html>
