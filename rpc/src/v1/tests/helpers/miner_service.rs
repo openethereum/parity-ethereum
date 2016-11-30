@@ -41,10 +41,11 @@ pub struct TestMinerService {
 	pub pending_receipts: Mutex<BTreeMap<H256, Receipt>>,
 	/// Last nonces.
 	pub last_nonces: RwLock<HashMap<Address, U256>>,
+	/// Password held by Engine.
+	pub password: RwLock<String>,
 
 	min_gas_price: RwLock<U256>,
 	gas_range_target: RwLock<(U256, U256)>,
-	password: RwLock<String>,
 	author: RwLock<Address>,
 	extra_data: RwLock<Bytes>,
 	limit: RwLock<usize>,

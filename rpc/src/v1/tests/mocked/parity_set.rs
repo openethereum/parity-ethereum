@@ -107,6 +107,23 @@ fn rpc_parity_set_author() {
 }
 
 #[test]
+fn rpc_parity_set_sealer() {
+	let miner = miner_service();
+	let client = client_service();
+	let network = network_service();
+	let io = IoHandler::new();
+	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
+
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setSealer", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681", "password"], "id": 1}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+
+	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));
+	assert_eq!(miner.author(), Address::from_str("cd1722f3947def4cf144679da39c4c32bdc35681").unwrap());
+	assert_eq!(*miner.password.read(), "password".to_string());
+}
+
+
+#[test]
 fn rpc_parity_set_transactions_limit() {
 	let miner = miner_service();
 	let client = client_service();
