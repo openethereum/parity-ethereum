@@ -71,6 +71,9 @@ export default class TransferStore {
   gasLimit = null;
   onClose = null;
 
+  isWallet = false;
+  wallet = null;
+
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
 
@@ -111,6 +114,11 @@ export default class TransferStore {
     this.balance = balance;
     this.gasLimit = gasLimit;
     this.onClose = onClose;
+    this.isWallet = account && account.wallet;
+
+    if (this.isWallet) {
+      this.wallet = props.wallet;
+    }
 
     if (senders) {
       this.senderError = ERRORS.requireSender;
@@ -407,15 +415,24 @@ export default class TransferStore {
   }
 
   _getTransferMethod (gas = false) {
-    if (this.isEth) {
+    const { isEth, isWallet } = this;
+
+    if (isEth && !isWallet) {
       return gas ? this.api.eth : this.api.parity;
+    }
+
+    if (isWallet) {
+      return this.wallet.instance.execute;
     }
 
     return this.token.contract.instance.transfer;
   }
 
   _getTransferParams (gas = false) {
-    const to = this.isEth ? this.recipient : this.token.address;
+    const { isEth, isWallet } = this;
+
+    const to = (isEth && !isWallet) ? this.recipient
+      : (this.isWallet ? this.wallet.address : this.token.address);
 
     const options = {
       from: this.sender || this.account.address,
@@ -429,18 +446,26 @@ export default class TransferStore {
       options.gas = MAX_GAS_ESTIMATION;
     }
 
-    if (this.isEth) {
+    if (isEth && !isWallet) {
       options.value = this.api.util.toWei(this.value || 0);
 
       if (this.data && this.data.length) {
         options.data = this.data;
       }
+
+      return { options, values: [] };
     }
 
-    const values = this.isEth ? [] : [
-      this.recipient,
-      new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
-    ];
+    const values = isWallet
+      ? [
+        this.recipient,
+        this.api.util.toWei(this.value || 0),
+        this.data || ''
+      ]
+      : [
+        this.recipient,
+        new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
+      ];
 
     return { options, values };
   }

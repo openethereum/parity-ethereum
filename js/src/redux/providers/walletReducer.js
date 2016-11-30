@@ -43,6 +43,7 @@ export default handleActions({
       const prevWallet = prevWallets[wallet.address] || {};
 
       nextWallets[wallet.address] = {
+        instance: (state.contract && state.contract.instance) || null,
         ...prevWallet,
         ...wallet
       };

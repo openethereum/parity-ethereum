@@ -148,22 +148,13 @@ export default class Details extends Component {
   };
 
   static defaultProps = {
-    wallet: null
+    wallet: null,
+    senders: null
   };
 
   render () {
-    const { all, extras, tag, total, totalError, value, valueError, wallet } = this.props;
+    const { all, extras, tag, total, totalError, value, valueError } = this.props;
     const label = `amount to transfer (in ${tag})`;
-
-    const extrasOptions = wallet ? null : (
-      <div>
-        <Checkbox
-          checked={ extras }
-          label='advanced sending options'
-          onCheck={ this.onCheckExtras }
-          style={ CHECK_STYLE } />
-      </div>
-    );
 
     return (
       <Form>
@@ -199,16 +190,23 @@ export default class Details extends Component {
               </div>
             </Input>
           </div>
-          { extrasOptions }
+
+          <div>
+            <Checkbox
+              checked={ extras }
+              label='advanced sending options'
+              onCheck={ this.onCheckExtras }
+              style={ CHECK_STYLE } />
+          </div>
         </div>
       </Form>
     );
   }
 
   renderFromAddress () {
-    const { wallet, sender, senderError, senders } = this.props;
+    const { sender, senderError, senders } = this.props;
 
-    if (!wallet) {
+    if (!senders) {
       return null;
     }
 
