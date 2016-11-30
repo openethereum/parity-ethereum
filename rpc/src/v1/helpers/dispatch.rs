@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::Debug;
+use std::ops::Deref;
 use rlp;
 use util::{Address, H256, U256, Uint, Bytes};
 use util::bytes::ToPretty;
@@ -53,6 +54,17 @@ pub enum WithToken<T: Debug> {
 	Yes(T, AccountToken),
 }
 
+impl<T: Debug> Deref for WithToken<T> {
+	type Target = T;
+
+	fn deref(&self) -> &Self::Target {
+		match *self {
+			WithToken::No(ref v) => v,
+			WithToken::Yes(ref v, _) => v,
+		}
+	}
+}
+
 impl<T: Debug> WithToken<T> {
 	pub fn map<S, F>(self, f: F) -> WithToken<S> where
 		S: Debug,
@@ -67,7 +79,7 @@ impl<T: Debug> WithToken<T> {
 	pub fn into_value(self) -> T {
 		match self {
 			WithToken::No(v) => v,
-			WithToken::Yes(v, ..) => v,
+			WithToken::Yes(v, _) => v,
 		}
 	}
 }

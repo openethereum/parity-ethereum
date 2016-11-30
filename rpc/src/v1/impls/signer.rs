@@ -28,7 +28,7 @@ use jsonrpc_core::Error;
 use v1::traits::Signer;
 use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
-use v1::helpers::dispatch::{self, dispatch_transaction};
+use v1::helpers::dispatch::{self, dispatch_transaction, WithToken};
 
 /// Transactions confirmation (personal) rpc implementation.
 pub struct SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -61,8 +61,8 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		Ok(())
 	}
 
-	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<ConfirmationResponse, Error> where
-		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<ConfirmationResponse, Error>,
+	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<WithToken<ConfirmationResponse>, Error> where
+		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<WithToken<ConfirmationResponse>, Error>,
 	{
 		try!(self.active());
 
@@ -84,7 +84,7 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 			let result = f(&*client, &*miner, &*accounts, payload);
 			// Execute
 			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok(response.clone()));
+				signer.request_confirmed(id, Ok((*response).clone()));
 			}
 			result
 		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
@@ -109,12 +109,19 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
 		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
 			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Password(pass))
-				.map(|v| v.into_value())
-		})
+		}).map(|v| v.into_value())
 	}
 
 	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String) -> Result<ConfirmationResponseWithToken, Error> {
-		unimplemented!()
+		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
+			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Token(token))
+		}).and_then(|v| match v {
+			WithToken::No(_) => Err(errors::internal("Unexpected response without token.", "")),
+			WithToken::Yes(response, token) => Ok(ConfirmationResponseWithToken {
+				result: response,
+				token: token,
+			}),
+		})
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {

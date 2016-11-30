@@ -247,10 +247,11 @@ fn should_confirm_transaction_with_token() {
 	}"#;
 	let response = r#"{"jsonrpc":"2.0","result":{"result":""#.to_owned() +
 		format!("0x{:?}", t.hash()).as_ref() +
-		r#""token":""},"id":1}"#;
+		r#"","token":""#;
 
 	// then
-	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	let result = tester.io.handle_request_sync(&request).unwrap();
+	assert!(result.starts_with(&response), "Should return correct result. Expected: {:?}, Got: {:?}", response, result);
 	assert_eq!(tester.signer.requests().len(), 0);
 	assert_eq!(tester.miner.imported_transactions.lock().len(), 1);
 }
