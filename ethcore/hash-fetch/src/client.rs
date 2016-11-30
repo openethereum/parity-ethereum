@@ -26,7 +26,7 @@ use fetch::{Fetch, FetchError, Client as FetchClient};
 use urlhint::{ContractClient, URLHintContract, URLHint, URLHintResult};
 
 /// API for fetching by hash.
-pub trait HashFetch {
+pub trait HashFetch: Send + Sync + 'static {
 	/// Fetch hash-addressed content.
 	/// Parameters:
 	/// 1. `hash` - content hash
@@ -42,7 +42,12 @@ pub enum Error {
 	/// Hash could not be resolved to a valid content address.
 	NoResolution,
 	/// Downloaded content hash does not match.
-	HashMismatch { expected: H256, got: H256 },
+	HashMismatch {
+		/// Expected hash
+		expected: H256,
+		/// Computed hash
+		got: H256,
+	},
 	/// IO Error while validating hash.
 	IO(io::Error),
 	/// Error during fetch.

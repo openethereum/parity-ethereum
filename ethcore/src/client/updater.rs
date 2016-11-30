@@ -14,11 +14,10 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Mutex, Weak, Arc};
+use std::sync::{Weak, Arc};
 use std::path::PathBuf;
 use util::misc::{VersionInfo, ReleaseTrack, platform};
-use std::str::FromStr;
-use util::{Bytes, Address, H160, H256, FixedHash};
+use util::{Bytes, Address, H160, H256, FixedHash, Mutex};
 use client::operations::Operations;
 use client::{Client, BlockChainClient, UpdatePolicy, BlockId};
 use fetch::HashFetch;
@@ -42,9 +41,10 @@ pub struct OperationsInfo {
 
 pub struct Updater {
 	client: Weak<Client>,
+	fetch: Weak<HashFetch>,
 	operations: Operations,
 	update_policy: UpdatePolicy,
-	fetch_handler: Mutex<Option<fetch::Client>>,
+	fetch_handler: Mutex<Option<()>>,
 
 	// These don't change
 	pub this: VersionInfo,
@@ -56,35 +56,15 @@ pub struct Updater {
 
 const CLIENT_ID: &'static str = "parity";
 
-struct FetchHandler {
-	client: Weak<Client>,
-}
-
-impl fetch::urlhint::ContractClient for FetchHandler {
-	fn registrar(&self) -> Result<Address, String> {
-		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.additional_params()
-			.get("registrar")
-			.and_then(|s| Address::from_str(s).ok())
-			.ok_or_else(|| "Registrar not available".into())
-	}
-
-	fn call(&self, address: Address, data: Bytes) -> Result<Bytes, String> {
-		self.client.upgrade().ok_or_else(|| "Client not available".to_owned())?
-			.call_contract(address, data)
-	}
-}
-
-fn start_fetch(client: Weak<Client>, hash: H256, on_done: Box<Fn(Result<PathBuf, fetch::Error>) + Send>) -> Result<fetch::Client, fetch::Error> {
-	let f = fetch::Client::new(Arc::new(FetchHandler { client: client, }));
-	let r = f.fetch(hash, on_done);
-	r.map(|_| f)
+fn start_fetch(fetch: Arc<HashFetch>, hash: H256, on_done: Box<Fn(Result<PathBuf, fetch::Error>) + Send>) -> Result<(), fetch::Error> {
+	fetch.fetch(hash, on_done)
 }
 
 impl Updater {
-	pub fn new(client: Weak<Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
+	pub fn new(client: Weak<Client>, fetch: Weak<fetch::Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
 		let mut u = Updater {
 			client: client.clone(),
+			fetch: fetch.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),
 			update_policy: update_policy,
 			fetch_handler: Mutex::new(None),
@@ -107,12 +87,12 @@ impl Updater {
 	}
 
 	/// Is the currently running client capable of supporting the current chain?
-	/// `Some` answer or `None` if information on the running client is not available.  
+	/// `Some` answer or `None` if information on the running client is not available.
 	pub fn is_capable(&self) -> Option<bool> {
 		self.latest.as_ref().and_then(|latest| {
 			self.this_fork.map(|this_fork| {
 				let current_number = self.client.upgrade().map_or(0, |c| c.block_number(BlockId::Latest).unwrap_or(0));
-				this_fork >= latest.fork || current_number < latest.fork  
+				this_fork >= latest.fork || current_number < latest.fork
 			})
 		})
 	}
@@ -124,15 +104,15 @@ impl Updater {
 	}
 
 	/// Actually upgrades the client. Assumes that the binary has been downloaded.
-	/// @returns `true` on success. 
+	/// @returns `true` on success.
 	pub fn execute_upgrade(&mut self) -> bool {
 		unimplemented!()
 	}
 
-	/// Our version info. 
+	/// Our version info.
 	pub fn version_info(&self) -> &VersionInfo { &self.this }
 
-	/// Information gathered concerning the release. 
+	/// Information gathered concerning the release.
 	pub fn info(&self) -> &Option<OperationsInfo> { &self.latest }
 
 	fn collect_release_info(&self, release_id: &H256) -> Result<ReleaseInfo, String> {
@@ -172,9 +152,7 @@ impl Updater {
 	}
 
 	fn fetch_done(&self, _r: Result<PathBuf, fetch::Error>) {
-		if let Ok(mut x) = self.fetch_handler.lock() {
-			*x = None;
-		}
+		*self.fetch_handler.lock() = None;
 	}
 
 	pub fn tick(&mut self) {
@@ -186,7 +164,7 @@ impl Updater {
 		if let Some(ref latest) = self.latest {
 			info!(target: "updater", "Latest release in our track is v{} it is {}critical ({} binary is {})",
 				latest.track.version,
-				if latest.track.is_critical {""} else {"non-"}, 
+				if latest.track.is_critical {""} else {"non-"},
 				platform(),
 				if let Some(ref b) = latest.track.binary {
 					format!("{}", b)
@@ -195,11 +173,12 @@ impl Updater {
 				 }
 			);
 			if let Some(b) = latest.track.binary {
-				if let Ok(mut fetch_handler) = self.fetch_handler.lock() {
-					if fetch_handler.is_none() {
-						let c = self.client.clone();
-						let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); }; 
-						*fetch_handler = start_fetch(self.client.clone(), b, Box::new(f)).ok();
+				let mut fetch_handler = self.fetch_handler.lock();
+				if fetch_handler.is_none() {
+					let c = self.client.clone();
+					let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
+					if let Some(fetch) = self.fetch.clone().upgrade() {
+						*fetch_handler = start_fetch(fetch, b, Box::new(f)).ok();
 					}
 				}
 			}

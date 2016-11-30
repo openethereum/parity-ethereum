@@ -24,6 +24,7 @@ mod test_client;
 mod trace;
 mod client;
 mod updater;
+mod fetch;
 
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, UpdatePolicy, UpdateFilter, DatabaseCompactionProfile, BlockChainConfig, VMType};

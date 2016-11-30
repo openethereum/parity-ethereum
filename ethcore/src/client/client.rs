@@ -72,6 +72,8 @@ use state_db::StateDB;
 use rand::OsRng;
 use client::updater::Updater;
 use client::registry::Registry;
+use client::fetch::FetchHandler;
+use fetch::{self, HashFetch};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -154,6 +156,7 @@ pub struct Client {
 	rng: Mutex<OsRng>,
 	on_mode_change: Mutex<Option<Box<FnMut(&Mode) + 'static + Send>>>,
 	registrar: Mutex<Option<Registry>>,
+	fetch_service: Mutex<Option<Arc<HashFetch>>>,
 }
 
 impl Client {
@@ -226,8 +229,6 @@ impl Client {
 			accountdb: Default::default(),
 		};
 
-
-
 		let client = Arc::new(Client {
 			sleep_state: Mutex::new(SleepState::new(awake)),
 			liveness: AtomicBool::new(awake),
@@ -255,18 +256,23 @@ impl Client {
 			rng: Mutex::new(try!(OsRng::new().map_err(::util::UtilError::StdIo))),
 			on_mode_change: Mutex::new(None),
 			registrar: Mutex::new(None),
+			fetch_service: Mutex::new(None),
 		});
 		if let Some(reg_addr) = client.additional_params().get("registrar").and_then(|s| Address::from_str(s).ok()) {
 			trace!(target: "client", "Found registrar at {}", reg_addr);
 			let weak = Arc::downgrade(&client);
+			let fetch = Arc::new(fetch::Client::new(Arc::new(FetchHandler::new(weak.clone()))));
 			let registrar = Registry::new(reg_addr, move |a, d| weak.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d)));
+			// TODO [ToDr] The address might not be available when client is starting (but may be available later).
+			// Shouldn't this be moved inside the `Updater`?
 			if let Ok(ops_addr) = registrar.get_address(&(&b"operations"[..]).sha3(), "A") {
-				if !ops_addr.is_zero() { 
+				if !ops_addr.is_zero() {
 					trace!(target: "client", "Found operations at {}", ops_addr);
-					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), ops_addr, client.config.update_policy.clone()));
+					*client.updater.lock() = Some(Updater::new(Arc::downgrade(&client), Arc::downgrade(&fetch), ops_addr, client.config.update_policy.clone()));
 				}
 			}
 			*client.registrar.lock() = Some(registrar);
+			*client.fetch_service.lock() = Some(fetch);
 		}
 		Ok(client)
 	}
