@@ -28,7 +28,7 @@ import styles from './certifications.css';
 class Certifications extends Component {
   static propTypes = {
     account: PropTypes.string.isRequired,
-    certifications: PropTypes.object.isRequired,
+    certifications: PropTypes.array.isRequired,
     dappsUrl: PropTypes.string.isRequired,
 
     fetchCertifications: PropTypes.func.isRequired
@@ -40,16 +40,15 @@ class Certifications extends Component {
   }
 
   render () {
-    const { account, certifications } = this.props;
-    const certificationsOfAccount = certifications[account] || [];
+    const { certifications } = this.props;
 
-    if (certificationsOfAccount.length === 0) {
+    if (certifications.length === 0) {
       return null;
     }
 
     return (
       <div className={ styles.certifications }>
-        { certificationsOfAccount.map(this.renderCertification) }
+        { certifications.map(this.renderCertification) }
       </div>
     );
   }
@@ -69,8 +68,13 @@ class Certifications extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  return { certifications: state.certifications };
+function mapStateToProps (_, initProps) {
+  const { account } = initProps;
+
+  return (state) => {
+    const certifications = state.certifications[account] || [];
+    return { certifications };
+  };
 }
 
 function mapDispatchToProps (dispatch) {
