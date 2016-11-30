@@ -267,7 +267,7 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&response);
-		let expected = r#"{"result":"0x0000000000000000000000000000000000000000","token":"test-token"}"#;
+		let expected = r#"{"result":"0x0000000000000000000000000000000000000000000000000000000000000000","token":"test-token"}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());

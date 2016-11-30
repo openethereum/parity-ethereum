@@ -220,6 +220,9 @@ impl EthMultiStore {
 		// update cache
 		let mut cache = self.cache.write();
 		let mut accounts = cache.entry(account.address.clone()).or_insert_with(Vec::new);
+		// TODO [ToDr] That is crappy way of overcoming set_name, set_meta, etc.
+		// Avoid cloning instead!
+		accounts.retain(|acc| acc.filename != account.filename);
 		accounts.push(account);
 		Ok(())
 	}

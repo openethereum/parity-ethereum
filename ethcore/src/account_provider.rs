@@ -81,10 +81,11 @@ impl KeyDirectory for NullDir {
 	}
 
 	fn insert(&self, account: SafeAccount) -> Result<SafeAccount, SSError> {
-		self.accounts.write()
-			.entry(account.address.clone())
-			.or_insert_with(Vec::new)
-			.push(account.clone());
+		let mut lock = self.accounts.write();
+		let mut accounts = lock.entry(account.address.clone()).or_insert_with(Vec::new);
+		// If the filename is the same we just need to replace the entry
+		accounts.retain(|acc| acc.filename != account.filename);
+		accounts.push(account.clone());
 		Ok(account)
 	}
 
