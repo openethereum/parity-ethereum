@@ -132,7 +132,8 @@ class Contract extends Component {
         <Page>
           <Header
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+          />
           <Queries
             contract={ contract }
             values={ queryValues } />
@@ -447,7 +448,10 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({ newError, setVisibleAccounts }, dispatch);
+  return bindActionCreators({
+    newError,
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

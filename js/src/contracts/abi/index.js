@@ -14,6 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import badgereg from './badgereg.json';
 import basiccoin from './basiccoin.json';
 import basiccoinmanager from './basiccoinmanager.json';
 import dappreg from './dappreg.json';
@@ -28,6 +29,7 @@ import tokenreg from './tokenreg.json';
 import wallet from './wallet.json';
 
 export {
+  badgereg,
   basiccoin,
   basiccoinmanager,
   dappreg,
