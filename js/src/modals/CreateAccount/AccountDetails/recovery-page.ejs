@@ -7,13 +7,17 @@
     <meta name="viewport" content="width=device-width">
     <style>
       body {
-        margin: 3em auto;
+        margin: 2em auto;
         max-width: 30em;
         padding: 1em;
         text-align: center;
         font-size: 110%;
         font-family: sans-serif;
         font-weight: 300;
+      }
+      #logo {
+        max-width: 4rem;
+        margin-bottom: 3rem;
       }
       p {
         margin-bottom: 1rem;
@@ -33,9 +37,10 @@
     </style>
   </head>
   <body>
+    <img id="logo" src="<%= logo %>" alt="Parity Logo" />
     <p>This is your account <em><%= name %></em>:</p>
     <figure class="address">
-      <img src="<%= identity %>" alt="symbol for the address of the account">
+      <img src="<%= identity %>" alt="symbol for the address of the account" />
       <figcaption><code><%= address %></code></figcaption>
     </figure>
     <p>This is the recovery phrase:</p>

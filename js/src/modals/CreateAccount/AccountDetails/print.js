@@ -54,8 +54,10 @@ export default (html) => {
   setTimeout(() => {
     iframe.contentDocument.write(html);
 
-    onPrint(iframe.contentWindow, teardown);
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
+    setTimeout(() => {
+      onPrint(iframe.contentWindow, teardown);
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    }, 20);
   }, 0);
 };

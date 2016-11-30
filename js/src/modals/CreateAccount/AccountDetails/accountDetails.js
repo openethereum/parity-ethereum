@@ -23,6 +23,7 @@ import Button from '../../../ui/Button';
 import { createIdentityImg } from '../../../api/util/identity';
 import print from './print';
 import recoveryPage from './recovery-page.ejs';
+import ParityLogo from '../../../../assets/images/parity-logo-black-no-text.svg';
 
 export default class AccountDetails extends Component {
   static propTypes = {
@@ -89,6 +90,6 @@ export default class AccountDetails extends Component {
     const { address, phrase, name } = this.props;
     const identity = createIdentityImg(address);
 
-    print(recoveryPage({ phrase, name, identity, address }));
+    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
   }
 }
