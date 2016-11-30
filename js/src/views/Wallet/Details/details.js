@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import moment from 'moment';
 
-import { Container, InputAddress, Input } from '../../../ui';
+import { Container, InputAddress } from '../../../ui';
 
 import styles from '../wallet.css';
 

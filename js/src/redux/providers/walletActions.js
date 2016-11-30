@@ -148,7 +148,6 @@ function fetchWalletInfo (contract, update) {
     promises.push(fetchWalletRequire(contract, update.address));
   }
 
-
   if (update[UPDATE_DAILYLIMIT]) {
     promises.push(fetchWalletDailylimit(contract, update.address));
   }
