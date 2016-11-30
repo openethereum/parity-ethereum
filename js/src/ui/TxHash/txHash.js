@@ -111,7 +111,8 @@ class TxHash extends Component {
     } else {
       count = confirmations.toFormat(0) + `/${maxConfirmations}`;
     }
-    const unit = value === 1 ? 'confirmation' : 'confirmations';
+    const unit = Math.max(confirmations.toNumber(), maxConfirmations) === 1
+      ? 'confirmation' : 'confirmations';
 
     return (
       <div className={ styles.confirm }>
