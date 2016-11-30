@@ -231,9 +231,9 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - beta
-    - tags
-    - stable
+#    - beta
+#    - tags
+#    - stable
     - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
