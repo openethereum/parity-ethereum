@@ -46,7 +46,6 @@ class Status extends Component {
         <div className={ styles.version }>
           { clientVersion }
         </div>
-        { this.renderEnode() }
         <div className={ styles.netinfo }>
           <BlockStatus />
           <div className={ netStyle }>
@@ -56,6 +55,7 @@ class Status extends Component {
             { netPeers.active.toFormat() }/{ netPeers.connected.toFormat() }/{ netPeers.max.toFormat() } peers
           </div>
         </div>
+        { this.renderEnode() }
       </div>
     );
   }
