@@ -167,7 +167,8 @@ class Wallet extends Component {
         balance={ balance }
         balances={ balances }
         images={ images }
-        onClose={ this.onTransferClose } />
+        onClose={ this.onTransferClose }
+      />
     );
   }
 

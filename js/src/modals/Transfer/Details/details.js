@@ -20,7 +20,8 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import { isEqual } from 'lodash';
 
-import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
+import Form, { Input, InputAddressSelect, AddressSelect, Select } from '../../../ui/Form';
+import nullableProptype from '../../../util/nullable-proptype';
 
 import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';
@@ -132,6 +133,8 @@ export default class Details extends Component {
     all: PropTypes.bool,
     extras: PropTypes.bool,
     images: PropTypes.object.isRequired,
+    sender: PropTypes.string,
+    senderError: PropTypes.string,
     recipient: PropTypes.string,
     recipientError: PropTypes.string,
     tag: PropTypes.string,
@@ -140,11 +143,12 @@ export default class Details extends Component {
     value: PropTypes.string,
     valueError: PropTypes.string,
     onChange: PropTypes.func.isRequired,
-    wallet: PropTypes.bool
+    wallet: PropTypes.object,
+    senders: nullableProptype(PropTypes.object)
   };
 
   static defaultProps = {
-    wallet: false
+    wallet: null
   };
 
   render () {
@@ -164,6 +168,7 @@ export default class Details extends Component {
     return (
       <Form>
         { this.renderTokenSelect() }
+        { this.renderFromAddress() }
         { this.renderToAddress() }
         <div className={ styles.columns }>
           <div>
@@ -197,6 +202,27 @@ export default class Details extends Component {
           { extrasOptions }
         </div>
       </Form>
+    );
+  }
+
+  renderFromAddress () {
+    const { wallet, sender, senderError, senders } = this.props;
+
+    if (!wallet) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.address }>
+        <AddressSelect
+          accounts={ senders }
+          error={ senderError }
+          label='sender address'
+          hint='the sender address'
+          value={ sender }
+          onChange={ this.onEditSender }
+        />
+      </div>
     );
   }
 
@@ -234,6 +260,10 @@ export default class Details extends Component {
 
   onChangeToken = (event, index, tag) => {
     this.props.onChange('tag', tag);
+  }
+
+  onEditSender = (event, sender) => {
+    this.props.onChange('sender', sender);
   }
 
   onEditRecipient = (event, recipient) => {

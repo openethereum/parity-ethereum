@@ -33,27 +33,36 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.com
 
 export default class TransferStore {
   @observable stage = 0;
-  @observable data = '';
-  @observable dataError = null;
   @observable extras = false;
-  @observable gas = DEFAULT_GAS;
-  @observable gasEst = '0';
-  @observable gasError = null;
-  @observable gasLimitError = null;
-  @observable gasPrice = DEFAULT_GASPRICE;
-  @observable gasPriceError = null;
-  @observable recipient = '';
-  @observable recipientError = ERRORS.requireRecipient;
+  @observable valueAll = false;
   @observable sending = false;
   @observable tag = 'ETH';
-  @observable total = '0.0';
-  @observable totalError = null;
-  @observable value = '0.0';
-  @observable valueAll = false;
-  @observable valueError = null;
   @observable isEth = true;
   @observable busyState = null;
   @observable rejected = false;
+
+  @observable data = '';
+  @observable dataError = null;
+
+  @observable gas = DEFAULT_GAS;
+  @observable gasError = null;
+
+  @observable gasEst = '0';
+  @observable gasLimitError = null;
+  @observable gasPrice = DEFAULT_GASPRICE;
+  @observable gasPriceError = null;
+
+  @observable recipient = '';
+  @observable recipientError = ERRORS.requireRecipient;
+
+  @observable sender = '';
+  @observable senderError = null;
+
+  @observable total = '0.0';
+  @observable totalError = null;
+
+  @observable value = '0.0';
+  @observable valueError = null;
 
   gasPriceHistogram = {};
 
@@ -73,7 +82,7 @@ export default class TransferStore {
   }
 
   @computed get isValid () {
-    const detailsValid = !this.recipientError && !this.valueError && !this.totalError;
+    const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
     const extrasValid = !this.gasError && !this.gasPriceError && !this.totalError;
     const verifyValid = !this.passwordError;
 
@@ -89,15 +98,23 @@ export default class TransferStore {
     }
   }
 
+  get token () {
+    return this.balance.tokens.find((balance) => balance.token.tag === this.tag).token;
+  }
+
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, onClose } = props;
+    const { account, balance, gasLimit, senders, onClose } = props;
 
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
     this.onClose = onClose;
+
+    if (senders) {
+      this.senderError = ERRORS.requireSender;
+    }
   }
 
   @action onNext = () => {
@@ -133,6 +150,9 @@ export default class TransferStore {
       case 'recipient':
         return this._onUpdateRecipient(value);
 
+      case 'sender':
+        return this._onUpdateSender(value);
+
       case 'tag':
         return this._onUpdateTag(value);
 
@@ -165,9 +185,8 @@ export default class TransferStore {
     this.onNext();
     this.sending = true;
 
-    const promise = this.isEth ? this._sendEth() : this._sendToken();
-
-    promise
+    this
+      .send()
       .then((requestId) => {
         this.busyState = 'Waiting for authorization in the Parity Signer';
 
@@ -250,6 +269,23 @@ export default class TransferStore {
     });
   }
 
+  @action _onUpdateSender = (sender) => {
+    let senderError = null;
+
+    if (!sender || !sender.length) {
+      senderError = ERRORS.requireSender;
+    } else if (!this.api.util.isAddressValid(sender)) {
+      senderError = ERRORS.invalidAddress;
+    }
+
+    transaction(() => {
+      this.sender = sender;
+      this.senderError = senderError;
+
+      this.recalculateGas();
+    });
+  }
+
   @action _onUpdateTag = (tag) => {
     transaction(() => {
       this.tag = tag;
@@ -280,9 +316,8 @@ export default class TransferStore {
       return this.recalculate();
     }
 
-    const promise = this.isEth ? this._estimateGasEth() : this._estimateGasToken();
-
-    promise
+    this
+      .estimateGas()
       .then((gasEst) => {
         let gas = gasEst;
         let gasLimitError = null;
@@ -361,74 +396,53 @@ export default class TransferStore {
     });
   }
 
-  _sendEth () {
-    const { account, data, gas, gasPrice, recipient, value } = this;
+  send () {
+    const { options, values } = this._getTransferParams();
+    return this._getTransferMethod().postTransaction(options, values);
+  }
 
-    const options = {
-      from: account.address,
-      to: recipient,
-      gas,
-      gasPrice,
-      value: this.api.util.toWei(value || 0)
-    };
+  estimateGas () {
+    const { options, values } = this._getTransferParams(true);
+    return this._getTransferMethod(true).estimateGas(options, values);
+  }
 
-    if (data && data.length) {
-      options.data = data;
+  _getTransferMethod (gas = false) {
+    if (this.isEth) {
+      return gas ? this.api.eth : this.api.parity;
     }
 
-    return this.api.parity.postTransaction(options);
+    return this.token.contract.instance.transfer;
   }
 
-  _sendToken () {
-    const { account, balance } = this;
-    const { gas, gasPrice, recipient, value, tag } = this;
-
-    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-
-    return token.contract.instance.transfer
-      .postTransaction({
-        from: account.address,
-        to: token.address,
-        gas,
-        gasPrice
-      }, [
-        recipient,
-        new BigNumber(value).mul(token.format).toFixed(0)
-      ]);
-  }
-
-  _estimateGasToken () {
-    const { account, balance } = this;
-    const { recipient, value, tag } = this;
-
-    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
-
-    return token.contract.instance.transfer
-      .estimateGas({
-        gas: MAX_GAS_ESTIMATION,
-        from: account.address,
-        to: token.address
-      }, [
-        recipient,
-        new BigNumber(value || 0).mul(token.format).toFixed(0)
-      ]);
-  }
-
-  _estimateGasEth () {
-    const { account, data, recipient, value } = this;
+  _getTransferParams (gas = false) {
+    const to = this.isEth ? this.recipient : this.token.address;
 
     const options = {
-      gas: MAX_GAS_ESTIMATION,
-      from: account.address,
-      to: recipient,
-      value: this.api.util.toWei(value || 0)
+      from: this.sender || this.account.address,
+      to
     };
 
-    if (data && data.length) {
-      options.data = data;
+    if (!gas) {
+      options.gas = this.gas;
+      options.gasPrice = this.gasPrice;
+    } else {
+      options.gas = MAX_GAS_ESTIMATION;
     }
 
-    return this.api.eth.estimateGas(options);
+    if (this.isEth) {
+      options.value = this.api.util.toWei(this.value || 0);
+
+      if (this.data && this.data.length) {
+        options.data = this.data;
+      }
+    }
+
+    const values = this.isEth ? [] : [
+      this.recipient,
+      new BigNumber(this.value || 0).mul(this.token.format).toFixed(0)
+    ];
+
+    return { options, values };
   }
 
   _validatePositiveNumber (num) {
