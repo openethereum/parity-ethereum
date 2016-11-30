@@ -18,10 +18,12 @@ import { isEqual, uniq, range } from 'lodash';
 
 import Contract from '../../api/contract';
 import { wallet as WALLET_ABI } from '../../contracts/abi';
+import { bytesToHex } from '../../api/util/format';
 
 const UPDATE_OWNERS = 'owners';
 const UPDATE_REQUIRE = 'require';
 const UPDATE_DAILYLIMIT = 'dailylimit';
+const UPDATE_CONFIRMATIONS = 'confirmations';
 
 export function attachWallets (_wallets) {
   return (dispatch, getState) => {
@@ -109,6 +111,7 @@ function fetchWalletsInfo (updates) {
           [ UPDATE_OWNERS ]: true,
           [ UPDATE_REQUIRE ]: true,
           [ UPDATE_DAILYLIMIT ]: true,
+          [ UPDATE_CONFIRMATIONS ]: true,
           transactions: true,
           address
         };
@@ -119,11 +122,14 @@ function fetchWalletsInfo (updates) {
       return fetchWalletsInfo(_updates)(dispatch, getState);
     }
 
-    const { contract } = getState().wallet;
+    const { api } = getState();
     const _updates = Object.values(updates);
 
     Promise
-      .all(_updates.map((update) => fetchWalletInfo(contract, update)))
+      .all(_updates.map((update) => {
+        const contract = new Contract(api, WALLET_ABI).at(update.address);
+        return fetchWalletInfo(contract, update);
+      }))
       .then((updates) => {
         dispatch(updateWalletsDetails(updates));
       })
@@ -141,19 +147,31 @@ function fetchWalletInfo (contract, update) {
   const promises = [];
 
   if (update[UPDATE_OWNERS]) {
-    promises.push(fetchWalletOwners(contract, update.address));
+    promises.push(fetchWalletOwners(contract));
   }
 
   if (update[UPDATE_REQUIRE]) {
-    promises.push(fetchWalletRequire(contract, update.address));
+    promises.push(fetchWalletRequire(contract));
   }
 
   if (update[UPDATE_DAILYLIMIT]) {
-    promises.push(fetchWalletDailylimit(contract, update.address));
+    promises.push(fetchWalletDailylimit(contract));
   }
 
   return Promise
     .all(promises)
+    .then((updates) => {
+      if (update[UPDATE_CONFIRMATIONS]) {
+        const owners = updates.find((u) => u.key === UPDATE_OWNERS);
+        return fetchWalletConfirmations(contract, owners && owners.value || null)
+          .then((update) => {
+            updates.push(update);
+            return updates;
+          });
+      }
+
+      return updates;
+    })
     .then((updates) => {
       const wallet = { address: update.address };
 
@@ -165,8 +183,8 @@ function fetchWalletInfo (contract, update) {
     });
 }
 
-function fetchWalletOwners (contract, address) {
-  const walletInstance = contract.at(address).instance;
+function fetchWalletOwners (contract) {
+  const walletInstance = contract.instance;
 
   return walletInstance
     .m_numOwners.call()
@@ -181,8 +199,8 @@ function fetchWalletOwners (contract, address) {
     });
 }
 
-function fetchWalletRequire (contract, address) {
-  const walletInstance = contract.at(address).instance;
+function fetchWalletRequire (contract) {
+  const walletInstance = contract.instance;
 
   return walletInstance
     .m_required.call()
@@ -194,8 +212,8 @@ function fetchWalletRequire (contract, address) {
     });
 }
 
-function fetchWalletDailylimit (contract, address) {
-  const walletInstance = contract.at(address).instance;
+function fetchWalletDailylimit (contract) {
+  const walletInstance = contract.instance;
 
   return Promise
     .all([
@@ -212,6 +230,74 @@ function fetchWalletDailylimit (contract, address) {
           last: values[2]
         }
       };
+    });
+}
+
+/**
+ * @todo  Filter out transactions from confirmations
+ *        before fetching the Confirmation/Revoke events
+ */
+function fetchWalletConfirmations (contract, owners = null) {
+  const walletInstance = contract.instance;
+
+  return walletInstance
+    .ConfirmationNeeded
+    .getAll()
+    .then((logs) => {
+      return logs.map((log) => ({
+        initiator: log.params.initiator.value,
+        to: log.params.to.value,
+        data: log.params.data.value,
+        value: log.params.value.value,
+        operation: bytesToHex(log.params.operation.value),
+        transactionHash: log.transactionHash,
+        blockNumber: log.blockNumber,
+        confirmedBy: []
+      }));
+    })
+    .then((confirmations) => {
+      if (confirmations.length === 0) {
+        return confirmations;
+      }
+
+      const operations = confirmations.map((conf) => conf.operation);
+      return Promise
+        .all(operations.map((op) => fetchOperationConfirmations(contract, op, owners)))
+        .then((confirmedBys) => {
+          confirmations.forEach((_, index) => {
+            confirmations[index].confirmedBy = confirmedBys[index];
+          });
+
+          return confirmations;
+        });
+    })
+    .then((confirmations) => {
+      return {
+        key: UPDATE_CONFIRMATIONS,
+        value: confirmations
+      };
+    });
+}
+
+function fetchOperationConfirmations (contract, operation, owners = null) {
+  if (!owners) {
+    console.warn('[fetchOperationConfirmations] try to provide the owners for the Wallet', contract.address);
+  }
+
+  const walletInstance = contract.instance;
+
+  const promise = owners
+    ? Promise.resolve({ value: owners })
+    : fetchWalletOwners(contract);
+
+  return promise
+    .then((result) => {
+      const owners = result.value;
+      return Promise
+        .all(owners.map((owner) => walletInstance.hasConfirmed.call({}, [ operation, owner ])))
+        .then((data) => {
+          return owners.filter((owner, index) => data[index]);
+        });
     });
 }
 
@@ -232,49 +318,49 @@ function parseLogs (logs) {
       const prev = updates[address] || { address };
 
       switch (eventSignature) {
-        case [ contract.OwnerChanged.signature ]:
-        case [ contract.OwnerAdded.signature ]:
-        case [ contract.OwnerRemoved.signature ]:
+        case [ contract.instance.OwnerChanged.signature ]:
+        case [ contract.instance.OwnerAdded.signature ]:
+        case [ contract.instance.OwnerRemoved.signature ]:
           updates[address] = {
             ...prev,
             [ UPDATE_OWNERS ]: true
           };
           return;
 
-        case [ contract.RequirementChanged.signature ]:
+        case [ contract.instance.RequirementChanged.signature ]:
           updates[address] = {
             ...prev,
             [ UPDATE_REQUIRE ]: true
           };
           return;
 
-        case [ contract.Confirmation.signature ]:
-        case [ contract.Revoke.signature ]:
+        case [ contract.instance.Confirmation.signature ]:
+        case [ contract.instance.Revoke.signature ]:
           const operation = log.params.operation.value;
 
           updates[address] = {
             ...prev,
-            operations: uniq(
+            [ UPDATE_CONFIRMATIONS ]: uniq(
               (prev.operations || []).concat(operation)
             )
           };
           return;
 
-        case [ contract.Deposit.signature ]:
-        case [ contract.SingleTransact.signature ]:
-        case [ contract.MultiTransact.signature ]:
+        case [ contract.instance.Deposit.signature ]:
+        case [ contract.instance.SingleTransact.signature ]:
+        case [ contract.instance.MultiTransact.signature ]:
           updates[address] = {
             ...prev,
             transactions: true
           };
           return;
 
-        case [ contract.ConfirmationNeeded.signature ]:
+        case [ contract.instance.ConfirmationNeeded.signature ]:
           const op = log.params.operation.value;
 
           updates[address] = {
             ...prev,
-            operations: uniq(
+            [ UPDATE_CONFIRMATIONS ]: uniq(
               (prev.operations || []).concat(op)
             )
           };

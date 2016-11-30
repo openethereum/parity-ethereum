@@ -14,18 +14,4 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { padAddress } from './pad';
-
-export function sliceData (_data) {
-  if (!_data || !_data.length) {
-    return [];
-  }
-
-  let data = (_data.substr(0, 2) === '0x') ? _data.substr(2) : _data;
-
-  if (!data.length) {
-    data = padAddress('');
-  }
-
-  return data.match(/.{1,64}/g);
-}
+export default from './confirmations';

@@ -26,6 +26,7 @@ import { Actionbar, Button, Page } from '../../ui';
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import WalletDetails from './Details';
+import WalletConfirmations from './Confirmations';
 
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
@@ -42,7 +43,8 @@ class Wallet extends Component {
     address: PropTypes.string.isRequired,
     wallets: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
-    balances: PropTypes.object.isRequired
+    balances: PropTypes.object.isRequired,
+    isTest: PropTypes.bool.isRequired
   };
 
   state = {
@@ -74,8 +76,8 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balances, address } = this.props;
-    const { owners, require, dailylimit } = this.props.wallet;
+    const { wallets, balances, address, isTest } = this.props;
+    const { owners, require, dailylimit, confirmations } = this.props.wallet;
 
     const wallet = (wallets || {})[address];
     const balance = (balances || {})[address];
@@ -98,6 +100,13 @@ class Wallet extends Component {
             owners={ owners }
             require={ require }
             dailylimit={ dailylimit }
+          />
+          <WalletConfirmations
+            owners={ owners }
+            require={ require }
+            confirmations={ confirmations }
+            isTest={ isTest }
+            address={ address }
           />
           <Transactions
             accounts={ wallets }
@@ -193,12 +202,14 @@ function mapStateToProps (_, initProps) {
   const { address } = initProps.params;
 
   return (state) => {
+    const { isTest } = state.nodeStatus;
     const { wallets } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
     const wallet = state.wallet.wallets[address] || {};
 
     return {
+      isTest,
       wallets,
       balances,
       images,
