@@ -647,7 +647,7 @@ mod tests {
 		let engine = spec.engine;
 
 		let mut header = Header::default();
-		let proposer = insert_and_unlock(&tap, "0");
+		let proposer = insert_and_unlock(&tap, "1");
 		header.set_author(proposer);
 		let mut seal = proposal_seal(&tap, &header, 0);
 
@@ -687,6 +687,7 @@ mod tests {
 
 	#[test]
 	fn step_transitioning() {
+		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
@@ -717,11 +718,11 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
 
 		// Wait a bit for async stuff.
-		::std::thread::sleep(::std::time::Duration::from_millis(500));
+		::std::thread::sleep(::std::time::Duration::from_millis(50));
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
-		let first = test_io.received.read()[5] == ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone());
+		let first = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone()));
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
-		let second = test_io.received.read()[5] == ClientIoMessage::SubmitSeal(proposal.unwrap(), seal);
+		let second = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal));
 		assert!(first ^ second);
 	}
 

@@ -49,9 +49,9 @@ impl Default for TendermintTimeouts {
 	fn default() -> Self {
 		TendermintTimeouts {
 			propose: Duration::milliseconds(2000),
-			prevote: Duration::milliseconds(1000),
-			precommit: Duration::milliseconds(1000),
-			commit: Duration::milliseconds(1000)
+			prevote: Duration::milliseconds(2000),
+			precommit: Duration::milliseconds(2000),
+			commit: Duration::milliseconds(2000)
 		}
 	}
 }
@@ -99,8 +99,7 @@ impl IoHandler<Step> for TransitionHandler {
 					Step::Precommit => {
 						trace!(target: "poa", "timeout: Precommit timeout without enough votes.");
 						set_timeout(io, engine.our_params.timeouts.propose);
-						engine.increment_round(1);
-						Some(Step::Propose)
+						Some(Step::Precommit)
 					},
 					Step::Commit => {
 						trace!(target: "poa", "timeout: Commit timeout.");
@@ -108,7 +107,6 @@ impl IoHandler<Step> for TransitionHandler {
 						engine.reset_round();
 						Some(Step::Propose)
 					},
-					_ => None,
 				};
 
 				if let Some(step) = next_step {
