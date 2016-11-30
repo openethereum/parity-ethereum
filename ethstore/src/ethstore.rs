@@ -311,6 +311,7 @@ impl SimpleSecretStore for EthMultiStore {
 
 #[cfg(test)]
 mod tests {
+	#[test]
 	fn should_have_some_tests() {
 		assert_eq!(true, false)
 	}
