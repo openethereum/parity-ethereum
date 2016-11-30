@@ -369,6 +369,12 @@ impl State {
 			|a| a.as_ref().map_or(self.account_start_nonce, |account| *account.nonce()))
 	}
 
+	/// Get the storage root of account `a`.
+	pub fn storage_root(&self, a: &Address) -> Option<H256> {
+		self.ensure_cached(a, RequireCache::None, true,
+			|a| a.as_ref().and_then(|account| account.storage_root().cloned()))
+	}
+
 	/// Mutate storage of account `address` so that it is `value` for `key`.
 	pub fn storage_at(&self, address: &Address, key: &H256) -> H256 {
 		// Storage key search and update works like this:
@@ -445,6 +451,7 @@ impl State {
 	}
 
 	/// Add `incr` to the balance of account `a`.
+	#[cfg_attr(feature="dev", allow(single_match))]
 	pub fn add_balance(&mut self, a: &Address, incr: &U256, cleanup_mode: CleanupMode) {
 		trace!(target: "state", "add_balance({}, {}): {}", a, incr, self.balance(a));
 		let is_value_transfer = !incr.is_zero();

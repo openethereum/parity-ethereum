@@ -62,7 +62,7 @@ fn should_return_registrar() {
 		&db_config
 	).unwrap();
 	let params = client.additional_params();
-	let address = params.get("registrar").unwrap();
+	let address = &params["registrar"];
 
 	assert_eq!(address.len(), 40);
 	assert!(U256::from_str(address).is_ok());
@@ -93,7 +93,7 @@ fn imports_good_block() {
 		&db_config
 	).unwrap();
 	let good_block = get_good_dummy_block();
-	if let Err(_) = client.import_block(good_block) {
+	if client.import_block(good_block).is_err() {
 		panic!("error importing block being good by definition");
 	}
 	client.flush_queue();
@@ -203,18 +203,18 @@ fn can_collect_garbage() {
 
 #[test]
 fn can_generate_gas_price_median() {
-	let client_result = generate_dummy_client_with_data(3, 1, &vec_into![1, 2, 3]);
+	let client_result = generate_dummy_client_with_data(3, 1, slice_into![1, 2, 3]);
 	let client = client_result.reference();
 	assert_eq!(Some(U256::from(2)), client.gas_price_median(3));
 
-	let client_result = generate_dummy_client_with_data(4, 1, &vec_into![1, 4, 3, 2]);
+	let client_result = generate_dummy_client_with_data(4, 1, slice_into![1, 4, 3, 2]);
 	let client = client_result.reference();
 	assert_eq!(Some(U256::from(3)), client.gas_price_median(4));
 }
 
 #[test]
 fn can_generate_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 1, &vec_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
+	let client_result = generate_dummy_client_with_data(20, 1, slice_into![6354,8593,6065,4842,7845,7002,689,4958,4250,6098,5804,4320,643,8895,2296,8589,7145,2000,2512,1408]);
 	let client = client_result.reference();
 
 	let hist = client.gas_price_histogram(20, 5).unwrap();
@@ -224,7 +224,7 @@ fn can_generate_gas_price_histogram() {
 
 #[test]
 fn empty_gas_price_histogram() {
-	let client_result = generate_dummy_client_with_data(20, 0, &vec_into![]);
+	let client_result = generate_dummy_client_with_data(20, 0, slice_into![]);
 	let client = client_result.reference();
 
 	assert!(client.gas_price_histogram(20, 5).is_none());
