@@ -20,16 +20,21 @@ import ABI from './abi/certifier.json';
 
 const ZERO = '0x0000000000000000000000000000000000000000000000000000000000000000';
 
-export default (api, registry) => {
-  registry.getContract('badgereg');
-  const certifiers = {}; // by name
-  const contracts = {}; // by name
+export default class BadgeReg {
+  constructor (api, registry) {
+    this._api = api;
+    this._registry = registry;
 
-  const fetchCertifier = (name) => {
-    if (certifiers[name]) {
-      return Promise.resolve(certifiers[name]);
+    registry.getContract('badgereg');
+    this.certifiers = {}; // by name
+    this.contracts = {}; // by name
+  }
+
+  fetchCertifier (name) {
+    if (this.certifiers[name]) {
+      return Promise.resolve(this.certifiers[name]);
     }
-    return registry.getContract('badgereg')
+    return this._registry.getContract('badgereg')
       .then((badgeReg) => {
         return badgeReg.instance.fromName.call({}, [name])
         .then(([ id, address ]) => {
@@ -43,21 +48,19 @@ export default (api, registry) => {
               if (bytesToHex(img) === ZERO) img = null;
 
               const data = { address, name, title, icon: img };
-              certifiers[name] = data;
+              this.certifiers[name] = data;
               return data;
             });
         });
       });
-  };
+  }
 
-  const checkIfCertified = (certifier, address) => {
-    if (!contracts[certifier]) {
-      contracts[certifier] = api.newContract(ABI, certifier);
+  checkIfCertified (certifier, address) {
+    if (!this.contracts[certifier]) {
+      this.contracts[certifier] = this._api.newContract(ABI, certifier);
     }
-    const contract = contracts[certifier];
+    const contract = this.contracts[certifier];
 
     return contract.instance.certified.call({}, [address]);
-  };
-
-  return { fetchCertifier, checkIfCertified };
-};
+  }
+}

@@ -34,7 +34,7 @@ export default class Contracts {
     this._signaturereg = new SignatureReg(api, this._registry);
     this._tokenreg = new TokenReg(api, this._registry);
     this._githubhint = new GithubHint(api, this._registry);
-    this.badgeReg = BadgeReg(api, this._registry);
+    this.badgeReg = new BadgeReg(api, this._registry);
   }
 
   get registry () {
