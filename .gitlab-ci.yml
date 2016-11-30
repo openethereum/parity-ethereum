@@ -334,11 +334,6 @@ linux-aarch64:
 #  tags:
 #    - rust
 #    - rust-alpine
-#  artifacts:
-#    paths:
-#    - target/aarch64-unknown-linux-gnu/release/parity
-#    name: "aarch64-unknown-linux-gnu_parity"
-#  allow_failure: true
 darwin:
   stage: build
   only:
