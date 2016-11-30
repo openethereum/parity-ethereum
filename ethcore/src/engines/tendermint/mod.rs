@@ -74,8 +74,6 @@ pub struct Tendermint {
 	round: AtomicUsize,
 	/// Consensus step.
 	step: RwLock<Step>,
-	/// Used to swith proposer.
-	proposer_nonce: AtomicUsize,
 	/// Vote accumulator.
 	votes: VoteCollector,
 	/// Channel for updating the sealing.
@@ -104,7 +102,6 @@ impl Tendermint {
 				height: AtomicUsize::new(1),
 				round: AtomicUsize::new(0),
 				step: RwLock::new(Step::Propose),
-				proposer_nonce: AtomicUsize::new(0),
 				votes: VoteCollector::new(),
 				message_channel: Mutex::new(None),
 				account_provider: Mutex::new(None),
@@ -180,7 +177,7 @@ impl Tendermint {
 					Some(ref m) => m.block_hash,
 					None => None,
 				};
-				self.generate_and_broadcast_message(block_hash)
+				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Precommit => {
 				trace!(target: "poa", "to_step: Transitioning to Precommit.");
@@ -225,7 +222,7 @@ impl Tendermint {
 	/// Round proposer switching.
 	fn is_proposer(&self, address: &Address) -> Result<(), EngineError> {
 		let ref p = self.our_params;
-		let proposer_nonce = self.proposer_nonce.load(AtomicOrdering::SeqCst);
+		let proposer_nonce = self.height.load(AtomicOrdering::SeqCst) + self.round.load(AtomicOrdering::SeqCst);
 		let proposer = p.authorities.get(proposer_nonce % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed");
 		if proposer == address {
 			Ok(())
@@ -243,13 +240,11 @@ impl Tendermint {
 	}
 
 	fn increment_round(&self, n: Round) {
-		self.proposer_nonce.fetch_add(n, AtomicOrdering::SeqCst);
 		self.round.fetch_add(n, AtomicOrdering::SeqCst);
 	}
 
 	fn reset_round(&self) {
 		self.last_lock.store(0, AtomicOrdering::SeqCst);
-		self.proposer_nonce.fetch_add(1, AtomicOrdering::SeqCst);
 		self.height.fetch_add(1, AtomicOrdering::SeqCst);
 		self.round.store(0, AtomicOrdering::SeqCst);
 	}
@@ -627,7 +622,7 @@ mod tests {
 		let engine = spec.engine;
 
 		let mut header = Header::default();
-		let validator = insert_and_unlock(&tap, "0");
+		let validator = insert_and_unlock(&tap, "1");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
@@ -684,7 +679,7 @@ mod tests {
 	fn can_generate_seal() {
 		let (spec, tap) = setup();
 
-		let proposer = insert_and_register(&tap, &spec.engine, "0");
+		let proposer = insert_and_register(&tap, &spec.engine, "1");
 
 		let (b, seal) = propose_default(&spec, proposer);
 		assert!(b.try_seal(spec.engine.as_ref(), seal).is_ok());
@@ -705,7 +700,7 @@ mod tests {
 		let r = 0;
 
 		// Propose
-		let (b, mut seal) = propose_default(&spec, v0.clone());
+		let (b, mut seal) = propose_default(&spec, v1.clone());
 		let proposal = Some(b.header().bare_hash());
 
 		// Register IoHandler remembers messages.
@@ -728,5 +723,20 @@ mod tests {
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
 		let second = test_io.received.read()[5] == ClientIoMessage::SubmitSeal(proposal.unwrap(), seal);
 		assert!(first ^ second);
+	}
+
+	#[test]
+	fn timeout_transitioning() {
+		::env_logger::init().unwrap();
+		let (spec, tap) = setup();
+		let engine = spec.engine.clone();
+		let mut db_result = get_temp_state_db();
+		let mut db = db_result.take();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
+
+		let v = insert_and_register(&tap, &engine, "0");
+
+		::std::thread::sleep(::std::time::Duration::from_millis(15000));
+		println!("done");
 	}
 }
