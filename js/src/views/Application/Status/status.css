@@ -15,10 +15,15 @@
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
 .status {
-  padding: 0.5em;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  padding: .4em .5em;
   font-size: x-small;
   color: #ccc;
-  background-color: rgba(0, 0, 0, 0.2)
+  background-color: rgba(0, 0, 0, 0.8);
 }
 
 .title {
@@ -42,7 +47,7 @@
 .netinfo {
   display: flex;
   align-items: center;
-  color: #ddd;  
+  color: #ddd;
 }
 
 .netinfo > * {
