@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <title>Recovery phrase for <%= name %></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width">
+    <style>
+      body {
+        margin: 3em auto;
+        max-width: 30em;
+        padding: 1em;
+        text-align: center;
+        font-size: 110%;
+        font-family: sans-serif;
+        font-weight: 300;
+      }
+      h1 {
+        font-weight: 300;
+        font-size: inherit;
+      }
+      pre code {
+        display: inline-block;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.3;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Recovery phrase for your Parity account <em><%= name %></em></h1>
+    <pre><code><%= phrase %></code></pre>
+  </body>
+</html>
