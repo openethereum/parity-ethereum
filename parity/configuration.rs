@@ -37,7 +37,7 @@ use dir::Directories;
 use dapps::Configuration as DappsConfiguration;
 use signer::{Configuration as SignerConfiguration};
 use run::RunCmd;
-use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
+use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, ExportState, DataFormat};
 use presale::ImportWallet;
 use account::{AccountCmd, NewAccount, ImportAccounts, ImportFromGethAccounts};
 use snapshot::{self, SnapshotCommand};
@@ -161,23 +161,47 @@ impl Configuration {
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
-			let export_cmd = ExportBlockchain {
-				spec: spec,
-				cache_config: cache_config,
-				dirs: dirs,
-				file_path: self.args.arg_file.clone(),
-				format: format,
-				pruning: pruning,
-				pruning_history: pruning_history,
-				compaction: compaction,
-				wal: wal,
-				tracing: tracing,
-				fat_db: fat_db,
-				from_block: try!(to_block_id(&self.args.flag_from)),
-				to_block: try!(to_block_id(&self.args.flag_to)),
-				check_seal: !self.args.flag_no_seal_check,
-			};
-			Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+			if self.args.cmd_blocks {
+				let export_cmd = ExportBlockchain {
+					spec: spec,
+					cache_config: cache_config,
+					dirs: dirs,
+					file_path: self.args.arg_file.clone(),
+					format: format,
+					pruning: pruning,
+					pruning_history: pruning_history,
+					compaction: compaction,
+					wal: wal,
+					tracing: tracing,
+					fat_db: fat_db,
+					from_block: try!(to_block_id(&self.args.flag_from)),
+					to_block: try!(to_block_id(&self.args.flag_to)),
+					check_seal: !self.args.flag_no_seal_check,
+				};
+				Cmd::Blockchain(BlockchainCmd::Export(export_cmd))
+			} else if self.args.cmd_state {
+				let export_cmd = ExportState {
+					spec: spec,
+					cache_config: cache_config,
+					dirs: dirs,
+					file_path: self.args.arg_file.clone(),
+					format: format,
+					pruning: pruning,
+					pruning_history: pruning_history,
+					compaction: compaction,
+					wal: wal,
+					tracing: tracing,
+					fat_db: fat_db,
+					at: try!(to_block_id(&self.args.flag_at)),
+					storage: !self.args.flag_no_storage,
+					code: !self.args.flag_no_code,
+					min_balance: self.args.flag_min_balance.and_then(|s| to_u256(&s).ok()),
+					max_balance: self.args.flag_max_balance.and_then(|s| to_u256(&s).ok()),
+				};
+				Cmd::Blockchain(BlockchainCmd::ExportState(export_cmd))
+			} else {
+				unreachable!();
+			}
 		} else if self.args.cmd_snapshot {
 			let snapshot_cmd = SnapshotCommand {
 				cache_config: cache_config,
@@ -690,7 +714,7 @@ mod tests {
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
 	use signer::{Configuration as SignerConfiguration};
-	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat};
+	use blockchain::{BlockchainCmd, ImportBlockchain, ExportBlockchain, DataFormat, ExportState};
 	use presale::ImportWallet;
 	use account::{AccountCmd, NewAccount, ImportAccounts};
 	use devtools::{RandomTempPath};
@@ -779,7 +803,7 @@ mod tests {
 
 	#[test]
 	fn test_command_blockchain_export() {
-		let args = vec!["parity", "export", "blockchain.json"];
+		let args = vec!["parity", "export", "blocks", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),
@@ -800,8 +824,32 @@ mod tests {
 	}
 
 	#[test]
+	fn test_command_state_export() {
+		let args = vec!["parity", "export", "state", "state.json"];
+		let conf = parse(&args);
+		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::ExportState(ExportState {
+			spec: Default::default(),
+			cache_config: Default::default(),
+			dirs: Default::default(),
+			file_path: Some("state.json".into()),
+			pruning: Default::default(),
+			pruning_history: 64,
+			format: Default::default(),
+			compaction: Default::default(),
+			wal: true,
+			tracing: Default::default(),
+			fat_db: Default::default(),
+			at: BlockID::Latest,
+			storage: true,
+			code: true,
+			min_balance: None,
+			max_balance: None,
+		})));
+	}
+
+	#[test]
 	fn test_command_blockchain_export_with_custom_format() {
-		let args = vec!["parity", "export", "--format", "hex", "blockchain.json"];
+		let args = vec!["parity", "export", "blocks", "--format", "hex", "blockchain.json"];
 		let conf = parse(&args);
 		assert_eq!(conf.into_command().unwrap().cmd, Cmd::Blockchain(BlockchainCmd::Export(ExportBlockchain {
 			spec: Default::default(),

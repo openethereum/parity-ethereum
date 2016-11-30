@@ -51,6 +51,10 @@ impl<'db> FatDBMut<'db> {
 	pub fn db_mut(&mut self) -> &mut HashDB {
 		self.raw.db_mut()
 	}
+
+	fn to_aux_key(key: &[u8]) -> H256 {
+		key.sha3()
+	}
 }
 
 impl<'db> TrieMut for FatDBMut<'db> {
@@ -76,12 +80,14 @@ impl<'db> TrieMut for FatDBMut<'db> {
 		let hash = key.sha3();
 		try!(self.raw.insert(&hash, value));
 		let db = self.raw.db_mut();
-		db.insert_aux(hash.to_vec(), key.to_vec());
+		db.emplace(Self::to_aux_key(&hash), DBValue::from_slice(key));
 		Ok(())
 	}
 
 	fn remove(&mut self, key: &[u8]) -> super::Result<()> {
-		self.raw.remove(&key.sha3())
+		let hash = key.sha3();
+		self.raw.db_mut().remove(&Self::to_aux_key(&hash));
+		self.raw.remove(&hash)
 	}
 }
 

@@ -62,7 +62,6 @@ export default class LoadContract extends Component {
         title={ title }
         actions={ this.renderDialogActions() }
         visible
-        scroll
       >
         { this.renderBody() }
       </Modal>

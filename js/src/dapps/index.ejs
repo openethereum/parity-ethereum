@@ -11,28 +11,23 @@
         height: 100%;
         margin: 0;
         padding: 0;
-      }
-
-      .loading-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        height: 100%;
-        font-family: Roboto;
-        background-color: rgba(0, 0, 0, 0.8);
-        color: #ddd;
+        background: white;
+        font-family: 'Roboto', sans-serif;
+        font-size: 16px;
+        font-weight: 300;
       }
 
       .loading {
-        font-size: 4em;
+        text-align: center;
+        padding-top: 5em;
+        font-size: 2em;
+        color: #999;
       }
     </style>
   </head>
   <body>
     <div id="container">
-      <div class="loading-container">
-        <span class="loading">Loading...</span>
-      </div>
+      <div class="loading">Loading</div>
     </div>
     <script src="vendor.js"></script>
     <% if (!htmlWebpackPlugin.options.secure) { %>

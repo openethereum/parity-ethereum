@@ -61,7 +61,7 @@ export default class SMSVerification extends Component {
       <Modal
         actions={ this.renderDialogActions(phase, error, isStepValid) }
         title='verify your account via SMS'
-        visible scroll
+        visible
         current={ phase }
         steps={ ['Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
         waiting={ error ? [] : [ 0, 2, 4 ] }

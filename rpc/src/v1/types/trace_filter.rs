@@ -22,6 +22,7 @@ use v1::types::{BlockNumber, H160};
 
 /// Trace filter
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TraceFilter {
 	/// From block
 	#[serde(rename="fromBlock")]

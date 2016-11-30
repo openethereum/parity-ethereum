@@ -17,12 +17,9 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import LinearProgress from 'material-ui/LinearProgress';
 
 import etherscan from '../../../3rdparty/etherscan';
-import { Container, ContainerTitle } from '../../../ui';
-
-import Transaction from './Transaction';
+import { Container, TxList } from '../../../ui';
 
 import styles from './transactions.css';
 
@@ -38,7 +35,7 @@ class Transactions extends Component {
   }
 
   state = {
-    transactions: [],
+    hashes: [],
     loading: true,
     callInfo: {}
   }
@@ -63,38 +60,16 @@ class Transactions extends Component {
   }
 
   render () {
-    return (
-      <Container>
-        <ContainerTitle title='transactions' />
-        { this.renderTransactions() }
-      </Container>
-    );
-  }
-
-  renderTransactions () {
-    const { loading, transactions } = this.state;
-
-    if (loading) {
-      return (
-        <LinearProgress mode='indeterminate' />
-      );
-    } else if (!transactions.length) {
-      return (
-        <div className={ styles.infonone }>
-          No transactions were found for this account
-        </div>
-      );
-    }
+    const { address } = this.props;
+    const { hashes } = this.state;
 
     return (
-      <div className={ styles.transactions }>
-        <table>
-          <tbody>
-            { this.renderRows() }
-          </tbody>
-        </table>
+      <Container title='transactions'>
+        <TxList
+          address={ address }
+          hashes={ hashes } />
         { this.renderEtherscanFooter() }
-      </div>
+      </Container>
     );
   }
 
@@ -112,26 +87,6 @@ class Transactions extends Component {
     );
   }
 
-  renderRows () {
-    const { address, isTest } = this.props;
-    const { transactions } = this.state;
-
-    return (transactions || [])
-      .sort((tA, tB) => {
-        return tB.blockNumber.comparedTo(tA.blockNumber);
-      })
-      .slice(0, 25)
-      .map((transaction, index) => {
-        return (
-          <Transaction
-            key={ index }
-            transaction={ transaction }
-            address={ address }
-            isTest={ isTest } />
-        );
-      });
-  }
-
   getTransactions = (props) => {
     const { isTest, address, traceMode } = props;
 
@@ -143,9 +98,9 @@ class Transactions extends Component {
 
     return this
       .fetchTransactions(isTest, address, traceMode)
-      .then(transactions => {
+      .then((transactions) => {
         this.setState({
-          transactions,
+          hashes: transactions.map((transaction) => transaction.hash),
           loading: false
         });
       });

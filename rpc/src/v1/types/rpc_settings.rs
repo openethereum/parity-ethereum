@@ -18,6 +18,7 @@
 
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RpcSettings {
 	/// Whether RPC is enabled.
 	pub enabled: bool,

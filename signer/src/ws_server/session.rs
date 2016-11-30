@@ -99,7 +99,7 @@ fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 
 							let res = codes.is_valid(&auth, time);
 							// make sure to save back authcodes - it might have been modified
-							if let Err(_) = codes.to_file(codes_path) {
+							if codes.to_file(codes_path).is_err() {
 								warn!(target: "signer", "Couldn't save authorization codes to file.");
 							}
 							res
