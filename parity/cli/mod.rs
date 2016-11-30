@@ -574,16 +574,11 @@ mod tests {
 			flag_gas_floor_target: "4700000".into(),
 			flag_gas_cap: "6283184".into(),
 			flag_extra_data: Some("Parity".into()),
-<<<<<<< HEAD
-			flag_tx_queue_size: 2048usize,
-			flag_tx_queue_gas: "auto".into(),
-=======
 			flag_tx_queue_size: 1024usize,
 			flag_tx_queue_gas: "auto".into(),
 			flag_tx_queue_strategy: "gas_factor".into(),
 			flag_tx_queue_ban_count: 1u16,
 			flag_tx_queue_ban_time: 180u16,
->>>>>>> parity/master
 			flag_remove_solved: false,
 			flag_notify_work: Some("http://localhost:3001".into()),
 
@@ -740,16 +735,11 @@ mod tests {
 				price_update_period: Some("hourly".into()),
 				gas_floor_target: None,
 				gas_cap: None,
-<<<<<<< HEAD
-				tx_queue_size: Some(2048),
-				tx_queue_gas: Some("auto".into()),
-=======
 				tx_queue_size: Some(1024),
 				tx_queue_gas: Some("auto".into()),
 				tx_queue_strategy: None,
 				tx_queue_ban_count: None,
 				tx_queue_ban_time: None,
->>>>>>> parity/master
 				tx_gas_limit: None,
 				tx_time_limit: None,
 				extra_data: None,
