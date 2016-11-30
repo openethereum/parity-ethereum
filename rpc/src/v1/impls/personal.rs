@@ -114,7 +114,7 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			&*miner,
 			&*accounts,
 			request,
-			Some(password)
-		).map(Into::into)
+			dispatch::SignWith::Password(password)
+		).map(|v| v.into_value().into())
 	}
 }

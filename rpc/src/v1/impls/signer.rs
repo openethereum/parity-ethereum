@@ -26,7 +26,7 @@ use ethcore::miner::MinerService;
 
 use jsonrpc_core::Error;
 use v1::traits::Signer;
-use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, U256, Bytes};
+use v1::types::{TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken, U256, Bytes};
 use v1::helpers::{errors, SignerService, SigningQueue, ConfirmationPayload};
 use v1::helpers::dispatch::{self, dispatch_transaction};
 
@@ -60,6 +60,35 @@ impl<C: 'static, M: 'static> SignerClient<C, M> where C: MiningBlockChainClient,
 		take_weak!(self.client).keep_alive();
 		Ok(())
 	}
+
+	fn confirm_internal<F>(&self, id: U256, modification: TransactionModification, f: F) -> Result<ConfirmationResponse, Error> where
+		F: FnOnce(&C, &M, &AccountProvider, ConfirmationPayload) -> Result<ConfirmationResponse, Error>,
+	{
+		try!(self.active());
+
+		let id = id.into();
+		let accounts = take_weak!(self.accounts);
+		let signer = take_weak!(self.signer);
+		let client = take_weak!(self.client);
+		let miner = take_weak!(self.miner);
+
+		signer.peek(&id).map(|confirmation| {
+			let mut payload = confirmation.payload.clone();
+			// Modify payload
+			match (&mut payload, modification.gas_price) {
+				(&mut ConfirmationPayload::SendTransaction(ref mut request), Some(gas_price)) => {
+					request.gas_price = gas_price.into();
+				},
+				_ => {},
+			}
+			let result = f(&*client, &*miner, &*accounts, payload);
+			// Execute
+			if let Ok(ref response) = result {
+				signer.request_confirmed(id, Ok(response.clone()));
+			}
+			result
+		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+	}
 }
 
 impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockChainClient, M: MinerService {
@@ -78,30 +107,14 @@ impl<C: 'static, M: 'static> Signer for SignerClient<C, M> where C: MiningBlockC
 	// TODO [ToDr] TransactionModification is redundant for some calls
 	// might be better to replace it in future
 	fn confirm_request(&self, id: U256, modification: TransactionModification, pass: String) -> Result<ConfirmationResponse, Error> {
-		try!(self.active());
+		self.confirm_internal(id, modification, move |client, miner, accounts, payload| {
+			dispatch::execute(client, miner, accounts, payload, dispatch::SignWith::Password(pass))
+				.map(|v| v.into_value())
+		})
+	}
 
-		let id = id.into();
-		let accounts = take_weak!(self.accounts);
-		let signer = take_weak!(self.signer);
-		let client = take_weak!(self.client);
-		let miner = take_weak!(self.miner);
-
-		signer.peek(&id).map(|confirmation| {
-			let mut payload = confirmation.payload.clone();
-			// Modify payload
-			match (&mut payload, modification.gas_price) {
-				(&mut ConfirmationPayload::SendTransaction(ref mut request), Some(gas_price)) => {
-					request.gas_price = gas_price.into();
-				},
-				_ => {},
-			}
-			// Execute
-			let result = dispatch::execute(&*client, &*miner, &*accounts, payload, Some(pass));
-			if let Ok(ref response) = result {
-				signer.request_confirmed(id, Ok(response.clone()));
-			}
-			result
-		}).unwrap_or_else(|| Err(errors::invalid_params("Unknown RequestID", id)))
+	fn confirm_request_with_token(&self, id: U256, modification: TransactionModification, token: String) -> Result<ConfirmationResponseWithToken, Error> {
+		unimplemented!()
 	}
 
 	fn confirm_request_raw(&self, id: U256, bytes: Bytes) -> Result<ConfirmationResponse, Error> {

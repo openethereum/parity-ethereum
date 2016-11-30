@@ -18,7 +18,7 @@
 use jsonrpc_core::Error;
 
 use v1::helpers::auto_args::Wrap;
-use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse};
+use v1::types::{U256, Bytes, TransactionModification, ConfirmationRequest, ConfirmationResponse, ConfirmationResponseWithToken};
 
 
 build_rpc_trait! {
@@ -32,6 +32,10 @@ build_rpc_trait! {
 		/// Confirm specific request.
 		#[rpc(name = "signer_confirmRequest")]
 		fn confirm_request(&self, U256, TransactionModification, String) -> Result<ConfirmationResponse, Error>;
+
+		/// Confirm specific request with token.
+		#[rpc(name = "signer_confirmRequestWithToken")]
+		fn confirm_request_with_token(&self, U256, TransactionModification, String) -> Result<ConfirmationResponseWithToken, Error>;
 
 		/// Confirm specific request with already signed data.
 		#[rpc(name = "signer_confirmRequestRaw")]

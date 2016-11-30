@@ -210,6 +210,52 @@ fn should_confirm_transaction_and_dispatch() {
 }
 
 #[test]
+fn should_confirm_transaction_with_token() {
+	// given
+	let tester = signer_tester();
+	let address = tester.accounts.new_account("test").unwrap();
+	let recipient = Address::from_str("d46e8dd67c5d32be8058bb8eb970870f07244567").unwrap();
+	tester.signer.add_request(ConfirmationPayload::SendTransaction(FilledTransactionRequest {
+		from: address,
+		to: Some(recipient),
+		gas_price: U256::from(10_000),
+		gas: U256::from(10_000_000),
+		value: U256::from(1),
+		data: vec![],
+		nonce: None,
+	})).unwrap();
+
+	let t = Transaction {
+		nonce: U256::zero(),
+		gas_price: U256::from(0x1000),
+		gas: U256::from(10_000_000),
+		action: Action::Call(recipient),
+		value: U256::from(0x1),
+		data: vec![]
+	};
+	let (signature, token) = tester.accounts.sign_with_token(address, "test".into(), t.hash(None)).unwrap();
+	let t = t.with_signature(signature, None);
+
+	assert_eq!(tester.signer.requests().len(), 1);
+
+	// when
+	let request = r#"{
+		"jsonrpc":"2.0",
+		"method":"signer_confirmRequestWithToken",
+		"params":["0x1", {"gasPrice":"0x1000"}, ""#.to_owned() + &token + r#""],
+		"id":1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":{"result":""#.to_owned() +
+		format!("0x{:?}", t.hash()).as_ref() +
+		r#""token":""},"id":1}"#;
+
+	// then
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.to_owned()));
+	assert_eq!(tester.signer.requests().len(), 0);
+	assert_eq!(tester.miner.imported_transactions.lock().len(), 1);
+}
+
+#[test]
 fn should_confirm_transaction_with_rlp() {
 	// given
 	let tester = signer_tester();

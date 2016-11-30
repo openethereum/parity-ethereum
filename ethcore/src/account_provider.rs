@@ -401,6 +401,28 @@ impl AccountProvider {
 		Ok((signature, new_token))
 	}
 
+	/// Decrypts a message with given token. Returns a token to use in next operation for this account.
+	pub fn decrypt_with_token(&self, account: Address, token: AccountToken, shared_mac: &[u8], message: &[u8])
+		-> Result<(Vec<u8>, AccountToken), Error>
+	{
+		let is_std_password = try!(self.sstore.test_password(&account, &token));
+
+		let new_token = random_string(16);
+		let message = if is_std_password {
+			// Insert to transient store
+			try!(self.sstore.copy_account(&self.transient_sstore, &account, &token, &new_token));
+			// decrypt
+			try!(self.sstore.decrypt(&account, &token, shared_mac, message))
+		} else {
+			// check transient store
+			try!(self.transient_sstore.change_password(&account, &token, &new_token));
+			// and decrypt
+			try!(self.transient_sstore.decrypt(&account, &token, shared_mac, message))
+		};
+
+		Ok((message, new_token))
+	}
+
 	/// Decrypts a message. If password is not provided the account must be unlocked.
 	pub fn decrypt(&self, account: Address, password: Option<String>, shared_mac: &[u8], message: &[u8]) -> Result<Vec<u8>, Error> {
 		let password = try!(password.map(Ok).unwrap_or_else(|| self.password(&account)));
@@ -477,8 +499,8 @@ mod tests {
 
 	#[test]
 	fn should_sign_and_return_token() {
-	let kp = Random.generate().unwrap();
 		// given
+		let kp = Random.generate().unwrap();
 		let ap = AccountProvider::transient_provider();
 		assert!(ap.insert_account(kp.secret().clone(), "test").is_ok());
 
