@@ -172,11 +172,17 @@ class MethodDecoding extends Component {
     return (
       <div>
         <span>with the </span>
-        <span onClick={ this.toggleInputType } className={ styles.clickable }>
+        <span
+          onClick={ this.toggleInputType }
+          className={ [ styles.clickable, styles.noSelect ].join(' ') }
+        >
           { type === 'ascii' ? 'input' : 'data' }
         </span>
         <span> &nbsp; </span>
-        <span onClick={ this.toggleInputExpand } className={ expandable ? styles.clickable : '' }>
+        <span
+          onClick={ this.toggleInputExpand }
+          className={ expandable ? styles.clickable : '' }
+        >
           <code className={ styles.inputData }>
             { textToShow }
           </code>
@@ -405,6 +411,10 @@ class MethodDecoding extends Component {
   }
 
   toggleInputExpand = () => {
+    if (window.getSelection && window.getSelection().type === 'Range') {
+      return;
+    }
+
     this.setState({
       expandInput: !this.state.expandInput
     });

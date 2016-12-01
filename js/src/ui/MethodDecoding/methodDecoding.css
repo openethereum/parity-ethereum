@@ -26,6 +26,10 @@
   &:hover {
     cursor: pointer;
   }
+
+  &.noSelect {
+    user-select: none;
+  }
 }
 
 .loading {
