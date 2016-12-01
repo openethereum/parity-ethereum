@@ -167,6 +167,7 @@ export function load (api) {
 
       api.eth
         .getFilterChanges(filterSubId)
+        .then((logs) => contract.parseEventLogs(logs))
         .then((logs) => {
           parseLogs(logs)(dispatch, getState);
         })
@@ -206,7 +207,7 @@ function fetchWalletsInfo (updates) {
     Promise
       .all(_updates.map((update) => {
         const contract = new Contract(api, WALLET_ABI).at(update.address);
-        return fetchWalletInfo(contract, update);
+        return fetchWalletInfo(contract, update, getState);
       }))
       .then((updates) => {
         dispatch(updateWalletsDetails(updates));
@@ -221,7 +222,7 @@ function fetchWalletsInfo (updates) {
   };
 }
 
-function fetchWalletInfo (contract, update) {
+function fetchWalletInfo (contract, update, getState) {
   const promises = [];
 
   if (update[UPDATE_OWNERS]) {
@@ -250,7 +251,7 @@ function fetchWalletInfo (contract, update) {
         const owners = ownersUpdate && ownersUpdate.value || null;
         const transactions = transactionsUpdate && transactionsUpdate.value || null;
 
-        return fetchWalletConfirmations(contract, owners, transactions)
+        return fetchWalletConfirmations(contract, owners, transactions, getState)
           .then((update) => {
             updates.push(update);
             return updates;
@@ -384,8 +385,13 @@ function fetchWalletDailylimit (contract) {
  * @todo  Filter out transactions from confirmations
  *        before fetching the Confirmation/Revoke events
  */
-function fetchWalletConfirmations (contract, owners = null, transactions = null) {
+function fetchWalletConfirmations (contract, _owners = null, _transactions = null, getState) {
   const walletInstance = contract.instance;
+
+  const wallet = getState().wallet.wallets[contract.address];
+
+  const owners = _owners || (wallet && wallet.owners) || null;
+  const transactions = _transactions || (wallet && wallet.transactions) || null;
 
   return walletInstance
     .ConfirmationNeeded
@@ -484,33 +490,47 @@ function parseLogs (logs) {
 
     const { wallet } = getState();
     const { contract } = wallet;
+    const walletInstance = contract.instance;
+
+    const signatures = {
+      OwnerChanged: toHex(walletInstance.OwnerChanged.signature),
+      OwnerAdded: toHex(walletInstance.OwnerAdded.signature),
+      OwnerRemoved: toHex(walletInstance.OwnerRemoved.signature),
+      RequirementChanged: toHex(walletInstance.RequirementChanged.signature),
+      Confirmation: toHex(walletInstance.Confirmation.signature),
+      Revoke: toHex(walletInstance.Revoke.signature),
+      Deposit: toHex(walletInstance.Deposit.signature),
+      SingleTransact: toHex(walletInstance.SingleTransact.signature),
+      MultiTransact: toHex(walletInstance.MultiTransact.signature),
+      ConfirmationNeeded: toHex(walletInstance.ConfirmationNeeded.signature)
+    };
 
     const updates = {};
 
     logs.forEach((log) => {
       const { address, topics } = log;
-      const eventSignature = topics[0];
+      const eventSignature = toHex(topics[0]);
       const prev = updates[address] || { address };
 
       switch (eventSignature) {
-        case [ contract.instance.OwnerChanged.signature ]:
-        case [ contract.instance.OwnerAdded.signature ]:
-        case [ contract.instance.OwnerRemoved.signature ]:
+        case signatures.OwnerChanged:
+        case signatures.OwnerAdded:
+        case signatures.OwnerRemoved:
           updates[address] = {
             ...prev,
             [ UPDATE_OWNERS ]: true
           };
           return;
 
-        case [ contract.instance.RequirementChanged.signature ]:
+        case signatures.RequirementChanged:
           updates[address] = {
             ...prev,
             [ UPDATE_REQUIRE ]: true
           };
           return;
 
-        case [ contract.instance.Confirmation.signature ]:
-        case [ contract.instance.Revoke.signature ]:
+        case signatures.Confirmation:
+        case signatures.Revoke:
           const operation = log.params.operation.value;
 
           updates[address] = {
@@ -521,16 +541,16 @@ function parseLogs (logs) {
           };
           return;
 
-        case [ contract.instance.Deposit.signature ]:
-        case [ contract.instance.SingleTransact.signature ]:
-        case [ contract.instance.MultiTransact.signature ]:
+        case signatures.Deposit:
+        case signatures.SingleTransact:
+        case signatures.MultiTransact:
           updates[address] = {
             ...prev,
             [ UPDATE_TRANSACTIONS ]: true
           };
           return;
 
-        case [ contract.instance.ConfirmationNeeded.signature ]:
+        case signatures.ConfirmationNeeded:
           const op = log.params.operation.value;
 
           updates[address] = {
