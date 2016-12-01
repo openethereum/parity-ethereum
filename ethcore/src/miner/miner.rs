@@ -468,8 +468,8 @@ impl Miner {
 		let s = self.engine.generate_seal(block.block());
 		if let Some(seal) = s {
 			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
-			block.lock().try_seal(&*self.engine, seal).or_else(|_| {
-				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal. WTF?");
+			block.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
+				warn!("prepare_sealing: ERROR: try_seal failed when given internally generated seal: {}", e);
 				Err(None)
 			})
 		} else {
