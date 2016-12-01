@@ -37,11 +37,7 @@ export default class WalletTransactions extends Component {
     return (
       <div>
         <Container title='Transactions'>
-          <table className={ txListStyles.transactions }>
-            <tbody>
-              { this.renderTransactions() }
-            </tbody>
-          </table>
+          { this.renderTransactions() }
         </Container>
       </div>
     );
@@ -61,7 +57,7 @@ export default class WalletTransactions extends Component {
       );
     }
 
-    return transactions.map((transaction) => {
+    const txRows = transactions.map((transaction) => {
       const { transactionHash, blockNumber, from, to, value, data } = transaction;
 
       return (
@@ -69,7 +65,7 @@ export default class WalletTransactions extends Component {
           key={ transactionHash }
           tx={ {
             hash: transactionHash,
-            input: data,
+            input: data && bytesToHex(data) || '',
             blockNumber, from, to, value
           } }
           address={ address }
@@ -77,5 +73,13 @@ export default class WalletTransactions extends Component {
         />
       );
     });
+
+    return (
+      <table className={ txListStyles.transactions }>
+        <tbody>
+          { txRows }
+        </tbody>
+      </table>
+    );
   }
 }

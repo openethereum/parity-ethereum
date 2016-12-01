@@ -20,7 +20,7 @@ import ReactTooltip from 'react-tooltip';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { confirmOperation } from '../../../redux/providers/walletActions';
+import { confirmOperation, revokeOperation } from '../../../redux/providers/walletActions';
 import { bytesToHex } from '../../../api/util/format';
 import { Container, InputAddress, Button, IdentityIcon } from '../../../ui';
 import { TxRow } from '../../../ui/TxList/txList';
@@ -40,6 +40,7 @@ class WalletConfirmations extends Component {
     owners: PropTypes.array.isRequired,
     require: PropTypes.object.isRequired,
     confirmOperation: PropTypes.func.isRequired,
+    revokeOperation: PropTypes.func.isRequired,
 
     confirmations: PropTypes.array
   };
@@ -90,7 +91,8 @@ function mapStateToProps (state) {
 
 function mapDispatchToProps (dispatch) {
   return bindActionCreators({
-    confirmOperation
+    confirmOperation,
+    revokeOperation
   }, dispatch);
 }
 
@@ -107,7 +109,8 @@ class WalletConfirmation extends Component {
     isTest: PropTypes.bool.isRequired,
     owners: PropTypes.array.isRequired,
     require: PropTypes.object.isRequired,
-    confirmOperation: PropTypes.func.isRequired
+    confirmOperation: PropTypes.func.isRequired,
+    revokeOperation: PropTypes.func.isRequired
   };
 
   state = {
@@ -172,10 +175,10 @@ class WalletConfirmation extends Component {
   }
 
   handleRevoke = (e, item) => {
-    const { confirmOperation, confirmation, address } = this.props;
+    const { revokeOperation, confirmation, address } = this.props;
     const owner = item.props.value;
 
-    confirmOperation(address, owner, confirmation.operation);
+    revokeOperation(address, owner, confirmation.operation);
   }
 
   renderActions (confirmation, className) {

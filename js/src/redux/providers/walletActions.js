@@ -67,6 +67,42 @@ export function confirmOperation (address, owner, operation) {
   };
 }
 
+export function revokeOperation (address, owner, operation) {
+  return (dispatch, getState) => {
+    const { api } = getState();
+    const contract = new Contract(api, WALLET_ABI).at(address);
+
+    const options = {
+      from: owner,
+      gas: MAX_GAS_ESTIMATION
+    };
+
+    const values = [ operation ];
+
+    contract.instance
+      .revoke
+      .estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas;
+        return contract.instance.revoke.postTransaction(options, values);
+      })
+      .then((requestId) => {
+        return api
+          .pollMethod('parity_checkRequest', requestId)
+          .catch((e) => {
+            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+              return;
+            }
+
+            throw e;
+          });
+      })
+      .catch((error) => {
+        dispatch(newError(error));
+      });
+  };
+}
+
 export function attachWallets (_wallets) {
   return (dispatch, getState) => {
     const { wallet, api } = getState();
@@ -245,6 +281,17 @@ function fetchWalletTransactions (contract) {
   return contract
     .getAll({
       topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
+    })
+    .then((logs) => {
+      return logs.sort((logA, logB) => {
+        const comp = logB.blockNumber.comparedTo(logA.blockNumber);
+
+        if (comp !== 0) {
+          return comp;
+        }
+
+        return logB.transactionIndex.comparedTo(logA.transactionIndex);
+      });
     })
     .then((logs) => {
       const transactions = logs.map((log) => {
