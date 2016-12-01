@@ -7,7 +7,7 @@ variables:
   SIMPLECOV: "true"
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
-  CARGOFLAGS: ""
+  CARGOFLAGS: "-j $(nproc)"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -312,8 +312,8 @@ darwin:
     - stable
     - triggers
   script:
-    - cargo build --release -p ethstore $CARGOFLAGS
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
+    - cargo build -j 8 --release #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
@@ -350,7 +350,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% 
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release %CARGOFLAGS%
+    - cargo build -j 8 --release #%CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
