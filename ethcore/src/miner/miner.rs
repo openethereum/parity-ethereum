@@ -482,7 +482,7 @@ impl Miner {
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
 		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
-				if chain.import_block(sealed.rlp_bytes()).is_ok() {
+				if chain.import_sealed_block(sealed).is_ok() {
 					trace!(target: "miner", "import_block_internally: imported internally sealed block");
 					return true
 				}
