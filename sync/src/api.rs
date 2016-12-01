@@ -260,7 +260,7 @@ impl ChainNotify for EthSync {
 	}
 
 	fn broadcast(&self, message: Vec<u8>) {
-		self.network.with_context(ETH_PROTOCOL, |context| {
+		self.network.with_context(WARP_SYNC_PROTOCOL_ID, |context| {
 			let mut sync_io = NetSyncIo::new(context, &*self.eth_handler.chain, &*self.eth_handler.snapshot_service, &self.eth_handler.overlay);
 			self.eth_handler.sync.write().propagate_consensus_packet(&mut sync_io, message.clone());
 		});
