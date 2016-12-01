@@ -15,26 +15,37 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
+import { LinearProgress, MenuItem, IconMenu } from 'material-ui';
+import ReactTooltip from 'react-tooltip';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
 
+import { confirmOperation } from '../../../redux/providers/walletActions';
 import { bytesToHex } from '../../../api/util/format';
-import { Container } from '../../../ui';
+import { Container, InputAddress, Button, IdentityIcon } from '../../../ui';
 import { TxRow } from '../../../ui/TxList/txList';
 
-// import styles from '../wallet.css';
+import styles from '../wallet.css';
 import txListStyles from '../../../ui/TxList/txList.css';
 
-export default class WalletDetails extends Component {
+class WalletConfirmations extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   };
 
   static propTypes = {
+    accounts: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
+    owners: PropTypes.array.isRequired,
+    require: PropTypes.object.isRequired,
+    confirmOperation: PropTypes.func.isRequired,
 
-    owners: PropTypes.array,
-    require: PropTypes.object,
     confirmations: PropTypes.array
+  };
+
+  static defaultProps = {
+    confirmations: []
   };
 
   render () {
@@ -47,7 +58,7 @@ export default class WalletDetails extends Component {
     );
   }
   renderConfirmations () {
-    const { confirmations, address, isTest } = this.props;
+    const { confirmations, ...others } = this.props;
 
     if (!confirmations) {
       return null;
@@ -61,28 +72,268 @@ export default class WalletDetails extends Component {
       );
     }
 
-    const confirmationsRows = confirmations.map((confirmation) => (
-      <TxRow
+    return confirmations.map((confirmation) => (
+      <WalletConfirmation
         key={ confirmation.operation }
-        tx={ {
-          hash: confirmation.transactionHash,
-          blockNumber: confirmation.blockNumber,
-          from: address,
-          to: confirmation.to,
-          value: confirmation.value,
-          input: bytesToHex(confirmation.data)
-        } }
-        address={ address }
-        isTest={ isTest }
+        confirmation={ confirmation }
+        { ...others }
       />
     ));
+  }
+}
+
+function mapStateToProps (state) {
+  const { accounts } = state.personal;
+
+  return { accounts };
+}
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    confirmOperation
+  }, dispatch);
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps
+)(WalletConfirmations);
+
+class WalletConfirmation extends Component {
+  static propTypes = {
+    accounts: PropTypes.object.isRequired,
+    confirmation: PropTypes.object.isRequired,
+    address: PropTypes.string.isRequired,
+    isTest: PropTypes.bool.isRequired,
+    owners: PropTypes.array.isRequired,
+    require: PropTypes.object.isRequired,
+    confirmOperation: PropTypes.func.isRequired
+  };
+
+  state = {
+    openConfirm: false,
+    openRevoke: false
+  };
+
+  render () {
+    const { confirmation } = this.props;
+    const confirmationsRows = [];
+
+    const className = styles.light;
+
+    const txRow = this.renderTransactionRow(confirmation, className);
+    const detailsRow = this.renderConfirmedBy(confirmation, className);
+    const progressRow = this.renderProgress(confirmation, className);
+    const actionsRow = this.renderActions(confirmation, className);
+
+    confirmationsRows.push(progressRow);
+    confirmationsRows.push(detailsRow);
+    confirmationsRows.push(txRow);
+    confirmationsRows.push(actionsRow);
 
     return (
-      <table className={ txListStyles.transactions }>
+      <table className={ [ txListStyles.transactions, styles.confirmations ].join(' ') }>
         <tbody>
           { confirmationsRows }
         </tbody>
       </table>
+    );
+  }
+
+  handleOpenConfirm = () => {
+    this.setState({
+      openConfirm: true
+    });
+  }
+
+  handleCloseConfirm = () => {
+    this.setState({
+      openConfirm: false
+    });
+  }
+
+  handleOpenRevoke = () => {
+    this.setState({
+      openRevoke: true
+    });
+  }
+
+  handleCloseRevoke = () => {
+    this.setState({
+      openRevoke: false
+    });
+  }
+
+  handleConfirm = (e, item) => {
+    const { confirmOperation, confirmation, address } = this.props;
+    const owner = item.props.value;
+
+    confirmOperation(address, owner, confirmation.operation);
+  }
+
+  handleRevoke = (e, item) => {
+    const { confirmOperation, confirmation, address } = this.props;
+    const owner = item.props.value;
+
+    confirmOperation(address, owner, confirmation.operation);
+  }
+
+  renderActions (confirmation, className) {
+    const { owners, accounts } = this.props;
+    const { operation, confirmedBy } = confirmation;
+    const { openConfirm, openRevoke } = this.state;
+
+    const addresses = Object.keys(accounts);
+
+    const possibleConfirm = owners
+      .filter((owner) => addresses.includes(owner))
+      .filter((owner) => !confirmedBy.includes(owner));
+
+    const possibleRevoke = owners
+      .filter((owner) => addresses.includes(owner))
+      .filter((owner) => confirmedBy.includes(owner));
+
+    const confirmButton = (
+      <Button
+        onClick={ this.handleOpenConfirm }
+        label='Confirm As...'
+        disabled={ possibleConfirm.length === 0 }
+      />
+    );
+
+    const revokeButton = (
+      <Button
+        onClick={ this.handleOpenRevoke }
+        label='Revoke As...'
+        disabled={ possibleRevoke.length === 0 }
+      />
+    );
+
+    return (
+      <tr key={ `actions_${operation}` } className={ className }>
+        <td />
+        <td colSpan={ 3 }>
+          <div className={ styles.actions }>
+            <IconMenu
+              iconButtonElement={ confirmButton }
+              open={ openConfirm }
+              onRequestChange={ this.handleCloseConfirm }
+              onItemTouchTap={ this.handleConfirm }
+            >
+              { possibleConfirm.map((address) => this.renderAccountItem(address)) }
+            </IconMenu>
+
+            <IconMenu
+              iconButtonElement={ revokeButton }
+              open={ openRevoke }
+              onRequestChange={ this.handleCloseRevoke }
+              onItemTouchTap={ this.handleRevoke }
+            >
+              { possibleRevoke.map((address) => this.renderAccountItem(address)) }
+            </IconMenu>
+          </div>
+        </td>
+        <td />
+      </tr>
+    );
+  }
+
+  renderAccountItem (address) {
+    const account = this.props.accounts[address];
+
+    return (
+      <MenuItem value={ address } key={ address }>
+        <div className={ styles.accountItem }>
+          <IdentityIcon
+            inline center
+            address={ address }
+          />
+          <span>{ account.name.toUpperCase() || account.address }</span>
+        </div>
+      </MenuItem>
+    );
+  }
+
+  renderProgress (confirmation) {
+    const { require } = this.props;
+    const { operation, confirmedBy } = confirmation;
+
+    return (
+      <tr key={ `prog_${operation}` }>
+        <td colSpan={ 5 } style={ { padding: 0, paddingTop: '1em' } }>
+          <div
+            data-tip
+            data-for={ `tooltip_${operation}` }
+            data-effect='solid'
+          >
+            <LinearProgress
+              mode='determinate'
+              min={ 0 }
+              max={ require.toNumber() }
+              value={ confirmedBy.length }
+              style={ { borderRadius: 0 } }
+            />
+          </div>
+
+          <ReactTooltip id={ `tooltip_${operation}` }>
+            Confirmed by { confirmedBy.length }/{ require.toNumber() } owners
+          </ReactTooltip>
+        </td>
+      </tr>
+    );
+  }
+
+  renderTransactionRow (confirmation, className) {
+    const { address, isTest } = this.props;
+    const { operation, transactionHash, blockNumber, value, to, data } = confirmation;
+
+    return (
+      <TxRow
+        className={ className }
+        key={ operation }
+        tx={ {
+          hash: transactionHash,
+          blockNumber: blockNumber,
+          from: address,
+          to: to,
+          value: value,
+          input: bytesToHex(data)
+        } }
+        address={ address }
+        isTest={ isTest }
+        historic={ false }
+      />
+    );
+  }
+
+  renderConfirmedBy (confirmation, className) {
+    const { operation, confirmedBy } = confirmation;
+
+    const confirmed = confirmedBy.map((owner) => (
+      <InputAddress
+        key={ owner }
+        value={ owner }
+        allowCopy={ false }
+        hideUnderline
+        disabled
+        small
+        text
+      />
+    ));
+
+    return (
+      <tr key={ `details_${operation}` } className={ className }>
+        <td colSpan={ 5 } style={ { padding: 0 } }>
+          <div
+            data-tip
+            data-for={ `tooltip_${operation}` }
+            data-effect='solid'
+            className={ styles.confirmed }
+          >
+            { confirmed }
+          </div>
+        </td>
+      </tr>
     );
   }
 }

@@ -18,12 +18,54 @@ import { isEqual, uniq, range } from 'lodash';
 
 import Contract from '../../api/contract';
 import { wallet as WALLET_ABI } from '../../contracts/abi';
-import { bytesToHex } from '../../api/util/format';
+import { bytesToHex, toHex } from '../../api/util/format';
+
+import { ERROR_CODES } from '../../api/transport/error';
+import { MAX_GAS_ESTIMATION } from '../../util/constants';
+
+import { newError } from '../../ui/Errors/actions';
 
 const UPDATE_OWNERS = 'owners';
 const UPDATE_REQUIRE = 'require';
 const UPDATE_DAILYLIMIT = 'dailylimit';
+const UPDATE_TRANSACTIONS = 'transactions';
 const UPDATE_CONFIRMATIONS = 'confirmations';
+
+export function confirmOperation (address, owner, operation) {
+  return (dispatch, getState) => {
+    const { api } = getState();
+    const contract = new Contract(api, WALLET_ABI).at(address);
+
+    const options = {
+      from: owner,
+      gas: MAX_GAS_ESTIMATION
+    };
+
+    const values = [ operation ];
+
+    contract.instance
+      .confirm
+      .estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas;
+        return contract.instance.confirm.postTransaction(options, values);
+      })
+      .then((requestId) => {
+        return api
+          .pollMethod('parity_checkRequest', requestId)
+          .catch((e) => {
+            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
+              return;
+            }
+
+            throw e;
+          });
+      })
+      .catch((error) => {
+        dispatch(newError(error));
+      });
+  };
+}
 
 export function attachWallets (_wallets) {
   return (dispatch, getState) => {
@@ -112,7 +154,7 @@ function fetchWalletsInfo (updates) {
           [ UPDATE_REQUIRE ]: true,
           [ UPDATE_DAILYLIMIT ]: true,
           [ UPDATE_CONFIRMATIONS ]: true,
-          transactions: true,
+          [ UPDATE_TRANSACTIONS ]: true,
           address
         };
 
@@ -158,12 +200,21 @@ function fetchWalletInfo (contract, update) {
     promises.push(fetchWalletDailylimit(contract));
   }
 
+  if (update[UPDATE_TRANSACTIONS]) {
+    promises.push(fetchWalletTransactions(contract));
+  }
+
   return Promise
     .all(promises)
     .then((updates) => {
       if (update[UPDATE_CONFIRMATIONS]) {
-        const owners = updates.find((u) => u.key === UPDATE_OWNERS);
-        return fetchWalletConfirmations(contract, owners && owners.value || null)
+        const ownersUpdate = updates.find((u) => u.key === UPDATE_OWNERS);
+        const transactionsUpdate = updates.find((u) => u.key === UPDATE_TRANSACTIONS);
+
+        const owners = ownersUpdate && ownersUpdate.value || null;
+        const transactions = transactionsUpdate && transactionsUpdate.value || null;
+
+        return fetchWalletConfirmations(contract, owners, transactions)
           .then((update) => {
             updates.push(update);
             return updates;
@@ -180,6 +231,55 @@ function fetchWalletInfo (contract, update) {
       });
 
       return wallet;
+    });
+}
+
+function fetchWalletTransactions (contract) {
+  const walletInstance = contract.instance;
+  const signatures = {
+    single: toHex(walletInstance.SingleTransact.signature),
+    multi: toHex(walletInstance.MultiTransact.signature),
+    deposit: toHex(walletInstance.Deposit.signature)
+  };
+
+  return contract
+    .getAll({
+      topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
+    })
+    .then((logs) => {
+      const transactions = logs.map((log) => {
+        const signature = toHex(log.topics[0]);
+
+        const value = log.params.value.value;
+        const from = signature === signatures.deposit
+          ? log.params['_from'].value
+          : contract.address;
+
+        const to = signature === signatures.deposit
+          ? contract.address
+          : log.params.to.value;
+
+        const transaction = {
+          transactionHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+          from, to, value
+        };
+
+        if (log.params.operation) {
+          transaction.operation = bytesToHex(log.params.operation.value);
+        }
+
+        if (log.params.data) {
+          transaction.data = log.params.data.value;
+        }
+
+        return transaction;
+      });
+
+      return {
+        key: UPDATE_TRANSACTIONS,
+        value: transactions
+      };
     });
 }
 
@@ -237,7 +337,7 @@ function fetchWalletDailylimit (contract) {
  * @todo  Filter out transactions from confirmations
  *        before fetching the Confirmation/Revoke events
  */
-function fetchWalletConfirmations (contract, owners = null) {
+function fetchWalletConfirmations (contract, owners = null, transactions = null) {
   const walletInstance = contract.instance;
 
   return walletInstance
@@ -265,6 +365,23 @@ function fetchWalletConfirmations (contract, owners = null) {
         blockNumber: log.blockNumber,
         confirmedBy: []
       }));
+    })
+    .then((confirmations) => {
+      if (confirmations.length === 0) {
+        return confirmations;
+      }
+
+      if (transactions) {
+        const operations = transactions
+          .filter((t) => t.operation)
+          .map((t) => t.operation);
+
+        return confirmations.filter((confirmation) => {
+          return !operations.includes(confirmation.operation);
+        });
+      }
+
+      return confirmations;
     })
     .then((confirmations) => {
       if (confirmations.length === 0) {
@@ -362,7 +479,7 @@ function parseLogs (logs) {
         case [ contract.instance.MultiTransact.signature ]:
           updates[address] = {
             ...prev,
-            transactions: true
+            [ UPDATE_TRANSACTIONS ]: true
           };
           return;
 

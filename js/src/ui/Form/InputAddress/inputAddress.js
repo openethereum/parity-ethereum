@@ -36,11 +36,21 @@ class InputAddress extends Component {
     tokens: PropTypes.object,
     text: PropTypes.bool,
     onChange: PropTypes.func,
-    onSubmit: PropTypes.func
+    onSubmit: PropTypes.func,
+    hideUnderline: PropTypes.bool,
+    allowCopy: PropTypes.bool,
+    small: PropTypes.bool
+  };
+
+  static defaultProps = {
+    allowCopy: true,
+    hideUnderline: false,
+    small: false
   };
 
   render () {
-    const { className, disabled, error, label, hint, value, text, onSubmit, accountsInfo, tokens } = this.props;
+    const { className, disabled, error, label, hint, value, text } = this.props;
+    const { small, allowCopy, hideUnderline, onSubmit, accountsInfo, tokens } = this.props;
 
     const account = accountsInfo[value] || tokens[value];
     const hasAccount = account && !(account.meta && account.meta.deleted);
@@ -50,8 +60,14 @@ class InputAddress extends Component {
     const classes = [ className ];
     classes.push(!icon ? styles.inputEmpty : styles.input);
 
+    const containerClasses = [ styles.container ];
+
+    if (small) {
+      containerClasses.push(styles.small);
+    }
+
     return (
-      <div className={ styles.container }>
+      <div className={ containerClasses.join(' ') }>
         <Input
           className={ classes.join(' ') }
           disabled={ disabled }
@@ -61,7 +77,8 @@ class InputAddress extends Component {
           value={ text && hasAccount ? account.name : value }
           onChange={ this.handleInputChange }
           onSubmit={ onSubmit }
-          allowCopy={ disabled ? value : false }
+          allowCopy={ allowCopy && (disabled ? value : false) }
+          hideUnderline={ hideUnderline }
         />
         { icon }
       </div>
@@ -69,7 +86,7 @@ class InputAddress extends Component {
   }
 
   renderIcon () {
-    const { value, disabled, label } = this.props;
+    const { value, disabled, label, allowCopy, hideUnderline } = this.props;
 
     if (!value || !value.length || !util.isAddressValid(value)) {
       return null;
@@ -79,6 +96,14 @@ class InputAddress extends Component {
 
     if (!label) {
       classes.push(styles.noLabel);
+    }
+
+    if (!allowCopy) {
+      classes.push(styles.noCopy);
+    }
+
+    if (hideUnderline) {
+      classes.push(styles.noUnderline);
     }
 
     return (

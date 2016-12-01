@@ -88,6 +88,10 @@ export default class Header extends Component {
 
     const { txCount } = balance;
 
+    if (!txCount) {
+      return null;
+    }
+
     return (
       <div className={ styles.infoline }>
         { txCount.toFormat() } outgoing transactions

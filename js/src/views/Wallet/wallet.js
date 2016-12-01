@@ -21,16 +21,36 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { EditMeta, Transfer } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, Button, Page, Loading } from '../../ui';
 
 import Header from '../Account/Header';
-import Transactions from '../Account/Transactions';
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
+import WalletTransactions from './Transactions';
 
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './wallet.css';
+
+class WalletContainer extends Component {
+  static propTypes = {
+    isTest: PropTypes.any
+  };
+
+  render () {
+    const { isTest, ...others } = this.props;
+
+    if (isTest !== false && isTest !== true) {
+      return (
+        <Loading size={ 4 } />
+      );
+    }
+
+    return (
+      <Wallet isTest={ isTest } { ...others } />
+    );
+  }
+}
 
 class Wallet extends Component {
   static contextTypes = {
@@ -76,8 +96,7 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balances, address, isTest } = this.props;
-    const { owners, require, dailylimit, confirmations } = this.props.wallet;
+    const { wallets, balances, address } = this.props;
 
     const wallet = (wallets || {})[address];
     const balance = (balances || {})[address];
@@ -96,25 +115,48 @@ class Wallet extends Component {
             account={ wallet }
             balance={ balance }
           />
-          <WalletDetails
-            owners={ owners }
-            require={ require }
-            dailylimit={ dailylimit }
-          />
-          <WalletConfirmations
-            owners={ owners }
-            require={ require }
-            confirmations={ confirmations }
-            isTest={ isTest }
-            address={ address }
-          />
-          <Transactions
-            accounts={ wallets }
-            address={ address }
-          />
+          { this.renderDetails() }
         </Page>
       </div>
     );
+  }
+
+  renderDetails () {
+    const { address, isTest, wallet } = this.props;
+    const { owners, require, dailylimit, confirmations, transactions } = wallet;
+
+    if (!isTest || !owners || !require) {
+      return (
+        <div style={ { marginTop: '4em' } }>
+          <Loading size={ 4 } />
+        </div>
+      );
+    }
+
+    return [
+      <WalletDetails
+        key='details'
+        owners={ owners }
+        require={ require }
+        dailylimit={ dailylimit }
+      />,
+
+      <WalletConfirmations
+        key='confirmations'
+        owners={ owners }
+        require={ require }
+        confirmations={ confirmations }
+        isTest={ isTest }
+        address={ address }
+      />,
+
+      <WalletTransactions
+        key='transactions'
+        transactions={ transactions }
+        address={ address }
+        isTest={ isTest }
+      />
+    ];
   }
 
   renderActionbar () {
@@ -228,4 +270,4 @@ function mapDispatchToProps (dispatch) {
 export default connect(
   mapStateToProps,
   mapDispatchToProps
-)(Wallet);
+)(WalletContainer);
