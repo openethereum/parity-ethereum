@@ -186,7 +186,7 @@ export default class CreateAccount extends Component {
 
       case 2:
         return [
-          createType === 'fromNew' ? (
+          createType === 'fromNew' || createType === 'fromPhrase' ? (
             <Button
               icon={ <PrintIcon /> }
               label='Print Phrase'
