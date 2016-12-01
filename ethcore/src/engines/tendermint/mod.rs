@@ -138,18 +138,26 @@ impl Tendermint {
 				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
 			}
+		} else {
+			warn!(target: "poa", "broadcast_message: No IoChannel available.");
 		}
 	}
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		if let Some(ref ap) = *self.account_provider.lock() {
-			message_full_rlp(
-				|mh| ap.sign(*self.authority.read(), self.password.read().clone(), mh).ok().map(H520::from),
+			match message_full_rlp(
+				|mh| ap.sign(*self.authority.read(), self.password.read().clone(), mh).map(H520::from),
 				self.height.load(AtomicOrdering::SeqCst),
 				self.round.load(AtomicOrdering::SeqCst),
 				*self.step.read(),
 				block_hash
-			)
+			) {
+				Ok(m) => Some(m),
+				Err(e) => {
+					warn!(target: "poa", "generate_message: Could not sign the message {}", e);
+					None
+				},
+			}
 		} else {
 			warn!(target: "poa", "generate_message: No AccountProvider available.");
 			None
@@ -166,12 +174,12 @@ impl Tendermint {
 		*self.step.write() = step;
 		match step {
 			Step::Propose => {
-				trace!(target: "poa", "to_step: Transitioning to Propose.");
+				trace!(target: "poa", "to_step: Propose.");
 				*self.proposal.write() = None;
 				self.update_sealing()
 			},
 			Step::Prevote => {
-				trace!(target: "poa", "to_step: Transitioning to Prevote.");
+				trace!(target: "poa", "to_step: Prevote.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.should_unlock(m.round) => self.proposal.read().clone(),
 					Some(ref m) => m.block_hash,
@@ -180,7 +188,7 @@ impl Tendermint {
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Precommit => {
-				trace!(target: "poa", "to_step: Transitioning to Precommit.");
+				trace!(target: "poa", "to_step: Precommit.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.is_round(m) => {
 						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
@@ -191,7 +199,7 @@ impl Tendermint {
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Commit => {
-				trace!(target: "poa", "to_step: Transitioning to Commit.");
+				trace!(target: "poa", "to_step: Commit.");
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
@@ -482,6 +490,7 @@ impl Engine for Tendermint {
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
+		trace!(target: "poa", "register_message_channel: Register the IoChannel.");
 		*self.message_channel.lock() = Some(message_channel);
 	}
 

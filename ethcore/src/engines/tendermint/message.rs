@@ -165,7 +165,7 @@ pub fn message_info_rlp_from_header(header: &Header) -> Result<Bytes, ::rlp::Dec
 	Ok(message_info_rlp(header.number() as Height, round, Step::Precommit, Some(header.bare_hash())))
 }
 
-pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Option<Bytes> where F: FnOnce(H256) -> Option<H520> {
+pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Result<Bytes, ::account_provider::Error> where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 	let vote_info = message_info_rlp(height, round, step, block_hash);
 	signer(vote_info.sha3()).map(|ref signature| {
 		let mut s = RlpStream::new_list(2);
