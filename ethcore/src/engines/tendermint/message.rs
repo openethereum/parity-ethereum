@@ -215,7 +215,7 @@ mod tests {
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
 		let raw_rlp = message_full_rlp(
-			|mh| tap.sign(addr, None, mh).ok().map(H520::from),
+			|mh| tap.sign(addr, None, mh).map(H520::from),
 			123,
 			2,
 			Step::Precommit,

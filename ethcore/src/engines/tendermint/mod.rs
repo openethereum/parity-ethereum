@@ -134,6 +134,7 @@ impl Tendermint {
 
 	fn broadcast_message(&self, message: Bytes) {
 		if let Some(ref channel) = *self.message_channel.lock() {
+			trace!(target: "poa", "broadcast_message: {:?}", &message);
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
 				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
@@ -154,7 +155,7 @@ impl Tendermint {
 			) {
 				Ok(m) => Some(m),
 				Err(e) => {
-					warn!(target: "poa", "generate_message: Could not sign the message {}", e);
+					trace!(target: "poa", "generate_message: Could not sign the message {}", e);
 					None
 				},
 			}
@@ -325,9 +326,9 @@ impl Engine for Tendermint {
 		*self.authority.write()	= *block.header().author()
 	}
 
-	/// Round proposer switching.
+	/// Should this node participate.
 	fn is_sealer(&self, address: &Address) -> Option<bool> {
-		Some(self.is_proposer(address).is_ok())
+		Some(self.is_authority(address))
 	}
 
 	/// Attempt to seal the block internally using all available signatures.
@@ -335,17 +336,21 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
+			// Only proposer can generate seal.
+			if self.is_proposer(author).is_err() { return None; }
 			let height = header.number() as Height;
 			let round = self.round.load(AtomicOrdering::SeqCst);
 			let bh = Some(header.bare_hash());
 			let vote_info = message_info_rlp(height, round, Step::Propose, bh);
 			if let Ok(signature) = ap.sign(*author, self.password.read().clone(), vote_info.sha3()).map(H520::from) {
+				// Insert Propose vote.
 				self.votes.vote(ConsensusMessage { signature: signature, height: height, round: round, step: Step::Propose, block_hash: bh }, *author);
+				// Remember proposal for later seal submission.
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
 					::rlp::encode(&self.round.load(AtomicOrdering::SeqCst)).to_vec(),
 					::rlp::encode(&signature).to_vec(),
-					Vec::new()
+					::rlp::EMPTY_LIST_RLP.to_vec()
 				])
 			} else {
 				warn!(target: "poa", "generate_seal: FAIL: accounts secret key unavailable");
@@ -538,7 +543,7 @@ mod tests {
 		(b, seal)
 	}
 
-	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) where F: FnOnce(H256) -> Option<H520> {
+	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
 		let m = message_full_rlp(signer, height, round, step, block_hash).unwrap();
 		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
 	}
@@ -720,11 +725,11 @@ mod tests {
 		engine.register_message_channel(io_service.channel());
 
 		// Prevote.
-		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
+		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
 
-		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Prevote, proposal);
-		vote(&engine, |mh| tap.sign(v1, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
-		vote(&engine, |mh| tap.sign(v0, None, mh).ok().map(H520::from), h, r, Step::Precommit, proposal);
+		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Prevote, proposal);
+		vote(&engine, |mh| tap.sign(v1, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
+		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		// Wait a bit for async stuff.
 		::std::thread::sleep(::std::time::Duration::from_millis(50));
