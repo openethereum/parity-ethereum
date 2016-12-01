@@ -107,21 +107,6 @@ pub trait HashDB: AsHashDB + Send + Sync {
 	/// }
 	/// ```
 	fn remove(&mut self, key: &H256);
-
-	/// Insert auxiliary data into hashdb.
-	fn insert_aux(&mut self, _hash: Vec<u8>, _value: Vec<u8>) {
-		unimplemented!();
-	}
-
-	/// Get auxiliary data from hashdb.
-	fn get_aux(&self, _hash: &[u8]) -> Option<DBValue> {
-		unimplemented!();
-	}
-
-	/// Removes auxiliary data from hashdb.
-	fn remove_aux(&mut self, _hash: &[u8]) {
-		unimplemented!();
-	}
 }
 
 /// Upcast trait.

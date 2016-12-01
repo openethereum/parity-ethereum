@@ -197,19 +197,17 @@ impl<Gas: CostType> Gasometer<Gas> {
 				let address = u256_to_address(stack.peek(1));
 				let is_value_transfer = !stack.peek(2).is_zero();
 
-				if instruction == instructions::CALL {
-					if (
-						!schedule.no_empty && !ext.exists(&address)
-					) || (
-						schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address)
-					) {
-						gas = overflowing!(gas.overflow_add(schedule.call_new_account_gas.into()));
-					}
-				};
+				if instruction == instructions::CALL && (
+					(!schedule.no_empty && !ext.exists(&address))
+					||
+					(schedule.no_empty && is_value_transfer && !ext.exists_and_not_null(&address))
+				) {
+					gas = overflowing!(gas.overflow_add(schedule.call_new_account_gas.into()));
+				}
 
 				if is_value_transfer {
 					gas = overflowing!(gas.overflow_add(schedule.call_value_transfer_gas.into()));
-				};
+				}
 
 				let requested = *stack.peek(0);
 
@@ -347,7 +345,7 @@ fn test_mem_gas_cost() {
 	let result = gasometer.mem_gas_cost(&schedule, current_mem_size, &mem_size);
 
 	// then
-	if let Ok(_) = result {
+	if result.is_ok() {
 		assert!(false, "Should fail with OutOfGas");
 	}
 }

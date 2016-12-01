@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container } from '../../../ui';
 
 import Event from './Event';
 import styles from '../contract.css';
@@ -48,8 +48,7 @@ export default class Events extends Component {
     });
 
     return (
-      <Container>
-        <ContainerTitle title='events' />
+      <Container title='events'>
         <table className={ styles.events }>
           <tbody>{ list }</tbody>
         </table>

@@ -59,7 +59,7 @@ class Tab extends Component {
         selected={ active }
         icon={ view.icon }
         label={ label }
-        onClick={ this.handleClick }
+        onTouchTap={ this.handleClick }
       >
         { children }
       </MUITab>
