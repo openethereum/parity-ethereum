@@ -1426,7 +1426,10 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = io.snapshot_service().manifest();
+			let manifest = match self.old_blocks.is_some() {
+				true => None,
+				false => io.snapshot_service().manifest(),
+			};
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| m.into_rlp().sha3());
 			packet.append(&manifest_hash);

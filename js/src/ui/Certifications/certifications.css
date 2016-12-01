@@ -14,55 +14,33 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.status {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  padding: .4em .5em;
-  font-size: x-small;
-  color: #ccc;
-  background-color: rgba(0, 0, 0, 0.8);
+
+.certifications {
+  margin-top: 1em;
 }
 
-.enode {
-  word-wrap: break-word;
-}
-
-.enode > * {
+.certification {
   display: inline-block;
-  margin: 0 .25em;
-  vertical-align: middle;
+  position: relative;
+  margin-right: .5em;
+  padding: .3em .6em .2em 2.6em;
+  border-radius: 1em;
+  line-height: 1em;
+  text-transform: uppercase;
+  background-color: rgba(255, 255, 255, 0.07);
 }
-.enode > :last-child {
+
+.certification:last-child {
   margin-right: 0;
 }
 
-.netinfo {
-  display: flex;
-  flex-grow: 1;
-  align-items: center;
-  color: #ddd;
-}
-
-.netinfo > * {
-  margin-left: 1em;
-}
-
-.network {
-  padding: 0.25em 0.5em;
-  border-radius: .4em;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.networklive {
-  background: rgb(0, 136, 0);
-}
-
-.networktest {
-  background: rgb(136, 0, 0);
+.icon {
+  position: absolute;
+  top: -.25em;
+  left: 0;
+  width: 2em;
+  height: 2em;
+  margin: 0;
+  padding: 0;
+  border-radius: 1em;
 }
