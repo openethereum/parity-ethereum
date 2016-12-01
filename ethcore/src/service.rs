@@ -224,21 +224,10 @@ impl IoHandler<ClientIoMessage> for ClientIoHandler {
 					debug!(target: "snapshot", "Failed to initialize periodic snapshot thread: {:?}", e);
 				}
 			},
-			ClientIoMessage::UpdateSealing => {
-				trace!(target: "poa", "message: UpdateSealing");
-				self.client.update_sealing();
-			},
-			ClientIoMessage::SubmitSeal(ref hash, ref seal) => {
-				trace!(target: "poa", "message: SubmitSeal");
-				self.client.submit_seal(*hash, seal.clone());
-			},
-			ClientIoMessage::BroadcastMessage(ref message) => {
-				trace!(target: "poa", "message: BroadcastMessage");
-				self.client.broadcast_message(message.clone());
-			},
-			ClientIoMessage::NewMessage(ref message) => {
-				self.client.handle_queued_message(message);
-			},
+			ClientIoMessage::UpdateSealing => self.client.update_sealing(),
+			ClientIoMessage::SubmitSeal(ref hash, ref seal) => self.client.submit_seal(*hash, seal.clone()),
+			ClientIoMessage::BroadcastMessage(ref message) => self.client.broadcast_message(message.clone()),
+			ClientIoMessage::NewMessage(ref message) => self.client.handle_queued_message(message),
 			_ => {} // ignore other messages
 		}
 	}
