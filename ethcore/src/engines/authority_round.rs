@@ -287,10 +287,6 @@ impl Engine for AuthorityRound {
 			try!(Err(EngineError::DoubleVote(header.author().clone())));
 		}
 
-		// Check difficulty is correct given the two timestamps.
-		if header.difficulty() != parent.difficulty() {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
-		}
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
