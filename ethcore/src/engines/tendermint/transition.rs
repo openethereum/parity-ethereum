@@ -78,40 +78,38 @@ impl IoHandler<Step> for TransitionHandler {
 					Step::Propose => {
 						trace!(target: "poa", "timeout: Propose timeout.");
 						set_timeout(io, engine.our_params.timeouts.prevote);
-						Some(Step::Prevote)
+						Step::Prevote
 					},
 					Step::Prevote if engine.has_enough_any_votes() => {
 						trace!(target: "poa", "timeout: Prevote timeout.");
 						set_timeout(io, engine.our_params.timeouts.precommit);
-						Some(Step::Precommit)
+						Step::Precommit
 					},
 					Step::Prevote => {
 						trace!(target: "poa", "timeout: Prevote timeout without enough votes.");
-						set_timeout(io, engine.our_params.timeouts.precommit);
-						Some(Step::Prevote)
+						set_timeout(io, engine.our_params.timeouts.prevote);
+						Step::Prevote
 					},
 					Step::Precommit if engine.has_enough_any_votes() => {
 						trace!(target: "poa", "timeout: Precommit timeout.");
 						set_timeout(io, engine.our_params.timeouts.propose);
 						engine.increment_round(1);
-						Some(Step::Propose)
+						Step::Propose
 					},
 					Step::Precommit => {
 						trace!(target: "poa", "timeout: Precommit timeout without enough votes.");
-						set_timeout(io, engine.our_params.timeouts.propose);
-						Some(Step::Precommit)
+						set_timeout(io, engine.our_params.timeouts.precommit);
+						Step::Precommit
 					},
 					Step::Commit => {
 						trace!(target: "poa", "timeout: Commit timeout.");
 						set_timeout(io, engine.our_params.timeouts.propose);
 						engine.reset_round();
-						Some(Step::Propose)
+						Step::Propose
 					},
 				};
 
-				if let Some(step) = next_step {
-					engine.to_step(step)
-				}
+				engine.to_step(next_step)
 			}
 		}
 	}
