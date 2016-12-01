@@ -65,6 +65,10 @@ module.exports = {
         use: [ 'json-loader' ]
       },
       {
+        test: /\.ejs$/,
+        use: [ 'ejs-loader' ]
+      },
+      {
         test: /\.html$/,
         use: [
           'file-loader?name=[name].[ext]!extract-loader',
