@@ -39,6 +39,16 @@ fn consensus_round(header: &Header) -> Result<Round, ::rlp::DecoderError> {
 }
 
 impl ConsensusMessage {
+	pub fn new(signature: H520, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Self {
+		ConsensusMessage {
+			signature: signature,
+			height: height,
+			round: round,
+			step: step,
+			block_hash: block_hash
+		}
+	}
+
 	pub fn new_proposal(header: &Header) -> Result<Self, ::rlp::DecoderError> {
 		Ok(ConsensusMessage {
 			signature: try!(UntrustedRlp::new(header.seal()[1].as_slice()).as_val()),
@@ -156,7 +166,7 @@ impl Encodable for ConsensusMessage {
 pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Bytes {
 	// TODO: figure out whats wrong with nested list encoding
 	let mut s = RlpStream::new_list(5);
-	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or(H256::zero()));
+	s.append(&height).append(&round).append(&step).append(&block_hash.unwrap_or_else(H256::zero));
 	s.out()
 }
 
@@ -165,13 +175,10 @@ pub fn message_info_rlp_from_header(header: &Header) -> Result<Bytes, ::rlp::Dec
 	Ok(message_info_rlp(header.number() as Height, round, Step::Precommit, Some(header.bare_hash())))
 }
 
-pub fn message_full_rlp<F>(signer: F, height: Height, round: Round, step: Step, block_hash: Option<BlockHash>) -> Result<Bytes, ::account_provider::Error> where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
-	let vote_info = message_info_rlp(height, round, step, block_hash);
-	signer(vote_info.sha3()).map(|ref signature| {
-		let mut s = RlpStream::new_list(2);
-		s.append(signature).append_raw(&vote_info, 1);
-		s.out()
-	})
+pub fn message_full_rlp(signature: &H520, vote_info: &Bytes) -> Bytes {
+	let mut s = RlpStream::new_list(2);
+	s.append(signature).append_raw(vote_info, 1);
+	s.out()
 }
 
 #[cfg(test)]
@@ -214,13 +221,9 @@ mod tests {
 		let addr = tap.insert_account("0".sha3(), "0").unwrap();
 		tap.unlock_account_permanently(addr, "0".into()).unwrap();
 
-		let raw_rlp = message_full_rlp(
-			|mh| tap.sign(addr, None, mh).map(H520::from),
-			123,
-			2,
-			Step::Precommit,
-			Some(H256::default())
-		).unwrap();
+		let mi = message_info_rlp(123, 2, Step::Precommit, Some(H256::default()));
+
+		let raw_rlp = message_full_rlp(&tap.sign(addr, None, mi.sha3()).unwrap().into(), &mi);
 
 		let rlp = UntrustedRlp::new(&raw_rlp);
 		let message: ConsensusMessage = rlp.as_val().unwrap();

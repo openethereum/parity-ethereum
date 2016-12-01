@@ -28,6 +28,8 @@ use spec::CommonParams;
 use engines::{Engine, EngineError};
 use header::Header;
 use error::{Error, BlockError};
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
@@ -196,7 +198,6 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
@@ -306,6 +307,10 @@ impl Engine for AuthorityRound {
 
 	fn verify_transaction(&self, t: &SignedTransaction, _header: &Header) -> Result<(), Error> {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
+	}
+
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		new_header.number() > best_header.number()
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {

@@ -134,7 +134,6 @@ impl Tendermint {
 
 	fn broadcast_message(&self, message: Bytes) {
 		if let Some(ref channel) = *self.message_channel.lock() {
-			trace!(target: "poa", "broadcast_message: {:?}", &message);
 			match channel.send(ClientIoMessage::BroadcastMessage(message)) {
 				Ok(_) => trace!(target: "poa", "broadcast_message: BroadcastMessage message sent."),
 				Err(err) => warn!(target: "poa", "broadcast_message: Could not send a sealing message {}.", err),
@@ -146,14 +145,17 @@ impl Tendermint {
 
 	fn generate_message(&self, block_hash: Option<BlockHash>) -> Option<Bytes> {
 		if let Some(ref ap) = *self.account_provider.lock() {
-			match message_full_rlp(
-				|mh| ap.sign(*self.authority.read(), self.password.read().clone(), mh).map(H520::from),
-				self.height.load(AtomicOrdering::SeqCst),
-				self.round.load(AtomicOrdering::SeqCst),
-				*self.step.read(),
-				block_hash
-			) {
-				Ok(m) => Some(m),
+			let h = self.height.load(AtomicOrdering::SeqCst);
+			let r = self.round.load(AtomicOrdering::SeqCst);
+			let s = self.step.read();
+			let vote_info = message_info_rlp(h, r, *s, block_hash);
+			let authority = self.authority.read();
+			match ap.sign(*authority, self.password.read().clone(), vote_info.sha3()).map(Into::into) {
+				Ok(signature) => {
+					let message_rlp = message_full_rlp(&signature, &vote_info);
+					self.votes.vote(ConsensusMessage::new(signature, h, r, *s, block_hash), *authority);
+					Some(message_rlp)
+				},
 				Err(e) => {
 					trace!(target: "poa", "generate_message: Could not sign the message {}", e);
 					None
@@ -309,7 +311,6 @@ impl Engine for Tendermint {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
@@ -344,7 +345,7 @@ impl Engine for Tendermint {
 			let vote_info = message_info_rlp(height, round, Step::Propose, bh);
 			if let Ok(signature) = ap.sign(*author, self.password.read().clone(), vote_info.sha3()).map(H520::from) {
 				// Insert Propose vote.
-				self.votes.vote(ConsensusMessage { signature: signature, height: height, round: round, step: Step::Propose, block_hash: bh }, *author);
+				self.votes.vote(ConsensusMessage::new(signature, height, round, Step::Propose, bh), *author);
 				// Remember proposal for later seal submission.
 				*self.proposal.write() = Some(header.bare_hash());
 				Some(vec![
@@ -489,9 +490,14 @@ impl Engine for Tendermint {
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_signatures = new_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
-		let best_signatures = best_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
-		new_signatures > best_signatures
+		trace!(target: "poa", "new_header: {}, best_header: {}", new_header.number(), best_header.number());
+		if new_header.number() > best_header.number() {
+			true
+		} else {
+			let new_signatures = new_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
+			let best_signatures = best_header.seal().get(2).expect("Tendermint seal should have three elements.").len();
+			new_signatures > best_signatures
+		}
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
@@ -544,7 +550,8 @@ mod tests {
 	}
 
 	fn vote<F>(engine: &Arc<Engine>, signer: F, height: usize, round: usize, step: Step, block_hash: Option<H256>) where F: FnOnce(H256) -> Result<H520, ::account_provider::Error> {
-		let m = message_full_rlp(signer, height, round, step, block_hash).unwrap();
+		let mi = message_info_rlp(height, round, step, block_hash);
+		let m = message_full_rlp(&signer(mi.sha3()).unwrap().into(), &mi);
 		engine.handle_message(UntrustedRlp::new(&m)).unwrap();
 	}
 
