@@ -324,7 +324,7 @@ impl Engine for Tendermint {
 
 	/// Get the address to be used as authority.
 	fn on_new_block(&self, block: &mut ExecutedBlock) {
-		*self.authority.write()	= *block.header().author()
+		*self.authority.write()	= *block.header().author();
 	}
 
 	/// Should this node participate.
@@ -337,8 +337,11 @@ impl Engine for Tendermint {
 		if let Some(ref ap) = *self.account_provider.lock() {
 			let header = block.header();
 			let author = header.author();
-			// Only proposer can generate seal.
-			if self.is_proposer(author).is_err() { return None; }
+			// Only proposer can generate seal if None was generated.
+			if self.is_proposer(author).is_err() && self.proposal.read().is_none() {
+				return None;
+			}
+
 			let height = header.number() as Height;
 			let round = self.round.load(AtomicOrdering::SeqCst);
 			let bh = Some(header.bare_hash());
@@ -421,6 +424,7 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
+		// TODO: check total length of the last field
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
 			Ok(())
@@ -431,28 +435,37 @@ impl Engine for Tendermint {
 		}
 	}
 
-	/// Also transitions to Prevote if verifying Proposal.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
 		let proposal = try!(ConsensusMessage::new_proposal(header));	
 		let proposer = try!(proposal.verify());
-		try!(self.is_proposer(&proposer));
-		self.votes.vote(proposal, proposer);
-		let block_info_hash = try!(message_info_rlp_from_header(header)).sha3();
-
+		if !self.is_authority(&proposer) {
+			try!(Err(EngineError::NotAuthorized(proposer)))
+		}
+		let precommit_hash = proposal.precommit_hash();
 		// TODO: use addresses recovered during precommit vote
 		let mut signature_count = 0;
+		let mut origins = HashSet::new();
 		for rlp in UntrustedRlp::new(&header.seal()[2]).iter() {
 			let signature: H520 = try!(rlp.as_val());
-			let address = public_to_address(&try!(recover(&signature.into(), &block_info_hash)));
+			let address = public_to_address(&try!(recover(&signature.into(), &precommit_hash)));
 			if !self.our_params.authorities.contains(&address) {
 				try!(Err(EngineError::NotAuthorized(address)))
 			}
 
-			signature_count += 1;
+			if origins.insert(address) {
+				signature_count += 1;
+			} else {
+					warn!(target: "poa", "verify_block_unordered: Duplicate signature from {} on the seal.", address)
+			}
 		}
-		if signature_count > self.our_params.authority_n {
-			try!(Err(BlockError::InvalidSealArity(Mismatch { expected: self.our_params.authority_n, found: signature_count })))
+		
+		// Check if its just a proposal if there is not enough precommits.
+		if !self.is_above_threshold(signature_count) {
+			try!(self.is_proposer(&proposer));
+			*self.proposal.write() = proposal.block_hash.clone();
+			self.votes.vote(proposal, proposer);
 		}
+
 		Ok(())
 	}
 

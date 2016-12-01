@@ -85,6 +85,10 @@ impl ConsensusMessage {
 		let public_key = try!(recover(&self.signature.into(), &block_info.as_raw().sha3()));
 		Ok(public_to_address(&public_key))
 	}
+
+	pub fn precommit_hash(&self) -> H256 {
+		message_info_rlp(self.height, self.round, Step::Precommit, self.block_hash).sha3()
+	}
 }
 
 impl PartialOrd for ConsensusMessage {
@@ -170,10 +174,6 @@ pub fn message_info_rlp(height: Height, round: Round, step: Step, block_hash: Op
 	s.out()
 }
 
-pub fn message_info_rlp_from_header(header: &Header) -> Result<Bytes, ::rlp::DecoderError> {
-	let round = try!(consensus_round(header));
-	Ok(message_info_rlp(header.number() as Height, round, Step::Precommit, Some(header.bare_hash())))
-}
 
 pub fn message_full_rlp(signature: &H520, vote_info: &Bytes) -> Bytes {
 	let mut s = RlpStream::new_list(2);

@@ -120,7 +120,7 @@ impl VoteCollector {
 				if origins.insert(origin) {
 					n += 1;
 				} else {
-					warn!("count_step_votes: authority {} has cast multiple step votes, this indicates malicious behaviour.", origin)
+					warn!("count_step_votes: Authority {} has cast multiple step votes, this indicates malicious behaviour.", origin)
 				}
 			}
 		}
