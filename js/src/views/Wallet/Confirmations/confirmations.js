@@ -135,11 +135,26 @@ class WalletConfirmation extends Component {
     confirmationsRows.push(actionsRow);
 
     return (
-      <table className={ [ txListStyles.transactions, styles.confirmations ].join(' ') }>
-        <tbody>
-          { confirmationsRows }
-        </tbody>
-      </table>
+      <div className={ styles.confirmationContainer }>
+        <table className={ [ txListStyles.transactions, styles.confirmations ].join(' ') }>
+          <tbody>
+            { confirmationsRows }
+          </tbody>
+        </table>
+        { this.renderPending() }
+      </div>
+    );
+  }
+
+  renderPending () {
+    const { pending } = this.props.confirmation;
+
+    if (!pending) {
+      return null;
+    }
+
+    return (
+      <div className={ styles.pendingOverlay } />
     );
   }
 
@@ -183,7 +198,7 @@ class WalletConfirmation extends Component {
 
   renderActions (confirmation, className) {
     const { owners, accounts } = this.props;
-    const { operation, confirmedBy } = confirmation;
+    const { operation, confirmedBy, pending } = confirmation;
     const { openConfirm, openRevoke } = this.state;
 
     const addresses = Object.keys(accounts);
@@ -200,7 +215,7 @@ class WalletConfirmation extends Component {
       <Button
         onClick={ this.handleOpenConfirm }
         label='Confirm As...'
-        disabled={ possibleConfirm.length === 0 }
+        disabled={ pending || possibleConfirm.length === 0 }
       />
     );
 
@@ -208,7 +223,7 @@ class WalletConfirmation extends Component {
       <Button
         onClick={ this.handleOpenRevoke }
         label='Revoke As...'
-        disabled={ possibleRevoke.length === 0 }
+        disabled={ pending || possibleRevoke.length === 0 }
       />
     );
 
@@ -259,7 +274,9 @@ class WalletConfirmation extends Component {
 
   renderProgress (confirmation) {
     const { require } = this.props;
-    const { operation, confirmedBy } = confirmation;
+    const { operation, confirmedBy, pending } = confirmation;
+
+    const style = { borderRadius: 0 };
 
     return (
       <tr key={ `prog_${operation}` }>
@@ -269,13 +286,26 @@ class WalletConfirmation extends Component {
             data-for={ `tooltip_${operation}` }
             data-effect='solid'
           >
-            <LinearProgress
-              mode='determinate'
-              min={ 0 }
-              max={ require.toNumber() }
-              value={ confirmedBy.length }
-              style={ { borderRadius: 0 } }
-            />
+            {
+              pending
+              ? (
+                <LinearProgress
+                  key={ `pending_${operation}` }
+                  mode='indeterminate'
+                  style={ style }
+                />
+              )
+              : (
+                <LinearProgress
+                  key={ `unpending_${operation}` }
+                  mode='determinate'
+                  min={ 0 }
+                  max={ require.toNumber() }
+                  value={ confirmedBy.length }
+                  style={ style }
+                />
+              )
+            }
           </div>
 
           <ReactTooltip id={ `tooltip_${operation}` }>

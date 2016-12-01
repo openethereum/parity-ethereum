@@ -62,5 +62,28 @@ export default handleActions({
       ...state,
       contract
     };
+  },
+
+  setOperationPendingState: (state, action) => {
+    const { address, operation, isPending } = action;
+    const { wallets } = state;
+
+    const wallet = { ...wallets[address] };
+
+    wallet.confirmations = wallet.confirmations.map((conf) => {
+      if (conf.operation === operation) {
+        conf.pending = isPending;
+      }
+
+      return conf;
+    });
+
+    return {
+      ...state,
+      wallets: {
+        ...wallets,
+        [ address ]: wallet
+      }
+    };
   }
 }, initialState);

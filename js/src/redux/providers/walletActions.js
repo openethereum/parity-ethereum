@@ -32,42 +32,14 @@ const UPDATE_TRANSACTIONS = 'transactions';
 const UPDATE_CONFIRMATIONS = 'confirmations';
 
 export function confirmOperation (address, owner, operation) {
-  return (dispatch, getState) => {
-    const { api } = getState();
-    const contract = new Contract(api, WALLET_ABI).at(address);
-
-    const options = {
-      from: owner,
-      gas: MAX_GAS_ESTIMATION
-    };
-
-    const values = [ operation ];
-
-    contract.instance
-      .confirm
-      .estimateGas(options, values)
-      .then((gas) => {
-        options.gas = gas;
-        return contract.instance.confirm.postTransaction(options, values);
-      })
-      .then((requestId) => {
-        return api
-          .pollMethod('parity_checkRequest', requestId)
-          .catch((e) => {
-            if (e.code === ERROR_CODES.REQUEST_REJECTED) {
-              return;
-            }
-
-            throw e;
-          });
-      })
-      .catch((error) => {
-        dispatch(newError(error));
-      });
-  };
+  return modifyOperation('confirm', address, owner, operation);
 }
 
 export function revokeOperation (address, owner, operation) {
+  return modifyOperation('revoke', address, owner, operation);
+}
+
+function modifyOperation (method, address, owner, operation) {
   return (dispatch, getState) => {
     const { api } = getState();
     const contract = new Contract(api, WALLET_ABI).at(address);
@@ -79,17 +51,19 @@ export function revokeOperation (address, owner, operation) {
 
     const values = [ operation ];
 
-    contract.instance
-      .revoke
+    dispatch(setOperationPendingState(address, operation, true));
+
+    contract.instance[method]
       .estimateGas(options, values)
       .then((gas) => {
         options.gas = gas;
-        return contract.instance.revoke.postTransaction(options, values);
+        return contract.instance[method].postTransaction(options, values);
       })
       .then((requestId) => {
         return api
           .pollMethod('parity_checkRequest', requestId)
           .catch((e) => {
+            dispatch(setOperationPendingState(address, operation, false));
             if (e.code === ERROR_CODES.REQUEST_REJECTED) {
               return;
             }
@@ -98,6 +72,7 @@ export function revokeOperation (address, owner, operation) {
           });
       })
       .catch((error) => {
+        dispatch(setOperationPendingState(address, operation, false));
         dispatch(newError(error));
       });
   };
@@ -381,10 +356,6 @@ function fetchWalletDailylimit (contract) {
     });
 }
 
-/**
- * @todo  Filter out transactions from confirmations
- *        before fetching the Confirmation/Revoke events
- */
 function fetchWalletConfirmations (contract, _owners = null, _transactions = null, getState) {
   const walletInstance = contract.instance;
 
@@ -564,6 +535,13 @@ function parseLogs (logs) {
     });
 
     fetchWalletsInfo(updates)(dispatch, getState);
+  };
+}
+
+function setOperationPendingState (address, operation, isPending) {
+  return {
+    type: 'setOperationPendingState',
+    address, operation, isPending
   };
 }
 

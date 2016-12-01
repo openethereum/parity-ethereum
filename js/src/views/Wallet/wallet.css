@@ -96,3 +96,16 @@
   flex-direction: row;
   align-items: center;
 }
+
+.confirmationContainer {
+  position: relative;
+}
+
+.pendingOverlay {
+  position: absolute;
+  top: 1em;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+}
