@@ -464,7 +464,7 @@ impl Miner {
 	/// Attempts to perform internal sealing (one that does not require work) to return Ok(sealed),
 	/// Err(Some(block)) returns for unsuccesful sealing while Err(None) indicates misspecified engine.
 	fn seal_block_internally(&self, block: ClosedBlock) -> Result<SealedBlock, Option<ClosedBlock>> {
-		trace!(target: "miner", "seal_block_internally: block has transaction - attempting internal seal.");
+		trace!(target: "miner", "seal_block_internally: attempting internal seal.");
 		let s = self.engine.generate_seal(block.block());
 		if let Some(seal) = s {
 			trace!(target: "miner", "seal_block_internally: managed internal seal. importing...");
