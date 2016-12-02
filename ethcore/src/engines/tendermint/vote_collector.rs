@@ -126,6 +126,11 @@ impl VoteCollector {
 		}
 		n
 	}
+
+	pub fn get_older_than(&self, message: &ConsensusMessage) -> Vec<Bytes> {
+		let guard = self.votes.read();
+		guard.keys().take_while(|m| *m <= message).map(|m| ::rlp::encode(m).to_vec()).collect()
+	}
 }
 
 #[cfg(test)]
