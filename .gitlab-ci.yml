@@ -8,7 +8,6 @@ variables:
   RUST_BACKTRACE: "1"
   RUSTFLAGS: ""
   CARGOFLAGS: ""
-  NIGHTLY: "nigtly"
 cache:
   key: "$CI_BUILD_STAGE/$CI_BUILD_REF_NAME"
   untracked: true
@@ -21,7 +20,7 @@ linux-stable:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - sh scripts/deb-build.sh amd64
@@ -53,7 +52,7 @@ linux-beta:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -72,7 +71,7 @@ linux-nightly:
     - stable
     - triggers
   script:
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
   tags:
     - rust
@@ -93,7 +92,7 @@ linux-centos:
   script:
     - export CXX="g++"
     - export CC="gcc"
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j $(nproc) --release $CARGOFLAGS
     - strip target/release/parity
     - md5sum target/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -120,7 +119,7 @@ linux-i686:
   script:
     - export HOST_CC=gcc
     - export HOST_CXX=g++
-    - cargo build --target i686-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target i686-unknown-linux-gnu --release $CARGOFLAGS
     - strip target/i686-unknown-linux-gnu/release/parity
     - md5sum target/i686-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh i386
@@ -162,7 +161,7 @@ linux-armv7:
     - echo "[target.armv7-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target armv7-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/armv7-unknown-linux-gnueabihf/release/parity
     - md5sum target/armv7-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -204,7 +203,7 @@ linux-arm:
     - echo "[target.arm-unknown-linux-gnueabihf]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabihf-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabihf --release $CARGOFLAGS
     - arm-linux-gnueabihf-strip target/arm-unknown-linux-gnueabihf/release/parity
     - md5sum target/arm-unknown-linux-gnueabihf/release/parity > parity.md5
     - sh scripts/deb-build.sh armhf
@@ -232,9 +231,9 @@ linux-armv6:
   stage: build
   image: ethcore/rust-armv6:latest
   only:
-    - beta
-    - tags
-    - stable
+#    - beta
+#    - tags
+#    - stable
     - triggers
   script:
     - export CC=arm-linux-gnueabi-gcc
@@ -246,7 +245,7 @@ linux-armv6:
     - echo "[target.arm-unknown-linux-gnueabi]" >> .cargo/config
     - echo "linker= \"arm-linux-gnueabi-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target arm-unknown-linux-gnueabi --release $CARGOFLAGS
     - arm-linux-gnueabi-strip target/arm-unknown-linux-gnueabi/release/parity
     - md5sum target/arm-unknown-linux-gnueabi/release/parity > parity.md5
     - aws configure set aws_access_key_id $s3_key
@@ -281,7 +280,7 @@ linux-aarch64:
     - echo "[target.aarch64-unknown-linux-gnu]" >> .cargo/config
     - echo "linker= \"aarch64-linux-gnu-gcc\"" >> .cargo/config
     - cat .cargo/config
-    - cargo build --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
+    - cargo build -j $(nproc) --target aarch64-unknown-linux-gnu --release $CARGOFLAGS
     - aarch64-linux-gnu-strip target/aarch64-unknown-linux-gnu/release/parity
     - md5sum target/aarch64-unknown-linux-gnu/release/parity > parity.md5
     - sh scripts/deb-build.sh arm64
@@ -305,41 +304,6 @@ linux-aarch64:
     - target/aarch64-unknown-linux-gnu/release/parity
     name: "aarch64-unknown-linux-gnu_parity"
   allow_failure: true
-#linux-alpine:
-#  stage: build
-#  image: ethcore/rust-alpine:latest
-#  only:
-#    - beta
-#    - tags
-#    - stable
-#    - triggers
-#  script:
-#    - export HOST_CC=gcc
-#    - export HOST_CXX=g++
-#    - cargo build --release $CARGOFLAGS
-#    - strip target/release/parity
-#    - md5sum target/release/parity > parity.md5
-#    - sh scripts/deb-build.sh arm64
-#    - cp target/aarch64-unknown-linux-gnu/release/parity deb/usr/bin/parity
-#    - export VER=$(grep -m 1 version Cargo.toml | awk '{print $3}' | tr -d '"' | tr -d "\n")
-#    - dpkg-deb -b deb "parity_"$VER"_arm64.deb"
-#    - md5sum "parity_"$VER"_arm64.deb" > "parity_"$VER"_arm64.deb.md5"
-#    - aws configure set aws_access_key_id $s3_key
-#    - aws configure set aws_secret_access_key $s3_secret
-#    - if [[ $CI_BUILD_REF_NAME =~ ^(master|beta|stable)$ ]]; then export S3_BUCKET=builds-parity-published; else export S3_BUCKET=builds-parity; fi
-#    - aws s3 rm --recursive s3://$S3_BUCKET/$CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu
-#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity --body target/aarch64-unknown-linux-gnu/release/parity
-#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/parity.md5 --body parity.md5
-#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb" --body "parity_"$VER"_arm64.deb"
-#    - aws s3api put-object --bucket $S3_BUCKET --key $CI_BUILD_REF_NAME/aarch64-unknown-linux-gnu/"parity_"$VER"_arm64.deb.md5" --body "parity_"$VER"_arm64.deb.md5"
-#  tags:
-#    - rust
-#    - rust-alpine
-#  artifacts:
-#    paths:
-#    - target/aarch64-unknown-linux-gnu/release/parity
-#    name: "aarch64-unknown-linux-gnu_parity"
-#  allow_failure: true
 darwin:
   stage: build
   only:
@@ -348,8 +312,8 @@ darwin:
     - stable
     - triggers
   script:
-    - cargo build --release -p ethstore $CARGOFLAGS
-    - cargo build --release $CARGOFLAGS
+    - cargo build -j 8 --release -p ethstore #$CARGOFLAGS
+    - cargo build -j 8 --release #$CARGOFLAGS
     - rm -rf parity.md5
     - md5sum target/release/parity > parity.md5
     - packagesbuild -v mac/Parity.pkgproj
@@ -386,7 +350,7 @@ windows:
     - set RUST_BACKTRACE=1
     - set RUSTFLAGS=%RUSTFLAGS% 
     - rustup default stable-x86_64-pc-windows-msvc
-    - cargo build --release %CARGOFLAGS%
+    - cargo build -j 8 --release #%CARGOFLAGS%
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/SimpleFC.dll" -o nsis\SimpleFC.dll
     - curl -sL --url "https://github.com/ethcore/win-build/raw/master/vc_redist.x64.exe" -o nsis\vc_redist.x64.exe
     - signtool sign /f %keyfile% /p %certpass% target\release\parity.exe
@@ -449,7 +413,7 @@ test-windows:
     - git submodule update --init --recursive
   script:
     - set RUST_BACKTRACE=1
-    - cargo test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
+    - cargo -j 8 test --features json-tests -p rlp -p ethash -p ethcore -p ethcore-bigint -p ethcore-dapps -p ethcore-rpc -p ethcore-signer -p ethcore-util -p ethcore-network -p ethcore-io -p ethkey -p ethstore -p ethsync -p ethcore-ipc -p ethcore-ipc-tests -p ethcore-ipc-nano -p parity %CARGOFLAGS% --verbose --release
   tags:
     - rust-windows
   allow_failure: true
@@ -525,6 +489,6 @@ js-release:
     - if [ "$JS_FILES_MODIFIED" = 0  ]; then echo "skip js build"; else ./js/scripts/install-deps.sh;fi
   script:
     - echo $JS_FILES_MODIFIED
-    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&./js/scripts/release.sh; fi
+    - if [ "$JS_FILES_MODIFIED" = 0 ]; then echo "skip js build"; else ./js/scripts/build.sh&&./js/scripts/release.sh; fi
   tags:
     - javascript

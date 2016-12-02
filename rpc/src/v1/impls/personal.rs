@@ -20,11 +20,11 @@ use std::sync::{Arc, Weak};
 use ethcore::account_provider::AccountProvider;
 use ethcore::client::MiningBlockChainClient;
 use ethcore::miner::MinerService;
-use util::Address;
+use util::{Address, U128, Uint};
 
 use jsonrpc_core::Error;
 use v1::traits::Personal;
-use v1::types::{H160 as RpcH160, H256 as RpcH256, TransactionRequest};
+use v1::types::{H160 as RpcH160, H256 as RpcH256, U128 as RpcU128, TransactionRequest};
 use v1::helpers::errors;
 use v1::helpers::dispatch::{self, sign_and_dispatch};
 
@@ -72,15 +72,27 @@ impl<C: 'static, M: 'static> Personal for PersonalClient<C, M> where C: MiningBl
 			.map_err(|e| errors::account("Could not create account.", e))
 	}
 
-	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<u64>) -> Result<bool, Error> {
+	fn unlock_account(&self, account: RpcH160, account_pass: String, duration: Option<RpcU128>) -> Result<bool, Error> {
 		try!(self.active());
 		let account: Address = account.into();
 		let store = take_weak!(self.accounts);
+		let duration = match duration {
+			None => None,
+			Some(duration) => {
+				let duration: U128 = duration.into();
+				let v = duration.low_u64() as u32;
+				if duration != v.into() {
+					return Err(errors::invalid_params("Duration", "Invalid Number"));
+				} else {
+					Some(v)
+				}
+			},
+		};
 
 		let r = match (self.allow_perm_unlock, duration) {
 			(false, _) => store.unlock_account_temporarily(account, account_pass),
 			(true, Some(0)) => store.unlock_account_permanently(account, account_pass),
-			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d as u32 * 1000),
+			(true, Some(d)) => store.unlock_account_timed(account, account_pass, d * 1000),
 			(true, None) => store.unlock_account_timed(account, account_pass, 300_000),
 		};
 		match r {

@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container, ContainerTitle, LanguageSelector } from '../../../ui';
+import { Select, Container, LanguageSelector } from '../../../ui';
 
 import layout from '../layout.css';
 
@@ -39,10 +39,9 @@ export default class Parity extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title={
-          <FormattedMessage id='settings.parity.label' />
-        } />
+      <Container title={
+        <FormattedMessage id='settings.parity.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>

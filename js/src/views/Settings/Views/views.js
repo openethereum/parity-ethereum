@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Checkbox } from 'material-ui';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container } from '../../../ui';
 
 import { toggleView } from '../actions';
 
@@ -35,10 +35,9 @@ class Views extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title={
-          <FormattedMessage id='settings.views.label' />
-        } />
+      <Container title={
+        <FormattedMessage id='settings.views.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>

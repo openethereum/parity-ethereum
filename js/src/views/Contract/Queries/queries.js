@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
-import { Container, ContainerTitle, Input, InputAddress } from '../../../ui';
+import { Container, Input, InputAddress } from '../../../ui';
 
 import styles from './queries.css';
 
@@ -55,8 +55,7 @@ export default class Queries extends Component {
       .map((fn) => this.renderInputQuery(fn));
 
     return (
-      <Container>
-        <ContainerTitle title='queries' />
+      <Container title='queries'>
         <div className={ styles.methods }>
           <div className={ styles.vMethods }>
             { noInputQueries }

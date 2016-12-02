@@ -62,7 +62,7 @@ export default class Calls extends Component {
         onClick={ this.clearHistory }
         className={ styles.removeIcon }
         >
-        <i className='icon-trash'></i>
+        <i className='icon-trash' />
       </a>
     );
   }

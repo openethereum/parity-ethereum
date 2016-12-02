@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ActionDone from 'material-ui/svg-icons/action/done';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
+import PrintIcon from 'material-ui/svg-icons/action/print';
 
 import { Button, Modal } from '../../ui';
 
@@ -26,6 +27,11 @@ import { NewAccount, AccountDetails } from '../CreateAccount';
 import Completed from './Completed';
 import TnC from './TnC';
 import Welcome from './Welcome';
+
+import { createIdentityImg } from '../../api/util/identity';
+import print from '../CreateAccount/print';
+import recoveryPage from '../CreateAccount/recovery-page.ejs';
+import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';
 
 const STAGE_NAMES = ['welcome', 'terms', 'new account', 'recovery', 'completed'];
 
@@ -107,7 +113,6 @@ export default class FirstRun extends Component {
 
     switch (stage) {
       case 0:
-      case 3:
         return (
           <Button
             icon={ <NavigationArrowForward /> }
@@ -132,6 +137,20 @@ export default class FirstRun extends Component {
             disabled={ !canCreate }
             onClick={ this.onCreate } />
         );
+
+      case 3:
+        return [
+          <Button
+            icon={ <PrintIcon /> }
+            label='Print Phrase'
+            onClick={ this.printPhrase }
+          />,
+          <Button
+            icon={ <NavigationArrowForward /> }
+            label='Next'
+            onClick={ this.onNext }
+          />
+        ];
 
       case 4:
         return (
@@ -204,5 +223,12 @@ export default class FirstRun extends Component {
     const { store } = this.context;
 
     store.dispatch({ type: 'newError', error });
+  }
+
+  printPhrase = () => {
+    const { address, phrase, name } = this.state;
+    const identity = createIdentityImg(address);
+
+    print(recoveryPage({ phrase, name, identity, address, logo: ParityLogo }));
   }
 }

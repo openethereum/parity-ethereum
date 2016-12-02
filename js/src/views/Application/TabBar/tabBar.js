@@ -20,6 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { Toolbar, ToolbarGroup } from 'material-ui/Toolbar';
 import { Tab as MUITab } from 'material-ui/Tabs';
+import { isEqual } from 'lodash';
 
 import { Badge, Tooltip } from '../../../ui';
 
@@ -59,7 +60,7 @@ class Tab extends Component {
         selected={ active }
         icon={ view.icon }
         label={ label }
-        onClick={ this.handleClick }
+        onTouchTap={ this.handleClick }
       >
         { children }
       </MUITab>
@@ -147,9 +148,13 @@ class TabBar extends Component {
   }
 
   shouldComponentUpdate (nextProps, nextState) {
+    const prevViews = this.props.views.map((v) => v.id).sort();
+    const nextViews = nextProps.views.map((v) => v.id).sort();
+
     return (nextProps.hash !== this.props.hash) ||
       (nextProps.pending.length !== this.props.pending.length) ||
-      (nextState.activeViewId !== this.state.activeViewId);
+      (nextState.activeViewId !== this.state.activeViewId) ||
+      (!isEqual(prevViews, nextViews));
   }
 
   render () {
@@ -177,7 +182,7 @@ class TabBar extends Component {
     return (
       <ToolbarGroup>
         <div className={ styles.last }>
-          <div></div>
+          <div />
         </div>
       </ToolbarGroup>
     );
@@ -191,7 +196,7 @@ class TabBar extends Component {
       .map((view, index) => {
         const body = (view.id === 'accounts')
           ? (
-          <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
+            <Tooltip className={ styles.tabbarTooltip } text='navigate between the different parts and views of the application, switching between an account view, token view and distributed application view' />
           )
           : null;
 
@@ -202,7 +207,7 @@ class TabBar extends Component {
             active={ active }
             view={ view }
             onChange={ this.onChange }
-            key={ index }
+            key={ view.id }
             pendings={ pending.length }
           >
             { body }

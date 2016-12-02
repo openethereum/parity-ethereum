@@ -27,9 +27,10 @@ export const termsOfService = (
   </ul>
 );
 
-export const postToServer = (query) => {
+export const postToServer = (query, isTestnet = false) => {
+  const port = isTestnet ? 8443 : 443;
   query = stringify(query);
-  return fetch('https://sms-verification.parity.io/?' + query, {
+  return fetch(`https://sms-verification.parity.io:${port}/?` + query, {
     method: 'POST', mode: 'cors', cache: 'no-store'
   })
   .then((res) => {

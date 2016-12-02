@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { FormattedMessage } from 'react-intl';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container } from '../../../ui';
 
 import layout from '../layout.css';
 import styles from './proxy.css';
@@ -32,10 +32,9 @@ export default class Proxy extends Component {
     const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
 
     return (
-      <Container>
-        <ContainerTitle title={
-          <FormattedMessage id='settings.proxy.label' />
-        } />
+      <Container title={
+        <FormattedMessage id='settings.proxy.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>

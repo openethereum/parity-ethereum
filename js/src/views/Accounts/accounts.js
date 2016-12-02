@@ -92,7 +92,7 @@ class Accounts extends Component {
 
     const loadings = ((accounts && Object.keys(accounts)) || []).map((_, idx) => (
       <div key={ idx } className={ styles.loading }>
-        <div></div>
+        <div />
       </div>
     ));
 

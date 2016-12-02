@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import NavigationRefresh from 'material-ui/svg-icons/navigation/refresh';
 
-import { Button, Container, ContainerTitle, ParityBackground } from '../../../ui';
+import { Button, Container, ParityBackground } from '../../../ui';
 
 import { updateBackground } from '../actions';
 
@@ -56,10 +56,9 @@ class Background extends Component {
 
   render () {
     return (
-      <Container>
-        <ContainerTitle title={
-          <FormattedMessage id='settings.background.label' />
-        } />
+      <Container title={
+        <FormattedMessage id='settings.background.label' />
+      }>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>

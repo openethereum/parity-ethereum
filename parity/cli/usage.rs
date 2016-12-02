@@ -58,6 +58,7 @@ macro_rules! usage {
 			Parsing(Vec<toml::ParserError>),
 			Decode(toml::DecodeError),
 			Config(String, io::Error),
+			UnknownFields(String),
 		}
 
 		impl ArgsError {
@@ -79,6 +80,11 @@ macro_rules! usage {
 					ArgsError::Config(path, e) => {
 						println_stderr!("There was an error reading your config file at: {}", path);
 						println_stderr!("{}", e);
+						process::exit(2)
+					},
+					ArgsError::UnknownFields(fields) => {
+						println_stderr!("You have some extra fields in your config file:");
+						println_stderr!("{}", fields);
 						process::exit(2)
 					}
 				}
@@ -173,10 +179,13 @@ macro_rules! usage {
 				let mut value_parser = toml::Parser::new(&config);
 				match value_parser.parse() {
 					Some(value) => {
-						let result = rustc_serialize::Decodable::decode(&mut toml::Decoder::new(toml::Value::Table(value)));
-						match result {
-							Ok(config) => Ok(config),
-							Err(e) => Err(e.into()),
+						let mut decoder = toml::Decoder::new(toml::Value::Table(value));
+						let result = rustc_serialize::Decodable::decode(&mut decoder);
+
+						match (result, decoder.toml) {
+							(Err(e), _) => Err(e.into()),
+							(_, Some(toml)) => Err(ArgsError::UnknownFields(toml::encode_str(&toml))),
+							(Ok(config), None) => Ok(config),
 						}
 					},
 					None => Err(ArgsError::Parsing(value_parser.errors)),
