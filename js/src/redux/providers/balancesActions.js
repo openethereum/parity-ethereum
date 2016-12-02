@@ -256,7 +256,8 @@ export function queryTokensFilter (tokensFilter) {
           return;
         }
 
-        const tokens = balances.tokens.filter((t) => tokenAddresses.includes(t.address));
+        const tokens = Object.values(balances.tokens)
+          .filter((t) => tokenAddresses.includes(t.address));
 
         fetchTokensBalances(uniq(addresses), tokens)(dispatch, getState);
       });
