@@ -21,7 +21,7 @@ import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, images
 import certificationsReducer from './providers/certifications/reducer';
 
 import errorReducer from 'ui/Errors/reducers';
-import settingsReducer from '../views/Settings/reducers';
+import settingsReducer from 'views/Settings/reducers';
 import tooltipReducer from 'ui/Tooltips/reducers';
 
 export default function () {

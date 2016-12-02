@@ -16,10 +16,10 @@
 import thunk from 'redux-thunk';
 
 import ErrorsMiddleware from 'ui/Errors/middleware';
-import SettingsMiddleware from '../views/Settings/middleware';
+import SettingsMiddleware from 'views/Settings/middleware';
 import SignerMiddleware from './providers/signerMiddleware';
 
-import statusMiddleware from '../views/Status/middleware';
+import statusMiddleware from 'views/Status/middleware';
 import CertificationsMiddleware from './providers/certifications/middleware';
 
 export default function (api) {

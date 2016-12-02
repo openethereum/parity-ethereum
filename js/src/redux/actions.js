@@ -17,7 +17,7 @@
 import { newError } from 'ui/Errors/actions';
 import { setAddressImage } from './providers/imagesActions';
 import { clearStatusLogs, toggleStatusLogs, toggleStatusRefresh } from './providers/statusActions';
-import { toggleView } from '../views/Settings/actions';
+import { toggleView } from 'views/Settings/actions';
 
 export {
   newError,
