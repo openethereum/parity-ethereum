@@ -152,7 +152,10 @@ impl Tendermint {
 				Ok(signature) => {
 					let message_rlp = message_full_rlp(&signature, &vote_info);
 					// TODO: memoize the rlp for consecutive broadcasts
-					self.votes.vote(ConsensusMessage::new(signature, h, r, *s, block_hash), *authority);
+					let message = ConsensusMessage::new(signature, h, r, *s, block_hash);
+					self.votes.vote(message.clone(), *authority);
+					self.handle_valid_message(&message);
+
 					Some(message_rlp)
 				},
 				Err(e) => {
@@ -189,15 +192,15 @@ impl Tendermint {
 			},
 			Step::Prevote => {
 				let block_hash = match *self.lock_change.read() {
-					Some(ref m) if self.should_unlock(m.round) => self.proposal.read().clone(),
-					Some(ref m) => m.block_hash,
-					None => None,
+					Some(ref m) if !self.should_unlock(m.round) => m.block_hash,
+					_ => self.proposal.read().clone(),
 				};
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Precommit => {
 				let block_hash = match *self.lock_change.read() {
-					Some(ref m) if self.is_round(m) => {
+					Some(ref m) if self.is_round(m) && m.block_hash.is_some() => {
+						trace!(target: "poa", "to_step: Setting last lock: {}", m.round);
 						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
 						m.block_hash
 					},
@@ -290,6 +293,51 @@ impl Tendermint {
 		let aligned_count = self.votes.count_aligned_votes(&message);
 		self.is_above_threshold(aligned_count)
 	}
+
+	fn handle_valid_message(&self, message: &ConsensusMessage) {
+		trace!(target: "poa", "handle_valid_message: Processing valid message: {:?}", message);
+		let is_newer_than_lock = match *self.lock_change.read() {
+			Some(ref lock) => message > lock,
+			None => true,
+		};
+		if is_newer_than_lock
+			&& message.step == Step::Prevote
+			&& message.block_hash.is_some()
+			&& self.has_enough_aligned_votes(message) {
+			debug!(target: "poa", "handle_valid_message: Lock change.");
+			*self.lock_change.write()	= Some(message.clone());
+		}
+		// Check if it can affect the step transition.
+		if self.is_height(message) {
+			let next_step = match *self.step.read() {
+				Step::Precommit if self.has_enough_aligned_votes(message) => {
+					if message.block_hash.is_none() {
+						self.increment_round(1);
+						Some(Step::Propose)
+					} else {
+						Some(Step::Commit)
+					}
+				},
+				Step::Precommit if self.has_enough_future_step_votes(message) => {
+					self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
+					Some(Step::Precommit)
+				},
+				Step::Prevote if self.has_enough_aligned_votes(message) => Some(Step::Precommit),
+				Step::Prevote if self.has_enough_future_step_votes(message) => {
+					self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
+					Some(Step::Prevote)
+				},
+				_ => None,
+			};
+
+			if let Some(step) = next_step {
+				trace!(target: "poa", "handle_valid_message: Transition triggered.");
+				if let Err(io_err) = self.step_service.send_message(step) {
+					warn!(target: "poa", "Could not proceed to next step {}.", io_err)
+				}
+			}
+		}
+	}
 }
 
 impl Engine for Tendermint {
@@ -381,50 +429,9 @@ impl Engine for Tendermint {
 				try!(Err(EngineError::NotAuthorized(sender)));
 			}
 
-			trace!(target: "poa", "handle_message: Processing new authorized message: {:?}", &message);
 			self.votes.vote(message.clone(), sender);
-
 			self.broadcast_message(rlp.as_raw().to_vec());
-			let is_newer_than_lock = match *self.lock_change.read() {
-				Some(ref lock) => &message > lock,
-				None => true,
-			};
-			if is_newer_than_lock
-				&& message.step == Step::Prevote
-				&& self.has_enough_aligned_votes(&message) {
-				debug!(target: "poa", "handle_message: Lock change.");
-				*self.lock_change.write()	= Some(message.clone());
-			}
-			// Check if it can affect the step transition.
-			if self.is_height(&message) {
-				let next_step = match *self.step.read() {
-					Step::Precommit if self.has_enough_aligned_votes(&message) => {
-						if message.block_hash.is_none() {
-							self.increment_round(1);
-							Some(Step::Propose)
-						} else {
-							Some(Step::Commit)
-						}
-					},
-					Step::Precommit if self.has_enough_future_step_votes(&message) => {
-						self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
-						Some(Step::Precommit)
-					},
-					Step::Prevote if self.has_enough_aligned_votes(&message) => Some(Step::Precommit),
-					Step::Prevote if self.has_enough_future_step_votes(&message) => {
-						self.increment_round(message.round - self.round.load(AtomicOrdering::SeqCst));
-						Some(Step::Prevote)
-					},
-					_ => None,
-				};
-
-				if let Some(step) = next_step {
-					trace!(target: "poa", "handle_message: Transition triggered.");
-					if let Err(io_err) = self.step_service.send_message(step) {
-						warn!(target: "poa", "Could not proceed to next step {}.", io_err)
-					}
-				}
-			}
+			self.handle_valid_message(&message);
 		}
 		Ok(())
 	}
@@ -534,6 +541,9 @@ impl Engine for Tendermint {
 	fn set_signer(&self, address: Address, password: String) {
 		*self.authority.write()	= address;
 		*self.password.write() = Some(password);
+		if let Err(io_err) = self.step_service.send_message(Step::Propose) {
+			warn!(target: "poa", "Could not reset the round {}.", io_err);
+		}
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
