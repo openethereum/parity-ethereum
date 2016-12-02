@@ -60,7 +60,7 @@ app.use(webpackHotMiddleware(compiler, {
 
 app.use(webpackDevMiddleware(compiler, {
   noInfo: false,
-  quiet: false,
+  quiet: true,
   progress: true,
   publicPath: webpackConfig.output.publicPath,
   stats: {
