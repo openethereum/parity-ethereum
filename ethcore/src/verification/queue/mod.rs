@@ -274,9 +274,9 @@ impl<K: Kind> VerificationQueue<K> {
 		while !deleting.load(AtomicOrdering::Acquire) {
 			{
 				while sleep.load(AtomicOrdering::SeqCst) {
-					trace!(target: "verification", "Verifier sleeping");
-					::std::thread::park();
-					trace!(target: "verification", "Verifier waking up");
+					// timeout to prevent race between park and unpark 
+					// while dropping. 
+					::std::thread::park_timeout(::std::time::Duration::from_millis(2000));
 
 					if deleting.load(AtomicOrdering::Acquire) {
 						return;
