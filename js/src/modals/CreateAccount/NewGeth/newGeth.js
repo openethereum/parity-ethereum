@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 
-import { IdentityIcon } from '../../../ui';
+import { IdentityIcon } from 'ui';
 
 import styles from './newGeth.css';
 

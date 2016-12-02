@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from 'ui';
 import { MAX_GAS_ESTIMATION } from '../../util/constants';
 import { validateAddress, validateUint } from '../../util/validation';
 

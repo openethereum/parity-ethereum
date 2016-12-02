@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import SaveIcon from 'material-ui/svg-icons/content/save';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, Modal, Editor, Form, Input } from '../../ui';
+import { Button, Modal, Editor, Form, Input } from 'ui';
 import { ERRORS, validateName } from '../../util/validation';
 
 import styles from './saveContract.css';

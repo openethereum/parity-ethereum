@@ -21,7 +21,7 @@ import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
 import { EditMeta } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { Actionbar, Button, Page } from 'ui';
 
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';

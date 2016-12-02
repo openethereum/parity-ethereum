@@ -22,9 +22,9 @@ import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
-import Input from '../../../ui/Form/Input';
-import InputAddressSelect from '../../../ui/Form/InputAddressSelect';
-import Select from '../../../ui/Form/Select';
+import Input from 'ui/Form/Input';
+import InputAddressSelect from 'ui/Form/InputAddressSelect';
+import Select from 'ui/Form/Select';
 
 import { ABI_TYPES } from '../../../util/abi';
 

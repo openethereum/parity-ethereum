@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { observer } from 'mobx-react';
 
-import { TxHash } from '../../../../ui';
+import { TxHash } from 'ui';
 
 import TransactionMainDetails from '../TransactionMainDetails';
 import TxHashLink from '../TxHashLink';

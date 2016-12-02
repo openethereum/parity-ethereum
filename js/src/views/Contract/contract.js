@@ -27,7 +27,7 @@ import { newError } from '../../redux/actions';
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import { EditMeta, ExecuteContract } from '../../modals';
-import { Actionbar, Button, Page, Modal, Editor } from '../../ui';
+import { Actionbar, Button, Page, Modal, Editor } from 'ui';
 
 import Header from '../Account/Header';
 import Delete from '../Address/Delete';

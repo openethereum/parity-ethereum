@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 import { isEqual } from 'lodash';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from '../../../ui';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags, Input } from 'ui';
 
 export default class Summary extends Component {
   static contextTypes = {

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
 
-import { Form, Input, Select } from '../../../ui';
+import { Form, Input, Select } from 'ui';
 
 import Price from '../Price';
 

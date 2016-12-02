@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, Select } from '../../../ui';
+import { AddressSelect, Form, Input, Select } from 'ui';
 import { validateAbi } from '../../../util/validation';
 import { parseAbiType } from '../../../util/abi';
 

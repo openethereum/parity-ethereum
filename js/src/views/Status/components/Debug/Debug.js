@@ -20,7 +20,7 @@ import AvPlay from 'material-ui/svg-icons/av/play-arrow';
 import AvReplay from 'material-ui/svg-icons/av/replay';
 import ReorderIcon from 'material-ui/svg-icons/action/reorder';
 
-import { Container } from '../../../../ui';
+import { Container } from 'ui';
 
 import styles from './Debug.css';
 

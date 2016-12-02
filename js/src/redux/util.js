@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { hashToImageUrl } from './providers/imagesReducer';
-import { withError } from '../ui/Errors/middleware';
+import { withError } from 'ui/Errors/middleware';
 
 export {
   hashToImageUrl,

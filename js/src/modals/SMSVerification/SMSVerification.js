@@ -19,7 +19,7 @@ import { observer } from 'mobx-react';
 import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
-import { Button, IdentityIcon, Modal } from '../../ui';
+import { Button, IdentityIcon, Modal } from 'ui';
 
 import {
   LOADING,

@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 import { observer } from 'mobx-react';
 
-import { Actionbar, Page } from '../../ui';
+import { Actionbar, Page } from 'ui';
 import FlatButton from 'material-ui/FlatButton';
 import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 

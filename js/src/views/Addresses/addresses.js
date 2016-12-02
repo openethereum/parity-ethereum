@@ -23,7 +23,7 @@ import { uniq, isEqual } from 'lodash';
 import List from '../Accounts/List';
 import Summary from '../Accounts/Summary';
 import { AddAddress } from '../../modals';
-import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from '../../ui';
+import { Actionbar, ActionbarExport, ActionbarImport, ActionbarSearch, ActionbarSort, Button, Page } from 'ui';
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './addresses.css';

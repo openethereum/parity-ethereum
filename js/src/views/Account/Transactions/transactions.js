@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import etherscan from '../../../3rdparty/etherscan';
-import { Container, TxList } from '../../../ui';
+import { Container, TxList } from 'ui';
 
 import styles from './transactions.css';
 

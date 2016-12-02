@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import LinearProgress from 'material-ui/LinearProgress';
 import { Card, CardActions, CardTitle, CardText } from 'material-ui/Card';
 
-import { Button, Input, InputAddress, InputAddressSelect } from '../../../ui';
+import { Button, Input, InputAddress, InputAddressSelect } from 'ui';
 
 import styles from './queries.css';
 

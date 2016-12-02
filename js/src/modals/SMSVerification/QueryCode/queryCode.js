@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input } from '../../../ui';
+import { Form, Input } from 'ui';
 
 export default class QueryCode extends Component {
   static propTypes = {

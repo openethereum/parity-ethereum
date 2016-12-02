@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Link } from 'react-router';
 
-import { Container, ContainerTitle, Tags } from '../../../ui';
+import { Container, ContainerTitle, Tags } from 'ui';
 
 import styles from './summary.css';
 

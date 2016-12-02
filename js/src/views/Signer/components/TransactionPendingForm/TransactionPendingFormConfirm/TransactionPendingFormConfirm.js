@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import RaisedButton from 'material-ui/RaisedButton';
 import ReactTooltip from 'react-tooltip';
 
-import { Form, Input, IdentityIcon } from '../../../../../ui';
+import { Form, Input, IdentityIcon } from 'ui';
 
 import styles from './TransactionPendingFormConfirm.css';
 

@@ -24,8 +24,8 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { newError } from '../../ui/Errors/actions';
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { newError } from 'ui/Errors/actions';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from 'ui';
 
 import Details from './Details';
 import Extras from './Extras';

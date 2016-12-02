@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { Card, CardTitle, CardText } from 'material-ui/Card';
 
 import InputQuery from './inputQuery';
-import { Container, Input, InputAddress } from '../../../ui';
+import { Container, Input, InputAddress } from 'ui';
 
 import styles from './queries.css';
 
