@@ -72,6 +72,7 @@ pub fn new_morden() -> Spec { load(include_bytes!("../../res/ethereum/morden.jso
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use util::trie::TrieSpec;
 	use state::*;
 	use super::*;
 	use tests::helpers::*;
@@ -84,7 +85,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let s = State::from_existing(db, genesis_header.state_root().clone(), engine.account_start_nonce(), Default::default()).unwrap();
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000001".into()), 1u64.into());
 		assert_eq!(s.balance(&"0000000000000000000000000000000000000002".into()), 1u64.into());

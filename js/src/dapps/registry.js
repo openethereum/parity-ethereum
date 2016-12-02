@@ -27,7 +27,6 @@ import Container from './registry/Container';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './registry.html';
 
 ReactDOM.render(
   <Provider store={ store }>

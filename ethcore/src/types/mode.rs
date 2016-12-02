@@ -19,16 +19,16 @@
 pub use std::time::Duration;
 use client::Mode as ClientMode;
 
-/// IPC-capable shadow-type for client::config::Mode
+/// IPC-capable shadow-type for `client::config::Mode`
 #[derive(Clone, Binary, Debug)]
 pub enum Mode {
-	/// Same as ClientMode::Off.
+	/// Same as `ClientMode::Off`.
 	Off,
-	/// Same as ClientMode::Dark; values in seconds.
+	/// Same as `ClientMode::Dark`; values in seconds.
 	Dark(u64),
-	/// Same as ClientMode::Passive; values in seconds.
+	/// Same as `ClientMode::Passive`; values in seconds.
 	Passive(u64, u64),
-	/// Same as ClientMode::Active.
+	/// Same as `ClientMode::Active`.
 	Active,
 }
 

@@ -21,6 +21,7 @@ use util::stats;
 
 /// Values of RPC settings.
 #[derive(Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Histogram {
 	/// Gas prices for bucket edges.
 	#[serde(rename="bucketBounds")]

@@ -41,7 +41,6 @@ class Modal extends Component {
     compact: PropTypes.bool,
     current: PropTypes.number,
     waiting: PropTypes.array,
-    scroll: PropTypes.bool,
     steps: PropTypes.array,
     title: PropTypes.oneOfType([
       PropTypes.node, PropTypes.string
@@ -52,7 +51,7 @@ class Modal extends Component {
 
   render () {
     const { muiTheme } = this.context;
-    const { actions, busy, className, current, children, compact, scroll, steps, waiting, title, visible, settings } = this.props;
+    const { actions, busy, className, current, children, compact, steps, waiting, title, visible, settings } = this.props;
     const contentStyle = muiTheme.parity.getBackgroundStyle(null, settings.backgroundSeed);
     const header = (
       <Title
@@ -70,7 +69,7 @@ class Modal extends Component {
         actions={ actions }
         actionsContainerStyle={ ACTIONS_STYLE }
         autoDetectWindowHeight={ false }
-        autoScrollBodyContent={ !!scroll }
+        autoScrollBodyContent
         actionsContainerClassName={ styles.actions }
         bodyClassName={ styles.body }
         contentClassName={ styles.content }

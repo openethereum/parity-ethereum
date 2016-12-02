@@ -594,9 +594,9 @@ mod tests {
 	use factory::Factories;
 	use state_db::StateDB;
 	use views::BlockView;
-	use util::Address;
+	use util::{Address, TrieFactory};
 	use util::hash::FixedHash;
-
+	use util::trie::TrieSpec;
 	use std::sync::Arc;
 
 	/// Enact the block given by `block_bytes` using `engine` on the database `db` with given `parent` block header
@@ -637,7 +637,7 @@ mod tests {
 		let genesis_header = spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(&*spec.engine, Default::default(), false, db, &genesis_header, last_hashes, Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b = b.close_and_lock();
@@ -653,7 +653,7 @@ mod tests {
 
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap()
 			.close_and_lock().seal(engine, vec![]).unwrap();
@@ -662,7 +662,7 @@ mod tests {
 
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		assert_eq!(e.rlp_bytes(), orig_bytes);
@@ -681,7 +681,7 @@ mod tests {
 
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let mut open_block = OpenBlock::new(engine, Default::default(), false, db, &genesis_header, last_hashes.clone(), Address::zero(), (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let mut uncle1_header = Header::new();
@@ -697,7 +697,7 @@ mod tests {
 
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		spec.ensure_db_good(&mut db).unwrap();
+		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let e = enact_and_seal(&orig_bytes, engine, false, db, &genesis_header, last_hashes, Default::default()).unwrap();
 
 		let bytes = e.rlp_bytes();

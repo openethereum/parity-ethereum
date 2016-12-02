@@ -22,6 +22,10 @@ import SendIcon from 'material-ui/svg-icons/content/send';
 import { Tabs, Tab } from 'material-ui/Tabs';
 import Paper from 'material-ui/Paper';
 
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { showSnackbar } from '../../redux/providers/snackbarActions';
+
 import Form, { Input } from '../../ui/Form';
 import { Button, Modal, IdentityName, IdentityIcon } from '../../ui';
 
@@ -30,13 +34,14 @@ import styles from './passwordManager.css';
 const TEST_ACTION = 'TEST_ACTION';
 const CHANGE_ACTION = 'CHANGE_ACTION';
 
-export default class PasswordManager extends Component {
+class PasswordManager extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
   }
 
   static propTypes = {
     account: PropTypes.object.isRequired,
+    showSnackbar: PropTypes.func.isRequired,
     onClose: PropTypes.func
   }
 
@@ -98,10 +103,10 @@ export default class PasswordManager extends Component {
 
     const passwordHint = meta && meta.passwordHint
       ? (
-      <span className={ styles.passwordHint }>
-        <span className={ styles.hintLabel }>Hint </span>
-        { meta.passwordHint }
-      </span>
+        <span className={ styles.passwordHint }>
+          <span className={ styles.hintLabel }>Hint </span>
+          { meta.passwordHint }
+        </span>
       )
       : null;
 
@@ -333,7 +338,7 @@ export default class PasswordManager extends Component {
   }
 
   handleChangePassword = () => {
-    const { account } = this.props;
+    const { account, showSnackbar, onClose } = this.props;
     const { currentPass, newPass, repeatNewPass, passwordHint } = this.state;
 
     if (repeatNewPass !== newPass) {
@@ -371,12 +376,9 @@ export default class PasswordManager extends Component {
             .changePassword(account.address, currentPass, newPass)
         ])
           .then(() => {
-            const message = {
-              value: 'Your password has been successfully changed',
-              success: true
-            };
-
-            this.setState({ waiting: false, message, showMessage: true });
+            showSnackbar(<div>Your password has been successfully changed.</div>);
+            this.setState({ waiting: false, showMessage: false });
+            onClose();
           });
       })
       .catch(e => {
@@ -385,3 +387,14 @@ export default class PasswordManager extends Component {
       });
   }
 }
+
+function mapDispatchToProps (dispatch) {
+  return bindActionCreators({
+    showSnackbar
+  }, dispatch);
+}
+
+export default connect(
+  null,
+  mapDispatchToProps
+)(PasswordManager);

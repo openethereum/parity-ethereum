@@ -21,6 +21,7 @@ use v1::helpers;
 
 /// Transaction request coming from RPC
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransactionRequest {
 	/// Sender
 	pub from: H160,

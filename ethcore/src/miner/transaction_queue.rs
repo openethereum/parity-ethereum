@@ -990,7 +990,7 @@ impl TransactionQueue {
 		let mut update_last_nonce_to = None;
 		{
 			let by_nonce = self.future.by_address.row_mut(&address);
-			if let None = by_nonce {
+			if by_nonce.is_none() {
 				return;
 			}
 			let mut by_nonce = by_nonce.expect("None is tested in early-exit condition above; qed");
@@ -1212,12 +1212,12 @@ mod test {
 	use util::table::*;
 	use util::*;
 	use ethkey::{Random, Generator};
-	use transaction::*;
 	use error::{Error, TransactionError};
 	use super::*;
 	use super::{TransactionSet, TransactionOrder, VerifiedTransaction};
 	use miner::local_transactions::LocalTransactionsList;
 	use client::TransactionImportResult;
+	use transaction::{SignedTransaction, Transaction, Action};
 
 	fn unwrap_tx_err(err: Result<TransactionImportResult, Error>) -> TransactionError {
 		match err.unwrap_err() {
