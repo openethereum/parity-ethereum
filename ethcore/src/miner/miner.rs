@@ -1030,6 +1030,11 @@ impl MinerService for Miner {
 			let (block, original_work_hash) = self.prepare_block(chain);
 			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
+				{
+					let mut sealing_work = self.sealing_work.lock();
+					sealing_work.queue.push(block.clone());
+					sealing_work.queue.use_last_ref();
+				}
 				self.seal_and_import_block_internally(chain, block);
 			} else {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
@@ -1052,7 +1057,7 @@ impl MinerService for Miner {
 		ret.map(f)
 	}
 
-	fn submit_seal(&self, chain: &MiningBlockChainClient, pow_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
+	fn submit_seal(&self, chain: &MiningBlockChainClient, block_hash: H256, seal: Vec<Bytes>) -> Result<(), Error> {
 		let result =
 			if let Some(b) = self.sealing_work.lock().queue.get_used_if(
 				if self.options.enable_resubmission {
@@ -1060,22 +1065,22 @@ impl MinerService for Miner {
 				} else {
 					GetAction::Take
 				},
-				|b| &b.hash() == &pow_hash
+				|b| { println!("should be {:?}, but is {:?}", b.hash(), &block_hash); &b.hash() == &block_hash }
 			) {
-				trace!(target: "miner", "Sealing block {}={}={} with seal {:?}", pow_hash, b.hash(), b.header().bare_hash(), seal);
+				trace!(target: "miner", "Submitted block {}={}={} with seal {:?}", block_hash, b.hash(), b.header().bare_hash(), seal);
 				b.lock().try_seal(&*self.engine, seal).or_else(|(e, _)| {
 					warn!(target: "miner", "Mined solution rejected: {}", e);
 					Err(Error::PowInvalid)
 				})
 			} else {
-				warn!(target: "miner", "Mined solution rejected: Block unknown or out of date.");
+				warn!(target: "miner", "Submitted solution rejected: Block unknown or out of date.");
 				Err(Error::PowHashInvalid)
 			};
 		result.and_then(|sealed| {
 			let n = sealed.header().number();
 			let h = sealed.header().hash();
 			try!(chain.import_sealed_block(sealed));
-			info!(target: "miner", "Mined block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
+			info!(target: "miner", "Submitted block imported OK. #{}: {}", Colour::White.bold().paint(format!("{}", n)), Colour::White.bold().paint(h.hex()));
 			Ok(())
 		})
 	}
