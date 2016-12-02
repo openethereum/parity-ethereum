@@ -19,7 +19,7 @@ import { throttle } from 'lodash';
 import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
 import { padRight } from '../../api/util/format';
 
-import Contracts from '../../contracts';
+import Contracts from 'contracts';
 
 export default class Balances {
   constructor (store, api) {

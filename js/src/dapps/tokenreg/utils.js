@@ -16,7 +16,7 @@
 
 import { api } from './parity';
 
-import { eip20 as eip20Abi } from '../../contracts/abi';
+import { eip20 as eip20Abi } from 'contracts/abi';
 
 export const getTokenTotalSupply = (tokenAddress) => {
   return api

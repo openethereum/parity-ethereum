@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import Contracts from '../../../contracts';
+import Contracts from 'contracts';
 import { addCertification } from './actions';
 
 const knownCertifiers = [ 'smsverification' ];

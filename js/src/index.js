@@ -30,7 +30,7 @@ import { useRouterHistory } from 'react-router';
 import qs from 'querystring';
 
 import SecureApi from './secureApi';
-import ContractInstances from './contracts';
+import ContractInstances from 'contracts';
 
 import { initStore } from './redux';
 import ContextProvider from 'ui/ContextProvider';
