@@ -275,7 +275,6 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
