@@ -157,7 +157,7 @@
     "react-tooltip": "3.2.2",
     "recharts": "0.15.2",
     "redux": "3.6.0",
-    "redux-actions": "0.10.1",
+    "redux-actions": "1.1.0",
     "redux-thunk": "2.1.0",
     "rlp": "2.0.0",
     "scryptsy": "2.0.0",
