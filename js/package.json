@@ -96,7 +96,7 @@
     "json-loader": "0.5.4",
     "mocha": "3.2.0",
     "mock-local-storage": "1.0.2",
-    "mock-socket": "3.0.1",
+    "mock-socket": "6.0.3",
     "nock": "9.0.2",
     "postcss-import": "8.1.0",
     "postcss-loader": "1.1.1",
