@@ -813,6 +813,7 @@ mod tests {
 			vm_type: VMType::Interpreter,
 			check_seal: true,
 			with_color: !cfg!(windows),
+			verifier_settings: Default::default(),
 		})));
 	}
 
@@ -936,6 +937,7 @@ mod tests {
 			no_periodic_snapshot: false,
 			check_seal: true,
 			download_old_blocks: true,
+			verifier_settings: Default::default(),
 		}));
 	}
 
