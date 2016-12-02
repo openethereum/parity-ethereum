@@ -14,8 +14,9 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
 .layout {
-  padding: 0.25em;
+  padding: 0.25em 0.25em 0.75em 0.25em;
 }
 
 .layout>div {

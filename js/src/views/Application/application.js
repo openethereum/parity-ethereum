@@ -62,7 +62,7 @@ class Application extends Component {
     }
 
     return (
-      <div className={ styles.outer }>
+      <div className={ styles.conatiner }>
         { isDapp ? this.renderDapp() : this.renderApp() }
         <Connection />
         <ParityBar dapp={ isDapp } />
