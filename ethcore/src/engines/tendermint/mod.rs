@@ -56,8 +56,6 @@ pub type Height = usize;
 pub type Round = usize;
 pub type BlockHash = H256;
 
-type Signatures = Vec<Bytes>;
-
 /// Engine using `Tendermint` consensus algorithm, suitable for EVM chain.
 pub struct Tendermint {
 	params: CommonParams,
@@ -153,6 +151,7 @@ impl Tendermint {
 			match ap.sign(*authority, self.password.read().clone(), vote_info.sha3()).map(Into::into) {
 				Ok(signature) => {
 					let message_rlp = message_full_rlp(&signature, &vote_info);
+					// TODO: memoize the rlp for consecutive broadcasts
 					self.votes.vote(ConsensusMessage::new(signature, h, r, *s, block_hash), *authority);
 					Some(message_rlp)
 				},
@@ -173,16 +172,22 @@ impl Tendermint {
 		}
 	}
 
+	fn broadcast_old_messages(&self) {
+		if let Some(ref lc) = *self.lock_change.read() {
+			for m in self.votes.get_older_than(lc).into_iter() {
+				self.broadcast_message(m);
+			}
+		}
+	}
+
 	fn to_step(&self, step: Step) {
 		*self.step.write() = step;
 		match step {
 			Step::Propose => {
-				trace!(target: "poa", "to_step: Propose.");
 				*self.proposal.write() = None;
 				self.update_sealing()
 			},
 			Step::Prevote => {
-				trace!(target: "poa", "to_step: Prevote.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.should_unlock(m.round) => self.proposal.read().clone(),
 					Some(ref m) => m.block_hash,
@@ -191,7 +196,6 @@ impl Tendermint {
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Precommit => {
-				trace!(target: "poa", "to_step: Precommit.");
 				let block_hash = match *self.lock_change.read() {
 					Some(ref m) if self.is_round(m) => {
 						self.last_lock.store(m.round, AtomicOrdering::SeqCst);
@@ -202,7 +206,7 @@ impl Tendermint {
 				self.generate_and_broadcast_message(block_hash);
 			},
 			Step::Commit => {
-				trace!(target: "poa", "to_step: Commit.");
+				debug!(target: "poa", "to_step: Commit.");
 				// Commit the block using a complete signature set.
 				let round = self.round.load(AtomicOrdering::SeqCst);
 				if let Some(block_hash) = *self.proposal.read() {
@@ -251,10 +255,12 @@ impl Tendermint {
 	}
 
 	fn increment_round(&self, n: Round) {
+		debug!(target: "poa", "increment_round: New round.");
 		self.round.fetch_add(n, AtomicOrdering::SeqCst);
 	}
 
 	fn reset_round(&self) {
+		debug!(target: "poa", "reset_round: New height.");
 		self.last_lock.store(0, AtomicOrdering::SeqCst);
 		self.height.fetch_add(1, AtomicOrdering::SeqCst);
 		self.round.store(0, AtomicOrdering::SeqCst);
@@ -386,7 +392,7 @@ impl Engine for Tendermint {
 			if is_newer_than_lock
 				&& message.step == Step::Prevote
 				&& self.has_enough_aligned_votes(&message) {
-				trace!(target: "poa", "handle_message: Lock change.");
+				debug!(target: "poa", "handle_message: Lock change.");
 				*self.lock_change.write()	= Some(message.clone());
 			}
 			// Check if it can affect the step transition.
@@ -424,15 +430,24 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_basic(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// TODO: check total length of the last field
 		let seal_length = header.seal().len();
 		if seal_length == self.seal_fields() {
-			Ok(())
+			let signatures_len = header.seal()[2].len();
+			if signatures_len >= 1 {
+				Ok(())
+			} else {
+				Err(From::from(EngineError::BadSealFieldSize(OutOfBounds {
+					min: Some(1),
+					max: None,
+					found: signatures_len
+				})))
+			}
 		} else {
 			Err(From::from(BlockError::InvalidSealArity(
 				Mismatch { expected: self.seal_fields(), found: seal_length }
 			)))
 		}
+
 	}
 
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
@@ -441,11 +456,13 @@ impl Engine for Tendermint {
 		if !self.is_authority(&proposer) {
 			try!(Err(EngineError::NotAuthorized(proposer)))
 		}
+
 		let precommit_hash = proposal.precommit_hash();
 		// TODO: use addresses recovered during precommit vote
+		let ref signatures_field = header.seal()[2];
 		let mut signature_count = 0;
 		let mut origins = HashSet::new();
-		for rlp in UntrustedRlp::new(&header.seal()[2]).iter() {
+		for rlp in UntrustedRlp::new(signatures_field).iter() {
 			let signature: H520 = try!(rlp.as_val());
 			let address = public_to_address(&try!(recover(&signature.into(), &precommit_hash)));
 			if !self.our_params.authorities.contains(&address) {
@@ -455,12 +472,22 @@ impl Engine for Tendermint {
 			if origins.insert(address) {
 				signature_count += 1;
 			} else {
-					warn!(target: "poa", "verify_block_unordered: Duplicate signature from {} on the seal.", address)
+				warn!(target: "poa", "verify_block_unordered: Duplicate signature from {} on the seal.", address);
+				try!(Err(BlockError::InvalidSeal));
 			}
 		}
 		
-		// Check if its just a proposal if there is not enough precommits.
+		// Check if its a proposal if there is not enough precommits.
 		if !self.is_above_threshold(signature_count) {
+			let signatures_len = signatures_field.len();
+			// Proposal has to have an empty signature list.
+			if signatures_len != 1 {
+				try!(Err(EngineError::BadSealFieldSize(OutOfBounds {
+					min: Some(1),
+					max: Some(1),
+					found: signatures_len
+				})));
+			}
 			try!(self.is_proposer(&proposer));
 			*self.proposal.write() = proposal.block_hash.clone();
 			self.votes.vote(proposal, proposer);
@@ -470,17 +497,28 @@ impl Engine for Tendermint {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// we should not calculate difficulty for genesis blocks
 		if header.number() == 0 {
-			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
+			try!(Err(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
 
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
 		if header.gas_limit() <= &min_gas || header.gas_limit() >= &max_gas {
-			return Err(From::from(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
+			try!(Err(BlockError::InvalidGasLimit(OutOfBounds { min: Some(min_gas), max: Some(max_gas), found: header.gas_limit().clone() })));
 		}
+
+		// Commit is longer than empty signature list.
+		let parent_signature_len = parent.seal()[2].len();
+		if parent_signature_len < 1 {
+			try!(Err(EngineError::BadSealFieldSize(OutOfBounds {
+				// One signature.
+				min: Some(136),
+				max: None,
+				found: parent_signature_len
+			})));
+		}
+
 		Ok(())
 	}
 
@@ -571,7 +609,7 @@ mod tests {
 		vec![
 			::rlp::encode(&round).to_vec(),
 			::rlp::encode(&H520::from(signature)).to_vec(),
-			Vec::new()
+			::rlp::EMPTY_LIST_RLP.to_vec()
 		]
 	}
 
@@ -681,21 +719,30 @@ mod tests {
 		header.set_author(proposer);
 		let mut seal = proposal_seal(&tap, &header, 0);
 
-		let voter = insert_and_unlock(&tap, "1");
 		let vote_info = message_info_rlp(0, 0, Step::Precommit, Some(header.bare_hash()));
-		let signature = tap.sign(voter, None, vote_info.sha3()).unwrap();
+		let signature1 = tap.sign(proposer, None, vote_info.sha3()).unwrap();
 
-		seal[2] = ::rlp::encode(&vec![H520::from(signature.clone())]).to_vec();
-
+		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone())]).to_vec();
 		header.set_seal(seal.clone());
 
-		// One good signature.
+		// One good signature is not enough.
+		match engine.verify_block_unordered(&header, None) {
+			Err(Error::Engine(EngineError::BadSealFieldSize(_))) => {},
+			_ => panic!(),
+		}
+
+		let voter = insert_and_unlock(&tap, "0");
+		let signature0 = tap.sign(voter, None, vote_info.sha3()).unwrap();
+
+		seal[2] = ::rlp::encode(&vec![H520::from(signature1.clone()), H520::from(signature0.clone())]).to_vec();
+		header.set_seal(seal.clone());
+
 		assert!(engine.verify_block_unordered(&header, None).is_ok());
 
 		let bad_voter = insert_and_unlock(&tap, "101");
 		let bad_signature = tap.sign(bad_voter, None, vote_info.sha3()).unwrap();
-		seal[2] = ::rlp::encode(&vec![H520::from(signature), H520::from(bad_signature)]).to_vec();
 
+		seal[2] = ::rlp::encode(&vec![H520::from(signature1), H520::from(bad_signature)]).to_vec();
 		header.set_seal(seal);
 
 		// One good and one bad signature.
@@ -717,7 +764,6 @@ mod tests {
 
 	#[test]
 	fn step_transitioning() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
@@ -758,16 +804,17 @@ mod tests {
 
 	#[test]
 	fn timeout_transitioning() {
-		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 
+		println!("{:?}", ::rlp::EMPTY_LIST_RLP.to_vec().len());
+		println!("{:?}", ::rlp::encode(&vec![H520::default()]).to_vec().len());
 		let v = insert_and_register(&tap, &engine, "0");
 
-		::std::thread::sleep(::std::time::Duration::from_millis(15000));
 		println!("done");
+
 	}
 }
