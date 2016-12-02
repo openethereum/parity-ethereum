@@ -30,6 +30,8 @@ export default class Status {
 
     this._pollPingTimeoutId = null;
     this._longStatusTimeoutId = null;
+
+    this._timestamp = Date.now();
   }
 
   start () {
@@ -71,8 +73,8 @@ export default class Status {
    * @see src/views/Connection/connection.js
    */
   _shouldPing = () => {
-    const { isConnected, isConnecting } = this._apiStatus;
-    return isConnecting || !isConnected;
+    const { isConnected } = this._apiStatus;
+    return !isConnected;
   }
 
   _stopPollPing = () => {
@@ -119,7 +121,7 @@ export default class Status {
 
   _pollStatus = () => {
     const nextTimeout = (timeout = 1000) => {
-      setTimeout(this._pollStatus, timeout);
+      setTimeout(() => this._pollStatus(), timeout);
     };
 
     const { isConnected, isConnecting, needsToken, secureToken } = this._api;
@@ -131,10 +133,11 @@ export default class Status {
       secureToken
     };
 
-    const gotReconnected = !this._apiStatus.isConnected && apiStatus.isConnected;
+    const gotConnected = !this._apiStatus.isConnected && apiStatus.isConnected;
 
-    if (gotReconnected) {
+    if (gotConnected) {
       this._pollLongStatus();
+      this._store.dispatch(statusCollection({ isPingable: true }));
     }
 
     if (!isEqual(apiStatus, this._apiStatus)) {
@@ -158,34 +161,31 @@ export default class Status {
     const statusPromises = [ this._api.eth.syncing() ];
 
     if (refreshStatus) {
-      statusPromises.push(this._api.eth.hashrate());
       statusPromises.push(this._api.parity.netPeers());
+      statusPromises.push(this._api.eth.hashrate());
     }
 
     Promise
       .all(statusPromises)
-      .then((statusResults) => {
-        const status = statusResults.length === 1
-          ? {
-            syncing: statusResults[0]
-          }
+      .then(([ syncing, ...statusResults ]) => {
+        const status = statusResults.length === 0
+          ? { syncing }
           : {
-            syncing: statusResults[0],
-            hashrate: statusResults[1],
-            netPeers: statusResults[2]
+            syncing,
+            netPeers: statusResults[0],
+            hashrate: statusResults[1]
           };
 
         if (!isEqual(status, this._status)) {
           this._store.dispatch(statusCollection(status));
           this._status = status;
         }
-
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollStatus', error);
-        nextTimeout(250);
       });
+
+    nextTimeout();
   }
 
   /**
@@ -228,6 +228,10 @@ export default class Status {
    * the client got reconnected.
    */
   _pollLongStatus = () => {
+    if (!this._api.isConnected) {
+      return;
+    }
+
     const nextTimeout = (timeout = 30000) => {
       if (this._longStatusTimeoutId) {
         clearTimeout(this._longStatusTimeoutId);
@@ -241,7 +245,9 @@ export default class Status {
 
     Promise
       .all([
+        this._api.parity.netPeers(),
         this._api.web3.clientVersion(),
+        this._api.net.version(),
         this._api.parity.defaultExtraData(),
         this._api.parity.netChain(),
         this._api.parity.netPort(),
@@ -249,31 +255,33 @@ export default class Status {
         this._api.parity.enode()
       ])
       .then(([
-        clientVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
+        netPeers, clientVersion, netVersion, defaultExtraData, netChain, netPort, rpcSettings, enode
       ]) => {
-        const isTest = netChain === 'morden' || netChain === 'testnet';
+        const isTest =
+          netVersion === '2' || // morden
+          netVersion === '3'; // ropsten
 
         const longStatus = {
+          netPeers,
           clientVersion,
           defaultExtraData,
           netChain,
           netPort,
           rpcSettings,
-          enode,
-          isTest
+          isTest,
+          enode
         };
 
         if (!isEqual(longStatus, this._longStatus)) {
           this._store.dispatch(statusCollection(longStatus));
           this._longStatus = longStatus;
         }
-
-        nextTimeout();
       })
       .catch((error) => {
         console.error('_pollLongStatus', error);
-        nextTimeout(250);
       });
+
+    nextTimeout(60000);
   }
 
   _pollLogs = () => {

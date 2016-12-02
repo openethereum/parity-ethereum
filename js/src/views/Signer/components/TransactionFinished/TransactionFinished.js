@@ -15,9 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../../util/nullable-proptype';
-
-import CircularProgress from 'material-ui/CircularProgress';
+import { observer } from 'mobx-react';
 
 import { TxHash } from '../../../../ui';
 
@@ -30,11 +28,8 @@ import styles from './TransactionFinished.css';
 import * as tUtil from '../util/transaction';
 import { capitalize } from '../util/util';
 
+@observer
 export default class TransactionFinished extends Component {
-  static contextTypes = {
-    api: PropTypes.object.isRequired
-  };
-
   static propTypes = {
     id: PropTypes.object.isRequired,
     from: PropTypes.string.isRequired,
@@ -47,65 +42,41 @@ export default class TransactionFinished extends Component {
     txHash: PropTypes.string, // undefined if transacation is rejected
     className: PropTypes.string,
     data: PropTypes.string,
-    chain: nullable(PropTypes.object),
-    fromBalance: nullable(PropTypes.object),
-    toBalance: nullable(PropTypes.object)
-  };
-
-  state = {
-    chain: null,
-    fromBalance: null,
-    toBalance: null
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired
   };
 
   componentWillMount () {
-    const { from, to, gas, gasPrice, value } = this.props;
+    const { from, to, gas, gasPrice, value, store } = this.props;
     const fee = tUtil.getFee(gas, gasPrice); // BigNumber object
     const totalValue = tUtil.getTotalValue(fee, value);
+
     this.setState({ totalValue });
-
-    this.context.api.parity.netChain()
-      .then((chain) => {
-        this.setState({ chain });
-      })
-      .catch((err) => {
-        console.error('could not fetch chain', err);
-      });
-
-    this.fetchBalance(from, 'fromBalance');
-    if (to) {
-      this.fetchBalance(to, 'toBalance');
-    }
+    store.fetchBalances([from, to]);
   }
 
   render () {
-    const { chain, fromBalance, toBalance } = this.state;
-    if (!chain || !fromBalance || !toBalance) {
-      return (
-        <div className={ `${styles.container} ${className}` }>
-          <CircularProgress size={ 60 } />
-        </div>
-      );
-    }
+    const { className, date, id, from, to, store } = this.props;
 
-    const { className, date, id } = this.props;
+    const fromBalance = store.balances[from];
+    const toBalance = store.balances[to];
 
     return (
       <div className={ `${styles.container} ${className || ''}` }>
-        <div className={ styles.mainContainer }>
-          <TransactionMainDetails
-            { ...this.props }
-            { ...this.state }
-            className={ styles.transactionDetails }
-          >
-            <TransactionSecondaryDetails
-              id={ id }
-              date={ date }
-            />
-          </TransactionMainDetails>
-          <div className={ styles.statusContainer }>
-            { this.renderStatus() }
-          </div>
+        <TransactionMainDetails
+          { ...this.props }
+          { ...this.state }
+          fromBalance={ fromBalance }
+          toBalance={ toBalance }
+          className={ styles.transactionDetails }
+        >
+          <TransactionSecondaryDetails
+            id={ id }
+            date={ date }
+          />
+        </TransactionMainDetails>
+        <div className={ styles.statusContainer }>
+          { this.renderStatus() }
         </div>
       </div>
     );
@@ -130,28 +101,20 @@ export default class TransactionFinished extends Component {
   }
 
   renderTxHash () {
-    const { txHash } = this.props;
-    const { chain } = this.state;
-    if (!txHash || !chain) {
+    const { txHash, isTest } = this.props;
+
+    if (!txHash) {
       return;
     }
 
     return (
       <div>
         Transaction hash:
-        <TxHashLink chain={ chain } txHash={ txHash } className={ styles.txHash } />
+        <TxHashLink
+          isTest={ isTest }
+          txHash={ txHash }
+          className={ styles.txHash } />
       </div>
     );
   }
-
-  fetchBalance (address, key) {
-    this.context.api.eth.getBalance(address)
-      .then((balance) => {
-        this.setState({ [key]: balance });
-      })
-      .catch((err) => {
-        console.error('could not fetch balance', err);
-      });
-  }
-
 }

@@ -111,6 +111,7 @@ known_heap_size!(0, PeerInfo);
 type PacketDecodeError = DecoderError;
 
 const PROTOCOL_VERSION_63: u8 = 63;
+const PROTOCOL_VERSION_62: u8 = 62;
 const PROTOCOL_VERSION_1: u8 = 1;
 const MAX_BODIES_TO_SEND: usize = 256;
 const MAX_HEADERS_TO_SEND: usize = 512;
@@ -352,6 +353,8 @@ pub struct ChainSync {
 	sync_start_time: Option<u64>,
 	/// Transactions propagation statistics
 	transactions_stats: TransactionsStats,
+	/// Enable ancient block downloading
+	download_old_blocks: bool,
 }
 
 type RlpResponseResult = Result<Option<(PacketId, RlpStream)>, PacketDecodeError>;
@@ -372,6 +375,7 @@ impl ChainSync {
 			last_sent_block_number: 0,
 			network_id: config.network_id,
 			fork_block: config.fork_block,
+			download_old_blocks: config.download_old_blocks,
 			snapshot: Snapshot::new(),
 			sync_start_time: None,
 			transactions_stats: TransactionsStats::default(),
@@ -539,17 +543,18 @@ impl ChainSync {
 		// Do not assume that the block queue/chain still has our last_imported_block
 		let chain = chain.chain_info();
 		self.new_blocks = BlockDownloader::new(false, &chain.best_block_hash, chain.best_block_number);
-		if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
+		self.old_blocks = None;
+		if self.download_old_blocks {
+			if let (Some(ancient_block_hash), Some(ancient_block_number)) = (chain.ancient_block_hash, chain.ancient_block_number) {
 
-			trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
-			let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number);
-			if let Some(hash) = chain.first_block_hash {
-				trace!(target: "sync", "Downloader target set to {:?}", hash);
-				downloader.set_target(&hash);
+				trace!(target: "sync", "Downloading old blocks from {:?} (#{}) till {:?} (#{:?})", ancient_block_hash, ancient_block_number, chain.first_block_hash, chain.first_block_number);
+				let mut downloader = BlockDownloader::new(true, &ancient_block_hash, ancient_block_number);
+				if let Some(hash) = chain.first_block_hash {
+					trace!(target: "sync", "Downloader target set to {:?}", hash);
+					downloader.set_target(&hash);
+				}
+				self.old_blocks = Some(downloader);
 			}
-			self.old_blocks = Some(downloader);
-		} else {
-			self.old_blocks = None;
 		}
 	}
 
@@ -603,7 +608,7 @@ impl ChainSync {
 			trace!(target: "sync", "Peer {} network id mismatch (ours: {}, theirs: {})", peer_id, self.network_id, peer.network_id);
 			return Ok(());
 		}
-		if (warp_protocol && peer.protocol_version != PROTOCOL_VERSION_1) || (!warp_protocol && peer.protocol_version != PROTOCOL_VERSION_63) {
+		if (warp_protocol && peer.protocol_version != PROTOCOL_VERSION_1) || (!warp_protocol && peer.protocol_version != PROTOCOL_VERSION_63 && peer.protocol_version != PROTOCOL_VERSION_62) {
 			io.disable_peer(peer_id);
 			trace!(target: "sync", "Peer {} unsupported eth protocol ({})", peer_id, peer.protocol_version);
 			return Ok(());
@@ -620,7 +625,7 @@ impl ChainSync {
 		Ok(())
 	}
 
-	#[cfg_attr(feature="dev", allow(cyclomatic_complexity))]
+	#[cfg_attr(feature="dev", allow(cyclomatic_complexity, needless_borrow))]
 	/// Called by peer once it has new block headers during sync
 	fn on_peer_block_headers(&mut self, io: &mut SyncIo, peer_id: PeerId, r: &UntrustedRlp) -> Result<(), PacketDecodeError> {
 		let confirmed = match self.peers.get_mut(&peer_id) {
@@ -1169,7 +1174,7 @@ impl ChainSync {
 					}
 				},
 				SyncState::SnapshotData => {
-					if let RestorationStatus::Ongoing { state_chunks: _, block_chunks: _, state_chunks_done, block_chunks_done, } = io.snapshot_service().status() {
+					if let RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } = io.snapshot_service().status() {
 						if self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize > MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 							trace!(target: "sync", "Snapshot queue full, pausing sync");
 							self.state = SyncState::SnapshotWaiting;
@@ -1411,7 +1416,7 @@ impl ChainSync {
 	/// Send Status message
 	fn send_status(&mut self, io: &mut SyncIo, peer: PeerId) -> Result<(), NetworkError> {
 		let warp_protocol = io.protocol_version(&WARP_SYNC_PROTOCOL_ID, peer) != 0;
-		let protocol = if warp_protocol { PROTOCOL_VERSION_1 } else { PROTOCOL_VERSION_63 };
+		let protocol = if warp_protocol { PROTOCOL_VERSION_1 } else { io.eth_protocol_version(peer) };
 		trace!(target: "sync", "Sending status to {}, protocol version {}", peer, protocol);
 		let mut packet = RlpStream::new_list(if warp_protocol { 7 } else { 5 });
 		let chain = io.chain().chain_info();
@@ -1421,7 +1426,10 @@ impl ChainSync {
 		packet.append(&chain.best_block_hash);
 		packet.append(&chain.genesis_hash);
 		if warp_protocol {
-			let manifest = io.snapshot_service().manifest();
+			let manifest = match self.old_blocks.is_some() {
+				true => None,
+				false => io.snapshot_service().manifest(),
+			};
 			let block_number = manifest.as_ref().map_or(0, |m| m.block_number);
 			let manifest_hash = manifest.map_or(H256::new(), |m| m.into_rlp().sha3());
 			packet.append(&manifest_hash);
@@ -1740,7 +1748,7 @@ impl ChainSync {
 					self.restart(io);
 					self.continue_sync(io);
 				},
-				RestorationStatus::Ongoing { state_chunks: _, block_chunks: _, state_chunks_done, block_chunks_done, } => {
+				RestorationStatus::Ongoing { state_chunks_done, block_chunks_done, .. } => {
 					if !self.snapshot.is_complete() && self.snapshot.done_chunks() - (state_chunks_done + block_chunks_done) as usize <= MAX_SNAPSHOT_CHUNKS_DOWNLOAD_AHEAD {
 						trace!(target:"sync", "Resuming snapshot sync");
 						self.state = SyncState::SnapshotData;
@@ -1994,12 +2002,16 @@ impl ChainSync {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::{HashSet, VecDeque};
 	use tests::helpers::*;
 	use tests::snapshot::TestSnapshotService;
+	use util::{U256, RwLock};
+	use util::sha3::Hashable;
+	use util::hash::{H256, FixedHash};
+	use util::bytes::Bytes;
+	use rlp::{Rlp, RlpStream, UntrustedRlp, View, Stream};
 	use super::*;
 	use ::SyncConfig;
-	use util::*;
-	use rlp::*;
 	use super::{PeerInfo, PeerAsking};
 	use ethcore::views::BlockView;
 	use ethcore::header::*;

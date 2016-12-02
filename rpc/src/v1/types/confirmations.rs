@@ -105,10 +105,10 @@ impl Serialize for ConfirmationResponse {
 #[derive(Debug, Clone, Eq, PartialEq, Hash, Serialize)]
 pub enum ConfirmationPayload {
 	/// Send Transaction
-	#[serde(rename="transaction")]
+	#[serde(rename="sendTransaction")]
 	SendTransaction(TransactionRequest),
 	/// Sign Transaction
-	#[serde(rename="transaction")]
+	#[serde(rename="signTransaction")]
 	SignTransaction(TransactionRequest),
 	/// Signature
 	#[serde(rename="sign")]
@@ -137,6 +137,7 @@ impl From<helpers::ConfirmationPayload> for ConfirmationPayload {
 
 /// Possible modifications to the confirmed transaction sent by `Trusted Signer`
 #[derive(Debug, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct TransactionModification {
 	/// Modified gas price
 	#[serde(rename="gasPrice")]
@@ -220,7 +221,49 @@ mod tests {
 
 		// when
 		let res = serde_json::to_string(&ConfirmationRequest::from(request));
-		let expected = r#"{"id":"0xf","payload":{"transaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+		let expected = r#"{"id":"0xf","payload":{"sendTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+
+		// then
+		assert_eq!(res.unwrap(), expected.to_owned());
+	}
+
+	#[test]
+	fn should_serialize_sign_transaction_confirmation() {
+		// given
+		let request = helpers::ConfirmationRequest {
+			id: 15.into(),
+			payload: helpers::ConfirmationPayload::SignTransaction(helpers::FilledTransactionRequest {
+				from: 0.into(),
+				to: None,
+				gas: 15_000.into(),
+				gas_price: 10_000.into(),
+				value: 100_000.into(),
+				data: vec![1, 2, 3],
+				nonce: Some(1.into()),
+			}),
+		};
+
+		// when
+		let res = serde_json::to_string(&ConfirmationRequest::from(request));
+		let expected = r#"{"id":"0xf","payload":{"signTransaction":{"from":"0x0000000000000000000000000000000000000000","to":null,"gasPrice":"0x2710","gas":"0x3a98","value":"0x186a0","data":"0x010203","nonce":"0x1"}}}"#;
+
+		// then
+		assert_eq!(res.unwrap(), expected.to_owned());
+	}
+
+	#[test]
+	fn should_serialize_decrypt_confirmation() {
+		// given
+		let request = helpers::ConfirmationRequest {
+			id: 15.into(),
+			payload: helpers::ConfirmationPayload::Decrypt(
+				10.into(), vec![1, 2, 3].into(),
+			),
+		};
+
+		// when
+		let res = serde_json::to_string(&ConfirmationRequest::from(request));
+		let expected = r#"{"id":"0xf","payload":{"decrypt":{"address":"0x000000000000000000000000000000000000000a","msg":"0x010203"}}}"#;
 
 		// then
 		assert_eq!(res.unwrap(), expected.to_owned());

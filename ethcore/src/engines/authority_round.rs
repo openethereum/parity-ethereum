@@ -124,7 +124,7 @@ impl AuthorityRound {
 	}
 
 	fn step_proposer(&self, step: usize) -> &Address {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		p.authorities.get(step % p.authority_n).expect("There are authority_n authorities; taking number modulo authority_n gives number in authority_n range; qed")
 	}
 
@@ -211,7 +211,7 @@ impl Engine for AuthorityRound {
 	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
-		let ref p = self.our_params;
+		let p = &self.our_params;
 		Some(p.authorities.contains(author))
 	}
 
@@ -254,8 +254,8 @@ impl Engine for AuthorityRound {
 
 	/// Check if the signature belongs to the correct proposer.
 	fn verify_block_unordered(&self, header: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-        let header_step = try!(header_step(header));
-        // Give one step slack if step is lagging, double vote is still not possible.
+		let header_step = try!(header_step(header));
+		// Give one step slack if step is lagging, double vote is still not possible.
 		if header_step <= self.step() + 1 {
 			let proposer_signature = try!(header_signature(header));
 			let ok_sig = try!(verify_address(self.step_proposer(header_step), &proposer_signature, &header.bare_hash()));
@@ -279,7 +279,7 @@ impl Engine for AuthorityRound {
 
 		let step = try!(header_step(header));
 		// Check if parent is from a previous step.
-		if step == try!(header_step(parent)) { 
+		if step == try!(header_step(parent)) {
 			trace!(target: "poa", "Multiple blocks proposed for step {}.", step);
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
@@ -315,6 +315,7 @@ impl Engine for AuthorityRound {
 #[cfg(test)]
 mod tests {
 	use util::*;
+	use util::trie::TrieSpec;
 	use env_info::EnvInfo;
 	use header::Header;
 	use error::{Error, BlockError};
@@ -384,9 +385,9 @@ mod tests {
 		let engine = &*spec.engine;
 		let genesis_header = spec.genesis_header();
 		let mut db1 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db1).unwrap();
+		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let mut db2 = get_temp_state_db().take();
-		spec.ensure_db_good(&mut db2).unwrap();
+		spec.ensure_db_good(&mut db2, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		let last_hashes = Arc::new(vec![genesis_header.hash()]);
 		let b1 = OpenBlock::new(engine, Default::default(), false, db1, &genesis_header, last_hashes.clone(), addr1, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b1 = b1.close_and_lock();
@@ -417,13 +418,13 @@ mod tests {
 		let engine = Spec::new_test_round().engine;
 
 		let signature = tap.sign(addr, Some("0".into()), header.bare_hash()).unwrap();
-		let mut step = UNIX_EPOCH.elapsed().unwrap().as_secs();
+		let time = UNIX_EPOCH.elapsed().unwrap().as_secs();
+		// Two authorities.
+		let mut step =  time - time % 2;
 		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		let first_ok = engine.verify_block_seal(&header).is_ok();
+		assert!(engine.verify_block_seal(&header).is_err());
 		step = step + 1;
 		header.set_seal(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
-		let second_ok = engine.verify_block_seal(&header).is_ok();
-
-		assert!(first_ok ^ second_ok);
+		assert!(engine.verify_block_seal(&header).is_ok());
 	}
 }

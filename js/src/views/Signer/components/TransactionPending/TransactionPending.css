@@ -14,33 +14,14 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+@import '../../_layout.css';
+
 .container {
-  padding: 25px 0 15px;
-}
+  display: flex;
+  padding: 1.5em 0 1em;
 
-.transactionDetails {
-  padding-right: 321px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
-.mainContainer {
-  position: relative;
-}
-
-.mainContainer:after {
-  clear: both;
-}
-
-.mainContainer > * {
-  vertical-align: middle;
-  min-height: 190px;
-}
-
-.inputs {
-  margin-right: 30px;
-  margin-left: 30px;
-  width: 180px;
-  position: relative;
-  top: -15px; /* due to material ui weird styling */
+  & > * {
+    vertical-align: middle;
+  }
 }

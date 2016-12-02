@@ -357,9 +357,9 @@ pub fn is_valid_node_url(url: &str) -> bool {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use std::net::{SocketAddr, SocketAddrV4, Ipv4Addr};
+	use util::H512;
 	use std::str::FromStr;
-	use std::net::*;
-	use util::hash::*;
 	use devtools::*;
 	use AllowIP;
 

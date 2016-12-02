@@ -69,6 +69,10 @@ pub trait BlockChainClient : Sync + Send {
 	/// May not fail on BlockID::Latest.
 	fn nonce(&self, address: &Address, id: BlockID) -> Option<U256>;
 
+	/// Attempt to get address storage root at given block.
+	/// May not fail on BlockID::Latest.
+	fn storage_root(&self, address: &Address, id: BlockID) -> Option<H256>;
+
 	/// Get address nonce at the latest block's state.
 	fn latest_nonce(&self, address: &Address) -> U256 {
 		self.nonce(address, BlockID::Latest)
@@ -115,7 +119,12 @@ pub trait BlockChainClient : Sync + Send {
 	}
 
 	/// Get a list of all accounts in the block `id`, if fat DB is in operation, otherwise `None`.
-	fn list_accounts(&self, id: BlockID) -> Option<Vec<Address>>;
+	/// If `after` is set the list starts with the following item.
+	fn list_accounts(&self, id: BlockID, after: Option<&Address>, count: u64) -> Option<Vec<Address>>;
+
+	/// Get a list of all storage keys in the block `id`, if fat DB is in operation, otherwise `None`.
+	/// If `after` is set the list starts with the following item.
+	fn list_storage(&self, id: BlockID, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>>;
 
 	/// Get transaction with given hash.
 	fn transaction(&self, id: TransactionID) -> Option<LocalizedTransaction>;

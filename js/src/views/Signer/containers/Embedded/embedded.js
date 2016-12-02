@@ -19,14 +19,19 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
+import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container } from '../../../../ui';
 
-import { RequestPendingWeb3 } from '../../components';
+import { RequestPending } from '../../components';
 
 import styles from './embedded.css';
 
 class Embedded extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  };
+
   static propTypes = {
     signer: PropTypes.shape({
       pending: PropTypes.array.isRequired,
@@ -35,8 +40,11 @@ class Embedded extends Component {
     actions: PropTypes.shape({
       startConfirmRequest: PropTypes.func.isRequired,
       startRejectRequest: PropTypes.func.isRequired
-    }).isRequired
+    }).isRequired,
+    isTest: PropTypes.bool.isRequired
   };
+
+  store = new Store(this.context.api);
 
   render () {
     return (
@@ -70,11 +78,11 @@ class Embedded extends Component {
   }
 
   renderPending = (data) => {
-    const { actions } = this.props;
+    const { actions, isTest } = this.props;
     const { payload, id, isSending, date } = data;
 
     return (
-      <RequestPendingWeb3
+      <RequestPending
         className={ styles.request }
         onConfirm={ actions.startConfirmRequest }
         onReject={ actions.startRejectRequest }
@@ -83,6 +91,8 @@ class Embedded extends Component {
         id={ id }
         payload={ payload }
         date={ date }
+        isTest={ isTest }
+        store={ this.store }
       />
     );
   }
@@ -93,11 +103,13 @@ class Embedded extends Component {
 }
 
 function mapStateToProps (state) {
+  const { isTest } = state.nodeStatus;
   const { actions, signer } = state;
 
   return {
     actions,
-    signer
+    signer,
+    isTest
   };
 }
 

@@ -17,18 +17,20 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
+import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
 import { Actionbar, Button, Page } from '../../ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import VerificationStore from '../../modals/SMSVerification/store';
 
@@ -40,16 +42,19 @@ class Account extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+    images: PropTypes.object.isRequired,
+
     params: PropTypes.object,
     accounts: PropTypes.object,
-    balances: PropTypes.object,
-    images: PropTypes.object.isRequired,
-    isTest: PropTypes.bool
+    isTestnet: PropTypes.bool,
+    balances: PropTypes.object
   }
 
   propName = null
 
   state = {
+    showDeleteDialog: false,
     showEditDialog: false,
     showFundDialog: false,
     showVerificationDialog: false,
@@ -59,15 +64,39 @@ class Account extends Component {
   }
 
   componentDidMount () {
-    const { api } = this.context;
-    const { address } = this.props.params;
+    this.setVisibleAccounts();
+  }
 
-    const store = new VerificationStore(api, address);
-    this.setState({ verificationStore: store });
+  componentWillReceiveProps (nextProps) {
+    const prevAddress = this.props.params.address;
+    const nextAddress = nextProps.params.address;
+
+    if (prevAddress !== nextAddress) {
+      this.setVisibleAccounts(nextProps);
+    }
+
+    const { isTestnet } = nextProps;
+    if (typeof isTestnet === 'boolean' && !this.state.verificationStore) {
+      const { api } = this.context;
+      const { address } = nextProps.params;
+      this.setState({
+        verificationStore: new VerificationStore(api, address, isTestnet)
+      });
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { params, setVisibleAccounts } = props;
+    const addresses = [ params.address ];
+    setVisibleAccounts(addresses);
   }
 
   render () {
-    const { accounts, balances, isTest } = this.props;
+    const { accounts, balances } = this.props;
     const { address } = this.props.params;
 
     const account = (accounts || {})[address];
@@ -79,6 +108,7 @@ class Account extends Component {
 
     return (
       <div className={ styles.account }>
+        { this.renderDeleteDialog(account) }
         { this.renderEditDialog(account) }
         { this.renderFundDialog() }
         { this.renderVerificationDialog() }
@@ -87,9 +117,9 @@ class Account extends Component {
         { this.renderActionbar() }
         <Page>
           <Header
-            isTest={ isTest }
             account={ account }
-            balance={ balance } />
+            balance={ balance }
+          />
           <Transactions
             accounts={ accounts }
             address={ address } />
@@ -131,13 +161,32 @@ class Account extends Component {
         key='passwordManager'
         icon={ <LockIcon /> }
         label='password'
-        onClick={ this.onPasswordClick } />
+        onClick={ this.onPasswordClick } />,
+      <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete account'
+        onClick={ this.onDeleteClick } />
     ];
 
     return (
       <Actionbar
         title='Account Management'
         buttons={ buttons } />
+    );
+  }
+
+  renderDeleteDialog (account) {
+    const { showDeleteDialog } = this.state;
+
+    if (!showDeleteDialog) {
+      return null;
+    }
+
+    return (
+      <DeleteAccount
+        account={ account }
+        onClose={ this.onDeleteClose } />
     );
   }
 
@@ -228,6 +277,14 @@ class Account extends Component {
     );
   }
 
+  onDeleteClick = () => {
+    this.setState({ showDeleteDialog: true });
+  }
+
+  onDeleteClose = () => {
+    this.setState({ showDeleteDialog: false });
+  }
+
   onEditClick = () => {
     this.setState({
       showEditDialog: !this.state.showEditDialog
@@ -275,20 +332,22 @@ class Account extends Component {
 
 function mapStateToProps (state) {
   const { accounts } = state.personal;
+  const { isTest } = state.nodeStatus;
   const { balances } = state.balances;
   const { images } = state;
-  const { isTest } = state.nodeStatus;
 
   return {
-    isTest,
     accounts,
+    isTestnet: isTest,
     balances,
     images
   };
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

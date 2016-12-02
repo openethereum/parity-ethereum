@@ -62,7 +62,6 @@ export default class LoadContract extends Component {
         title={ title }
         actions={ this.renderDialogActions() }
         visible
-        scroll
       >
         { this.renderBody() }
       </Modal>
@@ -79,16 +78,16 @@ export default class LoadContract extends Component {
     const contractsTab = Object.keys(contracts).length === 0
       ? null
       : (
-      <Tab label='Local' >
-        { this.renderEditor() }
+        <Tab label='Local' >
+          { this.renderEditor() }
 
-        <SelectableList
-          onChange={ this.onClickContract }
-        >
-          <Subheader>Saved Contracts</Subheader>
-          { this.renderContracts(contracts) }
-        </SelectableList>
-      </Tab>
+          <SelectableList
+            onChange={ this.onClickContract }
+          >
+            <Subheader>Saved Contracts</Subheader>
+            { this.renderContracts(contracts) }
+          </SelectableList>
+        </Tab>
       );
 
     return (
@@ -174,9 +173,9 @@ export default class LoadContract extends Component {
         const secondaryText = description || `Saved ${moment(timestamp).fromNow()}`;
         const remove = removable
           ? (
-          <IconButton onClick={ onDelete }>
-            <DeleteIcon />
-          </IconButton>
+            <IconButton onTouchTap={ onDelete }>
+              <DeleteIcon />
+            </IconButton>
           )
           : null;
 

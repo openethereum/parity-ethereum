@@ -128,7 +128,7 @@ export default class DeployContract extends Component {
         title={ title }
         waiting={ waiting }
         visible
-        scroll>
+      >
         { this.renderStep() }
       </Modal>
     );

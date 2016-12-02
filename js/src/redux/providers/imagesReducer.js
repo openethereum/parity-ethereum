@@ -31,10 +31,12 @@ export function hashToImageUrl (hashArray) {
 
 export default handleActions({
   setAddressImage (state, action) {
-    const { address, hashArray } = action;
+    const { address, hashArray, converted } = action;
+
+    const image = converted ? hashArray : hashToImageUrl(hashArray);
 
     return Object.assign({}, state, {
-      [address]: hashToImageUrl(hashArray)
+      [address]: image
     });
   }
 }, initialState);

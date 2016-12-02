@@ -20,18 +20,16 @@ import { sha3 } from '../../api/util/sha3';
 
 import Contracts from '../../contracts';
 
-import { checkIfVerified, checkIfRequested, postToServer } from '../../contracts/sms-verification';
+import { checkIfVerified, checkIfRequested, awaitPuzzle } from '../../contracts/sms-verification';
+import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
-
-const validCode = /^[A-Z\s]+$/i;
 
 export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';
 export const POSTING_REQUEST = 'posting-request';
 export const POSTED_REQUEST = 'posted-request';
 export const REQUESTING_SMS = 'requesting-sms';
-export const REQUESTED_SMS = 'requested-sms';
 export const QUERY_CODE = 'query-code';
 export const POSTING_CONFIRMATION = 'posting-confirmation';
 export const POSTED_CONFIRMATION = 'posted-confirmation';
@@ -49,11 +47,9 @@ export default class VerificationStore {
   @observable number = '';
   @observable requestTx = null;
   @observable code = '';
+  @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  @computed get isCodeValid () {
-    return validCode.test(this.code);
-  }
   @computed get isNumberValid () {
     return phone.isValidNumber(this.number);
   }
@@ -71,23 +67,22 @@ export default class VerificationStore {
         return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
       case QUERY_DATA:
         return this.isNumberValid && this.consentGiven;
-      case REQUESTED_SMS:
-        return this.requestTx;
       case QUERY_CODE:
-        return this.isCodeValid;
+        return this.requestTx && this.isCodeValid === true;
       case POSTED_CONFIRMATION:
-        return this.confirmationTx;
+        return !!this.confirmationTx;
       default:
         return false;
     }
   }
 
-  constructor (api, account) {
+  constructor (api, account, isTestnet) {
     this.api = api;
     this.account = account;
+    this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.create(api).registry.getContract('smsVerification')
+    Contracts.create(api).registry.getContract('smsverification')
       .then((contract) => {
         this.contract = contract;
         this.load();
@@ -150,7 +145,26 @@ export default class VerificationStore {
   }
 
   @action setCode = (code) => {
+    const { contract, account } = this;
+    if (!contract || !account || code.length === 0) return;
+
+    const confirm = contract.functions.find((fn) => fn.name === 'confirm');
+    const options = { from: account };
+    const values = [ sha3(code) ];
+
     this.code = code;
+    this.isCodeValid = null;
+    confirm.estimateGas(options, values)
+      .then((gas) => {
+        options.gas = gas.mul(1.2).toFixed(0);
+        return confirm.call(options, values);
+      })
+      .then((result) => {
+        this.isCodeValid = result === true;
+      })
+      .catch((err) => {
+        this.error = 'Failed to check if the code is valid: ' + err.message;
+      });
   }
 
   @action sendRequest = () => {
@@ -187,11 +201,15 @@ export default class VerificationStore {
 
     chain
       .then(() => {
-        this.step = REQUESTING_SMS;
-        return postToServer({ number, address: account });
+        return api.parity.netChain();
       })
+      .then((chain) => {
+        this.step = REQUESTING_SMS;
+        return postToServer({ number, address: account }, this.isTestnet);
+      })
+      .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
-        this.step = REQUESTED_SMS;
+        this.step = QUERY_CODE;
       })
       .catch((err) => {
         this.error = 'Failed to request a confirmation SMS: ' + err.message;

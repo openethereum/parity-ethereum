@@ -25,7 +25,7 @@ import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 import { fromWei } from '../../../api/util/wei';
 import { Form, Input } from '../../../ui';
 
-import terms from '../terms-of-service';
+import { termsOfService } from '../../../3rdparty/sms-verification';
 import styles from './gatherData.css';
 
 export default class GatherData extends Component {
@@ -53,7 +53,7 @@ export default class GatherData extends Component {
         { this.renderCertified() }
         { this.renderRequested() }
         <Input
-          label={ 'phone number' }
+          label={ 'phone number in international format' }
           hint={ 'the SMS will be sent to this number' }
           error={ isNumberValid ? null : 'invalid number' }
           disabled={ isVerified }
@@ -66,7 +66,7 @@ export default class GatherData extends Component {
           disabled={ isVerified }
           onCheck={ this.consentOnChange }
         />
-        <div className={ styles.terms }>{ terms }</div>
+        <div className={ styles.terms }>{ termsOfService }</div>
       </Form>
     );
   }
@@ -123,8 +123,7 @@ export default class GatherData extends Component {
           <p className={ styles.message }>You already requested verification.</p>
         </div>
       );
-    }
-    if (hasRequested === false) {
+    } else if (hasRequested === false) {
       return (
         <div className={ styles.container }>
           <SuccessIcon />

@@ -10,7 +10,7 @@ Usage:
   parity account import <path>... [options]
   parity wallet import <path> --password FILE [options]
   parity import [ <file> ] [options]
-  parity export [ <file> ] [options]
+  parity export (blocks | state) [ <file> ] [options]
   parity signer new-token [options]
   parity snapshot <file> [options]
   parity restore [ <file> ] [options]
@@ -32,7 +32,7 @@ Operating Options:
                            (default: {flag_mode_alarm}).
   --chain CHAIN            Specify the blockchain type. CHAIN may be either a
                            JSON chain specification file or olympic, frontier,
-                           homestead, mainnet, morden, classic, expanse,
+                           homestead, mainnet, morden, ropsten, classic, expanse,
                            testnet or dev (default: {flag_chain}).
   -d --db-path PATH        Specify the database & configuration directory path
                            (default: {flag_db_path}).
@@ -95,6 +95,8 @@ Networking Options:
                            all - connect to any IP address.
                            (default: {flag_allow_ips})
   --max-pending-peers NUM  Allow up to NUM pending connections. (default: {flag_max_pending_peers})
+  --no-ancient-blocks      Disable downloading old blocks after snapshot restoration
+                           or warp sync. (default: {flag_no_ancient_blocks})
 
 API and Console Options:
   --no-jsonrpc             Disable the JSON-RPC API server. (default: {flag_no_jsonrpc})
@@ -269,6 +271,16 @@ Import/Export Options:
                            one of 'hex' and 'binary'.
                            (default: {flag_format:?} = Import: auto, Export: binary)
   --no-seal-check          Skip block seal check. (default: {flag_no_seal_check})
+  --at BLOCK               Export state at the given block, which may be an
+                           index, hash, or 'latest'. Note that taking snapshots at
+                           non-recent blocks will only work with --pruning archive
+                           (default: {flag_at})
+  --no-storage             Don't export account storge. (default: {flag_no_storage})
+  --no-code                Don't export account code. (default: {flag_no_code})
+  --min-balance WEI        Don't export accounts with balance less than specified.
+                           (default: {flag_min_balance:?})
+  --max-balance WEI        Don't export accounts with balance greater than specified.
+                           (default: {flag_max_balance:?})
 
 Snapshot Options:
   --at BLOCK               Take a snapshot at the given block, which may be an
@@ -321,7 +333,7 @@ Miscellaneous Options:
   -l --logging LOGGING     Specify the logging level. Must conform to the same
                            format as RUST_LOG. (default: {flag_logging:?})
   --log-file FILENAME      Specify a filename into which logging should be
-                           directed. (default: {flag_log_file:?})
+                           appended. (default: {flag_log_file:?})
   --no-config              Don't load a configuration file.
   --no-color               Don't use terminal color codes in output. (default: {flag_no_color})
   -v --version             Show information about version.

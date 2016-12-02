@@ -437,6 +437,7 @@ describe('api/contract/Contract', () => {
         ]
       }
     ];
+
     const logs = [{
       address: '0x22bff18ec62281850546a664bb63a5c06ac5f76c',
       blockHash: '0xa9280530a3b47bee2fc80f2862fd56502ae075350571d724d6442ea4c597347b',
@@ -450,6 +451,7 @@ describe('api/contract/Contract', () => {
       transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
       transactionIndex: '0x0'
     }];
+
     const parsed = [{
       address: '0x22bfF18ec62281850546a664bb63a5C06AC5F76C',
       blockHash: '0xa9280530a3b47bee2fc80f2862fd56502ae075350571d724d6442ea4c597347b',
@@ -466,11 +468,13 @@ describe('api/contract/Contract', () => {
         sender: { type: 'address', value: '0x63Cf90D3f0410092FC0fca41846f596223979195' }
       },
       topics: [
-        '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5', '0x0000000000000000000000000000000000000000000000000001000000004fe0'
+        '0x954ba6c157daf8a26539574ffa64203c044691aa57251af95f4b48d85ec00dd5',
+        '0x0000000000000000000000000000000000000000000000000001000000004fe0'
       ],
       transactionHash: '0xca16f537d761d13e4e80953b754e2b15541f267d6cad9381f750af1bae1e4917',
       transactionIndex: new BigNumber(0)
     }];
+
     let contract;
 
     beforeEach(() => {
@@ -496,18 +500,19 @@ describe('api/contract/Contract', () => {
         scope = mockHttp([
           { method: 'eth_newFilter', reply: { result: '0x123' } },
           { method: 'eth_getFilterLogs', reply: { result: logs } },
+          { method: 'eth_getFilterChanges', reply: { result: logs } },
           { method: 'eth_newFilter', reply: { result: '0x123' } },
           { method: 'eth_getFilterLogs', reply: { result: logs } }
         ]);
         cbb = sinon.stub();
         cbe = sinon.stub();
 
-        return contract.subscribe('Message', {}, cbb);
+        return contract.subscribe('Message', { toBlock: 'pending' }, cbb);
       });
 
       it('sets the subscriptionId returned', () => {
         return contract
-          .subscribe('Message', {}, cbe)
+          .subscribe('Message', { toBlock: 'pending' }, cbe)
           .then((subscriptionId) => {
             expect(subscriptionId).to.equal(1);
           });
@@ -515,7 +520,7 @@ describe('api/contract/Contract', () => {
 
       it('creates a new filter and retrieves the logs on it', () => {
         return contract
-          .subscribe('Message', {}, cbe)
+          .subscribe('Message', { toBlock: 'pending' }, cbe)
           .then((subscriptionId) => {
             expect(scope.isDone()).to.be.true;
           });
@@ -523,7 +528,7 @@ describe('api/contract/Contract', () => {
 
       it('returns the logs to the callback', () => {
         return contract
-          .subscribe('Message', {}, cbe)
+          .subscribe('Message', { toBlock: 'pending' }, cbe)
           .then((subscriptionId) => {
             expect(cbe).to.have.been.calledWith(null, parsed);
           });

@@ -22,17 +22,20 @@ es6Promise.polyfill();
 
 import React from 'react';
 import ReactDOM from 'react-dom';
+import { AppContainer } from 'react-hot-loader';
+
 import injectTapEventPlugin from 'react-tap-event-plugin';
 import { createHashHistory } from 'history';
-import { Redirect, Router, Route, useRouterHistory } from 'react-router';
+import { useRouterHistory } from 'react-router';
 import qs from 'querystring';
 
 import SecureApi from './secureApi';
 import ContractInstances from './contracts';
 
 import { initStore } from './redux';
-import { ContextProvider, muiTheme } from './ui';
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
+import ContextProvider from './ui/ContextProvider';
+import muiTheme from './ui/Theme';
+import MainApplication from './main';
 
 import { setApi } from './redux/providers/apiActions';
 
@@ -41,10 +44,13 @@ import './environment';
 import '../assets/fonts/Roboto/font.css';
 import '../assets/fonts/RobotoMono/font.css';
 
-import styles from './reset.css';
-import './index.html';
-
 injectTapEventPlugin();
+
+if (process.env.NODE_ENV === 'development') {
+  // Expose the React Performance Tools on the`window` object
+  const Perf = require('react-addons-perf');
+  window.Perf = Perf;
+}
 
 const AUTH_HASH = '#/auth?';
 const parityUrl = process.env.PARITY_URL ||
@@ -71,32 +77,47 @@ window.secureApi = api;
 const routerHistory = useRouterHistory(createHashHistory)({});
 
 ReactDOM.render(
-  <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
-    <Router className={ styles.reset } history={ routerHistory }>
-      <Redirect from='/' to='/accounts' />
-      <Redirect from='/auth' to='/accounts' query={ {} } />
-      <Redirect from='/settings' to='/settings/views' />
-      <Route path='/' component={ Application }>
-        <Route path='accounts' component={ Accounts } />
-        <Route path='account/:address' component={ Account } />
-        <Route path='addresses' component={ Addresses } />
-        <Route path='address/:address' component={ Address } />
-        <Route path='apps' component={ Dapps } />
-        <Route path='app/:id' component={ Dapp } />
-        <Route path='contracts' component={ Contracts } />
-        <Route path='contracts/write' component={ WriteContract } />
-        <Route path='contract/:address' component={ Contract } />
-        <Route path='settings' component={ Settings }>
-          <Route path='background' component={ SettingsBackground } />
-          <Route path='proxy' component={ SettingsProxy } />
-          <Route path='views' component={ SettingsViews } />
-          <Route path='parity' component={ SettingsParity } />
-        </Route>
-        <Route path='signer' component={ Signer } />
-        <Route path='status' component={ Status } />
-        <Route path='status/:subpage' component={ Status } />
-      </Route>
-    </Router>
-  </ContextProvider>,
+  <AppContainer>
+    <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+      <MainApplication
+        routerHistory={ routerHistory }
+      />
+    </ContextProvider>
+  </AppContainer>,
   document.querySelector('#container')
 );
+
+if (module.hot) {
+  // module.hot.accept('./redux', () => {
+  //   // redux store has a method replaceReducer
+  //   // const newStore = initStore(api);
+  //   console.warn('REDUX UPDATE');
+  //   // store.replaceReducer(appReducer);
+
+  //   // ReactDOM.render(
+  //   //   <AppContainer>
+  //   //     <ContextProvider api={ api } muiTheme={ muiTheme } store={ newStore }>
+  //   //       <MainApplication
+  //   //         routerHistory={ routerHistory }
+  //   //       />
+  //   //     </ContextProvider>
+  //   //   </AppContainer>,
+  //   //   document.querySelector('#container')
+  //   // );
+  // });
+
+  module.hot.accept('./main.js', () => {
+    require('./main.js');
+
+    ReactDOM.render(
+      <AppContainer>
+        <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
+          <MainApplication
+            routerHistory={ routerHistory }
+          />
+        </ContextProvider>
+      </AppContainer>,
+      document.querySelector('#container')
+    );
+  });
+}

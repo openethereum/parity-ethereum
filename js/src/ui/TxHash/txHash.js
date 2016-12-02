@@ -19,7 +19,9 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { LinearProgress } from 'material-ui';
+
 import { txLink } from '../../3rdparty/etherscan/links';
+import ShortenedHash from '../ShortenedHash';
 
 import styles from './txHash.css';
 
@@ -62,22 +64,23 @@ class TxHash extends Component {
 
   render () {
     const { hash, isTest, summary } = this.props;
-    let header = null;
 
-    if (!summary) {
-      header = (
-        <div className={ styles.header }>
-          The transaction has been posted to the network with a transaction hash of
-        </div>
-      );
+    const link = (
+      <a href={ txLink(hash, isTest) } target='_blank'>
+        <ShortenedHash data={ hash } />
+      </a>
+    );
+
+    let header = (
+      <p>The transaction has been posted to the network, with a hash of { link }.</p>
+    );
+    if (summary) {
+      header = (<p>{ link }</p>);
     }
 
     return (
-      <div className={ styles.details }>
+      <div>
         { header }
-        <div className={ styles.hash }>
-          <a href={ txLink(hash, isTest) } target='_blank'>{ hash }</a>
-        </div>
         { this.renderConfirmations() }
       </div>
     );
@@ -87,16 +90,28 @@ class TxHash extends Component {
     const { maxConfirmations } = this.props;
     const { blockNumber, transaction } = this.state;
 
-    let txBlock = 'Pending';
-    let confirmations = 'No';
-    let value = 0;
-
-    if (transaction && transaction.blockNumber && transaction.blockNumber.gt(0)) {
-      const num = blockNumber.minus(transaction.blockNumber).plus(1);
-      txBlock = `#${transaction.blockNumber.toFormat(0)}`;
-      confirmations = num.toFormat(0);
-      value = num.gt(maxConfirmations) ? maxConfirmations : num.toNumber();
+    if (!(transaction && transaction.blockNumber && transaction.blockNumber.gt(0))) {
+      return (
+        <div className={ styles.confirm }>
+          <LinearProgress
+            className={ styles.progressbar }
+            color='white'
+            mode='indeterminate'
+          />
+          <div className={ styles.progressinfo }>waiting for confirmations</div>
+        </div>
+      );
     }
+
+    const confirmations = blockNumber.minus(transaction.blockNumber).plus(1);
+    const value = Math.min(confirmations.toNumber(), maxConfirmations);
+    let count;
+    if (confirmations.gt(maxConfirmations)) {
+      count = confirmations.toFormat(0);
+    } else {
+      count = confirmations.toFormat(0) + `/${maxConfirmations}`;
+    }
+    const unit = value === 1 ? 'confirmation' : 'confirmations';
 
     return (
       <div className={ styles.confirm }>
@@ -106,9 +121,10 @@ class TxHash extends Component {
           max={ maxConfirmations }
           value={ value }
           color='white'
-          mode='determinate' />
+          mode='determinate'
+        />
         <div className={ styles.progressinfo }>
-          { txBlock } / { confirmations } confirmations
+          <abbr title={ `block #${blockNumber.toFormat(0)}` }>{ count } { unit }</abbr>
         </div>
       </div>
     );

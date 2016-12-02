@@ -30,20 +30,21 @@ export default class TransactionMainDetails extends Component {
     fromBalance: PropTypes.object, // eth BigNumber, not required since it might take time to fetch
     value: PropTypes.object.isRequired, // wei hex
     totalValue: PropTypes.object.isRequired, // wei BigNumber
-    chain: PropTypes.string.isRequired,
+    isTest: PropTypes.bool.isRequired,
     to: PropTypes.string, // undefined if it's a contract
     toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
-    className: PropTypes.string,
     children: PropTypes.node
   };
 
   componentWillMount () {
     const { value, totalValue } = this.props;
+
     this.updateDisplayValues(value, totalValue);
   }
 
   componentWillReceiveProps (nextProps) {
     const { value, totalValue } = nextProps;
+
     this.updateDisplayValues(value, totalValue);
   }
 
@@ -58,27 +59,24 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { className, children } = this.props;
-    return (
-      <div className={ className }>
-        { this.renderTransfer() }
-        { this.renderContract() }
-        { children }
-      </div>
-    );
+    const { to } = this.props;
+
+    return to
+      ? this.renderTransfer()
+      : this.renderContract();
   }
 
   renderTransfer () {
-    const { from, fromBalance, to, toBalance, chain } = this.props;
-    if (!to) {
-      return;
-    }
+    const { children, from, fromBalance, to, toBalance, isTest } = this.props;
 
     return (
       <div className={ styles.transaction }>
         <div className={ styles.from }>
           <div className={ styles.account }>
-            <Account address={ from } balance={ fromBalance } chain={ chain } />
+            <Account
+              address={ from }
+              balance={ fromBalance }
+              isTest={ isTest } />
           </div>
         </div>
         <div className={ styles.tx }>
@@ -88,23 +86,28 @@ export default class TransactionMainDetails extends Component {
         </div>
         <div className={ styles.to }>
           <div className={ styles.account }>
-            <Account address={ to } balance={ toBalance } chain={ chain } />
+            <Account
+              address={ to }
+              balance={ toBalance }
+              isTest={ isTest } />
           </div>
         </div>
+        { children }
       </div>
     );
   }
 
   renderContract () {
-    const { from, fromBalance, to, chain } = this.props;
-    if (to) {
-      return;
-    }
+    const { children, from, fromBalance, isTest } = this.props;
+
     return (
       <div className={ styles.transaction }>
         <div className={ styles.from }>
           <div className={ styles.account }>
-            <Account address={ from } balance={ fromBalance } chain={ chain } />
+            <Account
+              address={ from }
+              balance={ fromBalance }
+              isTest={ isTest } />
           </div>
         </div>
         <div className={ styles.tx }>
@@ -119,6 +122,7 @@ export default class TransactionMainDetails extends Component {
             Contract
           </div>
         </div>
+        { children }
       </div>
     );
   }
@@ -126,6 +130,7 @@ export default class TransactionMainDetails extends Component {
   renderValue () {
     const { id } = this.props;
     const { valueDisplay, valueDisplayWei } = this.state;
+
     return (
       <div>
         <div
@@ -147,6 +152,7 @@ export default class TransactionMainDetails extends Component {
   renderTotalValue () {
     const { id } = this.props;
     const { totalValueDisplay, totalValueDisplayWei, feeEth } = this.state;
+
     return (
       <div>
         <div
@@ -164,5 +170,4 @@ export default class TransactionMainDetails extends Component {
       </div>
     );
   }
-
 }

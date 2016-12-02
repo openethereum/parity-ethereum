@@ -32,8 +32,13 @@ export default class Application extends Component {
   }
 
   componentDidMount () {
-    const poll = () => this.fetchTransactionData().then(poll).catch(poll);
-    this._timeout = setTimeout(poll, 2000);
+    const poll = () => {
+      this._timeout = window.setTimeout(() => {
+        this.fetchTransactionData().then(poll).catch(poll);
+      }, 1000);
+    };
+
+    poll();
   }
 
   componentWillUnmount () {
@@ -153,18 +158,18 @@ export default class Application extends Component {
           { Transaction.renderHeader() }
         </thead>
         <tbody>
-        {
-          transactions.map((tx, idx) => (
-            <Transaction
-              key={ tx.transaction.hash }
-              idx={ idx + 1 }
-              isLocal={ tx.isLocal }
-              transaction={ tx.transaction }
-              stats={ tx.stats }
-              blockNumber={ blockNumber }
-              />
-          ))
-        }
+          {
+            transactions.map((tx, idx) => (
+              <Transaction
+                key={ tx.transaction.hash }
+                idx={ idx + 1 }
+                isLocal={ tx.isLocal }
+                transaction={ tx.transaction }
+                stats={ tx.stats }
+                blockNumber={ blockNumber }
+                />
+            ))
+          }
         </tbody>
       </table>
     );

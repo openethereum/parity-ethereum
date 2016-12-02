@@ -22,17 +22,17 @@ export default class TxHashLink extends Component {
 
   static propTypes = {
     txHash: PropTypes.string.isRequired,
-    chain: PropTypes.string.isRequired,
+    isTest: PropTypes.bool.isRequired,
     children: PropTypes.node,
     className: PropTypes.string
   }
 
   render () {
-    const { children, txHash, className, chain } = this.props;
+    const { children, txHash, className, isTest } = this.props;
 
     return (
       <a
-        href={ txLink(txHash, chain === 'morden' || chain === 'testnet') }
+        href={ txLink(txHash, isTest) }
         target='_blank'
         className={ className }>
         { children || txHash }

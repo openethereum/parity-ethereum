@@ -63,10 +63,9 @@ export default class Dapp extends Component {
         className={ styles.frame }
         frameBorder={ 0 }
         name={ name }
-        sandbox='allow-same-origin allow-scripts'
+        sandbox='allow-forms allow-popups allow-same-origin allow-scripts'
         scrolling='auto'
-        src={ src }>
-      </iframe>
+        src={ src } />
     );
   }
 }

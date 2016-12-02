@@ -15,7 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../../util/nullable-proptype';
+import { observer } from 'mobx-react';
 
 import Account from '../Account';
 import TransactionPendingForm from '../TransactionPendingForm';
@@ -23,12 +23,8 @@ import TxHashLink from '../TxHashLink';
 
 import styles from './SignRequest.css';
 
+@observer
 export default class SignRequest extends Component {
-  static contextTypes = {
-    api: PropTypes.object
-  }
-
-  // TODO [todr] re-use proptypes?
   static propTypes = {
     id: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
@@ -39,35 +35,19 @@ export default class SignRequest extends Component {
     onReject: PropTypes.func,
     status: PropTypes.string,
     className: PropTypes.string,
-    chain: nullable(PropTypes.object),
-    balance: nullable(PropTypes.object)
+    isTest: PropTypes.bool.isRequired,
+    store: PropTypes.object.isRequired
   };
 
-  state = {
-    chain: null,
-    balance: null
-  }
-
   componentWillMount () {
-    this.context.api.parity.netChain()
-      .then((chain) => {
-        this.setState({ chain });
-      })
-      .catch((err) => {
-        console.error('could not fetch chain', err);
-      });
+    const { address, store } = this.props;
 
-    this.context.api.eth.getBalance(this.props.address)
-      .then((balance) => {
-        this.setState({ balance });
-      })
-      .catch((err) => {
-        console.error('could not fetch balance', err);
-      });
+    store.fetchBalance(address);
   }
 
   render () {
     const { className } = this.props;
+
     return (
       <div className={ `${styles.container} ${className || ''}` }>
         { this.renderDetails() }
@@ -77,15 +57,20 @@ export default class SignRequest extends Component {
   }
 
   renderDetails () {
-    const { address, hash } = this.props;
-    const { balance, chain } = this.state;
+    const { address, hash, isTest, store } = this.props;
+    const balance = store.balances[address];
 
-    if (!balance || !chain) return (<div />);
+    if (!balance) {
+      return <div />;
+    }
 
     return (
       <div className={ styles.signDetails }>
         <div className={ styles.address }>
-          <Account address={ address } balance={ balance } chain={ chain } />
+          <Account
+            address={ address }
+            balance={ balance }
+            isTest={ isTest } />
         </div>
         <div className={ styles.info } title={ hash }>
           <p>Dapp is requesting to sign arbitrary transaction using this account.</p>
@@ -100,15 +85,17 @@ export default class SignRequest extends Component {
 
     if (isFinished) {
       if (status === 'confirmed') {
-        const { hash } = this.props;
-        const { chain } = this.state;
+        const { hash, isTest } = this.props;
 
         return (
           <div className={ styles.actions }>
             <span className={ styles.isConfirmed }>Confirmed</span>
             <div>
               Transaction hash:
-              <TxHashLink chain={ chain } txHash={ hash } className={ styles.txHash } />
+              <TxHashLink
+                isTest={ isTest }
+                txHash={ hash }
+                className={ styles.txHash } />
             </div>
           </div>
         );
@@ -134,11 +121,11 @@ export default class SignRequest extends Component {
 
   onConfirm = password => {
     const { id } = this.props;
+
     this.props.onConfirm({ id, password });
   }
 
   onReject = () => {
     this.props.onReject(this.props.id);
   }
-
 }

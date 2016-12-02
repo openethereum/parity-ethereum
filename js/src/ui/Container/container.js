@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { Card } from 'material-ui/Card';
 
+import Title from './Title';
+
 import styles from './container.css';
 
 export default class Container extends Component {
@@ -25,7 +27,10 @@ export default class Container extends Component {
     className: PropTypes.string,
     compact: PropTypes.bool,
     light: PropTypes.bool,
-    style: PropTypes.object
+    style: PropTypes.object,
+    title: PropTypes.oneOfType([
+      PropTypes.string, PropTypes.node
+    ])
   }
 
   render () {
@@ -35,9 +40,22 @@ export default class Container extends Component {
     return (
       <div className={ classes } style={ style }>
         <Card className={ compact ? styles.compact : styles.padded }>
+          { this.renderTitle() }
           { children }
         </Card>
       </div>
+    );
+  }
+
+  renderTitle () {
+    const { title } = this.props;
+
+    if (!title) {
+      return null;
+    }
+
+    return (
+      <Title title={ title } />
     );
   }
 }

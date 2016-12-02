@@ -91,6 +91,7 @@ pub struct RunCmd {
 	pub custom_bootnodes: bool,
 	pub no_periodic_snapshot: bool,
 	pub check_seal: bool,
+	pub download_old_blocks: bool,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -155,7 +156,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// get the mode
 	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
 	trace!(target: "mode", "mode is {:?}", mode);
-	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
+	let network_enabled = match mode { Mode::Dark(_) | Mode::Off => false, _ => true, };
 
 	// prepare client and snapshot paths.
 	let client_path = db_dirs.client_path(algorithm);
@@ -202,6 +203,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	}
 	sync_config.fork_block = spec.fork_block();
 	sync_config.warp_sync = cmd.warp_sync;
+	sync_config.download_old_blocks = cmd.download_old_blocks;
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
@@ -217,7 +219,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// create client config
 	let client_config = to_client_config(
 		&cmd.cache_config,
-		mode,
+		mode.clone(),
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -352,6 +354,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
+	user_defaults.fat_db = fat_db;
+	user_defaults.mode = mode;
 	try!(user_defaults.save(&user_defaults_path));
 
 	let on_mode_change = move |mode: &Mode| {

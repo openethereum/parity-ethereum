@@ -50,6 +50,6 @@ pub use self::receipt::Receipt;
 pub use self::rpc_settings::RpcSettings;
 pub use self::trace::{LocalizedTrace, TraceResults};
 pub use self::trace_filter::TraceFilter;
-pub use self::uint::U256;
+pub use self::uint::{U128, U256};
 pub use self::work::Work;
 pub use self::histogram::Histogram;

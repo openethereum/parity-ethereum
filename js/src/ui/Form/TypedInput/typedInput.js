@@ -22,7 +22,10 @@ import IconButton from 'material-ui/IconButton';
 import AddIcon from 'material-ui/svg-icons/content/add';
 import RemoveIcon from 'material-ui/svg-icons/content/remove';
 
-import { Input, InputAddressSelect, Select } from '../../../ui';
+import Input from '../../../ui/Form/Input';
+import InputAddressSelect from '../../../ui/Form/InputAddressSelect';
+import Select from '../../../ui/Form/Select';
+
 import { ABI_TYPES } from '../../../util/abi';
 
 import styles from './typedInput.css';
@@ -96,7 +99,7 @@ export default class TypedInput extends Component {
         <IconButton
           iconStyle={ iconStyle }
           style={ style }
-          onClick={ this.onAddField }
+          onTouchTap={ this.onAddField }
         >
           <AddIcon />
         </IconButton>
@@ -104,7 +107,7 @@ export default class TypedInput extends Component {
         <IconButton
           iconStyle={ iconStyle }
           style={ style }
-          onClick={ this.onRemoveField }
+          onTouchTap={ this.onRemoveField }
         >
           <RemoveIcon />
         </IconButton>

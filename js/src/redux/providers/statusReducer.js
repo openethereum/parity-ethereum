@@ -31,7 +31,7 @@ const initialState = {
   gasLimit: new BigNumber(0),
   hashrate: new BigNumber(0),
   minGasPrice: new BigNumber(0),
-  netChain: 'morden',
+  netChain: 'ropsten',
   netPeers: {
     active: new BigNumber(0),
     connected: new BigNumber(0),
@@ -39,11 +39,11 @@ const initialState = {
   },
   netPort: new BigNumber(0),
   rpcSettings: {},
-  syncing: false,
+  syncing: true,
   isConnected: false,
   isConnecting: false,
   isPingable: false,
-  isTest: false,
+  isTest: undefined,
   refreshStatus: false,
   traceMode: undefined
 };

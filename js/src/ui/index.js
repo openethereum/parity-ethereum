@@ -23,6 +23,7 @@ import Badge from './Badge';
 import Balance from './Balance';
 import BlockStatus from './BlockStatus';
 import Button from './Button';
+import Certifications from './Certifications';
 import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
@@ -37,10 +38,12 @@ import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
 import Page from './Page';
 import ParityBackground from './ParityBackground';
+import ShortenedHash from './ShortenedHash';
 import SignerIcon from './SignerIcon';
 import Tags from './Tags';
 import Tooltips, { Tooltip } from './Tooltips';
 import TxHash from './TxHash';
+import TxList from './TxList';
 
 export {
   Actionbar,
@@ -53,6 +56,7 @@ export {
   Balance,
   BlockStatus,
   Button,
+  Certifications,
   ConfirmDialog,
   Container,
   ContainerTitle,
@@ -79,9 +83,11 @@ export {
   Page,
   ParityBackground,
   RadioButtons,
+  ShortenedHash,
   SignerIcon,
   Tags,
   Tooltip,
   Tooltips,
-  TxHash
+  TxHash,
+  TxList
 };

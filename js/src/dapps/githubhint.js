@@ -25,7 +25,6 @@ import Application from './githubhint/Application';
 import '../../assets/fonts/Roboto/font.css';
 import '../../assets/fonts/RobotoMono/font.css';
 import './style.css';
-import './githubhint.html';
 
 ReactDOM.render(
   <Application />,

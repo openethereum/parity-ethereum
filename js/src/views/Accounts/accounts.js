@@ -18,11 +18,12 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentAdd from 'material-ui/svg-icons/content/add';
-import { uniq } from 'lodash';
+import { uniq, isEqual } from 'lodash';
 
 import List from './List';
 import { CreateAccount } from '../../modals';
 import { Actionbar, ActionbarExport, ActionbarSearch, ActionbarSort, Button, Page, Tooltip } from '../../ui';
+import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import styles from './accounts.css';
 
@@ -32,6 +33,8 @@ class Accounts extends Component {
   }
 
   static propTypes = {
+    setVisibleAccounts: PropTypes.func.isRequired,
+
     accounts: PropTypes.object,
     hasAccounts: PropTypes.bool,
     balances: PropTypes.object
@@ -42,30 +45,81 @@ class Accounts extends Component {
     newDialog: false,
     sortOrder: '',
     searchValues: [],
-    searchTokens: []
+    searchTokens: [],
+    show: false
+  }
+
+  componentWillMount () {
+    window.setTimeout(() => {
+      this.setState({ show: true });
+    }, 100);
+
+    this.setVisibleAccounts();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevAddresses = Object.keys(this.props.accounts);
+    const nextAddresses = Object.keys(nextProps.accounts);
+
+    if (prevAddresses.length !== nextAddresses.length || !isEqual(prevAddresses.sort(), nextAddresses.sort())) {
+      this.setVisibleAccounts(nextProps);
+    }
+  }
+
+  componentWillUnmount () {
+    this.props.setVisibleAccounts([]);
+  }
+
+  setVisibleAccounts (props = this.props) {
+    const { accounts, setVisibleAccounts } = props;
+    const addresses = Object.keys(accounts);
+    setVisibleAccounts(addresses);
   }
 
   render () {
-    const { accounts, hasAccounts, balances } = this.props;
-    const { searchValues, sortOrder } = this.state;
-
     return (
       <div className={ styles.accounts }>
         { this.renderNewDialog() }
         { this.renderActionbar() }
-        <Page>
-          <List
-            search={ searchValues }
-            accounts={ accounts }
-            balances={ balances }
-            empty={ !hasAccounts }
-            order={ sortOrder }
-            handleAddSearchToken={ this.onAddSearchToken } />
-          <Tooltip
-            className={ styles.accountTooltip }
-            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-        </Page>
+
+        { this.state.show ? this.renderAccounts() : this.renderLoading() }
       </div>
+    );
+  }
+
+  renderLoading () {
+    const { accounts } = this.props;
+
+    const loadings = ((accounts && Object.keys(accounts)) || []).map((_, idx) => (
+      <div key={ idx } className={ styles.loading }>
+        <div />
+      </div>
+    ));
+
+    return (
+      <div className={ styles.loadings }>
+        { loadings }
+      </div>
+    );
+  }
+
+  renderAccounts () {
+    const { accounts, hasAccounts, balances } = this.props;
+    const { searchValues, sortOrder } = this.state;
+
+    return (
+      <Page>
+        <List
+          search={ searchValues }
+          accounts={ accounts }
+          balances={ balances }
+          empty={ !hasAccounts }
+          order={ sortOrder }
+          handleAddSearchToken={ this.onAddSearchToken } />
+        <Tooltip
+          className={ styles.accountTooltip }
+          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
+      </Page>
     );
   }
 
@@ -176,7 +230,9 @@ function mapStateToProps (state) {
 }
 
 function mapDispatchToProps (dispatch) {
-  return bindActionCreators({}, dispatch);
+  return bindActionCreators({
+    setVisibleAccounts
+  }, dispatch);
 }
 
 export default connect(

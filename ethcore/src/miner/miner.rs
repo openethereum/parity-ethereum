@@ -151,7 +151,7 @@ impl GasPriceCalibrator {
 		if Instant::now() >= self.next_calibration {
 			let usd_per_tx = self.options.usd_per_tx;
 			trace!(target: "miner", "Getting price info");
-			if let Ok(_) = PriceInfo::get(move |price: PriceInfo| {
+			let price_info = PriceInfo::get(move |price: PriceInfo| {
 				trace!(target: "miner", "Price info arrived: {:?}", price);
 				let usd_per_eth = price.ethusd;
 				let wei_per_usd: f32 = 1.0e18 / usd_per_eth;
@@ -159,7 +159,9 @@ impl GasPriceCalibrator {
 				let wei_per_gas: f32 = wei_per_usd * usd_per_tx / gas_per_tx;
 				info!(target: "miner", "Updated conversion rate to Ξ1 = {} ({} wei/gas)", Colour::White.bold().paint(format!("US${}", usd_per_eth)), Colour::Yellow.bold().paint(format!("{}", wei_per_gas)));
 				set_price(U256::from(wei_per_gas as u64));
-			}) {
+			});
+
+			if price_info.is_ok() {
 				self.next_calibration = Instant::now() + self.options.recalibration_period;
 			} else {
 				warn!(target: "miner", "Unable to update Ether price.");
@@ -580,29 +582,29 @@ impl Miner {
 		let gas_required = |tx: &SignedTransaction| tx.gas_required(&schedule).into();
 		let best_block_header: Header = ::rlp::decode(&chain.best_block_header());
 		transactions.into_iter()
-			.filter(|tx| match self.engine.verify_transaction_basic(tx, &best_block_header) {
-					Ok(()) => true,
+			.map(|tx| {
+				match self.engine.verify_transaction_basic(&tx, &best_block_header) {
 					Err(e) => {
 						debug!(target: "miner", "Rejected tx {:?} with invalid signature: {:?}", tx.hash(), e);
-						false
-					}
-				}
-			)
-			.map(|tx| {
-				let origin = accounts.as_ref().and_then(|accounts| {
-					tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
-						true => Some(TransactionOrigin::Local),
-						false => None,
-					})
-				}).unwrap_or(default_origin);
-
-				match origin {
-					TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
-						transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+						Err(e)
 					},
-					TransactionOrigin::External => {
-						transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
-					}
+					Ok(()) => {
+						let origin = accounts.as_ref().and_then(|accounts| {
+							tx.sender().ok().and_then(|sender| match accounts.contains(&sender) {
+								true => Some(TransactionOrigin::Local),
+								false => None,
+							})
+						}).unwrap_or(default_origin);
+
+						match origin {
+							TransactionOrigin::Local | TransactionOrigin::RetractedBlock => {
+								transaction_queue.add(tx, origin, &fetch_account, &gas_required)
+							},
+							TransactionOrigin::External => {
+								transaction_queue.add_with_banlist(tx, &fetch_account, &gas_required)
+							}
+						}
+					},
 				}
 			})
 			.collect()
@@ -1139,15 +1141,16 @@ impl MinerService for Miner {
 #[cfg(test)]
 mod tests {
 
+	use std::sync::Arc;
 	use std::time::Duration;
 	use super::super::{MinerService, PrioritizationStrategy};
 	use super::*;
-	use util::*;
+	use block::IsBlock;
+	use util::{U256, Uint, FromHex};
 	use ethkey::{Generator, Random};
 	use client::{BlockChainClient, TestBlockChainClient, EachBlockWith, TransactionImportResult};
 	use header::BlockNumber;
 	use types::transaction::{Transaction, SignedTransaction, Action};
-	use block::*;
 	use spec::Spec;
 	use tests::helpers::{generate_dummy_client};
 

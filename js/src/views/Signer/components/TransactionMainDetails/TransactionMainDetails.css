@@ -14,7 +14,12 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
+
+@import '../../_layout.css';
+
 .transaction {
+  flex: 1;
+  overflow: auto;
 }
 
 .transaction > * {
@@ -30,11 +35,11 @@
 }
 
 .from .account {
-  padding-right: 75px;
+  padding-right: $accountPadding;
 }
 
 .to .account {
-  padding-left: 75px;
+  padding-left: $accountPadding;
 }
 
 .from img, .to img {

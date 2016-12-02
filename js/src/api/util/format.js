@@ -14,6 +14,8 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
+import { range } from 'lodash';
+
 export function bytesToHex (bytes) {
   return '0x' + bytes.map((b) => ('0' + b.toString(16)).slice(-2)).join('');
 }
@@ -28,4 +30,30 @@ export function hex2Ascii (_hex) {
   }
 
   return str;
+}
+
+export function asciiToHex (string) {
+  return '0x' + string.split('').map((s) => s.charCodeAt(0).toString(16)).join('');
+}
+
+export function padRight (input, length) {
+  const value = toHex(input).substr(2, length * 2);
+  return '0x' + value + range(length * 2 - value.length).map(() => '0').join('');
+}
+
+export function padLeft (input, length) {
+  const value = toHex(input).substr(2, length * 2);
+  return '0x' + range(length * 2 - value.length).map(() => '0').join('') + value;
+}
+
+export function toHex (str) {
+  if (str && str.toString) {
+    str = str.toString(16);
+  }
+
+  if (str && str.substr(0, 2) === '0x') {
+    return str.toLowerCase();
+  }
+
+  return `0x${(str || '').toLowerCase()}`;
 }

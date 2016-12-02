@@ -27,7 +27,6 @@ import styles from './TransactionSecondaryDetails.css';
 import * as tUtil from '../util/transaction';
 
 export default class TransactionSecondaryDetails extends Component {
-
   static propTypes = {
     id: PropTypes.object.isRequired,
     date: PropTypes.instanceOf(Date),
@@ -45,7 +44,7 @@ export default class TransactionSecondaryDetails extends Component {
     const className = this.props.className || '';
 
     return (
-      <div className={ className }>
+      <div className={ `${styles.container} ${className}` }>
         <div className={ styles.iconsContainer }>
           { this.renderGasPrice() }
           { this.renderData() }
@@ -59,10 +58,13 @@ export default class TransactionSecondaryDetails extends Component {
   }
 
   renderGasPrice () {
-    if (!this.props.gasPriceEthmDisplay && !this.props.gasToDisplay) return null;
+    if (!this.props.gasPriceEthmDisplay && !this.props.gasToDisplay) {
+      return null;
+    }
 
     const { id } = this.props;
     const { gasPriceEthmDisplay, gasToDisplay } = this.props;
+
     return (
       <div
         data-tip
@@ -83,11 +85,14 @@ export default class TransactionSecondaryDetails extends Component {
   }
 
   renderData () {
-    if (!this.props.data) return null;
+    if (!this.props.data) {
+      return null;
+    }
 
     const { data, id } = this.props;
     let dataToDisplay = this.noData() ? 'no data' : tUtil.getShortData(data);
     const noDataClass = this.noData() ? styles.noData : '';
+
     return (
       <div
         className={ `${styles.data} ${noDataClass}` }

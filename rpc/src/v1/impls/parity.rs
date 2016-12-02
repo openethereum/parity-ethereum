@@ -28,7 +28,6 @@ use ethstore::random_phrase;
 use ethsync::{SyncProvider, ManageNetwork};
 use ethcore::miner::MinerService;
 use ethcore::client::{MiningBlockChainClient};
-use ethcore::ids::BlockID;
 use ethcore::mode::Mode;
 use ethcore::account_provider::AccountProvider;
 
@@ -38,9 +37,11 @@ use v1::types::{
 	Bytes, U256, H160, H256, H512,
 	Peers, Transaction, RpcSettings, Histogram,
 	TransactionStats, LocalTransactionStatus,
+	BlockNumber,
 };
 use v1::helpers::{errors, SigningQueue, SignerService, NetworkSettings};
 use v1::helpers::dispatch::DEFAULT_MAC;
+use v1::helpers::auto_args::Trailing;
 
 /// Parity implementation.
 pub struct ParityClient<C, M, S: ?Sized> where
@@ -234,19 +235,20 @@ impl<C, M, S: ?Sized> Parity for ParityClient<C, M, S> where
 		Ok(Brain::new(phrase).generate().unwrap().address().into())
 	}
 
-	fn list_accounts(&self) -> Result<Option<Vec<H160>>, Error> {
+	fn list_accounts(&self, count: u64, after: Option<H160>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H160>>, Error> {
 		try!(self.active());
 
 		Ok(take_weak!(self.client)
-			.list_accounts(BlockID::Latest)
+			.list_accounts(block_number.0.into(), after.map(Into::into).as_ref(), count)
 			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
-	fn list_storage_keys(&self, _address: H160) -> Result<Option<Vec<H256>>, Error> {
+	fn list_storage_keys(&self, address: H160, count: u64, after: Option<H256>, block_number: Trailing<BlockNumber>) -> Result<Option<Vec<H256>>, Error> {
 		try!(self.active());
 
-		// TODO: implement this
-		Ok(None)
+		Ok(take_weak!(self.client)
+			.list_storage(block_number.0.into(), &address.into(), after.map(Into::into).as_ref(), count)
+			.map(|a| a.into_iter().map(Into::into).collect()))
 	}
 
 	fn encrypt_message(&self, key: H512, phrase: Bytes) -> Result<Bytes, Error> {
