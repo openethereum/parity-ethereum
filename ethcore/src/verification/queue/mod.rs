@@ -65,7 +65,6 @@ impl Default for Config {
 }
 
 struct VerifierHandle {
-	deleting: Arc<AtomicBool>,
 	sleep: Arc<AtomicBool>,
 	thread: JoinHandle<()>,
 }
@@ -80,21 +79,6 @@ impl VerifierHandle {
 	fn wake_up(&self) {
 		self.sleep.store(false, AtomicOrdering::SeqCst);
 		self.thread.thread().unpark();
-	}
-
-	// signal to the verifier thread that it should conclude its
-	// operations.
-	fn conclude(&self) {
-		// these flags must be set before unparking the thread.
-		// is an mfence necessary?
-		self.deleting.store(true, AtomicOrdering::Release);
-		self.sleep.store(false, AtomicOrdering::SeqCst);
-		self.thread.thread().unpark();
-	}
-
-	// join the verifier thread.
-	fn join(self) {
-		self.thread.join().expect("Verifier thread panicked");
 	}
 }
 
@@ -250,7 +234,6 @@ impl<K: Kind> VerificationQueue<K> {
 			};
 
 			verifiers.push(VerifierHandle {
-				deleting: deleting.clone(),
 				sleep: sleep.clone(),
 				thread: thread::Builder::new()
 					.name(format!("Verifier #{}", i))
@@ -663,23 +646,19 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 	fn drop(&mut self) {
 		trace!(target: "shutdown", "[VerificationQueue] Closing...");
 		self.clear();
-		self.deleting.store(true, AtomicOrdering::Release);
+		self.deleting.store(true, AtomicOrdering::SeqCst);
 
-		let mut verifiers = self.verifiers.get_mut();
-		let mut verifiers = &mut verifiers.0;
+		// mfence here to ensure `deleting` is set first?
 
-		// first pass to signal conclusion. must be done before
-		// notify or deadlock possible.
-		for handle in verifiers.iter() {
-			handle.conclude();
+		let verifiers = self.verifiers.get_mut();
+
+		// wake up all hibernating threads.
+		for handle in verifiers.0.iter() {
+			handle.wake_up();
 		}
 
+		// wake up all threads waiting for more work.
 		self.more_to_verify.notify_all();
-
-		// second pass to join.
-		for handle in verifiers.drain(..) {
-			handle.join();
-		}
 
 		trace!(target: "shutdown", "[VerificationQueue] Closed.");
 	}
