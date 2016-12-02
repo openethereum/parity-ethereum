@@ -510,10 +510,10 @@ impl Engine for Tendermint {
 
 		// Commit is longer than empty signature list.
 		let parent_signature_len = parent.seal()[2].len();
-		if parent_signature_len < 1 {
+		if parent_signature_len <= 1 {
 			try!(Err(EngineError::BadSealFieldSize(OutOfBounds {
 				// One signature.
-				min: Some(136),
+				min: Some(69),
 				max: None,
 				found: parent_signature_len
 			})));
@@ -695,16 +695,25 @@ mod tests {
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
-		assert!(engine.verify_block_unordered(&header, None).is_ok());
+		assert!(engine.verify_block_unordered(&header.clone(), None).is_ok());
 
-		let mut header = Header::default();
-		let random = insert_and_unlock(&tap, "101");
-		header.set_author(random);
+		let validator = insert_and_unlock(&tap, "0");
+		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Bad proposer.
 		match engine.verify_block_unordered(&header, None) {
 			Err(Error::Engine(EngineError::NotProposer(_))) => {},
+			_ => panic!(),
+		}
+
+		let random = insert_and_unlock(&tap, "101");
+		header.set_author(random);
+		let seal = proposal_seal(&tap, &header, 0);
+		header.set_seal(seal);
+		// Not authority.
+		match engine.verify_block_unordered(&header, None) {
+			Err(Error::Engine(EngineError::NotAuthorized(_))) => {},
 			_ => panic!(),
 		}
 	}
