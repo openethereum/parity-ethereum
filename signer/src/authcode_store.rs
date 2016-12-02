@@ -80,6 +80,7 @@ pub struct AuthCodes<T: TimeProvider = DefaultTimeProvider> {
 impl AuthCodes<DefaultTimeProvider> {
 
 	/// Reads `AuthCodes` from file and creates new instance using `DefaultTimeProvider`.
+	#[cfg_attr(feature="dev", allow(single_char_pattern))]
 	pub fn from_file(file: &Path) -> io::Result<AuthCodes> {
 		let content = {
 			if let Ok(mut file) = fs::File::open(file) {
@@ -128,7 +129,7 @@ impl<T: TimeProvider> AuthCodes<T> {
 		let mut file = try!(fs::File::create(file));
 		let content = self.codes.iter().map(|code| {
 			let mut data = vec![code.code.clone(), encode_time(code.created_at.clone())];
-			if let Some(used_at) = code.last_used_at.clone() {
+			if let Some(used_at) = code.last_used_at {
 				data.push(encode_time(used_at));
 			}
 			data.join(SEPARATOR)

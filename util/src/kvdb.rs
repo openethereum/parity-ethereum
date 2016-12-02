@@ -628,7 +628,7 @@ impl Drop for Database {
 
 #[cfg(test)]
 mod tests {
-	use hash::*;
+	use hash::H256;
 	use super::*;
 	use devtools::*;
 	use std::str::FromStr;
