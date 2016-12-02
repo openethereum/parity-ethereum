@@ -112,6 +112,7 @@
     "react-addons-test-utils": "~15.3.2",
     "react-dom": "~15.3.2",
     "react-hot-loader": "~3.0.0-beta.6",
+    "react-intl-aggregate-webpack-plugin": "0.0.1",
     "rucksack-css": "~0.8.6",
     "sinon": "~1.17.4",
     "sinon-as-promised": "~4.0.2",

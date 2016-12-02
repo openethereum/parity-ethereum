@@ -17,6 +17,7 @@
 
 const webpack = require('webpack');
 const path = require('path');
+const ReactIntlAggregatePlugin = require('react-intl-aggregate-webpack-plugin');
 const WebpackErrorNotificationPlugin = require('webpack-error-notification');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -148,7 +149,15 @@ module.exports = {
     }));
 
     if (!isProd) {
+      const DEST_I18N = path.join(__dirname, '..', DEST, 'i18n');
+
       plugins.push(
+        new ReactIntlAggregatePlugin({
+          messagesPattern: DEST_I18N + '/src/**/*.json',
+          aggregateOutputDir: DEST_I18N + '/i18n/',
+          aggregateFilename: 'en'
+        }),
+
         new webpack.optimize.CommonsChunkPlugin({
           filename: 'commons.[hash].js',
           name: 'commons',
