@@ -19,6 +19,8 @@ import keycode from 'keycode';
 import { MenuItem, AutoComplete as MUIAutoComplete } from 'material-ui';
 import { PopoverAnimationVertical } from 'material-ui/Popover';
 
+import { isEqual } from 'lodash';
+
 export default class AutoComplete extends Component {
   static propTypes = {
     onChange: PropTypes.func.isRequired,
@@ -42,12 +44,28 @@ export default class AutoComplete extends Component {
     lastChangedValue: undefined,
     entry: null,
     open: false,
-    fakeBlur: false
+    fakeBlur: false,
+    dataSource: []
+  }
+
+  componentWillMount () {
+    const dataSource = this.getDataSource();
+    this.setState({ dataSource });
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevEntries = Object.keys(this.props.entries || {}).sort();
+    const nextEntries = Object.keys(nextProps.entries || {}).sort();
+
+    if (!isEqual(prevEntries, nextEntries)) {
+      const dataSource = this.getDataSource(nextProps);
+      this.setState({ dataSource });
+    }
   }
 
   render () {
     const { disabled, error, hint, label, value, className, filter, onUpdateInput } = this.props;
-    const { open } = this.state;
+    const { open, dataSource } = this.state;
 
     return (
       <MUIAutoComplete
@@ -68,7 +86,7 @@ export default class AutoComplete extends Component {
         menuCloseDelay={ 0 }
         fullWidth
         floatingLabelFixed
-        dataSource={ this.getDataSource() }
+        dataSource={ dataSource }
         menuProps={ { maxHeight: 400 } }
         ref='muiAutocomplete'
         onKeyDown={ this.onKeyDown }
@@ -76,8 +94,8 @@ export default class AutoComplete extends Component {
     );
   }
 
-  getDataSource () {
-    const { renderItem, entries } = this.props;
+  getDataSource (props = this.props) {
+    const { renderItem, entries } = props;
     const entriesArray = (entries instanceof Array)
       ? entries
       : Object.values(entries);

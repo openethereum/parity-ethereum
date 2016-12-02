@@ -33,6 +33,7 @@ import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
+import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
@@ -72,6 +73,7 @@ export {
   InputAddressSelect,
   InputChip,
   InputInline,
+  Loading,
   Select,
   IdentityIcon,
   IdentityName,

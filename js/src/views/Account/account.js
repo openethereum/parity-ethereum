@@ -51,8 +51,6 @@ class Account extends Component {
     balances: PropTypes.object
   }
 
-  propName = null
-
   state = {
     showDeleteDialog: false,
     showEditDialog: false,

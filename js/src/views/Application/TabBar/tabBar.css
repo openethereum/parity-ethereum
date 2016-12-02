@@ -65,7 +65,7 @@ button.tabactive:hover {
 
 .logo {
   margin: 0 0 0 -24px;
-  padding: 22px 24px 0 24px;
+  padding: 20px 24px;
   white-space: nowrap;
 }
 
@@ -84,6 +84,6 @@ button.tabactive:hover {
 
 .last {
   margin: 0 -24px 0 0;
-  padding: 22px 12px 0 12px;
+  padding: 36px 12px;
   white-space: nowrap;
 }

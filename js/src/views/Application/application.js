@@ -30,8 +30,6 @@ import Status from './Status';
 import Store from './store';
 import TabBar from './TabBar';
 
-import styles from './application.css';
-
 const inFrame = window.parent !== window && window.parent.frames.length !== 0;
 
 @observer
@@ -62,7 +60,7 @@ class Application extends Component {
     }
 
     return (
-      <div className={ styles.outer }>
+      <div>
         { isDapp ? this.renderDapp() : this.renderApp() }
         <Connection />
         <ParityBar dapp={ isDapp } />

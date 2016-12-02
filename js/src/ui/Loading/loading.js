@@ -14,8 +14,23 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { PropTypes } from 'react';
+import React, { Component, PropTypes } from 'react';
+import CircularProgress from 'material-ui/CircularProgress';
 
-export default function nullableProptype (type) {
-  return PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
+import styles from './loading.css';
+
+export default class Loading extends Component {
+  static propTypes = {
+    size: PropTypes.number
+  };
+
+  render () {
+    const size = (this.props.size || 2) * 60;
+
+    return (
+      <div className={ styles.loading }>
+        <CircularProgress size={ size } />
+      </div>
+    );
+  }
 }
