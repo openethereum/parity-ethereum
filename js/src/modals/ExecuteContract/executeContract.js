@@ -27,7 +27,7 @@ import { validateAddress, validateUint } from '../../util/validation';
 import DetailsStep from './DetailsStep';
 
 import ERRORS from '../Transfer/errors';
-import { ERROR_CODES } from '../../api/transport/error';
+import { ERROR_CODES } from '~/api/transport/error';
 
 class ExecuteContract extends Component {
   static contextTypes = {

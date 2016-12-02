@@ -16,7 +16,7 @@
 
 import { observable, computed, autorun, action } from 'mobx';
 import phone from 'phoneformat.js';
-import { sha3 } from '../../api/util/sha3';
+import { sha3 } from '~/api/util/sha3';
 
 import Contracts from 'contracts';
 

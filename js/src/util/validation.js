@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import util from '../api/util';
+import util from '~/api/util';
 
 export const ERRORS = {
   invalidAddress: 'address is an invalid network address',

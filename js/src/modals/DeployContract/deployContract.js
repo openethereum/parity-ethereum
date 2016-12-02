@@ -27,7 +27,7 @@ import ErrorStep from './ErrorStep';
 
 import styles from './deployContract.css';
 
-import { ERROR_CODES } from '../../api/transport/error';
+import { ERROR_CODES } from '~/api/transport/error';
 
 const STEPS = {
   CONTRACT_DETAILS: { title: 'contract details' },

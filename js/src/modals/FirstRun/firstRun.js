@@ -28,7 +28,7 @@ import Completed from './Completed';
 import TnC from './TnC';
 import Welcome from './Welcome';
 
-import { createIdentityImg } from '../../api/util/identity';
+import { createIdentityImg } from '~/api/util/identity';
 import print from '../CreateAccount/print';
 import recoveryPage from '../CreateAccount/recovery-page.ejs';
 import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';

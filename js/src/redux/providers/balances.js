@@ -17,7 +17,7 @@
 import { throttle } from 'lodash';
 
 import { loadTokens, setTokenReg, fetchBalances, fetchTokens, fetchTokensBalances } from './balancesActions';
-import { padRight } from '../../api/util/format';
+import { padRight } from '~/api/util/format';
 
 import Contracts from 'contracts';
 
