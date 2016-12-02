@@ -32,7 +32,7 @@ const isProd = ENV === 'production';
 
 module.exports = {
   cache: !isProd,
-  devtool: isProd ? '#eval' : '#cheap-module-eval-source-map',
+  devtool: isProd ? '#eval' : '#eval-source-map',
 
   context: path.join(__dirname, '../src'),
   entry: Object.assign({}, Shared.dappsEntry, {
