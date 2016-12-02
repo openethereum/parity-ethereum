@@ -25,8 +25,7 @@ import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { createHashHistory } from 'history';
-import { useRouterHistory } from 'react-router';
+import { hashHistory } from 'react-router';
 import qs from 'querystring';
 
 import SecureApi from './secureApi';
@@ -74,13 +73,11 @@ store.dispatch(setApi(api));
 
 window.secureApi = api;
 
-const routerHistory = useRouterHistory(createHashHistory)({});
-
 ReactDOM.render(
   <AppContainer>
     <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
       <MainApplication
-        routerHistory={ routerHistory }
+        routerHistory={ hashHistory }
       />
     </ContextProvider>
   </AppContainer>,
@@ -98,7 +95,7 @@ if (module.hot) {
   //   //   <AppContainer>
   //   //     <ContextProvider api={ api } muiTheme={ muiTheme } store={ newStore }>
   //   //       <MainApplication
-  //   //         routerHistory={ routerHistory }
+  //   //         routerHistory={ hashHistory }
   //   //       />
   //   //     </ContextProvider>
   //   //   </AppContainer>,
@@ -113,7 +110,7 @@ if (module.hot) {
       <AppContainer>
         <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
           <MainApplication
-            routerHistory={ routerHistory }
+            routerHistory={ hashHistory }
           />
         </ContextProvider>
       </AppContainer>,
