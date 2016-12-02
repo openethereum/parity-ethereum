@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentCreate from 'material-ui/svg-icons/content/create';
 
-import { EditMeta } from '../../modals';
+import { EditMeta } from 'modals';
 import { Actionbar, Button, Page } from 'ui';
 
 import Header from '../Account/Header';

@@ -23,7 +23,7 @@ import FileIcon from 'material-ui/svg-icons/action/description';
 import { uniq, isEqual } from 'lodash';
 
 import { Actionbar, ActionbarSearch, ActionbarSort, Button, Page } from 'ui';
-import { AddContract, DeployContract } from '../../modals';
+import { AddContract, DeployContract } from 'modals';
 import { setVisibleAccounts } from '../../redux/providers/personalActions';
 
 import List from '../Accounts/List';

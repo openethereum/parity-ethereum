@@ -29,7 +29,7 @@ import SettingsIcon from 'material-ui/svg-icons/action/settings';
 import SendIcon from 'material-ui/svg-icons/content/send';
 
 import { Actionbar, ActionbarExport, ActionbarImport, Button, Editor, Page, Select, Input } from 'ui';
-import { DeployContract, SaveContract, LoadContract } from '../../modals';
+import { DeployContract, SaveContract, LoadContract } from 'modals';
 
 import { setupWorker } from '../../redux/providers/compilerActions';
 

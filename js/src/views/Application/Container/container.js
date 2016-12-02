@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { FirstRun } from '../../../modals';
+import { FirstRun } from 'modals';
 import { Errors, ParityBackground, Tooltips } from 'ui';
 
 import styles from '../application.css';
