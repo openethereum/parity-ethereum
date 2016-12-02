@@ -254,13 +254,16 @@ mod tests {
 
 	#[test]
 	fn message_info_from_header() {
-		let mut header = Header::default();
-		let seal = vec![
-			::rlp::encode(&0u8).to_vec(),
-			::rlp::encode(&H520::default()).to_vec(),
-			Vec::new()
-		];
-		header.set_seal(seal);
-		assert_eq!(message_info_rlp_from_header(&header).unwrap().to_vec(), vec![228, 128, 128, 2, 160, 39, 191, 179, 126, 80, 124, 233, 13, 161, 65, 48, 114, 4, 177, 198, 186, 36, 25, 67, 128, 97, 53, 144, 172, 80, 202, 75, 29, 113, 152, 255, 101]);
+		let header = Header::default();
+		let pro = ConsensusMessage {
+			signature: Default::default(),
+			height: 0,
+			round: 0,
+			step: Step::Propose,
+			block_hash: Some(header.bare_hash())
+		};
+		let pre = message_info_rlp(0, 0, Step::Precommit, Some(header.bare_hash()));
+
+		assert_eq!(pro.precommit_hash(), pre.sha3());
 	}
 }
