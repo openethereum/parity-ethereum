@@ -85,8 +85,11 @@ impl VerifierHandle {
 	// signal to the verifier thread that it should conclude its
 	// operations.
 	fn conclude(&self) {
-		self.wake_up();
+		// these flags must be set before unparking the thread.
+		// is an mfence necessary?
 		self.deleting.store(true, AtomicOrdering::Release);
+		self.sleep.store(false, AtomicOrdering::SeqCst);
+		self.thread.thread().unpark();
 	}
 
 	// join the verifier thread.
