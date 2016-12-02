@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { hashToImageUrl } from '../../redux/providers/imagesReducer';
-import { fetchCertifications } from '../../redux/providers/certifications/actions';
+import { hashToImageUrl } from 'providers/imagesReducer';
+import { fetchCertifications } from 'providers/certifications/actions';
 
 import defaultIcon from '../../../assets/images/certifications/unknown.svg';
 

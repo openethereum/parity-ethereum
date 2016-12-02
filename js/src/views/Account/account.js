@@ -30,7 +30,7 @@ import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { setVisibleAccounts } from 'providers/personalActions';
 
 import VerificationStore from 'modals/SMSVerification/store';
 

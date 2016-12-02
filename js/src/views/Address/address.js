@@ -26,7 +26,7 @@ import { Actionbar, Button, Page } from 'ui';
 import Header from '../Account/Header';
 import Transactions from '../Account/Transactions';
 import Delete from './Delete';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { setVisibleAccounts } from 'providers/personalActions';
 
 import styles from './address.css';
 

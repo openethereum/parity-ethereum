@@ -23,7 +23,7 @@ import Clipboard from 'react-copy-to-clipboard';
 import CopyIcon from 'material-ui/svg-icons/content/content-copy';
 import Theme from '../Theme';
 
-import { showSnackbar } from '../../redux/providers/snackbarActions';
+import { showSnackbar } from 'providers/snackbarActions';
 
 const { textColor, disabledTextColor } = Theme.flatButton;
 
