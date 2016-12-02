@@ -53,6 +53,8 @@ pub struct Config {
 	/// Maximum heap memory to use.
 	/// When the limit is reached, is_full returns true.
 	pub max_mem_use: usize,
+	/// Settings for the number of verifiers and adaptation strategy.
+	pub verifier_settings: VerifierSettings,
 }
 
 impl Default for Config {
@@ -60,6 +62,26 @@ impl Default for Config {
 		Config {
 			max_queue_size: 30000,
 			max_mem_use: 50 * 1024 * 1024,
+			verifier_settings: VerifierSettings::default(),
+		}
+	}
+}
+
+/// Verifier settings.
+#[derive(Debug, PartialEq, Clone)]
+pub struct VerifierSettings {
+	/// Whether to scale amount of verifiers according to load.
+	// Todo: replace w/ strategy enum?
+	pub scale_verifiers: bool,
+	/// Beginning amount of verifiers.
+	pub num_verifiers: usize,
+}
+
+impl Default for VerifierSettings {
+	fn default() -> Self {
+		VerifierSettings {
+			scale_verifiers: false,
+			num_verifiers: MAX_VERIFIERS,
 		}
 	}
 }
@@ -139,6 +161,7 @@ pub struct VerificationQueue<K: Kind> {
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
 	max_mem_use: usize,
+	scale_verifiers: bool,
 }
 
 struct QueueSignal {
@@ -221,12 +244,15 @@ impl<K: Kind> VerificationQueue<K> {
 		});
 		let empty = Arc::new(SCondvar::new());
 		let panic_handler = PanicHandler::new_in_arc();
+		let scale_verifiers = config.verifier_settings.scale_verifiers;
 
-		let max_verifiers = min(::num_cpus::get(), MAX_VERIFIERS);
-		let default_amount = max(::num_cpus::get(), 3) - 2;
+		let num_cpus = ::num_cpus::get();
+		let max_verifiers = min(num_cpus, MAX_VERIFIERS);
+		let default_amount = max(1, min(max_verifiers, config.verifier_settings.num_verifiers));
 		let mut verifiers = Vec::with_capacity(max_verifiers);
 
 		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, default_amount);
+		debug!(target: "verification", "Verifier auto-scaling {}", if scale_verifiers { "enabled" } else { "disabled" });
 
 		for i in 0..max_verifiers {
 			debug!(target: "verification", "Adding verification thread #{}", i);
@@ -273,6 +299,7 @@ impl<K: Kind> VerificationQueue<K> {
 			ticks_since_adjustment: AtomicUsize::new(0),
 			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
 			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
+			scale_verifiers: scale_verifiers,
 		}
 	}
 
@@ -598,6 +625,8 @@ impl<K: Kind> VerificationQueue<K> {
 
 		self.processing.write().shrink_to_fit();
 
+		if !self.scale_verifiers { return }
+
 		if self.ticks_since_adjustment.fetch_add(1, AtomicOrdering::SeqCst) + 1 >= READJUSTMENT_PERIOD {
 			self.ticks_since_adjustment.store(0, AtomicOrdering::SeqCst);
 		} else {
@@ -693,10 +722,15 @@ mod tests {
 	use error::*;
 	use views::*;
 
-	fn get_test_queue() -> BlockQueue {
+	// create a test block queue.
+	// auto_scaling enables verifier adjustment.
+	fn get_test_queue(auto_scale: bool) -> BlockQueue {
 		let spec = get_test_spec();
 		let engine = spec.engine;
-		BlockQueue::new(Config::default(), engine, IoChannel::disconnected(), true)
+
+		let mut config = Config::default();
+		config.verifier_settings.scale_verifiers = auto_scale;
+		BlockQueue::new(config, engine, IoChannel::disconnected(), true)
 	}
 
 	#[test]
@@ -709,7 +743,7 @@ mod tests {
 
 	#[test]
 	fn can_import_blocks() {
-		let queue = get_test_queue();
+		let queue = get_test_queue(false);
 		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -717,7 +751,7 @@ mod tests {
 
 	#[test]
 	fn returns_error_for_duplicates() {
-		let queue = get_test_queue();
+		let queue = get_test_queue(false);
 		if let Err(e) = queue.import(Unverified::new(get_good_dummy_block())) {
 			panic!("error importing block that is valid by definition({:?})", e);
 		}
@@ -736,7 +770,7 @@ mod tests {
 
 	#[test]
 	fn returns_ok_for_drained_duplicates() {
-		let queue = get_test_queue();
+		let queue = get_test_queue(false);
 		let block = get_good_dummy_block();
 		let hash = BlockView::new(&block).header().hash().clone();
 		if let Err(e) = queue.import(Unverified::new(block)) {
@@ -753,7 +787,7 @@ mod tests {
 
 	#[test]
 	fn returns_empty_once_finished() {
-		let queue = get_test_queue();
+		let queue = get_test_queue(false);
 		queue.import(Unverified::new(get_good_dummy_block()))
 			.expect("error importing block that is valid by definition");
 		queue.flush();
@@ -781,7 +815,7 @@ mod tests {
 	fn scaling_limits() {
 		use super::MAX_VERIFIERS;
 
-		let queue = get_test_queue();
+		let queue = get_test_queue(true);
 		queue.scale_verifiers(MAX_VERIFIERS + 1);
 
 		assert!(queue.verifiers.lock().1 < MAX_VERIFIERS + 1);
@@ -793,7 +827,7 @@ mod tests {
 
 	#[test]
 	fn readjust_verifiers() {
-		let queue = get_test_queue();
+		let queue = get_test_queue(true);
 
 		// put all the verifiers to sleep to ensure 
 		// the test isn't timing sensitive.
@@ -806,13 +840,15 @@ mod tests {
 			verifiers.1
 		};
 
+		queue.scale_verifiers(num_verifiers - 1);
+
 		for block in get_good_dummy_block_seq(5000) {
 			queue.import(Unverified::new(block)).expect("Block good by definition; qed");
 		}
 
 		// almost all unverified == bump verifier count.
 		queue.collect_garbage();
-		assert_eq!(queue.verifiers.lock().1, num_verifiers + 1);
+		assert_eq!(queue.verifiers.lock().1, num_verifiers);
 
 		// wake them up again and verify everything.
 		{

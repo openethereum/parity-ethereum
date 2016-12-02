@@ -242,6 +242,8 @@ usage! {
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
+		flag_scale_verifiers: bool = false, or |_| None,
+		flag_num_verifiers: Option<usize> = None, or |_| None,
 
 		// -- Import/Export Options
 		flag_from: String = "1", or |_| None,
