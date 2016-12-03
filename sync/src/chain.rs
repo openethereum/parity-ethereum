@@ -140,6 +140,8 @@ const HEADERS_TIMEOUT_SEC: f64 = 15f64;
 const BODIES_TIMEOUT_SEC: f64 = 10f64;
 const FORK_HEADER_TIMEOUT_SEC: f64 = 3f64;
 
+const MAX_REORG_BLOCKS: u64 = 64;
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 /// Sync state
 pub enum SyncState {
@@ -567,6 +569,12 @@ impl ChainSync {
 					trace!(target: "sync", "Received {} subchain heads, proceeding to download", headers.len());
 					self.blocks.reset_to(hashes);
 					self.state = SyncState::Blocks;
+				} else {
+					let best = io.chain().chain_info().best_block_number;
+					if best > self.last_imported_block && best - self.last_imported_block > MAX_REORG_BLOCKS {
+						trace!(target: "sync", "No common block, disabling peer");
+						io.disable_peer(peer_id);
+					}
 				}
 			},
 			SyncState::Blocks | SyncState::NewBlocks | SyncState::Waiting => {
