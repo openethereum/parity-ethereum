@@ -1184,7 +1184,7 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
-	fn signing_network_id(&self) -> Option<u8> {
+	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
 

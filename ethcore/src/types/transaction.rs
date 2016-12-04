@@ -72,8 +72,9 @@ pub struct Transaction {
 
 impl Transaction {
 	/// Append object with a without signature into RLP stream
-	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u8>) {
-		s.begin_list(if let None = network_id { 6 } else { 9 });
+
+	pub fn rlp_append_unsigned_transaction(&self, s: &mut RlpStream, network_id: Option<u64>) {
+		s.begin_list(if network_id.is_none() { 6 } else { 9 });
 		s.append(&self.nonce);
 		s.append(&self.gas_price);
 		s.append(&self.gas);
@@ -140,26 +141,26 @@ impl From<ethjson::transaction::Transaction> for SignedTransaction {
 
 impl Transaction {
 	/// The message hash of the transaction.
-	pub fn hash(&self, network_id: Option<u8>) -> H256 {
+	pub fn hash(&self, network_id: Option<u64>) -> H256 {
 		let mut stream = RlpStream::new();
 		self.rlp_append_unsigned_transaction(&mut stream, network_id);
 		stream.out().sha3()
 	}
 
 	/// Signs the transaction as coming from `sender`.
-	pub fn sign(self, secret: &Secret, network_id: Option<u8>) -> SignedTransaction {
+	pub fn sign(self, secret: &Secret, network_id: Option<u64>) -> SignedTransaction {
 		let sig = ::ethkey::sign(secret, &self.hash(network_id))
 			.expect("data is valid and context has signing capabilities; qed");
 		self.with_signature(sig, network_id)
 	}
 
 	/// Signs the transaction with signature.
-	pub fn with_signature(self, sig: Signature, network_id: Option<u8>) -> SignedTransaction {
+	pub fn with_signature(self, sig: Signature, network_id: Option<u64>) -> SignedTransaction {
 		SignedTransaction {
 			unsigned: self,
 			r: sig.r().into(),
 			s: sig.s().into(),
-			v: sig.v() + if let Some(n) = network_id { 35 + n * 2 } else { 27 },
+			v: sig.v() as u64 + if let Some(n) = network_id { 35 + n * 2 } else { 27 },
 			hash: Cell::new(None),
 			sender: Cell::new(None),
 		}
@@ -302,13 +303,13 @@ impl SignedTransaction {
 	}
 
 	/// 0 if `v` would have been 27 under "Electrum" notation, 1 if 28 or 4 if invalid.
-	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => (v - 1) % 2, _ => 4 } }
+	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => ((v - 1) % 2) as u8, _ => 4 } }
 
 	/// The `v` value that appears in the RLP.
 	pub fn original_v(&self) -> u64 { self.v }
 
 	/// The network ID, or `None` if this is a global transaction.
-	pub fn network_id(&self) -> Option<u8> {
+	pub fn network_id(&self) -> Option<u64> {
 		match self.v {
 			v if v > 36 => Some((v - 35) / 2),
 			_ => None,

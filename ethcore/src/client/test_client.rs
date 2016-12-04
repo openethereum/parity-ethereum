@@ -654,7 +654,7 @@ impl BlockChainClient for TestBlockChainClient {
 		self.miner.pending_transactions(self.chain_info().best_block_number)
 	}
 
-	fn signing_network_id(&self) -> Option<u8> { None }
+	fn signing_network_id(&self) -> Option<u64> { None }
 
 	fn mode(&self) -> Mode { Mode::Active }
 
