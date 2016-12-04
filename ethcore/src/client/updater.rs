@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::sync::{Weak, Arc};
+use std::sync::{Weak};
 use std::path::PathBuf;
 use util::misc::{VersionInfo, ReleaseTrack, platform};
 use util::{Address, H160, H256, FixedHash, Mutex};
@@ -44,7 +44,7 @@ pub struct Updater {
 	fetch: Weak<HashFetch>,
 	operations: Operations,
 	update_policy: UpdatePolicy,
-	fetch_handler: Mutex<Option<()>>,
+	fetching: Mutex<bool>,
 
 	// These don't change
 	pub this: VersionInfo,
@@ -56,10 +56,6 @@ pub struct Updater {
 
 const CLIENT_ID: &'static str = "parity";
 
-fn start_fetch(fetch: Arc<HashFetch>, hash: H256, on_done: Box<Fn(Result<PathBuf, fetch::Error>) + Send>) -> Result<(), fetch::Error> {
-	fetch.fetch(hash, on_done)
-}
-
 impl Updater {
 	pub fn new(client: Weak<Client>, fetch: Weak<fetch::Client>, operations: Address, update_policy: UpdatePolicy) -> Self {
 		let mut u = Updater {
@@ -67,7 +63,7 @@ impl Updater {
 			fetch: fetch.clone(),
 			operations: Operations::new(operations, move |a, d| client.upgrade().ok_or("No client!".into()).and_then(|c| c.call_contract(a, d))),
 			update_policy: update_policy,
-			fetch_handler: Mutex::new(None),
+			fetching: Mutex::new(false),
 			this: VersionInfo::this(),
 			this_fork: None,
 			latest: None,
@@ -152,7 +148,11 @@ impl Updater {
 	}
 
 	fn fetch_done(&self, _r: Result<PathBuf, fetch::Error>) {
-		*self.fetch_handler.lock() = None;
+		match _r {
+			Ok(b) => info!("Fetched latest version OK: {}", b.display()),
+			Err(e) => warn!("Unable to fetch latest version: {:?}", e),
+		}
+		*self.fetching.lock() = false;
 	}
 
 	pub fn tick(&mut self) {
@@ -173,12 +173,13 @@ impl Updater {
 				 }
 			);
 			if let Some(b) = latest.track.binary {
-				let mut fetch_handler = self.fetch_handler.lock();
-				if fetch_handler.is_none() {
+				let mut fetching = self.fetching.lock();
+				if !*fetching {
 					let c = self.client.clone();
 					let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
 					if let Some(fetch) = self.fetch.clone().upgrade() {
-						*fetch_handler = start_fetch(fetch, b, Box::new(f)).ok();
+						fetch.fetch(b, Box::new(f)).ok();
+						*fetching = true;
 					}
 				}
 			}
