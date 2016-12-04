@@ -38,7 +38,7 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: usize,
+	pub network_id: u64,
 	/// Main subprotocol name.
 	pub subprotocol_name: String,
 	/// Minimum gas limit.
@@ -167,7 +167,7 @@ impl Spec {
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> usize { self.params.network_id }
+	pub fn network_id(&self) -> u64 { self.params.network_id }
 
 	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
