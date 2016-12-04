@@ -725,7 +725,7 @@ mod tests {
 	use super::*;
 	use cli::Args;
 	use ethcore_rpc::NetworkSettings;
-	use ethcore::client::{VMType, BlockId};
+	use ethcore::client::{VMType, BlockId, UpdatePolicy, UpdateFilter};
 	use ethcore::miner::{MinerOptions, PrioritizationStrategy};
 	use helpers::{replace_home, default_network_config};
 	use run::RunCmd;
@@ -938,6 +938,7 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			require_consensus: true,
+			update_policy: Default::default(),
 		}));
 	}
 
@@ -972,11 +973,8 @@ mod tests {
 
 		// then
 		assert_eq!(conf0.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::Critical});
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasFactorAndGasPrice;
 		assert_eq!(conf1.update_policy().unwrap(), UpdatePolicy{enable_downloading: true, filter: UpdateFilter::All});
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasPriceOnly;
 		assert_eq!(conf2.update_policy().unwrap(), UpdatePolicy{enable_downloading: false, filter: UpdateFilter::Patch});
-		mining_options.tx_queue_strategy = PrioritizationStrategy::GasAndGasPrice;
 		assert!(conf3.update_policy().is_err());
 	}
 
