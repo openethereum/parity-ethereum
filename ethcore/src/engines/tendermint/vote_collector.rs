@@ -58,20 +58,15 @@ impl VoteCollector {
 
 	/// Insert vote if it is newer than the oldest one.
 	pub fn vote(&self, message: ConsensusMessage, voter: Address) -> Option<Address> {
-		let is_new = {
-			let guard = self.votes.read();
-			guard.keys().next().map_or(true, |oldest| &message > oldest)
-		};
-		if is_new {
-			self.votes.write().insert(message, voter)
-		} else {
-			trace!(target: "poa", "vote: Old message ignored {:?}.", message);
-			None
-		}
+		self.votes.write().insert(message, voter)
 	}
 
-	pub fn is_known(&self, message: &ConsensusMessage) -> bool {
+	pub fn is_old_or_known(&self, message: &ConsensusMessage) -> bool {
 		self.votes.read().contains_key(message)
+			|| {
+				let guard = self.votes.read();
+				guard.keys().next().map_or(true, |oldest| message <= oldest)
+			}
 	}
 
 	/// Throws out messages older than message, leaves message as marker for the oldest.
@@ -94,6 +89,7 @@ impl VoteCollector {
 					.collect::<Vec<_>>();
 			(proposal, votes)
 		};
+		// Remove messages that are no longer relevant.
 		votes.last().map(|m| self.throw_out_old(m));
 		proposal.map(|p| SealSignatures {
 			proposal: p.signature,
@@ -127,9 +123,9 @@ impl VoteCollector {
 		n
 	}
 
-	pub fn get_older_than(&self, message: &ConsensusMessage) -> Vec<Bytes> {
+	pub fn get_up_to(&self, height: Height) -> Vec<Bytes> {
 		let guard = self.votes.read();
-		guard.keys().take_while(|m| *m <= message).map(|m| ::rlp::encode(m).to_vec()).collect()
+		guard.keys().take_while(|m| m.height <= height).map(|m| ::rlp::encode(m).to_vec()).collect()
 	}
 }
 
