@@ -17,7 +17,7 @@
 //! Eth rpc interface.
 use jsonrpc_core::Error;
 
-use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index};
+use v1::types::{RichBlock, BlockNumber, Bytes, CallRequest, Filter, FilterChanges, Index, DappId};
 use v1::types::{Log, Receipt, SyncStatus, Transaction, Work};
 use v1::types::{H64, H160, H256, U256};
 
@@ -52,7 +52,7 @@ build_rpc_trait! {
 
 		/// Returns accounts list.
 		#[rpc(name = "eth_accounts")]
-		fn accounts(&self) -> Result<Vec<H160>, Error>;
+		fn accounts(&self, Trailing<DappId>) -> Result<Vec<H160>, Error>;
 
 		/// Returns highest block number.
 		#[rpc(name = "eth_blockNumber")]
