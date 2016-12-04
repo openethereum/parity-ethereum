@@ -17,9 +17,9 @@
 use std::sync::{Weak, Arc};
 use std::path::PathBuf;
 use util::misc::{VersionInfo, ReleaseTrack, platform};
-use util::{Bytes, Address, H160, H256, FixedHash, Mutex};
+use util::{Address, H160, H256, FixedHash, Mutex};
 use client::operations::Operations;
-use client::{Client, BlockChainClient, UpdatePolicy, BlockId};
+use client::{Client, UpdatePolicy, BlockId};
 use fetch::HashFetch;
 use fetch;
 

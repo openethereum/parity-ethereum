@@ -855,7 +855,7 @@ mod tests {
 			wal: true,
 			tracing: Default::default(),
 			fat_db: Default::default(),
-			at: BlockID::Latest,
+			at: BlockId::Latest,
 			storage: true,
 			code: true,
 			min_balance: None,

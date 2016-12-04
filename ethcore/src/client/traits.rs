@@ -69,8 +69,8 @@ pub trait BlockChainClient : Sync + Send {
 	fn nonce(&self, address: &Address, id: BlockId) -> Option<U256>;
 
 	/// Attempt to get address storage root at given block.
-	/// May not fail on BlockID::Latest.
-	fn storage_root(&self, address: &Address, id: BlockID) -> Option<H256>;
+	/// May not fail on BlockId::Latest.
+	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256>;
 
 	/// Get address nonce at the latest block's state.
 	fn latest_nonce(&self, address: &Address) -> U256 {

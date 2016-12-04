@@ -385,7 +385,7 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn storage_root(&self, _address: &Address, _id: BlockID) -> Option<H256> {
+	fn storage_root(&self, _address: &Address, _id: BlockId) -> Option<H256> {
 		None
 	}
 
@@ -424,7 +424,7 @@ impl BlockChainClient for TestBlockChainClient {
 		None
 	}
 
-	fn list_storage(&self, _id: BlockID, _account: &Address, _after: Option<&H256>, _count: u64) -> Option<Vec<H256>> {
+	fn list_storage(&self, _id: BlockId, _account: &Address, _after: Option<&H256>, _count: u64) -> Option<Vec<H256>> {
 		None
 	}
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {

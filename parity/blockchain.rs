@@ -117,7 +117,7 @@ pub struct ExportState {
 	pub wal: bool,
 	pub fat_db: Switch,
 	pub tracing: Switch,
-	pub at: BlockID,
+	pub at: BlockId,
 	pub storage: bool,
 	pub code: bool,
 	pub min_balance: Option<U256>,
