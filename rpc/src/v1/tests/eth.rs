@@ -30,7 +30,7 @@ use devtools::RandomTempPath;
 use util::Hashable;
 use io::IoChannel;
 use util::{U256, H256, Uint, Address};
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use ethjson::blockchain::BlockChain;
 
 use v1::impls::{EthClient, SigningUnsafeClient};

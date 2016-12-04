@@ -19,9 +19,16 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { Snackbar as SnackbarMUI } from 'material-ui';
-import { darkBlack } from 'material-ui/styles/colors';
+import { darkBlack, grey800 } from 'material-ui/styles/colors';
 
 import { closeSnackbar } from '../../../redux/providers/snackbarActions';
+
+const bodyStyle = {
+  backgroundColor: darkBlack,
+  borderStyle: 'solid',
+  borderColor: grey800,
+  borderWidth: '1px 1px 0 1px'
+};
 
 class Snackbar extends Component {
   static propTypes = {
@@ -40,7 +47,7 @@ class Snackbar extends Component {
         open={ open }
         message={ message }
         autoHideDuration={ cooldown }
-        bodyStyle={ { backgroundColor: darkBlack } }
+        bodyStyle={ bodyStyle }
         onRequestClose={ this.handleClose }
       />
     );

@@ -16,7 +16,7 @@
 
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
+use jsonrpc_core::{IoHandler, GenericIoHandler};
 use util::{U256, Uint, Address};
 use ethcore::account_provider::AccountProvider;
 use v1::{PersonalClient, Personal};
@@ -164,3 +164,45 @@ fn sign_and_send_transaction() {
 
 	assert_eq!(tester.io.handle_request_sync(request.as_ref()), Some(response));
 }
+
+#[test]
+fn should_unlock_account_temporarily() {
+	let tester = setup();
+	let address = tester.accounts.new_account("password123").unwrap();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_unlockAccount",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", address) + r#"",
+			"password123",
+			"0x100"
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
+
+	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+}
+
+#[test]
+fn should_unlock_account_permanently() {
+	let tester = setup();
+	let address = tester.accounts.new_account("password123").unwrap();
+
+	let request = r#"{
+		"jsonrpc": "2.0",
+		"method": "personal_unlockAccount",
+		"params": [
+			""#.to_owned() + &format!("0x{:?}", address) + r#"",
+			"password123",
+			null
+		],
+		"id": 1
+	}"#;
+	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
+	assert_eq!(tester.io.handle_request_sync(&request), Some(response.into()));
+	assert!(tester.accounts.sign(address, None, Default::default()).is_ok(), "Should unlock account.");
+}
+

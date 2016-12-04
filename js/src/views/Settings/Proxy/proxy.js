@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Container, ContainerTitle } from '../../../ui';
+import { Container } from '../../../ui';
 
 import layout from '../layout.css';
 import styles from './proxy.css';
@@ -31,8 +31,7 @@ export default class Proxy extends Component {
     const proxyurl = `${dappsUrl}/proxy/proxy.pac`;
 
     return (
-      <Container>
-        <ContainerTitle title='Proxy' />
+      <Container title='Proxy'>
         <div className={ layout.layout }>
           <div className={ layout.overview }>
             <div>The proxy setup allows you to access Parity and all associated decentralized applications via memorable addresses.</div>

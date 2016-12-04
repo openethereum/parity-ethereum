@@ -181,9 +181,10 @@ impl Client {
 			false => TrieSpec::Secure,
 		};
 
+		let trie_factory = TrieFactory::new(trie_spec);
 		let journal_db = journaldb::new(db.clone(), config.pruning, ::db::COL_STATE);
 		let mut state_db = StateDB::new(journal_db, config.state_cache_size);
-		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db)) {
+		if state_db.journal_db().is_empty() && try!(spec.ensure_db_good(&mut state_db, &trie_factory)) {
 			let mut batch = DBTransaction::new(&db);
 			try!(state_db.journal_under(&mut batch, 0, &spec.genesis_header().hash()));
 			try!(db.write(batch).map_err(ClientError::Database));
@@ -225,7 +226,7 @@ impl Client {
 
 		let factories = Factories {
 			vm: EvmFactory::new(config.vm_type.clone(), config.jump_table_size),
-			trie: TrieFactory::new(trie_spec),
+			trie: trie_factory,
 			accountdb: Default::default(),
 		};
 
@@ -936,8 +937,8 @@ impl BlockChainClient for Client {
 	}
 
 	fn keep_alive(&self) {
-		let should_wake = match &*self.mode.lock() {
-			&Mode::Dark(..) | &Mode::Passive(..) => true,
+		let should_wake = match *self.mode.lock() {
+			Mode::Dark(..) | Mode::Passive(..) => true,
 			_ => false,
 		};
 		if should_wake {
@@ -1019,6 +1020,10 @@ impl BlockChainClient for Client {
 		self.state_at(id).map(|s| s.nonce(address))
 	}
 
+	fn storage_root(&self, address: &Address, id: BlockId) -> Option<H256> {
+		self.state_at(id).and_then(|s| s.storage_root(address))
+	}
+
 	fn block_hash(&self, id: BlockId) -> Option<H256> {
 		let chain = self.chain.read();
 		Self::block_hash(&chain, id)
@@ -1036,7 +1041,7 @@ impl BlockChainClient for Client {
 		self.state_at(id).map(|s| s.storage_at(address, position))
 	}
 
-	fn list_accounts(&self, id: BlockId) -> Option<Vec<Address>> {
+	fn list_accounts(&self, id: BlockId, after: Option<&Address>, count: u64) -> Option<Vec<Address>> {
 		if !self.factories.trie.is_fat() {
 			trace!(target: "fatdb", "list_accounts: Not a fat DB");
 			return None;
@@ -1056,16 +1061,66 @@ impl BlockChainClient for Client {
 			}
 		};
 
-		let iter = match trie.iter() {
+		let mut iter = match trie.iter() {
 			Ok(iter) => iter,
 			_ => return None,
 		};
 
+		if let Some(after) = after {
+			if let Err(e) = iter.seek(after) {
+				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+			}
+		}
+
 		let accounts = iter.filter_map(|item| {
 			item.ok().map(|(addr, _)| Address::from_slice(&addr))
-		}).collect();
+		}).take(count as usize).collect();
 
 		Some(accounts)
+	}
+
+	fn list_storage(&self, id: BlockId, account: &Address, after: Option<&H256>, count: u64) -> Option<Vec<H256>> {
+		if !self.factories.trie.is_fat() {
+			trace!(target: "fatdb", "list_stroage: Not a fat DB");
+			return None;
+		}
+
+		let state = match self.state_at(id) {
+			Some(state) => state,
+			_ => return None,
+		};
+
+		let root = match state.storage_root(account) {
+			Some(root) => root,
+			_ => return None,
+		};
+
+		let (_, db) = state.drop();
+		let account_db = self.factories.accountdb.readonly(db.as_hashdb(), account.sha3());
+		let trie = match self.factories.trie.readonly(account_db.as_hashdb(), &root) {
+			Ok(trie) => trie,
+			_ => {
+				trace!(target: "fatdb", "list_storage: Couldn't open the DB");
+				return None;
+			}
+		};
+
+		let mut iter = match trie.iter() {
+			Ok(iter) => iter,
+			_ => return None,
+		};
+
+		if let Some(after) = after {
+			if let Err(e) = iter.seek(after) {
+				trace!(target: "fatdb", "list_accounts: Couldn't seek the DB: {:?}", e);
+			}
+		}
+
+		let keys = iter.filter_map(|item| {
+			item.ok().map(|(key, _)| H256::from_slice(&key))
+		}).take(count as usize).collect();
+
+		Some(keys)
 	}
 
 	fn transaction(&self, id: TransactionId) -> Option<LocalizedTransaction> {

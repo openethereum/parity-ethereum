@@ -158,7 +158,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// get the mode
 	let mode = try!(mode_switch_to_bool(cmd.mode, &user_defaults));
 	trace!(target: "mode", "mode is {:?}", mode);
-	let network_enabled = match &mode { &Mode::Dark(_) | &Mode::Off => false, _ => true, };
+	let network_enabled = match mode { Mode::Dark(_) | Mode::Off => false, _ => true, };
 
 	// get the update policy
 	let update_policy = cmd.update_policy;
@@ -225,7 +225,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let client_config = to_client_config(
 		&cmd.cache_config,
 		update_policy, 
-		mode,
+		mode.clone(),
 		tracing,
 		fat_db,
 		cmd.compaction,
@@ -360,6 +360,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	// save user defaults
 	user_defaults.pruning = algorithm;
 	user_defaults.tracing = tracing;
+	user_defaults.fat_db = fat_db;
+	user_defaults.mode = mode;
 	try!(user_defaults.save(&user_defaults_path));
 
 	let on_mode_change = move |mode: &Mode| {

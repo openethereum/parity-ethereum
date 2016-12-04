@@ -21,8 +21,8 @@ use authcode_store::AuthCodes;
 use std::path::{PathBuf, Path};
 use std::sync::Arc;
 use std::str::FromStr;
-use jsonrpc_core::IoHandler;
-use util::{H256, Mutex, version};
+use jsonrpc_core::{IoHandler, GenericIoHandler};
+use util::{H256, version};
 
 #[cfg(feature = "parity-ui")]
 mod ui {
@@ -99,7 +99,7 @@ fn auth_is_valid(codes_path: &Path, protocols: ws::Result<Vec<&str>>) -> bool {
 
 							let res = codes.is_valid(&auth, time);
 							// make sure to save back authcodes - it might have been modified
-							if let Err(_) = codes.to_file(codes_path) {
+							if codes.to_file(codes_path).is_err() {
 								warn!(target: "signer", "Couldn't save authorization codes to file.");
 							}
 							res
@@ -130,7 +130,7 @@ fn add_headers(mut response: ws::Response, mime: &str) -> ws::Response {
 }
 
 pub struct Session {
-	out: Arc<Mutex<ws::Sender>>,
+	out: ws::Sender,
 	skip_origin_validation: bool,
 	self_origin: String,
 	authcodes_path: PathBuf,
@@ -208,15 +208,15 @@ impl ws::Handler for Session {
 
 	fn on_message(&mut self, msg: ws::Message) -> ws::Result<()> {
 		let req = try!(msg.as_text());
-		if let Some(async) = self.handler.handle_request(req) {
-			let out = self.out.clone();
-			async.on_result(move |result| {
-				let res = out.lock().send(result);
+		let out = self.out.clone();
+		self.handler.handle_request(req, move |response| {
+			if let Some(result) = response {
+				let res = out.send(result);
 				if let Err(e) = res {
 					warn!(target: "signer", "Error while sending response: {:?}", e);
 				}
-			});
-		}
+			}
+		});
 		Ok(())
 	}
 }
@@ -246,7 +246,7 @@ impl ws::Factory for Factory {
 
 	fn connection_made(&mut self, sender: ws::Sender) -> Self::Handler {
 		Session {
-			out: Arc::new(Mutex::new(sender)),
+			out: sender,
 			handler: self.handler.clone(),
 			skip_origin_validation: self.skip_origin_validation,
 			self_origin: self.self_origin.clone(),

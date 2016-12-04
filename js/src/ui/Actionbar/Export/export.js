@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import FileSaver from 'file-saver';
 import FileDownloadIcon from 'material-ui/svg-icons/file/file-download';
 
-import { Button } from '../../';
+import Button from '../../Button';
 
 class ActionbarExport extends Component {
   static propTypes = {

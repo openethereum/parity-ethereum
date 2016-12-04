@@ -16,6 +16,6 @@
 
 import { PropTypes } from 'react';
 
-export default function (type) {
+export default function nullableProptype (type) {
   return PropTypes.oneOfType([ PropTypes.oneOf([ null ]), type ]);
 }

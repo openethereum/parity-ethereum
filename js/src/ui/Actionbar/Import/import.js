@@ -20,7 +20,8 @@ import FileUploadIcon from 'material-ui/svg-icons/file/file-upload';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 
-import { Modal, Button } from '../../';
+import Button from '../../Button';
+import Modal from '../../Modal';
 
 import styles from './import.css';
 

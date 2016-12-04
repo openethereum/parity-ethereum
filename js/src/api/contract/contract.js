@@ -15,16 +15,16 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import Abi from '../../abi';
-import Api from '../api';
-import { isInstanceOf } from '../util/types';
 
 let nextSubscriptionId = 0;
 
 export default class Contract {
   constructor (api, abi) {
-    if (!isInstanceOf(api, Api)) {
+    if (!api) {
       throw new Error('API instance needs to be provided to Contract');
-    } else if (!abi) {
+    }
+
+    if (!abi) {
       throw new Error('ABI needs to be provided to Contract instance');
     }
 
@@ -240,7 +240,27 @@ export default class Contract {
       return this.unsubscribe(subscriptionId);
     };
 
+    event.getAllLogs = (options = {}) => {
+      return this.getAllLogs(event);
+    };
+
     return event;
+  }
+
+  getAllLogs (event, _options) {
+    // Options as first parameter
+    if (!_options && event && event.topics) {
+      return this.getAllLogs(null, event);
+    }
+
+    const options = this._getFilterOptions(event, _options);
+    return this._api.eth
+      .getLogs({
+        fromBlock: 0,
+        toBlock: 'latest',
+        ...options
+      })
+      .then((logs) => this.parseEventLogs(logs));
   }
 
   _findEvent (eventName = null) {
@@ -256,7 +276,7 @@ export default class Contract {
     return event;
   }
 
-  _createEthFilter (event = null, _options) {
+  _getFilterOptions (event = null, _options = {}) {
     const optionTopics = _options.topics || [];
     const signature = event && event.signature || null;
 
@@ -271,6 +291,11 @@ export default class Contract {
       topics
     });
 
+    return options;
+  }
+
+  _createEthFilter (event = null, _options) {
+    const options = this._getFilterOptions(event, _options);
     return this._api.eth.newFilter(options);
   }
 

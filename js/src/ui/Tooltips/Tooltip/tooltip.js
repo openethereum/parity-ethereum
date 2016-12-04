@@ -74,10 +74,10 @@ class Tooltip extends Component {
           label='Next'
           onTouchTap={ onNextTooltip } />
       ] : (
-      <FlatButton
-        icon={ <ActionDoneAll /> }
-        label='Done'
-        onTouchTap={ onCloseTooltips } />
+        <FlatButton
+          icon={ <ActionDoneAll /> }
+          label='Done'
+          onTouchTap={ onCloseTooltips } />
       );
 
     return (

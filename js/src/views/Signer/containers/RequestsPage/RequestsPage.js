@@ -18,15 +18,17 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { bindActionCreators } from 'redux';
 import { connect } from 'react-redux';
+import { observer } from 'mobx-react';
 
 import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
-import { Container, ContainerTitle } from '../../../../ui';
+import { Container, Page, TxList } from '../../../../ui';
 
-import { RequestPending, RequestFinished } from '../../components';
+import RequestPending from '../../components/RequestPending';
 
 import styles from './RequestsPage.css';
 
+@observer
 class RequestsPage extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -44,20 +46,18 @@ class RequestsPage extends Component {
     isTest: PropTypes.bool.isRequired
   };
 
-  store = new Store(this.context.api);
+  store = new Store(this.context.api, true);
+
+  componentWillUnmount () {
+    this.store.unsubscribe();
+  }
 
   render () {
-    const { pending, finished } = this.props.signer;
-
-    if (!pending.length && !finished.length) {
-      return this.renderNoRequestsMsg();
-    }
-
     return (
-      <div>
-        { this.renderPendingRequests() }
-        { this.renderFinishedRequests() }
-      </div>
+      <Page>
+        <div>{ this.renderPendingRequests() }</div>
+        <div>{ this.renderLocalQueue() }</div>
+      </Page>
     );
   }
 
@@ -65,37 +65,39 @@ class RequestsPage extends Component {
     return new BigNumber(b.id).cmp(a.id);
   }
 
+  renderLocalQueue () {
+    const { localHashes } = this.store;
+
+    if (!localHashes.length) {
+      return null;
+    }
+
+    return (
+      <Container title='Local Transactions'>
+        <TxList
+          address=''
+          hashes={ localHashes } />
+      </Container>
+    );
+  }
+
   renderPendingRequests () {
     const { pending } = this.props.signer;
 
     if (!pending.length) {
-      return;
+      return (
+        <Container>
+          <div className={ styles.noRequestsMsg }>
+            There are no requests requiring your confirmation.
+          </div>
+        </Container>
+      );
     }
 
     const items = pending.sort(this._sortRequests).map(this.renderPending);
 
     return (
-      <Container>
-        <ContainerTitle title='Pending Requests' />
-        <div className={ styles.items }>
-          { items }
-        </div>
-      </Container>
-    );
-  }
-
-  renderFinishedRequests () {
-    const { finished } = this.props.signer;
-
-    if (!finished.length) {
-      return;
-    }
-
-    const items = finished.sort(this._sortRequests).map(this.renderFinished);
-
-    return (
-      <Container>
-        <ContainerTitle title='Finished Requests' />
+      <Container title='Pending Requests'>
         <div className={ styles.items }>
           { items }
         </div>
@@ -120,37 +122,6 @@ class RequestsPage extends Component {
         isTest={ isTest }
         store={ this.store }
       />
-    );
-  }
-
-  renderFinished = (data) => {
-    const { isTest } = this.props;
-    const { payload, id, result, msg, status, error, date } = data;
-
-    return (
-      <RequestFinished
-        className={ styles.request }
-        result={ result }
-        key={ id }
-        id={ id }
-        msg={ msg }
-        status={ status }
-        error={ error }
-        payload={ payload }
-        date={ date }
-        isTest={ isTest }
-        store={ this.store }
-        />
-    );
-  }
-
-  renderNoRequestsMsg () {
-    return (
-      <Container>
-        <div className={ styles.noRequestsMsg }>
-          There are no requests requiring your confirmation.
-        </div>
-      </Container>
     );
   }
 }

@@ -333,7 +333,7 @@ impl MiningBlockChainClient for TestBlockChainClient {
 		let genesis_header = self.spec.genesis_header();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
-		self.spec.ensure_db_good(&mut db).unwrap();
+		self.spec.ensure_db_good(&mut db, &TrieFactory::default()).unwrap();
 
 		let last_hashes = vec![genesis_header.hash()];
 		let mut open_block = OpenBlock::new(
@@ -385,6 +385,10 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
+	fn storage_root(&self, _address: &Address, _id: BlockID) -> Option<H256> {
+		None
+	}
+
 	fn latest_nonce(&self, address: &Address) -> U256 {
 		self.nonce(address, BlockId::Latest).unwrap()
 	}
@@ -416,10 +420,13 @@ impl BlockChainClient for TestBlockChainClient {
 		}
 	}
 
-	fn list_accounts(&self, _id: BlockId) -> Option<Vec<Address>> {
+	fn list_accounts(&self, _id: BlockId, _after: Option<&Address>, _count: u64) -> Option<Vec<Address>> {
 		None
 	}
 
+	fn list_storage(&self, _id: BlockID, _account: &Address, _after: Option<&H256>, _count: u64) -> Option<Vec<H256>> {
+		None
+	}
 	fn transaction(&self, _id: TransactionId) -> Option<LocalizedTransaction> {
 		None	// Simple default.
 	}

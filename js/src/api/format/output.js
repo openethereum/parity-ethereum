@@ -144,7 +144,8 @@ export function outSignerRequest (request) {
           break;
 
         case 'payload':
-          request[key].transaction = outTransaction(request[key].transaction);
+          request[key].signTransaction = outTransaction(request[key].signTransaction);
+          request[key].sendTransaction = outTransaction(request[key].sendTransaction);
           break;
       }
     });

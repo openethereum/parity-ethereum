@@ -258,6 +258,12 @@ impl BlockDownloader {
 					self.blocks.reset_to(hashes);
 					self.state = State::Blocks;
 					return Ok(DownloadAction::Reset);
+				} else {
+					let best = io.chain().chain_info().best_block_number;
+					if best > self.last_imported_block && best - self.last_imported_block > MAX_REORG_BLOCKS {
+						trace!(target: "sync", "No common block, disabling peer");
+						return Err(BlockDownloaderImportError::Invalid);
+					}
 				}
 			},
 			State::Blocks => {
