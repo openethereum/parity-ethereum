@@ -23,6 +23,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import { Button, Modal, TxHash, BusyStep } from '../../ui';
 
+import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';
 import WalletInfo from './WalletInfo';
 import CreateWalletStore from './createWalletStore';
@@ -64,7 +65,7 @@ export default class CreateWallet extends Component {
         visible
         actions={ this.renderDialogActions() }
         current={ stage }
-        steps={ steps }
+        steps={ steps.map((s) => s.title) }
         waiting={ waiting }
       >
         { this.renderPage() }
@@ -98,24 +99,35 @@ export default class CreateWallet extends Component {
             required={ this.store.wallet.required }
             daylimit={ this.store.wallet.daylimit }
             name={ this.store.wallet.name }
+
+            deployed={ this.store.deployed }
           />
         );
 
-      default:
       case 'DETAILS':
         return (
           <WalletDetails
             accounts={ accounts }
             wallet={ this.store.wallet }
             errors={ this.store.errors }
+            walletType={ this.store.walletType }
             onChange={ this.store.onChange }
+          />
+        );
+
+      default:
+      case 'TYPE':
+        return (
+          <WalletType
+            onChange={ this.store.onTypeChange }
+            type={ this.store.walletType }
           />
         );
     }
   }
 
   renderDialogActions () {
-    const { step, hasErrors, rejected, onCreate } = this.store;
+    const { step, hasErrors, rejected, onCreate, onNext, onAdd } = this.store;
 
     const cancelBtn = (
       <Button
@@ -149,12 +161,11 @@ export default class CreateWallet extends Component {
       />
     );
 
-    const createBtn = (
+    const nextBtn = (
       <Button
         icon={ <NavigationArrowForward /> }
-        label='Create'
-        disabled={ hasErrors }
-        onClick={ onCreate }
+        label='Next'
+        onClick={ onNext }
       />
     );
 
@@ -169,9 +180,30 @@ export default class CreateWallet extends Component {
       case 'INFO':
         return [ doneBtn ];
 
-      default:
       case 'DETAILS':
-        return [ cancelBtn, createBtn ];
+        if (this.store.walletType === 'WATCH') {
+          return [ cancelBtn, (
+            <Button
+              icon={ <NavigationArrowForward /> }
+              label='Add'
+              disabled={ hasErrors }
+              onClick={ onAdd }
+            />
+          ) ];
+        }
+
+        return [ cancelBtn, (
+          <Button
+            icon={ <NavigationArrowForward /> }
+            label='Create'
+            disabled={ hasErrors }
+            onClick={ onCreate }
+          />
+        ) ];
+
+      default:
+      case 'TYPE':
+        return [ cancelBtn, nextBtn ];
 
     }
   }

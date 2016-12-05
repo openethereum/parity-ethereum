@@ -18,11 +18,13 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import ContentCreate from 'material-ui/svg-icons/content/create';
+import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
 import { EditMeta, Transfer } from '../../modals';
 import { Actionbar, Button, Page, Loading } from '../../ui';
 
+import Delete from '../Address/Delete';
 import Header from '../Account/Header';
 import WalletDetails from './Details';
 import WalletConfirmations from './Confirmations';
@@ -69,7 +71,8 @@ class Wallet extends Component {
 
   state = {
     showEditDialog: false,
-    showTransferDialog: false
+    showTransferDialog: false,
+    showDeleteDialog: false
   };
 
   componentDidMount () {
@@ -109,6 +112,7 @@ class Wallet extends Component {
       <div className={ styles.wallet }>
         { this.renderEditDialog(wallet) }
         { this.renderTransferDialog() }
+        { this.renderDeleteDialog(wallet) }
         { this.renderActionbar() }
         <Page>
           <Header
@@ -173,6 +177,11 @@ class Wallet extends Component {
         disabled={ !showTransferButton }
         onClick={ this.onTransferClick } />,
       <Button
+        key='delete'
+        icon={ <ActionDelete /> }
+        label='delete wallet'
+        onClick={ this.showDeleteDialog } />,
+      <Button
         key='editmeta'
         icon={ <ContentCreate /> }
         label='edit'
@@ -183,6 +192,18 @@ class Wallet extends Component {
       <Actionbar
         title='Wallet Management'
         buttons={ buttons } />
+    );
+  }
+
+  renderDeleteDialog (account) {
+    const { showDeleteDialog } = this.state;
+
+    return (
+      <Delete
+        account={ account }
+        visible={ showDeleteDialog }
+        route='/contracts'
+        onClose={ this.closeDeleteDialog } />
     );
   }
 
@@ -237,6 +258,14 @@ class Wallet extends Component {
 
   onTransferClose = () => {
     this.onTransferClick();
+  }
+
+  closeDeleteDialog = () => {
+    this.setState({ showDeleteDialog: false });
+  }
+
+  showDeleteDialog = () => {
+    this.setState({ showDeleteDialog: true });
   }
 }
 

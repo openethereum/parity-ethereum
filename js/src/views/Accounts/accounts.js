@@ -86,8 +86,15 @@ class Accounts extends Component {
         { this.renderNewWalletDialog() }
         { this.renderActionbar() }
 
-        { this.renderAccounts() }
-        { this.renderWallets() }
+        <Page>
+          <Tooltip
+            className={ styles.accountTooltip }
+            text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
+          />
+
+          { this.renderAccounts() }
+          { this.renderWallets() }
+        </Page>
       </div>
     );
   }
@@ -115,18 +122,13 @@ class Accounts extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <Page>
-        <List
-          search={ searchValues }
-          accounts={ accounts }
-          balances={ balances }
-          empty={ !hasAccounts }
-          order={ sortOrder }
-          handleAddSearchToken={ this.onAddSearchToken } />
-        <Tooltip
-          className={ styles.accountTooltip }
-          text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account' />
-      </Page>
+      <List
+        search={ searchValues }
+        accounts={ accounts }
+        balances={ balances }
+        empty={ !hasAccounts }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken } />
     );
   }
 
@@ -139,17 +141,15 @@ class Accounts extends Component {
     const { searchValues, sortOrder } = this.state;
 
     return (
-      <Page>
-        <List
-          link='wallet'
-          search={ searchValues }
-          accounts={ wallets }
-          balances={ balances }
-          empty={ !hasWallets }
-          order={ sortOrder }
-          handleAddSearchToken={ this.onAddSearchToken }
-        />
-      </Page>
+      <List
+        link='wallet'
+        search={ searchValues }
+        accounts={ wallets }
+        balances={ balances }
+        empty={ !hasWallets }
+        order={ sortOrder }
+        handleAddSearchToken={ this.onAddSearchToken }
+      />
     );
   }
 

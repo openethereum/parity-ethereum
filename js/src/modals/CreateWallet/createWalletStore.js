@@ -16,19 +16,21 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 
-import { ERRORS, validateUint, validateAddress, validateName } from '../../util/validation';
+import { validateUint, validateAddress, validateName } from '../../util/validation';
 import { ERROR_CODES } from '../../api/transport/error';
 
+import Contract from '~/api/contract';
 import { wallet as walletAbi } from '../../contracts/abi';
 import { wallet as walletCode } from '../../contracts/code';
 
+import WalletsUtils from '~/util/wallets';
+
 const STEPS = {
+  TYPE: { title: 'wallet type' },
   DETAILS: { title: 'wallet details' },
   DEPLOYMENT: { title: 'wallet deployment', waiting: true },
   INFO: { title: 'wallet informaton' }
 };
-
-const STEPS_KEYS = Object.keys(STEPS);
 
 export default class CreateWalletStore {
   @observable step = null;
@@ -36,6 +38,7 @@ export default class CreateWalletStore {
 
   @observable deployState = null;
   @observable deployError = null;
+  @observable deployed = false;
 
   @observable txhash = null;
 
@@ -49,45 +52,103 @@ export default class CreateWalletStore {
     name: '',
     description: ''
   };
+  @observable walletType = 'MULTISIG';
 
   @observable errors = {
     account: null,
+    address: null,
     owners: null,
     required: null,
     daylimit: null,
-
-    name: ERRORS.invalidName
+    name: null
   };
 
   @computed get stage () {
-    return STEPS_KEYS.findIndex((k) => k === this.step);
+    return this.stepsKeys.findIndex((k) => k === this.step);
   }
 
   @computed get hasErrors () {
-    return !!Object.values(this.errors).find((e) => !!e);
+    return !!Object.keys(this.errors)
+      .filter((errorKey) => {
+        if (this.walletType === 'WATCH') {
+          return ['address', 'name'].includes(errorKey);
+        }
+
+        return errorKey !== 'address';
+      })
+      .find((key) => !!this.errors[key]);
   }
 
-  steps = Object.values(STEPS).map((s) => s.title);
-  waiting = Object.values(STEPS)
-    .map((s, idx) => ({ idx, waiting: s.waiting }))
-    .filter((s) => s.waiting)
-    .map((s) => s.idx);
+  @computed get stepsKeys () {
+    return this.steps.map((s) => s.key);
+  }
+
+  @computed get steps () {
+    return Object
+      .keys(STEPS)
+      .map((key) => {
+        return {
+          ...STEPS[key],
+          key
+        };
+      })
+      .filter((step) => {
+        return (this.walletType !== 'WATCH' || step.key !== 'DEPLOYMENT');
+      });
+  }
+
+  @computed get waiting () {
+    this.steps
+      .map((s, idx) => ({ idx, waiting: s.waiting }))
+      .filter((s) => s.waiting)
+      .map((s) => s.idx);
+  }
 
   constructor (api, accounts) {
     this.api = api;
 
-    this.step = STEPS_KEYS[0];
+    this.step = this.stepsKeys[0];
     this.wallet.account = Object.values(accounts)[0].address;
+    this.validateWallet(this.wallet);
+  }
+
+  @action onTypeChange = (type) => {
+    this.walletType = type;
+    this.validateWallet(this.wallet);
+  }
+
+  @action onNext = () => {
+    const stepIndex = this.stepsKeys.findIndex((k) => k === this.step) + 1;
+    this.step = this.stepsKeys[stepIndex];
   }
 
   @action onChange = (_wallet) => {
     const newWallet = Object.assign({}, this.wallet, _wallet);
-    const { errors, wallet } = this.validateWallet(newWallet);
+    this.validateWallet(newWallet);
+  }
 
-    transaction(() => {
-      this.wallet = wallet;
-      this.errors = errors;
-    });
+  @action onAdd = () => {
+    if (this.hasErrors) {
+      return;
+    }
+
+    const walletContract = new Contract(this.api, walletAbi).at(this.wallet.address);
+
+    return Promise
+      .all([
+        WalletsUtils.fetchRequire(walletContract),
+        WalletsUtils.fetchOwners(walletContract),
+        WalletsUtils.fetchDailylimit(walletContract)
+      ])
+      .then(([ require, owners, dailylimit ]) => {
+        transaction(() => {
+          this.wallet.owners = owners;
+          this.wallet.required = require.toNumber();
+          this.wallet.dailylimit = dailylimit.limit;
+        });
+
+        return this.addWallet(this.wallet);
+      });
   }
 
   @action onCreate = () => {
@@ -97,7 +158,7 @@ export default class CreateWalletStore {
 
     this.step = 'DEPLOYMENT';
 
-    const { account, owners, required, daylimit, name, description } = this.wallet;
+    const { account, owners, required, daylimit } = this.wallet;
 
     const options = {
       data: walletCode,
@@ -108,24 +169,9 @@ export default class CreateWalletStore {
       .newContract(walletAbi)
       .deploy(options, [ owners, required, daylimit ], this.onDeploymentState)
       .then((address) => {
-        return Promise
-          .all([
-            this.api.parity.setAccountName(address, name),
-            this.api.parity.setAccountMeta(address, {
-              abi: walletAbi,
-              wallet: true,
-              timestamp: Date.now(),
-              deleted: false,
-              description,
-              name
-            })
-          ])
-          .then(() => {
-            transaction(() => {
-              this.wallet.address = address;
-              this.step = 'INFO';
-            });
-          });
+        this.deployed = true;
+        this.wallet.address = address;
+        return this.addWallet(this.wallet);
       })
       .catch((error) => {
         if (error.code === ERROR_CODES.REQUEST_REJECTED) {
@@ -135,6 +181,27 @@ export default class CreateWalletStore {
 
         console.error('error deploying contract', error);
         this.deployError = error;
+      });
+  }
+
+  @action addWallet = (wallet) => {
+    const { address, name, description } = wallet;
+
+    return Promise
+      .all([
+        this.api.parity.setAccountName(address, name),
+        this.api.parity.setAccountMeta(address, {
+          abi: walletAbi,
+          wallet: true,
+          timestamp: Date.now(),
+          deleted: false,
+          description,
+          name,
+          tags: ['wallet']
+        })
+      ])
+      .then(() => {
+        this.step = 'INFO';
       });
   }
 
@@ -173,13 +240,15 @@ export default class CreateWalletStore {
     }
   }
 
-  validateWallet = (_wallet) => {
+  @action validateWallet = (_wallet) => {
+    const addressValidation = validateAddress(_wallet.address);
     const accountValidation = validateAddress(_wallet.account);
     const requiredValidation = validateUint(_wallet.required);
     const daylimitValidation = validateUint(_wallet.daylimit);
     const nameValidation = validateName(_wallet.name);
 
     const errors = {
+      address: addressValidation.addressError,
       account: accountValidation.addressError,
       required: requiredValidation.valueError,
       daylimit: daylimitValidation.valueError,
@@ -188,12 +257,16 @@ export default class CreateWalletStore {
 
     const wallet = {
       ..._wallet,
+      address: addressValidation.address,
       account: accountValidation.address,
       required: requiredValidation.value,
       daylimit: daylimitValidation.value,
       name: nameValidation.name
     };
 
-    return { errors, wallet };
+    transaction(() => {
+      this.wallet = wallet;
+      this.errors = errors;
+    });
   }
 }

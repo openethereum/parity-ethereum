@@ -34,15 +34,21 @@ export default class WalletInfo extends Component {
     daylimit: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.number
-    ]).isRequired
+    ]).isRequired,
+
+    deployed: PropTypes.bool
   };
 
   render () {
-    const { address, required, daylimit, name } = this.props;
+    const { address, required, daylimit, name, deployed } = this.props;
 
     return (
       <CompletedStep>
-        <div><code>{ name }</code> has been deployed at</div>
+        <div>
+          <code>{ name }</code>
+          <span> has been </span>
+          <span> { deployed ? 'deployed' : 'added' } at </span>
+        </div>
         <div>
           <CopyToClipboard data={ address } label='copy address to clipboard' />
           <IdentityIcon address={ address } inline center className={ styles.identityicon } />
@@ -63,9 +69,9 @@ export default class WalletInfo extends Component {
   }
 
   renderOwners () {
-    const { account, owners } = this.props;
+    const { account, owners, deployed } = this.props;
 
-    return [].concat(account, owners).map((address, id) => (
+    return [].concat(deployed ? account : null, owners).filter((a) => a).map((address, id) => (
       <div key={ id } className={ styles.owner }>
         <IdentityIcon address={ address } inline center className={ styles.identityicon } />
         <div className={ styles.address }>{ this.addressToString(address) }</div>
