@@ -85,24 +85,6 @@ ReactDOM.render(
 );
 
 if (module.hot) {
-  // module.hot.accept('./redux', () => {
-  //   // redux store has a method replaceReducer
-  //   // const newStore = initStore(api);
-  //   console.warn('REDUX UPDATE');
-  //   // store.replaceReducer(appReducer);
-
-  //   // ReactDOM.render(
-  //   //   <AppContainer>
-  //   //     <ContextProvider api={ api } muiTheme={ muiTheme } store={ newStore }>
-  //   //       <MainApplication
-  //   //         routerHistory={ hashHistory }
-  //   //       />
-  //   //     </ContextProvider>
-  //   //   </AppContainer>,
-  //   //   document.querySelector('#container')
-  //   // );
-  // });
-
   module.hot.accept('./main.js', () => {
     require('./main.js');
 
