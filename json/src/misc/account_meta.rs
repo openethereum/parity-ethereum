@@ -51,7 +51,7 @@ impl AccountMeta {
 		)
 	}
 
-	/// Write a hash map of Address -> AccountMeta.  
+	/// Write a hash map of Address -> AccountMeta.
 	pub fn write_address_map<W>(m: &HashMap<util::Address, AccountMeta>, writer: &mut W) -> Result<(), serde_json::Error> where W: Write {
 		serde_json::to_writer(writer, &m.iter().map(|(a, m)| (a.clone().into(), m)).collect::<HashMap<hash::Address, _>>())
 	}

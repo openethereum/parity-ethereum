@@ -33,6 +33,7 @@ const STAGES_EXTRA = [TITLES.transfer, TITLES.extras, TITLES.sending, TITLES.com
 
 export default class TransferStore {
   @observable stage = 0;
+<<<<<<< HEAD
   @observable extras = false;
   @observable valueAll = false;
   @observable sending = false;
@@ -63,6 +64,29 @@ export default class TransferStore {
 
   @observable value = '0.0';
   @observable valueError = null;
+=======
+  @observable data = '';
+  @observable dataError = null;
+  @observable extras = false;
+  @observable gas = DEFAULT_GAS;
+  @observable gasEst = '0';
+  @observable gasError = null;
+  @observable gasLimitError = null;
+  @observable gasPrice = DEFAULT_GASPRICE;
+  @observable gasPriceError = null;
+  @observable recipient = '';
+  @observable recipientError = ERRORS.requireRecipient;
+  @observable sending = false;
+  @observable tag = 'ETH';
+  @observable total = '0.0';
+  @observable totalError = null;
+  @observable value = '0.0';
+  @observable valueAll = false;
+  @observable valueError = null;
+  @observable isEth = true;
+  @observable busyState = null;
+  @observable rejected = false;
+>>>>>>> master
 
   gasPriceHistogram = {};
 
@@ -71,9 +95,12 @@ export default class TransferStore {
   gasLimit = null;
   onClose = null;
 
+<<<<<<< HEAD
   isWallet = false;
   wallet = null;
 
+=======
+>>>>>>> master
   @computed get steps () {
     const steps = [].concat(this.extras ? STAGES_EXTRA : STAGES_BASIC);
 
@@ -85,7 +112,11 @@ export default class TransferStore {
   }
 
   @computed get isValid () {
+<<<<<<< HEAD
     const detailsValid = !this.recipientError && !this.valueError && !this.totalError && !this.senderError;
+=======
+    const detailsValid = !this.recipientError && !this.valueError && !this.totalError;
+>>>>>>> master
     const extrasValid = !this.gasError && !this.gasPriceError && !this.totalError;
     const verifyValid = !this.passwordError;
 
@@ -101,6 +132,7 @@ export default class TransferStore {
     }
   }
 
+<<<<<<< HEAD
   get token () {
     return this.balance.tokens.find((balance) => balance.token.tag === this.tag).token;
   }
@@ -109,11 +141,18 @@ export default class TransferStore {
     this.api = api;
 
     const { account, balance, gasLimit, senders, onClose } = props;
+=======
+  constructor (api, props) {
+    this.api = api;
+
+    const { account, balance, gasLimit, onClose } = props;
+>>>>>>> master
 
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
     this.onClose = onClose;
+<<<<<<< HEAD
     this.isWallet = account && account.wallet;
 
     if (this.isWallet) {
@@ -123,6 +162,8 @@ export default class TransferStore {
     if (senders) {
       this.senderError = ERRORS.requireSender;
     }
+=======
+>>>>>>> master
   }
 
   @action onNext = () => {
@@ -158,9 +199,12 @@ export default class TransferStore {
       case 'recipient':
         return this._onUpdateRecipient(value);
 
+<<<<<<< HEAD
       case 'sender':
         return this._onUpdateSender(value);
 
+=======
+>>>>>>> master
       case 'tag':
         return this._onUpdateTag(value);
 
@@ -193,8 +237,14 @@ export default class TransferStore {
     this.onNext();
     this.sending = true;
 
+<<<<<<< HEAD
     this
       .send()
+=======
+    const promise = this.isEth ? this._sendEth() : this._sendToken();
+
+    promise
+>>>>>>> master
       .then((requestId) => {
         this.busyState = 'Waiting for authorization in the Parity Signer';
 
@@ -277,6 +327,7 @@ export default class TransferStore {
     });
   }
 
+<<<<<<< HEAD
   @action _onUpdateSender = (sender) => {
     let senderError = null;
 
@@ -294,6 +345,8 @@ export default class TransferStore {
     });
   }
 
+=======
+>>>>>>> master
   @action _onUpdateTag = (tag) => {
     transaction(() => {
       this.tag = tag;
@@ -324,8 +377,14 @@ export default class TransferStore {
       return this.recalculate();
     }
 
+<<<<<<< HEAD
     this
       .estimateGas()
+=======
+    const promise = this.isEth ? this._estimateGasEth() : this._estimateGasToken();
+
+    promise
+>>>>>>> master
       .then((gasEst) => {
         let gas = gasEst;
         let gasLimitError = null;
@@ -404,6 +463,7 @@ export default class TransferStore {
     });
   }
 
+<<<<<<< HEAD
   send () {
     const { options, values } = this._getTransferParams();
     return this._getTransferMethod().postTransaction(options, values);
@@ -468,6 +528,76 @@ export default class TransferStore {
       ];
 
     return { options, values };
+=======
+  _sendEth () {
+    const { account, data, gas, gasPrice, recipient, value } = this;
+
+    const options = {
+      from: account.address,
+      to: recipient,
+      gas,
+      gasPrice,
+      value: this.api.util.toWei(value || 0)
+    };
+
+    if (data && data.length) {
+      options.data = data;
+    }
+
+    return this.api.parity.postTransaction(options);
+  }
+
+  _sendToken () {
+    const { account, balance } = this;
+    const { gas, gasPrice, recipient, value, tag } = this;
+
+    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
+
+    return token.contract.instance.transfer
+      .postTransaction({
+        from: account.address,
+        to: token.address,
+        gas,
+        gasPrice
+      }, [
+        recipient,
+        new BigNumber(value).mul(token.format).toFixed(0)
+      ]);
+  }
+
+  _estimateGasToken () {
+    const { account, balance } = this;
+    const { recipient, value, tag } = this;
+
+    const token = balance.tokens.find((balance) => balance.token.tag === tag).token;
+
+    return token.contract.instance.transfer
+      .estimateGas({
+        gas: MAX_GAS_ESTIMATION,
+        from: account.address,
+        to: token.address
+      }, [
+        recipient,
+        new BigNumber(value || 0).mul(token.format).toFixed(0)
+      ]);
+  }
+
+  _estimateGasEth () {
+    const { account, data, recipient, value } = this;
+
+    const options = {
+      gas: MAX_GAS_ESTIMATION,
+      from: account.address,
+      to: recipient,
+      value: this.api.util.toWei(value || 0)
+    };
+
+    if (data && data.length) {
+      options.data = data;
+    }
+
+    return this.api.eth.estimateGas(options);
+>>>>>>> master
   }
 
   _validatePositiveNumber (num) {

@@ -255,7 +255,7 @@ function fetchWalletTransactions (contract) {
   };
 
   return contract
-    .getAll({
+    .getAllLogs({
       topics: [ [ signatures.single, signatures.multi, signatures.deposit ] ]
     })
     .then((logs) => {
@@ -366,7 +366,7 @@ function fetchWalletConfirmations (contract, _owners = null, _transactions = nul
 
   return walletInstance
     .ConfirmationNeeded
-    .getAll()
+    .getAllLogs()
     .then((logs) => {
       return logs.sort((logA, logB) => {
         const comp = logA.blockNumber.comparedTo(logB.blockNumber);

@@ -24,7 +24,7 @@ import Store from '../../store';
 import * as RequestsActions from '../../../../redux/providers/signerActions';
 import { Container, Page, TxList } from '../../../../ui';
 
-import { RequestPending, RequestFinished } from '../../components';
+import RequestPending from '../../components/RequestPending';
 
 import styles from './RequestsPage.css';
 
@@ -57,7 +57,6 @@ class RequestsPage extends Component {
       <Page>
         <div>{ this.renderPendingRequests() }</div>
         <div>{ this.renderLocalQueue() }</div>
-        <div>{ this.renderFinishedRequests() }</div>
       </Page>
     );
   }
@@ -106,24 +105,6 @@ class RequestsPage extends Component {
     );
   }
 
-  renderFinishedRequests () {
-    const { finished } = this.props.signer;
-
-    if (!finished.length) {
-      return;
-    }
-
-    const items = finished.sort(this._sortRequests).map(this.renderFinished);
-
-    return (
-      <Container title='Finished Requests'>
-        <div className={ styles.items }>
-          { items }
-        </div>
-      </Container>
-    );
-  }
-
   renderPending = (data) => {
     const { actions, isTest } = this.props;
     const { payload, id, isSending, date } = data;
@@ -141,27 +122,6 @@ class RequestsPage extends Component {
         isTest={ isTest }
         store={ this.store }
       />
-    );
-  }
-
-  renderFinished = (data) => {
-    const { isTest } = this.props;
-    const { payload, id, result, msg, status, error, date } = data;
-
-    return (
-      <RequestFinished
-        className={ styles.request }
-        result={ result }
-        key={ id }
-        id={ id }
-        msg={ msg }
-        status={ status }
-        error={ error }
-        payload={ payload }
-        date={ date }
-        isTest={ isTest }
-        store={ this.store }
-        />
     );
   }
 }

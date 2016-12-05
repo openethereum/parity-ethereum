@@ -44,9 +44,9 @@
 }
 
 .gasDetails {
-  padding-top: 1em;
+  padding-top: 0.75em;
   font-size: 0.75em;
-  line-height: 2em;
+  line-height: 1.5em;
   opacity: 0.5;
 }
 

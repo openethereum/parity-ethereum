@@ -240,17 +240,17 @@ export default class Contract {
       return this.unsubscribe(subscriptionId);
     };
 
-    event.getAll = (options = {}) => {
-      return this.getAll(event);
+    event.getAllLogs = (options = {}) => {
+      return this.getAllLogs(event);
     };
 
     return event;
   }
 
-  getAll (event, _options) {
+  getAllLogs (event, _options) {
     // Options as first parameter
     if (!_options && event && event.topics) {
-      return this.getAll(null, event);
+      return this.getAllLogs(null, event);
     }
 
     const options = this._getFilterOptions(event, _options);
