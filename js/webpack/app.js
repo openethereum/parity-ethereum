@@ -113,12 +113,7 @@ module.exports = {
 
   resolve: {
     alias: {
-      '~': path.resolve(__dirname, '../src'),
-      'ui': path.resolve(__dirname, '../src/ui'),
-      'views': path.resolve(__dirname, '../src/views'),
-      'modals': path.resolve(__dirname, '../src/modals'),
-      'providers': path.resolve(__dirname, '../src/redux/providers'),
-      'contracts': path.resolve(__dirname, '../src/contracts')
+      '~': path.resolve(__dirname, '../src')
     },
     modules: [
       path.join(__dirname, '../node_modules')
