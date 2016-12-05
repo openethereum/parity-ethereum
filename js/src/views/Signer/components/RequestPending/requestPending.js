@@ -74,12 +74,7 @@ export default class RequestPending extends Component {
           onReject={ onReject }
           isSending={ isSending }
           id={ id }
-          gasPrice={ transaction.gasPrice }
-          gas={ transaction.gas }
-          data={ transaction.data }
-          from={ transaction.from }
-          to={ transaction.to }
-          value={ transaction.value }
+          transaction={ transaction }
           date={ date }
           isTest={ isTest }
           store={ store }
