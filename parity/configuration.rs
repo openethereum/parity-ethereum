@@ -300,6 +300,7 @@ impl Configuration {
 			gas_floor_target: try!(to_u256(&self.args.flag_gas_floor_target)),
 			gas_ceil_target: try!(to_u256(&self.args.flag_gas_cap)),
 			transactions_limit: self.args.flag_tx_queue_size,
+			consensus_signer: try!(self.consensus_signer()),
 		};
 
 		Ok(extras)
@@ -307,6 +308,10 @@ impl Configuration {
 
 	fn author(&self) -> Result<Address, String> {
 		to_address(self.args.flag_etherbase.clone().or(self.args.flag_author.clone()))
+	}
+
+	fn consensus_signer(&self) -> Result<Address, String> {
+		to_address(self.args.flag_engine_signer.clone())
 	}
 
 	fn format(&self) -> Result<Option<DataFormat>, String> {
