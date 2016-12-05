@@ -70,7 +70,7 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<usize>,
+	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
@@ -207,6 +207,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 
 	// prepare account provider
 	let account_provider = Arc::new(try!(prepare_account_provider(&cmd.dirs, cmd.acc_conf)));
+
+	// let the Engine access the accounts
+	spec.engine.register_account_provider(account_provider.clone());
 
 	// create miner
 	let miner = Miner::new(cmd.miner_options, cmd.gas_pricer.into(), &spec, Some(account_provider.clone()));

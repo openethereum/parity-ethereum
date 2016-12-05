@@ -21,13 +21,15 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{Rlp, UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
 use engines::Engine;
 use header::Header;
 use error::{Error, BlockError};
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 use evm::Schedule;
 use ethjson;
 use io::{IoContext, IoHandler, TimerToken, IoService, IoChannel};
@@ -35,8 +37,6 @@ use service::ClientIoMessage;
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
-use blockchain::extras::BlockDetails;
-use views::HeaderView;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -72,6 +72,7 @@ pub struct AuthorityRound {
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
+	account_provider: Mutex<Option<Arc<AccountProvider>>>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
@@ -104,7 +105,8 @@ impl AuthorityRound {
 				transition_service: try!(IoService::<BlockArrived>::start()),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
-				proposed: AtomicBool::new(false)
+				proposed: AtomicBool::new(false),
+				account_provider: Mutex::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.transition_service.register_handler(Arc::new(handler)));
@@ -196,7 +198,6 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
-		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
@@ -221,12 +222,12 @@ impl Engine for AuthorityRound {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which `false` will
 	/// be returned.
-	fn generate_seal(&self, block: &ExecutedBlock, accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> {
+	fn generate_seal(&self, block: &ExecutedBlock) -> Option<Vec<Bytes>> {
 		if self.proposed.load(AtomicOrdering::SeqCst) { return None; }
 		let header = block.header();
 		let step = self.step();
 		if self.is_step_proposer(step, header.author()) {
-			if let Some(ap) = accounts {
+			if let Some(ref ap) = *self.account_provider.lock() {
 				// Account should be permanently unlocked, otherwise sealing will fail.
 				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
@@ -303,22 +304,16 @@ impl Engine for AuthorityRound {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 
-	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
-		let mut guard = self.message_channel.lock();
-		*guard = Some(message_channel);
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		new_header.number() > best_header.number()
 	}
 
-	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		let new_number = new_header.number();
-		let best_number = best_header.number();
-		if new_number != best_number {
-			new_number > best_number
-		} else {
-			// Take the oldest step at given height.
-			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
-			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
-			new_step < best_step
-		}
+	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
+		*self.message_channel.lock() = Some(message_channel);
+	}
+
+	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
+		*self.account_provider.lock() = Some(account_provider);
 	}
 }
 
@@ -393,6 +388,7 @@ mod tests {
 
 		let spec = Spec::new_test_round();
 		let engine = &*spec.engine;
+		engine.register_account_provider(Arc::new(tap));
 		let genesis_header = spec.genesis_header();
 		let mut db1 = get_temp_state_db().take();
 		spec.ensure_db_good(&mut db1, &TrieFactory::new(TrieSpec::Secure)).unwrap();
@@ -404,16 +400,16 @@ mod tests {
 		let b2 = OpenBlock::new(engine, Default::default(), false, db2, &genesis_header, last_hashes, addr2, (3141562.into(), 31415620.into()), vec![]).unwrap();
 		let b2 = b2.close_and_lock();
 
-		if let Some(seal) = engine.generate_seal(b1.block(), Some(&tap)) {
+		if let Some(seal) = engine.generate_seal(b1.block()) {
 			assert!(b1.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b1.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b1.block()).is_none());
 		}
 
-		if let Some(seal) = engine.generate_seal(b2.block(), Some(&tap)) {
+		if let Some(seal) = engine.generate_seal(b2.block()) {
 			assert!(b2.clone().try_seal(engine, seal).is_ok());
 			// Second proposal is forbidden.
-			assert!(engine.generate_seal(b2.block(), Some(&tap)).is_none());
+			assert!(engine.generate_seal(b2.block()).is_none());
 		}
 	}
 

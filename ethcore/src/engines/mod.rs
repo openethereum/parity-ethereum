@@ -94,7 +94,7 @@ pub trait Engine : Sync + Send {
 	///
 	/// This operation is synchronous and may (quite reasonably) not be available, in which None will
 	/// be returned.
-	fn generate_seal(&self, _block: &ExecutedBlock, _accounts: Option<&AccountProvider>) -> Option<Vec<Bytes>> { None }
+	fn generate_seal(&self, _block: &ExecutedBlock) -> Option<Vec<Bytes>> { None }
 
 	/// Phase 1 quick block verification. Only does checks that are cheap. `block` (the header's full block)
 	/// may be provided for additional checks. Returns either a null `Ok` or a general error detailing the problem with import.
@@ -147,11 +147,17 @@ pub trait Engine : Sync + Send {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
 
-	/// Add a channel for communication with Client which can be used for sealing.
-	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
-
 	/// Check if new block should be chosen as the one  in chain.
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
+
+	/// Register an account which signs consensus messages.
+	fn set_signer(&self, _address: Address, _password: String) {}
+
+	/// Add a channel for communication with Client which can be used for sealing.
+	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
+
+	/// Add an account provider useful for Engines that sign stuff.
+	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
 }
