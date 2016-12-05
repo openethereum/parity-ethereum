@@ -16,7 +16,7 @@
 
 import BigNumber from 'bignumber.js';
 
-import * as abis from '../../contracts/abi';
+import * as abis from '~/contracts/abi';
 import { api } from './parity';
 
 let managerInstance;

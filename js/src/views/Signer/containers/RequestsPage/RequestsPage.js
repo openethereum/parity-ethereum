@@ -21,8 +21,8 @@ import { connect } from 'react-redux';
 import { observer } from 'mobx-react';
 
 import Store from '../../store';
-import * as RequestsActions from '../../../../redux/providers/signerActions';
-import { Container, Page, TxList } from '../../../../ui';
+import * as RequestsActions from '~/redux/providers/signerActions';
+import { Container, Page, TxList } from '~/ui';
 
 import RequestPending from '../../components/RequestPending';
 

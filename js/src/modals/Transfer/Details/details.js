@@ -20,7 +20,7 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import { isEqual } from 'lodash';
 
-import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
+import Form, { Input, InputAddressSelect, Select } from '~/ui/Form';
 
 import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';
