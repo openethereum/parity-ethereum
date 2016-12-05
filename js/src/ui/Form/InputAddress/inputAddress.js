@@ -20,7 +20,7 @@ import { bindActionCreators } from 'redux';
 
 import Input from '../Input';
 import IdentityIcon from '../../IdentityIcon';
-import util from '../../../api/util';
+import util from '~/api/util';
 
 import styles from './inputAddress.css';
 

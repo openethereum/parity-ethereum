@@ -18,7 +18,7 @@ import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
 
 import ERRORS from './errors';
-import { ERROR_CODES } from '../../api/transport/error';
+import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
 
 const TITLES = {

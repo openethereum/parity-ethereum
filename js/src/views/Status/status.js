@@ -16,7 +16,7 @@
 
 import React, { Component } from 'react';
 
-import { Actionbar, Page } from '../../ui';
+import { Actionbar, Page } from '~/ui';
 
 import StatusPage from './containers/StatusPage';
 

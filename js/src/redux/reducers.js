@@ -20,9 +20,9 @@ import { routerReducer } from 'react-router-redux';
 import { apiReducer, balancesReducer, blockchainReducer, compilerReducer, imagesReducer, personalReducer, signerReducer, statusReducer as nodeStatusReducer, snackbarReducer, walletReducer } from './providers';
 import certificationsReducer from './providers/certifications/reducer';
 
-import errorReducer from '../ui/Errors/reducers';
-import settingsReducer from '../views/Settings/reducers';
-import tooltipReducer from '../ui/Tooltips/reducers';
+import errorReducer from '~/ui/Errors/reducers';
+import settingsReducer from '~/views/Settings/reducers';
+import tooltipReducer from '~/ui/Tooltips/reducers';
 
 export default function () {
   return combineReducers({

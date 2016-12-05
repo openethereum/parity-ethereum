@@ -20,8 +20,8 @@ import { Checkbox, MenuItem } from 'material-ui';
 
 import { isEqual } from 'lodash';
 
-import Form, { Input, InputAddressSelect, AddressSelect, Select } from '../../../ui/Form';
-import nullableProptype from '../../../util/nullable-proptype';
+import Form, { Input, InputAddressSelect, AddressSelect, Select } from '~/ui/Form';
+import nullableProptype from '~/util/nullable-proptype';
 
 import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';

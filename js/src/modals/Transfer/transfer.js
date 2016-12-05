@@ -24,9 +24,9 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { newError } from '../../ui/Errors/actions';
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
-import nullableProptype from '../../util/nullable-proptype';
+import { newError } from '~/ui/Errors/actions';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
+import nullableProptype from '~/util/nullable-proptype';
 
 import Details from './Details';
 import Extras from './Extras';

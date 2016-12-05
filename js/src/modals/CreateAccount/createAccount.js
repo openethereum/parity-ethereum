@@ -22,7 +22,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from '../../ui';
+import { Button, Modal } from '~/ui';
 
 import AccountDetails from './AccountDetails';
 import AccountDetailsGeth from './AccountDetailsGeth';
@@ -33,7 +33,7 @@ import NewImport from './NewImport';
 import RawKey from './RawKey';
 import RecoveryPhrase from './RecoveryPhrase';
 
-import { createIdentityImg } from '../../api/util/identity';
+import { createIdentityImg } from '~/api/util/identity';
 import print from './print';
 import recoveryPage from './recovery-page.ejs';
 import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';

@@ -22,8 +22,8 @@ import InfoIcon from 'material-ui/svg-icons/action/info-outline';
 import SuccessIcon from 'material-ui/svg-icons/navigation/check';
 import ErrorIcon from 'material-ui/svg-icons/navigation/close';
 
-import { fromWei } from '../../../api/util/wei';
-import { Form, Input } from '../../../ui';
+import { fromWei } from '~/api/util/wei';
+import { Form, Input } from '~/ui';
 
 import { termsOfService } from '../../../3rdparty/sms-verification';
 import styles from './gatherData.css';

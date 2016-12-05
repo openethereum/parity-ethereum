@@ -209,8 +209,10 @@ export default class Contract {
 
   _bindFunction = (func) => {
     func.call = (options, values = []) => {
+      const callData = this._encodeOptions(func, this._addOptionsTo(options), values);
+
       return this._api.eth
-        .call(this._encodeOptions(func, this._addOptionsTo(options), values))
+        .call(callData)
         .then((encoded) => func.decodeOutput(encoded))
         .then((tokens) => tokens.map((token) => token.value))
         .then((returns) => returns.length === 1 ? returns[0] : returns);
