@@ -71,7 +71,6 @@ export class TxRow extends Component {
         <td className={ styles.method }>
           <MethodDecoding
             historic={ historic }
-            historic
             address={ address }
             transaction={ tx } />
         </td>
