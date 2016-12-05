@@ -527,7 +527,7 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	fn network_id(&self) -> Option<usize> {
+	fn network_id(&self) -> Option<u64> {
 		self.args.flag_network_id.or(self.args.flag_networkid)
 	}
 

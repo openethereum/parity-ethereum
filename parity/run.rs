@@ -70,7 +70,7 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<usize>,
+	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
@@ -194,7 +194,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	let mut sync_config = SyncConfig::default();
 	sync_config.network_id = match cmd.network_id {
 		Some(id) => id,
-		None => spec.network_id() as usize,
+		None => spec.network_id(),
 	};
 	if spec.subprotocol_name().len() != 3 {
 		warn!("Your chain specification's subprotocol length is not 3. Ignoring.");
