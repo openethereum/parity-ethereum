@@ -26,7 +26,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import { newError } from '../../redux/actions';
 import { setVisibleAccounts } from 'providers/personalActions';
 
-import { EditMeta, ExecuteContract } from 'modals';
+import { EditMeta, ExecuteContract } from '~/modals';
 import { Actionbar, Button, Page, Modal, Editor } from '~/ui';
 
 import Header from '../Account/Header';
