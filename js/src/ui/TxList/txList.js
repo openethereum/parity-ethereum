@@ -29,77 +29,47 @@ import Store from './store';
 
 import styles from './txList.css';
 
-@observer
-class TxList extends Component {
+export class TxRow extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
-  }
+  };
 
   static propTypes = {
+    tx: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
-    hashes: PropTypes.oneOfType([
-      PropTypes.array,
-      PropTypes.object
-    ]).isRequired,
-    isTest: PropTypes.bool.isRequired
-  }
+    isTest: PropTypes.bool.isRequired,
 
-  store = new Store(this.context.api);
-
-  componentWillMount () {
-    this.store.loadTransactions(this.props.hashes);
-  }
-
-  componentWillUnmount () {
-    this.store.unsubscribe();
-  }
-
-  componentWillReceiveProps (newProps) {
-    this.store.loadTransactions(newProps.hashes);
-  }
+    block: PropTypes.object
+  };
 
   render () {
+    const { tx, address, isTest } = this.props;
+
     return (
-      <table className={ styles.transactions }>
-        <tbody>
-          { this.renderRows() }
-        </tbody>
-      </table>
+      <tr>
+        { this.renderBlockNumber(tx.blockNumber) }
+        { this.renderAddress(tx.from) }
+        <td className={ styles.transaction }>
+          { this.renderEtherValue(tx.value) }
+          <div>⇒</div>
+          <div>
+            <a
+              className={ styles.link }
+              href={ txLink(tx.hash, isTest) }
+              target='_blank'>
+              { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
+            </a>
+          </div>
+        </td>
+        { this.renderAddress(tx.to) }
+        <td className={ styles.method }>
+          <MethodDecoding
+            historic
+            address={ address }
+            transaction={ tx } />
+        </td>
+      </tr>
     );
-  }
-
-  renderRows () {
-    const { address, isTest } = this.props;
-
-    return this.store.sortedHashes.map((txhash) => {
-      const tx = this.store.transactions[txhash];
-
-      return (
-        <tr key={ tx.hash }>
-          { this.renderBlockNumber(tx.blockNumber) }
-          { this.renderAddress(tx.from) }
-          <td className={ styles.transaction }>
-            { this.renderEtherValue(tx.value) }
-            <div>⇒</div>
-            <div>
-              <a
-                className={ styles.link }
-                href={ txLink(tx.hash, isTest) }
-                target='_blank'>
-                { `${tx.hash.substr(2, 6)}...${tx.hash.slice(-6)}` }
-              </a>
-            </div>
-          </td>
-          { this.renderAddress(tx.to) }
-          <td className={ styles.method }>
-            <MethodDecoding
-              historic
-              address={ address }
-              transaction={ tx } />
-          </td>
-        </tr>
-      );
-    });
   }
 
   renderAddress (address) {
@@ -148,8 +118,8 @@ class TxList extends Component {
   }
 
   renderBlockNumber (_blockNumber) {
+    const { block } = this.props;
     const blockNumber = _blockNumber.toNumber();
-    const block = this.store.blocks[blockNumber];
 
     return (
       <td className={ styles.timestamp }>
@@ -157,6 +127,66 @@ class TxList extends Component {
         <div>{ blockNumber ? _blockNumber.toFormat() : 'Pending' }</div>
       </td>
     );
+  }
+}
+
+@observer
+class TxList extends Component {
+  static contextTypes = {
+    api: PropTypes.object.isRequired
+  }
+
+  static propTypes = {
+    address: PropTypes.string.isRequired,
+    hashes: PropTypes.oneOfType([
+      PropTypes.array,
+      PropTypes.object
+    ]).isRequired,
+    isTest: PropTypes.bool.isRequired
+  }
+
+  store = new Store(this.context.api);
+
+  componentWillMount () {
+    this.store.loadTransactions(this.props.hashes);
+  }
+
+  componentWillUnmount () {
+    this.store.unsubscribe();
+  }
+
+  componentWillReceiveProps (newProps) {
+    this.store.loadTransactions(newProps.hashes);
+  }
+
+  render () {
+    return (
+      <table className={ styles.transactions }>
+        <tbody>
+          { this.renderRows() }
+        </tbody>
+      </table>
+    );
+  }
+
+  renderRows () {
+    const { address, isTest } = this.props;
+
+    return this.store.sortedHashes.map((txhash) => {
+      const tx = this.store.transactions[txhash];
+      const blockNumber = tx.blockNumber.toNumber();
+      const block = this.store.blocks[blockNumber];
+
+      return (
+        <TxRow
+          key={ tx.hash }
+          tx={ tx }
+          block={ block }
+          address={ address }
+          isTest={ isTest }
+        />
+      );
+    });
   }
 }
 

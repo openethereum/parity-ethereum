@@ -38,6 +38,12 @@ impl NullEngine {
 	}
 }
 
+impl Default for NullEngine {
+	fn default() -> Self {
+		Self::new(Default::default(), Default::default())
+	}
+}
+
 impl Engine for NullEngine {
 	fn name(&self) -> &str {
 		"NullEngine"

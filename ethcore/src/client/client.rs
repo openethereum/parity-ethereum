@@ -164,7 +164,7 @@ impl Client {
 		let gb = spec.genesis_block();
 
 		let db = Arc::new(try!(Database::open(&db_config, &path.to_str().expect("DB path could not be converted to string.")).map_err(ClientError::Database)));
-		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone()));
+		let chain = Arc::new(BlockChain::new(config.blockchain.clone(), &gb, db.clone(), spec.engine.clone()));
 		let tracedb = RwLock::new(TraceDB::new(config.tracing.clone(), db.clone(), chain.clone()));
 
 		let trie_spec = match config.fat_db {
@@ -787,7 +787,7 @@ impl snapshot::DatabaseRestore for Client {
 
 		let cache_size = state_db.cache_size();
 		*state_db = StateDB::new(journaldb::new(db.clone(), self.pruning, ::db::COL_STATE), cache_size);
-		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone()));
+		*chain = Arc::new(BlockChain::new(self.config.blockchain.clone(), &[], db.clone(), self.engine.clone()));
 		*tracedb = TraceDB::new(self.config.tracing.clone(), db.clone(), chain.clone());
 		Ok(())
 	}
@@ -1272,7 +1272,7 @@ impl BlockChainClient for Client {
 		self.miner.pending_transactions(self.chain.read().best_block_number())
 	}
 
-	fn signing_network_id(&self) -> Option<u8> {
+	fn signing_network_id(&self) -> Option<u64> {
 		self.engine.signing_network_id(&self.latest_env_info())
 	}
 

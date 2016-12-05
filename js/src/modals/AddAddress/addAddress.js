@@ -18,7 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import ContentAdd from 'material-ui/svg-icons/content/add';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Button, Modal, Form, Input, InputAddress } from '../../ui';
+import { Button, Modal, Form, Input, InputAddress } from '~/ui';
 import { ERRORS, validateAddress, validateName } from '../../util/validation';
 
 export default class AddAddress extends Component {

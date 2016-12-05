@@ -20,14 +20,14 @@ import { bindActionCreators } from 'redux';
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '../../ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
 import { MAX_GAS_ESTIMATION } from '../../util/constants';
 import { validateAddress, validateUint } from '../../util/validation';
 
 import DetailsStep from './DetailsStep';
 
 import ERRORS from '../Transfer/errors';
-import { ERROR_CODES } from '../../api/transport/error';
+import { ERROR_CODES } from '~/api/transport/error';
 
 class ExecuteContract extends Component {
   static contextTypes = {

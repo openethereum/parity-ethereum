@@ -20,7 +20,7 @@ import DoneIcon from 'material-ui/svg-icons/action/done';
 import { List, ListItem } from 'material-ui/List';
 import Checkbox from 'material-ui/Checkbox';
 
-import { Modal, Button } from '../../../ui';
+import { Modal, Button } from '~/ui';
 
 import styles from './AddDapps.css';
 
