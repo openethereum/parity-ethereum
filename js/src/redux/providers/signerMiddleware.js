@@ -16,7 +16,7 @@
 
 import * as actions from './signerActions';
 
-import { inHex } from '../../api/format/input';
+import { inHex } from '~/api/format/input';
 import { Wallet } from '../../util/wallet';
 
 export default class SignerMiddleware {
@@ -72,9 +72,8 @@ export default class SignerMiddleware {
     };
 
     // Sign request in-browser
-    if (wallet && payload.transaction) {
-      const { transaction } = payload;
-
+    const transaction = payload.sendTransaction || payload.signTransaction;
+    if (wallet && transaction) {
       (transaction.nonce.isZero()
         ? this._api.parity.nextNonce(transaction.from)
         : Promise.resolve(transaction.nonce)

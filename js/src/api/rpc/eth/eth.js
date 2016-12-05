@@ -146,7 +146,8 @@ export default class Eth {
 
   getLogs (options) {
     return this._transport
-      .execute('eth_getLogs', inFilter(options));
+      .execute('eth_getLogs', inFilter(options))
+      .then((logs) => logs.map(outLog));
   }
 
   getLogsEx (options) {

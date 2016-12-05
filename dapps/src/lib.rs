@@ -266,7 +266,11 @@ impl Server {
 	#[cfg(test)]
 	/// Returns address that this server is bound to.
 	pub fn addr(&self) -> &SocketAddr {
-		self.server.as_ref().expect("server is always Some at the start; it's consumed only when object is dropped; qed").addr()
+		self.server.as_ref()
+			.expect("server is always Some at the start; it's consumed only when object is dropped; qed")
+			.addrs()
+			.first()
+			.expect("You cannot start the server without binding to at least one address; qed")
 	}
 }
 

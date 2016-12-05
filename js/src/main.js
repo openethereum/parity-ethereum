@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Redirect, Router, Route } from 'react-router';
 
-import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from './views';
+import { Accounts, Account, Addresses, Address, Application, Contract, Contracts, WriteContract, Dapp, Dapps, Settings, SettingsBackground, SettingsParity, SettingsProxy, SettingsViews, Signer, Status } from '~/views';
 
 import styles from './reset.css';
 

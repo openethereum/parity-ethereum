@@ -32,7 +32,7 @@ extern crate ethcrypto as crypto;
 extern crate ethstore;
 extern crate ethsync;
 extern crate transient_hashmap;
-extern crate json_ipc_server as ipc;
+extern crate jsonrpc_ipc_server as ipc;
 extern crate ethcore_ipc;
 extern crate time;
 extern crate rlp;
@@ -51,8 +51,9 @@ extern crate ethcore_devtools as devtools;
 use std::sync::Arc;
 use std::net::SocketAddr;
 use io::PanicHandler;
-use self::jsonrpc_core::{IoHandler, IoDelegate};
+use jsonrpc_core::{IoHandler, IoDelegate};
 
+pub use ipc::{Server as IpcServer, Error as IpcServerError};
 pub use jsonrpc_http_server::{ServerBuilder, Server, RpcServerError};
 pub mod v1;
 pub use v1::{SigningQueue, SignerService, ConfirmationsQueue, NetworkSettings};
@@ -66,7 +67,7 @@ pub trait Extendable {
 
 /// Http server.
 pub struct RpcServer {
-	handler: Arc<jsonrpc_core::io::IoHandler>,
+	handler: Arc<IoHandler>,
 }
 
 impl Extendable for RpcServer {

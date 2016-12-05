@@ -16,8 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import ContractIcon from 'material-ui/svg-icons/action/code';
 import ReactTooltip from 'react-tooltip';
+
+import { MethodDecoding } from '../../../../ui';
 
 import * as tUtil from '../util/transaction';
 import Account from '../Account';
@@ -31,8 +32,7 @@ export default class TransactionMainDetails extends Component {
     value: PropTypes.object.isRequired, // wei hex
     totalValue: PropTypes.object.isRequired, // wei BigNumber
     isTest: PropTypes.bool.isRequired,
-    to: PropTypes.string, // undefined if it's a contract
-    toBalance: PropTypes.object, // eth BigNumber - undefined if it's a contract or until it's fetched
+    transaction: PropTypes.object.isRequired,
     children: PropTypes.node
   };
 
@@ -59,15 +59,7 @@ export default class TransactionMainDetails extends Component {
   }
 
   render () {
-    const { to } = this.props;
-
-    return to
-      ? this.renderTransfer()
-      : this.renderContract();
-  }
-
-  renderTransfer () {
-    const { children, from, fromBalance, to, toBalance, isTest } = this.props;
+    const { children, from, fromBalance, transaction, isTest } = this.props;
 
     return (
       <div className={ styles.transaction }>
@@ -79,48 +71,11 @@ export default class TransactionMainDetails extends Component {
               isTest={ isTest } />
           </div>
         </div>
-        <div className={ styles.tx }>
-          { this.renderValue() }
-          <div>&rArr;</div>
-          { this.renderTotalValue() }
-        </div>
-        <div className={ styles.to }>
-          <div className={ styles.account }>
-            <Account
-              address={ to }
-              balance={ toBalance }
-              isTest={ isTest } />
-          </div>
-        </div>
-        { children }
-      </div>
-    );
-  }
-
-  renderContract () {
-    const { children, from, fromBalance, isTest } = this.props;
-
-    return (
-      <div className={ styles.transaction }>
-        <div className={ styles.from }>
-          <div className={ styles.account }>
-            <Account
-              address={ from }
-              balance={ fromBalance }
-              isTest={ isTest } />
-          </div>
-        </div>
-        <div className={ styles.tx }>
-          { this.renderValue() }
-          <div>&rArr;</div>
-          { this.renderTotalValue() }
-        </div>
-        <div className={ styles.to }>
-          <div className={ styles.account }>
-            <ContractIcon className={ styles.contractIcon } />
-            <br />
-            Contract
-          </div>
+        <div className={ styles.method }>
+          <MethodDecoding
+            address={ from }
+            transaction={ transaction }
+            historic={ false } />
         </div>
         { children }
       </div>

@@ -14,4 +14,20 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-export default from './TransactionFinished';
+const initialState = {};
+
+export default (state = initialState, action) => {
+  if (action.type !== 'addCertification') {
+    return state;
+  }
+
+  const { address, name, icon, title } = action;
+  const certifications = state[address] || [];
+
+  if (certifications.some((c) => c.name === name)) {
+    return state;
+  }
+  const newCertifications = certifications.concat({ name, icon, title });
+
+  return { ...state, [address]: newCertifications };
+};

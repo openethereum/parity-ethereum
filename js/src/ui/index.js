@@ -23,6 +23,7 @@ import Badge from './Badge';
 import Balance from './Balance';
 import BlockStatus from './BlockStatus';
 import Button from './Button';
+import Certifications from './Certifications';
 import ConfirmDialog from './ConfirmDialog';
 import Container, { Title as ContainerTitle } from './Container';
 import ContextProvider from './ContextProvider';
@@ -32,6 +33,7 @@ import Errors from './Errors';
 import Form, { AddressSelect, FormWrap, TypedInput, Input, InputAddress, InputAddressSelect, InputChip, InputInline, Select, RadioButtons } from './Form';
 import IdentityIcon from './IdentityIcon';
 import IdentityName from './IdentityName';
+import Loading from './Loading';
 import MethodDecoding from './MethodDecoding';
 import Modal, { Busy as BusyStep, Completed as CompletedStep } from './Modal';
 import muiTheme from './Theme';
@@ -55,6 +57,7 @@ export {
   Balance,
   BlockStatus,
   Button,
+  Certifications,
   ConfirmDialog,
   Container,
   ContainerTitle,
@@ -70,6 +73,7 @@ export {
   InputAddressSelect,
   InputChip,
   InputInline,
+  Loading,
   Select,
   IdentityIcon,
   IdentityName,

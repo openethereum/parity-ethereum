@@ -19,7 +19,7 @@ import { range, uniq, isEqual } from 'lodash';
 import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
 
-import * as ABIS from '../../contracts/abi';
+import * as ABIS from '~/contracts/abi';
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
 
 const ETH = {
@@ -256,7 +256,8 @@ export function queryTokensFilter (tokensFilter) {
           return;
         }
 
-        const tokens = balances.tokens.filter((t) => tokenAddresses.includes(t.address));
+        const tokens = Object.values(balances.tokens)
+          .filter((t) => tokenAddresses.includes(t.address));
 
         fetchTokensBalances(uniq(addresses), tokens)(dispatch, getState);
       });
