@@ -16,7 +16,11 @@
 
 import { observable, computed, action, transaction } from 'mobx';
 import BigNumber from 'bignumber.js';
+import { uniq } from 'lodash';
 
+import { wallet as walletAbi } from '~/contracts/abi';
+import { bytesToHex } from '~/api/util/format';
+import Contract from '~/api/contract';
 import ERRORS from './errors';
 import { ERROR_CODES } from '~/api/transport/error';
 import { DEFAULT_GAS, DEFAULT_GASPRICE, MAX_GAS_ESTIMATION } from '../../util/constants';
@@ -108,16 +112,18 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, onClose } = props;
+    const { account, balance, gasLimit, senders, onClose, newError } = props;
 
     this.account = account;
     this.balance = balance;
     this.gasLimit = gasLimit;
     this.onClose = onClose;
     this.isWallet = account && account.wallet;
+    this.newError = newError;
 
     if (this.isWallet) {
       this.wallet = props.wallet;
+      this.walletContract = new Contract(this.api, walletAbi);
     }
 
     if (senders) {
@@ -217,11 +223,43 @@ export default class TransferStore {
           this.txhash = txhash;
           this.busyState = 'Your transaction has been posted to the network';
         });
+
+        if (this.isWallet) {
+          return this._attachWalletOperation(txhash);
+        }
       })
       .catch((error) => {
         this.sending = false;
         this.newError(error);
       });
+  }
+
+  @action _attachWalletOperation = (txhash) => {
+    let ethSubscriptionId = null;
+
+    return this.api.subscribe('eth_blockNumber', () => {
+      this.api.eth
+        .getTransactionReceipt(txhash)
+        .then((tx) => {
+          if (!tx) {
+            return;
+          }
+
+          const logs = this.walletContract.parseEventLogs(tx.logs);
+          const operations = uniq(logs
+            .filter((log) => log && log.params && log.params.operation)
+            .map((log) => bytesToHex(log.params.operation.value)));
+
+          if (operations.length > 0) {
+            this.operation = operations[0];
+          }
+
+          this.api.unsubscribe(ethSubscriptionId);
+          ethSubscriptionId = null;
+        });
+    }).then((subId) => {
+      ethSubscriptionId = subId;
+    });
   }
 
   @action _onUpdateAll = (valueAll) => {

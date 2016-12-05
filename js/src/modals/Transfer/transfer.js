@@ -25,7 +25,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
 import { newError } from '~/ui/Errors/actions';
-import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
+import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash, Input } from '~/ui';
 import nullableProptype from '~/util/nullable-proptype';
 
 import Details from './Details';
@@ -133,6 +133,25 @@ class Transfer extends Component {
     return (
       <CompletedStep>
         <TxHash hash={ txhash } />
+        {
+          this.store.operation
+          ? (
+            <div>
+              <br />
+              <p>
+                This transaction needs confirmation from other owners.
+                <Input
+                  style={ { width: '50%', margin: '0 auto' } }
+                  value={ this.store.operation }
+                  label='operation hash'
+                  readOnly
+                  allowCopy
+                />
+              </p>
+            </div>
+          )
+          : null
+        }
       </CompletedStep>
     );
   }
