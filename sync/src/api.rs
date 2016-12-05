@@ -44,7 +44,7 @@ pub struct SyncConfig {
 	/// Enable ancient block download.
 	pub download_old_blocks: bool,
 	/// Network ID
-	pub network_id: usize,
+	pub network_id: u64,
 	/// Main "eth" subprotocol name.
 	pub subprotocol_name: [u8; 3],
 	/// Fork block to check

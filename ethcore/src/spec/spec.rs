@@ -37,7 +37,7 @@ pub struct CommonParams {
 	/// Maximum size of extra data.
 	pub maximum_extra_data_size: usize,
 	/// Network id.
-	pub network_id: usize,
+	pub network_id: u64,
 	/// Main subprotocol name.
 	pub subprotocol_name: String,
 	/// Minimum gas limit.
@@ -93,8 +93,6 @@ pub struct Spec {
 	pub receipts_root: H256,
 	/// The genesis block's extra data field.
 	pub extra_data: Bytes,
-	/// The number of seal fields in the genesis block.
-	pub seal_fields: usize,
 	/// Each seal field, expressed as RLP, concatenated.
 	pub seal_rlp: Bytes,
 
@@ -126,7 +124,6 @@ impl From<ethjson::spec::Spec> for Spec {
 			gas_used: g.gas_used,
 			timestamp: g.timestamp,
 			extra_data: g.extra_data,
-			seal_fields: seal.fields,
 			seal_rlp: seal.rlp,
 			state_root_memo: RwLock::new(g.state_root),
 			genesis_state: From::from(s.accounts),
@@ -166,7 +163,7 @@ impl Spec {
 	pub fn nodes(&self) -> &[String] { &self.nodes }
 
 	/// Get the configured Network ID.
-	pub fn network_id(&self) -> usize { self.params.network_id }
+	pub fn network_id(&self) -> u64 { self.params.network_id }
 
 	/// Get the configured subprotocol name.
 	pub fn subprotocol_name(&self) -> String { self.params.subprotocol_name.clone() }
@@ -191,13 +188,8 @@ impl Spec {
 		header.set_gas_limit(self.gas_limit.clone());
 		header.set_difficulty(self.difficulty.clone());
 		header.set_seal({
-			let seal = {
-				let mut s = RlpStream::new_list(self.seal_fields);
-				s.append_raw(&self.seal_rlp, self.seal_fields);
-				s.out()
-			};
-			let r = Rlp::new(&seal);
-			(0..self.seal_fields).map(|i| r.at(i).as_raw().to_vec()).collect()
+			let r = Rlp::new(&self.seal_rlp);
+			r.iter().map(|f| f.as_raw().to_vec()).collect()
 		});
 		trace!(target: "spec", "Header hash is {}", header.hash());
 		header
@@ -226,7 +218,6 @@ impl Spec {
 		self.gas_used = g.gas_used;
 		self.timestamp = g.timestamp;
 		self.extra_data = g.extra_data;
-		self.seal_fields = seal.fields;
 		self.seal_rlp = seal.rlp;
 		self.state_root_memo = RwLock::new(g.state_root);
 	}
