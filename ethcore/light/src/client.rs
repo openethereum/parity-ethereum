@@ -19,21 +19,21 @@
 
 use std::sync::Arc;
 
-use engines::Engine;
-use ids::BlockID;
-use service::ClientIoMessage;
-use block_import_error::BlockImportError;
-use block_status::BlockStatus;
-use verification::queue::{HeaderQueue, QueueInfo};
-use transaction::SignedTransaction;
-use blockchain_info::BlockChainInfo;
+use ethcore::engines::Engine;
+use ethcore::ids::BlockID;
+use ethcore::service::ClientIoMessage;
+use ethcore::block_import_error::BlockImportError;
+use ethcore::block_status::BlockStatus;
+use ethcore::verification::queue::{HeaderQueue, QueueInfo};
+use ethcore::transaction::SignedTransaction;
+use ethcore::blockchain_info::BlockChainInfo;
 
 use io::IoChannel;
 use util::hash::H256;
 use util::{Bytes, Mutex};
 
-use light::provider::Provider;
-use light::request;
+use provider::Provider;
+use request;
 
 /// Light client implementation.
 pub struct Client {

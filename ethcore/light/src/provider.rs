@@ -20,10 +20,11 @@
 use ethcore::blockchain_info::BlockChainInfo;
 use ethcore::client::{BlockChainClient, ProvingBlockChainClient};
 use ethcore::transaction::SignedTransaction;
+use ethcore::ids::BlockID;
 
 use util::{Bytes, H256};
 
-use light::request;
+use request;
 
 /// Defines the operations that a provider for `LES` must fulfill.
 ///
@@ -78,7 +79,7 @@ pub trait Provider: Send + Sync {
 }
 
 // Implementation of a light client data provider for a client.
-impl<T: ProvingBlockChainClient + ?Sized> light::Provider for T {
+impl<T: ProvingBlockChainClient + ?Sized> Provider for T {
 	fn chain_info(&self) -> BlockChainInfo {
 		BlockChainClient::chain_info(self)
 	}
@@ -92,7 +93,7 @@ impl<T: ProvingBlockChainClient + ?Sized> light::Provider for T {
 	}
 
 	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
-		let best_num = self.chain.read().best_block_number();
+		let best_num = self.chain_info().best_block_number;
 		let start_num = req.block_num;
 
 		match self.block_hash(BlockID::Number(req.block_num)) {
@@ -114,8 +115,6 @@ impl<T: ProvingBlockChainClient + ?Sized> light::Provider for T {
 	}
 
 	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
-		use ids::BlockID;
-
 		req.block_hashes.into_iter()
 			.map(|hash| self.block_body(BlockID::Hash(hash)))
 			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
@@ -130,38 +129,22 @@ impl<T: ProvingBlockChainClient + ?Sized> light::Provider for T {
 	}
 
 	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
-		use rlp::{EMPTY_LIST_RLP, RlpStream, Stream};
+		use rlp::{RlpStream, Stream};
 
 		let mut results = Vec::with_capacity(req.requests.len());
 
 		for request in req.requests {
-			let state = match self.state_at(BlockID::Hash(request.block)) {
-				Some(state) => state,
-				None => {
-					trace!(target: "light_provider", "state for {} not available", request.block);
-					results.push(EMPTY_LIST_RLP.to_vec());
-					continue;
-				}
+			let proof = match request.key2 {
+				Some(key2) => self.prove_storage(request.key1, key2, request.from_level, BlockID::Hash(request.block)),
+				None => self.prove_account(request.key1, request.from_level, BlockID::Hash(request.block)),
 			};
 
-			let res = match request.key2 {
-				Some(storage_key) => state.prove_storage(request.key1, storage_key, request.from_level),
-				None => state.prove_account(request.key1, request.from_level),
-			};
-
-			match res {
-				Ok(records) => {
-					let mut stream = RlpStream::new_list(records.len());
-					for record in records {
-						stream.append_raw(&record, 1);
-					}
-					results.push(stream.out())
-				}
-				Err(e) => {
-					debug!(target: "light_provider", "encountered error {} while forming proof of state at {}", e, request.block);
-					results.push(EMPTY_LIST_RLP.to_vec());
-				}
+			let mut stream = RlpStream::new_list(proof.len());
+			for node in proof {
+				stream.append_raw(&node, 1);
 			}
+
+			results.push(stream.out());
 		}
 
 		results
@@ -170,16 +153,7 @@ impl<T: ProvingBlockChainClient + ?Sized> light::Provider for T {
 	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
 		req.code_requests.into_iter()
 			.map(|req| {
-				self.state_at(BlockID::Hash(req.block_hash))
-					.map(|state| {
-						match state.code_by_address_hash(req.account_key) {
-							Ok(code) => code.unwrap_or_else(Vec::new),
-							Err(e) => {
-								debug!(target: "light_provider", "encountered error {} while fetching code.", e);
-								Vec::new()
-							}
-						}
-					}).unwrap_or_else(Vec::new)
+				self.code_by_hash(req.account_key, BlockID::Hash(req.block_hash))
 			})
 			.collect()
 	}

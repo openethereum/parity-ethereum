@@ -23,7 +23,7 @@
 //! This module provides an interface for configuration of buffer
 //! flow costs and recharge rates.
 
-use light::request;
+use request;
 use super::packet;
 use super::error::Error;
 

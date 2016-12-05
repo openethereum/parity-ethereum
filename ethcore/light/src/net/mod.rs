@@ -19,6 +19,7 @@
 //! This uses a "Provider" to answer requests.
 //! See https://github.com/ethcore/parity/wiki/Light-Ethereum-Subprotocol-(LES)
 
+use ethcore::transaction::SignedTransaction;
 use io::TimerToken;
 use network::{NetworkProtocolHandler, NetworkContext, NetworkError, PeerId};
 use rlp::{RlpStream, Stream, UntrustedRlp, View};
@@ -29,9 +30,8 @@ use time::SteadyTime;
 use std::collections::{HashMap, HashSet};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use light::provider::Provider;
-use light::request::{self, Request};
-use transaction::SignedTransaction;
+use provider::Provider;
+use request::{self, Request};
 
 use self::buffer_flow::{Buffer, FlowParams};
 use self::error::{Error, Punishment};

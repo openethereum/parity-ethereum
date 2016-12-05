@@ -47,5 +47,6 @@ extern crate ethcore;
 extern crate ethcore_util as util;
 extern crate ethcore_network as network;
 extern crate ethcore_io as io;
+extern crate ethcore_ipc as ipc;
 extern crate rlp;
 extern crate time;
