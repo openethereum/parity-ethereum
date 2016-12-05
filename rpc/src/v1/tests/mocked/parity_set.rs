@@ -114,7 +114,7 @@ fn rpc_parity_set_consensus_signer() {
 	let io = IoHandler::new();
 	io.add_delegate(parity_set_client(&client, &miner, &network).to_delegate());
 
-	let request = r#"{"jsonrpc": "2.0", "method": "parity_setConsensusSigner", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681", "password"], "id": 1}"#;
+	let request = r#"{"jsonrpc": "2.0", "method": "parity_setEngineSigner", "params":["0xcd1722f3947def4cf144679da39c4c32bdc35681", "password"], "id": 1}"#;
 	let response = r#"{"jsonrpc":"2.0","result":true,"id":1}"#;
 
 	assert_eq!(io.handle_request_sync(request), Some(response.to_owned()));

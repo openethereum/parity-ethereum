@@ -45,7 +45,7 @@ build_rpc_trait! {
 		fn set_author(&self, H160) -> Result<bool, Error>;
 
 		/// Sets account for signing consensus messages.
-		#[rpc(name = "parity_setConsensusSigner")]
+		#[rpc(name = "parity_setEngineSigner")]
 		fn set_consensus_signer(&self, H160, String) -> Result<bool, Error>;
 
 		/// Sets the limits for transaction queue.
