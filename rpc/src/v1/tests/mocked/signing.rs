@@ -15,10 +15,10 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::str::FromStr;
-use std::sync::Arc;
+use std::sync::{mpsc, Arc};
 use rlp;
 
-use jsonrpc_core::{IoHandler, Success};
+use jsonrpc_core::{IoHandler, Success, GenericIoHandler};
 use v1::impls::SigningQueueClient;
 use v1::traits::{EthSigning, ParitySigning, Parity};
 use v1::helpers::{SignerService, SigningQueue};
@@ -87,13 +87,16 @@ fn should_add_sign_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let (tx, rx) = mpsc::channel();
+	tester.io.handle_request(&request, move |response| {
+		tx.send(response).unwrap();
+	});
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Signature(0.into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = rx.try_recv().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -227,13 +230,16 @@ fn should_add_transaction_to_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0000000000000000000000000000000000000000000000000000000000000000","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let (tx, rx) = mpsc::channel();
+	tester.io.handle_request(&request, move |response| {
+		tx.send(response).unwrap();
+	});
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SendTransaction(0.into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = rx.try_recv().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -289,14 +295,17 @@ fn should_add_sign_transaction_to_the_queue() {
 		r#"}},"id":1}"#;
 
 	// then
+	let (tx, rx) = mpsc::channel();
 	tester.miner.last_nonces.write().insert(address.clone(), U256::zero());
-	let async_result = tester.io.handle_request(&request).unwrap();
+	tester.io.handle_request(&request, move |response| {
+		tx.send(response).unwrap();
+	});
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::SignTransaction(t.into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = rx.try_recv().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }
 
 #[test]
@@ -387,11 +396,14 @@ fn should_add_decryption_to_the_queue() {
 	let response = r#"{"jsonrpc":"2.0","result":"0x0102","id":1}"#;
 
 	// then
-	let async_result = tester.io.handle_request(&request).unwrap();
+	let (tx, rx) = mpsc::channel();
+	tester.io.handle_request(&request, move |response| {
+		tx.send(response).unwrap();
+	});
 	assert_eq!(tester.signer.requests().len(), 1);
 	// respond
 	tester.signer.request_confirmed(1.into(), Ok(ConfirmationResponse::Decrypt(vec![0x1, 0x2].into())));
-	assert!(async_result.on_result(move |res| {
-		assert_eq!(res, response.to_owned());
-	}));
+
+	let res = rx.try_recv().unwrap();
+	assert_eq!(res, Some(response.to_owned()));
 }

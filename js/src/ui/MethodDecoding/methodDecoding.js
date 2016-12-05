@@ -142,16 +142,17 @@ class MethodDecoding extends Component {
   getAscii () {
     const { api } = this.context;
     const { transaction } = this.props;
+    const ascii = api.util.hex2Ascii(transaction.input || transaction.data);
 
-    const ascii = api.util.hex2Ascii(transaction.input);
     return { value: ascii, valid: ASCII_INPUT.test(ascii) };
   }
 
   renderInputValue () {
     const { transaction } = this.props;
     const { expandInput, inputType } = this.state;
+    const input = transaction.input || transaction.data;
 
-    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(transaction.input)) {
+    if (!/^(0x)?([0]*[1-9a-f]+[0]*)+$/.test(input)) {
       return null;
     }
 
@@ -162,7 +163,7 @@ class MethodDecoding extends Component {
 
     const text = type === 'ascii'
       ? ascii.value
-      : transaction.input;
+      : input;
 
     const expandable = text.length > 50;
     const textToShow = expandInput || !expandable
@@ -447,11 +448,12 @@ class MethodDecoding extends Component {
 
     const isReceived = transaction.to === address;
     const contractAddress = isReceived ? transaction.from : transaction.to;
+    const input = transaction.input || transaction.data;
 
     const token = (tokens || {})[contractAddress];
     this.setState({ token, isReceived, contractAddress });
 
-    if (!transaction.input || transaction.input === '0x') {
+    if (!input || input === '0x') {
       return;
     }
 
@@ -470,7 +472,7 @@ class MethodDecoding extends Component {
           return;
         }
 
-        const { signature, paramdata } = api.util.decodeCallData(transaction.input);
+        const { signature, paramdata } = api.util.decodeCallData(input);
         this.setState({ methodSignature: signature, methodParams: paramdata });
 
         if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
