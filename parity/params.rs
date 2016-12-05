@@ -204,7 +204,7 @@ pub struct MinerExtras {
 	pub gas_floor_target: U256,
 	pub gas_ceil_target: U256,
 	pub transactions_limit: usize,
-	pub consensus_signer: Address,
+	pub engine_signer: Address,
 }
 
 impl Default for MinerExtras {
@@ -215,7 +215,7 @@ impl Default for MinerExtras {
 			gas_floor_target: U256::from(4_700_000),
 			gas_ceil_target: U256::from(6_283_184),
 			transactions_limit: 1024,
-			consensus_signer: Default::default(),
+			engine_signer: Default::default(),
 		}
 	}
 }

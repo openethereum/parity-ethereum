@@ -107,7 +107,7 @@ fn rpc_parity_set_author() {
 }
 
 #[test]
-fn rpc_parity_set_consensus_signer() {
+fn rpc_parity_set_engine_signer() {
 	let miner = miner_service();
 	let client = client_service();
 	let network = network_service();

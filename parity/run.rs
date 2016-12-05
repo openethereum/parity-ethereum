@@ -220,9 +220,9 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	miner.set_gas_ceil_target(cmd.miner_extras.gas_ceil_target);
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
-	let consensus_signer = cmd.miner_extras.consensus_signer;
-	if passwords.into_iter().any(|p| miner.set_consensus_signer(consensus_signer, p).is_ok()) {
-		return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", cmd.miner_extras.consensus_signer));
+	let engine_signer = cmd.miner_extras.engine_signer;
+	if passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
+		return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", cmd.miner_extras.engine_signer));
 	}
 
 	// create client config

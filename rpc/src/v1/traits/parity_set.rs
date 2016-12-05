@@ -46,7 +46,7 @@ build_rpc_trait! {
 
 		/// Sets account for signing consensus messages.
 		#[rpc(name = "parity_setEngineSigner")]
-		fn set_consensus_signer(&self, H160, String) -> Result<bool, Error>;
+		fn set_engine_signer(&self, H160, String) -> Result<bool, Error>;
 
 		/// Sets the limits for transaction queue.
 		#[rpc(name = "parity_setTransactionsLimit")]
