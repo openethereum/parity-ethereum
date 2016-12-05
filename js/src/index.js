@@ -37,7 +37,7 @@ import ContextProvider from '~/ui/ContextProvider';
 import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
-import { setApi } from 'providers/apiActions';
+import { setApi } from '~/redux/providers/apiActions';
 
 import './environment';
 

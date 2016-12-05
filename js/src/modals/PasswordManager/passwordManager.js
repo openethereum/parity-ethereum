@@ -24,7 +24,7 @@ import Paper from 'material-ui/Paper';
 
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
-import { showSnackbar } from 'providers/snackbarActions';
+import { showSnackbar } from '~/redux/providers/snackbarActions';
 
 import Form, { Input } from '~/ui/Form';
 import { Button, Modal, IdentityName, IdentityIcon } from '~/ui';

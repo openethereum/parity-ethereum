@@ -24,7 +24,7 @@ import EyeIcon from 'material-ui/svg-icons/image/remove-red-eye';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
 import { newError } from '../../redux/actions';
-import { setVisibleAccounts } from 'providers/personalActions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
 import { EditMeta, ExecuteContract } from '~/modals';
 import { Actionbar, Button, Page, Modal, Editor } from '~/ui';

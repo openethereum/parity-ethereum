@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import { Snackbar as SnackbarMUI } from 'material-ui';
 import { darkBlack, grey800 } from 'material-ui/styles/colors';
 
-import { closeSnackbar } from 'providers/snackbarActions';
+import { closeSnackbar } from '~/redux/providers/snackbarActions';
 
 const bodyStyle = {
   backgroundColor: darkBlack,
