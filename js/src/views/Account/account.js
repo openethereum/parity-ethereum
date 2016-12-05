@@ -23,16 +23,16 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 import LockIcon from 'material-ui/svg-icons/action/lock';
 import VerifyIcon from 'material-ui/svg-icons/action/verified-user';
 
-import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '../../modals';
-import { Actionbar, Button, Page } from '../../ui';
+import { EditMeta, DeleteAccount, Shapeshift, SMSVerification, Transfer, PasswordManager } from '~/modals';
+import { Actionbar, Button, Page } from '~/ui';
 
 import shapeshiftBtn from '../../../assets/images/shapeshift-btn.png';
 
 import Header from './Header';
 import Transactions from './Transactions';
-import { setVisibleAccounts } from '../../redux/providers/personalActions';
+import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import VerificationStore from '../../modals/SMSVerification/store';
+import VerificationStore from '~/modals/SMSVerification/store';
 
 import styles from './account.css';
 

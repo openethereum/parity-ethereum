@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { Select, Container } from '../../../ui';
+import { Select, Container } from '~/ui';
 
 import layout from '../layout.css';
 

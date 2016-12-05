@@ -24,7 +24,7 @@ import 'mock-local-storage';
 import chai from 'chai';
 import chaiEnzyme from 'chai-enzyme';
 import sinonChai from 'sinon-chai';
-import { w3cwebsocket } from 'websocket';
+import { WebSocket } from 'mock-socket';
 import jsdom from 'jsdom';
 
 chai.use(chaiEnzyme());
@@ -32,7 +32,7 @@ chai.use(sinonChai);
 
 // expose expect to global so we won't have to manually import & define it in every test
 global.expect = chai.expect;
-global.WebSocket = w3cwebsocket;
+global.WebSocket = WebSocket;
 
 // setup jsdom
 global.document = jsdom.jsdom('<!doctype html><html><body></body></html>');

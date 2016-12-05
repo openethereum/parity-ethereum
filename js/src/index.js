@@ -25,19 +25,18 @@ import ReactDOM from 'react-dom';
 import { AppContainer } from 'react-hot-loader';
 
 import injectTapEventPlugin from 'react-tap-event-plugin';
-import { createHashHistory } from 'history';
-import { useRouterHistory } from 'react-router';
+import { hashHistory } from 'react-router';
 import qs from 'querystring';
 
 import SecureApi from './secureApi';
-import ContractInstances from './contracts';
+import ContractInstances from '~/contracts';
 
 import { initStore } from './redux';
-import ContextProvider from './ui/ContextProvider';
-import muiTheme from './ui/Theme';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
-import { setApi } from './redux/providers/apiActions';
+import { setApi } from '~/redux/providers/apiActions';
 
 import './environment';
 
@@ -74,13 +73,11 @@ store.dispatch(setApi(api));
 
 window.secureApi = api;
 
-const routerHistory = useRouterHistory(createHashHistory)({});
-
 ReactDOM.render(
   <AppContainer>
     <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
       <MainApplication
-        routerHistory={ routerHistory }
+        routerHistory={ hashHistory }
       />
     </ContextProvider>
   </AppContainer>,
@@ -88,24 +85,6 @@ ReactDOM.render(
 );
 
 if (module.hot) {
-  // module.hot.accept('./redux', () => {
-  //   // redux store has a method replaceReducer
-  //   // const newStore = initStore(api);
-  //   console.warn('REDUX UPDATE');
-  //   // store.replaceReducer(appReducer);
-
-  //   // ReactDOM.render(
-  //   //   <AppContainer>
-  //   //     <ContextProvider api={ api } muiTheme={ muiTheme } store={ newStore }>
-  //   //       <MainApplication
-  //   //         routerHistory={ routerHistory }
-  //   //       />
-  //   //     </ContextProvider>
-  //   //   </AppContainer>,
-  //   //   document.querySelector('#container')
-  //   // );
-  // });
-
   module.hot.accept('./main.js', () => {
     require('./main.js');
 
@@ -113,7 +92,7 @@ if (module.hot) {
       <AppContainer>
         <ContextProvider api={ api } muiTheme={ muiTheme } store={ store }>
           <MainApplication
-            routerHistory={ routerHistory }
+            routerHistory={ hashHistory }
           />
         </ContextProvider>
       </AppContainer>,
