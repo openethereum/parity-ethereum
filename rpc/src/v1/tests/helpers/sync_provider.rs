@@ -23,7 +23,7 @@ use ethsync::{SyncProvider, SyncStatus, SyncState, PeerInfo, TransactionStats};
 /// TestSyncProvider config.
 pub struct Config {
 	/// Protocol version.
-	pub network_id: usize,
+	pub network_id: u64,
 	/// Number of peers.
 	pub num_peers: usize,
 }
