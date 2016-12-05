@@ -175,6 +175,7 @@ impl Updater {
 			if let Some(b) = latest.track.binary {
 				let mut fetching = self.fetching.lock();
 				if !*fetching {
+					info!("Attempting to get parity binary {}", b);
 					let c = self.client.clone();
 					let f = move |r: Result<PathBuf, fetch::Error>| if let Some(c) = c.upgrade() { c.updater().as_ref().expect("updater exists; updater only owned by client; qed").fetch_done(r); };
 					if let Some(fetch) = self.fetch.clone().upgrade() {
