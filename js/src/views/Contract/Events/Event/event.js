@@ -18,8 +18,8 @@ import BigNumber from 'bignumber.js';
 import moment from 'moment';
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon, IdentityName, Input, InputAddress } from 'ui';
-import ShortenedHash from 'ui/ShortenedHash';
+import { IdentityIcon, IdentityName, Input, InputAddress } from '~/ui';
+import ShortenedHash from '~/ui/ShortenedHash';
 import { txLink } from '../../../../3rdparty/etherscan/links';
 
 import styles from '../../contract.css';

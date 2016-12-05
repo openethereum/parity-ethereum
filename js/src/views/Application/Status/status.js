@@ -18,8 +18,8 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { BlockStatus } from 'ui';
-import CopyToClipboard from 'ui/CopyToClipboard';
+import { BlockStatus } from '~/ui';
+import CopyToClipboard from '~/ui/CopyToClipboard';
 
 import styles from './status.css';
 

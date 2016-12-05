@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import bytes from 'bytes';
 
-import { Container, ContainerTitle, Input } from 'ui';
+import { Container, ContainerTitle, Input } from '~/ui';
 
 import styles from './Status.css';
 import MiningSettings from '../MiningSettings';

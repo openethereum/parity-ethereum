@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import nullable from '../../../util/nullable-proptype';
 
-import TxHash from 'ui/TxHash';
+import TxHash from '~/ui/TxHash';
 import {
   POSTING_REQUEST, POSTED_REQUEST, REQUESTING_SMS
 } from '../store';

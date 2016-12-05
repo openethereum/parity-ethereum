@@ -33,8 +33,8 @@ import SecureApi from './secureApi';
 import ContractInstances from 'contracts';
 
 import { initStore } from './redux';
-import ContextProvider from 'ui/ContextProvider';
-import muiTheme from 'ui/Theme';
+import ContextProvider from '~/ui/ContextProvider';
+import muiTheme from '~/ui/Theme';
 import MainApplication from './main';
 
 import { setApi } from 'providers/apiActions';

@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 import ActionFingerprint from 'material-ui/svg-icons/action/fingerprint';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 
-import { Badge, Button, ContainerTitle, ParityBackground } from 'ui';
+import { Badge, Button, ContainerTitle, ParityBackground } from '~/ui';
 import { Embedded as Signer } from '../Signer';
 
 import imagesEthcoreBlock from '../../../assets/images/parity-logo-white-no-text.svg';

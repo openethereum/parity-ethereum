@@ -23,7 +23,7 @@ import ActionDashboard from 'material-ui/svg-icons/action/dashboard';
 import HardwareDesktopMac from 'material-ui/svg-icons/hardware/desktop-mac';
 import NotificationVpnLock from 'material-ui/svg-icons/notification/vpn-lock';
 
-import { Input } from 'ui';
+import { Input } from '~/ui';
 
 import styles from './connection.css';
 

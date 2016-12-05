@@ -24,7 +24,7 @@ import { List, ListItem, makeSelectable } from 'material-ui/List';
 import { Subheader, IconButton, Tabs, Tab } from 'material-ui';
 import moment from 'moment';
 
-import { Button, Modal, Editor } from 'ui';
+import { Button, Modal, Editor } from '~/ui';
 
 import styles from './loadContract.css';
 

@@ -22,7 +22,7 @@ import { observer } from 'mobx-react';
 
 import Store from '../../store';
 import * as RequestsActions from 'providers/signerActions';
-import { Container, Page, TxList } from 'ui';
+import { Container, Page, TxList } from '~/ui';
 
 import RequestPending from '../../components/RequestPending';
 

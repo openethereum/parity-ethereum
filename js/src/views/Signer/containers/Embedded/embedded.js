@@ -21,7 +21,7 @@ import { bindActionCreators } from 'redux';
 
 import Store from '../../store';
 import * as RequestsActions from 'providers/signerActions';
-import { Container } from 'ui';
+import { Container } from '~/ui';
 
 import RequestPending from '../../components/RequestPending';
 

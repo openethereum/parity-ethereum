@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { Checkbox } from 'material-ui';
 
-import { Form, Input } from 'ui';
+import { Form, Input } from '~/ui';
 
 import styles from '../createAccount.css';
 

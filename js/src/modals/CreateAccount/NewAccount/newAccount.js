@@ -19,7 +19,7 @@ import IconButton from 'material-ui/IconButton';
 import { RadioButton, RadioButtonGroup } from 'material-ui/RadioButton';
 import ActionAutorenew from 'material-ui/svg-icons/action/autorenew';
 
-import { Form, Input, IdentityIcon } from 'ui';
+import { Form, Input, IdentityIcon } from '~/ui';
 
 import styles from '../createAccount.css';
 

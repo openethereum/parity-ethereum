@@ -16,9 +16,9 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from 'ui';
-import CopyToClipboard from 'ui/CopyToClipboard';
-import Certifications from 'ui/Certifications';
+import { Balance, Container, ContainerTitle, IdentityIcon, IdentityName, Tags } from '~/ui';
+import CopyToClipboard from '~/ui/CopyToClipboard';
+import Certifications from '~/ui/Certifications';
 
 import styles from './header.css';
 

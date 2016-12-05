@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Container } from 'ui';
+import { Container } from '~/ui';
 
 import layout from '../layout.css';
 import styles from './proxy.css';

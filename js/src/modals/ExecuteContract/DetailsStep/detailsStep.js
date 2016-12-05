@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import { MenuItem } from 'material-ui';
 
-import { AddressSelect, Form, Input, InputAddressSelect, Select } from 'ui';
+import { AddressSelect, Form, Input, InputAddressSelect, Select } from '~/ui';
 
 import styles from '../executeContract.css';
 

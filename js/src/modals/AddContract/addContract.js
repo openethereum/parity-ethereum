@@ -20,7 +20,7 @@ import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 
-import { Button, Modal, Form, Input, InputAddress, RadioButtons } from 'ui';
+import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
 
 import { eip20, wallet } from 'contracts/abi';

@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Errors } from 'ui';
+import { Errors } from '~/ui';
 
 import styles from '../application.css';
 

@@ -17,7 +17,7 @@
 import React, { Component, PropTypes } from 'react';
 import formatNumber from 'format-number';
 
-import { ContainerTitle, Input } from 'ui';
+import { ContainerTitle, Input } from '~/ui';
 
 import { numberFromString } from './numberFromString';
 import { decodeExtraData } from './decodeExtraData';

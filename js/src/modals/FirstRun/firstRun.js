@@ -20,7 +20,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from 'ui';
+import { Button, Modal } from '~/ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
