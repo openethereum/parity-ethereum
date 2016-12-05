@@ -21,8 +21,7 @@
 	"genesis": {
 		"seal": {
 			"generic": {
-				"fields": 2,
-				"rlp": "0x200"
+				"rlp": "0xc28080"
 			}
 		},
 		"difficulty": "0x20000",

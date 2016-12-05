@@ -30,11 +30,9 @@ pub struct Ethereum {
 
 impl Into<Generic> for Ethereum {
 	fn into(self) -> Generic {
-		let mut s = RlpStream::new();
-		s.append(&self.mix_hash);
-		s.append(&self.nonce);
+		let mut s = RlpStream::new_list(2);
+		s.append(&self.mix_hash).append(&self.nonce);
 		Generic {
-			fields: 2,
 			rlp: s.out()
 		}
 	}
@@ -42,8 +40,6 @@ impl Into<Generic> for Ethereum {
 
 /// Generic seal.
 pub struct Generic {
-	/// Number of seal fields.
-	pub fields: usize,
 	/// Seal rlp.
 	pub rlp: Vec<u8>,
 }
@@ -64,7 +60,6 @@ impl From<ethjson::spec::Seal> for Seal {
 				mix_hash: eth.mix_hash.into()
 			}),
 			ethjson::spec::Seal::Generic(g) => Seal::Generic(Generic {
-				fields: g.fields,
 				rlp: g.rlp.into()
 			})
 		}

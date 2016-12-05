@@ -32,9 +32,7 @@ pub struct Ethereum {
 /// Generic seal.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Generic {
-	/// Number of fields.
-	pub fields: usize,
-	/// Their rlp.
+	/// Seal rlp.
 	pub rlp: Bytes,
 }
 
@@ -63,11 +61,10 @@ mod tests {
 			}
 		},{
 			"generic": {
-				"fields": 1,
-				"rlp": "0x11bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
+				"rlp": "0xe011bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
 			}
 		}]"#;
-		let _deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();
+		let deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}
 }
