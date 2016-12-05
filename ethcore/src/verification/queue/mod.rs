@@ -17,7 +17,7 @@
 //! A queue of blocks. Sits between network or other I/O and the `BlockChain`.
 //! Sorts them ready for blockchain insertion.
 
-use std::thread;
+use std::thread::{self, JoinHandle};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering as AtomicOrdering};
 use std::sync::{Condvar as SCondvar, Mutex as SMutex};
 use util::*;
@@ -114,7 +114,7 @@ pub struct VerificationQueue<K: Kind> {
 	ticks_since_adjustment: AtomicUsize,
 	max_queue_size: usize,
 	max_mem_use: usize,
-	max_verifiers: usize,	
+	verifier_handles: Vec<JoinHandle<()>>,	
 	state: Arc<(Mutex<State>, Condvar)>,
 }
 
@@ -202,6 +202,7 @@ impl<K: Kind> VerificationQueue<K> {
 		let max_verifiers = min(::num_cpus::get(), MAX_VERIFIERS);
 		let default_amount = max(::num_cpus::get(), 3) - 2;
 		let state = Arc::new((Mutex::new(State::Work(default_amount)), Condvar::new()));
+		let mut verifier_handles = Vec::with_capacity(max_verifiers);
 
 		debug!(target: "verification", "Allocating {} verifiers, {} initially active", max_verifiers, default_amount);
 
@@ -216,7 +217,7 @@ impl<K: Kind> VerificationQueue<K> {
 			let empty = empty.clone();
 			let state = state.clone();
 
-			thread::Builder::new()
+			let handle = thread::Builder::new()
 				.name(format!("Verifier #{}", i))
 				.spawn(move || {
 					panic_handler.catch_panic(move || {
@@ -232,6 +233,7 @@ impl<K: Kind> VerificationQueue<K> {
 					}).unwrap()
 				})
 				.expect("Failed to create verifier thread.");
+			verifier_handles.push(handle);
 		}
 
 		VerificationQueue {
@@ -246,8 +248,8 @@ impl<K: Kind> VerificationQueue<K> {
 			ticks_since_adjustment: AtomicUsize::new(0),
 			max_queue_size: max(config.max_queue_size, MIN_QUEUE_LIMIT),
 			max_mem_use: max(config.max_mem_use, MIN_MEM_LIMIT),
+			verifier_handles: verifier_handles,
 			state: state,
-			max_verifiers: max_verifiers,
 		}
 	}
 
@@ -274,6 +276,7 @@ impl<K: Kind> VerificationQueue<K> {
 				}
 
 				if let State::Exit = *cur_state { 
+					debug!(target: "verification", "verifier {} exiting", id);										
 					break;
 				}
 			}
@@ -287,11 +290,17 @@ impl<K: Kind> VerificationQueue<K> {
 				}
 
 				while verification.unverified.lock().is_empty() {
-					more_to_verify = wait.wait(more_to_verify).unwrap();
-
 					if let State::Exit = *state.0.lock() {
+						debug!(target: "verification", "verifier {} exiting", id);
 						return;
 					}
+
+					more_to_verify = wait.wait(more_to_verify).unwrap();
+				}
+
+				if let State::Exit = *state.0.lock() {
+					debug!(target: "verification", "verifier {} exiting", id);										
+					return;
 				}
 			}
 
@@ -617,7 +626,7 @@ impl<K: Kind> VerificationQueue<K> {
 	// or below 1.
 	fn scale_verifiers(&self, target: usize) {
 		let current = self.num_verifiers();
-		let target = min(self.max_verifiers, target);
+		let target = min(self.verifier_handles.len(), target);
 		let target = max(1, target);
 
 		debug!(target: "verification", "Scaling from {} to {} verifiers", current, target);
@@ -639,11 +648,17 @@ impl<K: Kind> Drop for VerificationQueue<K> {
 		self.clear();
 		self.deleting.store(true, AtomicOrdering::SeqCst);
 
+		// set exit state; should be done before `more_to_verify` notification.
 		*self.state.0.lock() = State::Exit;
 		self.state.1.notify_all();
 
 		// wake up all threads waiting for more work.
 		self.more_to_verify.notify_all();
+
+		// wait for all verifier threads to join.
+		for thread in self.verifier_handles.drain(..) {
+			thread.join().expect("Propagating verifier thread panic on shutdown");
+		}
 
 		trace!(target: "shutdown", "[VerificationQueue] Closed.");
 	}
