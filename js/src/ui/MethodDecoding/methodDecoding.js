@@ -461,7 +461,7 @@ class MethodDecoding extends Component {
     this.setState({ methodSignature: signature, methodParams: paramdata });
 
     if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-      this.setState({ icContract: true, isDeploy: true });
+      this.setState({ isDeploy: true });
       return;
     }
 
