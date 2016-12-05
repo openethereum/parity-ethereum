@@ -667,7 +667,7 @@ mod tests {
 	}
 
 	fn insert_and_register(tap: &Arc<AccountProvider>, engine: &Arc<Engine>, acc: &str) -> Address {
-		let addr = tap.insert_account(acc.sha3(), acc).unwrap();
+		let addr = insert_and_unlock(tap, acc);
 		engine.set_signer(addr.clone(), acc.into());
 		addr
 	}
@@ -729,14 +729,14 @@ mod tests {
 		let engine = spec.engine;
 
 		let mut header = Header::default();
-		let validator = insert_and_unlock(&tap, "1");
+		let validator = insert_and_unlock(&tap, "0");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
 		// Good proposer.
 		assert!(engine.verify_block_unordered(&header.clone(), None).is_ok());
 
-		let validator = insert_and_unlock(&tap, "0");
+		let validator = insert_and_unlock(&tap, "1");
 		header.set_author(validator);
 		let seal = proposal_seal(&tap, &header, 0);
 		header.set_seal(seal);
@@ -812,14 +812,15 @@ mod tests {
 
 	#[test]
 	fn step_transitioning() {
+		::env_logger::init().unwrap();
 		let (spec, tap) = setup();
 		let engine = spec.engine.clone();
 		let mut db_result = get_temp_state_db();
 		let mut db = db_result.take();
 		spec.ensure_db_good(&mut db, &TrieFactory::new(TrieSpec::Secure)).unwrap();
 		
-		let v0 = insert_and_unlock(&tap, "0");
-		let v1 = insert_and_unlock(&tap, "1");
+		let v0 = insert_and_register(&tap, &engine, "0");
+		let v1 = insert_and_register(&tap, &engine, "1");
 
 		let h = 1;
 		let r = 0;
@@ -842,7 +843,7 @@ mod tests {
 		vote(&engine, |mh| tap.sign(v0, None, mh).map(H520::from), h, r, Step::Precommit, proposal);
 
 		// Wait a bit for async stuff.
-		::std::thread::sleep(::std::time::Duration::from_millis(50));
+		::std::thread::sleep(::std::time::Duration::from_millis(100));
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v0, v1);
 		let first = test_io.received.read().contains(&ClientIoMessage::SubmitSeal(proposal.unwrap(), seal.clone()));
 		seal[2] = precommit_signatures(&tap, h, r, Some(b.header().bare_hash()), v1, v0);
