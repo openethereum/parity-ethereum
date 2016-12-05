@@ -32,6 +32,7 @@ use engines::Engine;
 use error::Error;
 use ids::BlockID;
 use service::ClientIoMessage;
+use spec::Spec;
 
 use io::IoChannel;
 
@@ -99,7 +100,7 @@ impl Restoration {
 		let raw_db = Arc::new(try!(Database::open(params.db_config, &*params.db_path.to_string_lossy())
 			.map_err(UtilError::SimpleString)));
 
-		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone());
+		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone(), Spec::new_null().engine);
 		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), &manifest));
 
 		let root = manifest.state_root.clone();
