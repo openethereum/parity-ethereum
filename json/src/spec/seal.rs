@@ -64,7 +64,7 @@ mod tests {
 				"rlp": "0xe011bbe8db4e347b4e8c937c1c8370e4b5ed33adb3db69cbdb7a38e1e50b1b82fa"
 			}
 		}]"#;
-		let deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();
+		let _deserialized: Vec<Seal> = serde_json::from_str(s).unwrap();
 		// TODO: validate all fields
 	}
 }
