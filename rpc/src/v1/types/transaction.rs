@@ -56,7 +56,7 @@ pub struct Transaction {
 	pub public_key: Option<H512>,
 	/// The network id of the transaction, if any.
 	#[serde(rename="networkId")]
-	pub network_id: Option<u8>,
+	pub network_id: Option<u64>,
 	/// The standardised V field of the signature (0 or 1).
 	#[serde(rename="standardV")]
 	pub standard_v: U256,

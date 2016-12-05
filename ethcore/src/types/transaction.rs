@@ -305,7 +305,7 @@ impl SignedTransaction {
 	pub fn standard_v(&self) -> u8 { match self.v { v if v == 27 || v == 28 || v > 36 => (v - 1) % 2, _ => 4 } }
 
 	/// The `v` value that appears in the RLP.
-	pub fn original_v(&self) -> u8 { self.v }
+	pub fn original_v(&self) -> u64 { self.v }
 
 	/// The network ID, or `None` if this is a global transaction. 
 	pub fn network_id(&self) -> Option<u8> {
