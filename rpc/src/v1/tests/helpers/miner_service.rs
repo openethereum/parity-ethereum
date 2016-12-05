@@ -87,7 +87,7 @@ impl MinerService for TestMinerService {
 		*self.author.write() = author;
 	}
 
-	fn set_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+	fn set_consensus_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
 		*self.author.write() = address;
 		*self.password.write() = password;
 		Ok(())

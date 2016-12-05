@@ -737,7 +737,7 @@ impl MinerService for Miner {
 		*self.author.write() = author;
 	}
 
-	fn set_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
+	fn set_consensus_signer(&self, address: Address, password: String) -> Result<(), AccountError> {
 		if self.seals_internally {
 			if let Some(ref ap) = self.accounts {
 				try!(ap.sign(address.clone(), Some(password.clone()), Default::default()));
