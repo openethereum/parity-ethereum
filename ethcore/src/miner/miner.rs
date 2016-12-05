@@ -1030,11 +1030,6 @@ impl MinerService for Miner {
 			let (block, original_work_hash) = self.prepare_block(chain);
 			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				{
-					let mut sealing_work = self.sealing_work.lock();
-					sealing_work.queue.push(block.clone());
-					sealing_work.queue.use_last_ref();
-				}
 				self.seal_and_import_block_internally(chain, block);
 			} else {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");

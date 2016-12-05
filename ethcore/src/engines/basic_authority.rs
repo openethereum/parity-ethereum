@@ -100,12 +100,7 @@ impl Engine for BasicAuthority {
 				max(gas_floor_target, gas_limit - gas_limit / bound_divisor + 1.into())
 			}
 		});
-//		info!("ethash: populate_from_parent #{}: difficulty={} and gas_limit={}", header.number, header.difficulty, header.gas_limit);
 	}
-
-	/// Apply the block reward on finalisation of the block.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
 
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
 		Some(self.our_params.authorities.contains(author))

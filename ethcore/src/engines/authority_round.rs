@@ -209,10 +209,6 @@ impl Engine for AuthorityRound {
 		});
 	}
 
-	/// Apply the block reward on finalisation of the block.
-	/// This assumes that all uncles are valid uncles (i.e. of at least one generation before the current).
-	fn on_close_block(&self, _block: &mut ExecutedBlock) {}
-
 	fn is_sealer(&self, author: &Address) -> Option<bool> {
 		let p = &self.our_params;
 		Some(p.authorities.contains(author))
