@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo,
+	ChainNotify, PruningInfo, ProvingBlockChainClient,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -68,7 +68,6 @@ use factory::Factories;
 use rlp::{decode, View, UntrustedRlp};
 use state_db::StateDB;
 use rand::OsRng;
-use light::{self, request};
 
 // re-export
 pub use types::blockchain_info::BlockChainInfo;
@@ -1378,119 +1377,24 @@ impl MayPanic for Client {
 	}
 }
 
-// Implementation of a light client data provider for a client.
-impl light::Provider for Client {
-	fn chain_info(&self) -> BlockChainInfo {
-		BlockChainClient::chain_info(self)
+impl ProvingBlockChainClient for Client {
+	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())
+			.unwrap_or_else(Vec::new)
 	}
 
-	fn reorg_depth(&self, a: &H256, b: &H256) -> Option<u64> {
-		self.tree_route(a, b).map(|route| route.index as u64)
+	fn prove_account(&self, key1: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
+		self.state_at(id)
+			.and_then(move |state| state.prove_account(key1, from_level).ok())
+			.unwrap_or_else(Vec::new)
 	}
 
-	fn earliest_state(&self) -> Option<u64> {
-		Some(self.pruning_info().earliest_state)
-	}
-
-	fn block_headers(&self, req: request::Headers) -> Vec<Bytes> {
-		let best_num = self.chain.read().best_block_number();
-		let start_num = req.block_num;
-
-		match self.block_hash(BlockID::Number(req.block_num)) {
-			Some(hash) if hash == req.block_hash => {}
-			_=> {
-				trace!(target: "les_provider", "unknown/non-canonical start block in header request: {:?}", (req.block_num, req.block_hash));
-				return vec![]
-			}
-		}
-
-		(0u64..req.max as u64)
-			.map(|x: u64| x.saturating_mul(req.skip))
-			.take_while(|x| if req.reverse { x < &start_num } else { best_num - start_num < *x })
-			.map(|x| if req.reverse { start_num - x } else { start_num + x })
-			.map(|x| self.block_header(BlockID::Number(x)))
-			.take_while(|x| x.is_some())
-			.flat_map(|x| x)
-			.collect()
-	}
-
-	fn block_bodies(&self, req: request::Bodies) -> Vec<Bytes> {
-		use ids::BlockID;
-
-		req.block_hashes.into_iter()
-			.map(|hash| self.block_body(BlockID::Hash(hash)))
-			.map(|body| body.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
-			.collect()
-	}
-
-	fn receipts(&self, req: request::Receipts) -> Vec<Bytes> {
-		req.block_hashes.into_iter()
-			.map(|hash| self.block_receipts(&hash))
-			.map(|receipts| receipts.unwrap_or_else(|| ::rlp::EMPTY_LIST_RLP.to_vec()))
-			.collect()
-	}
-
-	fn proofs(&self, req: request::StateProofs) -> Vec<Bytes> {
-		use rlp::{EMPTY_LIST_RLP, RlpStream, Stream};
-
-		let mut results = Vec::with_capacity(req.requests.len());
-
-		for request in req.requests {
-			let state = match self.state_at(BlockID::Hash(request.block)) {
-				Some(state) => state,
-				None => {
-					trace!(target: "light_provider", "state for {} not available", request.block);
-					results.push(EMPTY_LIST_RLP.to_vec());
-					continue;
-				}
-			};
-
-			let res = match request.key2 {
-				Some(storage_key) => state.prove_storage(request.key1, storage_key, request.from_level),
-				None => state.prove_account(request.key1, request.from_level),
-			};
-
-			match res {
-				Ok(records) => {
-					let mut stream = RlpStream::new_list(records.len());
-					for record in records {
-						stream.append_raw(&record, 1);
-					}
-					results.push(stream.out())
-				}
-				Err(e) => {
-					debug!(target: "light_provider", "encountered error {} while forming proof of state at {}", e, request.block);
-					results.push(EMPTY_LIST_RLP.to_vec());
-				}
-			}
-		}
-
-		results
-	}
-
-	fn contract_code(&self, req: request::ContractCodes) -> Vec<Bytes> {
-		req.code_requests.into_iter()
-			.map(|req| {
-				self.state_at(BlockID::Hash(req.block_hash))
-					.map(|state| {
-						match state.code_by_address_hash(req.account_key) {
-							Ok(code) => code.unwrap_or_else(Vec::new),
-							Err(e) => {
-								debug!(target: "light_provider", "encountered error {} while fetching code.", e);
-								Vec::new()
-							}
-						}
-					}).unwrap_or_else(Vec::new)
-			})
-			.collect()
-	}
-
-	fn header_proofs(&self, req: request::HeaderProofs) -> Vec<Bytes> {
-		req.requests.into_iter().map(|_| ::rlp::EMPTY_LIST_RLP.to_vec()).collect()
-	}
-
-	fn pending_transactions(&self) -> Vec<SignedTransaction> {
-		BlockChainClient::pending_transactions(self)
+	fn code_by_hash(&self, account_key: H256, id: BlockID) -> Bytes {
+		self.state_at(id)
+			.and_then(move |state| state.code_by_address_hash(account_key).ok())
+			.and_then(|x| x)
+			.unwrap_or_else(Vec::new)
 	}
 }
 

@@ -140,7 +140,6 @@ pub mod snapshot;
 pub mod action_params;
 pub mod db;
 pub mod verification;
-pub mod light;
 #[macro_use] pub mod evm;
 
 mod cache_manager;

@@ -35,5 +35,17 @@ pub mod client;
 pub mod net;
 pub mod provider;
 
+mod types;
+
 pub use self::provider::Provider;
 pub use types::les_request as request;
+
+#[macro_use]
+extern crate log;
+
+extern crate ethcore;
+extern crate ethcore_util as util;
+extern crate ethcore_network as network;
+extern crate ethcore_io as io;
+extern crate rlp;
+extern crate time;
