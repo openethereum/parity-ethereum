@@ -23,7 +23,7 @@ import NavigationArrowBack from 'material-ui/svg-icons/navigation/arrow-back';
 import { Button, Modal, Form, Input, InputAddress, RadioButtons } from '~/ui';
 import { ERRORS, validateAbi, validateAddress, validateName } from '../../util/validation';
 
-import { eip20, wallet } from 'contracts/abi';
+import { eip20, wallet } from '~/contracts/abi';
 
 const ABI_TYPES = [
   {

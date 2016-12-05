@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { registry as registryAbi } from 'contracts/abi';
+import { registry as registryAbi } from '~/contracts/abi';
 
 import { api } from './parity.js';
 import * as addresses from './addresses/actions.js';

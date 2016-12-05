@@ -19,7 +19,7 @@ import { range, uniq, isEqual } from 'lodash';
 import { hashToImageUrl } from './imagesReducer';
 import { setAddressImage } from './imagesActions';
 
-import * as ABIS from 'contracts/abi';
+import * as ABIS from '~/contracts/abi';
 import imagesEthereum from '../../../assets/images/contracts/ethereum-black-64x64.png';
 
 const ETH = {

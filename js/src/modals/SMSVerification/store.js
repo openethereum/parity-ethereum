@@ -18,9 +18,9 @@ import { observable, computed, autorun, action } from 'mobx';
 import phone from 'phoneformat.js';
 import { sha3 } from '~/api/util/sha3';
 
-import Contracts from 'contracts';
+import Contracts from '~/contracts';
 
-import { checkIfVerified, checkIfRequested, awaitPuzzle } from 'contracts/sms-verification';
+import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/sms-verification';
 import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';

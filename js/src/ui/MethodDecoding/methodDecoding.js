@@ -20,7 +20,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import CircularProgress from 'material-ui/CircularProgress';
 
-import Contracts from 'contracts';
+import Contracts from '~/contracts';
 import { Input, InputAddress } from '../Form';
 
 import styles from './methodDecoding.css';
