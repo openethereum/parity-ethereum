@@ -18,9 +18,16 @@ import GeoPattern from 'geopattern';
 import getMuiTheme from 'material-ui/styles/getMuiTheme';
 import darkBaseTheme from 'material-ui/styles/baseThemes/darkBaseTheme';
 import lightBaseTheme from 'material-ui/styles/baseThemes/lightBaseTheme';
+import { cyanA100, cyanA200, cyanA400 } from 'material-ui/styles/colors';
 
 const lightTheme = getMuiTheme(lightBaseTheme);
-const muiTheme = getMuiTheme(darkBaseTheme);
+const muiTheme = getMuiTheme(darkBaseTheme, {
+  palette: {
+    accent1Color: cyanA100,
+    accent2Color: cyanA200,
+    accent3Color: cyanA400
+  }
+});
 
 muiTheme.inkBar.backgroundColor = 'transparent';
 muiTheme.paper.backgroundColor = 'rgba(0, 0, 0, 0.95)';
@@ -38,6 +45,7 @@ muiTheme.textField.hintColor = 'rgba(255, 255, 255, 0.5)';
 muiTheme.textField.disabledTextColor = muiTheme.textField.textColor;
 muiTheme.toolbar = lightTheme.toolbar;
 muiTheme.toolbar.backgroundColor = 'transparent';
+muiTheme.paper.backgroundColor = 'rgba(20, 20, 20, .9)';
 
 const imageCache = {};
 
