@@ -202,7 +202,7 @@ class Wallet extends Component {
       <Delete
         account={ account }
         visible={ showDeleteDialog }
-        route='/contracts'
+        route='/accounts'
         onClose={ this.closeDeleteDialog } />
     );
   }

@@ -27,16 +27,17 @@ class Delete extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired,
     router: PropTypes.object
-  }
+  };
 
   static propTypes = {
+    route: PropTypes.string.isRequired,
+
     address: PropTypes.string,
     account: PropTypes.object,
-    route: PropTypes.string.isRequired,
     visible: PropTypes.bool,
     onClose: PropTypes.func,
     newError: PropTypes.func
-  }
+  };
 
   render () {
     const { account, visible } = this.props;

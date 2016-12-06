@@ -92,8 +92,8 @@ class Accounts extends Component {
             text='your accounts are visible for easy access, allowing you to edit the meta information, make transfers, view transactions and fund the account'
           />
 
-          { this.renderAccounts() }
           { this.renderWallets() }
+          { this.renderAccounts() }
         </Page>
       </div>
     );
