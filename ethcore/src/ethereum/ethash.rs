@@ -328,10 +328,14 @@ impl Engine for Ethash {
 		t.sender().map(|_|()) // Perform EC recovery and cache sender
 	}
 
-	/// Check if new block should be chosen as the one  in chain.
 	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
 		is_new_best_block(best_total_difficulty, parent_details, new_header)
 	}
+}
+
+/// Check if a new block should replace the best blockchain block.
+pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+	parent_details.total_difficulty + new_header.difficulty() > best_total_difficulty
 }
 
 #[cfg_attr(feature="dev", allow(wrong_self_convention))]
@@ -408,12 +412,6 @@ impl Ethash {
 		}
 	}
 }
-
-/// Check if a new block should replace the best blockchain block.
-pub fn is_new_best_block(best_total_difficulty: U256, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-	parent_details.total_difficulty + new_header.difficulty() > best_total_difficulty
-}
-
 
 impl Header {
 	/// Get the none field of the header.

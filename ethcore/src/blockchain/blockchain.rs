@@ -200,6 +200,7 @@ pub struct BlockChain {
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
 
+	// Used for block ordering.
 	engine: Arc<Engine>,
 }
 

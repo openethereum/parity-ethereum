@@ -149,6 +149,10 @@ Sealing/Mining Options:
                            for sending block rewards from sealed blocks.
                            NOTE: MINING WILL NOT WORK WITHOUT THIS OPTION.
                            (default: {flag_author:?})
+  --engine-signer ADDRESS  Specify the address which should be used to
+                           sign consensus messages and issue blocks.
+                           Relevant only to non-PoW chains.
+                           (default: {flag_engine_signer:?})
   --force-sealing          Force the node to author new blocks as if it were
                            always sealing/mining.
                            (default: {flag_force_sealing})

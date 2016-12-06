@@ -184,17 +184,17 @@ pub trait Engine : Sync + Send {
 		self.builtins().get(a).expect("attempted to execute nonexistent builtin").execute(input, output);
 	}
 
+	/// Check if new block should be chosen as the one  in chain.
+	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
+	}
+
+	/// Register an account which signs consensus messages.
+	fn set_signer(&self, _address: Address, _password: String) {}
+
 	/// Add a channel for communication with Client which can be used for sealing.
 	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
 
 	/// Add an account provider useful for Engines that sign stuff.
 	fn register_account_provider(&self, _account_provider: Arc<AccountProvider>) {}
-
-	/// Register an account which signs consensus messages.
-	fn set_signer(&self, _address: Address, _password: String) {}
-
-	/// Check if new block should be chosen as the one  in chain.
-	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
-	}
 }

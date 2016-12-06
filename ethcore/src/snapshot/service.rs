@@ -82,6 +82,7 @@ struct Restoration {
 struct RestorationParams<'a> {
 	manifest: ManifestData, // manifest to base restoration on.
 	pruning: Algorithm, // pruning algorithm for the database.
+	engine: Arc<Engine>, // consensus engine of the chain.
 	db_path: PathBuf, // database path
 	db_config: &'a DatabaseConfig, // configuration for the database.
 	writer: Option<LooseWriter>, // writer for recovered snapshot.
@@ -100,7 +101,7 @@ impl Restoration {
 		let raw_db = Arc::new(try!(Database::open(params.db_config, &*params.db_path.to_string_lossy())
 			.map_err(UtilError::SimpleString)));
 
-		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone(), Spec::new_null().engine);
+		let chain = BlockChain::new(Default::default(), params.genesis, raw_db.clone(), params.engine);
 		let blocks = try!(BlockRebuilder::new(chain, raw_db.clone(), &manifest));
 
 		let root = manifest.state_root.clone();
@@ -421,6 +422,7 @@ impl Service {
 		let params = RestorationParams {
 			manifest: manifest,
 			pruning: self.pruning,
+			engine: self.engine.clone(),
 			db_path: self.restoration_db(),
 			db_config: &self.db_config,
 			writer: writer,

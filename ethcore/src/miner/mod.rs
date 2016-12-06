@@ -77,7 +77,7 @@ pub trait MinerService : Send + Sync {
 	fn set_author(&self, author: Address);
 
 	/// Set info necessary to sign consensus messages.
-	fn set_consensus_signer(&self, address: Address, password: String) -> Result<(), ::account_provider::Error>;
+	fn set_engine_signer(&self, address: Address, password: String) -> Result<(), ::account_provider::Error>;
 
 	/// Get the extra_data that we will seal blocks with.
 	fn extra_data(&self) -> Bytes;
