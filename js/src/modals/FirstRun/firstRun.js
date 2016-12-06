@@ -20,7 +20,7 @@ import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 import PrintIcon from 'material-ui/svg-icons/action/print';
 
-import { Button, Modal } from '../../ui';
+import { Button, Modal } from '~/ui';
 
 import { NewAccount, AccountDetails } from '../CreateAccount';
 
@@ -28,7 +28,7 @@ import Completed from './Completed';
 import TnC from './TnC';
 import Welcome from './Welcome';
 
-import { createIdentityImg } from '../../api/util/identity';
+import { createIdentityImg } from '~/api/util/identity';
 import print from '../CreateAccount/print';
 import recoveryPage from '../CreateAccount/recovery-page.ejs';
 import ParityLogo from '../../../assets/images/parity-logo-black-no-text.svg';

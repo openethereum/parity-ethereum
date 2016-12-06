@@ -16,7 +16,7 @@
 
 import * as actions from './signerActions';
 
-import { inHex } from '../../api/format/input';
+import { inHex } from '~/api/format/input';
 import { Wallet } from '../../util/wallet';
 
 export default class SignerMiddleware {

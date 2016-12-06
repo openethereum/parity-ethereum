@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Form, Input, InputAddress } from '../../../ui';
+import { Form, Input, InputAddress } from '~/ui';
 
 export default class AccountDetails extends Component {
   static propTypes = {

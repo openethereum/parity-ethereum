@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { IdentityIcon, IdentityName } from '../../../../ui';
+import { IdentityIcon, IdentityName } from '~/ui';
 import AccountLink from './AccountLink';
 
 import styles from './Account.css';

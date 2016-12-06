@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import Form, { Input } from '../../../ui/Form';
+import Form, { Input } from '~/ui/Form';
 import GasPriceSelector from '../GasPriceSelector';
 
 import styles from '../transfer.css';

@@ -19,9 +19,13 @@
 
 .container {
   display: flex;
-  padding: 1.5em 0 1em;
+  padding: 1em 0 1em;
 
   & > * {
     vertical-align: middle;
   }
+}
+
+.container+.container {
+  padding-top: 2em;
 }

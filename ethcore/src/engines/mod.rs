@@ -38,6 +38,9 @@ use io::IoChannel;
 use service::ClientIoMessage;
 use header::Header;
 use transaction::SignedTransaction;
+use ethereum::ethash;
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 
 /// A consensus mechanism for the chain. Generally either proof-of-work or proof-of-stake-based.
 /// Provides hooks into each of the major parts of block import.
@@ -113,7 +116,7 @@ pub trait Engine : Sync + Send {
 	fn verify_transaction(&self, _t: &SignedTransaction, _header: &Header) -> Result<(), Error> { Ok(()) }
 
 	/// The network ID that transactions should be signed with.
-	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u8> { None }
+	fn signing_network_id(&self, _env_info: &EnvInfo) -> Option<u64> { None }
 
 	/// Verify the seal of a block. This is an auxilliary method that actually just calls other `verify_` methods
 	/// to get the job done. By default it must pass `verify_basic` and `verify_block_unordered`. If more or fewer
@@ -146,5 +149,9 @@ pub trait Engine : Sync + Send {
 
 	/// Add a channel for communication with Client which can be used for sealing.
 	fn register_message_channel(&self, _message_channel: IoChannel<ClientIoMessage>) {}
-	// TODO: sealing stuff - though might want to leave this for later.
+
+	/// Check if new block should be chosen as the one  in chain.
+	fn is_new_best_block(&self, best_total_difficulty: U256, _best_header: HeaderView, parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		ethash::is_new_best_block(best_total_difficulty, parent_details, new_header)
+	}
 }

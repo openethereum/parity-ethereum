@@ -18,7 +18,9 @@ import BigNumber from 'bignumber.js';
 import React, { Component, PropTypes } from 'react';
 import { Checkbox, MenuItem } from 'material-ui';
 
-import Form, { Input, InputAddressSelect, Select } from '../../../ui/Form';
+import { isEqual } from 'lodash';
+
+import Form, { Input, InputAddressSelect, Select } from '~/ui/Form';
 
 import imageUnknown from '../../../../assets/images/contracts/unknown-64x64.png';
 import styles from '../transfer.css';
@@ -29,11 +31,101 @@ const CHECK_STYLE = {
   left: '1em'
 };
 
-export default class Details extends Component {
+class TokenSelect extends Component {
   static contextTypes = {
     api: PropTypes.object
   }
 
+  static propTypes = {
+    onChange: PropTypes.func.isRequired,
+    balance: PropTypes.object.isRequired,
+    images: PropTypes.object.isRequired,
+    tag: PropTypes.string.isRequired
+  };
+
+  componentWillMount () {
+    this.computeTokens();
+  }
+
+  componentWillReceiveProps (nextProps) {
+    const prevTokens = this.props.balance.tokens.map((t) => `${t.token.tag}_${t.value.toNumber()}`);
+    const nextTokens = nextProps.balance.tokens.map((t) => `${t.token.tag}_${t.value.toNumber()}`);
+
+    if (!isEqual(prevTokens, nextTokens)) {
+      this.computeTokens(nextProps);
+    }
+  }
+
+  computeTokens (props = this.props) {
+    const { api } = this.context;
+    const { balance, images } = this.props;
+
+    const items = balance.tokens
+      .filter((token, index) => !index || token.value.gt(0))
+      .map((balance, index) => {
+        const token = balance.token;
+        const isEth = index === 0;
+        let imagesrc = token.image;
+        if (!imagesrc) {
+          imagesrc =
+            images[token.address]
+              ? `${api.dappsUrl}${images[token.address]}`
+              : imageUnknown;
+        }
+        let value = 0;
+
+        if (isEth) {
+          value = api.util.fromWei(balance.value).toFormat(3);
+        } else {
+          const format = balance.token.format || 1;
+          const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
+          value = new BigNumber(balance.value).div(format).toFormat(decimals);
+        }
+
+        const label = (
+          <div className={ styles.token }>
+            <img src={ imagesrc } />
+            <div className={ styles.tokenname }>
+              { token.name }
+            </div>
+            <div className={ styles.tokenbalance }>
+              { value }<small> { token.tag }</small>
+            </div>
+          </div>
+        );
+
+        return (
+          <MenuItem
+            key={ token.tag }
+            value={ token.tag }
+            label={ label }>
+            { label }
+          </MenuItem>
+        );
+      });
+
+    this.setState({ items });
+  }
+
+  render () {
+    const { tag, onChange } = this.props;
+    const { items } = this.state;
+
+    return (
+      <Select
+        className={ styles.tokenSelect }
+        label='type of token transfer'
+        hint='type of token to transfer'
+        value={ tag }
+        onChange={ onChange }
+      >
+        { items }
+      </Select>
+    );
+  }
+}
+
+export default class Details extends Component {
   static propTypes = {
     address: PropTypes.string,
     balance: PropTypes.object,
@@ -115,62 +207,15 @@ export default class Details extends Component {
   }
 
   renderTokenSelect () {
-    const { api } = this.context;
     const { balance, images, tag } = this.props;
 
-    const items = balance.tokens
-      .filter((token, index) => !index || token.value.gt(0))
-      .map((balance, index) => {
-        const token = balance.token;
-        const isEth = index === 0;
-        let imagesrc = token.image;
-        if (!imagesrc) {
-          imagesrc =
-            images[token.address]
-              ? `${api.dappsUrl}${images[token.address]}`
-              : imageUnknown;
-        }
-        let value = 0;
-
-        if (isEth) {
-          value = api.util.fromWei(balance.value).toFormat(3);
-        } else {
-          const format = balance.token.format || 1;
-          const decimals = format === 1 ? 0 : Math.min(3, Math.floor(format / 10));
-          value = new BigNumber(balance.value).div(format).toFormat(decimals);
-        }
-
-        const label = (
-          <div className={ styles.token }>
-            <img src={ imagesrc } />
-            <div className={ styles.tokenname }>
-              { token.name }
-            </div>
-            <div className={ styles.tokenbalance }>
-              { value }<small> { token.tag }</small>
-            </div>
-          </div>
-        );
-
-        return (
-          <MenuItem
-            key={ token.tag }
-            value={ token.tag }
-            label={ label }>
-            { label }
-          </MenuItem>
-        );
-      });
-
     return (
-      <Select
-        className={ styles.tokenSelect }
-        label='type of token transfer'
-        hint='type of token to transfer'
-        value={ tag }
-        onChange={ this.onChangeToken }>
-        { items }
-      </Select>
+      <TokenSelect
+        balance={ balance }
+        images={ images }
+        tag={ tag }
+        onChange={ this.onChangeToken }
+      />
     );
   }
 

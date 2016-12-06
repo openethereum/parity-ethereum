@@ -30,8 +30,7 @@ serde = "0.8.0"
 serde_json = "0.8.0"
 hyper = { version = "0.9", default-features = false }
 ctrlc = { git = "https://github.com/ethcore/rust-ctrlc.git" }
-json-ipc-server = { git = "https://github.com/ethcore/json-ipc-server.git" }
-fdlimit = { path = "util/fdlimit" }
+fdlimit = "0.1"
 ethcore = { path = "ethcore" }
 ethcore-util = { path = "util" }
 ethsync = { path = "sync" }
