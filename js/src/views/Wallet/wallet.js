@@ -164,7 +164,7 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { address, balance } = this.props;
+    const { balance } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
