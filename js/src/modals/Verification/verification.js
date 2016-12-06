@@ -20,6 +20,13 @@ import DoneIcon from 'material-ui/svg-icons/action/done-all';
 import CancelIcon from 'material-ui/svg-icons/content/clear';
 
 import { Button, IdentityIcon, Modal } from '~/ui';
+import RadioButtons from '~/ui/Form/RadioButtons';
+import { nullableProptype } from '~/util/proptypes';
+
+const methods = {
+  sms: { label: 'SMS Verification', key: 0, value: 'sms' },
+  email: { label: 'E-mail Verification', key: 1, value: 'email' }
+};
 
 import {
   LOADING,
@@ -39,23 +46,34 @@ import Done from './Done';
 @observer
 export default class Verification extends Component {
   static propTypes = {
-    store: PropTypes.any.isRequired,
+    store: nullableProptype(PropTypes.object).isRequired,
     account: PropTypes.string.isRequired,
+    onSelectMethod: PropTypes.func.isRequired,
     onClose: PropTypes.func.isRequired
   }
 
   static phases = { // mapping (store steps -> steps)
-    [LOADING]: 0,
-    [QUERY_DATA]: 1,
-    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_CODE]: 2,
-    [QUERY_CODE]: 3,
-    [POSTING_CONFIRMATION]: 4, [POSTED_CONFIRMATION]: 4,
-    [DONE]: 5
+    [LOADING]: 1,
+    [QUERY_DATA]: 2,
+    [POSTING_REQUEST]: 3, [POSTED_REQUEST]: 3, [REQUESTING_CODE]: 3,
+    [QUERY_CODE]: 4,
+    [POSTING_CONFIRMATION]: 5, [POSTED_CONFIRMATION]: 5,
+    [DONE]: 6
   }
 
+  state = {
+    method: 'sms'
+  };
+
   render () {
-    const phase = Verification.phases[this.props.store.step];
-    const { error, isStepValid } = this.props.store;
+    const { store } = this.props;
+    let phase = 0; let error = false; let isStepValid = true;
+
+    if (store) {
+      phase = Verification.phases[store.step];
+      error = store.error;
+      isStepValid = store.isStepValid;
+    }
 
     return (
       <Modal
@@ -63,8 +81,8 @@ export default class Verification extends Component {
         title='verify your account'
         visible
         current={ phase }
-        steps={ ['Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
-        waiting={ error ? [] : [ 0, 2, 4 ] }
+        steps={ ['Method', 'Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
+        waiting={ error ? [] : [ 1, 3, 5 ] }
       >
         { this.renderStep(phase, error) }
       </Modal>
@@ -85,7 +103,7 @@ export default class Verification extends Component {
       return (<div>{ cancel }</div>);
     }
 
-    if (phase === 5) {
+    if (phase === 6) {
       return (
         <div>
           { cancel }
@@ -101,16 +119,23 @@ export default class Verification extends Component {
 
     let action = () => {};
     switch (phase) {
-      case 1:
-        action = store.sendRequest;
+      case 0:
+        action = () => {
+          const { onSelectMethod } = this.props;
+          const { method } = this.state;
+          onSelectMethod(method);
+        };
         break;
       case 2:
-        action = store.queryCode;
+        action = store.sendRequest;
         break;
       case 3:
-        action = store.sendConfirmation;
+        action = store.queryCode;
         break;
       case 4:
+        action = store.sendConfirmation;
+        break;
+      case 5:
         action = store.done;
         break;
     }
@@ -133,6 +158,19 @@ export default class Verification extends Component {
       return (<p>{ error }</p>);
     }
 
+    if (phase === 0) {
+      const { method } = this.state;
+      const values = Object.values(methods);
+      const value = values.findIndex((v) => v.value === method);
+      return (
+        <RadioButtons
+          value={ value < 0 ? 0 : value }
+          values={ values }
+          onChange={ this.selectMethod }
+        />
+      );
+    }
+
     const {
       step,
       fee, number, isNumberValid, isVerified, hasRequested,
@@ -141,13 +179,34 @@ export default class Verification extends Component {
     } = this.props.store;
 
     switch (phase) {
-      case 0:
+      case 1:
         return (
           <p>Loading Verification.</p>
         );
 
-      case 1:
-        const { setNumber, setConsentGiven } = this.props.store;
+      case 2:
+        const { method } = this.state;
+        const { setConsentGiven } = this.props.store;
+
+        const fields = []
+        if (method === 'sms') {
+          fields.push({
+            key: 'number',
+            label: 'phone number in international format',
+            hint: 'the SMS will be sent to this number',
+            error: this.props.store.isNumberValid ? null : 'invalid number',
+            onChange: this.props.store.setNumber
+          });
+        } else if (method === 'email') {
+          fields.push({
+            key: 'email',
+            label: 'email address',
+            hint: 'the code will be sent to this address',
+            error: this.props.store.isEmailValid ? null : 'invalid email',
+            onChange: this.props.store.setEmail
+          });
+        }
+
         return (
           <GatherData
             fee={ fee } isNumberValid={ isNumberValid }
@@ -156,12 +215,12 @@ export default class Verification extends Component {
           />
         );
 
-      case 2:
+      case 3:
         return (
           <SendRequest step={ step } tx={ requestTx } />
         );
 
-      case 3:
+      case 4:
         return (
           <QueryCode
             number={ number } fee={ fee } isCodeValid={ isCodeValid }
@@ -169,12 +228,12 @@ export default class Verification extends Component {
           />
         );
 
-      case 4:
+      case 5:
         return (
           <SendConfirmation step={ step } tx={ confirmationTx } />
         );
 
-      case 5:
+      case 6:
         return (
           <Done />
         );
@@ -182,5 +241,9 @@ export default class Verification extends Component {
       default:
         return null;
     }
+  }
+
+  selectMethod = (choice, i) => {
+    this.setState({ method: choice.value });
   }
 }
