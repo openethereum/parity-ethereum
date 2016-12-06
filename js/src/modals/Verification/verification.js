@@ -37,7 +37,7 @@ import SendConfirmation from './SendConfirmation';
 import Done from './Done';
 
 @observer
-export default class SMSVerification extends Component {
+export default class Verification extends Component {
   static propTypes = {
     store: PropTypes.any.isRequired,
     account: PropTypes.string.isRequired,
@@ -54,7 +54,7 @@ export default class SMSVerification extends Component {
   }
 
   render () {
-    const phase = SMSVerification.phases[this.props.store.step];
+    const phase = Verification.phases[this.props.store.step];
     const { error, isStepValid } = this.props.store;
 
     return (
