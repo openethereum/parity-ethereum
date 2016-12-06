@@ -17,6 +17,19 @@
 import { stringify } from 'querystring';
 import React from 'react';
 
+import styles from './styles.css';
+
+export const howItWorks = (
+  <div>
+    <p>The following steps will let you prove that you control both an account and a phone number.</p>
+    <ol className={ styles.list }>
+      <li>You send a verification request to a specific contract.</li>
+      <li>Our server puts a puzzle into this contract.</li>
+      <li>The code you receive via SMS is the solution to this puzzle.</li>
+    </ol>
+  </div>
+);
+
 export const termsOfService = (
   <ul>
     <li>This privacy notice relates to your use of the Parity SMS verification service. We take your privacy seriously and deal in an honest, direct and transparent way when it comes to your data.</li>
