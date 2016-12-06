@@ -20,8 +20,8 @@ import { validateUint, validateAddress, validateName } from '../../util/validati
 import { ERROR_CODES } from '~/api/transport/error';
 
 import Contract from '~/api/contract';
-import { wallet as walletAbi } from '../../contracts/abi';
-import { wallet as walletCode } from '../../contracts/code';
+import { wallet as walletAbi } from '~/contracts/abi';
+import { wallet as walletCode } from '~/contracts/code';
 
 import WalletsUtils from '~/util/wallets';
 

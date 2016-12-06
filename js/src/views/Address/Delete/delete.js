@@ -19,7 +19,7 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { ConfirmDialog, IdentityIcon, IdentityName } from '~/ui';
-import { newError } from '../../../redux/actions';
+import { newError } from '~/redux/actions';
 
 import styles from '../address.css';
 
