@@ -15,7 +15,6 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import moment from 'moment';
 
 import { Container, InputAddress } from '../../../ui';
 
@@ -29,18 +28,21 @@ export default class WalletDetails extends Component {
   static propTypes = {
     owners: PropTypes.array,
     require: PropTypes.object,
-    dailylimit: PropTypes.object
+    className: PropTypes.string
+  };
+
+  static defaultProps = {
+    className: ''
   };
 
   render () {
-    return (
-      <div className={ styles.details }>
-        <Container title='Owners'>
-          { this.renderOwners() }
-        </Container>
+    const { className } = this.props;
 
+    return (
+      <div className={ [ styles.details, className ].join(' ') }>
         <Container title='Details'>
           { this.renderDetails() }
+          { this.renderOwners() }
         </Container>
       </div>
     );
@@ -70,16 +72,11 @@ export default class WalletDetails extends Component {
   }
 
   renderDetails () {
-    const { require, dailylimit } = this.props;
-    const { api } = this.context;
+    const { require } = this.props;
 
-    if (!dailylimit || !dailylimit.limit) {
+    if (!require) {
       return null;
     }
-
-    const limit = api.util.fromWei(dailylimit.limit).toFormat(3);
-    const spent = api.util.fromWei(dailylimit.spent).toFormat(3);
-    const date = moment(dailylimit.last.toNumber() * 24 * 3600 * 1000);
 
     return (
       <div>
@@ -87,14 +84,6 @@ export default class WalletDetails extends Component {
           <span>This wallet requires at least</span>
           <span className={ styles.detail }>{ require.toFormat() } owners</span>
           <span>to validate any action (transactions, modifications).</span>
-        </p>
-
-        <p>
-          <span className={ styles.detail }>{ spent }<span className={ styles.eth } /></span>
-          <span>has been spent today, out of</span>
-          <span className={ styles.detail }>{ limit }<span className={ styles.eth } /></span>
-          <span>set as the daily limit, which has been reset on</span>
-          <span className={ styles.detail }>{ date.format('LL') }</span>
         </p>
       </div>
     );

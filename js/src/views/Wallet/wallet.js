@@ -17,6 +17,8 @@
 import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
+import moment from 'moment';
+
 import ContentCreate from 'material-ui/svg-icons/content/create';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
@@ -108,6 +110,8 @@ class Wallet extends Component {
       return null;
     }
 
+    const { owners, require, dailylimit } = this.props.wallet;
+
     return (
       <div className={ styles.wallet }>
         { this.renderEditDialog(wallet) }
@@ -115,19 +119,57 @@ class Wallet extends Component {
         { this.renderDeleteDialog(wallet) }
         { this.renderActionbar() }
         <Page>
-          <Header
-            account={ wallet }
-            balance={ balance }
-          />
+          <div className={ styles.info }>
+            <Header
+              className={ styles.header }
+              account={ wallet }
+              balance={ balance }
+            >
+              { this.renderInfos() }
+            </Header>
+
+            <WalletDetails
+              className={ styles.details }
+              owners={ owners }
+              require={ require }
+              dailylimit={ dailylimit }
+            />
+          </div>
           { this.renderDetails() }
         </Page>
       </div>
     );
   }
 
+  renderInfos () {
+    const { dailylimit } = this.props.wallet;
+    const { api } = this.context;
+
+    if (!dailylimit || !dailylimit.limit) {
+      return null;
+    }
+
+    const limit = api.util.fromWei(dailylimit.limit).toFormat(3);
+    const spent = api.util.fromWei(dailylimit.spent).toFormat(3);
+    const date = moment(dailylimit.last.toNumber() * 24 * 3600 * 1000);
+
+    return (
+      <div>
+        <br />
+        <p>
+          <span className={ styles.detail }>{ spent }<span className={ styles.eth } /></span>
+          <span>has been spent today, out of</span>
+          <span className={ styles.detail }>{ limit }<span className={ styles.eth } /></span>
+          <span>set as the daily limit, which has been reset on</span>
+          <span className={ styles.detail }>{ date.format('LL') }</span>
+        </p>
+      </div>
+    );
+  }
+
   renderDetails () {
     const { address, isTest, wallet } = this.props;
-    const { owners, require, dailylimit, confirmations, transactions } = wallet;
+    const { owners, require, confirmations, transactions } = wallet;
 
     if (!isTest || !owners || !require) {
       return (
@@ -138,13 +180,6 @@ class Wallet extends Component {
     }
 
     return [
-      <WalletDetails
-        key='details'
-        owners={ owners }
-        require={ require }
-        dailylimit={ dailylimit }
-      />,
-
       <WalletConfirmations
         key='confirmations'
         owners={ owners }
