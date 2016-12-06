@@ -18,6 +18,7 @@ import React, { Component, PropTypes } from 'react';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 import { observer } from 'mobx-react';
+import { pick } from 'lodash';
 
 import ActionDoneAll from 'material-ui/svg-icons/action/done-all';
 import ContentClear from 'material-ui/svg-icons/content/clear';
@@ -45,10 +46,10 @@ class Transfer extends Component {
     gasLimit: PropTypes.object.isRequired,
     images: PropTypes.object.isRequired,
 
-    account: PropTypes.object,
     senders: nullableProptype(PropTypes.object),
+    sendersBalances: nullableProptype(PropTypes.object),
+    account: PropTypes.object,
     balance: PropTypes.object,
-    balances: PropTypes.object,
     wallet: PropTypes.object,
     onClose: PropTypes.func
   }
@@ -296,7 +297,9 @@ function mapStateToProps (initState, initProps) {
 
   return (state) => {
     const { gasLimit } = state.nodeStatus;
-    return { gasLimit, wallet, senders };
+    const sendersBalances = senders ? pick(state.balances.balances, Object.keys(senders)) : null;
+
+    return { gasLimit, wallet, senders, sendersBalances };
   };
 }
 

@@ -75,6 +75,9 @@ export default class TransferStore {
   gasLimit = null;
   onClose = null;
 
+  senders = null;
+  sendersBalances = null;
+
   isWallet = false;
   wallet = null;
 
@@ -112,7 +115,7 @@ export default class TransferStore {
   constructor (api, props) {
     this.api = api;
 
-    const { account, balance, gasLimit, senders, onClose, newError } = props;
+    const { account, balance, gasLimit, senders, onClose, newError, sendersBalances } = props;
 
     this.account = account;
     this.balance = balance;
@@ -127,6 +130,8 @@ export default class TransferStore {
     }
 
     if (senders) {
+      this.senders = senders;
+      this.sendersBalances = sendersBalances;
       this.senderError = ERRORS.requireSender;
     }
   }
@@ -393,19 +398,29 @@ export default class TransferStore {
   }
 
   @action recalculate = () => {
-    const { account, balance } = this;
+    const { account } = this;
 
-    if (!account || !balance) {
+    if (!account || !this.balance) {
+      return;
+    }
+
+    const balance = this.senders
+      ? this.sendersBalances[this.sender]
+      : this.balance;
+
+    if (!balance) {
       return;
     }
 
     const { gas, gasPrice, tag, valueAll, isEth } = this;
 
     const gasTotal = new BigNumber(gasPrice || 0).mul(new BigNumber(gas || 0));
-    const balance_ = balance.tokens.find((b) => tag === b.token.tag);
+
     const availableEth = new BigNumber(balance.tokens[0].value);
-    const available = new BigNumber(balance_.value);
-    const format = new BigNumber(balance_.token.format || 1);
+
+    const senderBalance = this.balance.tokens.find((b) => tag === b.token.tag);
+    const available = new BigNumber(senderBalance.value);
+    const format = new BigNumber(senderBalance.token.format || 1);
 
     let { value, valueError } = this;
     let totalEth = gasTotal;

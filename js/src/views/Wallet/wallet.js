@@ -21,6 +21,7 @@ import ContentCreate from 'material-ui/svg-icons/content/create';
 import ActionDelete from 'material-ui/svg-icons/action/delete';
 import ContentSend from 'material-ui/svg-icons/content/send';
 
+import nullableProptype from '~/util/nullable-proptype';
 import { EditMeta, Transfer } from '../../modals';
 import { Actionbar, Button, Page, Loading } from '../../ui';
 
@@ -61,11 +62,11 @@ class Wallet extends Component {
 
   static propTypes = {
     setVisibleAccounts: PropTypes.func.isRequired,
+    balance: nullableProptype(PropTypes.object.isRequired),
     images: PropTypes.object.isRequired,
     address: PropTypes.string.isRequired,
     wallets: PropTypes.object.isRequired,
     wallet: PropTypes.object.isRequired,
-    balances: PropTypes.object.isRequired,
     isTest: PropTypes.bool.isRequired
   };
 
@@ -99,10 +100,9 @@ class Wallet extends Component {
   }
 
   render () {
-    const { wallets, balances, address } = this.props;
+    const { wallets, balance, address } = this.props;
 
     const wallet = (wallets || {})[address];
-    const balance = (balances || {})[address];
 
     if (!wallet) {
       return null;
@@ -164,9 +164,7 @@ class Wallet extends Component {
   }
 
   renderActionbar () {
-    const { address, balances } = this.props;
-
-    const balance = balances[address];
+    const { address, balance } = this.props;
     const showTransferButton = !!(balance && balance.tokens);
 
     const buttons = [
@@ -229,15 +227,13 @@ class Wallet extends Component {
       return null;
     }
 
-    const { wallets, balances, images, address } = this.props;
+    const { wallets, balance, images, address } = this.props;
     const wallet = wallets[address];
-    const balance = balances[address];
 
     return (
       <Transfer
         account={ wallet }
         balance={ balance }
-        balances={ balances }
         images={ images }
         onClose={ this.onTransferClose }
       />
@@ -277,12 +273,14 @@ function mapStateToProps (_, initProps) {
     const { wallets } = state.personal;
     const { balances } = state.balances;
     const { images } = state;
+
     const wallet = state.wallet.wallets[address] || {};
+    const balance = balances[address] || null;
 
     return {
       isTest,
       wallets,
-      balances,
+      balance,
       images,
       address,
       wallet
