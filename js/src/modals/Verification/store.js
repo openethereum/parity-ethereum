@@ -14,14 +14,11 @@
 // You should have received a copy of the GNU General Public License
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
-import { observable, computed, autorun, action } from 'mobx';
-import phone from 'phoneformat.js';
+import { observable, autorun, action } from 'mobx';
 import { sha3 } from '~/api/util/sha3';
-
 import Contracts from '~/contracts';
 
 import { checkIfVerified, checkIfRequested, awaitPuzzle } from '~/contracts/verification';
-import { postToServer } from '../../3rdparty/sms-verification';
 import checkIfTxFailed from '../../util/check-if-tx-failed';
 import waitForConfirmations from '../../util/wait-for-block-confirmations';
 
@@ -29,7 +26,7 @@ export const LOADING = 'fetching-contract';
 export const QUERY_DATA = 'query-data';
 export const POSTING_REQUEST = 'posting-request';
 export const POSTED_REQUEST = 'posted-request';
-export const REQUESTING_SMS = 'requesting-sms';
+export const REQUESTING_CODE = 'requesting-code';
 export const QUERY_CODE = 'query-code';
 export const POSTING_CONFIRMATION = 'posting-confirmation';
 export const POSTED_CONFIRMATION = 'posted-confirmation';
@@ -44,45 +41,18 @@ export default class VerificationStore {
   @observable isVerified = null;
   @observable hasRequested = null;
   @observable consentGiven = false;
-  @observable number = '';
   @observable requestTx = null;
   @observable code = '';
   @observable isCodeValid = null;
   @observable confirmationTx = null;
 
-  @computed get isNumberValid () {
-    return phone.isValidNumber(this.number);
-  }
-
-  @computed get isStepValid () {
-    if (this.step === DONE) {
-      return true;
-    }
-    if (this.error) {
-      return false;
-    }
-
-    switch (this.step) {
-      case LOADING:
-        return this.contract && this.fee && this.isVerified !== null && this.hasRequested !== null;
-      case QUERY_DATA:
-        return this.isNumberValid && this.consentGiven;
-      case QUERY_CODE:
-        return this.requestTx && this.isCodeValid === true;
-      case POSTED_CONFIRMATION:
-        return !!this.confirmationTx;
-      default:
-        return false;
-    }
-  }
-
-  constructor (api, account, isTestnet) {
+  constructor (api, account, isTestnet, name) {
     this.api = api;
     this.account = account;
     this.isTestnet = isTestnet;
 
     this.step = LOADING;
-    Contracts.create(api).registry.getContract('smsverification')
+    Contracts.create(api).registry.getContract(name)
       .then((contract) => {
         this.contract = contract;
         this.load();
@@ -93,7 +63,7 @@ export default class VerificationStore {
 
     autorun(() => {
       if (this.error) {
-        console.error('sms verification: ' + this.error);
+        console.error('verification: ' + this.error);
       }
     });
   }
@@ -136,10 +106,6 @@ export default class VerificationStore {
       });
   }
 
-  @action setNumber = (number) => {
-    this.number = number;
-  }
-
   @action setConsentGiven = (consentGiven) => {
     this.consentGiven = consentGiven;
   }
@@ -168,7 +134,7 @@ export default class VerificationStore {
   }
 
   @action sendRequest = () => {
-    const { api, account, contract, fee, number, hasRequested } = this;
+    const { api, account, contract, fee, hasRequested } = this;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
@@ -201,18 +167,15 @@ export default class VerificationStore {
 
     chain
       .then(() => {
-        return api.parity.netChain();
-      })
-      .then((chain) => {
-        this.step = REQUESTING_SMS;
-        return postToServer({ number, address: account }, this.isTestnet);
+        this.step = REQUESTING_CODE;
+        return this.requestCode();
       })
       .then(() => awaitPuzzle(api, contract, account))
       .then(() => {
         this.step = QUERY_CODE;
       })
       .catch((err) => {
-        this.error = 'Failed to request a confirmation SMS: ' + err.message;
+        this.error = 'Failed to request a confirmation code: ' + err.message;
       });
   }
 

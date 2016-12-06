@@ -19,7 +19,7 @@ import React, { Component, PropTypes } from 'react';
 import { nullableProptype } from '~/util/proptypes';
 import TxHash from '~/ui/TxHash';
 import {
-  POSTING_REQUEST, POSTED_REQUEST, REQUESTING_SMS
+  POSTING_REQUEST, POSTED_REQUEST, REQUESTING_CODE
 } from '../store';
 
 import styles from './sendRequest.css';
@@ -45,9 +45,9 @@ export default class SendRequest extends Component {
           </div>
         );
 
-      case REQUESTING_SMS:
+      case REQUESTING_CODE:
         return (
-          <p>Requesting an SMS from the Parity server and waiting for the puzzle to be put into the contract.</p>
+          <p>Requesting a code from the Parity server and waiting for the puzzle to be put into the contract.</p>
         );
 
       default:

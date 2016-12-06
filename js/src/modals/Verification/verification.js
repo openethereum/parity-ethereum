@@ -25,7 +25,7 @@ import {
   LOADING,
   QUERY_DATA,
   POSTING_REQUEST, POSTED_REQUEST,
-  REQUESTING_SMS, QUERY_CODE,
+  REQUESTING_CODE, QUERY_CODE,
   POSTING_CONFIRMATION, POSTED_CONFIRMATION,
   DONE
 } from './store';
@@ -47,7 +47,7 @@ export default class Verification extends Component {
   static phases = { // mapping (store steps -> steps)
     [LOADING]: 0,
     [QUERY_DATA]: 1,
-    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_SMS]: 2,
+    [POSTING_REQUEST]: 2, [POSTED_REQUEST]: 2, [REQUESTING_CODE]: 2,
     [QUERY_CODE]: 3,
     [POSTING_CONFIRMATION]: 4, [POSTED_CONFIRMATION]: 4,
     [DONE]: 5
@@ -60,7 +60,7 @@ export default class Verification extends Component {
     return (
       <Modal
         actions={ this.renderDialogActions(phase, error, isStepValid) }
-        title='verify your account via SMS'
+        title='verify your account'
         visible
         current={ phase }
         steps={ ['Prepare', 'Enter Data', 'Request', 'Enter Code', 'Confirm', 'Done!'] }
@@ -143,7 +143,7 @@ export default class Verification extends Component {
     switch (phase) {
       case 0:
         return (
-          <p>Loading SMS Verification.</p>
+          <p>Loading Verification.</p>
         );
 
       case 1:

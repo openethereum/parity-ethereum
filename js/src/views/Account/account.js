@@ -32,7 +32,7 @@ import Header from './Header';
 import Transactions from './Transactions';
 import { setVisibleAccounts } from '~/redux/providers/personalActions';
 
-import VerificationStore from '~/modals/Verification/store';
+import VerificationStore from '~/modals/Verification/sms-store';
 
 import styles from './account.css';
 
