@@ -221,7 +221,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	miner.set_extra_data(cmd.miner_extras.extra_data);
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
 	let engine_signer = cmd.miner_extras.engine_signer;
-	if passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
+	if !passwords.into_iter().any(|p| miner.set_engine_signer(engine_signer, p).is_ok()) {
 		return Err(format!("No password found for the consensus signer {}. Make sure valid password is present in files passed using `--password`.", cmd.miner_extras.engine_signer));
 	}
 
@@ -440,7 +440,7 @@ fn prepare_account_provider(dirs: &Directories, cfg: AccountsConfig, passwords: 
 	));
 
 	for a in cfg.unlocked_accounts {
-		if passwords.iter().any(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()) {
+		if !passwords.iter().any(|p| account_service.unlock_account_permanently(a, (*p).clone()).is_ok()) {
 			return Err(format!("No password found to unlock account {}. Make sure valid password is present in files passed using `--password`.", a));
 		}
 	}
