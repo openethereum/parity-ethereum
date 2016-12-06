@@ -25,7 +25,7 @@ import ContentSend from 'material-ui/svg-icons/content/send';
 
 import nullableProptype from '~/util/nullable-proptype';
 import { EditMeta, Transfer } from '../../modals';
-import { Actionbar, Button, Page, Loading } from '../../ui';
+import { Actionbar, Button, Page, Loading } from '~/ui';
 
 import Delete from '../Address/Delete';
 import Header from '../Account/Header';

@@ -21,7 +21,7 @@ import ActionDone from 'material-ui/svg-icons/action/done';
 import ContentClear from 'material-ui/svg-icons/content/clear';
 import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forward';
 
-import { Button, Modal, TxHash, BusyStep } from '../../ui';
+import { Button, Modal, TxHash, BusyStep } from '~/ui';
 
 import WalletType from './WalletType';
 import WalletDetails from './WalletDetails';

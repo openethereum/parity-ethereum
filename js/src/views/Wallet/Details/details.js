@@ -16,7 +16,7 @@
 
 import React, { Component, PropTypes } from 'react';
 
-import { Container, InputAddress } from '../../../ui';
+import { Container, InputAddress } from '~/ui';
 
 import styles from '../wallet.css';
 

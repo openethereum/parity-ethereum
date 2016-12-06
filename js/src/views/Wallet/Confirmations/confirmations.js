@@ -21,12 +21,12 @@ import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
 import { confirmOperation, revokeOperation } from '../../../redux/providers/walletActions';
-import { bytesToHex } from '../../../api/util/format';
-import { Container, InputAddress, Button, IdentityIcon } from '../../../ui';
-import { TxRow } from '../../../ui/TxList/txList';
+import { bytesToHex } from '~/api/util/format';
+import { Container, InputAddress, Button, IdentityIcon } from '~/ui';
+import { TxRow } from '~/ui/TxList/txList';
 
 import styles from '../wallet.css';
-import txListStyles from '../../../ui/TxList/txList.css';
+import txListStyles from '~/ui/TxList/txList.css';
 
 class WalletConfirmations extends Component {
   static contextTypes = {
