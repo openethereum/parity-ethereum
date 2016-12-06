@@ -26,6 +26,7 @@ import NavigationArrowForward from 'material-ui/svg-icons/navigation/arrow-forwa
 
 import { newError } from '~/ui/Errors/actions';
 import { BusyStep, CompletedStep, Button, IdentityIcon, Modal, TxHash } from '~/ui';
+import nullableProptype from '~/util/nullable-proptype';
 
 import Details from './Details';
 import Extras from './Extras';
@@ -45,8 +46,10 @@ class Transfer extends Component {
     images: PropTypes.object.isRequired,
 
     account: PropTypes.object,
+    senders: nullableProptype(PropTypes.object),
     balance: PropTypes.object,
     balances: PropTypes.object,
+    wallet: PropTypes.object,
     onClose: PropTypes.func
   }
 
@@ -135,9 +138,9 @@ class Transfer extends Component {
   }
 
   renderDetailsPage () {
-    const { account, balance, images } = this.props;
-    const { valueAll, extras, recipient, recipientError, tag } = this.store;
-    const { total, totalError, value, valueError } = this.store;
+    const { account, balance, images, senders } = this.props;
+    const { valueAll, extras, recipient, recipientError, sender, senderError } = this.store;
+    const { tag, total, totalError, value, valueError } = this.store;
 
     return (
       <Details
@@ -146,14 +149,19 @@ class Transfer extends Component {
         balance={ balance }
         extras={ extras }
         images={ images }
+        senders={ senders }
         recipient={ recipient }
         recipientError={ recipientError }
+        sender={ sender }
+        senderError={ senderError }
         tag={ tag }
         total={ total }
         totalError={ totalError }
         value={ value }
         valueError={ valueError }
-        onChange={ this.store.onUpdateDetails } />
+        onChange={ this.store.onUpdateDetails }
+        wallet={ account.wallet && this.props.wallet }
+      />
     );
   }
 
@@ -249,9 +257,28 @@ class Transfer extends Component {
   }
 }
 
-function mapStateToProps (state) {
-  const { gasLimit } = state.nodeStatus;
-  return { gasLimit };
+function mapStateToProps (initState, initProps) {
+  const { address } = initProps.account;
+
+  const isWallet = initProps.account && initProps.account.wallet;
+  const wallet = isWallet
+    ? initState.wallet.wallets[address]
+    : null;
+
+  const senders = isWallet
+    ? Object
+      .values(initState.personal.accounts)
+      .filter((account) => wallet.owners.includes(account.address))
+      .reduce((accounts, account) => {
+        accounts[account.address] = account;
+        return accounts;
+      }, {})
+    : null;
+
+  return (state) => {
+    const { gasLimit } = state.nodeStatus;
+    return { gasLimit, wallet, senders };
+  };
 }
 
 function mapDispatchToProps (dispatch) {

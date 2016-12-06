@@ -28,6 +28,7 @@ import ParityBar from './ParityBar';
 import Settings, { SettingsBackground, SettingsParity, SettingsProxy, SettingsViews } from './Settings';
 import Signer from './Signer';
 import Status from './Status';
+import Wallet from './Wallet';
 
 export {
   Account,
@@ -47,5 +48,6 @@ export {
   SettingsProxy,
   SettingsViews,
   Signer,
-  Status
+  Status,
+  Wallet
 };

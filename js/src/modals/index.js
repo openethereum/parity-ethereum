@@ -17,6 +17,7 @@
 import AddAddress from './AddAddress';
 import AddContract from './AddContract';
 import CreateAccount from './CreateAccount';
+import CreateWallet from './CreateWallet';
 import DeleteAccount from './DeleteAccount';
 import DeployContract from './DeployContract';
 import EditMeta from './EditMeta';
@@ -33,6 +34,7 @@ export {
   AddAddress,
   AddContract,
   CreateAccount,
+  CreateWallet,
   DeleteAccount,
   DeployContract,
   EditMeta,

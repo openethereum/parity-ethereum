@@ -28,6 +28,7 @@ import imagesEthcoreBlock from '../../../../assets/images/parity-logo-white-no-t
 
 const TABMAP = {
   accounts: 'account',
+  wallet: 'account',
   addresses: 'address',
   apps: 'app',
   contracts: 'contract',

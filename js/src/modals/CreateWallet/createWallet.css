@@ -14,59 +14,26 @@
 /* You should have received a copy of the GNU General Public License
 /* along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 */
-.container {
-  position: relative;
+
+.address {
+  vertical-align: top;
+  display: inline-block;
 }
 
-.input input {
-  padding-left: 48px !important;
-  box-sizing: border-box;
-
-  &.small {
-    padding-left: 40px !important;
-  }
+.identityicon {
+  margin: -8px 0.5em;
 }
 
-.inputEmpty input {
-  padding-left: 0 !important;
-}
+.owner {
+  height: 40px;
+  color: lightgrey;
 
-.small {
-  .input input {
-    padding-left: 40px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .identityicon {
+    width: 24px;
+    height: 24px;
   }
-
-  .icon,
-  .iconDisabled {
-    img {
-      height: 24px;
-      width: 24px;
-    }
-  }
-}
-
-.icon,
-.iconDisabled {
-  position: absolute;
-  top: 35px;
-
-  &.noLabel {
-    top: 10px;
-  }
-
-  &.noCopy {
-    left: 5px;
-  }
-
-  &.noUnderline {
-    top: 0;
-  }
-}
-
-.icon {
-  left: 0;
-}
-
-.iconDisabled {
-  left: 24px;
 }

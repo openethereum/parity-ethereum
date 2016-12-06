@@ -39,14 +39,20 @@ export class TxRow extends Component {
     address: PropTypes.string.isRequired,
     isTest: PropTypes.bool.isRequired,
 
-    block: PropTypes.object
+    block: PropTypes.object,
+    historic: PropTypes.bool,
+    className: PropTypes.string
+  };
+
+  static defaultProps = {
+    historic: true
   };
 
   render () {
-    const { tx, address, isTest } = this.props;
+    const { tx, address, isTest, historic, className } = this.props;
 
     return (
-      <tr>
+      <tr className={ className || '' }>
         { this.renderBlockNumber(tx.blockNumber) }
         { this.renderAddress(tx.from) }
         <td className={ styles.transaction }>
@@ -64,7 +70,7 @@ export class TxRow extends Component {
         { this.renderAddress(tx.to) }
         <td className={ styles.method }>
           <MethodDecoding
-            historic
+            historic={ historic }
             address={ address }
             transaction={ tx } />
         </td>
