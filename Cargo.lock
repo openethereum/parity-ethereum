@@ -841,7 +841,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "jsonrpc-core"
 version = "4.0.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
+source = "git+https://github.com/ethcore/jsonrpc.git#1500da1b9613a0a17fc0109d825f3ccc60199a53"
 dependencies = [
  "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "parking_lot 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -853,7 +853,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-http-server"
 version = "6.1.1"
-source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
+source = "git+https://github.com/ethcore/jsonrpc.git#1500da1b9613a0a17fc0109d825f3ccc60199a53"
 dependencies = [
  "hyper 0.10.0-a.0 (git+https://github.com/ethcore/hyper)",
  "jsonrpc-core 4.0.0 (git+https://github.com/ethcore/jsonrpc.git)",
@@ -864,7 +864,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-ipc-server"
 version = "0.2.4"
-source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
+source = "git+https://github.com/ethcore/jsonrpc.git#1500da1b9613a0a17fc0109d825f3ccc60199a53"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -879,7 +879,7 @@ dependencies = [
 [[package]]
 name = "jsonrpc-tcp-server"
 version = "0.1.0"
-source = "git+https://github.com/ethcore/jsonrpc.git#20c7e55b84d7fd62732f062dc3058e1b71133e4a"
+source = "git+https://github.com/ethcore/jsonrpc.git#1500da1b9613a0a17fc0109d825f3ccc60199a53"
 dependencies = [
  "bytes 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "env_logger 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
