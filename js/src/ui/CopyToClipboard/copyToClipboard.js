@@ -80,7 +80,13 @@ class CopyToClipboard extends Component {
 
   onCopy = () => {
     const { data, onCopy, cooldown, showSnackbar } = this.props;
-    const message = (<div>copied <code className={ styles.data }>{ data }</code> to clipboard</div>);
+    const message = (
+      <div className={ styles.container }>
+        <span>copied </span>
+        <code className={ styles.data }> { data } </code>
+        <span> to clipboard</span>
+      </div>
+    );
 
     this.setState({
       copied: true,
