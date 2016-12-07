@@ -33,14 +33,13 @@ git remote add origin $GIT_JS_PRECOMPILED
 git fetch origin 2>$GITLOG
 git checkout -b $BRANCH
 
-echo "*** Cleanup old build"
-mv build build.new
+echo "*** Committing compiled files for $UTCDATE"
+mv build ../build.new
 git pull origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
 git rm build/*.*
-mv -f build.new/*.* build/
-rm -rf build.new
-
-echo "*** Committing compiled files for $UTCDATE"
+git commit -m "$UTCDATE [rm]"
+cp -f ../build.new/*.* build/
+rm -rf ../build.new
 git add .
 git commit -m "$UTCDATE"
 
