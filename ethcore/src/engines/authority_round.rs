@@ -73,14 +73,15 @@ pub struct AuthorityRound {
 	step: AtomicUsize,
 	proposed: AtomicBool,
 	account_provider: Mutex<Option<Arc<AccountProvider>>>,
+	password: RwLock<Option<String>>,
 }
 
 fn header_step(header: &Header) -> Result<usize, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[0]).as_val()
+	UntrustedRlp::new(&header.seal().get(0).expect("was either checked with verify_block_basic or is genesis; has 2 fields; qed (Make sure the spec file has a correct genesis seal)")).as_val()
 }
 
 fn header_signature(header: &Header) -> Result<Signature, ::rlp::DecoderError> {
-	UntrustedRlp::new(&header.seal()[1]).as_val::<H520>().map(Into::into)
+	UntrustedRlp::new(&header.seal().get(1).expect("was checked with verify_block_basic; has 2 fields; qed")).as_val::<H520>().map(Into::into)
 }
 
 trait AsMillis {
@@ -107,6 +108,7 @@ impl AuthorityRound {
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
 				account_provider: Mutex::new(None),
+				password: RwLock::new(None),
 			});
 		let handler = TransitionHandler { engine: Arc::downgrade(&engine) };
 		try!(engine.transition_service.register_handler(Arc::new(handler)));
@@ -198,6 +200,7 @@ impl Engine for AuthorityRound {
 	}
 
 	fn populate_from_parent(&self, header: &mut Header, parent: &Header, gas_floor_target: U256, _gas_ceil_target: U256) {
+		header.set_difficulty(parent.difficulty().clone());
 		header.set_gas_limit({
 			let gas_limit = parent.gas_limit().clone();
 			let bound_divisor = self.our_params.gas_limit_bound_divisor;
@@ -225,7 +228,7 @@ impl Engine for AuthorityRound {
 		if self.is_step_proposer(step, header.author()) {
 			if let Some(ref ap) = *self.account_provider.lock() {
 				// Account should be permanently unlocked, otherwise sealing will fail.
-				if let Ok(signature) = ap.sign(*header.author(), None, header.bare_hash()) {
+				if let Ok(signature) = ap.sign(*header.author(), self.password.read().clone(), header.bare_hash()) {
 					trace!(target: "poa", "generate_seal: Issuing a block for step {}.", step);
 					self.proposed.store(true, AtomicOrdering::SeqCst);
 					return Some(vec![encode(&step).to_vec(), encode(&(&*signature as &[u8])).to_vec()]);
@@ -306,6 +309,10 @@ impl Engine for AuthorityRound {
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
 		*self.message_channel.lock() = Some(message_channel);
+	}
+
+	fn set_signer(&self, _address: Address, password: String) {
+		*self.password.write() = Some(password);
 	}
 
 	fn register_account_provider(&self, account_provider: Arc<AccountProvider>) {
