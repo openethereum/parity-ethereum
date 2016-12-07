@@ -206,7 +206,7 @@ usage! {
 			or |c: &Config| otry!(c.mining).gas_cap.clone(),
 		flag_extra_data: Option<String> = None,
 			or |c: &Config| otry!(c.mining).extra_data.clone().map(Some),
-		flag_tx_queue_size: usize = 2048usize,
+		flag_tx_queue_size: usize = 1024usize,
 			or |c: &Config| otry!(c.mining).tx_queue_size.clone(),
 		flag_tx_queue_gas: String = "auto",
 			or |c: &Config| otry!(c.mining).tx_queue_gas.clone(),
