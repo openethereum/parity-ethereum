@@ -291,7 +291,10 @@ export default class TypedInput extends Component {
   }
 
   onEthValueChange = (event, value) => {
-    const realValue = this.state.isEth && Number.isFinite(value) ? toWei(value) : value;
+    const realValue = this.state.isEth && value !== '' && value !== undefined
+      ? toWei(value).toNumber()
+      : value;
+
     this.setState({ ethValue: value });
     this.props.onChange(realValue);
   }

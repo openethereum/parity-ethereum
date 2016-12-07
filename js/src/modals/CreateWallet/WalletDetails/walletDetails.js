@@ -121,7 +121,7 @@ export default class WalletDetails extends Component {
 
           <TypedInput
             label='wallet day limit'
-            hint='number of days to wait for other owners confirmation'
+            hint='amount of ETH spendable without confirmations'
             value={ wallet.daylimit }
             error={ errors.daylimit }
             onChange={ this.onDaylimitChange }
