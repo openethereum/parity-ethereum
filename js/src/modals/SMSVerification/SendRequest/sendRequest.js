@@ -15,8 +15,8 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import React, { Component, PropTypes } from 'react';
-import nullable from '../../../util/nullable-proptype';
 
+import { nullableProptype } from '~/util/proptypes';
 import TxHash from '~/ui/TxHash';
 import {
   POSTING_REQUEST, POSTED_REQUEST, REQUESTING_SMS
@@ -27,7 +27,7 @@ import styles from './sendRequest.css';
 export default class SendRequest extends Component {
   static propTypes = {
     step: PropTypes.any.isRequired,
-    tx: nullable(PropTypes.any.isRequired)
+    tx: nullableProptype(PropTypes.any.isRequired)
   }
 
   render () {

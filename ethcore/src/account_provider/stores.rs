@@ -74,6 +74,12 @@ impl AddressBook {
 		}
 		self.save();
 	}
+
+	/// Removes an entry
+	pub fn remove(&mut self, a: Address) {
+		self.cache.remove(&a);
+		self.save();
+	}
 }
 
 /// Dapps user settings
@@ -242,6 +248,24 @@ mod tests {
 			"dappOne".into() => DappsSettings {
 				accounts: vec![1.into(), 2.into()],
 			}
+		]);
+	}
+
+	#[test]
+	fn should_remove_address() {
+		let temp = RandomTempPath::create_dir();
+		let path = temp.as_str().to_owned();
+		let mut b = AddressBook::new(path.clone());
+
+		b.set_name(1.into(), "One".to_owned());
+		b.set_name(2.into(), "Two".to_owned());
+		b.set_name(3.into(), "Three".to_owned());
+		b.remove(2.into());
+
+		let b = AddressBook::new(path);
+		assert_eq!(b.get(), hash_map![
+			1.into() => AccountMeta{name: "One".to_owned(), meta: "{}".to_owned(), uuid: None},
+			3.into() => AccountMeta{name: "Three".to_owned(), meta: "{}".to_owned(), uuid: None}
 		]);
 	}
 }

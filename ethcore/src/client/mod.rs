@@ -29,18 +29,21 @@ mod fetch;
 pub use self::client::*;
 pub use self::config::{Mode, ClientConfig, UpdatePolicy, UpdateFilter, DatabaseCompactionProfile, BlockChainConfig, VMType};
 pub use self::error::Error;
-pub use types::ids::*;
 pub use self::test_client::{TestBlockChainClient, EachBlockWith};
+pub use self::chain_notify::ChainNotify;
+pub use self::traits::{BlockChainClient, MiningBlockChainClient, ProvingBlockChainClient};
+
+pub use types::ids::*;
 pub use types::trace_filter::Filter as TraceFilter;
+pub use types::pruning_info::PruningInfo;
+pub use types::call_analytics::CallAnalytics;
+
 pub use executive::{Executed, Executive, TransactOptions};
 pub use env_info::{LastHashes, EnvInfo};
-pub use self::chain_notify::ChainNotify;
 
-pub use types::call_analytics::CallAnalytics;
 pub use block_import_error::BlockImportError;
 pub use transaction_import::TransactionImportResult;
 pub use transaction_import::TransactionImportError;
-pub use self::traits::{BlockChainClient, MiningBlockChainClient};
 pub use verification::VerifierType;
 
 /// IPC interfaces

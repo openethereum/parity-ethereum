@@ -457,6 +457,14 @@ class MethodDecoding extends Component {
       return;
     }
 
+    const { signature, paramdata } = api.util.decodeCallData(input);
+    this.setState({ methodSignature: signature, methodParams: paramdata });
+
+    if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
+      this.setState({ isDeploy: true });
+      return;
+    }
+
     if (contractAddress === '0x') {
       return;
     }
@@ -469,14 +477,6 @@ class MethodDecoding extends Component {
         this.setState({ isContract });
 
         if (!isContract) {
-          return;
-        }
-
-        const { signature, paramdata } = api.util.decodeCallData(input);
-        this.setState({ methodSignature: signature, methodParams: paramdata });
-
-        if (!signature || signature === CONTRACT_CREATE || transaction.creates) {
-          this.setState({ isDeploy: true });
           return;
         }
 

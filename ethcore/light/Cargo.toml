@@ -5,6 +5,10 @@ license = "GPL-3.0"
 name = "ethcore-light"
 version = "1.5.0"
 authors = ["Ethcore <admin@ethcore.io>"]
+build = "build.rs"
+
+[build-dependencies]
+"ethcore-ipc-codegen" = { path = "../../ipc/codegen" }
 
 [dependencies]
 log = "0.3"
@@ -12,5 +16,6 @@ ethcore = { path = ".." }
 ethcore-util = { path = "../../util" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
+ethcore-ipc = { path = "../../ipc/rpc" }
 rlp = { path = "../../util/rlp" }
 time = "0.1"

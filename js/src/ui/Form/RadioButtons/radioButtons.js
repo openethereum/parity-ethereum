@@ -37,7 +37,10 @@ export default class RadioButtons extends Component {
   render () {
     const { value, values } = this.props;
 
-    const index = parseInt(value);
+    const index = Number.isNaN(parseInt(value))
+      ? values.findIndex((val) => val.key === value)
+      : parseInt(value);
+
     const selectedValue = typeof value !== 'object' ? values[index] : value;
     const key = this.getKey(selectedValue, index);
 

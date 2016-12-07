@@ -48,7 +48,7 @@ usage! {
 		flag_testnet: bool,
 		flag_import_geth_keys: bool,
 		flag_datadir: Option<String>,
-		flag_networkid: Option<usize>,
+		flag_networkid: Option<u64>,
 		flag_peers: Option<u16>,
 		flag_nodekey: Option<String>,
 		flag_nodiscover: bool,
@@ -125,7 +125,7 @@ usage! {
 			or |c: &Config| otry!(c.network).nat.clone(),
 		flag_allow_ips: String = "all",
 			or |c: &Config| otry!(c.network).allow_ips.clone(),
-		flag_network_id: Option<usize> = None,
+		flag_network_id: Option<u64> = None,
 			or |c: &Config| otry!(c.network).id.clone().map(Some),
 		flag_bootnodes: Option<String> = None,
 			or |c: &Config| otry!(c.network).bootnodes.clone().map(|vec| Some(vec.join(","))),
@@ -245,6 +245,10 @@ usage! {
 			or |c: &Config| otry!(c.footprint).db_compaction.clone(),
 		flag_fat_db: String = "auto",
 			or |c: &Config| otry!(c.footprint).fat_db.clone(),
+		flag_scale_verifiers: bool = false,
+			or |c: &Config| otry!(c.footprint).scale_verifiers.clone(),
+		flag_num_verifiers: Option<usize> = None, 
+			or |c: &Config| otry!(c.footprint).num_verifiers.clone().map(Some),
 
 		// -- Import/Export Options
 		flag_from: String = "1", or |_| None,
@@ -334,7 +338,7 @@ struct Network {
 	max_pending_peers: Option<u16>,
 	nat: Option<String>,
 	allow_ips: Option<String>,
-	id: Option<usize>,
+	id: Option<u64>,
 	bootnodes: Option<Vec<String>>,
 	discovery: Option<bool>,
 	node_key: Option<String>,
@@ -408,6 +412,8 @@ struct Footprint {
 	cache_size_state: Option<u32>,
 	db_compaction: Option<String>,
 	fat_db: Option<String>,
+	scale_verifiers: Option<bool>,
+	num_verifiers: Option<usize>,
 }
 
 #[derive(Default, Debug, PartialEq, RustcDecodable)]
@@ -611,6 +617,8 @@ mod tests {
 			flag_fast_and_loose: false,
 			flag_db_compaction: "ssd".into(),
 			flag_fat_db: "auto".into(),
+			flag_scale_verifiers: true,
+			flag_num_verifiers: Some(6),
 
 			// -- Import/Export Options
 			flag_from: "1".into(),
@@ -783,6 +791,8 @@ mod tests {
 				cache_size_state: Some(25),
 				db_compaction: Some("ssd".into()),
 				fat_db: Some("off".into()),
+				scale_verifiers: Some(false),
+				num_verifiers: None,
 			}),
 			snapshots: Some(Snapshots {
 				disable_periodic: Some(true),

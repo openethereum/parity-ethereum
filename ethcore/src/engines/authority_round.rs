@@ -21,7 +21,7 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{Rlp, UntrustedRlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -35,6 +35,8 @@ use service::ClientIoMessage;
 use transaction::SignedTransaction;
 use env_info::EnvInfo;
 use builtin::Builtin;
+use blockchain::extras::BlockDetails;
+use views::HeaderView;
 
 /// `AuthorityRound` params.
 #[derive(Debug, PartialEq)]
@@ -272,7 +274,6 @@ impl Engine for AuthorityRound {
 	}
 
 	fn verify_block_family(&self, header: &Header, parent: &Header, _block: Option<&[u8]>) -> Result<(), Error> {
-		// Don't calculate difficulty for genesis blocks.
 		if header.number() == 0 {
 			return Err(From::from(BlockError::RidiculousNumber(OutOfBounds { min: Some(1), max: None, found: header.number() })));
 		}
@@ -284,10 +285,6 @@ impl Engine for AuthorityRound {
 			try!(Err(BlockError::DoubleVote(header.author().clone())));
 		}
 
-		// Check difficulty is correct given the two timestamps.
-		if header.difficulty() != parent.difficulty() {
-			return Err(From::from(BlockError::InvalidDifficulty(Mismatch { expected: *parent.difficulty(), found: *header.difficulty() })))
-		}
 		let gas_limit_divisor = self.our_params.gas_limit_bound_divisor;
 		let min_gas = parent.gas_limit().clone() - parent.gas_limit().clone() / gas_limit_divisor;
 		let max_gas = parent.gas_limit().clone() + parent.gas_limit().clone() / gas_limit_divisor;
@@ -309,6 +306,19 @@ impl Engine for AuthorityRound {
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
 		let mut guard = self.message_channel.lock();
 		*guard = Some(message_channel);
+	}
+
+	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
+		let new_number = new_header.number();
+		let best_number = best_header.number();
+		if new_number != best_number {
+			new_number > best_number
+		} else {
+			// Take the oldest step at given height.
+			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
+			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
+			new_step < best_step
+		}
 	}
 }
 

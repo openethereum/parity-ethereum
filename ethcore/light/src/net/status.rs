@@ -183,8 +183,10 @@ pub struct Capabilities {
 	/// Whether this peer can serve headers
 	pub serve_headers: bool,
 	/// Earliest block number it can serve block/receipt requests for.
+	/// `None` means no requests will be servable.
 	pub serve_chain_since: Option<u64>,
 	/// Earliest block number it can serve state requests for.
+	/// `None` means no requests will be servable.
 	pub serve_state_since: Option<u64>,
 	/// Whether it can relay transactions to the eth network.
 	pub tx_relay: bool,
@@ -198,6 +200,16 @@ impl Default for Capabilities {
 			serve_state_since: None,
 			tx_relay: false,
 		}
+	}
+}
+
+impl Capabilities {
+	/// Update the capabilities from an announcement.
+	pub fn update_from(&mut self, announcement: &Announcement) {
+		self.serve_headers = self.serve_headers || announcement.serve_headers;
+		self.serve_state_since = self.serve_state_since.or(announcement.serve_state_since);
+		self.serve_chain_since = self.serve_chain_since.or(announcement.serve_chain_since);
+		self.tx_relay = self.tx_relay || announcement.tx_relay;
 	}
 }
 

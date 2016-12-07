@@ -33,6 +33,7 @@ export default class AddressSelect extends Component {
     accounts: PropTypes.object,
     contacts: PropTypes.object,
     contracts: PropTypes.object,
+    wallets: PropTypes.object,
     label: PropTypes.string,
     hint: PropTypes.string,
     error: PropTypes.string,
@@ -49,8 +50,8 @@ export default class AddressSelect extends Component {
   }
 
   entriesFromProps (props = this.props) {
-    const { accounts, contacts, contracts } = props;
-    const entries = Object.assign({}, accounts || {}, contacts || {}, contracts || {});
+    const { accounts, contacts, contracts, wallets } = props;
+    const entries = Object.assign({}, accounts || {}, wallets || {}, contacts || {}, contracts || {});
     return entries;
   }
 

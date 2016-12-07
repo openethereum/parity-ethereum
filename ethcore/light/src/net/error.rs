@@ -52,6 +52,8 @@ pub enum Error {
 	UnexpectedHandshake,
 	/// Peer on wrong network (wrong NetworkId or genesis hash)
 	WrongNetwork,
+	/// Unknown peer.
+	UnknownPeer,
 }
 
 impl Error {
@@ -64,6 +66,7 @@ impl Error {
 			Error::UnrecognizedPacket(_) => Punishment::Disconnect,
 			Error::UnexpectedHandshake => Punishment::Disconnect,
 			Error::WrongNetwork => Punishment::Disable,
+			Error::UnknownPeer => Punishment::Disconnect,
 		}
 	}
 }
@@ -89,6 +92,7 @@ impl fmt::Display for Error {
 			Error::UnrecognizedPacket(code) => write!(f, "Unrecognized packet: 0x{:x}", code),
 			Error::UnexpectedHandshake => write!(f, "Unexpected handshake"),
 			Error::WrongNetwork => write!(f, "Wrong network"),
+			Error::UnknownPeer => write!(f, "unknown peer"),
 		}
 	}
 }

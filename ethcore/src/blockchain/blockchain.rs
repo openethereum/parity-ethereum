@@ -34,6 +34,7 @@ use blockchain::update::ExtrasUpdate;
 use blockchain::{CacheSize, ImportRoute, Config};
 use db::{self, Writable, Readable, CacheUpdatePolicy};
 use cache_manager::CacheManager;
+use engines::Engine;
 
 const LOG_BLOOMS_LEVELS: usize = 3;
 const LOG_BLOOMS_ELEMENTS_PER_INDEX: usize = 16;
@@ -198,6 +199,9 @@ pub struct BlockChain {
 	pending_block_hashes: RwLock<HashMap<BlockNumber, H256>>,
 	pending_block_details: RwLock<HashMap<H256, BlockDetails>>,
 	pending_transaction_addresses: RwLock<HashMap<H256, Option<TransactionAddress>>>,
+
+	// Used for block ordering.
+	engine: Arc<Engine>,
 }
 
 impl BlockProvider for BlockChain {
@@ -415,9 +419,8 @@ impl<'a> Iterator for AncestryIter<'a> {
 }
 
 impl BlockChain {
-	#[cfg_attr(feature="dev", allow(useless_let_if_seq))]
-	/// Create new instance of blockchain from given Genesis
-	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>) -> BlockChain {
+	/// Create new instance of blockchain from given Genesis and block picking rules of Engine.
+	pub fn new(config: Config, genesis: &[u8], db: Arc<Database>, engine: Arc<Engine>) -> BlockChain {
 		// 400 is the avarage size of the key
 		let cache_man = CacheManager::new(config.pref_cache_size, config.max_cache_size, 400);
 
@@ -442,6 +445,7 @@ impl BlockChain {
 			pending_block_hashes: RwLock::new(HashMap::new()),
 			pending_block_details: RwLock::new(HashMap::new()),
 			pending_transaction_addresses: RwLock::new(HashMap::new()),
+			engine: engine,
 		};
 
 		// load best block
@@ -858,13 +862,12 @@ impl BlockChain {
 		let number = header.number();
 		let parent_hash = header.parent_hash();
 		let parent_details = self.block_details(&parent_hash).unwrap_or_else(|| panic!("Invalid parent hash: {:?}", parent_hash));
-		let total_difficulty = parent_details.total_difficulty + header.difficulty();
-		let is_new_best = total_difficulty > self.best_block_total_difficulty();
+		let is_new_best = self.engine.is_new_best_block(self.best_block_total_difficulty(), HeaderView::new(&self.best_block_header()), &parent_details, header);
 
 		BlockInfo {
 			hash: hash,
 			number: number,
-			total_difficulty: total_difficulty,
+			total_difficulty: parent_details.total_difficulty + header.difficulty(),
 			location: if is_new_best {
 				// on new best block we need to make sure that all ancestors
 				// are moved to "canon chain"
@@ -1319,9 +1322,14 @@ mod tests {
 	use views::BlockView;
 	use transaction::{Transaction, Action};
 	use log_entry::{LogEntry, LocalizedLogEntry};
+	use spec::Spec;
 
 	fn new_db(path: &str) -> Arc<Database> {
 		Arc::new(Database::open(&DatabaseConfig::with_columns(::db::NUM_COLUMNS), path).unwrap())
+	}
+
+	fn new_chain(genesis: &[u8], db: Arc<Database>) -> BlockChain {
+		BlockChain::new(Config::default(), genesis, db, Spec::new_null().engine) 
 	}
 
 	#[test]
@@ -1334,7 +1342,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 0);
 
 		// when
@@ -1360,7 +1368,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		assert_eq!(bc.genesis_hash(), genesis_hash.clone());
 		assert_eq!(bc.best_block_hash(), genesis_hash.clone());
@@ -1391,7 +1399,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut block_hashes = vec![genesis_hash.clone()];
 		let mut batch = db.transaction();
@@ -1427,7 +1435,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();
 		for b in &[&b1a, &b1b, &b2a, &b2b, &b3a, &b3b, &b4a, &b4b, &b5a, &b5b] {
@@ -1489,7 +1497,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
@@ -1577,7 +1585,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let _ = bc.insert_block(&mut batch, &b1a, vec![]);
@@ -1639,7 +1647,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch = db.transaction();
 		let ir1 = bc.insert_block(&mut batch, &b1, vec![]);
@@ -1755,7 +1763,7 @@ mod tests {
 		let temp = RandomTempPath::new();
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 			assert_eq!(bc.best_block_hash(), genesis_hash);
 			let mut batch =db.transaction();
 			bc.insert_block(&mut batch, &first, vec![]);
@@ -1766,7 +1774,7 @@ mod tests {
 
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 
 			assert_eq!(bc.best_block_hash(), first_hash);
 		}
@@ -1821,7 +1829,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		let mut batch =db.transaction();
 		bc.insert_block(&mut batch, &b1, vec![]);
 		db.write(batch).unwrap();
@@ -1881,7 +1889,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		insert_block(&db, &bc, &b1, vec![Receipt {
 			state_root: H256::default(),
 			gas_used: 10_000.into(),
@@ -1985,7 +1993,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let blocks_b1 = bc.blocks_with_bloom(&bloom_b1, 0, 5);
 		let blocks_b2 = bc.blocks_with_bloom(&bloom_b2, 0, 5);
@@ -2042,7 +2050,7 @@ mod tests {
 
 		{
 			let db = new_db(temp.as_str());
-			let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+			let bc = new_chain(&genesis, db.clone());
 			let uncle = canon_chain.fork(1).generate(&mut finalizer.fork()).unwrap();
 
 			let mut batch =db.transaction();
@@ -2061,7 +2069,7 @@ mod tests {
 
 		// re-loading the blockchain should load the correct best block.
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 		assert_eq!(bc.best_block_number(), 5);
 	}
 
@@ -2078,7 +2086,7 @@ mod tests {
 
 		let temp = RandomTempPath::new();
 		let db = new_db(temp.as_str());
-		let bc = BlockChain::new(Config::default(), &genesis, db.clone());
+		let bc = new_chain(&genesis, db.clone());
 
 		let mut batch =db.transaction();
 		bc.insert_block(&mut batch, &first, vec![]);

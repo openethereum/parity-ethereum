@@ -28,6 +28,7 @@ use ethcore::service::ClientService;
 use ethcore::account_provider::AccountProvider;
 use ethcore::miner::{Miner, MinerService, ExternalMiner, MinerOptions};
 use ethcore::snapshot;
+use ethcore::verification::queue::VerifierSettings;
 use ethsync::SyncConfig;
 use informant::Informant;
 
@@ -70,7 +71,7 @@ pub struct RunCmd {
 	pub http_conf: HttpConfiguration,
 	pub ipc_conf: IpcConfiguration,
 	pub net_conf: NetworkConfiguration,
-	pub network_id: Option<usize>,
+	pub network_id: Option<u64>,
 	pub warp_sync: bool,
 	pub acc_conf: AccountsConfig,
 	pub gas_pricer: GasPricerConfig,
@@ -94,6 +95,7 @@ pub struct RunCmd {
 	pub check_seal: bool,
 	pub download_old_blocks: bool,
 	pub require_consensus: bool,
+	pub verifier_settings: VerifierSettings,
 }
 
 pub fn open_ui(dapps_conf: &dapps::Configuration, signer_conf: &signer::Configuration) -> Result<(), String> {
@@ -222,7 +224,7 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 	miner.set_transactions_limit(cmd.miner_extras.transactions_limit);
 
 	// create client config
-	let client_config = to_client_config(
+	let mut client_config = to_client_config(
 		&cmd.cache_config,
 		update_policy, 
 		mode.clone(),
@@ -236,6 +238,8 @@ pub fn execute(cmd: RunCmd, logger: Arc<RotatingLogger>) -> Result<(), String> {
 		cmd.pruning_history,
 		cmd.check_seal,
 	);
+
+	client_config.queue.verifier_settings = cmd.verifier_settings;
 
 	// set up bootnodes
 	let mut net_conf = cmd.net_conf;

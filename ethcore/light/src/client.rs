@@ -101,7 +101,7 @@ impl Provider for Client {
 		Vec::new()
 	}
 
-	fn code(&self, _req: request::ContractCodes) -> Vec<Bytes> {
+	fn contract_code(&self, _req: request::ContractCodes) -> Vec<Bytes> {
 		Vec::new()
 	}
 

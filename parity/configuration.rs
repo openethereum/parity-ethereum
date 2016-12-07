@@ -25,6 +25,7 @@ use util::log::Colour;
 use ethsync::{NetworkConfiguration, is_valid_node_url, AllowIP};
 use ethcore::client::{VMType, UpdatePolicy, UpdateFilter};
 use ethcore::miner::{MinerOptions, Banning};
+use ethcore::verification::queue::VerifierSettings;
 
 use rpc::{IpcConfiguration, HttpConfiguration};
 use ethcore_rpc::NetworkSettings;
@@ -159,6 +160,7 @@ impl Configuration {
 				vm_type: vm_type,
 				check_seal: !self.args.flag_no_seal_check,
 				with_color: logger_config.color,
+				verifier_settings: self.verifier_settings(),
 			};
 			Cmd::Blockchain(BlockchainCmd::Import(import_cmd))
 		} else if self.args.cmd_export {
@@ -242,6 +244,8 @@ impl Configuration {
 				None
 			};
 
+			let verifier_settings = self.verifier_settings();
+
 			let run_cmd = RunCmd {
 				cache_config: cache_config,
 				dirs: dirs,
@@ -278,6 +282,7 @@ impl Configuration {
 				check_seal: !self.args.flag_no_seal_check,
 				download_old_blocks: !self.args.flag_no_ancient_blocks,
 				require_consensus: !self.args.flag_no_consensus,
+				verifier_settings: verifier_settings,
 			};
 			Cmd::Run(run_cmd)
 		};
@@ -530,7 +535,7 @@ impl Configuration {
 		Ok(ret)
 	}
 
-	fn network_id(&self) -> Option<usize> {
+	fn network_id(&self) -> Option<u64> {
 		self.args.flag_network_id.or(self.args.flag_networkid)
 	}
 
@@ -718,6 +723,16 @@ impl Configuration {
 
 		!ui_disabled
 	}
+
+	fn verifier_settings(&self) -> VerifierSettings {
+		let mut settings = VerifierSettings::default();
+		settings.scale_verifiers = self.args.flag_scale_verifiers;
+		if let Some(num_verifiers) = self.args.flag_num_verifiers {
+			settings.num_verifiers = num_verifiers;
+		}
+
+		settings
+	}
 }
 
 #[cfg(test)]
@@ -814,6 +829,7 @@ mod tests {
 			vm_type: VMType::Interpreter,
 			check_seal: true,
 			with_color: !cfg!(windows),
+			verifier_settings: Default::default(),
 		})));
 	}
 
@@ -920,6 +936,7 @@ mod tests {
 			acc_conf: Default::default(),
 			gas_pricer: Default::default(),
 			miner_extras: Default::default(),
+			update_policy: Default::default(),
 			mode: Default::default(),
 			tracing: Default::default(),
 			compaction: Default::default(),
@@ -938,7 +955,7 @@ mod tests {
 			check_seal: true,
 			download_old_blocks: true,
 			require_consensus: true,
-			update_policy: Default::default(),
+			verifier_settings: Default::default(),
 		}));
 	}
 
