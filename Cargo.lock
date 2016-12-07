@@ -457,6 +457,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ethcore-light"
+version = "1.5.0"
+dependencies = [
+ "ethcore 1.5.0",
+ "ethcore-io 1.5.0",
+ "ethcore-ipc 1.4.0",
+ "ethcore-ipc-codegen 1.4.0",
+ "ethcore-network 1.5.0",
+ "ethcore-util 1.5.0",
+ "log 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.1.0",
+ "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "ethcore-logger"
 version = "1.5.0"
 dependencies = [
@@ -664,6 +679,7 @@ dependencies = [
  "ethcore-ipc 1.4.0",
  "ethcore-ipc-codegen 1.4.0",
  "ethcore-ipc-nano 1.4.0",
+ "ethcore-light 1.5.0",
  "ethcore-network 1.5.0",
  "ethcore-util 1.5.0",
  "heapsize 0.3.6 (registry+https://github.com/rust-lang/crates.io-index)",

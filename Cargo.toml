@@ -55,7 +55,7 @@ winapi = "0.2"
 daemonize = "0.2"
 
 [features]
-default = ["ui-precompiled"]
+default = ["ui-precompiled", "light"]
 
 ui = [
 	"dapps",
@@ -80,7 +80,7 @@ ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
-light = ["ethcore/light"]
+light = ["ethcore/light", "ethsync/light"]
 
 [[bin]]
 path = "parity/main.rs"

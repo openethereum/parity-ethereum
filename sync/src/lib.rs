@@ -37,6 +37,10 @@ extern crate semver;
 extern crate parking_lot;
 extern crate rlp;
 
+#[cfg(feature = "light")]
+extern crate ethcore_light as light;
+
+
 #[macro_use]
 extern crate log;
 #[macro_use]

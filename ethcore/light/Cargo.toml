@@ -12,7 +12,7 @@ build = "build.rs"
 
 [dependencies]
 log = "0.3"
-ethcore = { path = ".." }
+ethcore = { path = "..", features = ["light"] }
 ethcore-util = { path = "../../util" }
 ethcore-network = { path = "../../util/network" }
 ethcore-io = { path = "../../util/io" }
