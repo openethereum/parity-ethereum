@@ -417,7 +417,10 @@ function parseLogs (logs) {
     logs.forEach((log) => {
       const { address, topics } = log;
       const eventSignature = toHex(topics[0]);
-      const prev = updates[address] || { address };
+      const prev = updates[address] || {
+        [ UPDATE_DAILYLIMIT ]: true,
+        address
+      };
 
       switch (eventSignature) {
         case signatures.OwnerChanged:
