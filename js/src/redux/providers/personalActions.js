@@ -27,18 +27,17 @@ export function personalAccountsInfo (accountsInfo) {
 
   Object.keys(accountsInfo || {})
     .map((address) => Object.assign({}, accountsInfo[address], { address }))
+    .filter((account) => account.uuid || !account.meta.deleted)
     .forEach((account) => {
       if (account.uuid) {
         accounts[account.address] = account;
-      } else if (!account.meta.deleted) {
-        if (account.meta.wallet) {
-          account.wallet = true;
-          wallets[account.address] = account;
-        } else if (account.meta.contract) {
-          contracts[account.address] = account;
-        } else {
-          contacts[account.address] = account;
-        }
+      } else if (account.meta.wallet) {
+        account.wallet = true;
+        wallets[account.address] = account;
+      } else if (account.meta.contract) {
+        contracts[account.address] = account;
+      } else {
+        contacts[account.address] = account;
       }
     });
 
