@@ -33,12 +33,18 @@ git remote add origin $GIT_JS_PRECOMPILED
 git fetch origin 2>$GITLOG
 git checkout -b $BRANCH
 
+echo "*** Cleanup old build"
+mv build build.new
+git pull origin/$BRANCH -X ours --commit -m "$UTCDATE [merge]"
+git rm build/*.*
+mv -f build.new/*.* build/
+rm -rf build.new
+
 echo "*** Committing compiled files for $UTCDATE"
 git add .
 git commit -m "$UTCDATE"
 
 echo "*** Merging remote"
-git merge origin/$BRANCH -X ours --commit -m "$UTCDATE [release]"
 git push origin HEAD:refs/heads/$BRANCH 2>$GITLOG
 PRECOMPILED_HASH=`git rev-parse HEAD`
 
