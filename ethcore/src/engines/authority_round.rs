@@ -304,7 +304,16 @@ impl Engine for AuthorityRound {
 	}
 
 	fn is_new_best_block(&self, _best_total_difficulty: U256, best_header: HeaderView, _parent_details: &BlockDetails, new_header: &HeaderView) -> bool {
-		new_header.number() > best_header.number()
+		let new_number = new_header.number();
+		let best_number = best_header.number();
+		if new_number != best_number {
+			new_number > best_number
+		} else {
+ 			// Take the oldest step at given height.
+ 			let new_step: usize = Rlp::new(&new_header.seal()[0]).as_val();
+			let best_step: usize = Rlp::new(&best_header.seal()[0]).as_val();
+			new_step < best_step
+		}
 	}
 
 	fn register_message_channel(&self, message_channel: IoChannel<ClientIoMessage>) {
