@@ -52,7 +52,7 @@ use blockchain::{BlockChain, BlockProvider, TreeRoute, ImportRoute};
 use client::{
 	BlockID, TransactionID, UncleID, TraceId, ClientConfig, BlockChainClient,
 	MiningBlockChainClient, TraceFilter, CallAnalytics, BlockImportError, Mode,
-	ChainNotify, PruningInfo, ProvingBlockChainClient,
+	ChainNotify, PruningInfo,
 };
 use client::Error as ClientError;
 use env_info::EnvInfo;
@@ -1377,7 +1377,8 @@ impl MayPanic for Client {
 	}
 }
 
-impl ProvingBlockChainClient for Client {
+#[cfg(feature = "light")]
+impl ::client::ProvingBlockChainClient for Client {
 	fn prove_storage(&self, key1: H256, key2: H256, from_level: u32, id: BlockID) -> Vec<Bytes> {
 		self.state_at(id)
 			.and_then(move |state| state.prove_storage(key1, key2, from_level).ok())

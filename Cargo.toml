@@ -80,6 +80,7 @@ ethstore-cli = ["ethcore/ethstore-cli"]
 evm-debug = ["ethcore/evm-debug"]
 evm-debug-tests = ["ethcore/evm-debug-tests"]
 slow-blocks = ["ethcore/slow-blocks"]
+light = ["ethcore/light"]
 
 [[bin]]
 path = "parity/main.rs"

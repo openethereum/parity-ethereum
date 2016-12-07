@@ -31,6 +31,8 @@ use transaction::SignedTransaction;
 use state_db::StateDB;
 
 use util::*;
+
+#[cfg(feature = "light")]
 use util::trie::recorder::{Recorder, BasicRecorder as TrieRecorder};
 
 mod account;
@@ -762,6 +764,7 @@ impl State {
 }
 
 // LES state proof implementations.
+#[cfg(feature = "light")]
 impl State {
 	/// Prove an account's existence or nonexistence in the state trie.
 	/// Returns a merkle proof of the account's trie node with all nodes before `from_level`
