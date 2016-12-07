@@ -21,7 +21,7 @@ use std::sync::Weak;
 use std::time::{UNIX_EPOCH, Duration};
 use util::*;
 use ethkey::{verify_address, Signature};
-use rlp::{UntrustedRlp, View, encode};
+use rlp::{UntrustedRlp, Rlp, View, encode};
 use account_provider::AccountProvider;
 use block::*;
 use spec::CommonParams;
@@ -68,7 +68,7 @@ pub struct AuthorityRound {
 	params: CommonParams,
 	our_params: AuthorityRoundParams,
 	builtins: BTreeMap<Address, Builtin>,
-	transition_service: IoService<BlockArrived>,
+	transition_service: IoService<()>,
 	message_channel: Mutex<Option<IoChannel<ClientIoMessage>>>,
 	step: AtomicUsize,
 	proposed: AtomicBool,
@@ -103,7 +103,7 @@ impl AuthorityRound {
 				params: params,
 				our_params: our_params,
 				builtins: builtins,
-				transition_service: try!(IoService::<BlockArrived>::start()),
+				transition_service: try!(IoService::<()>::start()),
 				message_channel: Mutex::new(None),
 				step: AtomicUsize::new(initial_step),
 				proposed: AtomicBool::new(false),
@@ -147,20 +147,17 @@ struct TransitionHandler {
 	engine: Weak<AuthorityRound>,
 }
 
-#[derive(Clone)]
-struct BlockArrived;
-
 const ENGINE_TIMEOUT_TOKEN: TimerToken = 23;
 
-impl IoHandler<BlockArrived> for TransitionHandler {
-	fn initialize(&self, io: &IoContext<BlockArrived>) {
+impl IoHandler<()> for TransitionHandler {
+	fn initialize(&self, io: &IoContext<()>) {
 		if let Some(engine) = self.engine.upgrade() {
 			io.register_timer_once(ENGINE_TIMEOUT_TOKEN, engine.remaining_step_duration().as_millis())
 				.unwrap_or_else(|e| warn!(target: "poa", "Failed to start consensus step timer: {}.", e))
 		}
 	}
 
-	fn timeout(&self, io: &IoContext<BlockArrived>, timer: TimerToken) {
+	fn timeout(&self, io: &IoContext<()>, timer: TimerToken) {
 		if timer == ENGINE_TIMEOUT_TOKEN {
 			if let Some(engine) = self.engine.upgrade() {
 				engine.step.fetch_add(1, AtomicOrdering::SeqCst);
