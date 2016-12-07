@@ -22,8 +22,6 @@ import { Select, Container, LanguageSelector } from '~/ui';
 
 import layout from '../layout.css';
 
-const MODES = ['active', 'passive', 'dark', 'offline'];
-
 export default class Parity extends Component {
   static contextTypes = {
     api: PropTypes.object.isRequired
@@ -60,9 +58,9 @@ export default class Parity extends Component {
   }
 
   renderModes () {
-    const modes = MODES.map((mode) => {
-      const label = <FormattedMessage id={ `settings.parity.modes.mode_${mode}` } />;
+    const { mode } = this.state;
 
+    const renderItem = (mode, label) => {
       return (
         <MenuItem
           key={ mode }
@@ -71,9 +69,7 @@ export default class Parity extends Component {
           { label }
         </MenuItem>
       );
-    });
-
-    const { mode } = this.state;
+    };
 
     return (
       <Select
@@ -89,7 +85,26 @@ export default class Parity extends Component {
         }
         value={ mode }
         onChange={ this.onChangeMode }>
-        { modes }
+        {
+          renderItem('active', <FormattedMessage
+            id='settings.parity.modes.mode_active'
+            defaultMessage='Parity continuously syncs the chain' />)
+        }
+        {
+          renderItem('passive', <FormattedMessage
+            id='settings.parity.modes.mode_passive'
+            defaultMessage='Parity syncs initially, then sleeps and wakes regularly to resync' />)
+        }
+        {
+          renderItem('dark', <FormattedMessage
+            id='settings.parity.modes.mode_dark'
+            defaultMessage='Parity syncs only when the RPC is active' />)
+        }
+        {
+          renderItem('offline', <FormattedMessage
+            id='settings.parity.modes.mode_offline'
+            defaultMessage="Parity doesn't sync" />)
+        }
       </Select>
     );
   }

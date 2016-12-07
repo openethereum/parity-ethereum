@@ -22,14 +22,7 @@ export default {
   },
 
   parity: {
-    label: 'parity',
-
-    modes: {
-      mode_active: 'Parity continuously syncs the chain',
-      mode_passive: 'Parity syncs initially, then sleeps and wakes regularly to resync',
-      mode_dark: 'Parity syncs only when the RPC is active',
-      mode_offline: "Parity doesn't sync"
-    }
+    label: 'parity'
   },
 
   proxy: {
@@ -40,32 +33,31 @@ export default {
     label: 'views',
 
     accounts: {
-      label: 'Accounts',
-      description: 'A list of all the accounts associated to and imported into this Parity instance. Send transactions, receive incoming values, manage your balances and fund your accounts.'
+      label: 'Accounts'
     },
+
     addresses: {
-      label: 'Addressbook',
-      description: 'A list of all contacts and address book entries that is managed by this Parity instance. Watch accounts and have the details available at the click of a button when transacting.'
+      label: 'Addressbook'
     },
+
     apps: {
-      label: 'Applications',
-      description: 'Distributed applications that interact with the underlying network. Add applications, manage you application portfolio and interact with application from around the network.'
+      label: 'Applications'
     },
+
     contracts: {
-      label: 'Contracts',
-      description: 'Watch and interact with specific contracts that have been deployed on the network. This is a more technically-focused environment, specifically for advanced users that understand the inner working of certain contracts.'
+      label: 'Contracts'
     },
+
     status: {
-      label: 'Status',
-      description: 'See how the Parity node is performing in terms of connections to the network, logs from the actual running instance and details of mining (if enabled and configured).'
+      label: 'Status'
     },
+
     signer: {
-      label: 'Signer',
-      description: 'The secure transaction management area of the application where you can approve any outgoing transactions made from the application as well as those placed into the queue by distributed applications.'
+      label: 'Signer'
     },
+
     settings: {
-      label: 'Settings',
-      description: 'This view. Allows you to customize the application in term of options, operation and look and feel.'
+      label: 'Settings'
     }
   }
 };
