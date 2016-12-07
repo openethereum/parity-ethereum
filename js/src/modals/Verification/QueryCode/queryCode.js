@@ -20,20 +20,25 @@ import { Form, Input } from '~/ui';
 
 export default class QueryCode extends Component {
   static propTypes = {
-    number: PropTypes.string.isRequired,
+    receiver: PropTypes.string.isRequired,
+    hint: PropTypes.string,
     isCodeValid: PropTypes.bool.isRequired,
     setCode: PropTypes.func.isRequired
   }
 
+  static defaultProps = {
+    hint: 'Enter the code you received.'
+  }
+
   render () {
-    const { number, isCodeValid } = this.props;
+    const { receiver, hint, isCodeValid } = this.props;
 
     return (
       <Form>
-        <p>The verification code has been sent to { number }.</p>
+        <p>The verification code has been sent to { receiver }.</p>
         <Input
           label={ 'verification code' }
-          hint={ 'Enter the code you received via SMS.' }
+          hint={ hint }
           error={ isCodeValid ? null : 'invalid code' }
           onChange={ this.onChange }
           onSubmit={ this.onSubmit }

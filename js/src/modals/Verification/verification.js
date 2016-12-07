@@ -158,8 +158,8 @@ export default class Verification extends Component {
       return (<p>{ error }</p>);
     }
 
+    const { method } = this.state;
     if (phase === 0) {
-      const { method } = this.state;
       const values = Object.values(methods);
       const value = values.findIndex((v) => v.value === method);
       return (
@@ -185,7 +185,6 @@ export default class Verification extends Component {
         );
 
       case 2:
-        const { method } = this.state;
         const { setConsentGiven } = this.props.store;
 
         const fields = []
@@ -221,9 +220,19 @@ export default class Verification extends Component {
         );
 
       case 4:
+        let receiver, hint;
+        if (method === 'sms') {
+          receiver = this.props.store.number;
+          hint = 'Enter the code you received via SMS.';
+        } else if (method === 'email') {
+          receiver = this.props.store.email;
+          hint = 'Enter the code you received via e-mail.';
+        }
         return (
           <QueryCode
-            number={ number } fee={ fee } isCodeValid={ isCodeValid }
+            receiver={ receiver }
+            hint={ hint }
+            isCodeValid={ isCodeValid }
             setCode={ setCode }
           />
         );
