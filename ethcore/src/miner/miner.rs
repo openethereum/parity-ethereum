@@ -480,9 +480,11 @@ impl Miner {
 
 	/// Uses Engine to seal the block internally and then imports it to chain.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
-		let mut sealing_work = self.sealing_work.lock();
-		sealing_work.queue.push(block.clone());
-		sealing_work.queue.use_last_ref();
+		{
+			let mut sealing_work = self.sealing_work.lock();
+			sealing_work.queue.push(block.clone());
+			sealing_work.queue.use_last_ref();
+		}
 		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_sealed_block(sealed).is_ok() {

@@ -52,6 +52,15 @@ pub enum Step {
 	Commit
 }
 
+impl Step {
+	pub fn is_pre(self) -> bool {
+		match self {
+			Step::Prevote | Step::Precommit => true,
+			_ => false,
+		}
+	}
+}
+
 pub type Height = usize;
 pub type Round = usize;
 pub type BlockHash = H256;

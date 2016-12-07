@@ -125,7 +125,12 @@ impl VoteCollector {
 
 	pub fn get_up_to(&self, height: Height) -> Vec<Bytes> {
 		let guard = self.votes.read();
-		guard.keys().take_while(|m| m.height <= height).map(|m| ::rlp::encode(m).to_vec()).collect()
+		guard
+			.keys()
+			.filter(|m| m.step.is_pre())
+			.take_while(|m| m.height <= height)
+			.map(|m| ::rlp::encode(m).to_vec())
+			.collect()
 	}
 }
 
