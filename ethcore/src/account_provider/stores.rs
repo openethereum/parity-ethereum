@@ -77,9 +77,7 @@ impl AddressBook {
 
 	/// Removes an entry
 	pub fn remove(&mut self, a: Address) {
-		{
-			self.cache.remove(&a);
-		}
+		self.cache.remove(&a);
 		self.save();
 	}
 }
