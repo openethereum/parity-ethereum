@@ -480,6 +480,9 @@ impl Miner {
 
 	/// Uses Engine to seal the block internally and then imports it to chain.
 	fn seal_and_import_block_internally(&self, chain: &MiningBlockChainClient, block: ClosedBlock) -> bool {
+		let mut sealing_work = self.sealing_work.lock();
+		sealing_work.queue.push(block.clone());
+		sealing_work.queue.use_last_ref();
 		if !block.transactions().is_empty() || self.forced_sealing() {
 			if let Ok(sealed) = self.seal_block_internally(block) {
 				if chain.import_sealed_block(sealed).is_ok() {
@@ -1015,7 +1018,6 @@ impl MinerService for Miner {
 		self.transaction_queue.lock().last_nonce(address)
 	}
 
-
 	/// Update sealing if required.
 	/// Prepare the block and work if the Engine does not seal internally.
 	fn update_sealing(&self, chain: &MiningBlockChainClient) {
@@ -1030,11 +1032,6 @@ impl MinerService for Miner {
 			let (block, original_work_hash) = self.prepare_block(chain);
 			if self.seals_internally {
 				trace!(target: "miner", "update_sealing: engine indicates internal sealing");
-				{
-					let mut sealing_work = self.sealing_work.lock();
-					sealing_work.queue.push(block.clone());
-					sealing_work.queue.use_last_ref();
-				}
 				self.seal_and_import_block_internally(chain, block);
 			} else {
 				trace!(target: "miner", "update_sealing: engine does not seal internally, preparing work");
