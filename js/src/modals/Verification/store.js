@@ -133,19 +133,22 @@ export default class VerificationStore {
       });
   }
 
+  requestValues = () => []
+
   @action sendRequest = () => {
     const { api, account, contract, fee, hasRequested } = this;
 
     const request = contract.functions.find((fn) => fn.name === 'request');
     const options = { from: account, value: fee.toString() };
+    const values = this.requestValues();
 
     let chain = Promise.resolve();
     if (!hasRequested) {
       this.step = POSTING_REQUEST;
-      chain = request.estimateGas(options, [])
+      chain = request.estimateGas(options, values)
         .then((gas) => {
           options.gas = gas.mul(1.2).toFixed(0);
-          return request.postTransaction(options, []);
+          return request.postTransaction(options, values);
         })
         .then((handle) => {
           // TODO: The "request rejected" error doesn't have any property to

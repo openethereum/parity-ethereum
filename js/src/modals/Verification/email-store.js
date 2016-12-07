@@ -15,6 +15,7 @@
 // along with Parity.  If not, see <http://www.gnu.org/licenses/>.
 
 import { observable, computed, action } from 'mobx';
+import { sha3 } from '~/api/util/sha3';
 
 import VerificationStore, {
   LOADING, QUERY_DATA, QUERY_CODE, POSTED_CONFIRMATION, DONE
@@ -55,9 +56,13 @@ export default class EmailVerificationStore extends VerificationStore {
     return super(api, account, isTestnet, 'emailverification');
   }
 
+  requestValues = () => [ sha3(this.email) ]
+
   @action setEmail = (email) => {
     this.email = email;
   }
+
+  requestValues = () => [ sha3(this.email) ]
 
   requestCode = () => {
     const { email, account, isTestnet } = this;
